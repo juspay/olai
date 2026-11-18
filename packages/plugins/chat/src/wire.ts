@@ -379,6 +379,32 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /**
+       * TIE A CONVERSATION BACK ONTO AN ITEM THAT STOPPED NAMING IT — the one
+       * press a chat page offers when the note under it lost its tie.
+       *
+       * A note's tie is YAML in a file, and a rewrite from outside olai (a
+       * `git pull`, a plugin's builder rewriting its own `README.md` with its
+       * file tools) takes it off where no fence of ours reaches. The
+       * conversation is untouched by that — the serve holds it by its own id —
+       * so the browser hands back the pair it was reading and the note names
+       * it again.
+       *
+       * Refuses when there is nothing there to tie to, when the item already
+       * names a chat, and when that conversation already belongs to another
+       * item (`./server/binding.ts` argues each).
+       */
+      retie: {
+        input: Schema.Struct({
+          /** The item the tie is written onto — the key the roster answers
+           *  with. */
+          node: Schema.String,
+          /** The conversation that is being named again. */
+          agent: Schema.String,
+          session: Schema.String,
+        }),
+        error: ChatFailure,
+      },
+      /**
        * PUT A NODE'S AGENT TO SLEEP — stop what it is doing and close its seat,
        * keeping the chat.
        *
@@ -662,6 +688,7 @@ export const faces = {
     "conversation.locations": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.closeAgent": "tool",
+    "conversation.retie": "tool",
     "conversation.sleep": "tool",
     "conversation.setSleeping": "tool",
     "conversation.setOpens": "tool",

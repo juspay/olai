@@ -61,20 +61,23 @@ test("the audit refuses numeric and nullable fields without a string spelling", 
 /**
  * THE WHOLE STANDING RESERVATION SET, exactly — the words no agent face may
  * write, whatever row is composed: a person's enablement choice, a person's
- * approval of code that runs, and the key that says WHICH conversation an item
- * is having.
+ * approval of code that runs, the key that says WHICH conversation an item is
+ * having, and the switch that says how a note's chat opens.
  *
- * Chat's is spelled as a literal in its policy module, because that module is
- * in the host's permanent entry closure and may import nothing; the word is
- * held against the assembled vocabulary below rather than against a second
- * copy of the literal.
+ * Chat's two are spelled as literals in its policy module, because that module
+ * is in the host's permanent entry closure and may import nothing; the words
+ * are held against the assembled vocabulary below rather than against a second
+ * copy of the literals.
  */
-test("the agent write reservation set is enablement, definition approval and a chat's seat", async () => {
+test("the agent write reservation set is enablement, definition approval and a chat's seat and switch", async () => {
   const { WRITE_RESERVATIONS } = await import("./policy.ts")
   expect(WRITE_RESERVATIONS.map(({ key, file }) => ({ key, file })).sort((a, b) => a.key.localeCompare(b.key))).toEqual([
-    { key: "approved", file: undefined }, { key: "chat-agent-session", file: undefined }, { key: "on", file: "settings.olai" },
+    { key: "approved", file: undefined }, { key: "chat-agent-session", file: undefined },
+    { key: "chat-opens", file: undefined }, { key: "on", file: "settings.olai" },
   ])
-  expect([...(await Effect.runPromise(declaredKinds)).keys()]).toContain("chat-agent-session")
+  const declared = [...(await Effect.runPromise(declaredKinds)).keys()]
+  expect(declared).toContain("chat-agent-session")
+  expect(declared).toContain("chat-opens")
 })
 
 test("every shipped declaration supplies a control for each leaf in schema order", async () => {

@@ -236,6 +236,14 @@ export interface Roster {
    */
   readonly opensKey: () => string
   /**
+   * ...AND EVERY KEY THAT SWITCH COULD BE WRITTEN UNDER — {@link keys}' list
+   * for the fourth kind, and the door's reason for it: the switch is a
+   * person's choice per note (`../policy.ts`'s `OPENS`), so a seated agent's
+   * ticket forbids it, and a board mid-migration declaring two keys of this
+   * kind must have both forbidden or the other is a way in.
+   */
+  readonly opensKeys: () => ReadonlyArray<string>
+  /**
    * WHETHER THIS CHAT IS TIDIED ON ITS OWN CLOCK — a person's answer, read off
    * whichever of this vault's keys for that kind carries one.
    *
@@ -352,6 +360,7 @@ export const roster = (): Roster => {
     sleepKey: () => sleepingKeys[0] ?? SLEEPING_TYPE,
     sleepKeys: () => sleepingKeys,
     opensKey: () => opensKeys[0] ?? OPENS_TYPE,
+    opensKeys: () => opensKeys,
     sleeps: sleeping,
     nearestAt: nearest,
     rowsWith: (overheard, live, sleep) => joined(held, overheard, live).map(row => {

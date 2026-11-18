@@ -356,6 +356,13 @@ export const commitDoor = (writer: Writer): string => {
   switch (writer) {
     case "web":
     case "move":
+    // `filer` is a word no current writer produces — the server that filed
+    // conversations into the Inbox is gone, and the trailer survives only so
+    // old commits still read sensibly — so no pending write can be attributed
+    // to it either. Like `auto` it is spelled rather than defaulted, so the
+    // switch stays total; the door it HAD, when something wrote it, was the
+    // one `web` and `move` write through.
+    case "filer":
     // `auto` is the quiet-window loop, which writes no FILE — it only ever
     // makes commits — so no write is ever attributed to it and this arm is
     // unreachable by construction. It is spelled rather than defaulted for the

@@ -9,6 +9,7 @@ import { fold, unfold } from "./agents/folding.ts"
 import { chatWire } from "./wire.ts"
 
 import { freshStartQuestion } from "./agents/fresh-start.ts"
+import { CLOSE_CHAT } from "./agents/closing.ts"
 
 /**
  * ONE ENTRY per gesture, however many engines: a choice of the engines that
@@ -135,8 +136,18 @@ const TIDY_MEMORY: RowVerb = {
   },
 }
 
+/**
+ * CLOSE, WHICH IS AN UNTYING. The tie comes off the row or the note and the
+ * conversation stays in the engine's own store — unreachable from anywhere in
+ * olai, because an item naming it is the only thing that lists one. The label
+ * says *the chat* rather than *the agent* for that reason: no process is
+ * closed here (that is *Put to sleep*), a chat stops belonging to a thing.
+ * The sentence about what it costs is `./agents/closing.ts`'s, and the line
+ * under a conversation draws it as a tip; a menu row has nowhere to put one,
+ * which is why the label itself had to stop promising a place to find it.
+ */
 const CLOSE_AGENT: RowVerb = {
-  id: "close-agent", writes: true, label: "Close the agent",
+  id: "close-agent", writes: true, label: CLOSE_CHAT,
   run: async (node: string) => {
     const outcome = await runAsync(chatWire().procedures.conversation.closeAgent({ node }))
     if (Result.isFailure(outcome)) return outcome.failure.message

@@ -27,11 +27,13 @@ import { itemOf } from "@olai/format"
 /** THE DOOR A ROW IS, read for the pane this column is drawn in: the address
  *  a press opens (`./focus.ts` decides which, off the row's own switch) and
  *  what opening it marks. A hook rather than a value, because the router is
- *  the thing it closes over. */
+ *  the thing it closes over — and the href of a *beside* row is composed
+ *  against the LAYOUT that is open, so pressing one keeps the panes a reader
+ *  has arranged instead of replacing them. */
 const createFocus = () => {
   const router = useRouter()
   return {
-    href: (row: Row) => chatHref(router.routes, row),
+    href: (row: Row) => chatHref(router.routes, row, router.workspace()),
     visit: visitAgent,
   }
 }

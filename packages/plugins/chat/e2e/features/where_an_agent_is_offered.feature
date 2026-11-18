@@ -128,7 +128,7 @@ Feature: An agent is offered only where one can start
     When I press "Escape"
     And I open the node menu of "install"
     Then the node menu does not offer "Fresh start"
-    And the node menu does not offer "Close the agent"
+    And the node menu does not offer "Close the chat"
     When I press "Escape"
     And I open the plugins panel
     And I switch the plugin "chat" on

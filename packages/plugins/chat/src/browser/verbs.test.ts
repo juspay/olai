@@ -49,11 +49,11 @@ test("a node talking through a conversation offers fresh start, its own engine f
     { id: "sleep-when-idle", label: "Sleep when idle" },
     // ...THEN THE PASS BY HAND, on the rows that have a conversation and above
     // the release: tidying a node's memory is not being done with its agent,
-    // and `Close the agent` is the one that takes the binding away. The seat's
+    // and `Close the chat` is the one that takes the tie away. The seat's
     // own verb is absent here because this row is asleep — `unbound` standing
     // with a session is the shape a roster frame has before anything is live.
     { id: "tidy-memory", label: "Tidy memory" },
-    { id: "close-agent", label: "Close the agent" },
+    { id: "close-agent", label: "Close the chat" },
   ])
 })
 

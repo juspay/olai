@@ -306,9 +306,10 @@ export interface LinkProps {
    * from a row silently and compiled.
    *
    * The tip rides the PAGE's layer, which is what a link in a row wants. A
-   * link that sits in the bar or in the chat dock has to cover them, and that
-   * is a fact about the PLACE rather than about the link: such a caller wraps
-   * `<Link>` in its own `<Tip layer={LAYER.over}>` and passes nothing here —
+   * link that sits in the bar, or anywhere else drawn over the page, has to
+   * cover them, and that is a fact about the PLACE rather than about the
+   * link: such a caller wraps `<Link>` in its own `<Tip layer={LAYER.over}>`
+   * and passes nothing here —
    * the `<a>` below is this component's root, so the tip measures the same box
    * either way.
    */

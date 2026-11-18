@@ -257,22 +257,53 @@ Then("there are {int} pane tabs", async function (this: OlaiWorld, n: number) {
   );
 });
 
-/** A PHONE SCROLLS THE DOCUMENT, so this is the window's own scroll — what a
- *  reader does half-way down a long conversation. */
+/**
+ * A PHONE SCROLLS THE DOCUMENT, so this is the window's own scroll — what a
+ * reader does half-way down a long conversation.
+ *
+ * IT FAILS WHEN THE PAGE DID NOT SCROLL, which is the whole of its worth: the
+ * step used to ask for a scroll, wait 150 ms and assert nothing, so a page
+ * with nothing to scroll — or one whose scroll went to a box instead of the
+ * document — passed every assertion about what "stays in view" afterwards. A
+ * document with no room to scroll is the failure, not a quiet pass.
+ *
+ * NO FIXED WAIT: the end is waited FOR, by reading the scroll back until it
+ * is at the bottom (smooth scrolling and a transcript still settling both
+ * land here), and a scroll that never arrives fails as itself.
+ */
 When("I scroll the page to its end", async function (this: OlaiWorld) {
-  await this.page.evaluate(() => { window.scrollTo(0, document.body.scrollHeight) });
-  await this.page.waitForTimeout(150);
+  const room = await this.page.evaluate(() => {
+    const doc = document.documentElement
+    window.scrollTo(0, doc.scrollHeight)
+    return doc.scrollHeight - window.innerHeight
+  });
+  assert.ok(room > 1, `the page has nothing to scroll: ${room}px of room under the viewport`);
+  await this.waitUntil(
+    async () => await this.page.evaluate(() =>
+      window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2),
+    "the page to be scrolled to its end",
+  );
 });
 
 /** ...and the strip is still there afterwards, pinned under the app header:
- *  the way back to the page a conversation is about must not scroll away. */
+ *  the way back to the page a conversation is about must not scroll away.
+ *
+ *  THE SCROLL IS RE-ASSERTED HERE, because this is the step a scenario trusts:
+ *  a strip at the top of an UNSCROLLED page is where a strip always is, and
+ *  says nothing about what happens when a person reads to the end. */
 Then("the pane tabs stay under the header", async function (this: OlaiWorld) {
   const tabs = this.frontLane().locator(PANE_TABS);
   await tabs.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const scrolled = await this.page.evaluate(() => window.scrollY);
+  assert.ok(scrolled > 0, "the page is not scrolled, so nothing here is about staying in view");
   const header = await this.page.locator(APP_HEADER).boundingBox();
   const box = await tabs.boundingBox();
   assert.ok(header && box && Math.abs(box.y - header.y - header.height) <= 1,
-    `the pane strip scrolled away: ${JSON.stringify({ header, box })}`);
+    `the pane strip scrolled away: ${JSON.stringify({ header, box, scrolled })}`);
+  // THE BAR ITSELF IS STILL THERE TOO: the strip is pinned UNDER it, so a bar
+  // that scrolled away would take the strip with it and this measurement
+  // would still agree.
+  assert.ok(header && Math.abs(header.y) <= 1, `the app header scrolled away: ${JSON.stringify(header)}`);
 });
 
 When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index: number) {

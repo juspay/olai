@@ -123,6 +123,27 @@ Feature: A chat opens in the pane beside what it is about
     And the chat page conversation is ready
     And there should be no page errors
 
+  # A PANE DRAGGED SHUT IS STILL A PANE: it keeps its page and shows a rail
+  # with its name on it. *Shown beside* points at exactly that column, so the
+  # press has to OPEN it — a press that only moved the caret into a shut
+  # column was a press that did nothing a person could see.
+  Scenario: Shown beside opens a pane that was dragged shut, and then focuses it
+    Given I open the outline "house.olai"
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I open the chat beside the fold on "install"
+    Then there are 2 panes
+    And pane 1 is showing "/chat/install"
+    When I collapse pane 1 by dragging its divider
+    Then a pane rail is shown for pane 1
+    When I focus pane 0
+    And I press Shown beside about "install"
+    Then no pane rail is shown
+    And pane 1 is focused
+    And pane 1 is showing "/chat/install"
+    And the chat page conversation is ready
+    And there should be no page errors
+
   # A PIN IS NOT A LINK IN THE CONVERSATION: it is pressed in the sidebar, and
   # it lands where every pin lands — the focused pane, chat or not.
   Scenario: A pin pressed with the chat pane focused lands in that pane

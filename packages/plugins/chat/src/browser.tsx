@@ -7,7 +7,9 @@ import { chatRouteOf } from "./browser/agents/route.ts"
 import { ChatLinkPreview, previewNode } from "./browser/LinkPreview.tsx"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
-import { SESSION_KIND } from "./binding.ts"
+import { OPENS_KIND, SESSION_KIND } from "./binding.ts"
+import { browserManagement } from "@olai/surface/management"
+import { holdPluginRoster } from "./browser/plugin-roster.ts"
 /**
  * Chat owns the activation roster, per-conversation UI, and tab-local folds.
  * Outlines owns the row and page slots; sidebar and navigation own their
@@ -171,9 +173,16 @@ export default definePlugin({
     // document page places).
     yield* (yield* rendererSlots).contribute(noteLine,
       props => <AgentsProvider value={state.agents}><NoteLine path={props.path} /></AgentsProvider>)
-    // The aside reads the activation roster once per row; only opening a fold
-    // acquires a conversation. Unbound rows offer a start gesture.
+    // NEITHER OF THIS PLUGIN'S TWO WRITTEN KEYS IS DRAWN AS A PROPERTY. The
+    // tie and the switch are what a chat IS and how it opens, and both are
+    // already on screen as themselves — the row's own face, and the line at
+    // the top of a note with its alone/beside switch. Drawn as chips as well
+    // they are the same fact twice, spelled as machinery
+    // (`chat-agent-session claude:sess-…`). The aside reads the activation
+    // roster once per row; only opening a fold acquires a conversation.
+    // Unbound rows offer a start gesture.
     yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })
+    yield* slots.register("outline.row.placement", OPENS_KIND, { inRows: false })
     yield* slots.register("outline.row.aside", props => <AgentsProvider value={state.agents}><Standing {...props} /></AgentsProvider>)
     // THE MARK A BOUND ANCESTOR'S CRUMB WEARS — outlines draws this per crumb
     // in every trail it owns, and search's place line draws it too, so the
@@ -277,6 +286,14 @@ export const components = {
   pages: definePlugin({ name: "pages", needs: [outlineBrowser], apply: Effect.gen(function*() {
     const value = yield* outlineBrowser
     yield* Effect.acquireRelease(Effect.sync(() => holdPages(value.readings)), stop => Effect.sync(stop))
+  }) }),
+  /** WHETHER THIS TAB IS REPLACING ITS WIRE, DECLARED — a component of its
+   *  own so every other face of this row keeps drawing on a serve with no
+   *  management door, and so a level that has to know asks through a service
+   *  rather than reaching into `@olai/web` (`./browser/plugin-roster.ts`). */
+  recomposing: definePlugin({ name: "recomposing", needs: [browserManagement], apply: Effect.gen(function*() {
+    const management = yield* browserManagement
+    yield* Effect.acquireRelease(Effect.sync(() => holdPluginRoster(management)), stop => Effect.sync(stop))
   }) }),
   attention: definePlugin({ name: "attention", needs: [alertsChannel, navigationService], apply: Effect.gen(function*() {
     const router = yield* navigationService

@@ -68,6 +68,10 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
   })
 
   const split = router.split
+  /** WHEN A SPLIT IS COLUMNS: on a desktop. The same list below `md` is one
+   *  page with a strip of tabs over it, which is a LONE page's sheet
+   *  (`./pane/Panes.tsx` draws the strip and says why the box must grow). */
+  const columns = createMemo(() => split() && desktop())
   const ready = createMemo(() => props.slots.read(contentStatus).every(({ value }) => value.ready()))
   onCleanup(router.drawContent(ready))
   const started = createMemo((was: boolean) => was || ready(), false)
@@ -107,16 +111,24 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
           }
         />
         <PluginBanners />
+        {/* A SPLIT IS COLUMNS ONLY ON A DESKTOP. Below `md` the same list is
+            a strip of tabs over ONE page (`./pane/Panes.tsx`), and that page
+            is read by scrolling the document — so the shell grows with it,
+            exactly as a lone page's does. Clamped to the viewport it was a
+            box one screen tall with a conversation spilling out of it, and
+            everything `sticky` inside this box — the bar, the tab strip, a
+            page's own head — stopped sticking at the first screen's end,
+            which is why the way back to a note scrolled away. */}
         <div
           class="flex-1"
           classList={{
-            "min-h-0": split(),
+            "min-h-0": columns(),
           }}
         >
                   <div
                     class="relative md:grid"
                     classList={{
-                      [SHELL_SPLIT]: split(),
+                      [SHELL_SPLIT]: columns(),
                       // Split columns own scrolling. In particular, sticky
                       // children after a resize must not extend document overflow.
                       "md:overflow-clip": split(),
@@ -124,7 +136,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                       // the token `layout/css.ts` publishes, so the grid and
                       // the column it holds read one number.
                       "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0,
-                      [SHELL_LONE]: !split(),
+                      [SHELL_LONE]: !columns(),
                     }}
                   >
                     <For each={props.slots.read(sidebar)}>{({ value: parts }) => <>

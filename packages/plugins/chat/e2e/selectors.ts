@@ -259,6 +259,9 @@ export const CHAT_FILE_MARK = selector(TESTID.chatFileMark);
 export const CHAT_PAGE = selector(TESTID.chatPage);
 /** Its heading, and the small mono line under it saying where the item is. */
 export const CHAT_PAGE_TITLE = selector(TESTID.chatPageTitle);
+/** The pinned head itself — the band that must not scroll away, because on a
+ *  phone with the chat alone it is the only way back to the note. */
+export const CHAT_PAGE_HEAD = selector(TESTID.chatPageHead);
 export const CHAT_PAGE_WHERE = selector(TESTID.chatPageWhere);
 /** How the chat stands, at the right of that line — read-only here. */
 export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);
@@ -272,3 +275,9 @@ export const CHAT_BESIDE = selector(TESTID.chatBeside);
 /** A note's switch for where its chat opens; `data-beside` is the answer. */
 export const CHAT_OPENS = selector(TESTID.chatOpens);
 export const CHAT_OPENS_SWITCH = selector(TESTID.chatOpensSwitch);
+/** WHAT THE PAGE SAYS WHEN THE NOTE IS GONE from the directory, and when the
+ *  note is still there but has stopped naming this conversation — with the
+ *  one press that writes the tie back. */
+export const CHAT_PAGE_GONE = selector(TESTID.chatPageGone);
+export const CHAT_PAGE_UNTIED = selector(TESTID.chatPageUntied);
+export const CHAT_RETIE = selector(TESTID.chatRetie);

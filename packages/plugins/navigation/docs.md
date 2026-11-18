@@ -80,7 +80,7 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 
 | The pane says | Why |
 | --- | --- |
-| `Loading…` | the directory is still being read |
+| `Loading…` | the directory has not answered yet — the reading is in flight, or no file kind has arrived, so nothing can be said about this path |
 | `Finding…` | olai is still looking for the file the row lives in |
 | `Page not found` — `There is no node at this address.` | the row does not exist |
 | `Page not found` — `There is no document named notes/plan.md.` | the directory holds nothing by that name |

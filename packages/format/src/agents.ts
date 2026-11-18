@@ -99,9 +99,10 @@
  */
 import { Schema } from "effect"
 
+import { linkedTitle } from "./address.ts"
 import { type Derived, under } from "./derive.ts"
 import { isMarkdown } from "./document.ts"
-import { type Claims, nameOf, textKind } from "./kinds.ts"
+import { type Claim, type Claims, nameOf, textKind } from "./kinds.ts"
 import { isPutAway, isRegular } from "./node.ts"
 import { documentAt, markdownIn, type OutlineSet } from "./set.ts"
 import { declaresKind, type PropDeclarations, textDeclaredAs } from "./typing.ts"
@@ -188,6 +189,28 @@ export const isNotePath = (claims: Claims, path: string): boolean => {
   const kind = textKind(claims, path)
   const claim = kind === null ? undefined : claims.byKind.get(kind)
   return claim !== undefined && claim.kept && claim.opaque !== true
+}
+
+/**
+ * WHETHER A NOTE COULD BE SERVED HERE AT ALL — {@link isNotePath}'s question
+ * with no path in it: does this table claim a kind a note is written in?
+ *
+ * THE POSITIVE SIGNAL A ONE-SHOT MIGRATION ARMS ON. A serve's claim table is
+ * empty at the moment the rows mount and fills as each file row registers its
+ * kind, so "no note here" and "the kind has not landed yet" are the same
+ * reading taken at two moments — and a migration that cannot tell them apart
+ * either spends itself on the early one or re-asks forever on a serve that
+ * will never claim a note at all (`olai-plugin-chat`'s `server/move.ts`).
+ * Asked of the REGISTRY rather than of a reading, it is the fact itself: the
+ * kind is claimed, or nobody serves notes on this build.
+ *
+ * TAKES THE CLAIMS, not a table, because the two askers hold different
+ * shapes: a reading holds a {@link Claims} snapshot and the registry hands out
+ * a map of its own. Neither spells a suffix, for {@link isNotePath}'s reason.
+ */
+export const notesClaimed = (claims: Iterable<Claim>): boolean => {
+  for (const claim of claims) if (claim.holds === "text" && claim.kept && claim.opaque !== true) return true
+  return false
 }
 
 /**
@@ -400,13 +423,42 @@ export const agentsIn = (
       kind: "node",
       id: located.node.id,
       file: located.file,
-      title: located.node.title,
+      title: nodeChatTitle(located.node.title),
       engine: said.engine,
       session: said.session,
       memory: under(derived, located.node.id),
       beside: false,
     }]
   })
+}
+
+/**
+ * WHAT A NODE'S CHAT IS CALLED — the row's title, except a title written as
+ * ONE MARKDOWN LINK, which is called by the link's LABEL.
+ *
+ * PR #700 filed a chat as a row whose title was an address standing in for the
+ * place it was about: `[house](/house.olai)`, `[plan](/notes/plan.md)`. The
+ * move takes the notes' chats onto their notes (`olai-plugin-chat`'s
+ * `server/move.ts`); what it leaves behind on purpose is every row whose
+ * address names something that is not a note — an outline, a plugin's page —
+ * with its agent, because those chats are still that row's. Such a row is
+ * drawn in the OUTLINE by its label (`olai-plugin-navigation`'s `titleFace`,
+ * the Pins convention in website/docs/format.md), and it was drawn everywhere a chat
+ * is named — the sidebar, the palette, the chat's page, its door, a pane's
+ * header — as the raw `[house](/house.olai)`.
+ *
+ * HERE, ON THE ROSTER ROW, because that is the one place every one of those
+ * faces reads the name from ({@link NodeAgent.title}): one rule, one
+ * spelling, and a retitle still moves it on the next frame because nothing is
+ * copied anywhere.
+ *
+ * A BLANK LABEL IS NO NAME — `[](/house.olai)` keeps the title it was written
+ * with, which is at least something a reader can look for in the file, and is
+ * the same answer the outline's own face gives (`labelIn`).
+ */
+export const nodeChatTitle = (title: string): string => {
+  const label = linkedTitle(title)?.label.trim()
+  return label === undefined || label === "" ? title : label
 }
 
 /**

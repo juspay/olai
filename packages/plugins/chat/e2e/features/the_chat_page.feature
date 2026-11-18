@@ -70,6 +70,66 @@ Feature: A chat is a page of its own
     And pane 0 is focused
     And there should be no page errors
 
+  # ONE PRESS, ONE ENTRY. *Open beside* is two acts — this pane becomes the
+  # note, the chat opens to its right — and a Back that undid only half of it
+  # left the reader somewhere they had never been.
+  Scenario: Open beside is one step of history, so Back returns to the chat alone
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then there are 1 panes
+    And pane 0 is showing "/chat/notes/plan.md"
+    When I press Open beside on the chat page
+    Then there are 2 panes
+    And pane 1 is showing "/chat/notes/plan.md"
+    When I go back
+    Then there are 1 panes
+    And pane 0 is showing "/chat/notes/plan.md"
+    And the chat page conversation is ready
+    And there should be no page errors
+
+  # A NOTE CAN GO WHILE ITS CHAT IS OPEN — renamed in a terminal, pulled away
+  # by a `git pull`. The page says so and offers no start: a door onto a file
+  # that is not there is a chat nothing could be written to.
+  Scenario: A chat page whose note is renamed on disk says the note is gone
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then the chat page is about the note "notes/plan.md" named "plan"
+    And the chat page conversation is ready
+    When I ask the agent "and the hinges"
+    And the file "notes/plan.md" is renamed to "notes/kitchen-plan.md"
+    Then the chat page says the note is gone
+    And the chat page offers no chat box
+    # ...AND THE CHAT WENT WITH THE FILE: the tie is front matter, so the
+    # conversation is at the new note's own address.
+    When I open the address "/chat/notes/kitchen-plan.md"
+    Then the chat page is about the note "notes/kitchen-plan.md" named "kitchen-plan"
+    And the chat page conversation is ready
+    And there should be no page errors
+
+  # ...AND A NOTE CAN STOP NAMING ITS CHAT while the conversation is open: a
+  # plugin's builder rewriting its own `README.md` with its file tools takes
+  # the front matter with it, and olai's write fence does not reach a tool
+  # outside olai. The page says what happened — never that the conversation
+  # ended, because it has not — and one press ties it again.
+  Scenario: A note rewritten without its front matter is tied again in one press
+    Given the vault holds "plugins/swatch/README.md" saying "# Swatch"
+    And another writer ties a chat to the note "plugins/swatch/README.md" as "swatch-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "swatch-chat"
+    Then the chat page is about the note "plugins/swatch/README.md" named "swatch"
+    And the chat page conversation is ready
+    When the vault holds "plugins/swatch/README.md" saying "# Swatch\n\nrewritten by its own agent"
+    Then the chat page says "swatch" no longer names this conversation
+    And the chat page offers no chat box
+    When I press tie it again
+    Then the note "plugins/swatch/README.md" carries a chat as "swatch-chat"
+    And the chat page conversation is ready
+    And there should be no page errors
+
   # THE SWITCH IS THE NOTE'S OWN ANSWER, written where a person can read it
   # and a `git pull` can carry it.
   Scenario: The switch says where a note's chat opens, both ways, and the note keeps the answer

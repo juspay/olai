@@ -87,6 +87,9 @@ Feature: A note's chat is named, opened and lit by its note
     And I open the outline "house.olai"
     When I press the Chats row "plan-chat"
     Then the chat page conversation is ready
+    # ...AND THE SAME SENTENCE NAMES THE NOTE, because that is where this
+    # chat's tie is kept.
+    And the close control says "Close the chat. The tie comes off this note, and the conversation is listed nowhere in olai afterwards."
     When I open the Chats menu of "plan-chat"
-    Then the Chats menu offers "Put to sleep, Close the agent"
+    Then the Chats menu offers "Put to sleep, Close the chat"
     And there should be no page errors

@@ -35,6 +35,8 @@ import {
   itemOf,
   memoryOf,
   NO_AGENTS,
+  nodeChatTitle,
+  notesClaimed,
   notesIn,
   sameAgents,
   seatableNote,
@@ -227,6 +229,39 @@ test("a row GROWING its subtree is a reading that differs — memory is live", (
     rosterIn(setWith({ "lanes.olai": LANES })),
     rosterIn(setWith({ "lanes.olai": grown })),
   )).toBe(false)
+})
+
+// ── what a chat filed as a link is called ──────────────────────────────
+
+test("a row titled as one markdown link is named by its LABEL, not its address", () => {
+  // PR #700 filed a chat as a row standing in for the place it was about. The
+  // ones that stay — an outline, a plugin's page — are named the way the
+  // outline draws them.
+  const filed = `{"id":"house-row","ord":"a0","title":"[house](/house.olai)","custom":{"agent-session":"claude:sess-7"}}`
+  expect(rosterIn(setWith({ "chats.olai": filed }))[0]?.title).toBe("house")
+  expect(nodeChatTitle("[plan](/notes/plan.md)")).toBe("plan")
+  expect(nodeChatTitle("  [the kitchen](/#herbs)  ")).toBe("the kitchen")
+})
+
+test("...and every other title is itself — prose, a bare address, a blank label", () => {
+  expect(nodeChatTitle("kitchen remodel")).toBe("kitchen remodel")
+  expect(nodeChatTitle("/house.olai")).toBe("/house.olai")
+  expect(nodeChatTitle("[](/house.olai)")).toBe("[](/house.olai)")
+  expect(nodeChatTitle("see [house](/house.olai) first")).toBe("see [house](/house.olai) first")
+})
+
+// ── and whether a note could be served at all ──────────────────────────
+
+test("a table claiming a kind a note is written in says so; one with only outlines does not", () => {
+  expect(notesClaimed(TEST_CLAIMS.byKind.values())).toBe(true)
+  expect(notesClaimed([...TEST_CLAIMS.byKind.values()].filter((claim) => claim.holds === "nodes"))).toBe(false)
+  expect(notesClaimed([])).toBe(false)
+})
+
+test("a half of somebody's plugin is not a note, however its text is kept", () => {
+  const opaque = [...TEST_CLAIMS.byKind.values()].filter((claim) => claim.opaque === true)
+  expect(opaque.length).toBeGreaterThan(0)
+  expect(notesClaimed(opaque)).toBe(false)
 })
 
 test("how big a memory is, in words — and one row is not `1 rows`", () => {

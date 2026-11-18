@@ -196,7 +196,7 @@ export default definePlugin({
           const sentence = input.sentence.trim()
           yield* gate.run({
             op: "create-doc",
-            file: `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}`,
+            file: pluginReadme(word),
             text: `# ${title}\n\n${sentence === "" ? `A plugin called ${title}.` : sentence}\n`,
           }, "web")
           yield* abreast

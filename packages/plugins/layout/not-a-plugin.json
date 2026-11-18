@@ -22,6 +22,7 @@
   },
   "tabs": {
     "src/layout/css.ts": 1,
+    "src/pane/Panes.tsx": 2,
     "src/testids.ts": 1
   }
 }

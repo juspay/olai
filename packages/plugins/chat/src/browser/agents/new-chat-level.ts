@@ -29,6 +29,7 @@ import { focusedNode } from "../references.ts"
 import { pageReadings } from "../pages.ts"
 import { servedDirectory } from "../vault.ts"
 import { fileMark } from "../kinds.ts"
+import { pluginsChanging } from "../plugin-roster.ts"
 import { byActivity } from "./activity-order.ts"
 import { sendAbout } from "./send-about.ts"
 import { focusAgent } from "./focus.ts"
@@ -37,7 +38,7 @@ import { chatRouteOf } from "./route.ts"
 import { talking } from "./roster.ts"
 import { ITEMS_LIMIT, itemRows, type ItemRow, type LocationItem } from "./where.ts"
 import type { Roster } from "./answered.tsx"
-import type { createNewChat } from "./new-chat.ts"
+import type { NewChatOwner } from "./new-chat.ts"
 
 export const NEW_CHAT_ROW = "new-chat"
 
@@ -67,8 +68,6 @@ const recentItems = (agents: Roster) => createMemo(
   () => byActivity(agents.rows()).slice(0, 32).map(row => row.id), undefined,
   { equals: (before, after) => before.length === after.length && before.every((id, index) => id === after[index]) },
 )
-
-type NewChatOwner = ReturnType<typeof createNewChat>
 
 /** The message level for one chosen item: the engines that can start, the
  *  first chosen, and one submit through the shared permit. */
@@ -166,13 +165,18 @@ export const settled = (typed: Accessor<string>): Accessor<string> => {
 }
 
 
-/** How long the level waits before asking again when a question comes back
- *  with no answer, and how many times it tries. A plugin arriving or leaving
- *  recomposes this serve's surface, and a call made across that moment is
- *  refused: a level that asked once would then stay EMPTY for as long as
- *  somebody looked at it, because nothing is ever going to type again. */
-export const RETRY_PAUSE_MS = 150
-const RETRIES = 10
+/** THE ROW A REFUSED QUESTION LEAVES IN THE LEVEL, and the words on it.
+ *
+ *  A level that asked and was told nothing used to show an empty list, which
+ *  reads exactly like *there is nothing here* — the one thing it is not. The
+ *  server's own sentence goes on the row, and the press asks again: a person's
+ *  gesture rather than a clock, so nothing is retried behind their back and
+ *  nothing is retried for a level nobody is looking at.
+ *
+ *  Its id is deliberately NOT under `new-chat-`: the item rows are addressed
+ *  by that prefix wherever they are read, and a refusal is not one of them. */
+export const REFUSED_ROW = "chat-locations-refused"
+const ASK_AGAIN = "Ask again"
 
 /** The item level's rows, for one opening: Here is read once, as it opens;
  *  the query follows the typed text once typing pauses, and an answer to a
@@ -182,21 +186,61 @@ const itemLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): 
   const here = untrack(hereItem)
   const recent = recentItems(agents)
   const filter = settled(scope.typed)
-  const [answer, setAnswer] = createSignal<{ readonly items: readonly LocationItem[] }>({ items: [] })
+  const [answer, setAnswer] = createSignal<{
+    readonly items: readonly LocationItem[]
+    /** The sentence the last question came back with, or nothing. */
+    readonly refusal: string | null
+  }>({ items: [], refusal: null })
+  /** A person pressing the refusal's row. A counter rather than a flag: two
+   *  presses are two questions, and the second must not be swallowed because
+   *  the first left the signal where it already was. */
+  const [pressed, setPressed] = createSignal(0)
   createEffect(() => {
     const keys = recent()
     const query = { filter: filter(), limit: ITEMS_LIMIT, keys: here === null ? keys : [here, ...keys] }
+    pressed()
     let current = true
-    let timer: ReturnType<typeof setTimeout> | undefined
-    onCleanup(() => { current = false; clearTimeout(timer) })
-    const ask = (left: number): void => {
-      void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
-        if (!current || scope.signal.aborted) return
-        if (result._tag === "Success") setAnswer(result.success)
-        else if (left > 0) timer = setTimeout(() => ask(left - 1), RETRY_PAUSE_MS)
-      })
-    }
-    ask(RETRIES)
+    onCleanup(() => { current = false })
+    // NOTHING IS ASKED ACROSS A RECOMPOSE, and this is the whole of the fix
+    // that used to be a timer. A plugin switched on or off makes the tab dial
+    // a new wire, and every call in flight is interrupted at that moment
+    // (`@olai/web`'s `client/run.ts`, which hands it back as `busy`) — so a
+    // question asked in that window is a question nobody was ever going to
+    // answer. This read is TRACKED (`../plugin-roster.ts`, over the app's
+    // declared management door), so the effect runs again on both edges: it
+    // stands down when the change begins — which also drops whatever the
+    // interrupted call eventually says, because `current` is false by then —
+    // and asks the question again the moment the composition has settled.
+    // That is the EVENT the refusal came from, rather than a guess at how
+    // long it lasts.
+    if (pluginsChanging()) return
+    void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
+      if (!current || scope.signal.aborted) return
+      if (result._tag === "Success") setAnswer({ items: result.success.items, refusal: null })
+      // ...AND A REFUSAL THAT IS NOT THAT IS SHOWN. Whatever the server said
+      // is put on a row of its own, over the list this level last had: an
+      // answer that did arrive is still the best thing to offer, and the
+      // sentence above it says why there is nothing newer.
+      else setAnswer(before => ({ items: before.items, refusal: result.failure.message }))
+    })
+  })
+  // ...AND A FRAME ON THIS PLUGIN'S OWN ROSTER IS PROOF THE WIRE ANSWERS.
+  //
+  // The refusal above has two causes and only one of them has an edge of its
+  // own. A call interrupted by the dial is covered by the guard above; a serve
+  // that was still composing BEHIND that wire — `conversation.locations` reads
+  // the directory the chat server holds, and that reading is remade when the
+  // server recomposes — refuses with its own sentence, at a moment nothing in
+  // this tab announces. What does arrive is the roster cell's next frame: the
+  // subscription re-opens over the new wire and the serve answers it, so a
+  // frame IS the serve saying it can answer questions again.
+  //
+  // Tracked only while a refusal stands, and `answer` is read untracked: a
+  // question that was answered must not be asked again on every activity tick,
+  // and a refused ask must not re-run the effect that made it.
+  createEffect(() => {
+    agents.rows()
+    if (untrack(() => answer().refusal) !== null) setPressed(count => count + 1)
   })
 
   // The palette keys rows by id and hands each row its item; reusing the item
@@ -210,7 +254,17 @@ const itemLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): 
     const key = drawn(row, talking(agents.at(row.item.key)))
     return previous.find(entry => entry.key === key) ?? { key, item: toItem(row) }
   }), [])
-  return createMemo(() => entries().map(entry => entry.item))
+  const refused = createMemo((): ReadonlyArray<PaletteItem> => {
+    const said = answer().refusal
+    return said === null ? [] : [{
+      id: REFUSED_ROW, label: said, hint: ASK_AGAIN, search: "", taking: atOnce,
+      action: { kind: "run", run: async () => {
+        setPressed(count => count + 1)
+        return { keepOpen: true }
+      } },
+    }]
+  })
+  return createMemo(() => [...refused(), ...entries().map(entry => entry.item)])
 }
 
 /** The palette row. Offered only while an engine can start. */

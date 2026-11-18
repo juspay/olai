@@ -199,13 +199,17 @@ test("...and so does a second run after a half-done one, which untied nothing", 
  *  the test table rather than spelled, since a suffix is its row's to spell. */
 const BOOTSTRAP = claims([...TEST_CLAIMS.byKind.values()].filter((claim) => claim.holds === "nodes"))
 
-/** The applier, over a reading, recording what it would have written. */
-const applier = (at: Reading & { readonly outlineRow: string }) => {
+/** The applier, over a reading, recording what it would have written — and
+ *  how many times it asked for the directory at all, which is the claim the
+ *  gate below is about. */
+const applier = (at: Reading & { readonly outlineRow: string }, served = true) => {
   const docs: Array<string> = []
   const removed: Array<string> = []
   const said: Array<string> = []
+  let reads = 0
   const ran = Effect.runSync(applyMoves({
-    read: Effect.succeed(at),
+    served: () => served,
+    read: Effect.sync(() => { reads += 1; return at }),
     text: () => Effect.succeed("# Plan\n"),
     doc: (path) => Effect.sync(() => void docs.push(path)),
     remove: (row) => Effect.sync(() => void removed.push(row)),
@@ -213,8 +217,24 @@ const applier = (at: Reading & { readonly outlineRow: string }) => {
     opensKey: () => OPENS_TYPE,
     log: (line) => Effect.sync(() => void said.push(line)),
   }))
-  return { ran, docs, removed, said }
+  return { ran, docs, removed, said, reads }
 }
+
+test("a build that serves no notes never reads the directory", () => {
+  // THE OTHER HALF OF THE REGRESSION BELOW. With the markdown row switched
+  // off nothing can ever be moved onto a note, and no reading can ever say so
+  // — so a migration that found out by READING walked the whole vault on
+  // every revision for the life of the process. The registry is asked first.
+  const whole = readingOf(setOf(
+    { "lanes.olai": JSON.stringify(CHAT_ROW) },
+    [["notes/plan.md", "# Plan\n"]],
+  ))
+  const off = applier(whole, false)
+  expect(off.ran).toBe(false)
+  expect(off.reads).toBe(0)
+  expect(off.docs).toEqual([])
+  expect(off.removed).toEqual([])
+})
 
 test("a reading that cannot name a note is NOT a vault with nothing to move", () => {
   // THE REGRESSION. On a serve's first readings the markdown kind has not been

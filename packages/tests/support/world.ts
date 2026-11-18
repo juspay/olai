@@ -2465,11 +2465,59 @@ export class OlaiWorld extends World {
     await this.waitForFrame();
   }
 
-  /** The middle of something, waited for and measured — where a finger that
-   *  means to land on it goes. */
+  /**
+   * The middle of something, waited for and measured — where a finger that
+   * means to land on it goes.
+   *
+   * AND IT HAS TO REACH IT, which a box on screen does not promise. A phone
+   * keeps a fixed bar across the foot of the window (the thumbs), so a row
+   * scrolled to the last line of the screen is DRAWN there and PRESSED by
+   * nothing: `scrollIntoViewIfNeeded` is satisfied by a box inside the
+   * viewport, and a finger put in the middle of that box touches the bar. The
+   * press then claims nothing, the browser keeps the gesture and scrolls the
+   * page with the finger, and the step waiting on what the carry would have
+   * armed waits out its whole budget — a failure that says the affordance
+   * never appeared and not that the finger missed. Which rows end up under
+   * the bar is a question about the page's height, so this is exactly the
+   * shape of flake that passes on one machine and fails on another.
+   *
+   * So the point is HIT-TESTED, the way a thumb tests it by feeling what it
+   * touched: when something else is on top, the target is brought to the
+   * middle of the screen — the scroll a hand makes to reach it — and tested
+   * again. What is still covered then is a real miss, named by what is in the
+   * way.
+   */
   private async middleOf(target: Locator, what: string): Promise<Point> {
-    const box = await this.box(target, `the target being ${what}`);
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const middle = async (): Promise<Point> => {
+      const box = await this.box(target, `the target being ${what}`);
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    };
+    /** What a finger put at `at` would touch instead, or `null` for the
+     *  target itself — a child of it counts, since that is what is drawn. */
+    const inTheWay = (at: Point): Promise<string | null> =>
+      target.evaluate((element, point) => {
+        const top = element.ownerDocument.elementFromPoint(point.x, point.y);
+        if (top === null) return "nothing — the point is off the screen";
+        if (top === element || element.contains(top) || top.contains(element)) return null;
+        const named = top.closest("[data-testid]")?.getAttribute("data-testid");
+        return named === null || named === undefined
+          ? `<${top.tagName.toLowerCase()}>`
+          : `<${top.tagName.toLowerCase()}> in "${named}"`;
+      }, at);
+    let at = await middle();
+    const covered = await inTheWay(at);
+    if (covered === null) return at;
+    await target.evaluate(element => element.scrollIntoView({ block: "center", behavior: "instant" }));
+    await this.waitForFrame();
+    at = await middle();
+    const still = await inTheWay(at);
+    assert.equal(
+      still,
+      null,
+      `a finger aimed at the target being ${what} would land on ${still} instead: ` +
+        "something is drawn over it, and the gesture would be made on that",
+    );
+    return at;
   }
 
   /** One touch event, through the DevTools protocol. The session is opened

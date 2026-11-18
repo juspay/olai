@@ -376,6 +376,30 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     And nothing in the vault has a chat
     And there should be no page errors
 
+  # THE LEVEL'S QUESTION ACROSS A RECOMPOSE. A plugin switched on or off makes
+  # this tab dial a new wire, and a question asked across that moment is
+  # interrupted rather than answered. The level stands down while the tab is
+  # composing and asks again when it has settled — the event itself, not a
+  # clock — so a plugin arriving leaves the list where it was, and a question
+  # typed in the same breath is still answered.
+  Scenario: A plugin switched while the level is open leaves it answering
+    Given the vault defines a non-UI host management controller
+    And I open the outline "house.olai"
+    And I open the plugins panel
+    And I approve the plugin "management-controller"
+    And I close the plugins panel
+    When I press new chat in Chats
+    And I type "pick the hinges" into the palette
+    Then the new chat items are "hinges"
+    When the non-UI controller sets plugin "journal" off
+    Then the new chat items are "hinges"
+    When I type "order the new" into the palette
+    Then the new chat items are "order"
+    When the non-UI controller sets plugin "journal" on
+    And I type "pick the hinges" into the palette
+    Then the new chat items are "hinges"
+    And there should be no page errors
+
   @new-chat-review
   Scenario: New chat leaves another node's pending question and draft intact
     Given the harness keeps distinct sessions on disk

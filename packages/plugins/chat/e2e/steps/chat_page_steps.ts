@@ -12,11 +12,13 @@ import assert from "node:assert/strict";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { selector } from "@olai/web/testlib";
 import {
+  APP_HEADER,
   attr,
   BREADCRUMBS,
   CHAT_PANEL,
   CHAT_SAID,
   HYDRATION_TIMEOUT,
+  PANE_TABS,
   POLL_TIMEOUT,
   ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
@@ -33,9 +35,13 @@ import {
   CHAT_OPENS,
   CHAT_OPENS_SWITCH,
   CHAT_PAGE,
+  CHAT_PAGE_GONE,
+  CHAT_PAGE_HEAD,
   CHAT_PAGE_STANDING,
   CHAT_PAGE_TITLE,
+  CHAT_PAGE_UNTIED,
   CHAT_PAGE_WHERE,
+  CHAT_RETIE,
   CHAT_SEND,
   CHAT_TRANSCRIPT,
 } from "../selectors.ts";
@@ -143,6 +149,35 @@ Then("the chat page offers no chat box", async function (this: OlaiWorld) {
     "the chat page to stop offering a box", HYDRATION_TIMEOUT);
 });
 
+// ── a note that went, and a note that stopped naming its chat ──────────
+
+/** THE NOTE IS GONE — renamed or deleted under the open page. The page says
+ *  so where the conversation was, and `the chat page offers no chat box` is
+ *  what the scenario asserts beside it: there is nothing here to start. */
+Then("the chat page says the note is gone", async function (this: OlaiWorld) {
+  const said = page(this).locator(CHAT_PAGE_GONE);
+  await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.ok((await said.innerText()).includes("This note is gone"),
+    `the chat page did not say the note is gone: ${JSON.stringify(await said.innerText())}`);
+});
+
+/** THE NOTE IS THERE AND NO LONGER NAMES THIS CONVERSATION. The page says
+ *  which note, and never that the conversation ended — it has not. */
+Then("the chat page says {string} no longer names this conversation", async function (this: OlaiWorld, name: string) {
+  const said = page(this).locator(CHAT_PAGE_UNTIED);
+  await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const words = await said.innerText();
+  assert.ok(words.includes(`${name} no longer names this conversation`),
+    `the chat page did not say ${JSON.stringify(name)} lost the tie: ${JSON.stringify(words)}`);
+  await said.locator(CHAT_RETIE).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+When("I press tie it again", async function (this: OlaiWorld) {
+  const button = page(this).locator(CHAT_RETIE);
+  await button.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.press(button);
+});
+
 When("I ask from the chat page {string}", async function (this: OlaiWorld, text: string) {
   const door = page(this).locator(`${CHAT_ABOUT}${attr("data-where", "page")}`);
   await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -233,12 +268,11 @@ Then("the chat page says the item is shown beside", async function (this: OlaiWo
  * is.
  *
  * EVERYTHING IS READ AT THE TOP OF THE SCROLL, in the same frame as the
- * scroll: the head is sticky only above `md`
- * (`../../src/browser/agents/ChatPage.tsx`), so on a handset it is the first
- * thing in the scroll and a conversation sitting at its end has scrolled it
- * away on purpose — and the transcript's own stick-to-the-bottom would
- * otherwise land between the scroll and the reading. What is asserted is the
- * screen a person arrives at.
+ * scroll: the head is pinned under the app's chrome, so what it covers while
+ * a reader is half-way down a long conversation is a different question
+ * (`the chat page's head stays in view` below), and the transcript's own
+ * stick-to-the-bottom would otherwise land between the scroll and the
+ * reading. What is asserted here is the screen a person ARRIVES at.
  */
 Then("the chat page fills the phone screen", async function (this: OlaiWorld) {
   const here = page(this);
@@ -268,4 +302,31 @@ Then("the chat page fills the phone screen", async function (this: OlaiWorld) {
   assert.ok(seen.composer !== null && seen.body !== null
     && seen.composer.y >= seen.body.y && seen.composer.y > height * 0.75,
     `the composer is not at the bottom of the phone's screen: ${said}`);
+});
+
+/**
+ * THE WAY BACK, AFTER A SCROLL — the chat page's head, still pinned under
+ * whatever the app has above it.
+ *
+ * WITH THE CHAT ALONE on a phone there is no tab strip, so this head IS the
+ * way back to the note: the button on it reads *Open plan ›*. A reader
+ * half-way down a long conversation who has to scroll to the top to find it
+ * is the complaint this step exists for, so the scroll is asserted here too —
+ * a head at the top of an unscrolled page says nothing.
+ *
+ * UNDER THE STRIP WHERE THERE IS ONE (the same page as a tab of two), and
+ * under the bar where there is not: both are what `--height-chrome` is.
+ */
+Then("the chat page's head stays in view", async function (this: OlaiWorld) {
+  const head = page(this).locator(CHAT_PAGE_HEAD);
+  await head.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const scrolled = await this.page.evaluate(() => window.scrollY);
+  assert.ok(scrolled > 0, "the page is not scrolled, so nothing here is about staying in view");
+  const tabs = this.frontLane().locator(PANE_TABS);
+  const above = (await tabs.count()) > 0
+    ? await tabs.boundingBox()
+    : await this.page.locator(APP_HEADER).boundingBox();
+  const box = await head.boundingBox();
+  assert.ok(above && box && Math.abs(box.y - above.y - above.height) <= 1,
+    `the chat page's head scrolled away: ${JSON.stringify({ above, box, scrolled })}`);
 });

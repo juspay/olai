@@ -145,6 +145,24 @@ Given("the vault holds {string} saying {string}", function (this: OlaiWorld, fil
 });
 
 /**
+ * A FILE OLAI ONLY SHOWS, put into the vault as its own BYTES.
+ *
+ * A picture's page and a `.pdf`'s page are drawn from what the file IS — the
+ * image is decoded, the document is handed to a viewer — so a `.png` holding
+ * the word "picture" is a broken image rather than a picture, and a scenario
+ * that opened one would be asserting about a page in its error face. The
+ * bytes are the suite's own tracked fixtures, copied in, so the page these
+ * scenarios open is the page every other scenario opens.
+ */
+const FIXTURES = path.resolve(import.meta.dirname, "..", "..", "..", "..", "tests", "fixtures", "good");
+
+Given("the vault holds the fixture file {string}", function (this: OlaiWorld, file: string) {
+  const target = path.join(this.scratch(), file);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(path.join(FIXTURES, file), target);
+});
+
+/**
  * ANOTHER WRITER TIES A CHAT TO A NOTE — a second tab, a `git pull`, the same
  * door pressed on another machine. The front matter carries the binding with a
  * session on it, which is a chat a person could go on reading: that is what

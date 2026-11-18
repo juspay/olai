@@ -1126,7 +1126,15 @@ export {
    *  folder's for a `README`, so a vault building three plugins does not have
    *  three chats called `README`. */
   noteTitle,
+  /** ...and where its item is a NODE — the row's title, or the label of a
+   *  title written as one markdown link, so a chat filed as
+   *  `[house](/house.olai)` is called `house` wherever it is named. */
+  nodeChatTitle,
   isNotePath,
+  /** WHETHER A NOTE COULD BE SERVED AT ALL — the same question with no path
+   *  in it, which a one-shot migration arms on rather than re-asking a
+   *  reading that has not been shown the kinds yet. */
+  notesClaimed,
   itemKey,
   itemOf,
   memoryOf,

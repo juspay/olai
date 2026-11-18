@@ -211,6 +211,73 @@ export const closeAgent = (
   })
 
 /**
+ * TIE A CONVERSATION BACK ONTO AN ITEM THAT HAS STOPPED NAMING IT — the one
+ * press behind a chat page whose note lost its tie.
+ *
+ * ## Why this exists
+ *
+ * A note's tie is two lines of YAML in a file anybody can write: a plugin's
+ * builder rewriting its own `README.md` with its file tools, a `git pull`, a
+ * person tidying the block by hand. The ops fence refuses a PLAN that touches
+ * the key (`@olai/ops`' `barred`), and that is the whole of what olai can
+ * hold: a write by a tool outside this app is outside every fence there is.
+ * So the loss is a thing that happens, and the answer is a way BACK rather
+ * than a promise it cannot.
+ *
+ * THE CONVERSATION IS UNTOUCHED BY THE LOSS. The serve holds it by its own
+ * id, not by the tie, so an answer in flight goes on arriving and the session
+ * is still there to be named again — which is exactly what this writes: the
+ * engine and the session the page was reading, back into the note's front
+ * matter, through the same writer and the same one re-read-and-retry every
+ * other tie write goes through.
+ *
+ * ## What it refuses, and why each
+ *
+ * NOTHING TO TIE IT TO — the item is not seatable (no record, or no note the
+ * directory still holds): a tie written into a file that is not there is a
+ * write with nowhere to land, and the page that offers this press says the
+ * note is GONE in that case rather than offering it.
+ *
+ * IT ALREADY HAS A CHAT — somebody (or a second tab) got there first. *One
+ * item, one chat* is the rule every other start is refused by, and a retie
+ * that overwrote a tie would be the one gesture here that loses a
+ * conversation rather than finding one.
+ *
+ * THAT CONVERSATION BELONGS TO SOMETHING ELSE — the same first-claim-wins
+ * reading the roster keeps: a session two items name is one of them holding a
+ * copied tie, and this verb must not be the way that is made.
+ *
+ * THE SWITCH IS NOT PART OF IT. `chat-opens` says where a chat opens and is a
+ * person's answer about a chat they have; restoring a tie restores the tie.
+ */
+export const retie = (
+  binding: Binding,
+  roster: {
+    /** Is there something here to seat a chat on — a record, or a note the
+     *  directory holds and has not put away. */
+    readonly seatable: (item: string) => boolean
+    /** Which item names this conversation already, or `null`. */
+    readonly claimedBy: (to: Conversing) => string | null
+  },
+  input: { readonly node: string; readonly agent: string; readonly session: string },
+): Effect.Effect<void, OpFailure> =>
+  Effect.gen(function*() {
+    const at = itemOf(input.node)
+    const named = at.kind === "note" ? at.path : at.id
+    if (!roster.seatable(input.node)) {
+      return yield* new UsageFailure({ reason: `olai no longer holds \`${named}\`, so there is nothing to tie this chat to` })
+    }
+    if (binding.boundAt(input.node) !== null) {
+      return yield* new UsageFailure({ reason: `\`${named}\` already names a chat` })
+    }
+    const owner = roster.claimedBy({ agent: input.agent, session: input.session })
+    if (owner !== null && owner !== input.node) {
+      return yield* new UsageFailure({ reason: `that conversation already belongs to \`${owner}\`` })
+    }
+    yield* tied(binding, input.node, sessionValue(input.agent, input.session))
+  })
+
+/**
  * SAY WHETHER THIS CHAT IS TIDIED ON ITS OWN — the mark *Sleep when idle* sets
  * and *Stop sleeping when idle* takes off.
  *

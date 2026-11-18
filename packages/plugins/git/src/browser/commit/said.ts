@@ -620,10 +620,21 @@ export const WHO: Readonly<Record<Writer, string>> = {
   // the thing that happened rather than for the process that did it: this is a
   // line in a person's history they did not write and may want to undo.
   sleep: "olai put a node agent's memory in order",
+  // Past tense, and deliberately: nothing writes this trailer any more, so the
+  // only way a person reads this line is off an OLD commit an earlier olai
+  // made when it filed conversations into Inbox › Chats. "olai files" would
+  // describe a thing this olai does not do.
+  filer: "olai filed conversations into the Inbox",
 }
 
 /** Pending counts are Ops writes, not a count of chats: a move writes a note
- * and then its old row. Keep that unit explicit for the move. */
+ * and then its old row. Keep that unit explicit for the move.
+ *
+ * `filer` gets no arm of its own, and that is not an oversight: pending is
+ * what is waiting to be committed NOW, and no live writer produces that
+ * trailer, so no pending count can be attributed to it. The fall-through is
+ * the honest answer — it would read as a past act and a count, which is a
+ * sentence this function has no caller for. */
 export const wroteOf = (writer: Writer, ops: number): string => writer === "move"
   ? `olai moved chats onto their notes · ${ops} ${ops === 1 ? "write" : "writes"}`
   : `${WHO[writer]} ${ops}`

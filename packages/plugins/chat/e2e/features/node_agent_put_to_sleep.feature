@@ -1,10 +1,10 @@
 @scratch:chat
 Feature: Putting one agent to sleep hands its seat back and keeps the chat
   Eight node agents may be awake at once. Until now the only verb that freed
-  one of those seats by hand was *Close the agent*, which does something else
-  entirely — it takes the binding off the node and the chat becomes an
-  unclaimed one. *Put to sleep* is the verb for the thing a person actually
-  wants: stop this agent, give its seat back, leave the chat exactly where it
+  one of those seats by hand was *Close the chat*, which does something else
+  entirely — it takes the tie off the node, and the conversation is listed
+  nowhere afterwards. *Put to sleep* is the verb for the thing a person
+  actually wants: stop this agent, give its seat back, leave the chat where it
   is. It lives on the `•••` of a Chats row, so it can be pressed from the
   column that shows which agents are awake, without opening the chat at all.
 
@@ -30,7 +30,7 @@ Feature: Putting one agent to sleep hands its seat back and keeps the chat
     # is looking at the column, not at the chat they are done with.
     When I open the outline "yard.olai"
     And I open the Chats menu of "install"
-    Then the Chats menu offers "Put to sleep, Tidy memory, Close the agent"
+    Then the Chats menu offers "Put to sleep, Tidy memory, Close the chat"
     When I choose "Put to sleep" from the Chats menu
     Then the agent "install" stands "asleep"
     And the Chats row "install" wears no dot
@@ -107,5 +107,5 @@ Feature: Putting one agent to sleep hands its seat back and keeps the chat
     # NOTHING TO HAND BACK IS NOTHING TO OFFER. A verb drawn on a row where it
     # could only be refused teaches a person nothing; the other two stay.
     When I open the Chats menu of "install"
-    Then the Chats menu offers "Tidy memory, Close the agent"
+    Then the Chats menu offers "Tidy memory, Close the chat"
     And there should be no page errors

@@ -41,6 +41,32 @@ Feature: A press in Chats opens the conversation the way its item says
     And pane 1 is focused
     And there should be no page errors
 
+  # ...AND IT DOES NOT TAKE THE READER'S OTHER PANES WITH IT. A *beside* press
+  # is the same two verbs *Open beside* spends — the pane it lands in becomes
+  # the note, the chat opens to its right — and not a fresh two-pane workspace
+  # that replaced whatever was open.
+  Scenario: A Chats press on a beside note keeps the panes that are already open
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    And I press the opens switch
+    Then the note "notes/plan.md" says it opens "beside"
+    # TWO PANES A READER ARRANGED, neither of them about this chat.
+    When I open the outline "house.olai"
+    And I alt-click the zoom of "install"
+    Then there are 2 panes
+    And pane 1 is focused
+    When I press the Chats row "plan-chat"
+    Then there are 3 panes
+    # THE OUTLINE IS STILL THERE: nothing closed to make room.
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/notes/plan.md"
+    And pane 2 is showing "/chat/notes/plan.md"
+    And pane 2 is focused
+    And the chat page conversation is ready
+    And there should be no page errors
+
   Scenario: A node's chat opens alone whatever else is on screen
     Given I open the outline "house.olai"
     When I open the "claude" agent on node "install"
@@ -78,10 +104,38 @@ Feature: A press in Chats opens the conversation the way its item says
     When I tap pane tab 0
     Then the chat page is about the note "notes/plan.md" named "plan"
     And the chat page conversation is ready
-    When I ask the agent "say a lot"
+    # A CONVERSATION LONGER THAN THE SCREEN, and read to its end — which is
+    # the whole of the complaint: the way back must be there at the bottom of
+    # a long chat and not only at the top of a short one.
+    When I ask the agent "flood"
     And the agent is idle
     And I scroll the page to its end
     Then the pane tabs stay under the header
+    And the chat page's head stays in view
+    And there should be no page errors
+
+  # ...AND WITH THE CHAT ALONE, which is the default and the case with no
+  # strip at all: the page's own head is the way back, so it is the thing that
+  # must not scroll away.
+  @phone
+  Scenario: On a phone the chat alone keeps its way back to the note in view
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then there are 1 panes
+    And the chat page is about the note "notes/plan.md" named "plan"
+    And the chat page conversation is ready
+    When I ask the agent "flood"
+    And the agent is idle
+    And I scroll the page to its end
+    Then the chat page's head stays in view
+    # ...and the way back is ON that head: one press puts the note in the next
+    # tab.
+    And the chat page offers to open "plan"
+    When I press Open beside on the chat page
+    Then the pane tabs are shown
+    And the pane tabs read "plan · chat | plan"
     And there should be no page errors
 
   # THE PHONE HAS ONE PANE AT A TIME, so a chat opened there is the screen: the

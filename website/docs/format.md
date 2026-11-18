@@ -175,7 +175,7 @@ chat-agent-session: claude:0f3c…    ...and one that is talking through that co
 
 The engine is required and the session is optional, so a row is a node agent as soon as the value is there, and the second half says which conversation it is using. Only the first colon splits the value: an engine id is one of olai's own short names and holds no colon, while a session id comes from the engine and may hold several. A directory can put this type on a key of its own name ([plugins/chat.md](plugins/chat.md)).
 
-An agent writing through olai cannot set this key, take it off, or change it, on a row or in a document's front matter. The write is refused with *it is what seats a conversation on a node or a note, and that is a person's gesture in the panel*.
+An agent writing through olai cannot set this key, take it off, or change it, on a row or in a document's front matter. The write is refused with *it is what ties a conversation to a node or a note, and that is a person's own gesture*.
 
 ### `chat-opens`
 
@@ -188,6 +188,8 @@ The second key a document's front matter keeps, beside the tie: where that docum
 | the key absent | the same as `alone` |
 
 The **Opens** switch on the chat's page writes it, and olai takes it off again when the chat is closed. Anything other than `beside` reads as `alone`. A row has no such key, so a row's chat always opens alone. A directory can put this type on a key of its own name too.
+
+An agent writing through olai cannot set this key, take it off, or change it either. That write is refused with *it is whether a note's chat opens beside the page, and that is the person's choice on the note*.
 
 </details>
 

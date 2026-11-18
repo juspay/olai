@@ -29,10 +29,12 @@
 import { createMemo, Show } from "solid-js"
 import type { AgentItem } from "@olai/format"
 import { useRouter } from "olai-plugin-navigation/routing"
+import { navigateIn, openRight } from "olai-plugin-navigation/workspace"
 import { usePane } from "olai-plugin-navigation/pane"
 
 import { TESTID } from "../../testids.ts"
 import { desktop } from "../shell.ts"
+import { showPane } from "./ChatBeside.tsx"
 import { LINE_VERB } from "./verb.ts"
 import { routeOfItem } from "./here.ts"
 import { chatRouteOf } from "./route.ts"
@@ -47,11 +49,17 @@ export function OpenBeside(props: { readonly item: AgentItem; readonly name: str
   const shown = createMemo(() => router.panes().find((one) => router.routes.samePage(one.route(), target())))
   const press = () => {
     const already = shown()
-    if (already !== undefined) { router.focus(already.index()); return }
+    if (already !== undefined) { showPane(router, already.index()); return }
     const here = pane?.index ?? router.focusIndex()
     if (!desktop()) { router.openRight(here, target()); return }
-    router.goIn(here, target())
-    router.openRight(here, chatRouteOf(props.item))
+    // ONE PRESS, ONE ENTRY. The two acts — this pane becomes the ITEM, the
+    // chat opens to its right — are one gesture, so they are committed as one
+    // workspace: pressed as `goIn` and then `openRight` they were two history
+    // entries, and Back took two presses to undo a thing one press did. The
+    // conversation still MOVES rather than reopening: the pane holding this
+    // route keeps its identity when the new list is matched by address
+    // (`olai-plugin-navigation`'s `createPaneState`).
+    router.open(openRight(navigateIn(router.workspace(), here, target()), here, chatRouteOf(props.item)))
   }
   return (
     <button

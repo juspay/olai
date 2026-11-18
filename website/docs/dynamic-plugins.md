@@ -6,7 +6,7 @@ Ask for a plugin. An agent writes it into the directory olai serves, and olai co
 
 1. Press `Cmd` + `K` (`Ctrl` elsewhere) to open the command palette, and choose **New plugin**. Say in one sentence what it should do.
 2. Name it.[^name]
-3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch][^builder]
+3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch][^builder][^fence]
 4. Read what the agent wrote, then press **Turn on**. What the plugin draws appears with no reload.
 
 ## Three ways to start a new plugin
@@ -47,7 +47,9 @@ Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plu
 
 [^builder]: Asking for a new plugin starts the chat of the plugin's own `README.md`, named after its folder: the chat for `plugins/hex-swatch/README.md` is `hex-swatch`. That chat is the builder: the page reads **Being built** while it works, says when the agent has finished, and carries **Ask for a change…**. A plugin whose `README.md` has no chat offers **Ask about Hex Swatch…**, which starts one.
 
-    The agent is told to keep the `---` block at the top of that `README.md` exactly as it is, because those keys are what tie the conversation to the file, and olai refuses a write that changes them.
+    The agent is told to keep the `---` block at the top of that `README.md` exactly as it is, because those keys tie the conversation to the file, and olai refuses a write that changes them.
+
+[^fence]: A tool writing the file from outside olai is outside that fence. If the `---` block comes back without the keys, the builder's page says the README does not name the conversation, and offers one press to tie it again.
 
 [^reserved]: You cannot use `on`, `approved` or `checked` as a plugin setting: a `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, and olai writes it when that call comes in. A plugin that could write `checked` itself would declare itself finished.
 

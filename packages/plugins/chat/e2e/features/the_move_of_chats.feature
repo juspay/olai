@@ -40,3 +40,16 @@ Feature: The one-time move of chats onto their notes
     And the chat row "kept-row" keeps the agent "claude:fake-session-4"
     And the note "notes/kept.md" carries the tie "claude:fake-session-9" and nothing else
     And there should be no page errors
+
+  # ...AND A ROW THAT KEPT ITS AGENT IS NAMED THE WAY THE OUTLINE DRAWS IT.
+  # `[house](/house.olai)` is a title written as one link, so what a person
+  # reads is `house` — in the sidebar's Chats and on the chat's own page, both
+  # of which take the name off the one roster row the server publishes.
+  Scenario: A chat left on its row is called by its link's label
+    Given I open the app
+    Then the Chats row "house-row" reads "house" with no file mark
+    # A title that is prose is itself, which is the same rule read the other way.
+    And the Chats row "ordinary-row" reads "an ordinary chat" with no file mark
+    When I press the Chats row "house-row"
+    Then the chat page is about the node "house-row" named "house" in "_olai/Inbox.olai"
+    And there should be no page errors

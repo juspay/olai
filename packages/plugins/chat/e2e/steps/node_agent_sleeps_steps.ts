@@ -461,6 +461,29 @@ Then("the sleep's question is waiting", async function (this: OlaiWorld) {
 });
 
 /**
+ * THE TURN TOOK THE MARKER — which is the half a failure on the frame below
+ * cannot tell you on its own.
+ *
+ * `the next sleep writes the memo itself` is ONE SHOT: the fake deletes
+ * {@link MARKER.sleepStamp} at the top of the branch that writes the memo
+ * (`packages/tests/agent/scripted-acp.ts`), so a pass that was stopped after
+ * reading it leaves the NEXT pass an ordinary turn — which writes the memo,
+ * stops the node being due, and ends the scenario with no refused call ever
+ * drawn. Waiting on the frame alone then spends the whole budget and reports
+ * "the tool call frame … is absent", which says nothing about which of the
+ * two happened. Asked here first, the failure names it: the marker is gone,
+ * so the turn ran and was refused and the panel did not draw it; the marker
+ * is still there, so no sleep turn ever reached the fake.
+ */
+Then("the sleep turn has tried to write the memo itself", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => !existsSync(join(this.scratch(), MARKER.sleepStamp)),
+    "a sleep turn to reach the agent and take its marker",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/**
  * THE PASS'S OWN MEMO, AND NOT THE AGENT'S — the half of the reserved key that
  * only the value can show: the scripted agent tries to write
  * {@link SLEEP_STAMP} and is refused, and what is on the node afterwards is the

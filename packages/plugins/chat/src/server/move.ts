@@ -48,10 +48,10 @@
 import {
   addressAt,
   declarationsOf,
-  fileKind,
   isPutAway,
   isRegular,
   type OpFailure,
+  notesClaimed,
   notesIn,
   type PropDeclarations,
   type Reading,
@@ -130,8 +130,22 @@ export const movesIn = (
 
 /** WHAT THE APPLIER REACHES: the two note doors and the row's property
  *  removal, which are the binding's own ({@link ./binding.ts}), plus the
- *  reading to judge and somewhere to say what happened. */
+ *  reading to judge, the one fact that says whether a reading is worth asking
+ *  for at all, and somewhere to say what happened. */
 export interface Mover extends Pick<Binding, "text" | "doc" | "remove" | "key" | "opensKey"> {
+  /**
+   * WHETHER THIS BUILD SERVES NOTES — the file-kind registry's own answer
+   * (`@olai/format`'s `notesClaimed` over `FileKinds`), asked BEFORE the
+   * directory is read.
+   *
+   * A chat moves onto a NOTE, so a serve with the markdown row switched off
+   * has nothing this migration could ever do — and until this was asked, the
+   * applier found that out by reading the whole vault, on every revision, for
+   * the life of the process ({@link namesNotes} can only ever say *not yet*
+   * there, so the one-shot never spends itself). A THUNK, because a row may
+   * claim its kind after this activation started.
+   */
+  readonly served: () => boolean
   readonly read: Effect.Effect<Reading, OpFailure>
   readonly log: (line: string) => Effect.Effect<void>
 }
@@ -142,19 +156,30 @@ export interface Mover extends Pick<Binding, "text" | "doc" | "remove" | "key" |
  *
  * A serve's first readings are not the directory. The store opens on the
  * built-in vocabulary — outlines, and nothing else — and the kinds the plugins
- * teach (the markdown row's `.md` among them) land a moment later, on a
- * revision of their own. On that earlier reading `demo.md` is not a served
- * file, its path names no address, and every chat row titled for a note looks
- * exactly like a chat row titled for nothing: `movesIn` answers the empty list,
- * truthfully, about a vault it is not yet being shown.
+ * teach (the markdown row's, which is what a note is written in) land a moment
+ * later, on a revision of their own. On that earlier reading `demo.md` is not
+ * a served file, its path names no address, and every chat row titled for a
+ * note looks exactly like a chat row titled for nothing: `movesIn` answers the
+ * empty list, truthfully, about a vault it is not yet being shown.
  *
  * A ONE-SHOT THAT RAN THERE WOULD BE SPENT, which is how a real vault kept its
  * `[demo](/demo.md)` rows through a boot that logged nothing. So the applier
- * asks this first and says *not yet* rather than *nothing to do*, and the
- * caller arms it again on the next revision.
+ * asks this first and says *not yet* rather than *nothing to do*.
+ *
+ * IT IS THE SECOND HALF OF A GUARD, not the whole of one. *Not yet* is only
+ * an answer worth giving while a note's kind is still ON ITS WAY, and this
+ * reading cannot tell that from a build serving no notes at all — so the
+ * CALLER arms this on the registry saying the kind is claimed, and what is
+ * left here is the window between that registration and the reading the gate
+ * holds catching up (`../server.ts`'s `moveOnce`, `@olai/format`'s
+ * `notesClaimed`, which is this same question asked of the registry).
+ *
+ * NO SUFFIX IS SPELLED, here or there: which file a note is written in is the
+ * DIRECTORY's claim to make, and this asks the claim table exactly what
+ * `isNotePath` asks it of one path.
  */
 const namesNotes = (reading: Pick<Reading, "claims">): boolean =>
-  fileKind(reading.claims, "a.md") !== null
+  notesClaimed(reading.claims.byKind.values())
 
 /**
  * THE MOVE, APPLIED — once per activation, on the first reading that is the
@@ -178,6 +203,9 @@ const namesNotes = (reading: Pick<Reading, "claims">): boolean =>
  */
 export const applyMoves = (mover: Mover): Effect.Effect<boolean, OpFailure> =>
   Effect.gen(function*() {
+    // THE REGISTRY FIRST, THE DIRECTORY SECOND: nobody serving notes pays a
+    // vault walk for a migration about notes ({@link Mover.served}).
+    if (!mover.served()) return false
     const reading = yield* mover.read
     if (!namesNotes(reading)) return false
     const moves = movesIn(reading, declarationsOf(reading.derived, ownKinds))

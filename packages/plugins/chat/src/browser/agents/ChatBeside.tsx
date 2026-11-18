@@ -25,12 +25,34 @@
 
 import { type Accessor, createMemo, Show } from "solid-js"
 import { type AgentItem, itemKey } from "@olai/format"
-import { useHere, useRouter } from "olai-plugin-navigation/routing"
+import { useHere, useRouter, type Router } from "olai-plugin-navigation/routing"
 
 import { TESTID } from "../../testids.ts"
 import { besideIn, drawnIn } from "./beside.ts"
 import { chatRouteOf } from "./route.ts"
 import { LINE_VERB } from "./verb.ts"
+
+/**
+ * GO TO THE PANE THAT HAS IT — expand, then focus.
+ *
+ * A pane dragged shut is still a pane: it keeps its page and its width is
+ * zero (`olai-plugin-navigation`'s `collapseAt`), and a rail with its name on
+ * it is what a person sees. *Shown beside* pointed at exactly such a pane and
+ * only moved the caret into it, so the press was a dead one — the sentence
+ * said the conversation was beside you and the column it named stayed shut.
+ *
+ * BOTH VERBS, in this order, and neither is a history entry (each `replace`s
+ * the address): a reader who shut that column is not going Back through an
+ * expand to find the fold again.
+ *
+ * ONE SPELLING for the two buttons that end at a pane — this one and
+ * *Open <name> beside* (`./OpenBeside.tsx`) — so they cannot disagree about
+ * what "go there" means.
+ */
+export const showPane = (router: Router, index: number): void => {
+  if (router.panes()[index]?.width() === 0) router.expand(index)
+  router.focus(index)
+}
 
 /** WHICH PANE IS ALREADY DRAWING THIS CHAT, read for the pane the component
  *  asking is drawn in (`./beside.ts` is the rule and the argument). `key` is
@@ -60,7 +82,7 @@ export const useChatBeside = (item: Accessor<AgentItem>): {
     beside,
     press: () => {
       const at = drawnIn(router.panes().map((pane) => pane.route()), itemKey(item()))
-      if (at !== null) router.focus(at)
+      if (at !== null) showPane(router, at)
       else router.openRight(here(), chatRouteOf(item()))
     },
   }

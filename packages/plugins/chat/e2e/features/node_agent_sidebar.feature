@@ -72,7 +72,7 @@ Feature: Agent activity is reachable from Chats and the palette
     # enough to be reaped. So it is offered the verb — the one row where
     # handing the seat back costs nothing at all — and taking it works.
     When I open the Chats menu of "order"
-    Then the Chats menu offers "Put to sleep, Tidy memory, Close the agent"
+    Then the Chats menu offers "Put to sleep, Tidy memory, Close the chat"
     When I choose "Put to sleep" from the Chats menu
     Then the agent "order" stands "asleep"
     # A NEEDS YOU ROW IS THE SAME DESTINATION as a Chats row: the

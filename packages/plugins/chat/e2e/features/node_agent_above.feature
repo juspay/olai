@@ -89,10 +89,10 @@ Feature: One press up to the closest node agent
     Then pane 1 shows the node page "hinges"
     And the agent-above pill points at "install"
     When I open the node menu of "install"
-    And I choose "Close the agent" from the node menu
+    And I choose "Close the chat" from the node menu
     Then the agent-above pill points at "kitchen"
     When I open the node menu of "kitchen"
-    And I choose "Close the agent" from the node menu
+    And I choose "Close the chat" from the node menu
     Then the agent-above pill is absent
     And the page head is empty
     And there should be no page errors

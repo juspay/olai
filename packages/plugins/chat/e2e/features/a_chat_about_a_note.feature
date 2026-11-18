@@ -218,11 +218,49 @@ Feature: A chat about a note
   # and the write fence refuses a document write that puts one into a note's
   # front matter (or takes one away) — so an agent can neither give itself a
   # chat nor drop its own tie.
+  #
+  # AND THE REFUSAL SAYS WHICH KEY AND WHY, not only which file: an agent told
+  # "notes/plan.md" and nothing more has been told that something it wrote was
+  # refused, which leaves it to guess what — and an agent's guess is to try
+  # again another way. The key, the reason the key itself declares, and the
+  # place it was refused in, which for a note is the front matter.
   Scenario: An agent cannot write the tie into a note
     Given the vault holds "notes/plan.md" saying "# Plan"
     And I open the app
     And a terminal agent is connected to the served directory
     When the terminal agent rewrites "notes/plan.md" expecting "# Plan\n", as "---\nchat-agent-session: claude:sneaky\n---\n# Plan\n"
     Then the terminal refusal says "notes/plan.md"
+    And the terminal refusal says "`chat-agent-session` is a property this door may not write"
+    And the terminal refusal says "it is what ties a conversation to a node or a note"
+    And the terminal refusal says "in `notes/plan.md`'s front matter as anywhere else"
     And the note "notes/plan.md" has no chat
+    And there should be no page errors
+
+  # ...NOR MAY IT MOVE THE SWITCH. `chat-opens` says whether this note's chat
+  # opens on its own or in the pane beside the page, which is the person's
+  # choice at the note — so it is reserved exactly as the tie is, at every
+  # door, and the refusal carries its own reason rather than the tie's.
+  Scenario: An agent cannot write the switch either
+    Given the vault holds "notes/plan.md" saying "---\nchat-agent-session: claude:fake-session-1\nchat-opens: alone\n---\n# Plan\n"
+    And I open the app
+    And a terminal agent is connected to the served directory
+    When the terminal agent rewrites "notes/plan.md" expecting "---\nchat-agent-session: claude:fake-session-1\nchat-opens: alone\n---\n# Plan\n", as "---\nchat-agent-session: claude:fake-session-1\nchat-opens: beside\n---\n# Plan\n"
+    Then the terminal refusal says "chat-opens"
+    And the terminal refusal says "the person's choice on the note"
+    And the terminal refusal says "notes/plan.md"
+    # ...and the file is as the person left it.
+    And the note "notes/plan.md" carries the tie "claude:fake-session-1" and opens alone
+    And there should be no page errors
+
+  # NEITHER KEY IS A CHIP. The note's own line already says there is a chat and
+  # how it opens; the `---` block's machinery drawn again under the title
+  # (`chat-agent-session claude:fake-session-1`) is the same fact twice,
+  # spelled for a machine. A property somebody wrote is drawn as it always was.
+  Scenario: The tie and the switch are not drawn as properties of the note
+    Given the vault holds "notes/plan.md" saying "---\ntopic: kitchen\nchat-agent-session: claude:fake-session-1\nchat-opens: beside\n---\n\n# Plan\n"
+    And I open the document "notes/plan.md"
+    Then the note line is about the note "notes/plan.md"
+    And the document shows the property "topic" holding "kitchen"
+    And the document shows no property "chat-agent-session"
+    And the document shows no property "chat-opens"
     And there should be no page errors

@@ -29,7 +29,18 @@ const createPermit = () => {
  * The palette refuses a second submit at the same level; this permit is what
  * refuses one from a level opened again while the first is still answering.
  */
-export const createNewChat = () => {
+export interface NewChatOwner {
+  /** Whether a creation holds the permit right now. */
+  readonly pending: () => boolean
+  /** What the `+` beside Chats could not do, said under that heading. */
+  readonly said: () => Said | undefined
+  readonly say: (said: Said | undefined) => void
+  /** {@link createNewChat}'s `about` — the chat of one item, started. */
+  readonly about: (input: { readonly item: AgentItem; readonly engine: string; readonly text: string }) =>
+    Promise<{ readonly node: string; readonly to: Conversing | null; readonly refusal: string | null } | string>
+}
+
+export const createNewChat = (): NewChatOwner => {
   const permit = createPermit()
   /** What the `+` beside Chats could not do, said under that heading. */
   const [said, say] = createSignal<Said>()

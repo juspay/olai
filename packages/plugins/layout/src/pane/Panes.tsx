@@ -87,7 +87,14 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
       height: visible() ? undefined : `${laneBox()?.height ?? 0}px`,
       "overflow-anchor": "none",
     }}
-    classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>
+    // COLUMNS ARE A VIEWPORT-HEIGHT BOX, one scrollport each; a phone is one
+    // page under a strip of tabs and scrolls the DOCUMENT, so the lane there
+    // GROWS with what is in it exactly as a lone page does. A split clamped
+    // to the viewport on a phone was the bug behind "the way back scrolls
+    // away": a `sticky` child is held by its own containing block, so a strip
+    // pinned inside a box one screen tall left the screen on the second
+    // screen of a long conversation.
+    classList={{ [PANES_SPLIT]: columns(), [PANES_LONE]: !columns() }}>
     <Show when={router.split() && !desktop()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
       <For each={router.panes()}>{pane => {
@@ -114,7 +121,12 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
             classList={{ "outline-2 -outline-offset-2 outline-accent": columns() && focused(pane.index()) }}>
             <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
             <div ref={host => { scrolls.set(host, { top: 0, left: 0, anchor: undefined }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
-              style={{ "--height-chrome": columns() ? "0px" : undefined }}>
+              // WHAT A STICKY ROW INSIDE THIS PAGE CLEARS. A column is its own
+              // scrollport and its top already clears the app's chrome, so it
+              // reserves nothing; a phone reserves the bar, and the tab strip
+              // under it when the lane has one, or a page's pinned head would
+              // slide beneath the way back to the other tab.
+              style={{ "--height-chrome": columns() ? "0px" : router.split() ? "calc(var(--height-header) + var(--height-tabs))" : undefined }}>
               <ShownProvider shown={shown}>
                 <PaneProvider index={pane.index()} id={pane.id} element={element}>{props.page(pane.index)}</PaneProvider>
               </ShownProvider>
@@ -304,13 +316,23 @@ function Divider(props: {
  * was about without scrolling to the top first. Pinned under the header
  * (`../Header.tsx` is `sticky top-0` at `--height-header`), at the strip's own
  * layer, so it sits over the page and under anything the app puts in front.
+ *
+ * PINNED FOR THE WHOLE SCROLL, which is a fact about the box around it and
+ * not about this class: a `sticky` row is held inside its containing block,
+ * so the lane it sits in grows with the page on a phone (`LanePanes`) rather
+ * than being clamped to one screen with the conversation spilling past it.
+ *
+ * ITS HEIGHT IS THE TABS TOKEN, the same length the desktop's seat above the
+ * panes wears, because a page under it pins its own head at
+ * `--height-chrome` — the bar plus this strip — and a strip whose height was
+ * whatever its padding came to would be a second spelling of that sum.
  */
 function TabStrip() {
   const router = useRouter()
   const isFocused = createSelector(router.focusIndex)
   return (
     <div
-      class={`sticky top-[var(--height-header)] ${LAYER.strip} flex shrink-0 gap-1 overflow-x-auto border-b border-rule bg-desk px-2 py-1`}
+      class={`sticky top-[var(--height-header)] ${LAYER.strip} flex h-[var(--height-tabs)] shrink-0 items-center gap-1 overflow-x-auto border-b border-rule bg-desk px-2`}
       data-testid={TESTID.paneTabs}
       role="tablist"
       aria-label="Panes"

@@ -1,3 +1,4 @@
+import { PLUGIN_FOLDER, PLUGIN_README_FILE } from "@olai/surface"
 import { serviceTag } from "@olai/plugin-api/services"
 import type { Effect } from "effect"
 export const name = "vault-plugins"
@@ -52,8 +53,15 @@ export const PLUGIN_PATH = "/plugins/"
  * the folder's name. The serve spells this when it opens a conversation and
  * when it speaks into one, and the runtime spells it when it asks chat which
  * plugins have one.
+ *
+ * THE PATH IS SPELLED HERE AND NOWHERE ELSE — composed from the folder and the
+ * file name a plugin's halves are already named by (`@olai/surface`), so the
+ * CREATE that makes the folder and every reader that asks for the note cannot
+ * come to spell one file two ways. `mint` wrote its own
+ * `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}` beside this, which is the
+ * same string until the day one of them moves.
  */
-export const pluginReadme = (word: string): string => `plugins/${word}/README.md`
+export const pluginReadme = (word: string): string => `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}`
 
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {

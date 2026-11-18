@@ -488,6 +488,19 @@ When("I press the close-agent control", async function (this: OlaiWorld) {
   await startFor(this, "install").waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/** WHAT THE CLOSE CONTROL SAYS IT WILL DO — its own name, which is the word
+ *  on it plus the sentence only a reader and the tip get (`../../src/browser/
+ *  agents/closing.ts`). VERBATIM, because the whole point of the sentence is
+ *  the loss it names: the tie comes off, and nothing lists that conversation
+ *  afterwards. */
+Then("the close control says {string}", async function (this: OlaiWorld, words: string) {
+  const close = this.chat(selector(PLUGIN_TESTID.chatCloseAgent));
+  await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const says = (await close.innerText()).replace(/\s+/g, " ").trim();
+  assert.strictEqual(says, words);
+  assert.equal(await close.getAttribute("title"), null);
+});
+
 /** A conversation no node claims has no sessions control at all — the header
  *  offers its own history only where there IS one, and the way to every other
  *  stored conversation is the sidebar. Waited for rather than read once: the

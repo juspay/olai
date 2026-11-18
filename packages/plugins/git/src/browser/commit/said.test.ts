@@ -632,6 +632,18 @@ test("the move names its own writer and counts writes", () => {
   expect(WHO.auto).toBe("auto-commit")
 })
 
+/** The word nothing writes any more. An installed olai signed real commits
+ *  `filer`, so the table owes them a sentence — and it has to read as
+ *  something that HAPPENED, since the server that filed into Inbox › Chats is
+ *  gone. Pending is what is waiting now, which nothing can be waiting as
+ *  `filer`, so it takes the plain fall-through rather than a count sentence
+ *  of its own. */
+test("the retired filer still has a sentence, in the past tense", () => {
+  expect(WHO.filer).toBe("olai filed conversations into the Inbox")
+  expect(WHO.filer).toContain("filed")
+  expect(wroteOf("filer", 2)).toBe("olai filed conversations into the Inbox 2")
+})
+
 // ── the readout as the health dot reads it ─────────────────────────────
 
 test("no repository and commits off are quiet: they never colour the dot", () => {

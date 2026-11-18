@@ -12,6 +12,10 @@ Feature: Closing a node's agent releases it, and the conversation stays the engi
     When I remember this conversation as "installed"
 
   Scenario: Closing from the agent line releases the node and files the conversation nowhere
+    # WHAT THE PRESS COSTS, in the control's own name. It used to say the chat
+    # *moves to Chats*, which was true while an engine's conversations were
+    # filed there and is a promise nothing keeps now.
+    Then the close control says "Close the chat. The tie comes off this row, and the conversation is listed nowhere in olai afterwards."
     When I press the close-agent control
     Then no agent fold is open
     And the agents roster has no row for "install"
@@ -38,7 +42,7 @@ Feature: Closing a node's agent releases it, and the conversation stays the engi
 
   Scenario: Closing from the row menu releases the node too
     When I open the node menu of "install"
-    And I choose "Close the agent" from the node menu
+    And I choose "Close the chat" from the node menu
     Then no agent fold is open
     And the agents roster has no row for "install"
 
@@ -48,8 +52,8 @@ Feature: Closing a node's agent releases it, and the conversation stays the engi
   Scenario: Closing from the Chats row menu releases the node as well
     When I open the outline "yard.olai"
     And I open the Chats menu of "install"
-    Then the Chats menu offers "Put to sleep, Tidy memory, Close the agent"
-    When I choose "Close the agent" from the Chats menu
+    Then the Chats menu offers "Put to sleep, Tidy memory, Close the chat"
+    When I choose "Close the chat" from the Chats menu
     Then the agents roster has no row for "install"
 
   Scenario: A closed agent stays plain across reload and server restart

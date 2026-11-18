@@ -100,6 +100,11 @@ export const TESTID = {
   chatPage: "chat-page",
   /** Its heading: the item's name, live. */
   chatPageTitle: "chat-page-title",
+  /** THE PINNED HEAD — the item's name, where it is, how the chat stands and
+   *  the way back to the item. Pinned under the app's chrome so it cannot
+   *  scroll away, which on a phone with the chat alone is the only way back
+   *  to the note. */
+  chatPageHead: "chat-page-head",
   /** The small mono line under it — a note's path, a node's outline. */
   chatPageWhere: "chat-page-where",
   /** How the chat stands, at the right of the head. Read-only here: the page
@@ -125,6 +130,16 @@ export const TESTID = {
    *  `data-beside` is the answer. */
   chatOpens: "chat-opens",
   chatOpensSwitch: "chat-opens-switch",
+  /** THE NOTE THIS PAGE IS ABOUT IS GONE — renamed or deleted on disk while
+   *  the page was open. The sentence that says so, in place of the door:
+   *  there is nothing left to start a chat about. */
+  chatPageGone: "chat-page-gone",
+  /** THE NOTE IS THERE AND NO LONGER NAMES THIS CONVERSATION — its front
+   *  matter lost the tie while the chat was open. The sentence that says so,
+   *  with {@link chatRetie} on it. */
+  chatPageUntied: "chat-page-untied",
+  /** ...and the one press that writes the tie back onto the note. */
+  chatRetie: "chat-retie",
   agentPlainComposer: "agent-plain-composer",
   agentPlainInput: "agent-plain-input",
   agentPlainEngine: "agent-plain-engine",
@@ -187,9 +202,9 @@ export const TESTID = {
   /** ... and why one did not happen: an engine this machine does not have, an
    *  agent that would not start, a record the ops layer will not write. */
   chatFreshSaid: "chat-fresh-said",
-  /** *Close the agent* — release this node's agent back to the unclaimed
-   *  chats. The conversation stays stored and is filed back under Chats;
-   *  nothing is deleted. */
+  /** *Close the chat* — take this item's tie off. The conversation stays in
+   *  the engine's own store and nothing is deleted, but olai lists it
+   *  nowhere afterwards. */
   chatCloseAgent: "chat-close-agent",
   /** ... and why one did not happen: the node had no agent to close. */
   chatCloseSaid: "chat-close-said",

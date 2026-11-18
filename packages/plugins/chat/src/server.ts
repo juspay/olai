@@ -79,6 +79,7 @@ import {
   itemKey,
   itemOf,
   type OpFailure,
+  notesClaimed,
   othersOf,
   type Reading,
   UsageFailure,
@@ -88,6 +89,7 @@ import {
   Clock,
   definePlugin,
   Env,
+  FileKinds,
   Kinds,
   LocalState,
   Offers,
@@ -108,7 +110,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@kolu/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect, Scope, Semaphore } from "effect"
+import { Deferred, Duration, Effect, Scope, Semaphore, Stream } from "effect"
 
 import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
@@ -133,9 +135,9 @@ import { kinds } from "./kinds.ts"
 // below carries, and the one the STANDING reservation on that key spends
 // (`./policy.ts`, enforced at every agent face whether or not this row is
 // composed). One word, one answer.
-import { SEATS } from "./policy.ts"
+import { OPENS, SEATS } from "./policy.ts"
 import { roster as agentsRoster, type RosterReading } from "./server/agents.ts"
-import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, setOpens, setSleeping, startAgentSession } from "./server/binding.ts"
+import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, retie, setOpens, setSleeping, startAgentSession } from "./server/binding.ts"
 import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -210,7 +212,7 @@ export default definePlugin({
     {"key": "OLAI_AGENT_PATH", "secret": false, "says": "the directories containing agent executables"},
   ],
   name,
-  needs: [Bundle, Env, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
+  needs: [Bundle, Env, FileKinds, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
   config: Config,
   apply: (settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
@@ -223,6 +225,10 @@ export default definePlugin({
     // rather than per tick (`./settings.ts` holds the words and the rule).
     const sleeping = settings.sleep === "on"
     const spans = sleepingPolicy(settings)
+    // WHICH KINDS OF FILE THIS BUILD SERVES — read for one question: whether a
+    // note's kind is claimed at all, which is what arms the one-time move
+    // below (`notesServed`).
+    const fileKinds = yield* FileKinds
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
@@ -762,6 +768,18 @@ export default definePlugin({
           // repaints without the released agent.
           Effect.tap(() => published),
         ),
+      // ...AND THE WAY BACK FROM A TIE SOMETHING OUTSIDE OLAI TOOK OFF. The
+      // same permit the other tie writes take, for the same reason: it is the
+      // same block of the same file. The roster is what answers both of its
+      // refusals, so the readings are handed in here rather than reached for
+      // inside the gesture (`./server/binding.ts`).
+      retie: ({ input }: { input: { node: string; agent: string; session: string } }) =>
+        bindingPermit.withPermit(retie(binding, {
+          seatable: (item) => nodeAgents.seatableAt(item),
+          claimedBy: (to) => nodeAgents.agentAt(to)?.id ?? null,
+        }, input)).pipe(
+          Effect.tap(() => published),
+        ),
       /**
        * PUT ONE ITEM'S AGENT TO SLEEP — the seat, handed back by hand.
        *
@@ -993,30 +1011,51 @@ export default definePlugin({
      * chat touches.
      */
     /**
-     * THE ONE-TIME MOVE, ARMED ON THE FIRST PUBLISHED REVISION — once per
-     * activation, under the binding permit, before any gesture can write a tie
-     * (every one of them takes the same permit, and every one of them needs a
-     * chat this fires ahead of).
+     * THE ONE-TIME MOVE, ARMED ON A POSITIVE SIGNAL — once per activation,
+     * under the binding permit, before any gesture can write a tie (every one
+     * of them takes the same permit, and every one of them needs a chat this
+     * fires ahead of).
      *
-     * ON A REVISION AND NOT AT THE BUILD, which is the ordering a real vault
-     * proved: the build runs the moment the listener binds, and the snapshot
-     * the write gate holds at that instant can still be the directory as it was
-     * read before every file kind was registered — outlines only, with no `.md`
-     * claimed and no note in the set. A move judged there finds nothing to move
-     * onto, because the reading it asked holds no notes. The first published
-     * revision is the first reading that is the whole directory, and it is the
-     * one the roster is levelled with besides.
+     * THE SIGNAL IS THE CLAIM, which is the fact the migration is actually
+     * waiting for: a chat moves onto a NOTE, and whether this build serves
+     * notes at all is what the file-kind registry says (`@olai/format`'s
+     * `notesClaimed`, asked of `FileKinds`). It is not at the build and not on
+     * every revision, and each of those was wrong in its own direction:
+     *
+     *   - AT THE BUILD, the snapshot the write gate holds can still be the
+     *     directory as it was read before the file rows registered their kinds
+     *     — outlines only, with no note in the set. A move judged there finds
+     *     nothing to move onto and a one-shot that ran would be spent, which
+     *     is how a real vault kept its `[demo](/demo.md)` rows through a boot
+     *     that logged nothing.
+     *   - ON EVERY REVISION, a serve with the markdown row switched OFF never
+     *     reaches "nothing to do": the reading can never name a note, so the
+     *     migration re-read the whole directory on every change for the life
+     *     of the process. Nobody serving notes pays for a migration about
+     *     notes.
+     *
+     * So the applier asks {@link notesServed} BEFORE it asks for a reading,
+     * and what fires it is both doors: the registry's own change — a row may
+     * claim its kind when no further revision is owed — and every published
+     * revision after it, since the first published revision is the first
+     * reading that is the whole directory and the window between the two is
+     * the one `namesNotes` closes (`./server/move.ts`). With no note's kind
+     * claimed, the directory is never read.
      */
+    const notesServed = (): boolean => notesClaimed(fileKinds.current().values())
     /** Whether the move has run, and whether a run is in flight: the applier
-     *  answers `false` for a reading that cannot name a note yet, and the
-     *  revisions that arrive while one attempt is still going must not start a
-     *  second (`./server/move.ts`'s `namesNotes`). */
+     *  answers `false` for a reading that has not caught up with the claim
+     *  yet, and the revisions that arrive while one attempt is still going
+     *  must not start a second (`./server/move.ts`'s `namesNotes`). */
     let moved = false
     let moving = false
     const moveOnce = (): void => {
       if (moved || moving) return
       moving = true
       ring(bindingPermit.withPermit(applyMoves({
+        // THE ONE FACT THAT IS ASKED BEFORE THE DIRECTORY IS READ — see the
+        // paragraph above, and `./server/move.ts`'s `Mover.served`.
+        served: notesServed,
         read: gate.read,
         text: binding.text,
         // Its writes are signed `move` rather than `web`: nobody pressed
@@ -1039,6 +1078,13 @@ export default definePlugin({
         Effect.asVoid,
       ))
     }
+    // ...AND THE REGISTRATION ITSELF ARMS IT, not only the revisions after it:
+    // a file row that claims its kind late — a dynamic plugin, a row that came
+    // back — may do it when no further revision is owed, and the migration
+    // would then wait for an edit somebody made for another reason. Both
+    // doors are the same `moveOnce`, which runs the walk once.
+    moveOnce()
+    yield* Effect.forkScoped(Stream.runForEach(fileKinds.changes, () => Effect.sync(moveOnce)))
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         levelWith(revision.value)
@@ -1206,14 +1252,16 @@ export default definePlugin({
             // package owns — invisible while there was one forbidden key and
             // untrue of half its subjects the moment there were two.
             //
-            // TWO KINDS, TWO CLAUSES: the binding and the sleep memo are
-            // forbidden for different reasons, and a table (a MAP on the rule)
-            // rather than a set is what lets each carry the reason it is one
+            // FOUR KINDS, FOUR CLAUSES: the binding, the sleep memo, the
+            // sleep mark and the note's *opens* switch are forbidden for
+            // different reasons, and a table (a MAP on the rule) rather than
+            // a set is what lets each carry the reason it is one
             // (`@olai/ops`' `door.ts` argues the shape).
             () => [
               ...nodeAgents.keys().map((key) => ({ key, says: SEATS })),
               ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
               ...nodeAgents.sleepKeys().map((key) => ({ key, says: SLEEPING_MARK })),
+              ...nodeAgents.opensKeys().map((key) => ({ key, says: OPENS })),
             ],
             "chat-agent",
             // ...AND WHERE IT MAY WRITE WHILE A PASS IS TIDYING THIS NODE. The

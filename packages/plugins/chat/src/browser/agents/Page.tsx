@@ -126,8 +126,8 @@ function createPageSession(node: string): PageSession {
 }
 
 /** The page session of a chat row, held for the pane this is drawn in — a
- *  row's own page, and the open seat under a page about a place
- *  (`./Seat.tsx`). */
+ *  node's or note's own page, and the chat's own page
+ *  (`./ChatPage.tsx`). */
 export function usePage(node: Accessor<string>) {
   const pane = usePane()
   return createMemo(() => pane === undefined ? undefined : agentReadings()?.page(pane, node(), () => createPageSession(node())))

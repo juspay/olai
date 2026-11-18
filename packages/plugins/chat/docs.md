@@ -14,7 +14,7 @@ Every chat has a page of its own, at `/chat/<the row's id>` or `/chat/<the docum
 
 ## Give a row or a document a chat
 
-A row with its own agent is called a node agent: a property whose kind is `chat-agent-session`, with the rows under it as its memory.[^declare] A document keeps that key in its frontmatter and is its own memory.[^notekeys][^opens]
+A row with its own agent is called a node agent: a property whose kind is `chat-agent-session`, with the rows under it as its memory.[^declare] A document keeps that key in its frontmatter and is its own memory.[^notekeys][^outside][^opens]
 
 | Kind | What a value means |
 | --- | --- |
@@ -23,7 +23,7 @@ A row with its own agent is called a node agent: a property whose kind is `chat-
 | `chat-agent-sleep` | `on` lets olai shorten that memory on a schedule; absent or `off` does not. |
 | `chat-opens` | On a document: `beside` opens its chat with the document beside it. |
 
-The `+` beside **Chats** and the palette's **New chat** ask which node or document a chat is for.[^newchat][^named]
+The `+` beside **Chats** and the palette's **New chat** ask which node or document a chat is for.[^newchat][^named][^listed]
 
 ## Let olai shorten a node agent's memory
 
@@ -41,9 +41,9 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^page]: A chat's page is headed by the name of the row or document it is about, with that document's path, or the path of the outline the row is written in, under it. Then comes the agent line, carrying **Open <name> beside ›**, and the conversation with its box pinned at the foot. There are no breadcrumbs. An item with no chat yet draws a box reading **Ask about <name>…** in place of the conversation.
 
-[^drawnonce]: The agent line's **Open beside ›** opens the conversation in the pane to the right, and leaves the page you are reading as it is. Where a pane already holds that conversation, every other place draws one line reading **Shown beside**, which takes you to that pane. A link clicked inside a chat pane opens in the pane beside it: the one on its left, or a new one on its right.
+[^drawnonce]: The agent line's **Open beside ›** opens the conversation in the pane to the right. Where a pane already holds that conversation, every other place draws one line reading **Shown beside**, which takes you to that pane. A link clicked inside a chat pane opens in the pane beside it.
 
-[^faces]: Chat draws in ten places. They are inside a row, on a node's page, on the chat's own page, in the line at the top of a document, beside a row, in a row's menu and in the breadcrumbs. The other three are the sidebar, the palette, and a phone's bar of buttons along the bottom. The closed block below says what it draws in each.
+[^faces]: Chat draws in ten places, from inside a row to the phone's bottom bar. The closed block below says what it draws in each.
 
 [^noteline]: A document's page carries one line at the top, under the path: the agent's mark, how its chat stands, the words **Chat about this page**, and **Open beside ›**, which opens the conversation in the pane to the right. No other page has one, not an outline, a day, the Agenda, the Trash or a file olai only shows.
 
@@ -57,13 +57,17 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
     The closed block below shows how to use column names of your own.
 
-[^notekeys]: A document's chat lives in the `---` block at the top of the file. `chat-agent-session` says which conversation the document is having, and `chat-opens` says where that chat opens. olai refuses a write by an agent that changes or drops the tie, so an agent rewriting the file keeps that block as it is.
+[^notekeys]: A document's chat lives in the `---` block at the top of the file. `chat-agent-session` says which conversation the document is having. `chat-opens` says where that chat opens. olai refuses a write by an agent that changes or drops either of them, so an agent rewriting the file through olai keeps that block as it is.
+
+[^outside]: A program editing the file outside olai is outside that fence. Say the `---` block comes back without the key, after a `git pull` or an agent rewriting its own `README.md` with its own file tools. The open chat page then says `plan no longer names this conversation — the tie has gone from the note's front matter. The conversation itself is untouched.` and offers one press, **Tie it to plan again**, which writes the key back.
 
 [^opens]: The chat page of a document carries **Opens**, with a switch reading `alone` or `with plan beside`, which writes `chat-opens`. Opening that chat from **Chats** obeys it: `beside` draws the document and the conversation side by side, as one address, so a reload brings both back. A node's chat always opens alone, because a row has nowhere to keep the switch.
 
 [^newchat]: The first step lists **Here**, the chats you were last in under **Recent**, and every matching node and document under **Nodes** and **Notes** once you type. Nothing is created but the chat itself: it belongs to the node or the document you choose. An item that already has a chat reads `has a chat`, and choosing it opens that conversation. The second step takes your first message, and the agent to start where more than one can.
 
 [^named]: A chat is named after what it is about: a row's own title, or a file's name without its suffix, `plan` for `notes/plan.md`. A `README.md` takes the name of its folder, so `plugins/swatch/README.md` reads `swatch`. Rename the file or retitle the row and every place that names the chat says the new name.
+
+[^listed]: A conversation is listed only where a row or a document names it. **Close the chat** takes the key off, so olai lists that conversation nowhere afterwards, and a conversation you started outside olai is on no list for the same reason ([node agents](../node-agents.md)).
 
 [^sleepline]: The switch reads **On** or **Off**. The row menu's **Sleep when idle** and **Stop sleeping when idle** write the same property, and the palette offers the same choice for the conversation on screen. Asking for a pass while `sleep` is off is refused with `sleep is off in this directory's settings`. The closed blocks below list everything that line can say, and the settings behind it.
 
@@ -83,7 +87,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | the chat's own page | The whole conversation, headed by the name of the row or document it is about. |
 | the line at the top of a document | How that document's chat stands, **Chat about this page** and **Open beside ›**, or the box that starts a chat. |
 | beside a row | What the row's agent is doing, or a button to start an agent while one is available. |
-| a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the agent** and the sleep entries on a row that has one. |
+| a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the chat** and the sleep entries on a row that has one. |
 | the breadcrumbs | A mark on an ancestor row that has an agent, on a trail, a day's row and a search result. |
 | the sidebar | The **Needs you** and **Chats** sections, with a `+` beside the Chats heading for **New chat**. |
 | the palette | Every agent, the **New chat** row and **Chat about this page**, while an engine can start. |
@@ -91,7 +95,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 Where a pane already holds a conversation, the fold under its row and that row's own page draw one line reading **Shown beside** in place of it.
 
-On a phone the chat page fills the screen, and the pane strip stays under the header while the page scrolls. **Open <name> beside ›** reads **Open <name> ›** there, and puts the row or document in the next tab along.
+On a phone the chat page fills the screen, and its head stays pinned under the app's bar for the whole scroll, so the way back to the document is always there. With the document open as a second tab, the strip of tabs is pinned there too. **Open <name> beside ›** reads **Open <name> ›** there, and puts the row or document in the next tab along.
 
 An agent that is working or starting shows a dot that pulses, with a ring around it, so a computer set to reduce motion still shows what the agent is doing. On a screen that forces its own colours, these marks are drawn in your colours rather than olai's ([theme](theme.md)). The words beside them say the same thing either way.
 
@@ -138,7 +142,11 @@ A plugin may only declare a key carrying its own name, so switching a plugin on 
 </details>
 
 <details>
-<summary>What the Sleep line says</summary>
+<summary>What a tidying pass does, and what the Sleep line says</summary>
+
+A pass is one turn you can read: one message olai sent, and the agent's edits under it as ordinary outline changes. Rows are moved under an `Archive` child, grouped by month, and nothing is deleted. Numbers, dates and names are copied exactly, and a fact that changed keeps its earlier wording in the note.
+
+One pass touches at most about a fifth of the rows and writes only under that row. It commits its own writes as `olai: sleep: <title>`, so `git revert` puts the rows back ([git](git.md)). A question asked inside a pass is cancelled after `sleep-question` rather than shown to you, and one pass runs at a time per directory, so asking for a second is refused in words.
 
 | What it says | What is true |
 | --- | --- |

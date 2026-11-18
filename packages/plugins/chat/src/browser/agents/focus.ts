@@ -31,7 +31,7 @@
  * (`./Agents.tsx`).
  */
 import { itemOf } from "@olai/format"
-import { hrefOfWorkspace, lone, openRight, type AddressTarget, type Workspace, type WorkspaceRouting } from "olai-plugin-navigation/workspace"
+import { hrefOfWorkspace, navigateIn, openRight, type AddressTarget, type Workspace, type WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import type { Route } from "olai-plugin-navigation/routes"
 import { talking, type Row } from "./roster.ts"
 import { unfold } from "./folding.ts"
@@ -48,26 +48,39 @@ export const visitAgent = (row: Row): void => {
 /** This chat's page, `/chat/<item>` (`./route.ts`) — the address of the
  *  conversation itself, whatever else opens with it. */
 export const chatRoute = (row: Row): Route => chatRouteOf(itemOf(row.id))
-/** ...and the whole of what a press opens: the page alone, or the item and
- *  the chat side by side with the chat focused — composed out of navigation's
- *  own verbs (one pane holding the item, the chat opened to its right), so
- *  the shape of a split is that row's answer and not a value spelled here. */
-export const chatTarget = (row: Row): AddressTarget => {
+/**
+ * ...AND THE WHOLE OF WHAT A PRESS OPENS: the page alone, or the item and the
+ * chat side by side with the chat focused.
+ *
+ * COMPOSED AGAINST THE LAYOUT THAT IS OPEN, not out of thin air. A *beside*
+ * row built its own two-pane workspace from `lone(note)`, which is an address
+ * naming TWO panes — so pressing it with three panes open replaced all three,
+ * and a reader lost the columns they had arranged to press a row in the
+ * sidebar. It is the same two verbs *Open <name> beside* spends
+ * (`./OpenBeside.tsx`): the pane a press lands in becomes the ITEM, and the
+ * conversation opens to its right, reusing the column already there rather
+ * than growing one. Every other pane is left exactly as it was.
+ */
+export const chatTarget = (row: Row, here: Workspace): AddressTarget => {
   const item = itemOf(row.id)
   const chat = chatRouteOf(item)
   if (!row.beside) return { kind: "page", route: chat }
-  return { kind: "layout", workspace: openRight(lone(routeOfItem(item)), 0, chat) }
+  return { kind: "layout", workspace: openRight(navigateIn(here, here.focus, routeOfItem(item)), here.focus, chat) }
 }
 /** The address of {@link chatTarget}, for a row that is a link. */
-export const chatHref = (routes: WorkspaceRouting, row: Row): string => {
-  const target = chatTarget(row)
+export const chatHref = (routes: WorkspaceRouting, row: Row, here: Workspace): string => {
+  const target = chatTarget(row, here)
   return target.kind === "page" ? routes.href(target.route) : hrefOfWorkspace(routes, target.workspace)
 }
 export const focusAgent = (
-  nav: { readonly go: (route: Route) => void; readonly open: (workspace: Workspace) => void },
+  nav: {
+    readonly go: (route: Route) => void
+    readonly open: (workspace: Workspace) => void
+    readonly workspace: () => Workspace
+  },
   row: Row,
 ): void => {
-  const target = chatTarget(row)
+  const target = chatTarget(row, nav.workspace())
   if (target.kind === "page") nav.go(target.route)
   else nav.open(target.workspace)
   visitAgent(row)

@@ -39,12 +39,11 @@
  */
 
 import { LAYER } from "@olai/web/client/layer.ts"
-import { PAGE_TITLE } from "@olai/web/client/look.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { type AgentItem, itemKey } from "@olai/format"
-import { createEffect, createMemo, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import { TESTID } from "../../testids.ts"
@@ -56,10 +55,29 @@ import { AgentMark } from "../chat/AgentMark.tsx"
 import { useAgents } from "./answered.tsx"
 import { nameOfItem, titleOfNode } from "./called.ts"
 import { AboutBox } from "./Door.tsx"
+import { lostOf, type WasTied } from "./lost.ts"
+import { LostNote } from "./Lost.tsx"
 import { OpenBeside } from "./OpenBeside.tsx"
 import { Opens } from "./Opens.tsx"
 import { PageFoot, PageHead } from "./Page.tsx"
 import { LOOK, type Row, talking } from "./roster.ts"
+
+/**
+ * THE CONVERSATION'S OWN NAME, at the size the screen has room for.
+ *
+ * `PAGE_TITLE`'s display size on a desktop, where the head is one band above
+ * a wide column — and a SECTION heading on a phone, where the page is the
+ * conversation and a display title would push the first thing the agent said
+ * off the screen. The mockups drew it that way for that reason
+ * (`.waterfall/mockup/7-chats-press-split-phone.png`): on a phone the
+ * conversation leads and the name labels it.
+ *
+ * SPELLED WHOLE rather than appended to `PAGE_TITLE`, which is that
+ * constant's own rule (`@olai/web/client/look.ts`): a page wanting a smaller
+ * heading is a page wanting a different thing, not one hoping its override
+ * was emitted later.
+ */
+const CHAT_TITLE = "m-0 font-sans text-title font-semibold tracking-tight md:text-display"
 
 /**
  * A LINK PRESSED ON THIS PAGE OPENS IN THE OTHER PANE — the pane to the left
@@ -117,6 +135,27 @@ export function ChatPage(props: { readonly item: AgentItem }) {
   /** A door is offered until there is a conversation, not until there is a
    *  tie: a start the agent refused leaves the item its own door. */
   const open = () => talking(row())
+  /**
+   * WHAT THIS PANE WAS READING, kept for as long as the page is drawn — the
+   * one thing the roster cannot answer once a note has stopped naming its
+   * chat. It is what the *tie it again* press hands back
+   * (`./Lost.tsx`), so it is remembered where that press is drawn and
+   * nowhere else: a page opened fresh on an untied note knows of no
+   * conversation and offers none.
+   */
+  const [was, setWas] = createSignal<WasTied | null>(null)
+  createEffect(() => {
+    const held = row()
+    if (held?.session != null) setWas({ agent: held.engine, session: held.session })
+  })
+  /** The directory's own two answers about this page's note (`./lost.ts`). */
+  const lost = createMemo(() => lostOf({
+    item: props.item,
+    standing: servedDirectory()?.standing(),
+    held: props.item.kind !== "note" || servedDirectory()?.members().has(props.item.path) === true,
+    tied: row() !== undefined,
+    was: was(),
+  }))
   return (
     <main
       class={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pb-6 ${CLEARANCE}`}
@@ -125,20 +164,25 @@ export function ChatPage(props: { readonly item: AgentItem }) {
       data-kind={props.item.kind}
       {...LINKS_ASIDE}
     >
-      {/* PINNED FROM `md` UP, as the node page's head is and for its reason:
-          the pane is the scroll, so a head that scrolled away would take the
-          name of the thing being talked about with it. */}
-      <header class={`md:sticky md:top-[var(--height-chrome)] ${LAYER.page} bg-paper pt-6`}>
+      {/* PINNED, as the node page's head is and for its reason: the page is
+          the scroll, so a head that scrolled away would take the name of the
+          thing being talked about — and the way back to it — with it. On a
+          PHONE too, where it is the only way back when the chat is the one
+          pane: `--height-chrome` is the bar there, with the tab strip added
+          while the lane has one, and zero inside a desktop column, which is
+          its own scrollport (`olai-plugin-layout`'s `Panes.tsx`). */}
+      <header class={`sticky top-[var(--height-chrome)] ${LAYER.page} bg-paper pt-6`} data-testid={TESTID.chatPageHead}>
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <Show when={mark()}>
             {(drawn) => <span class={`${MARK_BOX} self-center text-muted`} data-testid={TESTID.chatFileMark}><Dynamic component={drawn()} /></span>}
           </Show>
-          <h1 class={`min-w-0 ${PAGE_TITLE}`} data-testid={TESTID.chatPageTitle}>{name()}</h1>
+          <h1 class={`min-w-0 ${CHAT_TITLE}`} data-testid={TESTID.chatPageTitle}>{name()}</h1>
           <span class="flex-1" />
           <Show when={row()}>{(held) => <Standing row={held()} />}</Show>
           {/* WITH NO CONVERSATION there is no agent line to carry the verb,
-              and the head is the only line this page has. */}
-          <Show when={!open()}><OpenBeside item={props.item} name={name()} /></Show>
+              and the head is the only line this page has. Not for a note that
+              is GONE: there is no page to put beside this one. */}
+          <Show when={!open() && lost()?.kind !== "gone"}><OpenBeside item={props.item} name={name()} /></Show>
         </div>
         <Show when={where()}>
           {(at) => <p class="mb-2 mt-1 font-mono text-caption text-muted" data-testid={TESTID.chatPageWhere}>{at()}</p>}
@@ -150,9 +194,14 @@ export function ChatPage(props: { readonly item: AgentItem }) {
           </Show>
         </Show>
       </header>
-      <Show when={open()} fallback={<AboutBox where="page" item={() => props.item} name={name} />}>
-        <PageFoot node={key()} />
-      </Show>
+      {/* THE NOTE'S OWN TWO LOSSES COME FIRST, before the door: a page whose
+          note is gone, or whose note has stopped naming the conversation
+          being read, is not a page to start a chat on (`./lost.ts`). */}
+      <Show when={lost()} fallback={
+        <Show when={open()} fallback={<AboutBox where="page" item={() => props.item} name={name} />}>
+          <PageFoot node={key()} />
+        </Show>
+      }>{(what) => <LostNote lost={what()} name={name()} />}</Show>
     </main>
   )
 }

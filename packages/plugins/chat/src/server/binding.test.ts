@@ -25,7 +25,7 @@ import { Effect } from "effect"
 import { CHAT_OFF } from "../wire/members.ts"
 import { OPENS_TYPE, SESSION_TYPE } from "../kinds.ts"
 import type { Chat } from "../scoped.ts"
-import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, setOpens, setSleeping, startAgentSession } from "./binding.ts"
+import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, retie, setOpens, setSleeping, startAgentSession } from "./binding.ts"
 
 /** Every member no gesture here reaches. A DEATH rather than a refusal: a case
  *  that called one would be asking about something this module does not own,
@@ -345,5 +345,49 @@ test("a note with no chat on it refuses, and writes nothing", async () => {
   const at = binding(null, { "notes/plan.md": "# Plan\n" })
   const said = await Effect.runPromise(Effect.flip(setOpens(at, { path: "notes/plan.md", beside: true })))
   expect(said.reason).toContain("notes/plan.md")
+  expect(at.docs).toEqual([])
+})
+
+// ── and the tie, written back onto a note that stopped naming it ───────
+
+/** THE ROSTER'S TWO READINGS, as a gesture is handed them: what can be seated,
+ *  and which item already names a conversation. */
+const roster = (seatable: boolean, owner: string | null = null) => ({
+  seatable: () => seatable,
+  claimedBy: () => owner,
+})
+
+test("a retie writes the conversation back into the note's front matter", async () => {
+  const at = binding(null, { "notes/plan.md": "---\ntopic: kitchen\n---\n\n# Plan\n" })
+  await Effect.runPromise(retie(at, roster(true), { node: "/notes/plan.md", agent: "claude", session: "sess-1" }))
+  expect(at.docs).toHaveLength(1)
+  expect(at.docs[0]?.text).toBe("---\ntopic: kitchen\nchat-agent-session: claude:sess-1\n---\n\n# Plan\n")
+  // THE SWITCH IS NOT PART OF IT: restoring a tie restores the tie.
+  expect(at.docs[0]?.text).not.toContain("chat-opens")
+})
+
+test("a retie onto something that is not there refuses in words and writes nothing", async () => {
+  const at = binding(null, { "notes/plan.md": "# Plan\n" })
+  const said = await Effect.runPromise(Effect.flip(
+    retie(at, roster(false), { node: "/notes/plan.md", agent: "claude", session: "sess-1" })))
+  expect(said.reason).toContain("notes/plan.md")
+  expect(at.docs).toEqual([])
+})
+
+test("a retie onto an item that already names a chat is refused", async () => {
+  const at = binding({ engine: "claude", session: "sess-2", title: "plan" }, {
+    "notes/plan.md": "---\nchat-agent-session: claude:sess-2\n---\n\n# Plan\n",
+  })
+  const said = await Effect.runPromise(Effect.flip(
+    retie(at, roster(true), { node: "/notes/plan.md", agent: "claude", session: "sess-1" })))
+  expect(said.reason).toContain("already names a chat")
+  expect(at.docs).toEqual([])
+})
+
+test("a conversation another item already names is not tied twice", async () => {
+  const at = binding(null, { "notes/plan.md": "# Plan\n" })
+  const said = await Effect.runPromise(Effect.flip(
+    retie(at, roster(true, "install"), { node: "/notes/plan.md", agent: "claude", session: "sess-1" })))
+  expect(said.reason).toContain("install")
   expect(at.docs).toEqual([])
 })

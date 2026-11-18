@@ -52,7 +52,7 @@ The first message carries an instruction from olai.[^preamble] On a row, the not
 
     Awake agents come first, in the order above, and the rest by when they last said something. The limit of ten comes after that sorting, so sleeping chats cannot hide a live one. An awake row wears its state's dot, and a bold title means it has spoken since you last read it ([attention.md](attention.md)).
 
-[^beyond]: Search for **Agents**, or for a title, in the palette to reach every chat, including the ones past the limit of ten. Each **Chats** row has a **•••** button of its own, revealed when you hover or focus it, carrying **Put to sleep**, **Tidy memory** and **Close the agent**. Beside it is a two-column button, **Open beside**, which puts that conversation in the pane to the right. A phone draws neither: the row's menu in the outline carries the same entries.
+[^beyond]: Search for **Agents**, or for a title, in the palette to reach every chat, including the ones past the limit of ten. Each **Chats** row has a **•••** button of its own, revealed when you hover or focus it, carrying **Put to sleep**, **Tidy memory** and **Close the chat**. Beside it is a two-column button, **Open beside**, which puts that conversation in the pane to the right. A phone draws neither: the row's menu in the outline carries the same entries.
 
 [^opening]: Clicking a chat, in **Chats**, in **Needs you** or in the palette, opens that chat's own page: `/chat/notes/plan.md` for a document, `/chat/<row id>` for a row. A document whose **Opens** switch says **beside** opens as two panes, the document and the chat, and that pair is one address, so a reload brings both back. The chat's **Chats** row is marked while you read it, and the palette adds the path under a document's chat, `Agents · notes/plan.md`.
 
@@ -78,9 +78,9 @@ The first message carries an instruction from olai.[^preamble] On a row, the not
 
 [^remind]: The reminder is one line, carried by every twentieth message a person sends. A document's chat is reminded to read the document again before answering. The number is `remind-every` on the chat row in `_olai/Settings.olai`, where `0` never reminds.
 
-[^tidy]: Tidying is one turn olai starts itself: when the chat has been left alone long enough, and enough has moved, the agent is asked to tidy its rows, shorten what they say and file them away. Nothing is tidied until you ask for it, chat by chat.
+[^tidy]: Tidying is one turn olai starts itself: when the chat has been left alone long enough, and enough rows have moved, the agent is asked to shorten its own rows and file them away. Nothing is tidied until you ask for it, chat by chat.
 
-    Press **On** on the **Sleep** item in the **Tools** strip above the conversation, which writes `chat-agent-sleep: on` onto the row, or use **Sleep when idle** in the menus. What the item then says, what a pass does, and the settings that time it, are in the closed block at the foot of this page.
+    Press **On** on the **Sleep** item in the **Tools** strip above the conversation, which writes `chat-agent-sleep: on` onto the row, or use **Sleep when idle** in the menus. What a pass does, what the item can say and the settings behind it are on [the chat plugin's page](plugins/chat.md).
 
 <details>
 <summary>Which row or document a new chat is for, and what starting one does</summary>
@@ -111,8 +111,6 @@ Two doors start a chat about a document: the line at the top of it, and the pale
 
 The words you type stay in the box they were typed in, so a refusal leaves them there with the reason under them, and so does leaving the page and coming back.
 
-Two things are asked once for each row while this browser tab is open: whether a row a chat stands for still exists, and that row's name where the title is a bare `/#id`. So a row deleted after that still counts as its chat's place until you reload the tab, and a row renamed after that keeps its old name under **Chats** until you reload.
-
 </details>
 
 <details>
@@ -121,42 +119,17 @@ Two things are asked once for each row while this browser tab is open: whether a
 | Button | Where | What it does |
 | --- | --- | --- |
 | **Fresh start** | agent line, row menu | replaces the conversation with a new one, keeping the old one in the earlier chats |
-| **Close** | agent line (**Close the agent** in the menus) | takes the chat off the row or document, which takes its row out of **Chats** |
+| **Close** | agent line (**Close the chat** in the menus) | unties the chat from the row or document |
 | **Put to sleep** | row menu, **Chats** **•••**, palette | stops the turn, discards a question it was holding, frees the seat, leaves the chat where it is |
-| **Sleep when idle** | row menu, palette | marks this chat for the tidying pass below; it reads **Stop sleeping when idle** once set |
+| **Sleep when idle** | row menu, palette | marks this chat for tidying; it reads **Stop sleeping when idle** once set |
 | **Tidy memory** | row menu, **Chats** **•••**, palette, the sleep item | runs that pass now |
 | **Open the agent above** | row menu, palette | opens the conversation of the nearest row above that has one |
 
+The one button with a cost is **Close**. A conversation is this row's or this document's only because the tie names it, so taking the tie off means olai shows that conversation nowhere: not in **Chats**, not in **Needs you**, not in the palette.
+
+The transcript stays where the agent keeps it on this machine, and typing the same `chat-agent-session` value back onto the row, or into the document's `---` block, brings it back. A conversation you started outside olai is listed nowhere for the same reason: nothing in your files names it.
+
 A document's chat can be put to sleep, which frees its seat. The two tidying buttons are refused on one, with *a note's chat keeps its memory in the note itself, so olai never tidies it or puts it to sleep*. Its conversation has no **Sleep** item and no count of rows.
-
-</details>
-
-<details>
-<summary>Tidying a row agent's memory for it</summary>
-
-The rows under an agent grow and nothing shortens them. So olai can give a row's agent one turn of its own for shortening them, and the **Sleep** item then says where that chat stands:
-
-| The item says | What it means |
-| --- | --- |
-| **Off** with the last pass's age | nobody has asked for this chat to be tidied |
-| **On · next in 4h if left alone** | due once the quiet period ends |
-| **On · nothing new to tidy** | nothing has moved since the last pass |
-| **On · too little to tidy · 2 of 5 rows** | some rows moved, not enough of them |
-| **On · when this chat is quiet** | due, but the chat is still talking |
-| **On · tidying now** | the pass is running |
-| **On · last pass failed · not before 14:05** | a failed pass is left alone until that time |
-| **off in Settings** | `sleep: off` in `_olai/Settings.olai` turns the whole thing off |
-
-The turn is the conversation you already read: one row olai sent, the instruction behind one press, and the agent's edits under it as ordinary outline changes. Rows are moved under an `Archive` child, grouped by month, and nothing is deleted. A fact that changed keeps its earlier wording in the note, and numbers, dates and names are copied exactly. One pass touches at most about a fifth of the rows, and it writes only under that row.
-
-A pass commits its own writes as `olai: sleep: <title>`, so `git revert` puts the rows back ([committing](git.md)). It can never interrupt you: a question asked inside a pass is cancelled after twenty minutes rather than shown to you. One pass runs at a time per directory, so pressing **Tidy memory** while olai is already tidying is refused in words.
-
-| Setting | Default | What it decides |
-| --- | --- | --- |
-| `sleep` | `on` | whether tidying runs at all, for the chats that asked for it |
-| `sleep-after` | `6h` | how long a chat is left alone before it is tidied |
-| `sleep-floor` | `5` | how many rows must have moved to be worth a turn |
-| `sleep-latest` | `7d` | how long a moved row may wait before olai tidies anyway |
 
 </details>
 

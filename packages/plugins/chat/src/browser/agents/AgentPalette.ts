@@ -29,7 +29,7 @@ export const ABOUT_ROW = "chat-about-page"
  *
  * ⌘K is reached from anywhere and acts on whatever chat happens to be on
  * screen, with no row under the cursor to say which one and no `•••` panel
- * standing open to say it twice. *Close the agent* takes a node's chat away
+ * standing open to say it twice. *Close the chat* takes a node's chat away
  * from it; a verb that far-reaching asks to be pressed where a person can see
  * what they are pressing it on, which is the two menus.
  */
