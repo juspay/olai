@@ -223,8 +223,8 @@ test("the served resources are exactly the allowlist names, each under its own r
 
     const templates = await client.listResourceTemplates()
     expect(templates.resourceTemplates.map((t) => t.uriTemplate).sort()).toEqual([
-      "surface://collections/markdown/documents/{id}",
-      "surface://collections/outlines/outlines/{id}",
+      "surface://collections/markdown/documents/{+id}",
+      "surface://collections/outlines/outlines/{+id}",
     ])
   })
 }, 30_000)

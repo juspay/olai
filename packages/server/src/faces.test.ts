@@ -474,10 +474,10 @@ test("each published member is addressed by the kind it actually is", () => {
 
   // A COLLECTION, not a cell, and that is the whole rule rather than a detail:
   // the key set costs the paths and a body travels only when an agent asks for
-  // that one entry. The `{id}` is a root-relative, `/`-spelled path — the same
-  // spelling the store's keys and every `file:line` use — which the adapter
-  // parses by splitting on the FIRST `/` after the collection name, so a nested
-  // `notes/todo.olai` addresses without escaping.
+  // that one entry. The `{+id}` is RFC 6570's RESERVED expansion, so an item's
+  // name travels as a path a key may contain a `/` in (`notes/todo.olai`) rather
+  // than as one escaped segment; the adapter parses it by splitting on the FIRST
+  // `/` after the collection name.
   //
   // THE ROW IS THE FIRST SEGMENT after the kind, and the member follows it —
   // `outlines/outlines` reads like a repetition because the row and its member
@@ -487,7 +487,7 @@ test("each published member is addressed by the kind it actually is", () => {
       expect.objectContaining({ uri: `surface://collections/${row}/${key}`, kind: "collection", key }),
     )
     expect(resourceTemplates).toContainEqual(
-      expect.objectContaining({ uriTemplate: `surface://collections/${row}/${key}/{id}`, key }),
+      expect.objectContaining({ uriTemplate: `surface://collections/${row}/${key}/{+id}`, key }),
     )
   }
   expect(resources).toContainEqual(
@@ -504,8 +504,8 @@ test("nothing else is published, and the set is exact", () => {
     "surface://collections/outlines/outlines",
   ])
   expect(resourceTemplates.map((t) => t.uriTemplate).sort()).toEqual([
-    "surface://collections/markdown/documents/{id}",
-    "surface://collections/outlines/outlines/{id}",
+    "surface://collections/markdown/documents/{+id}",
+    "surface://collections/outlines/outlines/{+id}",
   ])
   // Fresh body bytes are browser-only; the agent has no such tool.
   expect(tools).toEqual([])
