@@ -217,7 +217,7 @@ test("closing a bound node takes the binding property off and supersedes nothing
 test("closing an unbound node refuses, and nothing is written", async () => {
   const at = binding(null)
   const said = await Effect.runPromise(Effect.flip(closeAgent(at, { node: "a" })))
-  expect(said.reason).toContain("no node agent")
+  expect(said.reason).toBe("no chat is tied to `a` to close")
   expect(at.removed).toEqual([])
   expect(at.wrote).toEqual([])
 })

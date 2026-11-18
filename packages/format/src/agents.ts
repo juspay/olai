@@ -555,7 +555,7 @@ export const notesIn = (
     const held = textDeclaredAs(declarations, { custom: note.props }, sessionWord)
     const said = held === undefined ? null : sessionIn(held)
     if (said === null) return []
-    const opens = textDeclaredAs(declarations, { custom: note.props }, opensWord)
+    const opens = textDeclaredAs(declarations, { custom: note.props }, opensWord)?.trim()
     return [{
       kind: "note" as const,
       id: itemKey({ kind: "note", path: note.path }),
@@ -564,15 +564,22 @@ export const notesIn = (
       engine: said.engine,
       session: said.session,
       memory: 0,
-      beside: opens === BESIDE,
+      beside: opens === OPENS_BESIDE,
     }]
   })
 }
 
-/** The one value of the opens switch that means anything: every other
- *  spelling, and the absence of the key, is a chat that opens alone. One
- *  word, so the reading and the writer cannot come to disagree about it. */
-const BESIDE = "beside"
+/** THE TWO WORDS THE OPENS SWITCH IS WRITTEN IN, and the one of them that
+ *  means anything: every other spelling, and the absence of the key, is a
+ *  chat that opens alone. Exported, so the reading here and the writer a
+ *  package away (`olai-plugin-chat`'s `server/binding.ts`, and the kind that
+ *  admits a hand-written value) cannot come to disagree about either word —
+ *  the pair `sessionIn`/`sessionValue` already is for the tie beside it. */
+export const OPENS_BESIDE = "beside"
+export const OPENS_ALONE = "alone"
+
+/** ...and the value a gesture writes for the answer it has. */
+export const opensValue = (beside: boolean): string => beside ? OPENS_BESIDE : OPENS_ALONE
 
 /**
  * COULD A CHAT BE SEATED ON THIS NOTE — {@link seatableIn}'s question for the

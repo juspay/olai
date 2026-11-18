@@ -51,8 +51,8 @@ describe("where a chat opens", () => {
 })
 
 describe("the dot on a tab and the lit Chats row", () => {
-  const note = { id: "/notes/plan.md", file: "notes/plan.md" }
-  const node = { id: "install", file: "house.olai" }
+  const note = { id: "/notes/plan.md", file: "notes/plan.md", kind: "note" as const }
+  const node = { id: "install", file: "house.olai", kind: "node" as const }
 
   test("a note's chat is current on its note, a heading in it included", () => {
     expect(isCurrent(TEST_CLAIMS, at("/notes/plan.md"), note, false)).toBe(true)

@@ -21,7 +21,7 @@
  * a component decides, and so the seat, the sidebar's lit row and a tab's dot
  * cannot come to three answers about one page.
  */
-import { type AgentItem, type Claims, isNotePath, itemKey, itemOf } from "@olai/format"
+import { type AgentItem, type Claims, isNotePath, itemKey } from "@olai/format"
 import { atFile, fileNamed, type Route, zoomNode } from "olai-plugin-navigation/routes"
 import { chatPage } from "./route.ts"
 
@@ -62,12 +62,14 @@ export const routeOfItem = (item: AgentItem): Route =>
 export const isCurrent = (
   claims: Claims | undefined,
   route: Route,
-  row: { readonly id: string; readonly file: string },
+  /** The roster's own row — which of the two kinds it is is a fact it
+   *  CARRIES, so this is not a second reading of its key. */
+  row: { readonly id: string; readonly file: string; readonly kind: "node" | "note" },
   unfolded: boolean,
 ): boolean => {
   const chat = chatPage.value(route)
   if (chat !== null) return itemKey(chat) === row.id
   const here = itemHere(claims, route)
   if (here !== null && itemKey(here) === row.id) return true
-  return itemOf(row.id).kind === "node" && unfolded && fileNamed(route) === row.file
+  return row.kind === "node" && unfolded && fileNamed(route) === row.file
 }

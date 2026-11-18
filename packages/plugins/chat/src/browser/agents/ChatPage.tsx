@@ -219,7 +219,7 @@ export function ChatPage(props: { readonly item: AgentItem }) {
           {(at) => <p class="mb-2 mt-1 font-mono text-caption text-muted" data-testid={TESTID.chatPageWhere}>{at()}</p>}
         </Show>
         <Show when={open()}>
-          <PageHead node={key()} beside={props.item} />
+          <PageHead node={key()} own />
           <Show when={props.item.kind === "note" ? props.item.path : undefined}>
             {(path) => <Opens path={path()} name={name()} beside={row()?.beside === true} />}
           </Show>

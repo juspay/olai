@@ -26,7 +26,7 @@ import {
   PLUGIN_SERVER_FILE,
   WORD,
 } from "@olai/surface"
-import { name, chunks, pluginReadme, slugOf } from "./index.ts"
+import { name, chunks, pluginReadme, readmeItem, slugOf } from "./index.ts"
 import { openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
@@ -38,15 +38,19 @@ export { name } from "./index.ts"
  * WHAT THE BUILDER IS TOLD BEFORE IT IS ASKED FOR ANYTHING — the preamble, in
  * the lane chat already teaches its agents in.
  *
- * SIX SENTENCES, and each of them exists because an agent that was not told
+ * FIVE SENTENCES, and each of them exists because an agent that was not told
  * it got it wrong on this branch: it wrote the two halves and no README, so the
  * page had nothing to say the plugin DID; it wrote against a memory of olai's
  * services rather than reading the live registry; it put the files somewhere
- * of its own choosing; it rewrote the README whole and dropped the front
- * matter THIS CONVERSATION IS TIED BY, which the write gate refuses and which
- * would otherwise close the chat the person is talking in; it stopped without
- * checking, leaving a person to find the compile error; and it tried to
- * approve its own work, which is the one thing it can never do.
+ * of its own choosing; it stopped without checking, leaving a person to find
+ * the compile error; and it tried to approve its own work, which is the one
+ * thing it can never do.
+ *
+ * WHAT IS NOT HERE is the `---` block: chat's own note contract already tells
+ * every note's agent to leave the front matter at the top of the file exactly
+ * as it is (`olai-plugin-chat`'s `teaching.ts`), and a builder's chat is a
+ * note's chat — the README's. The two arrive in the same first message, so a
+ * sentence of this row's own was the same instruction twice, two lines apart.
  *
  * It rides chat's teaching seam rather than a channel of this row's own,
  * because that seam already answers the two questions a preamble has: WHERE it
@@ -64,9 +68,6 @@ const preambleFor = (word: string, title: string): ReadonlyArray<string> => [
     + `PERSON — a \`# Title\` line, a blank line, then one sentence saying what it does, then as `
     + `much prose as it deserves — and then \`${PLUGIN_SERVER_FILE}\`, and `
     + `\`${PLUGIN_BROWSER_FILE}\` if it draws anything.`,
-  `Keep the \`---\` block at the top of \`${PLUGIN_README_FILE}\` exactly as it is when you `
-    + `rewrite the file. This conversation is tied to that note by those keys — olai refuses a `
-    + `write that changes or drops them, and the chat you are in is the one they name.`,
   `Finish by calling \`vault-plugins_run\`. If it answers a fault, fix it and run again.`,
   `You cannot turn it on. \`pending\` is not a failure — it is a person being asked, with your `
     + `code in front of them, and only they can press the button. Say when it is ready.`,
@@ -225,7 +226,7 @@ export default definePlugin({
           // tie goes in its own front matter and nothing has to be kept in
           // step with the folder's name.
           yield* Effect.result(chat.open({
-            about: { kind: "note", path: pluginReadme(word) },
+            about: readmeItem(word),
             engine,
             say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
             teach: preambleFor(word, title),
@@ -266,7 +267,7 @@ export default definePlugin({
           // THE README AND NOT A NODE: chat looks up the conversation tied to
           // this plugin's own note, so a README somebody deleted or a chat
           // they closed is `false` here rather than words sent nowhere.
-          return { sent: yield* chat.say({ about: { kind: "note", path: pluginReadme(input.name) }, text: said }) }
+          return { sent: yield* chat.say({ about: readmeItem(input.name), text: said }) }
         }),
 
       run: ({ input }) =>

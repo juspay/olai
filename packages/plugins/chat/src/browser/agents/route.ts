@@ -61,9 +61,12 @@ export const itemAt = (claims: Claims | undefined, pathname: string): AgentItem 
   return isNotePath(claims, path) ? { kind: "note", path } : null
 }
 
-/** ...and the same rule read backwards: what this page is written as. */
+/** ...and the same rule read backwards: what this page is written as. A
+ *  node's id is spelled BARE — `ID_SHAPE` is the alphabet the parse arm tests
+ *  against the raw segment, so an escape could only ever produce a spelling
+ *  that arm then refuses. */
 export const chatSpelling = (item: AgentItem): string =>
-  item.kind === "node" ? encodeURIComponent(item.id) : spellPath(item.path)
+  item.kind === "node" ? item.id : spellPath(item.path)
 
 export const chatPage = defineSelfDrawnRoute<AgentItem>({
   claims: [{ kind: "prefix", path: CHAT_PATH }],

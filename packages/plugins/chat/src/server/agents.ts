@@ -279,19 +279,20 @@ export const roster = (): Roster => {
   // read off the DOCUMENTS: a note's tie is in the YAML block at the top of the
   // file, and `seatableAt` has to answer about a path as well as about an id.
   let read: RosterReading | null = null
-  // ...and the keys that revision declares this kind on, resolved in the same
-  // breath as the rows and off the same fold. The claimed word is what a store
-  // that has never loaded answers with — see {@link Roster.keys}.
-  let keys: ReadonlyArray<string> = [SESSION_TYPE]
-  // ...and the same pair for the sleep memo, resolved off the same fold and in
-  // the same breath — see {@link Roster.sleptKey}.
-  let sleptKeys: ReadonlyArray<string> = [SLEPT_TYPE]
-  // ...and the same pair for the sleeping mark, off the same fold and in the
-  // same breath — see {@link Roster.sleepKey}.
-  let sleepingKeys: ReadonlyArray<string> = [SLEEPING_TYPE]
-  // ...and the key a note's *opens* switch is written under, off the same fold
-  // — see {@link Roster.opensKey}.
-  let opensKeys: ReadonlyArray<string> = [OPENS_TYPE]
+  // ...and the keys this revision declares each of this plugin's kinds on,
+  // resolved in the same breath as the rows and off the same fold.
+  //
+  // ONE MAP OVER THE FOUR WORDS, because the kind was the only thing that
+  // varied: a paragraph per kind is how a fifth word would cost a fifth copy
+  // of a rule that is written here once. The claimed word is what a store
+  // that has never loaded answers with, and what a vault that declared
+  // nothing folds to anyway — see {@link Roster.keys}.
+  const OWN_WORDS = [SESSION_TYPE, SLEPT_TYPE, SLEEPING_TYPE, OPENS_TYPE] as const
+  const claimedOnly = (): ReadonlyMap<string, ReadonlyArray<string>> =>
+    new Map(OWN_WORDS.map((word) => [word, [word]]))
+  let declaredKeys: ReadonlyMap<string, ReadonlyArray<string>> = claimedOnly()
+  const keysOf = (word: string): ReadonlyArray<string> => declaredKeys.get(word) ?? [word]
+  const keyOf = (word: string): string => keysOf(word)[0] ?? word
   const nearest = (node: string, candidates: ReadonlySet<string>): string | null =>
     read === null ? null : nearestAtOrAbove(read.derived, node, candidates)
   /** See {@link Roster.sleeps} — and read through one closure, because the row
@@ -310,10 +311,7 @@ export const roster = (): Roster => {
       read = reading
       if (reading === null) {
         held = NO_AGENTS
-        keys = [SESSION_TYPE]
-        sleptKeys = [SLEPT_TYPE]
-        sleepingKeys = [SLEEPING_TYPE]
-        opensKeys = [OPENS_TYPE]
+        declaredKeys = claimedOnly()
         return
       }
       // ONE FOLD, read twice. `declarationsOf` is a memo on the derivation, so
@@ -322,14 +320,10 @@ export const roster = (): Roster => {
       // revision, which is the whole reason they are assigned together.
       const declarations = declarationsOf(reading.derived, ownKinds)
       held = rosterIn(reading)
-      const declared = keysDeclaredAs(declarations, SESSION_TYPE)
-      keys = declared.length === 0 ? [SESSION_TYPE] : declared
-      const declaredSlept = keysDeclaredAs(declarations, SLEPT_TYPE)
-      sleptKeys = declaredSlept.length === 0 ? [SLEPT_TYPE] : declaredSlept
-      const declaredSleeping = keysDeclaredAs(declarations, SLEEPING_TYPE)
-      sleepingKeys = declaredSleeping.length === 0 ? [SLEEPING_TYPE] : declaredSleeping
-      const declaredOpens = keysDeclaredAs(declarations, OPENS_TYPE)
-      opensKeys = declaredOpens.length === 0 ? [OPENS_TYPE] : declaredOpens
+      declaredKeys = new Map(OWN_WORDS.map((word) => {
+        const declared = keysDeclaredAs(declarations, word)
+        return [word, declared.length === 0 ? [word] : declared]
+      }))
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
@@ -347,20 +341,22 @@ export const roster = (): Roster => {
     },
     nodes: () => held,
     reading: () => read?.derived ?? null,
-    key: () => keys[0] ?? SESSION_TYPE,
-    keys: () => keys,
-    sleptKey: () => sleptKeys[0] ?? SLEPT_TYPE,
-    sleptKeys: () => sleptKeys,
+    // The four declared-key members, each a thin alias over the one map: the
+    // names are what a caller asks by, the rule is written once above.
+    key: () => keyOf(SESSION_TYPE),
+    keys: () => keysOf(SESSION_TYPE),
+    sleptKey: () => keyOf(SLEPT_TYPE),
+    sleptKeys: () => keysOf(SLEPT_TYPE),
     sleptAt: (node) => {
       if (read === null) return null
       const at = read.derived.byId.get(node)
       if (at === undefined || !isRegular(at)) return null
       return textDeclaredAs(declarationsOf(read.derived, ownKinds), at.node, SLEPT_TYPE) ?? null
     },
-    sleepKey: () => sleepingKeys[0] ?? SLEEPING_TYPE,
-    sleepKeys: () => sleepingKeys,
-    opensKey: () => opensKeys[0] ?? OPENS_TYPE,
-    opensKeys: () => opensKeys,
+    sleepKey: () => keyOf(SLEEPING_TYPE),
+    sleepKeys: () => keysOf(SLEEPING_TYPE),
+    opensKey: () => keyOf(OPENS_TYPE),
+    opensKeys: () => keysOf(OPENS_TYPE),
     sleeps: sleeping,
     nearestAt: nearest,
     rowsWith: (overheard, live, sleep) => joined(held, overheard, live).map(row => {

@@ -63,7 +63,7 @@
  * would be two answers about one string.
  */
 
-import { canonicalDate, sessionIn } from "@olai/format"
+import { canonicalDate, OPENS_ALONE, OPENS_BESIDE, sessionIn } from "@olai/format"
 
 /** Internal words; other plugins ask chat.seating for the reading. */
 export { OPENS_KIND, OPENS_TYPE, SESSION_KIND, SESSION_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE } from "./binding.ts"
@@ -146,10 +146,10 @@ const SLEEPING = {
  */
 const OPENS = {
   kind: OPENS_KIND,
-  takes: `\`${OPENS_TYPE}\` (\`alone\` or \`beside\`)`,
+  takes: `\`${OPENS_TYPE}\` (\`${OPENS_ALONE}\` or \`${OPENS_BESIDE}\`)`,
   admits: (value: string) => {
     const word = value.trim()
-    return word === "alone" || word === "beside"
+    return word === OPENS_ALONE || word === OPENS_BESIDE
   },
 } as const
 

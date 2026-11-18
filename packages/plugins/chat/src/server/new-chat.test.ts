@@ -141,3 +141,24 @@ test("keys are answered whatever is typed, and an item that is not there is simp
   const found = itemLocations(vault(), { filter: "", limit: 20, keys: ["n99", "/notes/other.md", "settings", "/notes/gone.md"] })
   expect(found.items.map(one => one.key)).toEqual(["n99", "/notes/other.md"])
 })
+
+/** THE ROWS THE ONE-TIME MOVE LEAVES BEHIND (`./move.ts` refuses them: an
+ *  outline, a picture, a plugin's page), whose titles are markdown links. The
+ *  roster, the chat page and the outline all draw `house`; so does this list,
+ *  and so does every ancestor it names a trail with. */
+test("a row titled as one markdown link is listed by its label, ancestors included", () => {
+  const reading = readingOf(setOf({
+    "house.olai": [
+      '{"id":"whole","ord":"a0","title":"[house](/house.olai)"}',
+      '{"id":"handle","parent":"whole","ord":"a0","title":"[handle](/art/handle.png)"}',
+    ].join("\n"),
+  }, []))
+  const found = itemLocations(reading, { filter: "", limit: 20, keys: ["whole", "handle"] }).items
+  expect(found.map(one => [one.title, one.path]))
+    .toEqual([["house", []], ["handle", ["house"]]])
+  // ...and the raw record text is not what is searched either: a person types
+  // what the list drew.
+  expect(itemLocations(reading, { filter: "art/handle.png", limit: 20, keys: [] }).items).toEqual([])
+  expect(itemLocations(reading, { filter: "handle", limit: 20, keys: [] }).items.map(one => one.title))
+    .toEqual(["handle"])
+})

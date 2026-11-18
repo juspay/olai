@@ -41,9 +41,9 @@ test("tab attention parses no addresses until a conversation needs one, and repa
     // neither waiting nor unread is not something a tab is marked for, and the
     // gate is derived from what the marks are ABOUT rather than from there being
     // any agent at all.
-    setRows([{ id: "node", file: "house.olai", standing: "idle", unread: false }])
+    setRows([{ id: "node", file: "house.olai", kind: "node", standing: "idle", unread: false }])
     expect(parsed).toBe(0)
-    setRows([{ id: "node", file: "house.olai", standing: "needs-you", unread: false }])
+    setRows([{ id: "node", file: "house.olai", kind: "node", standing: "needs-you", unread: false }])
     expect([...needing.ids()]).toEqual(["a"])
     // ONE PARSE PER TAB, whoever is reading: the two marks share the walk, so
     // the second is not a second `workspaceOf` per tab.
@@ -73,9 +73,9 @@ test("the unread mark reads chat's own fact, and ranks below the question", () =
     const unread = mark(view.marks, "Unread")
     const needing = mark(view.marks, "Needs you")
     // A conversation that is standing idle — the sidebar's dot, not this mark.
-    setRows([{ id: "node", file: "house.olai", standing: "idle", unread: false }])
+    setRows([{ id: "node", file: "house.olai", kind: "node", standing: "idle", unread: false }])
     expect(unread.ids().size).toBe(0)
-    setRows([{ id: "node", file: "house.olai", standing: "idle", unread: true }])
+    setRows([{ id: "node", file: "house.olai", kind: "node", standing: "idle", unread: true }])
     expect([...unread.ids()]).toEqual(["a"])
     expect(unread.rank).toBeLessThan(needing.rank)
     // The rows are disjoint by construction — an idle conversation is nobody's

@@ -31,6 +31,7 @@
 
 import { type AgentItem, nodeChatTitle, noteTitle, type Claims } from "@olai/format"
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
+import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { agentReadings } from "./reading.ts"
 
@@ -91,18 +92,41 @@ export const labelOfChat = (
  * answer, lent to the label for exactly as long as the page is drawn.
  */
 export const titleOfNode = (id: string): string | null =>
-  agentReadings()?.agents.at(id)?.title ?? drawnTitles().get(id) ?? null
+  agentReadings()?.agents.at(id)?.title ?? titles.read()?.at(id) ?? null
 
-/** Node id → the title a drawn chat page has for it. Rebuilt from {@link held}
- *  rather than written key by key, so two panes on one node cannot clear each
- *  other's entry when one of them closes. */
-const [drawnTitles, setDrawnTitles] = createSignal<ReadonlyMap<string, string>>(new Map())
-const held = new Map<object, readonly [string, string]>()
-const republish = (): void => {
-  const next = new Map<string, string>()
-  for (const [id, title] of held.values()) next.set(id, title)
-  setDrawnTitles(next)
+/**
+ * THE TITLES THE DRAWN PAGES OF THIS TAB HAVE — node id → the title a chat
+ * page is reading for it, rebuilt from the pages themselves rather than
+ * written key by key, so two panes on one node cannot clear each other's
+ * entry when one of them closes.
+ *
+ * HELD FOR THE ACTIVATION, like the fold and the closes beside it
+ * (`./closing.ts`, `./folding.ts`): what a drawn page lends the label is this
+ * chat plugin's, and a plugin that goes away takes it with it — a withdrawn
+ * chat used to leave this map populated and go on answering out of it. A
+ * label asked with nothing held falls back to the id, which is the honest
+ * answer when there is no chat plugin to have drawn anything.
+ */
+export const createDrawnTitles = () => {
+  const [drawn, setDrawn] = createSignal<ReadonlyMap<string, string>>(new Map())
+  const pages = new Map<object, readonly [string, string]>()
+  const republish = (): void => {
+    const next = new Map<string, string>()
+    for (const [id, title] of pages.values()) next.set(id, title)
+    setDrawn(next)
+  }
+  return {
+    at: (id: string): string | null => drawn().get(id) ?? null,
+    /** One page's answer, by its own token — `null` takes its entry away. */
+    says: (token: object, said: readonly [string, string] | null): void => {
+      if (said === null) pages.delete(token)
+      else pages.set(token, said)
+      republish()
+    },
+  }
 }
+const titles = heldService<ReturnType<typeof createDrawnTitles>>()
+export const holdDrawnTitles = titles.hold
 
 /** A page saying what the node it is about is called, for as long as it is
  *  drawn. The token is this page's own identity, so the entry goes when the
@@ -114,12 +138,7 @@ export const namesNode = (id: Accessor<string | null>, title: Accessor<string | 
   createEffect(() => {
     const node = id()
     const said = node === null ? null : title()
-    if (node === null || said === null) held.delete(token)
-    else held.set(token, [node, said])
-    republish()
+    titles.read()?.says(token, node === null || said === null ? null : [node, said])
   })
-  onCleanup(() => {
-    held.delete(token)
-    republish()
-  })
+  onCleanup(() => titles.read()?.says(token, null))
 }

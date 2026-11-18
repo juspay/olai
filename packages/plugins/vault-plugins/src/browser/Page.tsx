@@ -60,7 +60,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 import { TESTID } from "../testids.ts"
 import { client } from "../client.ts"
 import { beside, engines, router } from "./doors.ts"
-import { pluginReadme } from "../index.ts"
+import { readmeItem } from "../index.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
@@ -146,10 +146,10 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
    */
   const [shown, setShown] = createSignal(props.plugin.source.version)
   /** THE PLUGIN'S BUILDER CHAT, as an item: the chat of the plugin's own
-   *  README note (`../index.ts`'s `pluginReadme`), which `mint` writes before
+   *  README note (`../index.ts`'s `readmeItem`), which `mint` writes before
    *  the conversation is opened. The *ask* verbs and the one-time open below
    *  both name this one note. */
-  const readme = (): AgentItem => ({ kind: "note", path: pluginReadme(props.plugin.name) })
+  const readme = (): AgentItem => readmeItem(props.plugin.name)
   /** THE PANE BESIDE THIS ONE, where there is a chat to put in it and a door
    *  held to put it there (`olai-plugin-chat/beside`). Read for the *ask*
    *  verbs, which are offered whenever both are there. */
@@ -406,7 +406,7 @@ function Beside(props: { readonly door: BesideDoor; readonly item: AgentItem; re
  * *ASK FOR A CHANGE…* — the way into the conversation that builds this
  * plugin, in the pane beside the page.
  *
- * THE CHAT IS THE README NOTE'S (`../index.ts`'s `pluginReadme`), so this is
+ * THE CHAT IS THE README NOTE'S (`../index.ts`'s `readmeItem`), so this is
  * the same conversation that note's own page offers, reached from the page a
  * person is actually on. Where the plugin has no chat yet the words say so —
  * *Ask about <Title>…* — and the press still goes to that chat's page, which

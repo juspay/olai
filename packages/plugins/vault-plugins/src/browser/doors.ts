@@ -10,7 +10,7 @@
  * These four are different in one way — the component that DECLARES them is not
  * the component that DRAWS with them. The sidebar's `+` wants the palette, and
  * the sidebar must keep its rows with navigation switched off; the page wants
- * the agent panel, and the page must keep working with chat switched off; the
+ * the pane beside it, and the page must keep working with chat switched off; the
  * palette's first level wants the engines, and the level must still open where
  * no engine is installed. Each of those is one component declaring the service
  * and a different component asking, every frame, whether anybody is holding it.

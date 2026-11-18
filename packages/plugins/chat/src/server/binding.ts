@@ -53,7 +53,7 @@
  * on and two tabs can be looking at one item.
  */
 
-import { itemKey, itemOf, matterWith, type OpFailure, sessionValue, UsageFailure } from "@olai/format"
+import { itemKey, itemOf, matterWith, type OpFailure, opensValue, sessionValue, UsageFailure } from "@olai/format"
 import { Effect } from "effect"
 
 import type { Conversing } from "../sessions.ts"
@@ -190,6 +190,14 @@ export const matterWritten = (
     yield* binding.doc(path, again, now)
   })
 
+/** THE ITEM IN A SENTENCE: a note's path, or a node's id — so a refusal names
+ *  the thing the reader is looking at rather than "this node", which a note
+ *  is not. */
+const namedItem = (item: string): string => {
+  const at = itemOf(item)
+  return at.kind === "note" ? at.path : at.id
+}
+
 /** RELEASE an item's agent: take the tie off. Nothing else happens —
  *  no supersession is recorded (releasing is not fresh-starting), the memory is
  *  untouched, and the conversation becomes a chat nobody claims. The seat the
@@ -205,7 +213,7 @@ export const closeAgent = (
   Effect.gen(function*() {
     const at = binding.boundAt(input.node)
     if (at === null) {
-      return yield* new UsageFailure({ reason: `no node agent is bound to this node to close` })
+      return yield* new UsageFailure({ reason: `no chat is tied to \`${namedItem(input.node)}\` to close` })
     }
     yield* tied(binding, input.node, null)
   })
@@ -262,8 +270,7 @@ export const retie = (
   input: { readonly node: string; readonly agent: string; readonly session: string },
 ): Effect.Effect<void, OpFailure> =>
   Effect.gen(function*() {
-    const at = itemOf(input.node)
-    const named = at.kind === "note" ? at.path : at.id
+    const named = namedItem(input.node)
     if (!roster.seatable(input.node)) {
       return yield* new UsageFailure({ reason: `olai no longer holds \`${named}\`, so there is nothing to tie this chat to` })
     }
@@ -340,7 +347,7 @@ export const setOpens = (
     if (binding.boundAt(item) === null) {
       return yield* new UsageFailure({ reason: `no chat is tied to \`${input.path}\` to place` })
     }
-    yield* matterWritten(binding, input.path, [[binding.opensKey(), input.beside ? "beside" : "alone"]])
+    yield* matterWritten(binding, input.path, [[binding.opensKey(), opensValue(input.beside)]])
   })
 
 /**

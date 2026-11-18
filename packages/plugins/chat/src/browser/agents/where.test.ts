@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test"
-import { itemRows, type LocationItem } from "./where.ts"
+import { itemRows } from "./where.ts"
+import type { ItemLocation } from "olai-plugin-chat/wire"
 
-const node = (id: string, path: string[] = []): LocationItem =>
+const node = (id: string, path: string[] = []): ItemLocation =>
   ({ key: id, kind: "node", title: id, file: "work.olai", path })
-const note = (path: string): LocationItem =>
+const note = (path: string): ItemLocation =>
   ({ key: `/${path}`, kind: "note", title: path.slice(path.lastIndexOf("/") + 1, -3), file: path, path: [] })
 const base = { here: null, recent: [], items: [], typed: "" }
 

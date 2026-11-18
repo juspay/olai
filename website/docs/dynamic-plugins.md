@@ -49,7 +49,7 @@ Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plu
 
     The agent is told to keep the `---` block at the top of that `README.md` exactly as it is, because those keys tie the conversation to the file, and olai refuses a write that changes them.
 
-[^fence]: A tool writing the file from outside olai is outside that fence. If the `---` block comes back without the keys, the builder's page says `hex-swatch no longer names this conversation`, that the conversation is untouched, and offers one press, **Tie it to hex-swatch again**, which writes `chat-agent-session` back. That offer stands only while the pane stays open: a reload takes it away, and the way to that conversation with it.
+[^fence]: A tool writing the file from outside olai is outside that fence. What the chat's own page then says, and the one press that ties it back, are on [the chat plugin's page](plugins/chat.md).
 
 [^reserved]: You cannot use `on`, `approved` or `checked` as a plugin setting: a `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, and olai writes it when that call comes in. A plugin that could write `checked` itself would declare itself finished.
 

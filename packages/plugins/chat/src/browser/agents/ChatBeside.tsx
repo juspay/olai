@@ -5,9 +5,9 @@
  * The sibling of `./OpenBeside.tsx` and its opposite. That button is on the
  * chat's own page and moves the ITEM next to the conversation; this one is on
  * every face drawn where the item already IS — a row's fold, a node's page,
- * the seat under a note — and moves the CONVERSATION next to the item. Both
- * end at the same two panes, and which one a person presses is only which
- * half they were looking at.
+ * the line at the top of a note — and moves the CONVERSATION next to the
+ * item. Both end at the same two panes, and which one a person presses is
+ * only which half they were looking at.
  *
  * It opens to the RIGHT and touches NO pane that is already open: not the one
  * it was pressed in — the person is reading that outline or that note, and a

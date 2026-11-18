@@ -53,7 +53,7 @@ import * as effect from "effect"
 import { Effect } from "effect"
 import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
 
-import { pluginReadme } from "./index.ts"
+import { readmeItem } from "./index.ts"
 import { ALWAYS, APPROVED_KEY, CHECKED_KEY, type Defined, definedIn, isApproved, isBuilding, isOn, ON_KEY } from "./source.ts"
 
 /**
@@ -378,7 +378,7 @@ export const openDynamic = (
       const door = conversations()
       chats = door === undefined
         ? new Set()
-        : yield* door.here({ about: defined.map((one) => ({ kind: "note" as const, path: pluginReadme(one.name) })) })
+        : yield* door.here({ about: defined.map((one) => readmeItem(one.name)) })
       // WANTED IS APPROVED **AND** ON, and the two are different facts: a
       // plugin a person approved and then switched off is approved and not
       // running, and a plugin somebody switched on and then edited is on and
@@ -482,7 +482,7 @@ export const openDynamic = (
       // chat is the answer {@link follow} already took for this revision.
       const asking = conversations() !== undefined
       return seen.map((one) =>
-        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(itemKey({ kind: "note", path: pluginReadme(one.name) })), asking))
+        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(itemKey(readmeItem(one.name))), asking))
     },
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),

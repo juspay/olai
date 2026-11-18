@@ -43,7 +43,7 @@ import { collectionDeltasSchema, defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 import { AgentItem } from "@olai/format"
 
-import { Agents, NO_AGENT_ROSTER, sameAgentRoster } from "./wire/agents.ts"
+import { Agents, ItemLocation, NO_AGENT_ROSTER, sameAgentRoster } from "./wire/agents.ts"
 import {
   AskAnswer,
   AgentChoice,
@@ -349,8 +349,7 @@ export const surface = defineSurface({
        */
       locations: {
         input: Schema.Struct({ filter: Schema.String, limit: Schema.Number, keys: Schema.Array(Schema.String) }),
-        output: Schema.Struct({ items: Schema.Array(Schema.Struct({ key: Schema.String, kind: Schema.Literals(["node", "note"]),
-          title: Schema.String, file: Schema.String, path: Schema.Array(Schema.String) })) }),
+        output: Schema.Struct({ items: Schema.Array(ItemLocation) }),
         error: ChatFailure,
       },
       /** Null means the panel holds an auth-refused open for sign-in. */

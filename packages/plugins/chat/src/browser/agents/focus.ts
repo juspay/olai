@@ -30,7 +30,7 @@
  * renderer in with it. The row that needs a router reads one itself
  * (`./Agents.tsx`).
  */
-import { itemOf } from "@olai/format"
+import { type AgentItem, itemOf } from "@olai/format"
 import { focusAt, hrefOfWorkspace, navigateIn, openRight, panesOf, type AddressTarget, type Workspace, type WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import type { Route } from "olai-plugin-navigation/routes"
 import { drawnIn } from "./beside.ts"
@@ -50,23 +50,29 @@ export const visitAgent = (row: Row): void => {
  *  conversation itself, whatever else opens with it. */
 export const chatRoute = (row: Row): Route => chatRouteOf(itemOf(row.id))
 /**
+ * THE ITEM AND ITS CHAT, SIDE BY SIDE — the pane a press lands in becomes the
+ * ITEM, and the conversation opens in a NEW pane to its right.
+ *
+ * ONE SPELLING for the two gestures that end there: a *beside* row's press
+ * ({@link chatTarget}) and *Open <name> beside* on the chat's own page
+ * (`./OpenBeside.tsx`), which arrive from opposite halves and must land on
+ * the same two columns.
+ *
+ * COMPOSED AGAINST THE LAYOUT THAT IS OPEN, not out of thin air: a workspace
+ * built from `lone(note)` names TWO panes, so pressing it with three open
+ * replaced all three. And `forceNew`, rather than `openRight`'s ordinary
+ * reuse of the column already there — the column to the right is a page
+ * somebody put there, and opening a conversation closes nothing.
+ */
+export const asideOf = (workspace: Workspace, index: number, item: AgentItem): Workspace =>
+  openRight(navigateIn(workspace, index, routeOfItem(item)), index, chatRouteOf(item), true)
+/**
  * ...AND THE WHOLE OF WHAT A PRESS OPENS: the page alone, or the item and the
  * chat side by side with the chat focused.
  *
- * COMPOSED AGAINST THE LAYOUT THAT IS OPEN, not out of thin air. A *beside*
- * row built its own two-pane workspace from `lone(note)`, which is an address
- * naming TWO panes — so pressing it with three panes open replaced all three,
- * and a reader lost the columns they had arranged to press a row in the
- * sidebar. It is the same two verbs *Open <name> beside* spends
- * (`./OpenBeside.tsx`): the pane a press lands in becomes the ITEM, and the
- * conversation opens to its right.
- *
- * AND NOTHING IS OVERWRITTEN TO MAKE ROOM. The chat is a NEW pane to the
- * right of the item — `forceNew`, rather than `openRight`'s ordinary reuse of
- * the column already there: with `house`, `kept` and `Inbox` open, a press on
- * a *beside* row gave `plan`, its chat and `Inbox`, and the pane holding
- * `kept` was simply gone. A press in a list of chats is not a press that
- * closes anything.
+ * COMPOSED AGAINST THE LAYOUT THAT IS OPEN and never overwriting a column to
+ * make room — {@link asideOf} is that rule, and this is where a row spends
+ * it.
  *
  * UNLESS THE CHAT IS ALREADY DRAWN somewhere in this layout, in which case
  * that pane is the answer and the press only focuses it (`./beside.ts`'s
@@ -82,7 +88,7 @@ export const chatTarget = (row: Row, here: Workspace): AddressTarget => {
   return {
     kind: "layout",
     workspace: already === null
-      ? openRight(withItem, here.focus, chat, true)
+      ? asideOf(here, here.focus, item)
       : focusAt(withItem, already),
   }
 }

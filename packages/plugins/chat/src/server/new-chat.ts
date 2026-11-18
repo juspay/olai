@@ -23,6 +23,7 @@ import {
   itemKey,
   itemOf,
   type NodeAgent,
+  nodeChatTitle,
   type OpFailure,
   type Reading,
   noteTitle,
@@ -30,6 +31,7 @@ import {
   seatableNote,
   UsageFailure,
 } from "@olai/format"
+import { type ItemLocation, matchesTyped } from "../wire/agents.ts"
 import type { Conversing } from "../sessions.ts"
 
 export interface NewChat {
@@ -113,18 +115,6 @@ export interface LocationQuery {
   readonly keys: readonly string[]
 }
 
-/** One item a chat can be about, as a palette row draws it. */
-export interface ItemLocation {
-  /** The item's own key — a node's id, or `/` and a note's path. */
-  readonly key: string
-  readonly kind: "node" | "note"
-  readonly title: string
-  /** The file it is in: an outline for a node, the note's own path. */
-  readonly file: string
-  /** The titles above a node, outermost first. Empty for a note. */
-  readonly path: readonly string[]
-}
-
 /** The most of each kind one question can carry back. Exact lookups are
  *  bounded the same way, so no answer here ships a vault. */
 const MOST = 20
@@ -160,10 +150,13 @@ export const itemLocations = (reading: Reading, query: LocationQuery): { readonl
       seen.add(parent)
       const above = reading.derived.byId.get(parent)
       if (above === undefined || !isRegular(above)) break
-      path.unshift(above.node.title)
+      // ...AND ITS ANCESTORS BY THE SAME RULE: the outline draws a row
+      // written as one markdown link by its LABEL, so a trail reading
+      // `[house](/house.olai) › plan` names one of them twice over.
+      path.unshift(nodeChatTitle(above.node.title))
       parent = above.node.parent
     }
-    return { key: id, kind: "node", title: row.node.title, file: row.file, path }
+    return { key: id, kind: "node", title: nodeChatTitle(row.node.title), file: row.file, path }
   }
   const note = (path: string): ItemLocation | null => {
     if (inOlaiDir(path) || isPutAway(claims, path) || !seatableNote(reading.set, claims, path)) return null
@@ -179,15 +172,14 @@ export const itemLocations = (reading: Reading, query: LocationQuery): { readonl
     const one = found(key)
     if (one !== null) items.push(one)
   }
-  const filter = query.filter.trim().toLowerCase()
+  const filter = query.filter.trim()
   if (filter === "") return { items }
-  const matches = (one: ItemLocation) => [one.file, ...one.path, one.title].join(" › ").toLowerCase().includes(filter)
   let nodes = 0
   for (const row of reading.derived.nodes) {
     if (nodes >= limit) break
     if (!isRegular(row) || keys.has(row.node.id)) continue
     const one = node(row.node.id)
-    if (one === null || !matches(one)) continue
+    if (one === null || !matchesTyped(one, filter)) continue
     items.push(one)
     nodes++
   }
@@ -199,7 +191,7 @@ export const itemLocations = (reading: Reading, query: LocationQuery): { readonl
     if (notes >= limit) break
     if (keys.has(itemKey({ kind: "note", path: document.path }))) continue
     const one = note(document.path)
-    if (one === null || !matches(one)) continue
+    if (one === null || !matchesTyped(one, filter)) continue
     items.push(one)
     notes++
   }

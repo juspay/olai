@@ -34,6 +34,10 @@ import type { AgentStanding, NodeAgentRow } from "./wire/agents.ts"
 export interface AttentionRow {
   readonly id: string
   readonly file: string
+  /** WHICH OF THE TWO THINGS THIS CHAT IS ABOUT — a node or a note. Carried
+   *  rather than read back out of the key, so {@link Attention.isCurrent} and
+   *  every face that draws a row ask one source. */
+  readonly kind: "node" | "note"
   readonly standing: AgentStanding
   /** Whether its agent has said something since anybody last looked at the
    *  conversation — the one fact every face that marks an unread conversation

@@ -35,6 +35,7 @@ import { Effect } from "effect"
 import { Standing } from "./browser/agents/Standing.tsx"
 import { createFolding, holdFolding } from "./browser/agents/folding.ts"
 import { createCloses, holdCloses } from "./browser/agents/closing.ts"
+import { createDrawnTitles, holdDrawnTitles } from "./browser/agents/called.ts"
 import { createHistory, holdHistory } from "./browser/agents/history.ts"
 import { NeedsYou, Chats } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents, useAgents } from "./browser/agents/answered.tsx"
@@ -116,6 +117,10 @@ export default definePlugin({
         // WHICH CHATS THIS READER CLOSED, for the page that would otherwise
         // offer a person their own press back (`./browser/agents/closing.ts`).
         closes: createCloses(),
+        // ...and what the chat pages drawn in this tab know a node is called,
+        // lent to a label that has no owner to ask with
+        // (`./browser/agents/called.ts`).
+        titles: createDrawnTitles(),
         // WHICH PAGE A CHAT IS ABOUT, for a tab's dot: chat's own reading of
         // which item a page is (`./browser/agents/here.ts`).
         isCurrent: (route: Route, row: AttentionRow) => isCurrent(servedDirectory()?.claims(), route, row, folding.unfolded(row.id)),
@@ -124,6 +129,7 @@ export default definePlugin({
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdCloses(state.closes)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => holdDrawnTitles(state.titles)), stop => Effect.sync(stop))
     // ...and the history list's own open/shut, the same owner and the same
     // lifetime as the fold beside it (`./browser/agents/history.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdHistory(state.history)), stop => Effect.sync(stop))

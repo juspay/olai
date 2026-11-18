@@ -1,3 +1,4 @@
+import type { AgentItem } from "@olai/format"
 import { PLUGIN_FOLDER, PLUGIN_README_FILE } from "@olai/surface"
 import { serviceTag } from "@olai/plugin-api/services"
 import type { Effect } from "effect"
@@ -62,6 +63,12 @@ export const PLUGIN_PATH = "/plugins/"
  * same string until the day one of them moves.
  */
 export const pluginReadme = (word: string): string => `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}`
+
+/** ...AND THAT NOTE AS AN ITEM — what a plugin's builder chat IS, composed
+ *  once rather than at each of the four places that ask chat about it (the
+ *  open, the say, the question *which plugins have a chat* and the answer it
+ *  is read against, which have to agree about one item to work at all). */
+export const readmeItem = (word: string): AgentItem => ({ kind: "note", path: pluginReadme(word) })
 
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {

@@ -1,6 +1,5 @@
-import { createMemo } from "solid-js"
 import { Result } from "effect"
-import type { PaletteAdapter, PaletteItem, PaletteOption } from "olai-plugin-navigation/contract"
+import type { PaletteAdapter, PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { chatWire } from "../wire.ts"
@@ -8,14 +7,13 @@ import { navigation } from "../navigation.ts"
 import { agentReadings } from "./reading.ts"
 import { focusAgent } from "./focus.ts"
 import { byActivity } from "./activity-order.ts"
-import { hereNow, newChatRow } from "./new-chat-level.ts"
+import { hereNow, messageLevel, newChatRow } from "./new-chat-level.ts"
 import { agentAboveOf } from "./above.ts"
 import { LOOK } from "./roster.ts"
 import { chatVerbs } from "../verbs.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
 import { nameOfNote } from "./called.ts"
-import { sendAbout } from "./send-about.ts"
 import { noteHere } from "./here.ts"
 import { chatRouteOf } from "./route.ts"
 import { servedDirectory } from "../vault.ts"
@@ -160,24 +158,15 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     return [{
       id: ABOUT_ROW, label: "Chat about this page", place: path,
       search: `agents chat about this page ${name}`.toLowerCase(), taking: atOnce,
-      action: { kind: "level", level: {
-        kind: "value",
+      // THE SAME LEVEL *New chat* ASKS WITH (`./new-chat-level.ts`'s
+      // `messageLevel`), with this row's two differences handed in: the words
+      // in the empty box, and the conversation opening in the pane BESIDE
+      // this one rather than on its own, which is what the line at the top of
+      // the page does.
+      action: { kind: "level", level: messageLevel(creation, agents, { kind: "note", path }, {
         placeholder: `Ask about ${name}…`,
-        submitLabel: "Start chat",
-        options: () => createMemo<ReadonlyArray<PaletteOption>>(previous => agents.engines().map(engine =>
-          previous.find(option => option.id === engine.id && option.label === engine.name) ?? { id: engine.id, label: engine.name }), []),
-        validate: text => text.trim() === "" ? "Type a message first." : null,
-        submit: async (text, engine) => {
-          if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
-          // ONE PRESS OF THE DOOR (`./send-about.ts`'s `sendAbout`): a refusal keeps
-          // the words in this box with the sentence beside them, and opens
-          // nothing.
-          const sent = await sendAbout({ item: { kind: "note", path }, engine: engine.id, text })
-          if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
-          nav.openRight(at, chatRouteOf({ kind: "note", path }))
-          return {}
-        },
-      } },
+        opened: () => nav.openRight(at, chatRouteOf({ kind: "note", path })),
+      }) },
     }]
   }
   return { items: (): ReadonlyArray<PaletteItem> => {

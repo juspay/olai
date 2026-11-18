@@ -29,7 +29,6 @@
 import { createMemo, Show } from "solid-js"
 import type { AgentItem } from "@olai/format"
 import { useRouter } from "olai-plugin-navigation/routing"
-import { navigateIn, openRight } from "olai-plugin-navigation/workspace"
 import { usePane } from "olai-plugin-navigation/pane"
 
 import { TESTID } from "../../testids.ts"
@@ -37,7 +36,7 @@ import { desktop } from "../shell.ts"
 import { showPane } from "./ChatBeside.tsx"
 import { LINE_VERB } from "./verb.ts"
 import { routeOfItem } from "./here.ts"
-import { chatRouteOf } from "./route.ts"
+import { asideOf } from "./focus.ts"
 
 export function OpenBeside(props: { readonly item: AgentItem; readonly name: string; readonly class?: string }) {
   const router = useRouter()
@@ -60,11 +59,11 @@ export function OpenBeside(props: { readonly item: AgentItem; readonly name: str
     // route keeps its identity when the new list is matched by address
     // (`olai-plugin-navigation`'s `createPaneState`).
     //
-    // A NEW PANE, NEVER A NEIGHBOUR'S. `forceNew` in both arms: the ordinary
-    // `openRight` reuses the column to the right, and the column to the right
-    // is a page somebody else put there — this press opens a conversation, it
-    // does not close anything (`./focus.ts` spends the same rule).
-    router.open(openRight(navigateIn(router.workspace(), here, target()), here, chatRouteOf(props.item), true))
+    // A NEW PANE, NEVER A NEIGHBOUR'S, and the two columns composed by the
+    // one rule a *beside* row's press spends (`./focus.ts`'s `asideOf`): the
+    // ordinary `openRight` reuses the column to the right, and that column is
+    // a page somebody else put there.
+    router.open(asideOf(router.workspace(), here, props.item))
   }
   return (
     <button

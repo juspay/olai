@@ -16,10 +16,10 @@ import type { Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { LINE_VERB } from "./verb.ts"
-import { type AgentItem, itemOf } from "@olai/format"
+import { itemOf } from "@olai/format"
 import { ChatBeside } from "./ChatBeside.tsx"
 
-export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly beside?: AgentItem }) {
+export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly own?: boolean }) {
   const agents = useAgents()
   const state = () => props.chat.state()
   const doing = () => busyIn(state())
@@ -56,7 +56,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
         top of a note), and never on the chat's own page, whose head carries
         the opposite verb (`./ChatPage.tsx`'s pinned line, which is where the
         way back has to be: this line scrolls away with the conversation).
-        `beside` is how that page says the line is its own.
+        `own` is how that page says the line is its own.
 
         DRAWN ONLY WHERE THERE CAN BE A PANE BESIDE THIS ONE. Below `md` the
         panes are a strip of tabs, one at a time, so "beside" names nothing a
@@ -66,7 +66,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
         and the row under an open fold sat at 845). The one-line *Shown
         beside* is NOT gated: wherever a conversation has gone, the way back
         to it is drawn. */}
-    <Show when={props.beside === undefined}>
+    <Show when={!props.own}>
       <ChatBeside item={itemOf(props.node)} class={`hidden md:inline-flex ${LINE_VERB}`} />
     </Show>
     <Show when={!props.page}><Link route={atNode(props.node)} class={LINE_VERB}>Show in outline ›</Link></Show>

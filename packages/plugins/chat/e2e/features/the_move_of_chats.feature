@@ -53,3 +53,17 @@ Feature: The one-time move of chats onto their notes
     When I press the Chats row "house-row"
     Then the chat page is about the node "house-row" named "house" in "_olai/Inbox.olai"
     And there should be no page errors
+
+  # ...AND SO IS THE LIST THAT OFFERS A NEW CHAT. `[loft](/attic.olai)` names
+  # no note, so the move leaves that row alone with its tie; the palette's
+  # item level asks the server which node or note a chat can be about, and the
+  # answer names a row the way the outline draws it. A person then types what
+  # they can see rather than the markdown underneath it.
+  Scenario: New chat lists a row left behind by its link's label
+    Given I open the app
+    When I press new chat in Chats
+    And I type "loft" into the palette
+    Then the new chat item "loft-row" is named "loft"
+    When I type "attic" into the palette
+    Then the new chat items do not include "loft-row"
+    And there should be no page errors

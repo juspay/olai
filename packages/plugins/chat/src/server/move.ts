@@ -51,6 +51,7 @@ import {
   isPutAway,
   isRegular,
   type OpFailure,
+  OPENS_ALONE,
   notesClaimed,
   notesIn,
   type PropDeclarations,
@@ -214,7 +215,9 @@ export const applyMoves = (mover: Mover): Effect.Effect<boolean, OpFailure> =>
         if (!move.untieOnly) {
           yield* matterWritten(mover, move.path, [
             [mover.key(), move.value],
-            [mover.opensKey(), ALONE],
+            // The note's chat opens on its own until somebody says otherwise
+            // (`../kinds.ts`'s `chat-opens`, `@olai/format`'s own word).
+            [mover.opensKey(), OPENS_ALONE],
           ])
         }
         yield* mover.remove(move.row)
@@ -232,7 +235,3 @@ export const applyMoves = (mover: Mover): Effect.Effect<boolean, OpFailure> =>
     }
     return true
   })
-
-/** What a moved chat's switch says: the note's chat opens on its own until
- *  somebody says otherwise (`../kinds.ts`'s `chat-opens`). */
-const ALONE = "alone"

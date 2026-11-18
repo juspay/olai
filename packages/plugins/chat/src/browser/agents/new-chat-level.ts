@@ -20,7 +20,7 @@
 import { createEffect, createMemo, createSignal, onCleanup, untrack, type Accessor } from "solid-js"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { runAsync } from "@olai/web/client/run.ts"
-import { itemOf } from "@olai/format"
+import { type AgentItem, itemKey, itemOf } from "@olai/format"
 import type { LevelScope, PaletteItem, PaletteOption, PaletteValue } from "olai-plugin-navigation/contract"
 import { nodePlace } from "olai-plugin-search/ui/place.ts"
 import { chatWire } from "../wire.ts"
@@ -36,7 +36,8 @@ import { focusAgent } from "./focus.ts"
 import { itemHere } from "./here.ts"
 import { chatRouteOf } from "./route.ts"
 import { talking } from "./roster.ts"
-import { ITEMS_LIMIT, itemRows, type ItemRow, type LocationItem } from "./where.ts"
+import { ITEMS_LIMIT, itemRows, type ItemRow } from "./where.ts"
+import type { ItemLocation } from "olai-plugin-chat/wire"
 import type { Roster } from "./answered.tsx"
 import type { NewChatOwner } from "./new-chat.ts"
 
@@ -59,7 +60,7 @@ export const hereItem = (): string | null => {
   const pane = nav?.panes()[nav.focusIndex()]
   if (pane === undefined) return null
   const item = itemHere(servedDirectory()?.claims(), pane.route())
-  return item === null || item.kind !== "note" ? null : `/${item.path}`
+  return item === null || item.kind !== "note" ? null : itemKey(item)
 }
 
 /** The items of the chats heard from most recently; activity ticking without
@@ -69,11 +70,30 @@ const recentItems = (agents: Roster) => createMemo(
   { equals: (before, after) => before.length === after.length && before.every((id, index) => id === after[index]) },
 )
 
-/** The message level for one chosen item: the engines that can start, the
- *  first chosen, and one submit through the shared permit. */
-const messageLevel = (owner: NewChatOwner, agents: Roster, item: LocationItem): PaletteValue => ({
+/**
+ * THE MESSAGE LEVEL FOR ONE CHOSEN ITEM: the engines that can start, the
+ * first chosen, and one submit through the shared permit.
+ *
+ * TWO ROWS SPEND IT — *New chat*'s second level, which asks about whichever
+ * item was chosen, and *Chat about this page*, which is the same level about
+ * the note in front (`./AgentPalette.ts`). What differs between them is the
+ * words in the empty box and what opens once the chat exists, so those are
+ * the two things handed in: the copy that used to stand here twice is how one
+ * of them came to skip the permit the other asks for.
+ */
+export const messageLevel = (
+  owner: NewChatOwner,
+  agents: Roster,
+  item: AgentItem,
+  asks: {
+    readonly placeholder: string
+    /** ...and what the press opens, once the chat is there: the key the start
+     *  answered with. */
+    readonly opened: (started: string) => void
+  },
+): PaletteValue => ({
   kind: "value",
-  placeholder: "Say something to start…",
+  placeholder: asks.placeholder,
   submitLabel: "Start chat",
   // One memo per opening, in the level's scope: the radio group is drawn by
   // object, so an option keeps its object while its engine keeps its name.
@@ -86,23 +106,10 @@ const messageLevel = (owner: NewChatOwner, agents: Roster, item: LocationItem): 
     // ONE PRESS OF THE DOOR (`./send-about.ts`'s `sendAbout`): the server starts
     // the chat on this item and delivers the words, so a refusal keeps them
     // in this box with the sentence beside them and opens nothing.
-    const sent = await sendAbout({ item: itemOf(item.key), engine: engine.id, text })
+    const sent = await sendAbout({ item, engine: engine.id, text })
     if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
     if (signal.aborted) return {}
-    // ...AND THE CHAT'S OWN PAGE OPENS, with the first message already in it:
-    // the person asked for a conversation, so the conversation is what they
-    // are looking at.
-    //
-    // BY THE ITEM AND NOT BY THE ROSTER ROW, because the row may be one frame
-    // behind the start that made it: a chat just started opens ALONE, because
-    // a start writes no `chat-opens` switch at all (`../../server/binding.ts`
-    // writes the session key and nothing else) and an absent switch reads as
-    // alone, and every later press reads the row and obeys it (`./focus.ts`).
-    const nav = navigation()
-    if (nav === undefined) return {}
-    const row = agents.at(sent.started)
-    if (row !== undefined) focusAgent(nav, row)
-    else nav.go(chatRouteOf(itemOf(item.key)))
+    asks.opened(sent.started)
     return {}
   },
 })
@@ -137,7 +144,25 @@ const rowOf = (owner: NewChatOwner, agents: Roster) => (row: ItemRow): PaletteIt
       return {}
     } } }
   }
-  return { ...common, action: { kind: "level", level: messageLevel(owner, agents, item) } }
+  return { ...common, action: { kind: "level", level: messageLevel(owner, agents, itemOf(item.key), {
+    placeholder: "Say something to start…",
+    // ...AND THE CHAT'S OWN PAGE OPENS, with the first message already in it:
+    // the person asked for a conversation, so the conversation is what they
+    // are looking at.
+    //
+    // BY THE ITEM AND NOT BY THE ROSTER ROW, because the row may be one frame
+    // behind the start that made it: a chat just started opens ALONE, because
+    // a start writes no `chat-opens` switch at all (`../../server/binding.ts`
+    // writes the session key and nothing else) and an absent switch reads as
+    // alone, and every later press reads the row and obeys it (`./focus.ts`).
+    opened: started => {
+      const nav = navigation()
+      if (nav === undefined) return
+      const held = agents.at(started)
+      if (held !== undefined) focusAgent(nav, held)
+      else nav.go(chatRouteOf(itemOf(item.key)))
+    },
+  }) } }
 }
 
 /** How long typing must pause before the item level asks again. The first
@@ -190,7 +215,7 @@ const itemLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): 
   const recent = recentItems(agents)
   const filter = settled(scope.typed)
   const [answer, setAnswer] = createSignal<{
-    readonly items: readonly LocationItem[]
+    readonly items: readonly ItemLocation[]
     /** The sentence the last question came back with, or nothing. */
     readonly refusal: string | null
   }>({ items: [], refusal: null })

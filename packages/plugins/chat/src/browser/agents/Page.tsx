@@ -1,6 +1,6 @@
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
-import { type AgentItem, itemOf, memoryOf, nodeChatTitle, UsageFailure } from "@olai/format"
+import { itemOf, memoryOf, nodeChatTitle, UsageFailure } from "@olai/format"
 import { Result } from "effect"
 import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
@@ -137,13 +137,12 @@ export function usePage(node: Accessor<string>) {
  * strips are HERE rather than above the transcript because the page's head is
  * what the pane's scroll cannot carry away (`../chat/Strips.tsx`).
  *
- * `beside` is the ITEM this conversation's own page is about — handed in by
- * that page (`./ChatPage.tsx`) and by nothing else. It is not a verb any
- * more, it is WHOSE LINE THIS IS: a line on the chat's own page draws no
- * *Open beside* of its own (the page's pinned line carries the way back, and
- * this line scrolls), where every other line offers the conversation beside
- * the item it is drawn under. */
-export function PageHead(props: { readonly node: string; readonly beside?: AgentItem }) {
+ * `own` is the chat's own page saying the line is ITS OWN — handed in by that
+ * page (`./ChatPage.tsx`) and by nothing else. A line there draws no *Open
+ * beside* of its own (the page's pinned line carries the way back, and this
+ * line scrolls), where every other line offers the conversation beside the
+ * item it is drawn under. */
+export function PageHead(props: { readonly node: string; readonly own?: boolean }) {
   const beside = useBeside(() => props.node)
   // THE ONE LINE INSTEAD OF THE CONVERSATION, and the page session with it:
   // `<Show>` disposes what it is not drawing, so a page whose chat is in the
@@ -153,15 +152,15 @@ export function PageHead(props: { readonly node: string; readonly beside?: Agent
       <ChatBeside item={itemOf(props.node)} />
     </div>
   }>
-    <PageAgentLine node={props.node} beside={props.beside} />
+    <PageAgentLine node={props.node} own={props.own} />
   </Show>
 }
 
-function PageAgentLine(props: { readonly node: string; readonly beside?: AgentItem }) {
+function PageAgentLine(props: { readonly node: string; readonly own?: boolean }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
     <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-      <AgentLine chat={current()} node={props.node} page beside={props.beside} />
+      <AgentLine chat={current()} node={props.node} page own={props.own} />
       <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Strips chat={chat} />
       </ConversationUIProvider>}</Show>

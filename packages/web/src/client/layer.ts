@@ -112,7 +112,7 @@ export const LAYER = {
    *     origin, because Kobalte's popper is `strategy: "absolute"` and a
    *     body-mounted absolute box is positioned against the document.
    *
-   * A menu opened next to the chat dock or under the header is still the one
+   * A menu opened under the header is still the one
    * that gives way — the reader asked for the chrome first, and it is still
    * there when the menu goes. Portalling does not promote the overlay; it
    * lets this layer mean what it says.

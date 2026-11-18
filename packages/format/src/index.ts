@@ -1141,6 +1141,12 @@ export {
   NO_AGENTS,
   NodeAgent,
   NodeAgents,
+  /** THE TWO WORDS A NOTE'S *opens* SWITCH IS WRITTEN IN, and the value a
+   *  gesture writes — the reading below and chat's writer spend one
+   *  vocabulary. */
+  OPENS_ALONE,
+  OPENS_BESIDE,
+  opensValue,
   /** THE NOTES OF A SET THAT CARRY A CHAT — the same query asked of front
    *  matter, with the switch that says whether a note's chat opens beside the
    *  page. */
