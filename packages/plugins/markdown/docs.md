@@ -10,11 +10,11 @@ Top to bottom:
 | --- | --- |
 | the heading | the file's path, in a monospaced face |
 | **Edit** and **Delete…** | drawn together, only for a file in the directory olai serves |
+| the line at the top | a chat about this document[^line][^keys] |
 | the properties | one chip per key in the file's frontmatter, the keys at its top[^props] |
 | **Contents** | the document's headings, open by default[^contents] |
 | the body | the document, rendered |
 | **Referenced by `N` things** | what points at this document[^referrers] |
-| the seat | a chat about this document[^seat] |
 
 A page says `Loading…` until olai has read the file.[^missing]
 
@@ -67,7 +67,11 @@ Switching `markdown` off takes away document pages and the read and write proced
 
 [^reverse]: A document page and its editor stand without those plugins, because the directory supplies access to the file and the navigation plugin supplies the address.
 
-[^seat]: The seat is navigation's, and chat fills it ([chat.md](chat.md)): with a chat about this document it draws the conversation, and without one a box headed **Chat about this page**. This plugin also draws the page of the kinds olai only shows, such as a `.csv`, a picture, a `.pdf` and a saved `.html` page, and that page puts a seat at its foot too. With chat switched off, or no agent this machine can start, neither page draws one.
+[^line]: The line is this plugin's own place on a document's page, under the path and above the properties, and chat fills it ([chat.md](chat.md)). With a chat about this document it says how that chat stands, carries **Chat about this page**, and **Open beside ›**, which opens the conversation in the pane to the right. Without one it holds a box reading **Ask about plan…**, where `Enter` starts the chat and opens it beside.
+
+    The pages of the kinds olai only shows, such as a `.csv` or a picture, draw no line, and nor does any page with chat switched off.
+
+[^keys]: A chat about this document is kept in the file's own frontmatter, under two keys. `chat-agent-session` says which conversation the document is having. `chat-opens` says whether opening that chat brings the document with it. olai refuses a write by an agent that changes or drops the tie, so you move either key by editing the file yourself.
 
 <details>
 <summary>What other plugins contribute</summary>

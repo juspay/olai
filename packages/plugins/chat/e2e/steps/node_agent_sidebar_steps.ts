@@ -41,13 +41,10 @@ When("I press the Needs you row {string}", async function(this: OlaiWorld, id: s
   await this.showSidebar();
   await this.press(this.page.locator(`${needs} ${need}${attr("data-agent", this.nodeId(id))}`));
 });
-Then("the Chats row {string} is current", async function(this: OlaiWorld, id: string) {
-  await this.waitUntil(async () => await this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`).getAttribute("aria-current") === "page", "the opened agent to be the current row");
-});
 
 /** THE ROOT OF THE PAGE, by the conversation's id — the assertion the report
- *  needs, because "the row is selected in _olai/Inbox.olai" was the bug: a
- *  page rooted at the Inbox can also mark a chat row. */
+ *  needs, because "the row is selected in the file the reader was on" was the
+ *  bug: a page rooted at that file can also mark a chat row. */
 Then("the conversation {string} is the root of the page", async function(this: OlaiWorld, id: string) {
   const node = this.nodeId(id);
   await this.waitUntil(async () => await this.page.locator(ZOOM_TITLE).getAttribute("data-node-id") === node, `the page to be rooted at ${node}`);
@@ -71,7 +68,7 @@ const panel = selector(PLUGIN_TESTID.chatRowMenuPanel);
 const item = selector(PLUGIN_TESTID.chatRowMenuItem);
 const menuSaid = selector(PLUGIN_TESTID.chatRowMenuSaid);
 
-/** The row is hovered first, for the dock door's reason: the `•••` is revealed
+/** The row is hovered first, for the beside door's reason: the `•••` is revealed
  *  on hover, so the press lands on a control a person could have seen. */
 When("I open the Chats menu of {string}", async function (this: OlaiWorld, id: string) {
   await this.showSidebar();

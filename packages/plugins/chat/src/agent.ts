@@ -1049,7 +1049,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  agent that got an empty answer and a person who never saw the question
      *  is the one shape of this failure nobody could debug. */
     const undrawable = (why: string): void => {
-      trouble(`the agent asked something this panel cannot draw — ${why}`)
+      trouble(`the agent asked something this chat cannot draw — ${why}`)
     }
 
     /**

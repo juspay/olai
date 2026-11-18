@@ -517,10 +517,11 @@ const chat = async (
   await page.goto(base)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
   // A NEW CHAT, the way a person starts one: the `+` on the sidebar's Chats
-  // heading opens the palette at New chat; the default place (Inbox › Chats)
-  // and the first engine are taken, and the first message creates the node.
+  // heading opens the palette at New chat, whose rows are the ITEMS a chat can
+  // be about — the first of them is what the focused pane is showing, under
+  // **Here** — and the first message starts the chat on the one chosen.
   await page.locator('[data-testid="chat-new"]').click()
-  await page.locator('[data-testid="palette-item"][data-id="new-chat-default"]').click()
+  await page.locator('[data-testid="palette-item"]').first().click()
   await page.locator('[data-testid="palette-input"]').fill("Hello")
   await page.locator('[data-testid="palette-input"]').press("Enter")
   await panel.waitFor({ state: "visible", timeout: 30_000 })

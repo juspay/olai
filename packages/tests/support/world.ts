@@ -46,10 +46,7 @@ import { LONG_PRESS_MS, selector } from "@olai/web/testlib"
 // asserting on the padi pill is asserting on `olai-plugin-kolu`'s output, not
 // on the app's — and the chat panel became a row on that same line, so the
 // hundred-odd `CHAT_*` constants below are read off `olai-plugin-chat`'s door
-// rather than off `@olai/web`'s. One `chat*` name is still the app's and is
-// imported above with the rest of them: {@link PANEL_RESIZE} is the dock's drag
-// handle, which `client/layout/Handle.tsx` draws beside the sidebar's off the
-// same stored width — the column's chrome, not the conversation's.
+// rather than off `@olai/web`'s.
 //
 // They route through the REGISTRY rather than through each plugin's own door
 // because `packages/bundle/src/fence.test.ts` holds, as an equality per
@@ -712,10 +709,6 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   PLUGIN_TESTID.headerSearchOpen,
   // ONE dot for everything the bar used to stand a pill for.
   TESTID.health,
-  // The agent panel's toggle: a DOOR, pressed while the column is open, and
-  // not a readout — it reports nothing, which is what keeps it in the calm
-  // bar beside the gear (`olai-plugin-chat`'s `the_agent_panel.feature`).
-  PLUGIN_TESTID.chatToggle,
   TESTID.prefsTrigger,
   // Who is looking, last — a plugin's face in the app.viewer seat.
   PLUGIN_TESTID.identity,
@@ -804,20 +797,14 @@ export const GIT_NEWS = selector(PLUGIN_TESTID.gitNews);
 export const COMMIT_PANEL = selector(PLUGIN_TESTID.commitPanel);
 
 /** The conversation's root, wherever it is drawn — under a row's fold, at the
- *  foot of a node page, or in the dock. Absent entirely when no ACP agent is
- *  configured, which is a state the suite never runs in: every server it
- *  spawns is pointed at the scripted agent (`support/hooks.ts`). */
-export const CHAT_TOGGLE = selector(PLUGIN_TESTID.chatToggle);
+ *  foot of a node page, or on the chat's own page. Absent entirely when no ACP
+ *  agent is configured, which is a state the suite never runs in: every server
+ *  it spawns is pointed at the scripted agent (`support/hooks.ts`). */
 export const CHAT_PANEL = selector(PLUGIN_TESTID.chatPanel);
-/** THE DOCK: the seat's column, carrying `data-agent` while a conversation is
- *  docked. The steps that address "the conversation" look here as well as in
- *  the front lane ({@link OlaiWorld.chatSelector}). */
-export const CHAT_DOCK = selector(PLUGIN_TESTID.chatDock);
 /** The lane in front, or the alternate layout fixture's one `main` — the
  *  scope every row step looks in ({@link OlaiWorld.frontLane}). */
 export const FRONT_LANE = `${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"], main[aria-label="Alternate layout fixture"]`;
-export const PANEL_COLUMN = selector(TESTID.panelColumn);
-export const PANEL_RESIZE = selector(TESTID.panelResize);
+
 export const PALETTE = selector(TESTID.palette);
 export const PALETTE_ITEM = selector(TESTID.paletteItem);
 export const PALETTE_LIST = selector(TESTID.paletteList);
@@ -2001,29 +1988,27 @@ export class OlaiWorld extends World {
   set activeAgent(node: string | null) { if (node === null) this.activeAgents.delete(this.page); else this.activeAgents.set(this.page, node); }
   get menuNode(): string | null { return this.menuNodes.get(this.page) ?? null; }
   set menuNode(node: string | null) { if (node === null) this.menuNodes.delete(this.page); else this.menuNodes.set(this.page, node); }
-  /** WHERE THE ACTIVE AGENT'S CONVERSATION IS DRAWN: under its row's fold or at
-   *  the foot of its page in the FRONT LANE, or in the dock beside every lane.
-   *  One selector for the three, so a step that types into "the chat" finds the
-   *  conversation wherever the scenario put it. */
+  /** WHERE THE ACTIVE AGENT'S CONVERSATION IS DRAWN, in the FRONT LANE: under
+   *  its row's fold, at the foot of its node page, or on its own chat page in
+   *  a pane. One selector for the three, so a step that types into "the chat"
+   *  finds the conversation wherever the scenario put it. */
   private chatHosts(...hosts: ReadonlyArray<string>): string {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
     const of = attr("data-agent", this.nodeId(this.activeAgent));
-    const inLane = `:is(${FRONT_LANE}) :is(${hosts.join(", ")})${of}`;
-    return `:is(${inLane}, ${CHAT_DOCK}${of})`;
+    return `:is(${FRONT_LANE}) :is(${hosts.join(", ")})${of}`;
   }
   /** Whether `selector` came out of {@link chatSelector}: it already names the
-   *  front lane (and the dock beside it), so it is matched against the PAGE —
-   *  under the lane it would be asking for a lane inside a lane and find
-   *  nothing. The dock's selector is the one spelling both halves share. */
+   *  front lane, so it is matched against the PAGE — under the lane it would
+   *  be asking for a lane inside a lane and find nothing. */
   private conversationScoped(selector: string): boolean {
-    return selector.includes(CHAT_DOCK);
+    return selector.includes(FRONT_LANE);
   }
   chatSelector(control: string): string {
     return `${this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead), selector(PLUGIN_TESTID.agentPageFoot))} :is(${control})`;
   }
   chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
   /** Settings and the standing strips (plan, tools, still running, alerts)
-   *  live in the fold, the zoomed page's pinned head, or the dock. */
+   *  live in the fold, or in the pinned head of a node page or a chat page. */
   chatLine(): Locator {
     return this.page.locator(this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead)));
   }
@@ -2249,12 +2234,22 @@ export class OlaiWorld extends World {
    * one of the two does not exist and asking for it is a no-op that reads as
    * "the correction did not work".
    *
-   * ONE CORRECTION, then the state is read again — never a loop that nudges
-   * until something works. A pinned box holds one position while the page
-   * moves under it, so one move clears it or nothing will, and "nothing will"
-   * is a scenario asking for the impossible: it throws naming what is on top
-   * and where the page already is, rather than leaving the page to be scrolled
-   * somewhere nobody chose.
+   * ONE CORRECTION PER READING, and another only while the page MOVED. A
+   * pinned box holds one position while the page moves under it, so a
+   * correction measured against where things stand either clears the control
+   * or tells us nothing will — unless the page itself moved in between, which
+   * it does while a conversation FOLLOWS a streaming turn: a row arrives
+   * between the reading and the scroll, the follower jumps to the new end,
+   * and the correction lands short by exactly that jump. That is a stale
+   * reading rather than an unreachable control, so it is read and corrected
+   * again.
+   *
+   * WHAT ENDS IT IS THE PAGE STANDING STILL: a correction that leaves the
+   * scroll where it was is a page with nowhere left to go, which is a
+   * scenario asking for the impossible. It throws naming what is on top and
+   * where the page already is, rather than leaving the page to be scrolled
+   * somewhere nobody chose. No clock and no count — the only thing that buys
+   * another reading is movement.
    */
   async intoReach(target: Locator, what?: string): Promise<void> {
     const first = await coverOf(target);
@@ -2283,14 +2278,19 @@ export class OlaiWorld extends World {
       const recovered = await coverOf(target);
       if (recovered.pressable) return;
     }
-    await this.page.evaluate((by) => window.scrollBy(0, by), before.clearBy);
-    await this.waitForFrame();
-    const after = await coverOf(target);
-    if (after.pressable) return;
+    let state = before;
+    for (;;) {
+      const was = state.at;
+      await this.page.evaluate((by) => window.scrollBy(0, by), state.clearBy);
+      await this.waitForFrame();
+      state = await coverOf(target);
+      if (state.pressable) return;
+      if (!state.pinned || state.at === was) break;
+    }
     throw new Error(
-      `${what ?? after.control} is under ${after.by}, which is pinned there, ` +
-        `and the page will not come out from under it: it is at ${after.at}px ` +
-        `of ${after.furthest}px. A press here is a press no reader could make ` +
+      `${what ?? state.control} is under ${state.by}, which is pinned there, ` +
+        `and the page will not come out from under it: it is at ${state.at}px ` +
+        `of ${state.furthest}px. A press here is a press no reader could make ` +
         `— left alone, Playwright answers one by scrolling the page until it ` +
         `lands, which leaves the reader somewhere nobody chose.`,
     );
@@ -2480,11 +2480,59 @@ export class OlaiWorld extends World {
     await this.waitForFrame();
   }
 
-  /** The middle of something, waited for and measured — where a finger that
-   *  means to land on it goes. */
+  /**
+   * The middle of something, waited for and measured — where a finger that
+   * means to land on it goes.
+   *
+   * AND IT HAS TO REACH IT, which a box on screen does not promise. A phone
+   * keeps a fixed bar across the foot of the window (the thumbs), so a row
+   * scrolled to the last line of the screen is DRAWN there and PRESSED by
+   * nothing: `scrollIntoViewIfNeeded` is satisfied by a box inside the
+   * viewport, and a finger put in the middle of that box touches the bar. The
+   * press then claims nothing, the browser keeps the gesture and scrolls the
+   * page with the finger, and the step waiting on what the carry would have
+   * armed waits out its whole budget — a failure that says the affordance
+   * never appeared and not that the finger missed. Which rows end up under
+   * the bar is a question about the page's height, so this is exactly the
+   * shape of flake that passes on one machine and fails on another.
+   *
+   * So the point is HIT-TESTED, the way a thumb tests it by feeling what it
+   * touched: when something else is on top, the target is brought to the
+   * middle of the screen — the scroll a hand makes to reach it — and tested
+   * again. What is still covered then is a real miss, named by what is in the
+   * way.
+   */
   private async middleOf(target: Locator, what: string): Promise<Point> {
-    const box = await this.box(target, `the target being ${what}`);
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const middle = async (): Promise<Point> => {
+      const box = await this.box(target, `the target being ${what}`);
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    };
+    /** What a finger put at `at` would touch instead, or `null` for the
+     *  target itself — a child of it counts, since that is what is drawn. */
+    const inTheWay = (at: Point): Promise<string | null> =>
+      target.evaluate((element, point) => {
+        const top = element.ownerDocument.elementFromPoint(point.x, point.y);
+        if (top === null) return "nothing — the point is off the screen";
+        if (top === element || element.contains(top) || top.contains(element)) return null;
+        const named = top.closest("[data-testid]")?.getAttribute("data-testid");
+        return named === null || named === undefined
+          ? `<${top.tagName.toLowerCase()}>`
+          : `<${top.tagName.toLowerCase()}> in "${named}"`;
+      }, at);
+    let at = await middle();
+    const covered = await inTheWay(at);
+    if (covered === null) return at;
+    await target.evaluate(element => element.scrollIntoView({ block: "center", behavior: "instant" }));
+    await this.waitForFrame();
+    at = await middle();
+    const still = await inTheWay(at);
+    assert.equal(
+      still,
+      null,
+      `a finger aimed at the target being ${what} would land on ${still} instead: ` +
+        "something is drawn over it, and the gesture would be made on that",
+    );
+    return at;
   }
 
   /** One touch event, through the DevTools protocol. The session is opened
@@ -3031,9 +3079,6 @@ export class OlaiWorld extends World {
    *  `e2e/steps/forced_colours_steps.ts`). */
   ringBefore?: { style: string; width: number; colour: string };
   scrollbarBefore?: string;
-  /** The seat's column width before a drag (`olai-plugin-chat`'s agent panel steps). */
-  panelWidthBefore?: number;
-
   /** A box taken BEFORE something replaced what was inside it, for the
    *  scenarios that claim the swap changed nothing about it — the markdown
    *  renderer landing under a note, and under a tree row's title

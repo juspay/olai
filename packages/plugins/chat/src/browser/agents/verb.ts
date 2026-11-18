@@ -1,5 +1,5 @@
 /**
- * A VERB ON THE AGENT LINE — `Open in panel ›`, `Fresh start`, `Close` — is a
+ * A VERB ON THE AGENT LINE — `Open beside ›`, `Fresh start`, `Close` — is a
  * word in the line's own type, washed on hover, and exactly as tall as the
  * words beside it. Not a pill: the line wraps in a narrow pane, and a pill's
  * border and padding made the row it landed on six pixels taller than the row

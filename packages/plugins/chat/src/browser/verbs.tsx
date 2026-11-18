@@ -9,6 +9,7 @@ import { fold, unfold } from "./agents/folding.ts"
 import { chatWire } from "./wire.ts"
 
 import { freshStartQuestion } from "./agents/fresh-start.ts"
+import { CLOSE_CHAT, closeMade } from "./agents/closing.ts"
 
 /**
  * ONE ENTRY per gesture, however many engines: a choice of the engines that
@@ -44,18 +45,16 @@ export const rowVerbs = (
       },
     }
   })()
-  /** THE CHAT AT THIS ROW — its own, or a chat row standing for it — and the
-   *  row every verb below acts on. The fold a start opens is still the drawn
-   *  row's own. */
-  const bound = roster.chatAt({ kind: "row", id: node })
-  const chat = bound?.id ?? node
+  /** THE CHAT ON THIS ROW — a node's chat is its own row's — and the row every
+   *  verb below acts on. */
+  const bound = roster.at(node)
   /** THE START GESTURE, SHARED BY BOTH HALVES: start a session on a node with
    *  a given engine, and on success mark the node read and unfold it. The
    *  start and fresh-start entries are the same act on different labels. */
   const startOn = (engine: { readonly id: string }) => async (drawn: string) => {
-    const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node: chat, agent: engine.id }))
+    const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }))
     if (Result.isFailure(outcome)) return outcome.failure.message
-    agentReadings()?.visit(chat)
+    agentReadings()?.visit(node)
     unfold(drawn)
   }
   if (bound?.session == null) {
@@ -70,9 +69,8 @@ export const rowVerbs = (
     }, ...(openAbove === undefined ? [] : [openAbove])]
   }
   // A node already talking through a conversation: `Fresh start` — the node's
-  // own engine first, a choice only where there is one — and CLOSE, releasing
-  // the node's agent back to the unclaimed chats (the conversation is filed
-  // back under Chats by the next filer run).
+  // own engine first, a choice only where there is one — and CLOSE, which
+  // takes the binding off the row (`../server/binding.ts`).
   const available = roster.engines()
   const current = available.find(engine => engine.id === bound.engine)
   const engines = current === undefined ? available : [current, ...available.filter(engine => engine !== current)]
@@ -95,12 +93,12 @@ export const rowVerbs = (
       label: bound.sleeps ? "Stop sleeping when idle" : "Sleep when idle",
       run: async () => {
         const outcome = await runAsync(
-          chatWire().procedures.conversation.setSleeping({ node: chat, on: !bound.sleeps }),
+          chatWire().procedures.conversation.setSleeping({ node, on: !bound.sleeps }),
         )
         if (Result.isFailure(outcome)) return outcome.failure.message
       },
     },
-    ...chatVerbs(bound).map(verb => chat === node ? verb : { ...verb, run: () => verb.run(chat) }),
+    ...chatVerbs(bound),
   ]
 }
 
@@ -138,19 +136,37 @@ const TIDY_MEMORY: RowVerb = {
   },
 }
 
+/**
+ * CLOSE, WHICH IS AN UNTYING. The tie comes off the row or the note and the
+ * conversation stays in the engine's own store — unreachable from anywhere in
+ * olai, because an item naming it is the only thing that lists one. The label
+ * says *the chat* rather than *the agent* for that reason: no process is
+ * closed here (that is *Put to sleep*), a chat stops belonging to a thing.
+ * The sentence about what it costs is `./agents/closing.ts`'s, and the line
+ * under a conversation draws it as a tip; a menu row has nowhere to put one,
+ * which is why the label itself had to stop promising a place to find it.
+ */
 const CLOSE_AGENT: RowVerb = {
-  id: "close-agent", writes: true, label: "Close the agent",
+  id: "close-agent", writes: true, label: CLOSE_CHAT,
   run: async (node: string) => {
     const outcome = await runAsync(chatWire().procedures.conversation.closeAgent({ node }))
     if (Result.isFailure(outcome)) return outcome.failure.message
     fold(node)
+    // ...and a page drawing this chat forgets the conversation it was
+    // reading: this press is why it stopped (`./agents/closing.ts`).
+    closeMade(node)
   },
 }
 
-/** The two answers {@link chatVerbs} has, and the empty one — VALUES, so the
+/** The four answers {@link chatVerbs} has, and the empty one — VALUES, so the
  *  same row asked twice is handed the same array and the same objects. */
 const SEATED: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, TIDY_MEMORY, CLOSE_AGENT]
 const UNSEATED: ReadonlyArray<RowVerb> = [TIDY_MEMORY, CLOSE_AGENT]
+/** ...and the same two without the pass, for a NOTE: its chat's memory is the
+ *  note, so there is nothing under it to tidy and the server refuses the pass
+ *  outright (`../server/server.ts`'s `NO_SLEEP_ON_A_NOTE`). */
+const NOTE_SEATED: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, CLOSE_AGENT]
+const NOTE_UNSEATED: ReadonlyArray<RowVerb> = [CLOSE_AGENT]
 const NO_CHAT: ReadonlyArray<RowVerb> = []
 
 /**
@@ -161,10 +177,16 @@ const NO_CHAT: ReadonlyArray<RowVerb> = []
  * second copy anywhere is how one of them ends up saying something the others
  * do not, which is exactly what *Sleep now* did before it was *Tidy memory*.
  *
- * EVERY ENTRY IS A VERB THAT CAN WORK, which is one rule read twice. A row
- * naming no conversation has NONE of these — `Tidy memory` and `Close the
+ * EVERY ENTRY IS A VERB THAT CAN WORK, which is one rule read three times. A
+ * row naming no conversation has NONE of these — `Tidy memory` and `Close the
  * agent` are both about a chat, and a sidebar row may be a bare node (the
  * outline's menu never reaches here for one, so only the column had to ask).
+ * `Tidy memory` is off a NOTE's chat, because a note IS the memory of its
+ * chat: there is nothing under it to tidy, and the server refuses the pass on
+ * one unconditionally (`../server/server.ts`'s `NO_SLEEP_ON_A_NOTE`), so
+ * offering it here could only ever produce a sentence saying why not. The
+ * sleep strip asks the same question for the same reason
+ * (`./chat/sleeping.ts`).
  * `Put to sleep` is narrower still: it hands a SEAT back, so it is offered
  * exactly where there is one to hand back ({@link seated}) — which includes
  * the stopped agent whose dot the column does not draw. That row is the one
@@ -172,9 +194,14 @@ const NO_CHAT: ReadonlyArray<RowVerb> = []
  * its own, and the seat is held until somebody says otherwise.
  *
  * A VERB CLOSES OVER NOTHING — the node it acts on is its argument — so these
- * are three constants and this function is a choice between two of them. What
- * that buys a caller is identity: a menu redrawn on a roster frame is handed
- * the objects it already had (`./agents/ChatRowPanel.tsx` keys on them).
+ * are three constants in four arrangements and this function is a choice
+ * between them. What that buys a caller is identity: a menu redrawn on a
+ * roster frame is handed the objects it already had
+ * (`./agents/ChatRowPanel.tsx` keys on them).
  */
 export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> =>
-  bound.session == null ? NO_CHAT : seated(bound.standing) ? SEATED : UNSEATED
+  bound.session == null
+    ? NO_CHAT
+    : bound.kind === "note"
+      ? (seated(bound.standing) ? NOTE_SEATED : NOTE_UNSEATED)
+      : (seated(bound.standing) ? SEATED : UNSEATED)

@@ -11,7 +11,7 @@ olai serves one directory of files, to a browser and to agents. This page follow
 ```
 files on disk ── load + validate ──▶ snapshot ── surface collection ──▶ browser (SolidJS)
       ▲                                                          │           │
-      │                                                    chat panel     keyboard
+      │                                                   conversation    keyboard
    commit(baseRev)                                               │           │
       │                                       ACP session ◀──────┘           │
       │                                            │                         │

@@ -1,74 +1,32 @@
 /**
- * The drag handle between a panel and the page.
+ * The drag handle between the directory column and the page.
  *
  * A 4px hit strip, wider than it looks so a pointer can find it. Widths are
  * live on the signal during the drag and written to localStorage only on
  * pointerup (see layout/prefs.ts), so a short drag is one storage write and
  * not twenty cross-tab re-renders.
  *
- * Keyboard users reset widths from the palette ("Reset sidebar width"); this
+ * Keyboard users reset the width from the palette ("Reset sidebar width"); this
  * control is pointer-only.
  */
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "olai-plugin-layout/testids"
 import { onCleanup } from "solid-js"
 
 import { WITHIN } from "@olai/web/client/layer.ts"
 
 import {
-PANEL_MAX_PX,
-PANEL_MIN_PX,
 SIDEBAR_MAX_PX,
 SIDEBAR_MIN_PX,
 } from "./prefs.ts"
 import {
-panelWidth,
-setPanelWidth,
 setSidebarWidth,
 sidebarWidth,
 } from "./live.ts"
-import { startResize,type ResizeEdge } from "./resize.ts"
+import { startResize } from "./resize.ts"
 
+/** The directory column's drag handle, on its right edge: dragging right
+ *  grows it. */
 export function SidebarHandle() {
-  return (
-    <ResizeHandle
-      edge="right"
-      testid={TESTID.sidebarResize}
-      label="Resize sidebar"
-      width={sidebarWidth}
-      min={SIDEBAR_MIN_PX}
-      max={SIDEBAR_MAX_PX}
-      onLive={(px) => setSidebarWidth(px, { persist: false })}
-      onCommit={(px) => setSidebarWidth(px, { persist: true })}
-    />
-  )
-}
-
-export function PanelHandle() {
-  return (
-    <ResizeHandle
-      edge="left"
-      testid={TESTID.panelResize}
-      label="Resize agent panel"
-      width={panelWidth}
-      min={PANEL_MIN_PX}
-      max={PANEL_MAX_PX}
-      onLive={(px) => setPanelWidth(px, { persist: false })}
-      onCommit={(px) => setPanelWidth(px, { persist: true })}
-    />
-  )
-}
-
-function ResizeHandle(props: {
-  readonly edge: ResizeEdge
-  readonly testid: TestId
-  readonly label: string
-  readonly width: () => number
-  readonly min: number
-  readonly max: number
-  readonly onLive: (px: number) => void
-  readonly onCommit: (px: number) => void
-}) {
   let stop: (() => void) | undefined
   onCleanup(() => stop?.())
 
@@ -76,28 +34,23 @@ function ResizeHandle(props: {
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label={props.label}
-      aria-valuenow={props.width()}
-      aria-valuemin={props.min}
-      aria-valuemax={props.max}
-      data-testid={props.testid}
-      data-edge={props.edge}
-      class={
-        `group absolute top-0 ${WITHIN.raised} h-full w-1.5 cursor-col-resize touch-none ` +
-        (props.edge === "right" ? "right-0" : "left-0")
-      }
+      aria-label="Resize sidebar"
+      aria-valuenow={sidebarWidth()}
+      aria-valuemin={SIDEBAR_MIN_PX}
+      aria-valuemax={SIDEBAR_MAX_PX}
+      data-testid={TESTID.sidebarResize}
+      class={`group absolute right-0 top-0 ${WITHIN.raised} h-full w-1.5 cursor-col-resize touch-none`}
       onPointerDown={(event) => {
         if (event.button !== 0) return
         stop?.()
         stop = startResize({
           event,
-          edge: props.edge,
-          startWidth: props.width(),
-          min: props.min,
-          max: props.max,
-          onMove: props.onLive,
+          startWidth: sidebarWidth(),
+          min: SIDEBAR_MIN_PX,
+          max: SIDEBAR_MAX_PX,
+          onMove: (px) => setSidebarWidth(px, { persist: false }),
           onEnd: (px) => {
-            props.onCommit(px)
+            setSidebarWidth(px, { persist: true })
             stop = undefined
           },
         })

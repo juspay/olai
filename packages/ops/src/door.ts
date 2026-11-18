@@ -25,10 +25,14 @@ import {
   changesOf,
   customText,
   type Derived,
+  frontmatterIn,
   idsUnder,
   isMirror,
+  isNotePath,
+  markdownAt,
   type Node,
   nodesOf,
+  type OutlineSet,
   type Writer,
 } from "@olai/format"
 
@@ -103,6 +107,14 @@ export type Barred =
   }
   /** A plan that trashes or empties: the one direction a tidy may not take. */
   | { readonly why: "trash"; readonly says: string }
+  /** A DOCUMENT whose front matter the plan would move a reserved key in —
+   *  the same movement, in the other place a property can be written. */
+  | {
+    readonly why: "document"
+    readonly file: string
+    readonly key: string
+    readonly says: string
+  }
 
 export const doorRefusal = (reached: Barred): string => {
   if (reached.why === "closed") {
@@ -116,6 +128,12 @@ export const doorRefusal = (reached: Barred): string => {
   if (reached.why === "trash") {
     return `nothing may be trashed or deleted through this door right now — ${reached.says}.`
   }
+  // A NOTE'S PROPERTIES ARE PROPERTIES, and the refusal names the FILE rather
+  // than a record, because a `.md` has no record to name — it is the document
+  // itself that carries the key.
+  if (reached.why === "document") {
+    return `\`${reached.key}\` is a property this door may not write — ${reached.says}, in \`${reached.file}\`'s front matter as anywhere else.`
+  }
   // THE CLAUSE IS THE RULE'S, carried on the ticket beside the key it is
   // about. It used to be written in `./refusals.ts`, in a drawer of shared
   // "no"s, about a word a plugin owns; a second forbidden key — one that is
@@ -126,13 +144,21 @@ export const doorRefusal = (reached: Barred): string => {
 
 
 
-/** Judge the records a plan actually changes for the keys an open session
- *  may not write. Closed is refused at `run` without a plan walk. */
+/**
+ * Judge what a plan actually changes for the keys an open session may not
+ * write — the RECORDS it rewrites, and the FRONT MATTER of the documents it
+ * writes or deletes. Closed is refused at `run` without a plan walk.
+ *
+ * THE SET AND THE VIEW BOTH, because the two halves are kept in different
+ * places: a record's properties are read off the derivation, and a document's
+ * are the text the set is holding, which is what the plan's new text is
+ * compared against.
+ */
 export const barred = (
   forbidden: ReadonlyMap<string, ReservedKey>,
   derived: Derived,
   plan: Plan,
-  paths: ReadonlyArray<string> = [...derived.byFile.keys()],
+  set: OutlineSet,
   confined: Confinement | null = null,
 ): Barred | null => {
   // THE FENCE FIRST, because it is about WHERE rather than about WHICH KEY, and
@@ -178,6 +204,36 @@ export const barred = (
   }
   if (forbidden.size === 0) return null
 
+  // THE OTHER PLACE A PROPERTY CAN BE WRITTEN, judged by the same movement
+  // rule as a record's: the `---` block at the top of a `.md`. Without this,
+  // an agent holding an ordinary write door could seat a conversation on a
+  // note — or drop its own binding — through `markdown_write`, which is the
+  // whole of what the key reservation exists to stop, one file kind over.
+  //
+  // A DELETION IS A REMOVAL OF EVERY KEY IT CARRIED, which is why the paths
+  // the plan unlinks are judged here too: taking the file away takes the
+  // binding with it.
+  for (const [file, text] of [
+    ...(plan.documents ?? []).map((one) => [one.file, one.text] as const),
+    ...(plan.removed ?? []).map((file) => [file, ""] as const),
+  ]) {
+    if (!isNotePath(derived.claims, file)) continue
+    const was = frontmatterIn(markdownAt(set, file)?.body ?? "")
+    const now = frontmatterIn(text)
+    for (const [key, says] of forbidden) {
+      if (typeof says !== "string") continue
+      // The VALUE and not merely the key: a list and a scalar spelling the
+      // same word are different values, and a block rewritten around the key
+      // without touching it is a write this door allows.
+      if (JSON.stringify(was[key] ?? null) === JSON.stringify(now[key] ?? null)) continue
+      return { why: "document", file, key, says }
+    }
+  }
+
+  // EVERY PATH THE SET HOLDS, which is what a file-scoped reservation is
+  // judged over: the namespace it names can be masked by a file in another
+  // directory, so the comparison has to see them all.
+  const paths = set.documents.map((one) => one.path)
   // File-scoped reservations compare the selected namespace as a whole. This
   // also refuses renames, moves, deletion and an empty shallower file masking
   // a deeper one; a property-only comparison would miss all four.

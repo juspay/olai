@@ -59,8 +59,8 @@ export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
 export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
-/** The heading over one agent's rows in the unassigned list. Drawn only where more
- *  than one agent has conversations here. */
+/** The heading over one agent's rows in the stored-conversations list. Drawn
+ *  only where more than one agent has conversations here. */
 export const CHAT_SESSION_AGENT = selector(TESTID.chatSessionAgent);
 /** One agent in that list that could not be asked what it has stored. Its own
  *  selector and not the whole call's refusal, because the two are two states:
@@ -216,37 +216,68 @@ export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
  *  without asserting a word the plugin wrote. */
 export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
 
-// ── a chat ABOUT a place: the seat, the door and the name ──────────────
+// ── a chat ABOUT a note: the line, the door and the name ──────────────
 //
-// The faces a chat that stands for a place is read through. `chatSeat` is the
-// spot a page frame placed at its foot and chat filled; `chatAbout` is the box
-// that starts a chat about that page, drawn in the seat or in the side panel
-// (`data-where`); `chatThisPage` is the panel's block over its picker. The two
-// name ids are what every list draws a chat with — the place's own name and
-// its kind's mark — so a scenario asserts what a person reads rather than the
-// raw title the row carries.
+// The faces a chat about a note is read through. `chatLine` is the one row
+// markdown's document page keeps at the top and chat fills; `chatAbout` is
+// the box that starts a chat about that note, drawn in the line or on the
+// chat's own page (`data-where`). The two name ids are what every list draws
+// a chat with — the note's own name and its kind's mark — so a scenario
+// asserts what a person reads rather than the raw key the row carries.
 
-/** The seat at the foot of a page. `data-place` is the place it is about, as
- *  `@olai/format`'s `placeKey` spells it (`file:notes/plan.md`). */
-export const CHAT_SEAT = selector(TESTID.chatSeat);
-/** The box that starts a chat about this page — `data-where` is `seat` or
- *  `panel`, which is the whole difference between the door's two faces. Its
- *  FIELDS are a row page's plain composer's, because it is that same box
- *  (`agents/AskBox.tsx`): one component, one set of ids. */
+/** The line at the top of a note. `data-note` is the note it is about,
+ *  `data-chat` the chat's key where there is one. */
+export const CHAT_LINE = selector(TESTID.chatLine);
+/** The line's own press, which opens the conversation in the pane beside the
+ *  page — the whole row, doing what the verb at its end does. */
+export const CHAT_LINE_OPEN = selector(TESTID.chatLineOpen);
+/** How that chat stands, inside the line: `data-standing` is the word, and
+ *  nothing here is pressable — a page draws this without reading the
+ *  conversation, so opening a note wakes nothing. */
+export const CHAT_LINE_STANDING = selector(TESTID.chatLineStanding);
+/** The box that starts a chat about this note — `data-where` is `line` or
+ *  `page`, which is the whole difference between the door's two faces. Its
+ *  FIELDS are a row page's plain composer's, because they are the same
+ *  fields: one input id, one picker id, one refusal id. The line has no Send
+ *  button at all — it is one row, and Enter sends. */
 export const CHAT_ABOUT = selector(TESTID.chatAbout);
 export const ASK_INPUT = selector(TESTID.agentPlainInput);
 export const ASK_ENGINE = selector(TESTID.agentPlainEngine);
 export const ASK_SEND = selector(TESTID.agentPlainSend);
 /** Why nothing was started — the sentence that stays beside the words. */
 export const ASK_REFUSED = selector(TESTID.agentPlainRefused);
-/** THE SEAT'S HEAD: one line saying how the chat at this place stands, and
- *  the press that opens and folds the conversation under it. A page meets it
- *  folded, because opening a page never wakes its agent. `data-chat` is the
- *  chat row; `data-folded` says whether the conversation is put away. */
-export const CHAT_SEAT_LINE = selector(TESTID.chatSeatLine);
-/** **This page**, over the side panel's picker. */
-export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
-/** What a chat is CALLED wherever it is listed, and the mark of the place it
- *  stands for. A stand-in's raw title is never either of them. */
+
+/** What a chat is CALLED wherever it is listed, and — for a note's chat — the
+ *  mark its kind of file wears. */
 export const CHAT_NAME = selector(TESTID.chatName);
-export const CHAT_PLACE_MARK = selector(TESTID.chatPlaceMark);
+export const CHAT_FILE_MARK = selector(TESTID.chatFileMark);
+
+// ── a chat's own page, `/chat/<item>` ──────────────────────────────────
+
+/** THE PAGE. `data-item` is the item key the address names, `data-kind` which
+ *  of the two kinds of item it is. */
+export const CHAT_PAGE = selector(TESTID.chatPage);
+/** Its heading, and the small mono line under it saying where the item is. */
+export const CHAT_PAGE_TITLE = selector(TESTID.chatPageTitle);
+/** The pinned head itself — the band that must not scroll away, because on a
+ *  phone with the chat alone it is the only way back to the note. */
+export const CHAT_PAGE_HEAD = selector(TESTID.chatPageHead);
+export const CHAT_PAGE_WHERE = selector(TESTID.chatPageWhere);
+/** How the chat stands, at the right of that line — read-only here. */
+export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);
+/** *Open <name> beside ›*, and what it reads once a pane has the item. */
+export const CHAT_OPEN_BESIDE = selector(TESTID.chatOpenBeside);
+/** ...and the opposite verb, wherever the ITEM is drawn: *Open beside ›* puts
+ *  the conversation in the pane on the right, and reads *Shown beside* — what
+ *  a fold, a node's page and the line at the top of a note say in place of a
+ *  conversation that is already in a pane — once one has it. */
+export const CHAT_BESIDE = selector(TESTID.chatBeside);
+/** A note's switch for where its chat opens; `data-beside` is the answer. */
+export const CHAT_OPENS = selector(TESTID.chatOpens);
+export const CHAT_OPENS_SWITCH = selector(TESTID.chatOpensSwitch);
+/** WHAT THE PAGE SAYS WHEN THE NOTE IS GONE from the directory, and when the
+ *  note is still there but has stopped naming this conversation — with the
+ *  one press that writes the tie back. */
+export const CHAT_PAGE_GONE = selector(TESTID.chatPageGone);
+export const CHAT_PAGE_UNTIED = selector(TESTID.chatPageUntied);
+export const CHAT_RETIE = selector(TESTID.chatRetie);

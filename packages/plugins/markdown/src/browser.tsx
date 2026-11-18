@@ -39,7 +39,7 @@ import { openCreated, clearMinted } from "./browser/document/minted.ts"
 import { documentFile } from "./browser/document-route.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
 import { atFile } from "olai-plugin-navigation/routes"
-import { name, browserState, documentBodies, properties, type MarkdownBrowser } from "./index.ts"
+import { name, browserState, documentBodies, noteLine, properties, type MarkdownBrowser } from "./index.ts"
 import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { documentMaking, NewDocument } from "./browser/document/NewDocument.tsx"
@@ -154,7 +154,7 @@ export const components = {
     // (`./browser/routing.ts`).
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
-    yield* slots.contribute(pages, { by: { kind: "markdown" }, edits: true, page: () => <MarkdownPageView /> }, {key:fileKindKey({kind:"markdown"}),children:[documentBodies, properties]})
+    yield* slots.contribute(pages, { by: { kind: "markdown" }, edits: true, page: () => <MarkdownPageView /> }, {key:fileKindKey({kind:"markdown"}),children:[documentBodies, properties, noteLine]})
     yield* slots.contribute(linkPreviews, {
       priority: 0,
       matches: route => route.kind === "at" && route.address !== null && route.address.kind !== "node" && served.kindOf(route.address.path) === "markdown",

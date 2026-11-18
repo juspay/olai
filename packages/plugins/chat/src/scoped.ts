@@ -117,8 +117,6 @@ export interface Chat extends Panel {
    * that would otherwise be missed. It costs a map walk over the live scopes.
    */
   readonly withdraw: (plugin: string, to: Conversing) => Effect.Effect<void>
-  /** Compatibility metadata verb; assignment never opens or relocates a process. */
-  readonly assignedTo: (node: string, to: Conversing) => Effect.Effect<void>
   /**
    * PUT THIS NODE'S AGENT TO SLEEP — a person's hand on the thing the idle
    * timer and the capacity reaper do on their own.
@@ -911,11 +909,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * tries it again ({@link reopenPending}).
      */
     const start = Effect.gen(function*() {
-      // Repair conversations filed by builds which retained their inherited
-      // wakes. The durable marker preserves deliberate picks after this pass.
-      for (const row of root.overheard()) {
-        if (row.assigned === true && row.wakesCleared !== true) yield* root.assigned(row)
-      }
       for (const mark of live?.read() ?? []) {
         restore.set(mark.node, mark.touched)
       }
@@ -926,8 +919,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       //
       // NOT JOINED. Eight subprocess boots and their replays are the slowest
       // thing this package does, and a `session/load` that hangs has its own
-      // (minutes-long) deadline — joining would hold up the filer and the
-      // sleeper that `server.ts` starts next, for work with no reader waiting.
+      // (minutes-long) deadline — joining would hold up the sleeper that
+      // `server.ts` starts next, for work with no reader waiting.
       // Stop is still safe: the handle is interrupted first ({@link
       // stopWithReason}), each open is counted by `working` so `settled` sees
       // it, and the pass checks `stopped` before every entry.
@@ -1356,8 +1349,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         } satisfies LiveSession]),
       ),
       overheard: () => root.overheard(),
-      assigned: (to) => root.assigned(to),
-      assignedTo: (_node, to) => root.assigned(to),
       replaced: (to, by) => root.replaced(to, by),
       /**
        * EVERY PANEL, and that is the point rather than thoroughness.

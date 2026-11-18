@@ -81,8 +81,8 @@ afterEach(() => {
 test("two node scopes work together, then an idle one is reaped and woken in place", async () => {
   const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
-    { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
-    { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
+    { kind: "node", beside: false, id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
+    { kind: "node", beside: false, id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const alphaTab = Scope.makeUnsafe()
@@ -276,6 +276,8 @@ const NODE_ONE: NodeAgent = {
   engine: "alpha",
   session: "remembered",
   memory: 2,
+  kind: "node",
+  beside: false,
 }
 
 const opened = (said: ReadonlyArray<{ message: string }>): number =>
@@ -507,7 +509,7 @@ test("start does not wait for a boot reopen, and stop interrupts a hanging one",
   })
   try {
     // A `session/load` that never answers must not hold the serve's next steps
-    // (the filer, the sleeper) behind eight subprocess boots.
+    // (the sleeper) behind eight subprocess boots.
     await it.run(it.chat.start.pipe(Effect.timeout("1 second")))
     // ... and a stop must cut it rather than wait out a real agent's deadline.
     await it.run(it.chat.stop.pipe(Effect.timeout("3 seconds")))
@@ -568,8 +570,8 @@ test("the record sheds the conversation capacity evicts", async () => {
   const record = liveIn(local)
   const nodes: ReadonlyArray<NodeAgent> = [
     NODE_ONE,
-    { id: "two", file: "Work.olai", title: "two", engine: "alpha", session: "second", memory: 2 },
-    { id: "three", file: "Work.olai", title: "three", engine: "alpha", session: "third", memory: 2 },
+    { kind: "node", beside: false, id: "two", file: "Work.olai", title: "two", engine: "alpha", session: "second", memory: 2 },
+    { kind: "node", beside: false, id: "three", file: "Work.olai", title: "three", engine: "alpha", session: "third", memory: 2 },
   ]
   const it = await restartable({
     local,
@@ -601,7 +603,7 @@ test("the record follows the live set as slots open and go", async () => {
   const record = liveIn(local)
   let nodes: ReadonlyArray<NodeAgent> = [
     NODE_ONE,
-    { id: "two", file: "Work.olai", title: "two", engine: "alpha", session: "second", memory: 2 },
+    { kind: "node", beside: false, id: "two", file: "Work.olai", title: "two", engine: "alpha", session: "second", memory: 2 },
   ]
   const it = await restartable({ local, record, nodes: () => nodes, roster: () => [installed("alpha")] })
   try {
@@ -649,6 +651,8 @@ test("a shutdown during an explicit opening leaves no scope, no ticket and no pr
     engine: "alpha",
     session: "remembered",
     memory: 2,
+    kind: "node",
+    beside: false,
   }
   // REMEMBERED, so the boot goes straight for the node scope rather than
   // through a root session first — the longest walk, and the one with a
@@ -706,8 +710,8 @@ test("a shutdown during an explicit opening leaves no scope, no ticket and no pr
  * ...AND THE SAME SHUTDOWN LANDING ON A PATH THAT IS NOT THE BOOT.
  *
  * Owning the boot fiber closes the boot's window and only the boot's. Every
- * acquisition takes several yields to spawn a panel, and three others reach it
- * — `reread`'s relocation, `assignedTo`, and a session started at a node — so
+ * acquisition takes several yields to spawn a panel, and two others reach it
+ * — `reread`'s relocation and a session started at a node — so
  * any of them can be past the shutting-down check, inside the uninterruptible
  * panel acquisition, when a stop sets its flag and reads the node map. The slot
  * then lands in a map nobody reads again, with a credential and a process in
@@ -733,6 +737,8 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
     engine: "alpha",
     session: null,
     memory: 2,
+    kind: "node",
+    beside: false,
   }
   const minted: Array<string> = []
   const released: Array<string> = []
@@ -783,8 +789,8 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
   const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
-    { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
-    { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
+    { kind: "node", beside: false, id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
+    { kind: "node", beside: false, id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
   ]
   const released: Array<string> = []
   const chat = await run(make({
@@ -880,7 +886,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
 test("put to sleep closes a busy scope, announces the seat and leaves the chat openable", async () => {
   const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
-    { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
+    { kind: "node", beside: false, id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
   ]
   const released: Array<string> = []
   const seats: Array<string> = []
@@ -982,8 +988,8 @@ test("node wake picks are off by default, independent, durable and clear the liv
   const local = ephemeralLocalState()
   const scoping = await run(scopesIn(local))
   const nodes: ReadonlyArray<NodeAgent> = [
-    { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "one-session", memory: 2 },
-    { id: "two", file: "Work.olai", title: "two", engine: "beta", session: "two-session", memory: 3 },
+    { kind: "node", beside: false, id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "one-session", memory: 2 },
+    { kind: "node", beside: false, id: "two", file: "Work.olai", title: "two", engine: "beta", session: "two-session", memory: 3 },
   ]
   const one = { agent: "alpha", session: "one-session" }
   const two = { agent: "beta", session: "two-session" }
@@ -1045,10 +1051,10 @@ test("node wake picks are off by default, independent, durable and clear the liv
   }
 }, 25_000)
 
-test("filing clears old manual wakes and trash releases a running node", async () => {
+test("trash releases a running node and takes its scopes with it", async () => {
   let present = true
   let released = false
-  const node: NodeAgent = { id: "filed", file: "Inbox.olai", title: "filed", engine: "alpha", session: "stored", memory: 1 }
+  const node: NodeAgent = { kind: "node", beside: false, id: "trashed", file: "Work.olai", title: "trashed", engine: "alpha", session: "stored", memory: 1 }
   const local = ephemeralLocalState()
   const scoping = await run(scopesIn(local))
   const overheard = await run(sessionsIn(local))
@@ -1057,22 +1063,17 @@ test("filing clears old manual wakes and trash releases a running node", async (
     tools: () => null, nodeAt: () => present ? node : null, seatableAt: () => present,
     nodes: () => present ? [node] : [], wake: () => ACTIVATION,
     nearestAt: () => present ? node.id : null, agentAt: () => present ? node : null,
-    ticket: () => ({ bearer: "filed-ticket", release: () => { released = true } }),
+    ticket: () => ({ bearer: "trashed-ticket", release: () => { released = true } }),
     scoping, overheard, onState: () => {}, onTranscript: () => {},
   }))
   const scope = Scope.makeUnsafe()
   try {
     const to = { agent: "alpha", session: "stored" }
-    await run(chat.scope(to, "kolu", "Inbox.olai"))
+    await run(chat.scope(to, "kolu", "Work.olai"))
     expect(chat.doorFor("kolu").scopes()).toHaveLength(1)
-    await run(overheard.assign(to)) // A record filed by the previous build.
     await run(chat.start)
-    expect(chat.doorFor("kolu").scopes()).toHaveLength(0)
     await run(chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, scope)))
     expect(chat.live().size).toBe(1)
-    await run(chat.scope(to, "kolu", "Inbox.olai"))
-    expect((await run(sessionsIn(local))).at(to)?.wakesCleared).toBe(true)
-    await run(chat.start)
     const recipient = chat.doorFor("kolu").scopes()[0]!
     present = false
     chat.reread()
@@ -1102,7 +1103,7 @@ const withLaggingBinding = async (use: (bench: {
 }) => Promise<void>, args: ReadonlyArray<string> = []) => {
   const { run, fork } = logging()
   let node: NodeAgent = {
-    id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2,
+    kind: "node", beside: false, id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2,
   }
   let ask: Effect.Effect<void> = Effect.void
   const tab = Scope.makeUnsafe()

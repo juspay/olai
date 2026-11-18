@@ -12,7 +12,7 @@ Top to bottom:[^phone]
 | --- | --- |
 | Agenda, with what is overdue or due today folded under it while there is any, then Today with the month under it | [journal.md](journal.md) |
 | Inbox | [capture.md](capture.md) |
-| **Needs you** and **Chats** | [chat.md](chat.md) |
+| **Needs you** and **Chats**[^chats] | [chat.md](chat.md) |
 | **Plugins** | [vault-plugins.md](vault-plugins.md) |
 | **Pinned** | [pins.md](pins.md) |
 | **Outlines**, **Reference** and the `olai` group of `_olai/` files | [files.md](files.md) |
@@ -46,7 +46,9 @@ Switching `sidebar` off removes the column and the strip of icons, and leaves th
 
 [^plus]: The buttons on headings: the `+` beside **Chats** opens the palette at New chat, the `+` beside **Plugins** opens it at New plugin, and the `+` beside **Outlines** opens the menu for making a new file. The plugin that owns a heading draws its button too, so the heading and the button leave together when that plugin is switched off.
 
-[^empty]: An empty section: **Chats** and **Pinned** draw nothing at all until there is something in them. **Plugins** is always drawn, whatever the directory holds, with one entry reading **Ask for your first plugin…**, because a directory with no plugins is where somebody is looking for the way to make one ([vault-plugins.md](vault-plugins.md)).
+[^chats]: A **Chats** row is named after the row or the file its chat is about, with that agent's mark beside it. Clicking it opens the chat's own page, and the row's two-column button, **Open beside**, puts that page in the pane to the right on a desktop. A document whose chat is set to open beside brings the document along; everything else opens alone ([chat.md](chat.md)).
+
+[^empty]: An empty section: **Pinned** draws nothing at all until there is something in it, while **Chats** keeps its heading and its `+` with no chats yet. **Plugins** is always drawn, whatever the directory holds, with one entry reading **Ask for your first plugin…**, because a directory with no plugins is where somebody is looking for the way to make one ([vault-plugins.md](vault-plugins.md)).
 
 [^waiting]: While the sidebar plugin or the layout plugin is switched off, what other plugins contribute to the column waits, and comes back when the sidebar returns. Those plugins keep running and doing the rest of their work meanwhile.
 

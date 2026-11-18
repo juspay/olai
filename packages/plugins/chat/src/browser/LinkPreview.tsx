@@ -8,17 +8,26 @@ import { createRows } from "./chat/order.ts"
 import { createTail, grownText } from "./chat/growing.ts"
 import { servedDirectory } from "./vault.ts"
 import { LOOK } from "./agents/roster.ts"
+import { itemKey } from "@olai/format"
+import { chatPage } from "./agents/route.ts"
 
-export const previewNode = (route: Route) => route.kind === "at" &&
-  (route.address?.kind === "node" || route.address?.kind === "row") ? route.address.id : undefined
+/** WHOSE CONVERSATION A LINK IS ABOUT: a chat's own page (`/chat/<item>`,
+ *  which is where every door that opens a chat goes), or a node's page, which
+ *  draws that node's chat at its foot. The answer is the ITEM KEY, which is
+ *  what the wire and the roster are both keyed by. */
+export const previewNode = (route: Route) => {
+  const chat = chatPage.value(route)
+  if (chat !== null) return itemKey(chat)
+  return route.kind === "at" && (route.address?.kind === "node" || route.address?.kind === "row")
+    ? route.address.id : undefined
+}
 
 /** A read-only wire lease: no conversation UI, wake, visit or composer is
  * acquired by hovering. The roster is already owned by chat's activation. */
 export function ChatLinkPreview(props: { readonly route: Route; readonly roster: Roster }) {
-  // LinkPreview.Preview guarantees one immutable route per mount.
-  // ...and the chat at that row, which is the conversation drawn: the row's
-  // own, or a chat row standing for it (`./agents/answered.tsx`'s `chatAt`).
-  const node = props.roster.chatAt({ kind: "row", id: previewNode(props.route)! })?.id ?? previewNode(props.route)!
+  // LinkPreview.Preview guarantees one immutable route per mount. A node's
+  // chat is the node's own, so the row the preview reads is the node itself.
+  const node = previewNode(props.route)!
   const transcript = chatWire().streams.transcript.useCollection({ node }, transcriptRows)
   const tail = createTail(chatWire().streams.saying.useCollection({ node }, sayingRows).fold)
   const ordered = createRows(transcript.fold)

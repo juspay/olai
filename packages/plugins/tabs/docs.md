@@ -33,7 +33,7 @@ Right-click a link olai can open and choose **Open** or **Open in new tab**.[^ne
 
 A tab loads its pages when you first look at it and keeps them until you close it.[^mount] Back and Forward move through the history of the tab in front.[^history] Each browser remembers its own tabs.[^stored][^opening] A phone shows no strip.[^phone]
 
-[^workspace]: What one tab holds: a single page, or a whole set of panes side by side, with its own focused pane, its own Back and Forward history, and its own filter on what an outline shows. Every tab shares the header, the sidebar, the agent panel, the command palette, the appearance settings and which branches of an outline are folded open.
+[^workspace]: What one tab holds: a single page, or a whole set of panes side by side, with its own focused pane, its own Back and Forward history, and its own filter on what an outline shows. Every tab shares the header, the sidebar, the command palette, the appearance settings and which branches of an outline are folded open.
 
     Clicking an entry in the sidebar changes the page in the tab you are looking at rather than opening another tab. On a desktop the strip is drawn above the panes, inside the main column.
 

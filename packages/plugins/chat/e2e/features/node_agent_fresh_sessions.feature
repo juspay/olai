@@ -200,7 +200,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     Then the panel is in the remembered conversation "first"
     And there should be no page errors
 
-  Scenario: A settled historical turn also discovers a terminal conversation
+  Scenario: The history list is re-asked while a historical conversation is open
     When I start a fresh session
     Then the panel has a different conversation from "first"
     And the node agent's fold is ready
@@ -214,8 +214,8 @@ Feature: Fresh node sessions have distinct identities and durable history
     And the agent starts so far are counted
     And I ask the agent "continue the old conversation"
     And the agent is idle
+    When I open the fold history
     Then the list-asks have grown
-    And the Inbox has 1 filed conversations
     And no further agent process has started
 
   Scenario: Escape dismisses confirmation and preserves an unsent draft

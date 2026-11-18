@@ -61,7 +61,7 @@ Each is a package under `packages/plugins/`, a row in `packages/bundle/olai.yml`
 | `alerts` | Permission to notify you, the sound, and the badge on the icon, owned by a channel that belongs to one browser tab. |
 | `browsing` | The web browser olai runs for your agents: the pane it draws, shared sign-ins and per-conversation overrides. |
 | `capture` | Capturing a row into the inbox, and the command palette prefix that does it. |
-| `chat` | Conversations with coding agents: the agent panel, the scheduler for agents bound to a row, and the slots it reserves. |
+| `chat` | Conversations with coding agents: the chat pages, the scheduler for agents bound to a row, and the slots it reserves. |
 | `claude` | Running Claude Code, with the pinned adapter and patches it needs. |
 | `codex` | Running Codex, with the pinned adapter and CLI it needs. |
 | `csv` | Table files (`.csv`): claiming that file kind, and reading the table out of one. |
@@ -73,7 +73,7 @@ Each is a package under `packages/plugins/`, a row in `packages/bundle/olai.yml`
 | `image` | Picture files: claiming those file kinds, and serving them under `/media/`. |
 | `journal` | The calendar, the page for one day, the agenda of dated work, and reminders. |
 | `kolu` | Working with kolu: its terminals, the live pane, the feed of events, and sending those events into a conversation. |
-| `layout` | The app frame: the panels, the header and its health dot, banners and the places a file viewer draws in. |
+| `layout` | The app frame: the sidebar column, the header and its health dot, banners and the places a file viewer draws in. |
 | `link-preview` | A read-only preview of a link that points at something in the served directory. |
 | `mail` | Working with Gmail: connecting an account, and reading and filing mail from a conversation. |
 | `markdown` | Documents: editing them, their frontmatter and their headings. |

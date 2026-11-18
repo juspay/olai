@@ -29,12 +29,18 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   re-arms a hold that is already standing — so writing the config is the gesture
   that fires the watcher, and this scenario never sits out a clock.
 
-  @scratch:lanes @padi:lanes
+  @scratch:lanes @padi:lanes @agent-stored
   Scenario Outline: The <chat> conversation hears its selected board without moving my draft
     Given I open the outline "lanes.olai"
+    # TWO CARRIERS, one claim: a conversation this node started (`door-live`),
+    # and one the engine already had before olai saw it, given a home by the
+    # property on `lane-fresh`. Nothing files either anywhere; both are an
+    # item's chat, and each chooses its own board.
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
     And I press the agent "door-live"
     And the node agent's fold is ready
-    And I open the "<chat>" conversation for delivery
+    And I press the agent "<chat>"
+    And the node agent's fold is ready
     # The default, and it is a ruling rather than an oversight: nobody is opted
     # in by a serve, so the control is drawn saying so.
     Then this conversation's "kolu" wake is on nothing
@@ -77,12 +83,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
 
     Examples:
       | chat       |
-      | node-bound |
-
-    @agent-stored
-    Examples:
-      | chat       |
-      | filed      |
+      | door-live  |
+      | lane-fresh |
 
   @scratch:lanes @rows:vault,olai,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind

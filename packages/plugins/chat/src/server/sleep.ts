@@ -6,13 +6,13 @@
  * a turn nobody is watching; the design — the undo story, the settings, what a
  * person sees — is `website/docs/chat.md`.
  *
- * ## A scope-owned fiber, beside the filer
+ * ## A scope-owned fiber
  *
  * Not a component and not a service: it needs chat's OWN doors — the roster, the
  * scheduler's deliver, a conversation's reading and the write gate — and chat's
  * server row already holds all four, so a row of its own would have had to be
- * handed chat. It is forked with `Effect.forkScoped` in the same fork as the
- * filer and dies with that scope (`website/docs/architecture/cordis.md` argues the
+ * handed chat. It is forked with `Effect.forkScoped` in chat's own activation
+ * and dies with that scope (`website/docs/architecture/cordis.md` argues the
  * shape, and the one resource here whose owner is another row's).
  *
  * ## One pass, one SCOPE

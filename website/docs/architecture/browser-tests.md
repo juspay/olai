@@ -113,7 +113,7 @@ One row per group of feature files.
 | Mail | 40 | Connecting a mailbox, listing threads, inbox wakes for a conversation, and the tools an agent calls on it. |
 | Git | 40 | The Commit readout, choosing files, committing automatically and pausing that, push policy, and the git plugin going away and coming back. |
 | Choosing an agent, and signing in | 142 | Where an agent is offered with none, one or several installed, the sign-in card, how each agent talks, and a shutdown in the middle of a turn. |
-| A conversation | 158 | Sending, streaming, tool rows and diffs, refused writes, the panel beside the page, and a restart with chats still live. |
+| A conversation | 158 | Sending, streaming, tool rows and diffs, refused writes, the chat in the pane beside the page, and a restart with chats still live. |
 | Drafts, completions and context | 89 | Completion in the composer, node chips, rows, files and transcript lines dropped in, and context across a remount. |
 | Attachments | 18 | The picker and the drop, the 50 MiB cap, two files of one name, and an upload across a dropped connection. |
 | Questions and attention | 25 | A question with choices or free text, drafts kept per node, unread conversations, and what rings and what does not. |

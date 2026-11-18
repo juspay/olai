@@ -6,7 +6,7 @@ It also draws the breadcrumbs and the filter box. A note is the text under a row
 
 ## The pages it draws
 
-It draws every kind of file whose contents are rows.[^hosted][^seat] A single row has its own page at `/zoom/#<id>`, which the bullet and **Zoom in** open; `/#<id>` selects the row where it is.[^reveal] Links inside a row belong to [navigation.md](navigation.md).[^rowlinks]
+It draws every kind of file whose contents are rows.[^hosted] A single row has its own page at `/zoom/#<id>`, which the bullet and **Zoom in** open; `/#<id>` selects the row where it is.[^reveal] Links inside a row belong to [navigation.md](navigation.md).[^rowlinks]
 
 ## The filter bar
 
@@ -29,8 +29,6 @@ Two MCP tools, the calls an agent makes, read rows: `outlines_read` reads one ro
 [^elsewhere]: Typing in an outline is [../editing.md](../editing.md); moving work about is [../organising.md](../organising.md).
 
 [^hosted]: Outlines claims those files by registering one bullet glyph and one page, rather than by naming a file format plugin. It also draws the pages other plugins define over a reading of rows, such as the journal's day page and Agenda. A page a plugin draws for itself belongs to [navigation.md](navigation.md) instead.
-
-[^seat]: An outline's page carries a seat at its foot, which chat fills with the conversation about this outline ([chat.md](chat.md)). The page says which file it is drawing, so the front page `/` and an address such as `house.olai#install` are both the outline `house.olai`, with one chat between them. A day, the Agenda and the Trash carry no seat.
 
 [^reveal]: A link written `/#<id>` selects the row in the pane that is already showing it. Where no pane shows it, the row's file opens at that row.
 
@@ -114,7 +112,7 @@ A read never walks into a mirror, because a mirror is a second view of a row tha
 | --- | --- |
 | `outline.row.action` | a command or a choice on a row's menu. The plugin supplies the words, what the press does, and whether it writes; outlines decides where it goes. Entry ids are `<plugin>:<id>` |
 | `outline.crumb.aside` | something drawn beside one breadcrumb, given that ancestor's id |
-| `outline.row.aside`, `outline.row.fold` | something drawn beside a row, and something drawn inside it when it is open |
+| `outline.row.aside`, `outline.row.fold` | something drawn beside a row, and something drawn inside it when it is open. Chat draws a row's conversation there, or one line reading **Shown beside** while a pane holds that conversation ([chat.md](chat.md)) |
 | `outline.page.head`, `outline.page.foot` | something drawn above and below a page's rows |
 | `outline.row.chip`, `outline.row.pane`, `outline.row.block` | how one kind of property is drawn, keyed by kind |
 | `outline.row.placement` | whether a kind of property is drawn among the rows |

@@ -1,6 +1,5 @@
-import { createMemo, createSignal } from "solid-js"
 import { Result } from "effect"
-import type { PaletteAdapter, PaletteItem, PaletteOption } from "olai-plugin-navigation/contract"
+import type { PaletteAdapter, PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { chatWire } from "../wire.ts"
@@ -8,15 +7,16 @@ import { navigation } from "../navigation.ts"
 import { agentReadings } from "./reading.ts"
 import { focusAgent } from "./focus.ts"
 import { byActivity } from "./activity-order.ts"
-import { hereNow, newChatRow } from "./new-chat-level.ts"
+import { hereNow, messageLevel, newChatRow } from "./new-chat-level.ts"
 import { agentAboveOf } from "./above.ts"
 import { LOOK } from "./roster.ts"
 import { chatVerbs } from "../verbs.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
-import { placeOfRoute } from "./place.ts"
-import { dock } from "../dock.ts"
-import { sendAbout } from "./Door.tsx"
+import { nameOfNote } from "./called.ts"
+import { noteHere } from "./here.ts"
+import { chatRouteOf } from "./route.ts"
+import { servedDirectory } from "../vault.ts"
 import { talking } from "./roster.ts"
 
 /** The palette row that starts a chat about the page in front. */
@@ -27,7 +27,7 @@ export const ABOUT_ROW = "chat-about-page"
  *
  * ⌘K is reached from anywhere and acts on whatever chat happens to be on
  * screen, with no row under the cursor to say which one and no `•••` panel
- * standing open to say it twice. *Close the agent* takes a node's chat away
+ * standing open to say it twice. *Close the chat* takes a node's chat away
  * from it; a verb that far-reaching asks to be pressed where a person can see
  * what they are pressing it on, which is the two menus.
  */
@@ -36,12 +36,9 @@ const inPalette = (verb: RowVerb): boolean => verb.id !== "close-agent"
 /** Listing reads the activation's roster; only selection opens a conversation. */
 export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   const creation = agentReadings()?.newChat
-  // The last default container New chat was told of, for this activation.
-  const [last, remember] = createSignal<string | null>()
-  const memory = { last, remember: (value: string | null) => { remember(value) } }
   // One New chat row for the activation: listing again (a roster tick) hands
   // the palette the same object, so its open path and drawing stay put.
-  const newChat = creation === undefined ? undefined : newChatRow(creation, agents, memory)
+  const newChat = creation === undefined ? undefined : newChatRow(creation, agents)
   /**
    * THE CHAT ON SCREEN, AS ⌘K ROWS — the opt-in, and then the menus' own
    * verbs (`../verbs.tsx`'s `chatVerbs`) wearing this list's dressing.
@@ -128,16 +125,21 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         if (nav === undefined) return { keepOpen: true, said: { tone: "alarm" as const, text: "Can't open this right now" } }
         const now = hereNow()
         const target = now === null ? undefined : agentAboveOf(now, agents)
-        if (target !== undefined) focusAgent(nav, agents, target)
+        if (target !== undefined) focusAgent(nav, target)
         return {}
       } },
     }]
   }
   /**
    * **CHAT ABOUT THIS PAGE** — the door, from ⌘K: offered while the page in
-   * front placed a seat, has no chat at its place, and an agent can start, and
-   * one message level away from a chat about it (`./Door.tsx` is the same door
-   * under the page).
+   * the focused pane is a NOTE with no chat on it and an agent can start, and
+   * one message level away from a chat about it (`./Door.tsx` is the same
+   * door, in the line at the top of that page).
+   *
+   * WHICH NOTE IS THE ROUTE'S ANSWER (`./here.ts`'s `noteHere`), asked of the
+   * focused pane — a palette is opened from anywhere and has no page under it
+   * to ask. What the send does is what the line does: start the chat on the
+   * note and put the conversation in the pane beside it.
    *
    * THE ROW GOES THE MOMENT THE CHAT EXISTS, including the chat this level's
    * own send starts, and that is the whole rule here: a level whose submit is
@@ -146,36 +148,25 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
    */
   const about = (): ReadonlyArray<PaletteItem> => {
     const nav = navigation()
-    const held = agentReadings()
-    if (nav === undefined || held === undefined || creation === undefined || agents.engines().length === 0) return []
-    const pane = nav.panes()[nav.focusIndex()]
-    const here = pane === undefined ? undefined : held.seatIn(pane.id)
-    if (here === undefined) return []
-    if (talking(agents.chatAt(placeOfRoute(nav.routes, here.place)))) return []
-    const address = nav.routes.href(here.place)
-    const name = here.name
+    if (nav === undefined || creation === undefined || agents.engines().length === 0) return []
+    const at = nav.focusIndex()
+    const pane = nav.panes()[at]
+    const path = pane === undefined ? null : noteHere(servedDirectory()?.claims(), pane.route())
+    if (path === null) return []
+    if (talking(agents.chatOf({ kind: "note", path }))) return []
+    const name = nameOfNote(servedDirectory()?.claims(), path)
     return [{
-      id: ABOUT_ROW, label: "Chat about this page", place: address.replace(/^\//, ""),
+      id: ABOUT_ROW, label: "Chat about this page", place: path,
       search: `agents chat about this page ${name}`.toLowerCase(), taking: atOnce,
-      action: { kind: "level", level: {
-        kind: "value",
+      // THE SAME LEVEL *New chat* ASKS WITH (`./new-chat-level.ts`'s
+      // `messageLevel`), with this row's two differences handed in: the words
+      // in the empty box, and the conversation opening in the pane BESIDE
+      // this one rather than on its own, which is what the line at the top of
+      // the page does.
+      action: { kind: "level", level: messageLevel(creation, agents, { kind: "note", path }, {
         placeholder: `Ask about ${name}…`,
-        submitLabel: "Start chat",
-        options: () => createMemo<ReadonlyArray<PaletteOption>>(previous => agents.engines().map(engine =>
-          previous.find(option => option.id === engine.id && option.label === engine.name) ?? { id: engine.id, label: engine.name }), []),
-        validate: text => text.trim() === "" ? "Type a message first." : null,
-        submit: async (text, engine) => {
-          if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
-          // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
-          // the words in this box with the sentence beside them, and leaves the
-          // docked conversation alone.
-          const sent = await sendAbout({ about: address, name, engine: engine.id, text })
-          if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
-          const door = dock()
-          if (sent.talking && door?.desktop()) door.open(sent.started)
-          return {}
-        },
-      } },
+        opened: () => nav.openRight(at, chatRouteOf({ kind: "note", path })),
+      }) },
     }]
   }
   return { items: (): ReadonlyArray<PaletteItem> => {
@@ -187,13 +178,13 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       return {
         id: `agent-${row.id}`, label: named.name, hint: LOOK[row.standing].label,
         ...(named.mark === undefined ? {} : { mark: named.mark }),
-        // A chat about a place says where it is on the second line.
+        // A note's chat says where the note is on the second line.
         place: named.where === undefined ? "Agents" : `Agents · ${named.where}`,
         search: `agents ${named.name} ${named.where ?? ""}`.trim().toLowerCase(), taking: atOnce,
         action: { kind: "run", run: async () => {
           const nav = navigation()
           if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
-          focusAgent(nav, agents, row)
+          focusAgent(nav, row)
           return {}
         } },
       }

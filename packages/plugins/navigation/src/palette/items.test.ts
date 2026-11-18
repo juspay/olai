@@ -36,12 +36,12 @@ const node = (fields: Omit<NodeHit, "at" | "pathIds"> & { readonly pathIds?: Rea
 
 test("empty query returns every shell item", () => {
   expect(filterItems("").length).toBe(SHELL_ITEMS.length)
-  expect(SHELL_ITEMS.some((i) => i.id === "reset-widths")).toBe(true)
+  expect(SHELL_ITEMS.some((i) => i.id === "reset-sidebar-width")).toBe(true)
 })
 
 test("filter matches label and search haystack", () => {
   expect(filterItems("toggle sidebar").map((i) => i.id)).toEqual(["panel-sidebar"])
-  expect(filterItems("reset sidebar").map((i) => i.id)).toEqual(["reset-widths"])
+  expect(filterItems("reset sidebar").map((i) => i.id)).toEqual(["reset-sidebar-width"])
 })
 
 // ⌘J and its row left with the chat dock: nothing in the palette opens an
@@ -49,7 +49,7 @@ test("filter matches label and search haystack", () => {
 test("no row toggles an agent panel", () => {
   expect(SHELL_ITEMS.some((i) => i.id === "panel-agent")).toBe(false)
   expect(filterItems("toggle agent panel")).toEqual([])
-  expect(SHELL_ITEMS.find((i) => i.id === "reset-widths")?.label).toBe("Reset sidebar width")
+  expect(SHELL_ITEMS.find((i) => i.id === "reset-sidebar-width")?.label).toBe("Reset sidebar width")
 })
 
 /** A document row names its own file and opens it. */

@@ -2,7 +2,7 @@
  * THE CHATS THUMB — the phone's one-tap door to the conversations
  * (`olai-plugin-layout`'s `layout.thumbs`).
  *
- * A phone has no seat for the dock, so its conversations are reached through
+ * A phone shows one pane at a time, so its conversations are reached through
  * the drawer's Chats and Needs you sections. This thumb opens that drawer and
  * puts the caret on Needs you, so an agent waiting on a person is one tap and
  * a glance away rather than a burger, a scroll and a search. The badge is the

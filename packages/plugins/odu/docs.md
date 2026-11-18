@@ -24,7 +24,7 @@ The chip reads `ci · <what> · <count>`, such as `ci · e2e 2:10 · 8/10 ok`.[^
 
 ## Wake a conversation when a run moves
 
-A conversation is one chat in olai's agent panel. Its strip, the line above the messages, carries `wake on CI runs` and a picker over your outlines. Point a conversation at one outline file and olai wakes it about the runs named on that file's unfinished rows.[^claim]
+A conversation is one chat with one agent. Its strip, the line above the messages, carries `wake on CI runs` and a picker over your outlines. Point a conversation at one outline file and olai wakes it about the runs named on that file's unfinished rows.[^claim]
 
 Two things wake it: the first failure[^red] and the run settling.[^settle] A wake about failed recipes carries the command that reads the logs.[^messages] A run no chosen file names wakes nobody.[^silent] `Clear` beside the picker stops all of it.[^faults]
 

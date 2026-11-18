@@ -6,7 +6,8 @@ import { createMemo, createSelector, Show } from "solid-js"
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layout/entry"
 import { useShown, useRouter } from "olai-plugin-navigation/routing"
-import { isCurrent } from "./place.ts"
+import { isCurrent } from "./here.ts"
+import { servedDirectory } from "../vault.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
@@ -14,13 +15,28 @@ import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { useAgents } from "./answered.tsx"
-import { createFocus } from "./focus.ts"
-import { awake, LOOK } from "./roster.ts"
+import { chatHref, visitAgent } from "./focus.ts"
+import { awake, LOOK, type Row } from "./roster.ts"
 import { ChatRowMenu } from "./ChatRowMenu.tsx"
 import { needing } from "./attention-order.ts"
 import { byActivity } from "./activity-order.ts"
 import { unfolded } from "./folding.ts"
-import { dock } from "../dock.ts"
+import { useChatBeside } from "./ChatBeside.tsx"
+import { itemOf } from "@olai/format"
+
+/** THE DOOR A ROW IS, read for the pane this column is drawn in: the address
+ *  a press opens (`./focus.ts` decides which, off the row's own switch) and
+ *  what opening it marks. A hook rather than a value, because the router is
+ *  the thing it closes over — and the href of a *beside* row is composed
+ *  against the LAYOUT that is open, so pressing one keeps the panes a reader
+ *  has arranged instead of replacing them. */
+const createFocus = () => {
+  const router = useRouter()
+  return {
+    href: (row: Row) => chatHref(router.routes, row, router.workspace()),
+    visit: visitAgent,
+  }
+}
 
 export function NeedsYou() {
   const shown = useShown()
@@ -61,8 +77,7 @@ export function Chats() {
    *  wakes nothing here either. */
   const currentIds = createMemo(() => {
     const route = router.route()
-    const reported = router.focused()?.file
-    return new Set(agents.rows().filter((row) => isCurrent(router.routes, route, row, agents.placeOf(row), unfolded(row.id), reported)).map((row) => row.id))
+    return new Set(agents.rows().filter((row) => isCurrent(servedDirectory()?.claims(), route, row, unfolded(row.id))).map((row) => row.id))
   }, new Set<string>(), { equals: (a, b) => a.size === b.size && [...a].every((id) => b.has(id)) })
   const current = createSelector<ReadonlySet<string>, string>(currentIds, (id, ids) => ids.has(id))
   return <section class={REGION} data-testid={TESTID.agentRoster}>
@@ -102,28 +117,38 @@ export function Chats() {
           an anchor is a control whose activation is also a navigation (the
           pins' rule). Revealed on hover or focus, over the row's right edge on
           the column's own ground — and on a screen with no hover to offer,
-          simply drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`): the
-          dock door is only ever drawn beside a desktop-width dock, which a
-          touch tablet is. The `•••` is always there — every row has verbs —
-          and the dock door only where there is a seat to open, which the dock
-          component's shell decides. */}
+          simply drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). The
+          `•••` is always there — every row has verbs — and the beside door
+          only above `md`, where there are panes side by side to put a
+          conversation in; below it the panes are a strip of tabs, one at a
+          time, and "beside" names nothing a reader would see. */}
       <div class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
-        <Show when={dock()?.desktop()}>
-          <Tip text="Open in the panel">
-          <button type="button"
-            class={`inline-flex size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
-            data-testid={TESTID.chatDockOpen} data-agent={row().id}
-            aria-label={`Open ${agents.named(row()).name} in the panel`}
-            onClick={(event) => { event.stopPropagation(); dock()?.open(row().id) }}>
-            <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="2" y="3" width="12" height="10" rx="1.5" />
-              <path d="M9.5 3v10" />
-            </svg>
-          </button>
-          </Tip>
-        </Show>
+        <BesideDoor id={row().id} name={agents.named(row()).name} />
         <ChatRowMenu row={row()} />
       </div>
     </li>}</Key></ul>
   </section>
+}
+
+/** THE TWO-COLUMN BUTTON on a Chats row: this chat's page in the pane to the
+ *  right of the focused one, or — while a pane already has it — that pane
+ *  focused, which is the drawn-once rule every *Open beside* obeys
+ *  (`./ChatBeside.tsx`). */
+function BesideDoor(props: { readonly id: string; readonly name: string }) {
+  const { beside, press } = useChatBeside(() => itemOf(props.id))
+  return (
+    <Tip text={beside() === null ? "Open beside" : "Shown beside"}>
+    <button type="button"
+      class={`hidden size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 md:inline-flex ${SHOWN_WITHOUT_HOVER}`}
+      data-testid={TESTID.chatBeside} data-agent={props.id} data-item={props.id}
+      data-beside={String(beside() !== null)}
+      aria-label={beside() === null ? `Open ${props.name} beside` : `${props.name} is shown beside`}
+      onClick={(event) => { event.stopPropagation(); press() }}>
+      <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="12" height="10" rx="1.5" />
+        <path d="M9.5 3v10" />
+      </svg>
+    </button>
+    </Tip>
+  )
 }

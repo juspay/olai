@@ -23,7 +23,7 @@ import { Effect } from "effect"
 import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createMemo,createRoot,createRenderEffect } from "solid-js"
-import { name,navigation,content,pages,pageSeats,type PaletteControl } from "./index.ts"
+import { name,navigation,content,pages,type PaletteControl } from "./index.ts"
 import { askInPalette,closePalette,dropQuestion,openPalette,openPaletteAt,paletteAsking } from "./palette/state.ts"
 import { paletteOpen } from "./palette/state.ts"
 import { PageView } from "./PageView.tsx"
@@ -114,10 +114,8 @@ export const components = {
  // (PageView dispatches the contributed file pages), and it HOSTS the
  // self-drawn plugin pages the claim table below settles: one component for
  // the table and its host, so a page and the claim that names it come and go
- // together. Node pages are outlines' to host (`./SelfDrawnPage.tsx`). The
- // seat at a page's foot is owned here too: PageView hands it to every page it
- // draws (`./seat.tsx`), so it lives and leaves with the pages.
- yield* slots.contribute(content,{matches:selfDrawn,Page:SelfDrawnPage},{children:[pages,pageSeats]})
+ // together. Node pages are outlines' to host (`./SelfDrawnPage.tsx`).
+ yield* slots.contribute(content,{matches:selfDrawn,Page:SelfDrawnPage},{children:[pages]})
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))

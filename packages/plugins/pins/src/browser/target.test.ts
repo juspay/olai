@@ -32,7 +32,7 @@
  * now reads an empty list where `@olai/web` used to name this package.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { type Place, pinTargetIn, placeWritten } from "@olai/format"
+import { pinTargetIn } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { addressIn as addressWith } from "olai-plugin-navigation/address/address.ts"
@@ -51,19 +51,6 @@ const nodeIn = (title: string): string | undefined => {
   return address !== null && (address.kind === "node" || address.kind === "row")
     ? address.id
     : undefined
-}
-
-/** The PLACE the browser's parser opens, for the arms the format answers on
- *  its own — a node is its row, a document or a heading is its file. Every
- *  other route is a word this app claims and the grammar cannot see, which is
- *  the direction that cannot hold. */
-const placeIn = (title: string): Place | undefined => {
-  const route = addressIn(title)
-  if (route === undefined || route.kind !== "at" || route.address === null) return undefined
-  const address = route.address
-  return address.kind === "node" || address.kind === "row"
-    ? { kind: "row", id: address.id }
-    : { kind: "file", path: address.path }
 }
 
 const TITLES = [
@@ -105,17 +92,6 @@ test("where the app's own parser reads a node, the server read the same node", (
     const named = nodeIn(title)
     if (named === undefined) continue
     expect([title, pinTargetIn(TEST_CLAIMS, title)]).toEqual([title, named])
-  }
-})
-
-test("…and the same holds for the place, the other reading over this one rule", () => {
-  // `placeWritten` is the same question asked for a chat row rather than a pin
-  // (`@olai/format`'s `addressAt`, which both project), so the rows and files
-  // above hold it to the browser's answer the way the node does.
-  for (const title of TITLES) {
-    const place = placeIn(title)
-    if (place === undefined) continue
-    expect([title, placeWritten(TEST_CLAIMS, title)]).toEqual([title, place])
   }
 })
 

@@ -26,7 +26,7 @@ let cwd: string
 beforeEach(() => { cwd = mkdtempSync(join(tmpdir(), "olai-wake-lifetime-")) })
 afterEach(() => { rmSync(cwd, { recursive: true, force: true }) })
 const TO = { agent: "alpha", session: "one-session" }
-const NODE: NodeAgent = { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: TO.session, memory: 2 }
+const NODE: NodeAgent = { id: "one", kind: "node", beside: false, file: "Work.olai", title: "one", engine: "alpha", session: TO.session, memory: 2 }
 const WAKE: Wake = {
   subject: "activity", waiting: { one: "one", many: "many" },
 }

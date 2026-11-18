@@ -165,3 +165,32 @@ export const NO_AGENT_ROSTER: Agents = []
  *  simply not be compared. */
 export const sameAgentRoster: (a: Agents, b: Agents) => boolean = Schema
   .toEquivalence(Agents)
+
+/**
+ * ONE ITEM A NEW CHAT COULD BE ABOUT, as `conversation.locations` answers —
+ * declared HERE, where both halves of that question already read their rows.
+ *
+ * The shape used to be an anonymous struct in the procedure with a hand-kept
+ * interface on each side of the wire, which is one payload with three
+ * authors: a field added to the schema compiled perfectly against two mirrors
+ * that had never heard of it.
+ */
+export const ItemLocation = Schema.Struct({
+  /** The item's own key — a node's id, or `/` and a note's path. */
+  key: Schema.String,
+  kind: Schema.Literals(["node", "note"]),
+  title: Schema.String,
+  /** The file it is in: an outline for a node, the note's own path. */
+  file: Schema.String,
+  /** The titles above a node, outermost first. Empty for a note. */
+  path: Schema.Array(Schema.String),
+})
+export type ItemLocation = typeof ItemLocation.Type
+
+/** ...AND WHETHER WHAT IS TYPED FINDS ONE — the server narrows the vault with
+ *  it and the browser filters the answer with it, so a row the server
+ *  answered cannot be hidden by a second reading of the same words. */
+export const matchesTyped = (item: ItemLocation, typed: string): boolean => {
+  const looking = typed.trim().toLowerCase()
+  return [item.file, ...item.path, item.title].join(" › ").toLowerCase().includes(looking)
+}

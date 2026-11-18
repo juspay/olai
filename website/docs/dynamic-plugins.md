@@ -6,7 +6,7 @@ Ask for a plugin. An agent writes it into the directory olai serves, and olai co
 
 1. Press `Cmd` + `K` (`Ctrl` elsewhere) to open the command palette, and choose **New plugin**. Say in one sentence what it should do.
 2. Name it.[^name]
-3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch][^builder]
+3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch][^builder][^fence]
 4. Read what the agent wrote, then press **Turn on**. What the plugin draws appears with no reload.
 
 ## Three ways to start a new plugin
@@ -35,17 +35,21 @@ Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plu
 
 [^name]: olai suggests a name from the sentence you wrote, and the line under the box says where the plugin will be kept, `Kept in your vault as plugins/hex-swatch/`. A name another plugin has, or one that is not lower-case letters, digits and hyphens starting with a letter, is refused while you type.
 
-[^watch]: The button opens the plugin's own page, with the conversation building it in the agent panel beside, and the page lists each file as the agent writes it. On a phone, and where there is no agent panel, the chat sits in the seat at the foot of the page. That conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when the agent needs you.
+[^watch]: The button opens the plugin's own page, with the conversation building it opened in the pane beside, and the page lists each file as the agent writes it. That conversation is an ordinary one under **Chats**: close the pane, come back tomorrow, and an alert tells you when the agent needs you.
 
 [^sidebar]: The **Plugins** section of the sidebar lists one row per plugin, and a single row reading **Ask for your first plugin…** while you have none. A row carries a mark only when it needs something from you: `Review` for a version nobody has read, `Problem` for one that will not start, and a moving dot while an agent is still writing its files. A plugin switched off is drawn dim.
 
     All three ask the same two questions: what the plugin should do, and what to call it.
 
-[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are below that, one tab each, beside the folder they are in. Settings it declares sit under **Settings**, and **Ask for a change…** opens the chat about this page beside it.
+[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are below that, one tab each, beside the folder they are in. Settings it declares sit under **Settings**, and **Ask for a change…** opens the builder chat in the pane beside.
 
 [^version]: A version is a hash of the plugin's two code files. Editing either one pauses the plugin, stops it running, and shows what changed since the version you approved. Editing the `README.md` changes nothing, because prose is not code. Every approval carries the version the page showed you, so one made after the source changed is refused.
 
-[^builder]: Asking for a new plugin starts a chat titled `[Hex Swatch](/plugins/hex-swatch)`, which is the chat about that plugin's page. Any chat at that address is the plugin's builder: the page reads **Being built** while it works, tells you when the agent has finished, and carries **Ask for a change…** on a desktop. A phone draws the chat in the page's seat instead. A plugin with no chat at its address draws the **Ask about …** box at both widths.
+[^builder]: Asking for a new plugin starts the chat of the plugin's own `README.md`, named after its folder: the chat for `plugins/hex-swatch/README.md` is `hex-swatch`. That chat is the builder: the page reads **Being built** while it works, says when the agent has finished, and carries **Ask for a change…**. A plugin whose `README.md` has no chat offers **Ask about Hex Swatch…**, which starts one.
+
+    The agent is told to keep the `---` block at the top of that `README.md` exactly as it is, because those keys tie the conversation to the file, and olai refuses a write that changes them.
+
+[^fence]: A tool writing the file from outside olai is outside that fence. What the chat's own page then says, and the one press that ties it back, are on [the chat plugin's page](plugins/chat.md).
 
 [^reserved]: You cannot use `on`, `approved` or `checked` as a plugin setting: a `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, and olai writes it when that call comes in. A plugin that could write `checked` itself would declare itself finished.
 
@@ -95,7 +99,7 @@ hex-swatch            on: yes
                       size: large
 ```
 
-A `builder` property on this row is ordinary text that olai reads nothing from: the chat about `/plugins/hex-swatch` is the builder.
+A `builder` property on this row is ordinary text that olai reads nothing from: the chat of `plugins/hex-swatch/README.md` is the builder.
 
 - Not a lock. olai refuses any write of `approved` from an agent session, which stops an agent approving the plugin it just wrote. Otherwise `approved` is an ordinary property, and one that turns up on disk is an ordinary edit to your files.
 - Not a report of what the browser file did. A component that throws an error while it is drawn is caught by the tab, the browser console names the plugin, and the plugin still says `running`, because on the server it is.

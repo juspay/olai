@@ -9,25 +9,25 @@ test("legacy and native entries share occupancy, child withdrawal, and one diagn
   const legacy = slotFacade(store)
   const native = store.forOwner("native")
   const shell = yield* Effect.acquireRelease(Scope.make(), (scope) => Scope.close(scope, Exit.void))
-  const panel = slotContract<() => null>("app.panel","app")
+  const seat = slotContract<() => null>("app.viewer","app")
   const marks = slotContract<() => null>("delivery.mark","plugin")
   let starts = 0
   let stops = 0
-  yield* legacy.forOwner("chat").register("app.panel", () => null, { children: [marks] })
+  yield* legacy.forOwner("chat").register("app.viewer", () => null, { children: [marks] })
   yield* native.contribute(marks, { plugin: "native", face: () => null }, {
     key: "native",
     activate: Effect.acquireRelease(Effect.sync(() => { starts++ }), () => Effect.sync(() => { stops++ })),
   })
   yield* store.settled
-  expect(legacy.faces.only("app.panel")).toBeNull()
+  expect(legacy.faces.only("app.viewer")).toBeNull()
   expect(store.inspect().every((entry) => entry.state === "waiting")).toBe(true)
-  const duplicate = yield* Effect.exit(native.contribute(panel, { plugin: "native", face: () => null }))
+  const duplicate = yield* Effect.exit(native.contribute(seat, { plugin: "native", face: () => null }))
   expect(Exit.isFailure(duplicate)).toBe(true)
-  yield* Scope.provide(store.forOwner("shell").contribute(location("root", "one"), null, { children: [panel] }), shell)
+  yield* Scope.provide(store.forOwner("shell").contribute(location("root", "one"), null, { children: [seat] }), shell)
   yield* store.settled
   expect(starts).toBe(1)
   expect(legacy.faces.hung("delivery.mark")[0]?.plugin).toBe("native")
-  expect(store.read(panel)[0]?.value ?? null).toBe(legacy.faces.only("app.panel"))
+  expect(store.read(seat)[0]?.value ?? null).toBe(legacy.faces.only("app.viewer"))
   yield* Scope.close(shell, Exit.void)
   yield* store.settled
   expect(stops).toBe(1)

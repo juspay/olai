@@ -159,7 +159,12 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    Then the chat shows a failed tool call
+    # WHICH HALF, if this ever fails: the marker is one shot, so a pass stopped
+    # after it was read leaves the next one an ordinary turn and no refused call
+    # is ever drawn. Asked first, a failure says whether the turn happened at
+    # all rather than only that the frame is absent.
+    Then the sleep turn has tried to write the memo itself
+    And the chat shows a failed tool call
     And the agent's answer mentions "is a property this door may not write"
     # BOTH KEYS, and the backticks are load-bearing: `chat-agent-sleep` is a
     # substring of `chat-agent-slept`, so an assertion without them would pass on

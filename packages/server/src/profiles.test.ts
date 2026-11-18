@@ -390,17 +390,22 @@ const initialize = async (url: string): Promise<string> => {
   return (await response.json()).result.instructions as string
 }
 
+/** The charter's opening clause — `olai-plugin-chat`'s `charter.ts`, which no
+ *  longer says "chat panel" at all: the sentence now names the note or outline
+ *  the chat is beside, so this is the phrase both states are read by. */
+const BESIDE = "A person reads your answer in olai, beside the note or the outline this chat is about"
+
 test("the chat panel's sentence to an agent is on the wire exactly while chat is standing", async () => {
   await withServing({ root: served(), profile: "web", policy: { without: "chat" } }, async url => {
     const said = await initialize(url)
     expect(said).toContain("NODES and whole FILES")
     expect(said).toContain("`/#<id>` names a node")
-    expect(said).not.toContain("chat panel")
+    expect(said).not.toContain(BESIDE)
   })
   await withServing({ root: served(), profile: "web" }, async url => {
     const said = await initialize(url)
     expect(said).toContain("NODES and whole FILES")
-    expect(said).toContain("A person reads your answer in olai's chat panel")
+    expect(said).toContain(BESIDE)
     expect(Buffer.byteLength(said, "utf8")).toBeLessThan(2000)
   })
 }, 30_000)

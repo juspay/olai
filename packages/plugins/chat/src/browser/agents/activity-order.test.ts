@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { byActivity } from "./activity-order.ts"
 import { needing } from "./attention-order.ts"
 import type { Row } from "./roster.ts"
-const row = (id: string, over: Partial<Row> = {}): Row => ({ id, file: "a.olai", title: id, engine: "one", session: id, memory: 0, waiting: 0, standing: "asleep", said: null, seen: null, unread: false, sleeps: false, sleep: null, ...over })
+const row = (id: string, over: Partial<Row> = {}): Row => ({ id, kind: "node", beside: false, file: "a.olai", title: id, engine: "one", session: id, memory: 0, waiting: 0, standing: "asleep", said: null, seen: null, unread: false, sleeps: false, sleep: null, ...over })
 
 test("what is awake leads, in standing order, and everything else follows by recency", () => {
   const rows = [row("unbound", { session: null, standing: "unbound", changed: "2026-03-01" }),

@@ -57,15 +57,6 @@
  * the selector still compiles, and a scenario fails thirty seconds later with a
  * timeout that says nothing about why. Declaring them once and importing them
  * on both sides makes a rename a type error.
- *
- * ## What stayed behind in `@olai/web`, and why exactly one thing did
- *
- * `panelResize` — the drag handle on the dock's left edge — is drawn by
- * `@olai/web`'s `client/layout/Handle.tsx`, beside the sidebar's handle and off
- * the same stored width. It is chrome about the COLUMN rather than about the
- * conversation in it, nothing in this package draws it, and the rule for what
- * moves is the renderer and not the word in the name. So it is the one `chat*`
- * id the app's table still holds, and its comment there says so.
  */
 
 export const TESTID = {
@@ -101,6 +92,54 @@ export const TESTID = {
   agentFold: "agent-fold",
   agentPageHead: "agent-page-head",
   agentPageFoot: "agent-page-foot",
+  // ── a chat's own page, `/chat/<item>` ────────────────────────────────
+  /** THE WHOLE PAGE. `data-item` is the item key the address names — a
+   *  node's id, or `/` and a note's path — and `data-kind` says which of the
+   *  two it is. The conversation under it keeps the page faces' own ids
+   *  above, so a scenario addresses it exactly as it addresses a node's. */
+  chatPage: "chat-page",
+  /** Its heading: the item's name, live. */
+  chatPageTitle: "chat-page-title",
+  /** THE PINNED HEAD — the item's name, where it is, how the chat stands and
+   *  the way back to the item. Pinned under the app's chrome so it cannot
+   *  scroll away, which on a phone with the chat alone is the only way back
+   *  to the note. */
+  chatPageHead: "chat-page-head",
+  /** The small mono line under it — a note's path, a node's outline. */
+  chatPageWhere: "chat-page-where",
+  /** How the chat stands, at the right of the head. Read-only here: the page
+   *  IS the conversation, so there is nothing for a press to unfold. */
+  chatPageStanding: "chat-page-standing",
+  /** *Open <name> beside ›* — the item into the pane on the left, this chat
+   *  into the one on its right. Reads *Shown beside* where a pane already has
+   *  the item, and then only focuses it; `data-beside` is which of the two. */
+  chatOpenBeside: "chat-open-beside",
+  /** *Open beside ›* — this CONVERSATION into the pane on the right, offered
+   *  wherever the item itself is drawn (a row's fold, a node's page, the line
+   *  at the top of a note). Reads *Shown beside* and focuses that pane once
+   *  one has it, and then stands alone as the one line those faces draw in
+   *  place of the conversation; `data-beside` is which of the two,
+   *  `data-item` the item. */
+  chatBeside: "chat-beside",
+  /** THE ONE LINE a fold and a node's page draw in place of a conversation
+   *  that a pane in this layout already has — the button above and nothing
+   *  else. `data-agent` is the chat's key, so a scenario can say WHICH
+   *  conversation went elsewhere. */
+  chatBesideLine: "chat-beside-line",
+  /** A NOTE'S SWITCH: where its chat opens, written as `chat-opens`.
+   *  `data-beside` is the answer. */
+  chatOpens: "chat-opens",
+  chatOpensSwitch: "chat-opens-switch",
+  /** THE NOTE THIS PAGE IS ABOUT IS GONE — renamed or deleted on disk while
+   *  the page was open. The sentence that says so, in place of the door:
+   *  there is nothing left to start a chat about. */
+  chatPageGone: "chat-page-gone",
+  /** THE NOTE IS THERE AND NO LONGER NAMES THIS CONVERSATION — its front
+   *  matter lost the tie while the chat was open. The sentence that says so,
+   *  with {@link chatRetie} on it. */
+  chatPageUntied: "chat-page-untied",
+  /** ...and the one press that writes the tie back onto the note. */
+  chatRetie: "chat-retie",
   agentPlainComposer: "agent-plain-composer",
   agentPlainInput: "agent-plain-input",
   agentPlainEngine: "agent-plain-engine",
@@ -152,49 +191,6 @@ export const TESTID = {
    *  claims, which is nearly all of them. */
   chatNode: "chat-node",
 
-  // ── migration: the chats no node claims ──────────────────────────────
-  /** The roster's LAST row: every conversation in this directory that no node
-   *  agent claims, with how many. Drawn only where there is one — a directory
-   *  whose chats are all assigned ends the section at its agents, and one with
-   *  neither draws no section at all. */
-  agentUnassigned: "agent-unassigned",
-  /** ... and the count on it, which is the news the row carries. */
-  agentUnassignedCount: "agent-unassigned-count",
-  /** The panel body that row opens: those conversations, grouped by whose they
-   *  are, each with the gesture that gives it a node. */
-  unassignedPanel: "unassigned-panel",
-  /** One of them. `data-session-id` and `data-agent` are the pair that names a
-   *  conversation anywhere in this app. */
-  unassignedChat: "unassigned-chat",
-  /** The gesture on that row: *assign to node…*, which opens the search under
-   *  it. */
-  unassignedAssign: "unassigned-assign",
-  /** The way out, back to the conversation the panel was in. The list is a
-   *  place a person went, and it stays up across an assignment because moving
-   *  several chats is one job. */
-  unassignedDone: "unassigned-done",
-  /** The sentence a list with nothing left in it draws — and the claim that
-   *  must not be made where an agent could not be asked, which is why a
-   *  scenario can name it. */
-  unassignedEmpty: "unassigned-empty",
-  /** What an assignment said — the node it landed on, or why it did not.
-   *  A node already talking through a conversation is the refusal a person has
-   *  to be able to read. */
-  unassignedSaid: "unassigned-said",
-  /** The node search under an open *assign to node…* — the shared shortlist
-   *  (`@olai/web`'s `search/Shortlist.tsx`), with this door's own words. */
-  assignSearch: "assign-search",
-  /** One node it found. */
-  assignHit: "assign-hit",
-  /** Where that node lives, on its row. */
-  assignHitPlace: "assign-hit-place",
-  /** ... and a property the query matched on it. */
-  assignHitProp: "assign-hit-prop",
-  /** Why a hit cannot be taken: it is already talking through a conversation,
-   *  and one agent has one current session. */
-  assignRefused: "assign-refused",
-  /** Why the SEARCH itself answered nothing, in the grammar's own words. */
-  assignSearchFailed: "assign-search-failed",
   /** The panel header's session detail, on a conversation a node agent owns:
    *  the conversations it has had before this one. `data-count` is how many. */
   chatPastSessions: "chat-past-sessions",
@@ -206,46 +202,25 @@ export const TESTID = {
   /** ... and why one did not happen: an engine this machine does not have, an
    *  agent that would not start, a record the ops layer will not write. */
   chatFreshSaid: "chat-fresh-said",
-  /** *Close the agent* — release this node's agent back to the unclaimed
-   *  chats. The conversation stays stored and is filed back under Chats;
-   *  nothing is deleted. */
+  /** *Close the chat* — take this item's tie off. The conversation stays in
+   *  the engine's own store and nothing is deleted, but olai lists it
+   *  nowhere afterwards. */
   chatCloseAgent: "chat-close-agent",
   /** ... and why one did not happen: the node had no agent to close. */
   chatCloseSaid: "chat-close-said",
 
-  // ── the conversation, wherever it is drawn, and the dock ──────────
-  /** The header's agent-panel toggle on a desktop. `aria-pressed` says
-   *  whether the column is open. Absent on a phone, which has no seat. */
-  chatToggle: "chat-toggle",
+  // ── the conversation, wherever it is drawn ────────────────────────
   /** A conversation's root — under a row's fold, at the foot of a node page,
-   *  or in the dock. Its `data-status` carries the cell's own state —
+   *  or on its own chat page. Its `data-status` carries the cell's own state —
    *  `booting` / `idle` / `thinking` / `gone` — so a scenario waits on the
-   *  state rather than on a spinner's styling. */
+   *  state rather than on a spinner's styling. `data-drawn` says which of the
+   *  two arrangements it is: `page` or `fold`. */
   chatPanel: "chat-panel",
-  /** THE DOCK: the seat's column, as this row draws it. `data-agent` names
-   *  the docked node (absent while the picker is up), `data-standing` its
-   *  standing. */
-  chatDock: "chat-dock",
-  /** The docked agent's title in the dock's bar — a link to its page. */
-  chatDockTitle: "chat-dock-title",
-  /** The bar's `×`. */
-  chatDockClose: "chat-dock-close",
-  /** The bar's switch, and the menu it opens. */
-  chatDockSwitch: "chat-dock-switch",
-  chatDockMenu: "chat-dock-menu",
-  /** One chat in the picker or the switch's menu; `data-agent` is its node. */
-  chatDockPick: "chat-dock-pick",
-  /** The column's face while nothing is docked. */
-  chatDockPicker: "chat-dock-picker",
-  /** The door on a Chats row that docks that conversation; `data-agent`. */
-  chatDockOpen: "chat-dock-open",
-  /** The agent line's door — `Open in panel ›` — on a fold or a node page. */
-  chatDockHere: "chat-dock-here",
   /** The phone's thumb to the chats: opens the drawer on Needs you, and
    *  carries `data-waiting`, the count of conversations that need somebody. */
   thumbChats: "thumb-chats",
 
-  // ── the panel's header, and the conversation drawn under it ───────
+  // ── the conversation's header, and the transcript drawn under it ──
   chatTitle: "chat-title",
   chatModel: "chat-model",
   /** Where a person types to narrow the open model list — the first thing in
@@ -292,28 +267,33 @@ export const TESTID = {
    *  `PluginMark`). `data-mark` says which was drawn — the plugin's own, by
    *  name, or the `generic` a plugin that hangs none gets. */
   chatPluginMark: "chat-plugin-mark",
-  /** WHAT A CHAT IS CALLED in a list — the sidebar, the side panel's title and
-   *  picker: its place's name for a chat row standing for one, its title
-   *  otherwise. Never the raw title of a stand-in. */
+  /** WHAT A CHAT IS CALLED in a list — the sidebar, a chat page's head:
+   *  a note's own name, a node's title. */
   chatName: "chat-name",
-  /** ...and the mark of the place it stands for, beside that name: a file's
-   *  kind mark, a plugin page's own, or the pin. Absent for an ordinary chat. */
-  chatPlaceMark: "chat-place-mark",
-  /** THE SEAT at the foot of a page with one (`olai-plugin-navigation/seat`),
-   *  as chat fills it: the chat about that page, folded or open, or the box
-   *  that starts one. `data-place` is the place it is about. */
-  chatSeat: "chat-seat",
-  /** The seat's head when it holds a chat: one line saying how the chat
-   *  stands, whose press opens and folds the conversation under it.
-   *  `data-chat` is the chat row; `data-folded` is `"true"` while folded. */
-  chatSeatLine: "chat-seat-line",
-  /** The box that starts a chat about a page — in its seat, or in the side
-   *  panel's **This page** block. `data-where` says which. Its fields are the
-   *  one box's (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,
+  /** ...and the mark the note's kind of file wears, beside that name. Absent
+   *  for a node's chat. */
+  chatFileMark: "chat-file-mark",
+  /** THE LINE AT THE TOP OF A NOTE (markdown's `markdown.note-line`), as chat
+   *  fills it: how the note's chat stands and the way into it beside the
+   *  page, or — with no chat yet — the one-line box that starts one.
+   *  `data-note` is the note's path, `data-chat` the chat's key where there
+   *  is one. No other page has one. */
+  chatLine: "chat-line",
+  /** How that note's chat stands, inside the line: the agent's mark, the dot
+   *  and the standing word. A readout and not a press — the LINE is the
+   *  press, and it opens the conversation beside the page. `data-standing`
+   *  is the word, `data-agent` the chat. */
+  chatLineStanding: "chat-line-standing",
+  /** The line itself, as the press that opens the conversation beside the
+   *  page — the whole row, doing what the verb at its end does.
+   *  `data-beside` is `"true"` while a pane already has it. */
+  chatLineOpen: "chat-line-open",
+  /** The box that starts a chat about an item — in the line at the top of a
+   *  note (one row, where Enter sends), or on the chat's own page.
+   *  `data-where` says which. Its fields are the one box's
+   *  (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,
    *  `agentPlainRefused`), shared with a row's own page. */
   chatAbout: "chat-about",
-  /** The side panel's **This page** block, over its picker. */
-  chatThisPage: "chat-this-page",
   /** The picker: which agent this conversation is with. Drawn in the
    *  transcript's place when the panel is asking, and over it when `+ new`
    *  does the asking. */

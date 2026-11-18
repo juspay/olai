@@ -18,7 +18,7 @@
     "src/main.ts": 3
   },
   "mcp": {
-    "src/dial.ts": 5,
+    "src/dial.ts": 6,
     "src/main.ts": 1,
     "src/mcpClient.ts": 19
   },

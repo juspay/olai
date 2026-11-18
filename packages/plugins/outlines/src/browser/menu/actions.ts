@@ -199,7 +199,7 @@ const pluginEntries = (plugin: string, action: RowAction, shown: string): Readon
  *   2. when and where to find it — the date, the repeat rule, the pin;
  *   3. where it lives — `Move to…`, `Duplicate`;
  *   4. the plugins' WRITES (chat's `Start an agent ›`, `Fresh start`,
- *      `Close the agent`), after core's own, in the bundle's order;
+ *      `Close the chat`), after core's own, in the bundle's order;
  *   5. `More ›` — the rarely reached: the two copies, the folds, a property,
  *      the edges, retiring a placement, and taking a date or a rule back off;
  *   6. `Move to Trash`, last and alone.
@@ -298,7 +298,7 @@ export const subjectMenuActions = (args: {
    * A READING, ASKED HERE: the face answers the verbs that plugin offers on
    * this node right now — which for chat is one `Start an agent` on a bare row
    * (a submenu of engines when there is more than one), and `Fresh start` and
-   * `Close the agent` on a row already talking. None of that is knowable when
+   * `Close the chat` on a row already talking. None of that is knowable when
    * a plugin registers.
    *
    * NO DIVIDER and NO CONFIRM of the plugin's composing: a rule is core's

@@ -83,7 +83,7 @@
  * boxes for that reason.
  *
  * THE LAYER is `LAYER.header` (`./layer.ts`), and its place in that table is
- * the whole point: above the panels (the chat dock, the drawer, its scrim, the
+ * the whole point: above the panels (the drawer, its scrim, the
  * minimized pill), which is what stops a page scrolling UNDER the bar from
  * painting over it, and below what covers the whole viewport — the command
  * palette, the keyboard-shortcut list, and the panels this bar's own pills

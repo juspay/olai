@@ -15,6 +15,8 @@ import { Show } from "solid-js"
 import { createNodeConversation } from "./conversation.ts"
 import { useAgents } from "./answered.tsx"
 import { unfolded } from "./folding.ts"
+import { itemOf } from "@olai/format"
+import { ChatBeside, useBeside } from "./ChatBeside.tsx"
 import { type Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
 import { History } from "./History.tsx"
@@ -42,10 +44,21 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   const parentShown = useShown()
   const open = createMemo(() => unfolded(props.record ?? props.node))
   const started = createMemo((was: boolean) => was || open(), false)
-  const shown = () => parentShown() && open()
-  /** THE CHAT AT THIS ROW — its own, or a chat row standing for it. */
-  const chatRow = createMemo(() => agents.chatAt({ kind: "row", id: props.node })?.id)
-  return <ShownProvider shown={shown}><Show when={started() && chatRow()} keyed>{id => {
+  /** THE CHAT AT THIS ROW — a node's chat is its own row's. */
+  const chatRow = createMemo(() => agents.at(props.node)?.id)
+  /** ...and the pane that is already drawing it, which is where this fold's
+   *  conversation went (`./beside.ts`). The lease goes with it: a fold that
+   *  draws one line reads nothing. */
+  const beside = useBeside(() => chatRow() ?? "")
+  const shown = () => parentShown() && open() && beside() === null
+  return <ShownProvider shown={shown}>
+    <Show when={open() && beside() !== null && chatRow()} keyed>{id =>
+      <div class="my-2 flex items-center gap-2 rounded-surface border border-rule bg-panel px-3 py-1.5 text-label text-muted"
+        data-testid={TESTID.chatBesideLine} data-agent={id}>
+        <ChatBeside item={itemOf(id)} />
+      </div>
+    }</Show>
+    <Show when={beside() === null && started() && chatRow()} keyed>{id => {
     const { chat: conversation } = createNodeConversation(() => id)
     return <Show when={conversation()}>{current =>
     <section style={{ display: open() ? undefined : "none" }} class="my-2 rounded-surface border border-rule bg-panel shadow-raised" data-testid={TESTID.agentFold} data-agent={props.node} data-chat={id} aria-label={agents.at(id)?.title}>
@@ -60,10 +73,8 @@ export function Fold(props: { readonly node: string; readonly record?: string })
 
 /** `page` is the node page's face: the pane is the scroll, so the transcript is
  * uncapped, the composer pins to the bottom, and the standing strips are drawn
- * in the page's pinned head instead of here. `dock` is the seat's: the column
- * is exactly one viewport tall, so the transcript scrolls inside it, uncapped,
- * and the composer sits at its foot (`./Dock.tsx`). */
-export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly dock?: boolean; readonly node: string }) {
+ * in the page's pinned head instead of here. */
+export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
   let insert: ((text: Insertion) => void) | undefined
   const [carrying, setCarrying] = createSignal<string | null>(null)
@@ -85,8 +96,8 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
   })
   const holding = createHolding(props.chat)
   const live = () => props.chat.state().status === "thinking" || props.chat.state().watching.length > 0
-  return <div class="flex min-h-0 flex-col" classList={{ "flex-1": props.dock === true }} data-testid={TESTID.chatPanel}
-    data-drawn={props.dock === true ? "dock" : props.page === true ? "page" : "fold"}
+  return <div class="flex min-h-0 flex-col" data-testid={TESTID.chatPanel}
+    data-drawn={props.page === true ? "page" : "fold"}
     data-session-id={props.chat.state().session?.id} data-session-title={props.chat.state().session?.title ?? undefined} data-status={props.chat.state().status} data-pending-sends={props.chat.pendingSends()}>
     <ElapsedProvider live={live()}>
       {/* A page's strips are in its pinned head, where its scroll cannot
@@ -102,7 +113,7 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
           may not be something they have to find (`../chat/SignIn.tsx`). */}
       <SignIn chat={props.chat} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
-        <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} dock={props.dock} />
+        <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} />
         <div class={props.page ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
           <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} onInsert={write => { insert = write; return () => { if (insert === write) insert = undefined } }} />
         </div>

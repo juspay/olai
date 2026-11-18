@@ -203,6 +203,161 @@ export const frontmatterIn = (body: string): Custom => {
  *  reason. */
 const NO_PROPS: Custom = {}
 
+/**
+ * THE BLOCK, WRITTEN — the few keys a gesture sets or takes off, and every
+ * other byte of the file left exactly as it was.
+ *
+ * A NOTE'S PROPERTIES ARE THE NOTE'S, which is the whole shape of this: the
+ * block at the top of a `.md` is a thing a person writes by hand, with their
+ * own order, their own comments, their own quoting and whatever a YAML they
+ * like has put in it. So this is a SPLICE and not a serialiser — there is no
+ * round trip through a parsed map, because a round trip through this module's
+ * reading would quietly drop every key it refuses to read and reformat the
+ * ones it does. One entry is replaced in place, one is appended, one is cut;
+ * everything else keeps its bytes, its order and its line endings.
+ *
+ * WHAT A CHANGE IS: a key and the text it should hold, or `null` for a key
+ * that should not be there. Setting a key the block already writes replaces
+ * that key's WHOLE entry — its line and, where it holds a block list, the
+ * items under it — in place, so a value that was a list becomes a scalar
+ * without leaving half a list behind. Setting one it does not write appends it
+ * at the end of the block, and if there is no block at all a new one is made
+ * at the top of the file. Removing the last key takes the block with it. A key
+ * written TWICE is one key to {@link propsIn} (the first claim wins), so every
+ * entry of it is cut and the surviving value is written at the first one's
+ * place — otherwise a removal would uncover a value nobody could see.
+ *
+ * THE VALUE IS SPELLED BY ASKING THIS MODULE'S OWN READING, rather than by a
+ * table of characters YAML gives a meaning to: a plain scalar is written where
+ * {@link propsIn} reads that exact line back as that exact value, and a
+ * double-quoted one otherwise. So the invariant —
+ * `frontmatterIn(matterWith(text, [[key, value]]))[key] === value` — is held
+ * by the writer consulting the reader rather than by two tables kept in step
+ * by hand.
+ *
+ * TWO VALUES IT CANNOT PROMISE THAT OF, and both are named rather than
+ * silently mangled. A value carrying a LINE BREAK is written as the escape
+ * YAML spells it with, which this module's reading hands back as a backslash
+ * and a letter (`quoted` says why it refuses to guess at escapes) — the block
+ * stays well formed, which is the property that matters, and no caller here
+ * has a value with a break in it. An EMPTY value is written as `""`, and the
+ * reading treats a key holding nothing as a key the file does not carry
+ * (`./custom.ts`'s `nothing`) — so setting one says the same thing as removing
+ * it.
+ */
+export const matterWith = (
+  text: string,
+  changes: ReadonlyArray<readonly [key: string, value: string | null]>,
+): string => {
+  const matter = matterIn(text)
+  const from = matter === null ? 0 : text.indexOf("\n") + 1
+  const lines = matter === null ? [] : linesOf(matter.text)
+  const entries = entriesOf(lines)
+  // THE WRITE, held as three small decisions over the ORIGINAL lines rather
+  // than as an array edited in flight: which lines are gone, which one line is
+  // rewritten, and which keys had nowhere to go and are appended. A splice
+  // that mutated as it went would have to keep every later entry's indices in
+  // step with its own edits, for no gain.
+  const gone = new Set<number>()
+  const rewritten = new Map<number, string>()
+  const appended = new Map<string, string>()
+  // THE LINE ENDING THE FILE IS WRITTEN WITH, for the lines this adds. An
+  // untouched line keeps its own either way; what this decides is what a file
+  // written on Windows gets when a key is appended to it.
+  const ending = text.includes("\r\n") ? "\r\n" : "\n"
+  for (const [key, value] of changes) {
+    const mine = entries.filter((entry) => entry.key === key)
+    appended.delete(key)
+    for (const entry of mine) {
+      for (let at = entry.from; at <= entry.to; at++) gone.add(at)
+      rewritten.delete(entry.from)
+    }
+    if (value === null) continue
+    const written = spelled(key, value)
+    const first = mine[0]
+    if (first === undefined) {
+      appended.set(key, written + ending)
+      continue
+    }
+    gone.delete(first.from)
+    // THE REWRITTEN LINE KEEPS THE ENDING IT HAD, so one entry replaced in a
+    // file written on Windows does not become the one line with a bare `\n`.
+    const was = lines[first.from] as string
+    rewritten.set(first.from, written + (was.endsWith("\r\n") ? "\r\n" : was.endsWith("\n") ? "\n" : ""))
+  }
+  const region = lines.map((line, at) => gone.has(at) ? "" : rewritten.get(at) ?? line).join("")
+    + [...appended.values()].join("")
+  // AN EMPTY BLOCK IS NO BLOCK: the last key off takes the fences with it, and
+  // the prose that followed them starts the file. A block that still holds a
+  // COMMENT is not empty — those are bytes somebody wrote, and this module
+  // takes nobody's writing off a file it was asked to set one key in.
+  if (region.trim() === "") return matter === null ? text : text.slice(matter.from)
+  if (matter === null) return `---${ending}${region}---${ending}${text}`
+  return text.slice(0, from) + region + text.slice(from + matter.text.length)
+}
+
+/** The lines of a region, each one KEEPING its own ending — what makes the
+ *  splice above byte-exact for every line it does not touch, including the
+ *  `\r` of a file written on Windows. */
+const linesOf = (region: string): ReadonlyArray<string> => region.match(/[^\n]*\n|[^\n]+/g) ?? []
+
+/** One line as the reading sees it: its ending, and the whitespace that line
+ *  ending may drag along, taken off — {@link untrailed}'s rule, asked of a
+ *  line this module is about to decide the shape of. */
+const flatten = (line: string): string => untrailed(line.endsWith("\n") ? line.slice(0, -1) : line)
+
+/**
+ * WHERE EACH KEY'S ENTRY IS — the key's own line, through the last line that
+ * belongs to it.
+ *
+ * {@link propsIn}'s walk read for a different question, and the difference is
+ * what a key OWNS rather than what it says: a block list's items belong to the
+ * key above them, and so does anything indented under it — a nested map this
+ * reading refuses is still that key's to carry away when the key is replaced.
+ * A blank line or a comment between two items belongs to the entry; trailing
+ * ones after it do not, because they read as the space above the NEXT key.
+ */
+const entriesOf = (
+  lines: ReadonlyArray<string>,
+): ReadonlyArray<{ readonly key: string; readonly from: number; readonly to: number }> => {
+  const found: Array<{ key: string; from: number; to: number }> = []
+  for (let at = 0; at < lines.length; at++) {
+    const flat = flatten(lines[at] as string)
+    const text = flat.trimStart()
+    if (text === "" || text.startsWith("#")) continue
+    // An item or an indented line here belongs to a key already taken, or to
+    // nothing at all — either way it is not the start of an entry.
+    if (sequenceItem(text) !== null || flat !== text) continue
+    const split = splitKey(text)
+    if (split === null) continue
+    let last = at
+    for (let look = at + 1; look < lines.length; look++) {
+      const next = flatten(lines[look] as string)
+      const word = next.trimStart()
+      if (word === "" || word.startsWith("#")) continue
+      if (sequenceItem(word) === null && next === word) break
+      last = look
+    }
+    found.push({ key: split[0], from: at, to: last })
+    at = last
+  }
+  return found
+}
+
+/** ONE ENTRY, spelled — plain where this module's own reading hands that exact
+ *  line back as that exact value, and double-quoted where it does not. The
+ *  writer asks the reader rather than holding a second table of what YAML
+ *  gives a meaning to. */
+const spelled = (key: string, value: string): string => {
+  const plainly = `${key}: ${value}`
+  return propsIn(plainly)[key] === value ? plainly : `${key}: ${quotedValue(value)}`
+}
+
+/** A double-quoted scalar, with the two escapes {@link quoted} undoes and the
+ *  two a line break would need. */
+const quotedValue = (value: string): string =>
+  `"${value.replace(/[\\"]/g, (one) => `\\${one}`).replace(/\r/g, "\\r").replace(/\n/g, "\\n")}"`
+
 /** Where a body's frontmatter is: the text BETWEEN the fences, and the offset
  *  the prose begins at. `null` for a body that carries none — which includes
  *  one whose opening fence is never closed. */
@@ -285,7 +440,7 @@ const propsIn = (region: string): Custom => {
     open = null
   }
   for (const raw of region.split("\n")) {
-    const line = raw.replace(TRAILING, "")
+    const line = untrailed(raw)
     const text = line.trimStart()
     // A blank line and a whole-line comment say nothing about the key above
     // them, so neither closes a sequence that is still being written.
@@ -332,8 +487,18 @@ const propsIn = (region: string): Custom => {
 
 /** The `\r` and the trailing whitespace a line may carry, taken off before
  *  anything is read — one rule, so a file written on Windows is the same
- *  document as one written anywhere else. */
-const TRAILING = /[ \t\r]+$/
+ *  document as one written anywhere else. A walk back from the end rather than
+ *  `/[ \t\r]+$/`, which retries from every position of a long run of blanks
+ *  that is not at the end, and so is quadratic in a line somebody wrote. */
+const untrailed = (line: string): string => {
+  let end = line.length
+  while (end > 0) {
+    const code = line.charCodeAt(end - 1)
+    if (code !== 0x20 && code !== 0x09 && code !== 0x0d) break
+    end--
+  }
+  return end === line.length ? line : line.slice(0, end)
+}
 
 /** One key SET, first claim winning and the writer's rule for absence
  *  applied — {@link ./custom.ts}'s `withCustom` says why a value that is

@@ -16,7 +16,7 @@ import type {Navigation} from "olai-plugin-navigation/contract"
 import { createSignal,createMemo,createSelector,createComputed,createEffect,on,For,onCleanup,Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
-import { WITHIN } from "@olai/web/client/layer.ts"
+import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
 import { drag as pointerDrag } from "@olai/web/client/pointer.ts"
 
 import { PaneProvider } from "olai-plugin-navigation/pane"
@@ -27,7 +27,7 @@ isLone,
 panesOf,
 type Pane,
 } from "olai-plugin-navigation/workspace"
-import { desktop } from "../layout/live.ts"
+import { desktop, holdPhoneTabs } from "../layout/live.ts"
 import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
 import { nameOf } from "../routing.ts"
@@ -44,6 +44,11 @@ export function Panes() {
     </RouterProvider>
   }</For>
 }
+
+/** The gestures that end a restore in flight: a reader who has taken the page
+ *  over owns where it is (`olai-plugin-navigation`'s `scroll.ts`, the same
+ *  discipline and the same list). */
+const TAKEOVER = ["wheel", "touchstart", "keydown", "pointerdown"] as const
 
 function LanePanes(props: { readonly page: Navigation["page"] }) {
   const router = useRouter()
@@ -73,6 +78,111 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   let row: HTMLDivElement | undefined
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
   const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
+  /**
+   * EACH TAB KEEPS ITS OWN PLACE — the phone's half of what a column gets for
+   * free.
+   *
+   * A split below `md` is one strip of tabs over one page, and the thing that
+   * scrolls there is the DOCUMENT: the lane grows with whatever tab is drawn
+   * (above), so the window's scroll is shared by every tab in it. Switching
+   * from a note read at its top to a chat landed at the top of the
+   * conversation — nine thousand pixels above its newest line — and switching
+   * back and forth drifted, because each arrival inherited wherever the one
+   * before it had left the window.
+   *
+   * So the place is remembered per PANE, and the two halves are two phases of
+   * one update: the leaving tab's position is read in a `createComputed`,
+   * which runs before the DOM is touched and therefore still measures the
+   * page that is on screen, and the arriving tab's is put back in a
+   * `createEffect`, after the swap. A tab nobody has read yet starts at the
+   * top, which is where a chat's own transcript takes over and goes to its
+   * end (`olai-plugin-chat`'s `Transcript.tsx`, whose follow runs on the next
+   * frame and so lands after this).
+   *
+   * BY PANE ID rather than by index: opening and closing renumber the panes,
+   * and an index remembered across a splice is another pane's place.
+   *
+   * ...AND BY THE PAGE AS WELL AS THE PANE. A tab is a column, not a
+   * document: the page in it changes — a link an agent wrote opens in the
+   * OTHER tab, which is a page arriving in a tab somebody had left part way
+   * down a note. A place kept by tab alone is then offered to a page nobody
+   * has read a word of, and the note's own place is lost the moment that tab
+   * shows anything else. So a place belongs to the PAIR, and the pair is what
+   * is written down when a tab is left and what is asked for when one comes
+   * back: a page this tab has not shown opens at its top, and the note comes
+   * back where the reader was.
+   *
+   * BY THE PAGE'S OWN ADDRESS (`routes.href`), which is the app's one answer
+   * to "the same page": a filter narrowed is a different address and starts
+   * again, which is the same bargain a column's own scrollport strikes.
+   *
+   * WRITTEN DOWN WHENEVER EITHER HALF CHANGES, and put back only when the
+   * TAB does. A page replaced inside the tab in front is a NAVIGATION, and
+   * where a navigation leaves the page is navigation's own rule — to the top
+   * for a press, back to the line it was left on for a Back
+   * (`olai-plugin-navigation`'s `scroll.ts`); a second opinion from here
+   * would be two restores racing over one window.
+   */
+  const tabbed = createMemo(() => router.split() && !desktop())
+  const places = new Map<string, number>()
+  /** The tab in front and the page it is showing — the pair a place belongs
+   *  to. A memo of both, so what `on` hands back as `before` is the pane AND
+   *  the page it was showing while it was on screen. */
+  const front = createMemo(() => {
+    const pane = router.panes()[router.focusIndex()]
+    return pane === undefined ? undefined : { id: pane.id, page: router.routes.href(pane.route()) }
+  })
+  const placeOf = (at: { readonly id: string; readonly page: string }): string => `${at.id}\n${at.page}`
+  createComputed(on(front, (now, before) => {
+    if (!tabbed() || before === undefined || before.id === now?.id && before.page === now.page) return
+    places.set(placeOf(before), window.scrollY)
+  }))
+  /** The restore still being asked for, while the arriving tab is short of
+   *  the place it was left. */
+  let asking: (() => void) | undefined
+  onCleanup(() => asking?.())
+  const stand = (top: number): void => {
+    asking?.()
+    asking = undefined
+    window.scrollTo({ top, behavior: "instant" })
+    if (top === 0 || window.scrollY >= top) return
+    // SHORT OF IT, so the arriving tab has not finished laying out: a page
+    // that was `display: none` a moment ago is measured from what its blocks
+    // say they are, and the real height arrives as they are drawn. The window
+    // clamps a scroll to the height it has at that instant, so the ask is
+    // repeated as the page GROWS — not on a clock and not frame by frame:
+    // a growth is the only event that can change the answer, and the reader
+    // taking the page over ends it at once.
+    const stop = (): void => {
+      growing.disconnect()
+      for (const gesture of TAKEOVER) removeEventListener(gesture, stop)
+      asking = undefined
+    }
+    const growing = new ResizeObserver(() => {
+      window.scrollTo({ top, behavior: "instant" })
+      if (window.scrollY >= top) stop()
+    })
+    asking = stop
+    for (const gesture of TAKEOVER) addEventListener(gesture, stop, { passive: true })
+    growing.observe(document.documentElement)
+  }
+  createEffect(on(front, (now, before) => {
+    if (!tabbed() || now === undefined || before === undefined || before.id === now.id) return
+    // Reading the height first is what makes the restore land at all: the
+    // arriving tab was `display: none`, and a window asked to scroll before
+    // anything of that page has been laid out is clamped to the height of the
+    // page it replaced.
+    void document.documentElement.scrollHeight
+    stand(places.get(placeOf(now)) ?? 0)
+  }))
+  // THE STRIP, SAID OUT LOUD while this lane draws one: what the document
+  // reserves at its top for an in-page jump is the bar plus this strip, and
+  // that is written on `:root` from outside every lane (`../layout/css.ts`).
+  // The lane in front is the one that counts — a hidden lane's strip is not
+  // over anybody's page.
+  createEffect(() => {
+    if (visible() && tabbed()) onCleanup(holdPhoneTabs())
+  })
   return <div ref={host} data-testid={TESTID.lane} data-lane-front={String(visible())}
     class="flex min-w-0 flex-col bg-paper"
     style={{
@@ -87,8 +197,15 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
       height: visible() ? undefined : `${laneBox()?.height ?? 0}px`,
       "overflow-anchor": "none",
     }}
-    classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>
-    <Show when={router.split() && !desktop()}><TabStrip /></Show>
+    // COLUMNS ARE A VIEWPORT-HEIGHT BOX, one scrollport each; a phone is one
+    // page under a strip of tabs and scrolls the DOCUMENT, so the lane there
+    // GROWS with what is in it exactly as a lone page does. A split clamped
+    // to the viewport on a phone was the bug behind "the way back scrolls
+    // away": a `sticky` child is held by its own containing block, so a strip
+    // pinned inside a box one screen tall left the screen on the second
+    // screen of a long conversation.
+    classList={{ [PANES_SPLIT]: columns(), [PANES_LONE]: !columns() }}>
+    <Show when={tabbed()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
       <For each={router.panes()}>{pane => {
         let element: HTMLDivElement | undefined
@@ -114,7 +231,12 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
             classList={{ "outline-2 -outline-offset-2 outline-accent": columns() && focused(pane.index()) }}>
             <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
             <div ref={host => { scrolls.set(host, { top: 0, left: 0, anchor: undefined }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
-              style={{ "--height-chrome": columns() ? "0px" : undefined }}>
+              // WHAT A STICKY ROW INSIDE THIS PAGE CLEARS. A column is its own
+              // scrollport and its top already clears the app's chrome, so it
+              // reserves nothing; a phone reserves the bar, and the tab strip
+              // under it when the lane has one, or a page's pinned head would
+              // slide beneath the way back to the other tab.
+              style={{ "--height-chrome": columns() ? "0px" : router.split() ? "calc(var(--height-header) + var(--height-tabs))" : undefined }}>
               <ShownProvider shown={shown}>
                 <PaneProvider index={pane.index()} id={pane.id} element={element}>{props.page(pane.index)}</PaneProvider>
               </ShownProvider>
@@ -295,12 +417,32 @@ function Divider(props: {
   )
 }
 
+/**
+ * THE PANES, ON A PHONE — one tab each, and the strip STAYS IN VIEW while the
+ * page under it scrolls.
+ *
+ * A phone scrolls the document, so a strip in the flow scrolled away with it:
+ * a reader half-way down a long conversation had no way back to the note it
+ * was about without scrolling to the top first. Pinned under the header
+ * (`../Header.tsx` is `sticky top-0` at `--height-header`), at the strip's own
+ * layer, so it sits over the page and under anything the app puts in front.
+ *
+ * PINNED FOR THE WHOLE SCROLL, which is a fact about the box around it and
+ * not about this class: a `sticky` row is held inside its containing block,
+ * so the lane it sits in grows with the page on a phone (`LanePanes`) rather
+ * than being clamped to one screen with the conversation spilling past it.
+ *
+ * ITS HEIGHT IS THE TABS TOKEN, the same length the desktop's seat above the
+ * panes wears, because a page under it pins its own head at
+ * `--height-chrome` — the bar plus this strip — and a strip whose height was
+ * whatever its padding came to would be a second spelling of that sum.
+ */
 function TabStrip() {
   const router = useRouter()
   const isFocused = createSelector(router.focusIndex)
   return (
     <div
-      class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule bg-desk px-2 py-1"
+      class={`sticky top-[var(--height-header)] ${LAYER.strip} flex h-[var(--height-tabs)] shrink-0 items-center gap-1 overflow-x-auto border-b border-rule bg-desk px-2`}
       data-testid={TESTID.paneTabs}
       role="tablist"
       aria-label="Panes"

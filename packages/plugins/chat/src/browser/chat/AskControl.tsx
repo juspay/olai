@@ -4,7 +4,7 @@
  * Six kinds and two shapes: something to PICK (a single choice, several
  * choices, yes or no) and something to TYPE (free text, a number). Everything
  * pickable is a row of tappable chips rather than a `<select>` or a radio
- * group, for the reason the panel is a 26rem column beside a page and is also a
+ * group, for the reason a conversation is a narrow pane beside a page and is also a
  * bottom sheet under a thumb: the options are the question, they should be
  * readable without opening anything, and each of them has to be 44px of target.
  *

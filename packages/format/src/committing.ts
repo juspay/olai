@@ -292,17 +292,29 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  writers olai has is a statement about olai. The plumbing hands back the
  *  trailer it read, verbatim, and the ledger classifies it against this list.
  *
- *  THERE ARE SIX. `filer` records the server filing conversations into the
- *  Inbox; it also records the node minted by `newChat`. `sleep` records the
+ *  THERE ARE SEVEN, and they come in two parts. SIX are words olai writes
+ *  today. `move` records the chat server's one-time move of a chat
+ *  from a row onto the note it was about — nobody pressed anything, and that
+ *  commit is the one a person may want to revert. `sleep` records the
  *  server's own pass over a node agent's subtree — a machine turn nobody asked
  *  for, kept apart from `auto` because the commit IS the feature (it is the
  *  thing a person reverts), while `auto` records whatever happened to be
- *  waiting. The rest
- *  retain their existing meanings. Previously, `capture` was the bespoke
- *  `POST /capture` door and went with it; a `cli` replaced it for one commit,
- *  for a terminal on a unix socket of its own, and went when that socket did.
- *  Neither is here, because the trailer is written and never parsed back: a
- *  literal nothing can produce is dead vocabulary rather than compatibility.
+ *  waiting. The rest retain their existing meanings.
+ *
+ *  THE SEVENTH, `filer`, is a word nothing writes any more: it recorded the
+ *  server that filed conversations into the Inbox, and that server and that
+ *  container are both gone. It stays because the trailer is READ back as well
+ *  as written, and an installed olai has already signed commits with it.
+ *  Dropping the word would not remove those commits; it would only make the
+ *  ledger answer "writer not recorded" about history olai wrote itself.
+ *
+ *  That is the line, and it is where `capture` and `cli` fall on the other
+ *  side of it. `capture` was the bespoke `POST /capture` door and went with
+ *  it; a `cli` replaced it for one commit, for a terminal on a unix socket of
+ *  its own, and went when that socket did. Neither is here because neither
+ *  ever signed a commit in anybody's vault: a word no repository carries is
+ *  dead vocabulary, while a word some repository DOES carry is compatibility,
+ *  and only the second has a reader to be honest to.
  *
  *  **A TERMINAL HAS NO WORD OF ITS OWN, and that follows from the design rather
  *  than being an omission.** `olai surface` is a client of `/mcp` — the same
@@ -329,8 +341,11 @@ export const Writer = Schema.Literals([
   "mcp",
   "web",
   "auto",
-  "filer",
+  "move",
   "sleep",
+  // Read-only vocabulary: see above. Last in the list because nothing
+  // produces it, and the order here is the order a reader meets them in.
+  "filer",
 ])
 export type Writer = typeof Writer.Type
 

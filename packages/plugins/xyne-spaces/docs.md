@@ -2,7 +2,7 @@
 
 [Xyne Spaces](https://github.com/xynehq/xyne) is a team chat. Link one olai conversation to one Spaces channel, and olai posts that conversation's progress there.[^mirror] Nothing comes back the other way.
 
-A conversation is one chat in olai's agent panel.
+A conversation is one chat with one agent.
 
 ## What it needs
 

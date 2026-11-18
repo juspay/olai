@@ -27,8 +27,9 @@
  * guessed at here.
  */
 
+import fs from "node:fs"
+import path from "node:path"
 import { selector } from "@olai/web/testlib"
-import { titleAddress } from "@olai/format"
 
 import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
@@ -82,11 +83,11 @@ export const PAGE_MOVED = selector(TESTID.pageMoved)
 export const PAGE_MOVED_READ = selector(TESTID.pageMovedRead)
 export const PAGE_REFUSED = selector(TESTID.pageRefused)
 
-/** CHAT'S OWN SEAT, as the page's *Ask* spot holds it — chat's id, because the
- *  seat is chat's face in a spot this page placed (`olai-plugin-navigation/
- *  seat`). It is what a viewport with no column for a conversation draws
- *  instead of the button that would open one. */
-export const CHAT_SEAT = selector(CHAT_TESTID.chatSeat)
+/** A CHAT'S OWN PAGE, as a pane beside this one — chat's id, because the page
+ *  is chat's (`olai-plugin-chat`'s `ChatPage`). It is what *Ask for a
+ *  change…* opens: the conversation that built this plugin, in the pane next
+ *  to its page. */
+export const CHAT_PAGE = selector(CHAT_TESTID.chatPage)
 
 // ⌘K → New plugin draws no node of this row's: both levels are the palette's
 // own furniture, and `new_plugin_steps.ts` grips them through navigation's ids.
@@ -101,29 +102,31 @@ export const addressOfPlugin = (word: string): string => `/plugins/${encodeURICo
 export const SETTINGS_FILE = "_olai/Settings.olai"
 
 /**
- * WHERE A CHAT ABOUT A PLUGIN IS KEPT — the Inbox's `Chats` container, which
- * is where every chat this app mints is filed.
+ * WHERE A CHAT ABOUT A PLUGIN IS KEPT — the plugin's own README note.
  *
- * A chat ABOUT a plugin is an ordinary chat row whose TITLE is the plugin's
- * address (`[<name>](/plugins/<word>)`), and that title is the whole of the
- * binding: nothing on the plugin's own node records it. So a scenario that
- * wants one writes a row here, and a scenario that asserts one looks for the
- * row whose title names this plugin's page.
+ * A plugin's builder chat is the chat OF `plugins/<word>/README.md`, so the
+ * tie is `chat-agent-session` in that note's front matter and nothing records
+ * it anywhere else — not on the plugin's settings node, not in any Inbox. A
+ * scenario that wants one writes the front matter; a scenario that asserts one
+ * reads it back.
  */
-export const CHATS_FILE = "_olai/Inbox.olai"
-export const CHATS_ID = "chats"
+export const readmeOfPlugin = (word: string): string => `plugins/${word}/README.md`
 
-/** A chat's title, as this app writes one about a page. */
-export const chatTitleFor = (word: string, name: string): string =>
-  `[${name}](${addressOfPlugin(word)})`
+/** The key that note's chat is listed under, wherever chat lists it
+ *  (`@olai/format`'s `itemKey`). */
+export const chatKeyFor = (word: string): string => `/${readmeOfPlugin(word)}`
 
-/** The chat row about one plugin, as the vault holds it, or nothing. Read
- *  through the format's own reading of a title, so a scenario is asserting
- *  the grammar the serve and the browser both spell rather than a string this
- *  file made up. */
-export const chatAbout = (world: OlaiWorld, word: string): Record<string, unknown> | undefined =>
-  world.servedNodesSoFar(CHATS_FILE).find((node) =>
-    typeof node["title"] === "string" && titleAddress(node["title"]) === addressOfPlugin(word))
+/** The tie on one plugin's README, as the vault holds it, or nothing. The
+ *  front matter is read off the bytes: what these scenarios claim is that a
+ *  person opening the file would see it. */
+export const chatAbout = (world: OlaiWorld, word: string): string | undefined => {
+  let text: string
+  try {
+    text = fs.readFileSync(path.join(world.scratch(), readmeOfPlugin(word)), "utf8")
+  } catch { return undefined }
+  const matched = /^---\n(?:.*\n)*?chat-agent-session:[ \t]*(\S+)\n(?:.*\n)*?---\n/.exec(text)
+  return matched?.[1]
+}
 
 /**
  * WHAT THE VAULT HAS WRITTEN DOWN ABOUT ONE PLUGIN: the properties on its root

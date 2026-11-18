@@ -1,8 +1,7 @@
 /** Dispatch file pages by the current claim, then ordinary content routes. */
 
 import { type Address, fileKind } from "@olai/format"
-import { content, pageSeats, pages } from "./index.ts"
-import { SeatsProvider } from "./seat.tsx"
+import { content, pages } from "./index.ts"
 import { useHere, useRouter } from "./routing.tsx"
 import { HOME_ROUTE } from "./routes.ts"
 import { readLocation } from "./locations.ts"
@@ -44,7 +43,33 @@ export function PageView() {
     if (address() === undefined) {
       return { line: "This page can't be opened", detail: "The plugin that shows it is turned off." }
     }
-    if (directory()?.standing() === "reading") return { line: "Loading…" }
+    /**
+     * NOTHING IS MISSING UNTIL THE DIRECTORY HAS ANSWERED. Every sentence
+     * below is a statement about the vault's CLAIMS — which kinds are known,
+     * which paths are held — so a page that says one before the reading has
+     * arrived is saying what it would say about an empty vault: that this
+     * suffix is one olai cannot open. For the frames between the first paint
+     * and the reading, `/money/nowhere.journal` therefore read "Page not
+     * found / olai can't open .journal files." — a false line, under the
+     * TRUE line's own heading, which is what made a step waiting for that
+     * heading read a page that was about to be replaced (the CI failure
+     * "the empty page reads []": the heading matched the guess, and the
+     * guess was gone by the time its lines were read).
+     *
+     * THE THREE SILENCES ARE ONE WORD: the service not held yet (the row
+     * composing, or the vault switched off), a head reading in flight, and
+     * the KIND TABLE not arrived — which is a third channel and the one this
+     * page turned out to be racing. `standing()` answers `loaded` the moment
+     * the heads carry a path, deliberately (`olai-plugin-vault`'s
+     * `directory.ts` on `manifest-fold-skew`), and the claims ride a cell of
+     * their own: for the frames in between, the paths are known and NO
+     * SUFFIX IS. A tab that knows no kind at all knows nothing about any
+     * file, which is the first frame rather than an answer about this one.
+     */
+    const held = directory()
+    if (held === undefined || held.standing() === "reading" || held.claims().byKind.size === 0) {
+      return { line: "Loading…" }
+    }
     const path = address()?.path ?? ""
     const kind = claim()
     if (kind === undefined) {
@@ -54,13 +79,10 @@ export function PageView() {
         detail: suffix === undefined ? `There is nothing named ${path}.` : `olai can't open ${suffix} files.`,
       }
     }
-    return directory()?.paths().includes(path)
+    return held.paths().includes(path)
       ? { line: "This page can't be opened", detail: `The plugin that opens ${kind.noun}s is turned off.` }
       : { line: "Page not found", detail: `There is no ${kind.noun} named ${path}.` }
   }
-  // WHAT IS CONTRIBUTED AT THE SEAT, handed to the page drawn here — which
-  // places it where it belongs and says which place it is (`./seat.tsx`).
-  const seats = createMemo(() => readLocation(pageSeats).map(entry => entry.value))
   return <Show when={draw()} keyed fallback={
     <main class="min-w-0 flex-1 p-8" data-testid={TESTID.pane} data-pane={String(here())} data-href={router.routes.href(route())}>
       <Empty
@@ -70,5 +92,5 @@ export function PageView() {
         action={said().line === "Loading…" ? undefined : { label: "Go home", href: router.routes.href(HOME_ROUTE), testid: TESTID.pageGoHome }}
       />
     </main>
-  }>{Page => <SeatsProvider seats={seats}><Page {...address()!} route={route()} index={here()} /></SeatsProvider>}</Show>
+  }>{Page => <Page {...address()!} route={route()} index={here()} />}</Show>
 }

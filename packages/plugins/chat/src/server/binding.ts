@@ -1,5 +1,5 @@
 /**
- * THE THREE GESTURES THAT BIND A NODE TO A CONVERSATION — the only verbs on
+ * THE THREE GESTURES THAT TIE AN ITEM TO A CONVERSATION — the only verbs on
  * this plugin's surface that are two acts rather than a pass-through.
  *
  * ## Why they are composed at all
@@ -8,54 +8,70 @@
  * MEANS, which row is still undelivered, which conversation a `reopen` was
  * refused about — all of it is the chat's own record, and a second opinion
  * anywhere else would be a second answer to what a message said. These are
- * different because each is HALF a chat verb and HALF a property write, and
+ * different because each is HALF a chat verb and HALF a write of the tie, and
  * until this lane the composition root was the only place both halves were in
  * hand. It is this module now.
+ *
+ * ## TWO THINGS CARRY A TIE, and the write is not the same write
+ *
+ * A NODE keeps it as a property on its row, which is one `prop` op. A NOTE
+ * keeps it in the YAML block at the top of the `.md`, which is the whole
+ * document rewritten: `matterWith` sets the key in place and leaves every other
+ * byte alone, and the write is CONDITIONAL on the text it was derived from, so
+ * an editor that saved between the read and the write is refused rather than
+ * overwritten. {@link tied} is the one place that branch is spelled, and it is
+ * spelled off the item KEY — so a gesture names an item and never a mechanism.
+ *
+ * ONE RE-READ AND ONE RETRY, and no more: the conflict a retry answers is olai
+ * itself writing twice in a breath (a start and the sleep mark, say), which is
+ * gone by the second read. A file somebody is typing into will still be typed
+ * into on a third attempt, and a loop that kept going would be this plugin
+ * arguing with a person's editor.
  *
  * ## The ORDERS are opposite, and each is the guarantee
  *
  * {@link startAgentSession} writes a session id only after opening succeeds.
- * An auth-refused first start writes only the engine, allowing the node panel
- * to be read before a session exists. The node-owned retry retains the binding
+ * An auth-refused first start writes only the engine, allowing the panel
+ * to be read before a session exists. The item-owned retry retains the tie's
  * completion and predecessor; signing in retries that exact open, then commits
- * its real session id and lineage. Other refusals still write nothing.
+ * its real session id and lineage. Other refusals still write nothing: the
+ * words a person typed stay in the box that sent them, and the item is left
+ * exactly as it was.
  *
- * {@link assignSession} writes the property FIRST, because nothing has to be
- * opened — both halves are about things that already exist — and the durable one
- * is the assignment: the property IS it, so a mark written before a write that
- * then failed would be a session believing it had been assigned to a node that
- * never claimed it.
- *
- * {@link closeAgent} is one act: the property taken OFF. Nothing has to be
- * opened and nothing has to be recorded — releasing is not superseding, and
- * the seat the property justified closes by the same reading that opened it.
+ * {@link closeAgent} is one act: the tie taken OFF — and on a note that is BOTH
+ * of its keys, because the switch that says where its chat opens is a fact
+ * about a chat it no longer has. Nothing has to be opened and nothing has to be
+ * recorded — releasing is not superseding, and the seat the tie justified
+ * closes by the same reading that opened it.
  *
  * ## AND THE REFUSAL IS READ HERE, against the roster rather than the tab
  *
- * A node already talking through a conversation keeps it, and *one agent, one
- * current session* is the whole sentence. The list dims such a node where
+ * An item already talking through a conversation keeps it, and *one agent, one
+ * current session* is the whole sentence. The list dims such a row where
  * somebody can see it before pressing, which is a courtesy; this is the check
  * that must not be racing, because a tab decides against the frame it was drawn
- * on and two tabs can be looking at one node.
+ * on and two tabs can be looking at one item.
  */
 
-import { type OpFailure, sessionValue, UsageFailure } from "@olai/format"
+import { itemKey, itemOf, matterWith, type OpFailure, opensValue, sessionValue, UsageFailure } from "@olai/format"
 import { Effect } from "effect"
 
 import type { Conversing } from "../sessions.ts"
 import type { Chat } from "../scoped.ts"
 
-/** WHAT A BINDING NEEDS BESIDES THE PANEL — the roster's reading of the node,
- *  and the one property write. Both are handed in rather than reached for, which
- *  is what lets a bench drive these two orders without a store. */
+/** WHAT A BINDING NEEDS BESIDES THE PANEL — the roster's reading of the item,
+ *  and the two doors a tie is written through. All of it is handed in rather
+ *  than reached for, which is what lets a bench drive these orders without a
+ *  store. */
 export interface Binding {
-  /** What the vault says this node is bound to right now, or `null`. */
+  /** What the vault says this item is tied to right now, or `null` — asked by
+   *  ITEM KEY (a node's id, or `/` and a note's path). */
   readonly boundAt: (
-    node: string,
+    item: string,
   ) => { readonly engine: string; readonly session: string | null; readonly title: string } | null
   /**
-   * WHICH KEY THIS VAULT KEEPS ITS BINDINGS UNDER — for the refusal below, and
-   * for nothing else here.
+   * WHICH KEY THIS VAULT KEEPS ITS TIES UNDER — for the refusal below, for the
+   * note writer, and for nothing else here.
    *
    * A FUNCTION rather than a string, because the answer moves: the key is a
    * DECLARATION now ({@link ../kinds.ts}), so a row landing in
@@ -65,39 +81,131 @@ export interface Binding {
    * is `./agents.ts`.
    *
    * IT IS NOT WHAT {@link Binding.write} WRITES UNDER, and the separation is
-   * deliberate rather than an omission: the write goes through a door that was
-   * handed the key where the roster resolved it, so this half never has to be
-   * right about a key for anything to land — it only has to be right about a
-   * key for the sentence to be helpful.
+   * deliberate rather than an omission: the row write goes through a door that
+   * was handed the key where the roster resolved it, so this half never has to
+   * be right about a key for a property to land — it only has to be right for
+   * the sentence to be helpful, and for the note's front matter, which this
+   * module composes itself.
    */
   readonly key: () => string
+  /** ...AND THE KEY A NOTE'S *opens* SWITCH IS WRITTEN UNDER, for the one
+   *  gesture that touches it here: closing a note's chat takes it off with the
+   *  tie (`./agents.ts`'s `opensKey`). */
+  readonly opensKey: () => string
   /** Serialize binding claims, including a completion reached after sign-in. */
   readonly exclusive: <A>(work: Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
   readonly changed?: Effect.Effect<void, OpFailure>
-  /** ONE PROPERTY, WRITTEN, through the gate a keystroke goes through. */
+  /** ONE PROPERTY, WRITTEN, through the gate a keystroke goes through — the
+   *  NODE half of a tie. */
   readonly write: (node: string, value: string) => Effect.Effect<void, OpFailure>
   /** ONE PROPERTY, TAKEN OFF — the same door, spelled the op's own removal
    *  way: an empty value removes the key exactly as `null` does. Refuses,
-   *  like any removal of a key that is not there, when no binding exists. */
+   *  like any removal of a key that is not there, when no tie exists. */
   readonly remove: (node: string) => Effect.Effect<void, OpFailure>
   /**
-   * THE SLEEPING MARK, WRITTEN — a third kind, one field over from the binding
+   * THE SLEEPING MARK, WRITTEN — a third kind, one field over from the tie
    * and the same door: `on` marks this chat, and an empty value takes the mark
    * off, which is what "off" means (`./agents.ts`'s `sleeps` reads the absence).
    */
   readonly mark: (node: string, value: string) => Effect.Effect<void, OpFailure>
+  /** A NOTE'S TEXT AS THE GATE HOLDS IT NOW, or `null` for a path the
+   *  directory no longer holds — a FRESH read, which is what makes the one
+   *  retry below see the write that beat it. */
+  readonly text: (path: string) => Effect.Effect<string | null, OpFailure>
+  /** ...AND THE DOCUMENT, WRITTEN WHOLE, conditional on the text it was derived
+   *  from: the same `{ op: "doc" }` an editor's save goes through, so a file
+   *  that moved under this gesture refuses rather than losing somebody's words. */
+  readonly doc: (path: string, text: string, was: string) => Effect.Effect<void, OpFailure>
 }
 
-/** RELEASE a node agent: take the binding property off. Nothing else happens —
- *  no supersession is recorded (releasing is not fresh-starting), the subtree
- *  memory is untouched, and the conversation the node was in becomes an
- *  unclaimed chat again, filed back into Chats by the next filer run, where
- *  it lives on as its own filed node. The seat the property justified closes
- *  by the same revision-driven reading that opened it, so this needs no chat
- *  handle at all.
+/** WHAT SLEEP IS NOT OFFERED ON — the one sentence the three sleeping verbs
+ *  refuse a note with, said once so a person reads the same words whichever
+ *  one they reached for. A note IS the memory of its chat: there are no rows
+ *  under it to consolidate, and tidying it would be olai rewriting a file
+ *  somebody keeps by hand. */
+export const NO_SLEEP_ON_A_NOTE =
+  "a note's chat keeps its memory in the note itself, so olai never tidies it or puts it to sleep"
+
+/**
+ * THE TIE, WRITTEN OR TAKEN OFF, on whichever of the two things carries it —
+ * the one place the branch is spelled.
  *
- * Refuses when no node agent is bound: a close that would write the removal of
- * a key that is not there is a gesture on something that is not on the node. */
+ * `null` is the removal, and on a NOTE it takes the *opens* switch with it: the
+ * switch says where that note's chat opens, and a note with no chat has no
+ * answer to give. A node's removal is the property op's own, which refuses a
+ * key that is not there.
+ */
+const tied = (
+  binding: Binding,
+  item: string,
+  value: string | null,
+): Effect.Effect<void, OpFailure> => {
+  const at = itemOf(item)
+  if (at.kind === "node") return value === null ? binding.remove(at.id) : binding.write(at.id, value)
+  return matterWritten(
+    binding,
+    at.path,
+    value === null
+      ? [[binding.key(), null], [binding.opensKey(), null]]
+      : [[binding.key(), value]],
+  )
+}
+
+/**
+ * ONE NOTE'S FRONT MATTER, REWRITTEN — read what the gate holds, set or remove
+ * the keys, write the whole document back against the text it was derived from.
+ *
+ * THE WRITE THAT CHANGES NOTHING IS NOT MADE: `matterWith` is total, so a tie
+ * being removed from a note that has not got one composes the text that is
+ * already there — and a document write with the same bytes would be a revision,
+ * a commit and a reader's "this file changed" for nothing.
+ *
+ * THE RETRY IS GUARDED BY THE RE-READ rather than by the sentence a refusal
+ * carries: if the file still says what this write expected, the refusal was
+ * about something else (a door, a validation) and is the answer; if it says
+ * something else, the edit is re-derived from what it says NOW and tried once.
+ *
+ * EXPORTED for the one-time move (`./move.ts`), which writes a tie into a note
+ * the same way for the same reasons and must not grow a second spelling of
+ * this read-compose-write.
+ */
+export const matterWritten = (
+  binding: Pick<Binding, "text" | "doc">,
+  path: string,
+  changes: ReadonlyArray<readonly [key: string, value: string | null]>,
+): Effect.Effect<void, OpFailure> =>
+  Effect.gen(function*() {
+    const was = yield* binding.text(path)
+    if (was === null) {
+      return yield* new UsageFailure({ reason: `olai no longer holds \`${path}\`` })
+    }
+    const next = matterWith(was, changes)
+    if (next === was) return
+    const wrote = yield* Effect.result(binding.doc(path, next, was))
+    if (wrote._tag === "Success") return
+    const now = yield* binding.text(path)
+    if (now === null || now === was) return yield* wrote.failure
+    const again = matterWith(now, changes)
+    if (again === now) return
+    yield* binding.doc(path, again, now)
+  })
+
+/** THE ITEM IN A SENTENCE: a note's path, or a node's id — so a refusal names
+ *  the thing the reader is looking at rather than "this node", which a note
+ *  is not. */
+const namedItem = (item: string): string => {
+  const at = itemOf(item)
+  return at.kind === "note" ? at.path : at.id
+}
+
+/** RELEASE an item's agent: take the tie off. Nothing else happens —
+ *  no supersession is recorded (releasing is not fresh-starting), the memory is
+ *  untouched, and the conversation becomes a chat nobody claims. The seat the
+ *  tie justified closes by the same revision-driven reading that opened it, so
+ *  this needs no chat handle at all.
+ *
+ * Refuses when nothing is tied there: a close that would write the removal of
+ * a key that is not there is a gesture on something that is not on the item. */
 export const closeAgent = (
   binding: Binding,
   input: { readonly node: string },
@@ -105,9 +213,75 @@ export const closeAgent = (
   Effect.gen(function*() {
     const at = binding.boundAt(input.node)
     if (at === null) {
-      return yield* new UsageFailure({ reason: `no node agent is bound to this node to close` })
+      return yield* new UsageFailure({ reason: `no chat is tied to \`${namedItem(input.node)}\` to close` })
     }
-    yield* binding.remove(input.node)
+    yield* tied(binding, input.node, null)
+  })
+
+/**
+ * TIE A CONVERSATION BACK ONTO AN ITEM THAT HAS STOPPED NAMING IT — the one
+ * press behind a chat page whose note lost its tie.
+ *
+ * ## Why this exists
+ *
+ * A note's tie is two lines of YAML in a file anybody can write: a plugin's
+ * builder rewriting its own `README.md` with its file tools, a `git pull`, a
+ * person tidying the block by hand. The ops fence refuses a PLAN that touches
+ * the key (`@olai/ops`' `barred`), and that is the whole of what olai can
+ * hold: a write by a tool outside this app is outside every fence there is.
+ * So the loss is a thing that happens, and the answer is a way BACK rather
+ * than a promise it cannot.
+ *
+ * THE CONVERSATION IS UNTOUCHED BY THE LOSS. The serve holds it by its own
+ * id, not by the tie, so an answer in flight goes on arriving and the session
+ * is still there to be named again — which is exactly what this writes: the
+ * engine and the session the page was reading, back into the note's front
+ * matter, through the same writer and the same one re-read-and-retry every
+ * other tie write goes through.
+ *
+ * ## What it refuses, and why each
+ *
+ * NOTHING TO TIE IT TO — the item is not seatable (no record, or no note the
+ * directory still holds): a tie written into a file that is not there is a
+ * write with nowhere to land, and the page that offers this press says the
+ * note is GONE in that case rather than offering it.
+ *
+ * IT ALREADY HAS A CHAT — somebody (or a second tab) got there first. *One
+ * item, one chat* is the rule every other start is refused by, and a retie
+ * that overwrote a tie would be the one gesture here that loses a
+ * conversation rather than finding one.
+ *
+ * THAT CONVERSATION BELONGS TO SOMETHING ELSE — the same first-claim-wins
+ * reading the roster keeps: a session two items name is one of them holding a
+ * copied tie, and this verb must not be the way that is made.
+ *
+ * THE SWITCH IS NOT PART OF IT. `chat-opens` says where a chat opens and is a
+ * person's answer about a chat they have; restoring a tie restores the tie.
+ */
+export const retie = (
+  binding: Binding,
+  roster: {
+    /** Is there something here to seat a chat on — a record, or a note the
+     *  directory holds and has not put away. */
+    readonly seatable: (item: string) => boolean
+    /** Which item names this conversation already, or `null`. */
+    readonly claimedBy: (to: Conversing) => string | null
+  },
+  input: { readonly node: string; readonly agent: string; readonly session: string },
+): Effect.Effect<void, OpFailure> =>
+  Effect.gen(function*() {
+    const named = namedItem(input.node)
+    if (!roster.seatable(input.node)) {
+      return yield* new UsageFailure({ reason: `olai no longer holds \`${named}\`, so there is nothing to tie this chat to` })
+    }
+    if (binding.boundAt(input.node) !== null) {
+      return yield* new UsageFailure({ reason: `\`${named}\` already names a chat` })
+    }
+    const owner = roster.claimedBy({ agent: input.agent, session: input.session })
+    if (owner !== null && owner !== input.node) {
+      return yield* new UsageFailure({ reason: `that conversation already belongs to \`${owner}\`` })
+    }
+    yield* tied(binding, input.node, sessionValue(input.agent, input.session))
   })
 
 /**
@@ -120,20 +294,60 @@ export const closeAgent = (
  * than written as `off`, because the reading treats the two as one answer and a
  * drawer with one spelling of "no" is one thing for a person to find.
  *
- * Refuses when no node agent is bound there, for {@link closeAgent}'s reason: a
+ * Refuses when nothing is tied there, for {@link closeAgent}'s reason: a
  * mark on a row with no conversation is a promise about a chat that is not
  * there — and a person who pressed the verb would be told so rather than left
  * wondering which row the mark landed on.
+ *
+ * ...AND IT REFUSES A NOTE OUTRIGHT ({@link NO_SLEEP_ON_A_NOTE}): there is
+ * nothing under a note to tidy, so a mark saying olai may tidy it would be a
+ * promise with no pass behind it.
  */
 export const setSleeping = (
   binding: Binding,
   input: { readonly node: string; readonly on: boolean },
 ): Effect.Effect<void, OpFailure> =>
   Effect.gen(function*() {
+    if (itemOf(input.node).kind === "note") {
+      return yield* new UsageFailure({ reason: NO_SLEEP_ON_A_NOTE })
+    }
     if (binding.boundAt(input.node) === null) {
       return yield* new UsageFailure({ reason: `no node agent is bound to this node to mark` })
     }
     yield* binding.mark(input.node, input.on ? "on" : "")
+  })
+
+/**
+ * WHERE THIS NOTE'S CHAT OPENS — the switch under a note's chat, written into
+ * the note's own front matter beside the tie.
+ *
+ * ONE ACT, like {@link setSleeping}, and through the same writer the tie goes
+ * through ({@link matterWritten}): the key IS the state, a person can type it
+ * by hand, and a `git pull` carries their answer to the next machine.
+ *
+ * BOTH ANSWERS ARE WRITTEN OUT, which is the one place this differs from the
+ * sleeping mark: `alone` is the absence's meaning, but it is also the answer
+ * the one-time move writes when it seats a chat on a note (`./move.ts`), and
+ * a switch that removed the key to say *alone* would leave a reader of the
+ * file unable to tell "somebody chose alone" from "nobody has chosen". The
+ * reading treats absent and `alone` as the one answer either way
+ * (`@olai/format`'s `notesIn`).
+ *
+ * Refuses a path with no chat on it, for {@link closeAgent}'s reason: the
+ * switch says where a conversation opens, and a note with none has nothing to
+ * place. A path the directory holds no note at fails the same way — its key
+ * is bound to nothing.
+ */
+export const setOpens = (
+  binding: Binding,
+  input: { readonly path: string; readonly beside: boolean },
+): Effect.Effect<void, OpFailure> =>
+  Effect.gen(function*() {
+    const item = itemKey({ kind: "note", path: input.path })
+    if (binding.boundAt(item) === null) {
+      return yield* new UsageFailure({ reason: `no chat is tied to \`${input.path}\` to place` })
+    }
+    yield* matterWritten(binding, input.path, [[binding.opensKey(), opensValue(input.beside)]])
   })
 
 /**
@@ -167,7 +381,7 @@ export const startAgentSession = (
     const now = yield* chat.startAgentSession(input.node, input.agent, now => Effect.gen(function*() {
       yield* binding.exclusive(Effect.gen(function*() {
         if (!unchanged()) return yield* new UsageFailure({ reason: "the node's binding changed while this chat was opening" })
-        yield* binding.write(input.node, sessionValue(now.agent, now.session))
+        yield* tied(binding, input.node, sessionValue(now.agent, now.session))
         if (was?.session != null && (was.engine !== now.agent || was.session !== now.session)) {
           yield* chat.replaced({ agent: was.engine, session: was.session }, now)
         }
@@ -178,7 +392,7 @@ export const startAgentSession = (
     // id is written, and a fresh start keeps its predecessor until it succeeds.
     if (now === null && was === null) yield* binding.exclusive(Effect.gen(function*() {
       if (!unchanged()) return yield* new UsageFailure({ reason: "the node's binding changed while this chat was opening" })
-      yield* binding.write(input.node, sessionValue(input.agent, null))
+      yield* tied(binding, input.node, sessionValue(input.agent, null))
       expected = { engine: input.agent, session: null, title: "" }
     }))
     return now

@@ -1,6 +1,5 @@
 /**
- * WHAT AN AGENT-ASSOCIATED SESSION IS TOLD, ONCE — AND REMINDED OF — AND HOW
- * IT ARRIVES.
+ * WHAT AN AGENT-ASSOCIATED SESSION IS TOLD, ONCE — AND REMINDED OF.
  *
  * A node's subtree is a knowledge base organized by topic. The teaching tells
  * the agent when that knowledge base changes — when a durable fact did — and
@@ -85,18 +84,6 @@
 
 import { memoryOf, type NodeAgent } from "@olai/format"
 
-/**
- * HOW THIS CONVERSATION CAME TO BELONG TO ITS NODE, which is the one thing the
- * contract has to say differently.
- *
- * `opened` is a conversation olai opened FOR the node — it knows nothing that
- * is not in its subtree, because it has not said anything yet.
- *
- * `assigned` is an existing chat moved to a node. It must reconcile relevant
- * knowledge from the conversation with the subtree it now belongs to.
- */
-export type Arrival = "opened" | "assigned"
-
 /** THE ONE PLACE `[olai] ` IS SPELLED: sentences in, the lines that ride under
  *  a message out. The teaching and the reminder both go through it, so the
  *  seam has one shape however many things ride it.
@@ -116,53 +103,69 @@ export const lines = (sentences: ReadonlyArray<string>): ReadonlyArray<string> =
  * under a message — one line per thing, in priority order.
  *
  * WHO FIRST, AND THE CHARTER WITH IT: which node, and that its note outranks
- * every default below. Then THE LAW — when to write, then in what shape — which
- * is the same lines word for word under both arrivals, so a reader comparing
- * two agents' first turns sees one law. Then the assigned variant's one extra
- * order, and last the line about the engine's own memory.
+ * every default below. Then THE LAW — when to write, then in what shape — and
+ * last the line about the engine's own memory.
  *
  * AN EMPTY SUBTREE IS SAID rather than skipped, and it is the case a fresh node
  * agent is actually in: "nothing under it yet" tells it there is nothing to
  * read, where a line claiming a knowledge base of zero rows would read as one
  * that failed to load.
  *
- * ## THE MIGRATION VARIANT is the same lines plus one
+ * ## AND A NOTE IS TOLD A DIFFERENT CONTRACT, which is the branch below
  *
- * An assigned session is told the same things in the same order — which node,
- * the charter, the law — because they are the same facts, and a reader
- * comparing an assigned agent's first turn with an opened one's should see one
- * contract rather than two. What differs is the first line, which says this
- * conversation was moved here, and one line more: reconcile what this
- * conversation already knows into the subtree, updating what is there. The
- * distillation order is a line in the contract rather than a turn of its own,
- * for the reason the whole teaching is a preamble: a turn spent before anybody
- * has said anything is a turn spent on every migrated chat whether or not it
- * is ever used again.
+ * The law above is about a SUBTREE — when to write to it, in what shape — and
+ * a note has none: the file itself is the memory. So a note's agent is told
+ * four things and not five, and the two that differ are the two that matter:
+ * READ the note before every answer, because it is what the conversation
+ * knows; and change it only when the person asks, because it is their file and
+ * not a place to take notes in. The front-matter block is named as off limits
+ * for the same reason the write fence refuses it — the keys at the top are
+ * what seat the chat, and an agent rewriting them would be seating itself.
  */
-export const teachingFor = (
-  agent: NodeAgent,
-  how: Arrival = "opened",
-  /** The address this chat row stands for, where its title names a place
-   *  (`./server/places.ts`), and `null` for a chat row that is its own. */
-  about: string | null = null,
-): ReadonlyArray<string> => {
-  const says = SAYS[how]
+export const teachingFor = (agent: NodeAgent): ReadonlyArray<string> => {
+  // A NOTE'S CONTRACT IS ITS OWN, and shorter by three lines: there is no
+  // subtree to write into, so none of the law about WHEN to write and in what
+  // SHAPE applies. What is left is the whole of the arrangement — which note
+  // this is, that it is the memory, that it is read before every answer, and
+  // that it changes only when the person asks.
+  if (agent.kind === "note") {
+    return lines([
+      NOTE_WHO(agent),
+      NOTE_IS_MEMORY(agent),
+      NOTE_IS_THEIRS,
+      NOTE_MEMORY_OFF,
+    ])
+  }
   return lines([
-    `${says.who(agent)} ${CHARTER}`,
-    ...(about === null ? [] : [ABOUT(about)]),
+    `${WHO(agent)} ${CHARTER}`,
     TRIGGER(agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)),
     SHAPE,
-    ...(says.reconcile === null ? [] : [says.reconcile]),
     HARNESS_MEMORY_OFF,
   ])
 }
 
-/** WHAT THE CONVERSATION IS ABOUT, for a chat row titled with an address: the
- *  page a person was on when they started it, and the one they will be on
- *  when they read the answer. Said once, in the first message, beside which
- *  node the conversation is. */
-export const ABOUT = (address: string): string =>
-  `This conversation is about \`${address}\`: the person talks to you from that page, so read it before you answer.`
+/** WHOSE NOTE THIS CONVERSATION IS — the first line of a note's contract. */
+const NOTE_WHO = (agent: NodeAgent): string =>
+  `This conversation belongs to the note \`${agent.file}\` — “${agent.title}”.`
+
+/** ...AND WHAT THE NOTE IS: the memory, read every time rather than
+ *  remembered. The path rides the sentence because the tool call needs it and
+ *  an agent that had to derive it from the line above would derive it once and
+ *  then trust its own copy. */
+const NOTE_IS_MEMORY = (agent: NodeAgent): string =>
+  `That note IS your memory: read \`${agent.file}\` with markdown_read before every answer, so what you say is what it says now.`
+
+/** ...AND WHOSE IT IS, which is the clause that keeps a note a person's own
+ *  file. The front-matter block is olai's bookkeeping — the tie and the switch
+ *  that says where the chat opens — and an agent rewriting it would be seating
+ *  or unseating itself. */
+const NOTE_IS_THEIRS =
+  "It is the person's note: change it only when they ask you to, and leave the front-matter block at the top of it exactly as it is."
+
+/** The last line of a note's contract — {@link HARNESS_MEMORY_OFF} said about
+ *  the other kind of memory, because the sentence has to name the thing that
+ *  IS the memory or it reads as being about nothing. */
+const NOTE_MEMORY_OFF = "You have no memory of your own here: that note is the only memory."
 
 /**
  * THE REMINDER — the law in one sentence, for the Nth message after the
@@ -181,6 +184,26 @@ export const REMINDER =
  *  message, and the notice a person reads verbatim — one line, on the seam the
  *  teaching rides. */
 export const REMINDING: ReadonlyArray<string> = lines([REMINDER])
+
+/**
+ * ...AND A NOTE'S REMINDER, which is the other law in one sentence: the note
+ * is read again before this answer, and it changes only when asked.
+ *
+ * A SEPARATE SENTENCE rather than a paraphrase of the one above, for the
+ * reason the two contracts are separate: there is no subtree here, so a
+ * reminder about writing to one is a reminder about something the agent
+ * cannot do, and the thing it CAN forget — that the note has moved since it
+ * last read it — would go unsaid.
+ */
+export const NOTE_REMINDER =
+  "Reminder: read the note again before you answer, and change it only when the person asks."
+
+const NOTE_REMINDING: ReadonlyArray<string> = lines([NOTE_REMINDER])
+
+/** WHICH REMINDER THIS CHAT GETS — the one fact the sender has that decides
+ *  it, asked here so the two laws cannot be told to the wrong agent. */
+export const remindingFor = (agent: NodeAgent): ReadonlyArray<string> =>
+  agent.kind === "note" ? NOTE_REMINDING : REMINDING
 
 /**
  * THE AGENT'S OWN MEMORY IS OFF — the sentence both contracts end on.
@@ -223,36 +246,12 @@ const TRIGGER = (count: string): string =>
 const SHAPE =
   "One node per fact: update the node that already holds a fact, and create a node only for a fact that is new. Consolidate duplicates, remove what is obsolete, and keep it organized by topic."
 
-/** What one arrival says for itself: who this conversation is, and the one
- *  extra order a moved conversation is given. Everything else in the lines is
- *  the same words in the same order. */
-interface Words {
-  /** The first line, up to the charter: the one that names the node. */
-  readonly who: (agent: NodeAgent) => string
-  /** The reconcile order, or `null` for an arrival that has nothing to bring. */
-  readonly reconcile: string | null
-}
-
 /**
- * The two contracts, as the clauses they differ in.
+ * WHO THIS CONVERSATION IS — the first line, up to the charter.
  *
- * A RECORD OVER THE CLOSED UNION rather than a ternary per line, which is this
- * repo's own shape for exactly this (`@olai/web`'s `roster.ts` `LOOK`): a third
- * arrival fails to compile here, where a ternary would quietly keep saying
- * `opened`'s words. It is also what makes the SHAPE of the teaching visible —
- * `[olai] ` lines and the law — instead of that shape being spelled once per
- * branch.
+ * A node agent's conversation is one olai OPENED for the node: it knows
+ * nothing that is not in the subtree, because it has not said anything yet,
+ * and there is no second way in for the line to have to spell.
  */
-const SAYS: Record<Arrival, Words> = {
-  opened: {
-    who: (agent) =>
-      `This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
-    reconcile: null,
-  },
-  assigned: {
-    who: (agent) =>
-      `This conversation has been ASSIGNED to the node agent “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`. It was an ordinary chat until now; from here it is that node's current session.`,
-    reconcile:
-      "Reconcile first: distill what is still relevant from this conversation into the subtree, updating the entries that already hold it.",
-  },
-}
+const WHO = (agent: NodeAgent): string =>
+  `This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`

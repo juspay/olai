@@ -84,7 +84,6 @@ Feature: A lane names its CI run by odu's run id
     And the node "door-live" has the title "watch the connector"
     And I press the agent "door-live"
     And the node agent's fold is ready
-    And I open the "node-bound" conversation for delivery
     Then this conversation's "odu" wake is on nothing
     When I point this conversation's "odu" wake at "board.olai"
     Then this conversation's "odu" wake is on "board.olai"
@@ -114,7 +113,6 @@ Feature: A lane names its CI run by odu's run id
     And the node "door-live" has the title "watch the connector"
     And I press the agent "door-live"
     And the node agent's fold is ready
-    And I open the "node-bound" conversation for delivery
     When I point this conversation's "odu" wake at "board.olai"
     Then this conversation's "odu" wake is on "board.olai"
     When I rewrite "board.olai" as:

@@ -40,6 +40,8 @@ const installed = (id: string): Installed => ({
 
 /** One node agent, bound to a session this fixture answers `session/load` for. */
 const agent = (id: string, session: string | null, over: Partial<NodeAgent> = {}): NodeAgent => ({
+  kind: "node",
+  beside: false,
   id,
   file: "Work.olai",
   title: id === "health" ? "Health" : id,

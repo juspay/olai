@@ -39,7 +39,7 @@ export function Standing(props: { readonly node: string; readonly record?: strin
   // start, and on a phone none until this row is the one tapped
   // (`OFFER_REVEAL`) — the `•••` menu and a long press carry it as well.
   return <>
-    <Show when={roster.chatAt({ kind: "row", id: props.node })} fallback={
+    <Show when={roster.at(props.node)} fallback={
       <Show when={roster.engines().length > 0}>
         <button type="button" class={`${QUIET_PILL} ${OFFER_REVEAL} gap-1 border-dashed whitespace-nowrap`}
           data-testid={TESTID.agentStart} data-agent={props.node} disabled={starting()}
@@ -59,14 +59,40 @@ export function Standing(props: { readonly node: string; readonly record?: strin
   </>
 }
 
-/** How a chat stands, as one press that folds and unfolds it. `fold` is the
- *  fold it opens: the drawn row's own beside a row (not the chat row's id when
- *  a chat row elsewhere stands for this one), and the chat row's in a page's
- *  seat (`./Seat.tsx`). */
-export function AgentStanding(props: { readonly row: Row; readonly fold: string }) {
+/**
+ * THE WORDS A STANDING IS MADE OF — the engine's mark, the tone's dot, the
+ * one-word label, the time a busy agent has been out or an asleep one has
+ * been quiet, and the sentence that says what the word means.
+ *
+ * A FRAGMENT AND NOT A CONTROL, so the same reading can be a button (a row's
+ * fold, below) or a readout inside somebody else's button — the line at the
+ * top of a note, whose press opens the conversation beside the page rather
+ * than unfolding it here (`./NoteLine.tsx`). A button inside a button is not
+ * a thing a browser will draw, and two spellings of *Asleep · 4m* would
+ * drift the first time one of them learned a new standing.
+ */
+export function StandingWords(props: { readonly row: Row }) {
   const busy = () => props.row.standing === "working" || props.row.standing === "waking"
   const now = createNow(busy)
   const age = createTicking(MINUTE, () => props.row.standing === "asleep")
+  const look = () => LOOK[props.row.standing]
+  return <>
+    <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
+    {look().label}
+    <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>
+    <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="tabular-nums"> · {agoOf(said().at, age())}</span>}</Show>
+    {/* WHAT THE STANDING MEANS, which the one-word label does not say —
+        "Waiting" against "the agent asked you something". It was the
+        `title`'s alone, so it rides the control's own name after the words
+        a person reads. */}
+    <span class="sr-only"> — {look().detail}</span>
+  </>
+}
+
+/** How a chat stands, as one press that folds and unfolds it. `fold` is the
+ *  fold it opens: the drawn row's own beside a row (not the chat row's id when
+ *  a chat row elsewhere stands for this one). */
+export function AgentStanding(props: { readonly row: Row; readonly fold: string }) {
   const look = () => LOOK[props.row.standing]
   return <Tip text={look().detail}>
     <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1.5 text-caption text-muted enabled:hover:bg-ink/5 enabled:hover:text-ink"
@@ -75,15 +101,7 @@ export function AgentStanding(props: { readonly row: Row; readonly fold: string 
       data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
       aria-expanded={talking(props.row) ? unfolded(props.fold) : undefined}
       onClick={event => { event.stopPropagation(); unfolded(props.fold) ? fold(props.fold) : unfold(props.fold) }}>
-      <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
-      {look().label}
-      <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>
-      <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="tabular-nums"> · {agoOf(said().at, age())}</span>}</Show>
-      {/* WHAT THE STANDING MEANS, which the one-word label does not say —
-          "Waiting" against "the agent asked you something". It was the
-          `title`'s alone, so it rides the button's own name after the words
-          a person reads. */}
-      <span class="sr-only"> — {look().detail}</span>
+      <StandingWords row={props.row} />
     </button>
   </Tip>
 }

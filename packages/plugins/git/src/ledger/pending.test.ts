@@ -24,7 +24,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { DEFAULT_POLICY, NO_KINDS, Writer } from "@olai/format"
+import { COMMIT_BUTTON, DEFAULT_POLICY, NO_KINDS, Writer } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Cause, Effect, Exit, type Scope } from "effect"
@@ -34,7 +34,13 @@ import type { Reading, Verdict } from "@olai/format"
 import type * as StoreModule from "@olai/store"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "../git/fixtures.testlib.ts"
 import * as Ops from "@olai/ops"
-import { COMMIT_TOOL, type Committing, make as makeLedger, whyOf } from "./pending.ts"
+import {
+  COMMIT_TOOL,
+  commitDoor,
+  type Committing,
+  make as makeLedger,
+  whyOf,
+} from "./pending.ts"
 
 type OutlineStore = StoreModule.Store<Reading, Verdict>
 
@@ -349,6 +355,29 @@ describe("manual is the default", () => {
         // …and it reads back as a writer rather than as "writer not recorded",
         // which is what a hand-listed set of them would have answered.
         expect((yield* fixture.ops.pending).last).toMatchObject({ writer: "mcp" })
+      })))
+
+  test("a commit an older olai signed `filer` still reads back as a writer", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        // Nothing writes this trailer any more — the server that filed
+        // conversations into the Inbox went with Inbox › Chats — but a vault
+        // that ran that olai has commits carrying it, and this is the side of
+        // the trailer that READS. Made by hand here for that reason: there is
+        // no writer left to make one.
+        fixture.write("notes.md", "filed under something\n")
+        fixture.git("add", "-A")
+        fixture.git("commit", "--quiet", "-m", "olai: filed a conversation\n\nX-Olai-Writer: filer\n")
+        expect(writerOf(fixture.root)).toBe("filer")
+
+        // The word the ledger classifies it as, rather than the `null` the
+        // panel draws as "writer not recorded" — which is what dropping it
+        // from the format would have said about history olai wrote itself.
+        expect((yield* fixture.ops.pending).last).toMatchObject({ writer: "filer" })
+
+        // And the exhaustive door switch answers for it instead of falling off
+        // the end of itself.
+        expect(commitDoor("filer")).toBe(COMMIT_BUTTON)
       })))
 
   test("what was last recorded is answered beside what is waiting", () =>
@@ -2269,12 +2298,12 @@ test("the git reading carries the decoded policy, including push defaults", () =
     expect(git.policy.push).toBeDefined()
   })))
 
-test("filer writes retain their own writer in pending edits and the commit ledger", async () => {
+test("move writes retain their own writer in pending edits and the commit ledger", async () => {
   await withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
-    yield* Effect.orDie(fixture.ops.run({ op: "add", parent: "kitchen", title: "filed conversation" }, "filer"))
+    yield* Effect.orDie(fixture.ops.run({ op: "add", parent: "kitchen", title: "moved chat" }, "move"))
     yield* fixture.refresh
-    expect((yield* fixture.ops.pending).wrote).toEqual([{ writer: "filer", ops: 1 }])
-    yield* fixture.ops.commit({}, "filer")
-    expect(fixture.git("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()).toBe("filer")
+    expect((yield* fixture.ops.pending).wrote).toEqual([{ writer: "move", ops: 1 }])
+    yield* fixture.ops.commit({}, "move")
+    expect(fixture.git("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()).toBe("move")
   }))
 })

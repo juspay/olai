@@ -133,9 +133,9 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * than matching a shape. What the app writes AROUND an address in a title —
  * the leading slash, the `?q=` between the two halves of a URL, the `/zoom/`
  * spelling of a node's own page — comes off in `./address.ts`'s
- * {@link addressAt}, the one reading of that, which the server's other half of
- * the same question (`placeWritten`, the place a chat row stands for) projects
- * too. Nothing there is interpreted; what a query MEANS is the browser's.
+ * {@link addressAt}, the one reading of that, which the chat's one-time move
+ * — the server reading which note a chat row was titled for — projects too.
+ * Nothing there is interpreted; what a query MEANS is the browser's.
  *
  * EVERY OTHER ADDRESS ANSWERS `undefined`, and none of them is a mistake: a
  * document, a heading, a day and the pages that spell a word all name

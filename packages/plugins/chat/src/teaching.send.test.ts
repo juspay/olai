@@ -45,6 +45,8 @@ const FIXTURE = join(import.meta.dirname, "fixtures", "teaching-agent.ts")
 /** The node agent every case here is about — the vault's own row, which is
  *  what `Options.agentAt` answers with (`@olai/format`'s {@link NodeAgent}). */
 const SPACES: NodeAgent = {
+  kind: "node",
+  beside: false,
   id: "spaces",
   file: "lanes.olai",
   title: "Xyne Spaces — the org OS",
@@ -234,46 +236,6 @@ describe("an agent-associated session is taught, once", () => {
       expect(one).toContain("[olai]")
       expect(two).not.toContain("[olai]")
       expect(overheardIn("sess-1")?.["taught"]).toBe(true)
-    })
-  }, 30_000)
-
-  test("a RESTART does not re-teach an assigned chat — the report of 2026-09-02", async () => {
-    // Seen on the team deploy: an opencode conversation ASSIGNED to a node
-    // agent, taught its migration contract on the message after the assign —
-    // and the same `[olai] This conversation has been ASSIGNED…` preamble rode
-    // the next message after a redeploy, nowhere near the session's first.
-    claimed = []
-    await withChat(async (seat) => {
-      // A chat with a life before it had a node: no binding, so nothing is
-      // taught on its way by.
-      await run(seat.chat.send("before it had a node", [], []))
-      await settle()
-      expect(notices(seat)).toEqual([])
-
-      // The assign gesture's two halves (`@olai/server`'s `assignSession`):
-      // the property lands, and that it arrived by assignment is written down.
-      claimed = [SPACES]
-      await run(seat.chat.assigned({ agent: "opencode", session: "sess-1" }))
-
-      // The next message carries the MIGRATION contract — once — and the mark
-      // lands, so this whole sequence never happens again.
-      await run(seat.chat.send("now that it has one", [], []))
-      await settle()
-      expect(notices(seat)).toEqual([teachingFor(SPACES, "assigned").join("\n")])
-      expect(overheardIn("sess-1")?.["assigned"]).toBe(true)
-      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
-    })
-
-    // THE REDEPLOY: process down, everything rebuilt — a new record over the
-    // same file, a new agent subprocess minting the same session id, and a
-    // message that is nowhere near the conversation's first.
-    await withChat(async (seat) => {
-      await run(seat.chat.send("after the redeploy", [], []))
-      await settle()
-      expect(notices(seat)).toEqual([])
-      const [said] = heard(seat)
-      expect(said).toContain("after the redeploy")
-      expect(said).not.toContain("[olai]")
     })
   }, 30_000)
 

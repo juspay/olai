@@ -112,17 +112,3 @@ Feature: The strip reserves its place above the reading
     When I hover the blocked heading just below the strip
     Then the lifted tip stays below the strip
     And there should be no page errors
-
-  @scratch:chat
-  Scenario Outline: Stored <width> panel preferences never put the dock over the reading
-    Given legacy dock preferences are open and <width>
-    And I open the outline "house.olai"
-    And I open the "claude" agent on node "kitchen"
-    And the node agent's fold is ready
-    Then chat remains in the reading below the strip with no dock
-    And there should be no page errors
-
-    Examples:
-      | width   |
-      | wide    |
-      | maximum |
