@@ -50,10 +50,11 @@ export const closeTip = (key: string): string => `${CLOSE_CHAT}. ${closeCost(key
  *
  * A chat page remembers which conversation it is drawing, so that a note
  * whose front matter loses the tie under an open page can offer it back
- * (`./Lost.tsx`). That memory is right for a tie somebody else took away and
- * WRONG for this press: a person who closes a chat is told their own act was
- * an outside writer's, and offered a way back the whole of {@link closeCost}
- * says they no longer have. So the press says so, and the page forgets.
+ * (`./Lost.tsx`, out of `./remembering.ts`). That memory is right for a tie
+ * somebody else took away and WRONG for this press: a person who closes a
+ * chat is told their own act was an outside writer's, and offered a way back
+ * the whole of {@link closeCost} says they no longer have. So the press says
+ * so, and the page forgets.
  *
  * A COUNTER, not a flag: a chat closed, started again and closed again is two
  * closes, and the second must still be heard by a page that is reading the

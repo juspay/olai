@@ -30,3 +30,21 @@
  * not evaluated, not mounted and not drawn; what survives is the CSS that would
  * have styled it. */
 @source "./";
+
+/* A SCREEN WITH NO HEIGHT TO SPARE — a phone on its side, and any window as
+ * short as one.
+ *
+ * Width is what every other rule in this app responds to, and on a handset
+ * turned sideways width is the thing that got BIGGER: 844×390 is past the
+ * `md` breakpoint, so the page wears a desktop's generous head — a display
+ * title, a line of padding over it — while the screen it is drawn on is 390
+ * pixels tall. The chat page is the face that cannot afford it: its head is
+ * pinned and its composer is pinned, so every pixel either of them takes is
+ * taken from the only part a person reads.
+ *
+ * 540 PIXELS, in pixels rather than `rem`: this is a fact about the SCREEN,
+ * and a `rem` here would move the rule with the reader's text size — a person
+ * who chose larger text would be told their phone had grown. Every handset in
+ * landscape is under it (a tall one is 430) and no upright one is over it
+ * (the shortest is 568). */
+@custom-variant short (@media (max-height: 540px));

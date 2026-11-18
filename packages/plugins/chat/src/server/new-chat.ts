@@ -101,6 +101,52 @@ export const newChat = (owner: NewChat, input: NewChatInput) =>
     }
   })
 
+/**
+ * THE START, WITH THE ROSTER LEVEL AT BOTH ENDS OF IT — what a composition
+ * root hands {@link NewChat.start}, and the ORDER that makes the first message
+ * of a new chat carry what it is about.
+ *
+ * BEFORE: the seat is written against the reading the refusal was asked over,
+ * not the earlier roster a sidebar was painted from — a revision delivery may
+ * still be queued behind a write that has already committed.
+ *
+ * AFTER: the roster is levelled again, with the gate's own reading, BEFORE the
+ * caller says anything into the conversation. What an agent is told about the
+ * item it belongs to is read off the roster, by the conversation it is having
+ * (`../chat.ts`'s `teaching`, over `./agents.ts`'s `agentAt`), and the row that
+ * answers exists only once a reading carrying the tie has been seen. Both of
+ * this plugin's callers send a first message the moment the start returns — the
+ * door's words, a plugin builder's brief — and the revision carrying the tie
+ * arrives on its own clock. Without the second levelling that is a race whose
+ * losing side is SILENT: the message goes out with no contract at all, so a
+ * note's agent is never told the note is its memory and nothing anywhere says
+ * so.
+ *
+ * The write has committed by the time the start returns, so the gate's own
+ * reading HAS the tie: this is the fact arriving, not a wait for it.
+ *
+ * HERE rather than inside the root's own `start` thunk, because the order is
+ * the claim: a bun test can hold a real roster against a reading that gains a
+ * tie mid-start (`./new-chat.test.ts`), where the same lines inside a closure
+ * in `../server.ts` could only be read.
+ */
+export const seated = <A, E>(input: {
+  /** The reading the seat is written against. */
+  readonly committed: Reading
+  /** The roster both levellings move (`./agents.ts`'s `Roster.seen`). */
+  readonly level: (reading: Reading) => void
+  /** The gate's own reading, asked once the tie is written. */
+  readonly read: Effect.Effect<Reading, OpFailure>
+  /** Writing the tie and starting the engine on it. */
+  readonly start: Effect.Effect<A, E>
+}): Effect.Effect<A, E | OpFailure> =>
+  Effect.gen(function*() {
+    input.level(input.committed)
+    const to = yield* input.start
+    input.level(yield* input.read)
+    return to
+  })
+
 /** An item as a person reads it in a sentence: a node's own page, or the
  *  note's path. */
 const printed = (item: AgentItem): string => item.kind === "node" ? `/#${item.id}` : `/${item.path}`

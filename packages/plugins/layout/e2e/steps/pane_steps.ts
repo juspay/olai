@@ -468,3 +468,18 @@ Then("this tab is at the end of what it shows", async function (this: OlaiWorld)
     assert.fail(`this tab stands at ${seen.at}px of ${seen.room}px: a chat opens at its newest line`);
   });
 });
+
+/** THE FIRST LINE — a page this tab has not shown before opens where every
+ *  page opens, at its top. Read once rather than waited for, and after a
+ *  frame: putting an arriving tab where it belongs is part of the update that
+ *  draws it, so a wait would only be waiting for a drift to arrive. The page
+ *  must have had somewhere to drift TO, or this says nothing. */
+Then("this tab is at the top of what it shows", async function (this: OlaiWorld) {
+  await this.waitForFrame();
+  const now = await this.page.evaluate(() => ({
+    at: window.scrollY,
+    room: document.documentElement.scrollHeight - window.innerHeight,
+  }));
+  assert.ok(now.room > 1, `this tab shows nothing taller than the screen: ${now.room}px of room`);
+  assert.ok(now.at <= 2, `this tab stands at ${now.at}px of ${now.room}px: a page it has not shown opens at its top`);
+});

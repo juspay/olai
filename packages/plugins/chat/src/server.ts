@@ -1,4 +1,4 @@
-import { newChat, itemLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
+import { newChat, itemLocations, type LocationQuery, type NewChatInput, seated } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -632,31 +632,16 @@ export default definePlugin({
     const mintConversation = (open: Chat.Chat, input: NewChatInput) =>
       creationPermit.withPermit(newChat({
         read: gate.read,
-        start: (node, agent, committed) => Effect.gen(function*() {
-          // Seat against the reading the refusal was asked over, not the
-          // earlier roster used to paint the sidebar: a revision delivery may
-          // still be queued behind a write that has already committed.
-          levelWith(committed)
-          const to = yield* startAgentSession(open, binding, { node, agent })
-          // ...AND LEVEL AGAIN WITH THE TIE THIS START JUST WROTE, before the
-          // caller says anything into the conversation.
-          //
-          // What an agent is told about the item it belongs to is read off the
-          // roster, by the conversation it is having (`../chat.ts`'s
-          // `teaching`, over `./server/agents.ts`'s `agentAt`), and the row
-          // that answers exists only once a reading carrying the tie has been
-          // seen. Both callers here send a first message the moment this
-          // returns — the door's words, a plugin builder's brief — and the
-          // revision carrying the tie arrives on its own clock. Without this
-          // line that is a race whose losing side is silent: the message goes
-          // out with no contract at all, so a note's agent is never told the
-          // note is its memory and nothing anywhere says so.
-          //
-          // The write has committed by now, so the gate's own reading HAS the
-          // tie: this is the fact arriving, not a wait for it.
-          levelWith(yield* gate.read)
-          return to
-        }),
+        // THE SEAT, WITH THE ROSTER LEVEL AT BOTH ENDS — the order is
+        // `./server/new-chat.ts`'s `seated`, which argues it and is where the
+        // claim is tested; what is here is this row's doors into the vault.
+        start: (node, agent, committed) =>
+          seated({
+            committed,
+            level: levelWith,
+            read: gate.read,
+            start: startAgentSession(open, binding, { node, agent }),
+          }),
         // THE ROSTER OF THE READING THE REFUSAL IS ASKED OVER, by the pure
         // reading (`./seating.ts`'s `rosterIn`) — never by moving the carrier,
         // which is the revision handler's alone.

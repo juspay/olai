@@ -42,6 +42,8 @@ The first message carries an instruction from olai.[^preamble] On a row, the not
 
 [^opens]: The **Opens** line sits under the agent line on a document's chat page, and says **alone** or **with plan beside**. Pressing it writes `chat-opens` into that document's own front matter ([the outline file format](format.md)), so the answer travels with your files. With **beside**, opening that chat from **Chats** or the palette puts the document on the left and the conversation on the right. A row's chat always opens alone, because a row has nowhere to keep the switch.
 
+    Pressing it again opens nothing new: it uses the panes already showing the document and the conversation.
+
 [^standings]: What a row can say about its agent. **Needs you**: it asked you something and is waiting for the answer. **Working…**: it is working on a reply, with the time it has been at it. **Starting…**: it is starting. **Idle**: it is ready for your next message.
 
     The rest: **Not running**, the agent stopped. **Asleep**: it is saved, and opening it carries the conversation on, with the age of the last line heard. **No agent**: there is no chat on this row yet.

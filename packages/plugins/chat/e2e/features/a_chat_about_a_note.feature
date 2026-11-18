@@ -129,6 +129,33 @@ Feature: A chat about a note
     And the note "notes/plan.md" has no chat
     And there should be no page errors
 
+  # ...AND A TIE SOMEBODY ELSE TOOK AWAY IS NOT A CLOSE, on a page where
+  # NOTHING HAS HAPPENED since it was drawn. The page remembers which
+  # conversation it is reading from the frame it opens on, so a quiet chat —
+  # one nobody has said anything in, whose list has not moved since the tab
+  # got it — still has its way back when the front matter loses the key. A
+  # page that only remembered on the NEXT list to arrive would show the box
+  # that starts a second chat, and the way back would be gone.
+  Scenario: A quiet chat page offers the way back when the tie goes from outside
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then the chat page is about the note "notes/plan.md" named "plan"
+    And the chat page conversation is ready
+    # AWAY AND BACK: this tab already holds the chat list and the conversation
+    # is already awake, so the page that comes back is drawn from what the tab
+    # has and nothing arrives after it.
+    When I go back
+    And I open the address "/chat/notes/plan.md"
+    Then the chat page is about the note "notes/plan.md" named "plan"
+    When the vault holds "notes/plan.md" saying "# Plan\n\nrewritten by its own agent"
+    Then the chat page says "plan" no longer names this conversation
+    And the chat page offers no chat box
+    When I press tie it again
+    Then the note "notes/plan.md" carries a chat as "plan-chat"
+    And there should be no page errors
+
   Scenario: The agent is told which note the conversation belongs to
     Given the harness keeps distinct sessions on disk
     And the vault holds "notes/plan.md" saying "# Plan"

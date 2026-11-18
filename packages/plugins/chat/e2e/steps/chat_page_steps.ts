@@ -361,15 +361,21 @@ Then("the chat page's head stays in view", async function (this: OlaiWorld) {
 
 /**
  * THE SHARE OF THE SCREEN LEFT FOR THE CONVERSATION, measured between the
- * chrome pinned over the page and the composer pinned under it.
+ * chrome pinned over the page and the box somebody types in, pinned under it.
  *
  * This is the complaint, as a number. With the whole head pinned, a portrait
  * handset spent 450 of its 844 pixels on chrome and a landscape one 310 of
  * 390 — the conversation was a slot, and on its side there was none at all.
  * What a scenario asserts is therefore not "the head is small" but what is
  * LEFT: the band from the lowest thing pinned at the top (the bar, the strip
- * of tabs where there is one, and the page's own pinned line) down to the top
- * of the box somebody types in.
+ * of tabs where there is one, and the page's own pinned line) down to the TOP
+ * OF THE TEXT BOX.
+ *
+ * THE TOP OF THE BOX, and not the *Send* button on the row under it: what a
+ * person READS is the conversation, and a measure that stopped at the send
+ * counted the box being typed into — two lines of transcript and a composer
+ * reported as a third of the screen. Everything from the box down is the
+ * writing half of the page.
  *
  * READ AFTER A SCROLL, by the scenario's own doing: a pinned band is only
  * pinned once the page has moved under it, and these numbers at the top of an
@@ -378,7 +384,8 @@ Then("the chat page's head stays in view", async function (this: OlaiWorld) {
 Then("the conversation gets at least {int}% of the screen", async function (this: OlaiWorld, share: number) {
   const here = page(this);
   await here.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await here.locator(CHAT_SEND).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const box = here.locator(selector(TESTID.chatInput)).first();
+  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const { width, height } = this.viewport();
   const bottomOf = async (locator: Locator): Promise<number | null> => {
     if (await locator.count() === 0) return null;
@@ -390,13 +397,13 @@ Then("the conversation gets at least {int}% of the screen", async function (this
     await bottomOf(this.frontLane().locator(PANE_TABS)),
     await bottomOf(here.locator(CHAT_PAGE_HEAD)),
   ].filter((edge): edge is number => edge !== null));
-  const composer = await here.locator(CHAT_SEND).first().boundingBox();
-  assert.ok(composer !== null, "the chat page draws no composer to measure against");
-  const room = Math.min(composer.y, height) - Math.max(chrome, 0);
+  const typed = await box.boundingBox();
+  assert.ok(typed !== null, "the chat page draws no box to measure against");
+  const room = Math.min(typed.y, height) - Math.max(chrome, 0);
   const got = Math.round((room / height) * 100);
-  const said = JSON.stringify({ chrome: Math.round(chrome), composer: Math.round(composer.y), room: Math.round(room), screen: [width, height] });
+  const said = JSON.stringify({ chrome: Math.round(chrome), box: Math.round(typed.y), room: Math.round(room), screen: [width, height] });
   assert.ok(got >= share,
-    `the conversation gets ${got}% of a ${width}×${height} screen, under the ${share}% this asks for: ${said}`);
+    `the conversation gets ${got}% of a ${width}×${height} screen (${Math.round(room)}px), under the ${share}% this asks for: ${said}`);
 });
 
 /**

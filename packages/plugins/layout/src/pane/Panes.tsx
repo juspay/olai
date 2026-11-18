@@ -101,13 +101,41 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
    *
    * BY PANE ID rather than by index: opening and closing renumber the panes,
    * and an index remembered across a splice is another pane's place.
+   *
+   * ...AND BY THE PAGE AS WELL AS THE PANE. A tab is a column, not a
+   * document: the page in it changes — a link an agent wrote opens in the
+   * OTHER tab, which is a page arriving in a tab somebody had left part way
+   * down a note. A place kept by tab alone is then offered to a page nobody
+   * has read a word of, and the note's own place is lost the moment that tab
+   * shows anything else. So a place belongs to the PAIR, and the pair is what
+   * is written down when a tab is left and what is asked for when one comes
+   * back: a page this tab has not shown opens at its top, and the note comes
+   * back where the reader was.
+   *
+   * BY THE PAGE'S OWN ADDRESS (`routes.href`), which is the app's one answer
+   * to "the same page": a filter narrowed is a different address and starts
+   * again, which is the same bargain a column's own scrollport strikes.
+   *
+   * WRITTEN DOWN WHENEVER EITHER HALF CHANGES, and put back only when the
+   * TAB does. A page replaced inside the tab in front is a NAVIGATION, and
+   * where a navigation leaves the page is navigation's own rule — to the top
+   * for a press, back to the line it was left on for a Back
+   * (`olai-plugin-navigation`'s `scroll.ts`); a second opinion from here
+   * would be two restores racing over one window.
    */
   const tabbed = createMemo(() => router.split() && !desktop())
   const places = new Map<string, number>()
-  const front = createMemo(() => router.panes()[router.focusIndex()]?.id)
+  /** The tab in front and the page it is showing — the pair a place belongs
+   *  to. A memo of both, so what `on` hands back as `before` is the pane AND
+   *  the page it was showing while it was on screen. */
+  const front = createMemo(() => {
+    const pane = router.panes()[router.focusIndex()]
+    return pane === undefined ? undefined : { id: pane.id, page: router.routes.href(pane.route()) }
+  })
+  const placeOf = (at: { readonly id: string; readonly page: string }): string => `${at.id}\n${at.page}`
   createComputed(on(front, (now, before) => {
-    if (!tabbed() || before === undefined || before === now) return
-    places.set(before, window.scrollY)
+    if (!tabbed() || before === undefined || before.id === now?.id && before.page === now.page) return
+    places.set(placeOf(before), window.scrollY)
   }))
   /** The restore still being asked for, while the arriving tab is short of
    *  the place it was left. */
@@ -139,13 +167,13 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
     growing.observe(document.documentElement)
   }
   createEffect(on(front, (now, before) => {
-    if (!tabbed() || now === undefined || before === undefined || before === now) return
+    if (!tabbed() || now === undefined || before === undefined || before.id === now.id) return
     // Reading the height first is what makes the restore land at all: the
     // arriving tab was `display: none`, and a window asked to scroll before
     // anything of that page has been laid out is clamped to the height of the
     // page it replaced.
     void document.documentElement.scrollHeight
-    stand(places.get(now) ?? 0)
+    stand(places.get(placeOf(now)) ?? 0)
   }))
   // THE STRIP, SAID OUT LOUD while this lane draws one: what the document
   // reserves at its top for an in-page jump is the bar plus this strip, and

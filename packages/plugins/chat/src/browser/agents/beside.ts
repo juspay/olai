@@ -23,7 +23,7 @@
  * drawing anything.
  */
 
-import { itemKey } from "@olai/format"
+import { type AgentItem, itemKey } from "@olai/format"
 import type { Route } from "olai-plugin-navigation/routes"
 
 import { chatPage } from "./route.ts"
@@ -53,5 +53,31 @@ export const drawnIn = (routes: ReadonlyArray<Route>, key: string): number | nul
 export const besideIn = (routes: ReadonlyArray<Route>, key: string, here: number): number | null => {
   const at = drawnIn(routes, key)
   return at === null || at === here ? null : at
+}
+
+/** ...AND THE PANE SHOWING THE ITEM ITSELF — the note, or the node's own page
+ *  (`./here.ts`'s `routeOfItem` is the address this recognises). FIRST IN
+ *  PANE ORDER for {@link drawnIn}'s reason.
+ *
+ *  A *beside* press needs this as much as it needs the chat's pane: the pair
+ *  it opens is the item and the conversation, so a press made while the item
+ *  is already on screen must use THAT column rather than put a second copy of
+ *  the note beside a chat that is already there (`./focus.ts`'s
+ *  `chatTarget`).
+ *
+ *  A PLACE INSIDE THE ITEM STILL SHOWS IT: a heading of the note is the
+ *  note's page, as the one reading of what a page is about says
+ *  (`./here.ts`'s `itemHere`) — and a ROW address is its outline and not the
+ *  row's page, which is why the kinds are named rather than the file
+ *  compared. The claim table is not asked, because the caller already knows
+ *  which of the two kinds this item is. */
+export const shownIn = (routes: ReadonlyArray<Route>, item: AgentItem): number | null => {
+  const at = routes.findIndex((route) => {
+    if (route.kind !== "at" || route.address === null) return false
+    const address = route.address
+    if (item.kind === "node") return address.kind === "node" && address.id === item.id
+    return (address.kind === "document" || address.kind === "heading") && address.path === item.path
+  })
+  return at < 0 ? null : at
 }
 

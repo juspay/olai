@@ -717,7 +717,11 @@ export function Composer(props: {
   }
 
   return (
-    <div class="relative shrink-0 p-2">
+    // THE PADDING AROUND IT GOES BACK ON A SHORT SCREEN (`short`,
+    // `../all.css`): this box is PINNED to the bottom of a chat page, so what
+    // it spends is spent out of the conversation — and on a handset turned
+    // sideways there are 390 pixels for both.
+    <div class="relative shrink-0 p-2 short:p-1">
       <Show when={open()}>
         <CompletionMenu
           completing={found()}
@@ -793,7 +797,9 @@ export function Composer(props: {
         // was a `box-shadow` under the app's own outline (the `outline-none`
         // never removed that one — `@olai/appearance/chrome.css` is
         // unlayered), and forced colours deletes box-shadows outright.
-        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body placeholder:text-muted focus:border-accent"
+        // ...AND ITS TWO LINES SIT TIGHTER ON A SHORT SCREEN, where the room
+        // around them is room the conversation above does not get.
+        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body placeholder:text-muted focus:border-accent short:py-1"
         data-testid={TESTID.chatInput}
         // WHAT THE RETURN KEY DOES, said to the on-screen keyboard: this box's
         // Enter sends (`onKey`, one scroll down — Shift+Enter is the newline),

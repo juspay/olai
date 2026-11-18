@@ -46,7 +46,7 @@ import { DOT } from "@olai/web/client/readout.ts"
 import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { type AgentItem, itemKey } from "@olai/format"
-import { createEffect, createMemo, createSignal, Show } from "solid-js"
+import { createEffect, createMemo, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import { TESTID } from "../../testids.ts"
@@ -57,13 +57,13 @@ import { servedDirectory } from "../vault.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { useAgents } from "./answered.tsx"
 import { nameOfItem, namesNode, titleOfNode } from "./called.ts"
-import { closedHere } from "./closing.ts"
 import { AboutBox } from "./Door.tsx"
-import { lostOf, type WasTied } from "./lost.ts"
+import { lostOf } from "./lost.ts"
 import { LostNote } from "./Lost.tsx"
 import { OpenBeside } from "./OpenBeside.tsx"
 import { Opens } from "./Opens.tsx"
 import { PageFoot, PageHead } from "./Page.tsx"
+import { createRemembered } from "./remembering.ts"
 import { LOOK, type Row, talking } from "./roster.ts"
 
 /**
@@ -76,12 +76,18 @@ import { LOOK, type Row, talking } from "./roster.ts"
  * (`.waterfall/mockup/7-chats-press-split-phone.png`): on a phone the
  * conversation leads and the name labels it.
  *
+ * ...AND A PHONE ON ITS SIDE IS A PHONE (`short`, `../all.css`). Turned
+ * sideways a handset is 844 wide and 390 tall: `md` says desktop, and the
+ * display size it brings with it is 50 pinned pixels of a 390-pixel screen,
+ * taken from the conversation. The same section heading answers there,
+ * because the reason is the same reason — there is no room above the words.
+ *
  * SPELLED WHOLE rather than appended to `PAGE_TITLE`, which is that
  * constant's own rule (`@olai/web/client/look.ts`): a page wanting a smaller
  * heading is a page wanting a different thing, not one hoping its override
  * was emitted later.
  */
-const CHAT_TITLE = "m-0 font-sans text-title font-semibold tracking-tight md:text-display"
+const CHAT_TITLE = "m-0 font-sans text-title font-semibold tracking-tight md:text-display short:md:text-title"
 
 /**
  * A LINK PRESSED ON THIS PAGE OPENS IN THE OTHER PANE — the pane to the left
@@ -142,28 +148,18 @@ export function ChatPage(props: { readonly item: AgentItem }) {
    *  tie: a start the agent refused leaves the item its own door. */
   const open = () => talking(row())
   /**
-   * WHAT THIS PANE WAS READING, kept for as long as the page is drawn — the
-   * one thing the roster cannot answer once a note has stopped naming its
-   * chat. It is what the *tie it again* press hands back
-   * (`./Lost.tsx`), so it is remembered where that press is drawn and
-   * nowhere else: a page opened fresh on an untied note knows of no
-   * conversation and offers none.
-   *
-   * ...AND A CLOSE THIS READER MADE FORGETS IT (`./closing.ts`). The tie is
-   * gone either way, and the page cannot tell the two apart from the roster
-   * alone — but one of them is this person's own press, which said in its own
-   * words that olai would list the conversation nowhere afterwards. Holding
-   * what it was would answer that press with *Tie it to plan again*, blaming
-   * the note's front matter for something nobody outside did.
+   * WHAT THIS PANE IS READING, REMEMBERED from the frame this page opens on
+   * and forgotten by a close this reader made — the rule, with the item and
+   * the roster's answer about it handed in (`./remembering.ts`). It is what
+   * the *tie it again* press hands back (`./Lost.tsx`), so it is kept where
+   * that press is drawn and nowhere else.
    */
-  const [was, setWas] = createSignal<WasTied | null>(null)
-  createEffect(() => {
-    const held = row()
-    if (held?.session != null) setWas({ agent: held.engine, session: held.session })
-  })
-  createEffect(() => {
-    closedHere(key())
-    setWas(null)
+  const was = createRemembered({
+    key,
+    tied: () => {
+      const held = row()
+      return held?.session != null ? { agent: held.engine, session: held.session } : null
+    },
   })
   /** The directory's own two answers about this page's note (`./lost.ts`). */
   const lost = createMemo(() => lostOf({
@@ -203,7 +199,7 @@ export function ChatPage(props: { readonly item: AgentItem }) {
           scrolls now. Not for a note that is GONE: there is no page to put
           beside this one. */}
       <div
-        class={`sticky top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6`}
+        class={`sticky top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6 short:pt-2`}
         data-testid={TESTID.chatPageHead}
       >
         <Show when={mark()}>

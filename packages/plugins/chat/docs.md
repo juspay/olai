@@ -59,7 +59,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^notekeys]: A document's chat lives in the `---` block at the top of the file. `chat-agent-session` says which conversation the document is having. `chat-opens` says where that chat opens. olai refuses a write by an agent that changes or drops either of them, so an agent rewriting the file through olai keeps that block as it is.
 
-[^outside]: A program editing the file outside olai is outside that fence. A `git pull` can bring the `---` block back without the key. The chat page then says `plan no longer names this conversation`, that the conversation is untouched, and offers one press, **Tie it to plan again**, which writes the key back. That offer stands only while the pane stays open: a reload takes it away, and the way to that conversation with it.
+[^outside]: A program editing the file outside olai is outside that fence. A `git pull` can restore the `---` block without the key. The chat page then says `plan no longer names this conversation`, that the conversation is untouched, and offers **Tie it to plan again**, which writes the key back. That offer stands while the pane stays open: a reload takes it away, and so does **Close the chat** in this tab. A second tab holding that page keeps it.
 
 [^opens]: The chat page of a document carries **Opens**, with a switch reading `alone` or `with plan beside`, which writes `chat-opens`. Opening that chat from **Chats** obeys it: `beside` draws the document and the conversation side by side, as one address, so a reload brings both back. A node's chat always opens alone, because a row has nowhere to keep the switch.
 
@@ -93,7 +93,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | the palette | Every agent, the **New chat** row and **Chat about this page**, while an engine can start. |
 | a phone's bottom bar | The **Chats** button, with a count of how many conversations need an answer. |
 
-Where a pane already holds a conversation, the fold under its row and that row's own page draw one line reading **Shown beside** in place of it.
+Where a pane already holds a conversation, the fold under its row and that row's page take you to it.
 
 On a phone the chat page fills the screen. The line with the item's name and its door stays pinned under the app's bar for the whole scroll; the rest of the head scrolls. With the document as a second tab, that strip is pinned too, and each tab keeps its place. **Open <name> beside ›** reads **Open <name> ›** there, and puts the row or document in the next tab along.
 

@@ -31,9 +31,12 @@ import { agentReadings } from "./reading.ts"
 
 /** The words under the box, which say what sending does — one sentence per
  *  kind of item, because what carries the tie and what the memory IS are
- *  different facts about the two. */
+ *  different facts about the two. A node is a ROW wherever a person reads
+ *  about one — the menu's *Close the chat* says the tie comes off this row,
+ *  the sidebar lists rows — so the box on one says row rather than naming the
+ *  kind at somebody. */
 export const ABOUT_NOTE = "Sending starts a chat about this note · the chat is kept in its front matter"
-export const ABOUT_NODE = "Sending starts a chat about this node · the rows under it are its memory"
+export const ABOUT_NODE = "Sending starts a chat about this row · the rows under it are its memory"
 
 /** What one press of a door came to: the chat row that now has a conversation
  *  (or is waiting at sign-in), or `null` with the sentence that says why not —

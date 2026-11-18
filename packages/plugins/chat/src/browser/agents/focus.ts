@@ -33,7 +33,7 @@
 import { type AgentItem, itemOf } from "@olai/format"
 import { focusAt, hrefOfWorkspace, navigateIn, openRight, panesOf, type AddressTarget, type Workspace, type WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import type { Route } from "olai-plugin-navigation/routes"
-import { drawnIn } from "./beside.ts"
+import { drawnIn, shownIn } from "./beside.ts"
 import { talking, type Row } from "./roster.ts"
 import { unfold } from "./folding.ts"
 import { agentReadings } from "./reading.ts"
@@ -74,23 +74,34 @@ export const asideOf = (workspace: Workspace, index: number, item: AgentItem): W
  * make room — {@link asideOf} is that rule, and this is where a row spends
  * it.
  *
- * UNLESS THE CHAT IS ALREADY DRAWN somewhere in this layout, in which case
- * that pane is the answer and the press only focuses it (`./beside.ts`'s
- * `drawnIn`, the reading every *Shown beside* spends): a second column on one
- * conversation is the drawn-twice bug this change exists to refuse.
+ * A PRESS OPENS NEITHER HALF TWICE. A conversation is drawn once, so a chat
+ * already in a pane is where the press goes (`./beside.ts`'s `drawnIn`, the
+ * reading every *Shown beside* spends) — and the ITEM is opened once for the
+ * same reason (`shownIn`): pressed a second time, a note already on screen is
+ * the column the conversation belongs beside, not something to put another
+ * copy of next to the chat that is already there. Pressed twice, the layout
+ * a person is looking at is the layout they keep.
+ *
+ * WITH THE ITEM NOWHERE the pane the press landed in becomes it, which is the
+ * one case that moves a page: the reader asked for this pair, and the chat
+ * still goes in as a new column beside it.
  */
 export const chatTarget = (row: Row, here: Workspace): AddressTarget => {
   const item = itemOf(row.id)
   const chat = chatRouteOf(item)
   if (!row.beside) return { kind: "page", route: chat }
-  const withItem = navigateIn(here, here.focus, routeOfItem(item))
-  const already = drawnIn(panesOf(withItem).map((pane) => pane.route), row.id)
-  return {
-    kind: "layout",
-    workspace: already === null
-      ? asideOf(here, here.focus, item)
-      : focusAt(withItem, already),
-  }
+  const routes = panesOf(here).map((pane) => pane.route)
+  const shown = shownIn(routes, item)
+  // WITH THE ITEM NOWHERE the pane the press landed in becomes it, and the
+  // chat is looked for over THAT layout: pressed from the chat's own page,
+  // the pane that just became the note was the pane holding the
+  // conversation, and the answer is wherever it moved to.
+  const open = shown === null ? navigateIn(here, here.focus, routeOfItem(item)) : here
+  const drawn = drawnIn(panesOf(open).map((pane) => pane.route), row.id)
+  const workspace = drawn !== null ? focusAt(open, drawn)
+    : shown !== null ? openRight(here, shown, chat, true)
+      : asideOf(here, here.focus, item)
+  return { kind: "layout", workspace }
 }
 /** The address of {@link chatTarget}, for a row that is a link. */
 export const chatHref = (routes: WorkspaceRouting, row: Row, here: Workspace): string => {

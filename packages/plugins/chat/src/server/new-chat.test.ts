@@ -2,7 +2,8 @@ import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { type NodeAgent, UsageFailure } from "@olai/format"
 import { readingOf, setOf } from "@olai/ops/testlib"
-import { newChat, itemLocations, type NewChat } from "./new-chat.ts"
+import { roster } from "./agents.ts"
+import { newChat, itemLocations, seated, type NewChat } from "./new-chat.ts"
 
 const NOTE = "notes/plan.md"
 
@@ -105,6 +106,41 @@ test("the start is seated against the reading the refusal was asked over", async
   }) }
   await Effect.runPromise(newChat(owner, { agent: "claude", item: { kind: "node", id: "kitchen" } }))
   expect(seen).toBe(true)
+})
+
+/**
+ * THE FIRST MESSAGE OF A NEW CHAT CARRIES WHAT IT IS ABOUT (`seated`).
+ *
+ * What the agent is taught is read off the ROSTER, by the conversation it is
+ * having — so the roster has to carry the tie the start just wrote by the time
+ * the start returns, which is when both callers send their first message. The
+ * claim below is the ORDER and not a delay: the reading the gate answers with
+ * after the start already has the tie, and the roster is levelled with it
+ * before anything is said.
+ */
+test("the roster carries the tie the start wrote by the time the start returns", async () => {
+  const documents: Record<string, string> = { [NOTE]: "# Plan\n" }
+  const reading = () => readingOf(setOf({}, Object.entries(documents).map(([path, text]) => [path, text] as const)))
+  const rows = roster()
+  const to = { agent: "claude", session: "sess-1" }
+  const committed = reading()
+  // The seat: the tie is written into the note's own front matter, which is
+  // what the next reading of the gate holds.
+  const start = Effect.sync(() => {
+    documents[NOTE] = `---\nchat-agent-session: ${to.agent}:${to.session}\n---\n# Plan\n`
+    return to
+  })
+  const seat = await Effect.runPromise(seated({
+    committed,
+    level: (at) => { rows.seen(at) },
+    read: Effect.sync(reading),
+    start,
+  }))
+  expect(seat).toEqual(to)
+  // WHAT THE TEACHING ASKS, in the middle of the send that follows: whose
+  // agent this conversation is. A roster still level with the pre-tie reading
+  // answers `null`, and the first message goes out with no contract at all.
+  expect(rows.agentAt(to)?.id).toBe(`/${NOTE}`)
 })
 
 // ── which node or note a new chat can be about ─────────────────────────
