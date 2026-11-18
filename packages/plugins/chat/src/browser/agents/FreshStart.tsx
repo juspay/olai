@@ -87,16 +87,27 @@ export function FreshStart(props: {
       : [current, ...engines.filter(engine => engine.id !== current.id)]
   }
 
+  /** WHAT SURVIVES A FRESH START, named by whatever keeps it. A node's memory
+   *  is the rows under it and is counted; a NOTE'S memory is the note itself,
+   *  which the old sentence counted as "0 rows" — wrong, and the opposite of
+   *  the reassurance this sentence exists to give. A node with nothing under
+   *  it yet is counted no better: "keeping memory in 0 rows" is arithmetic
+   *  where a person wants a plain fact, so it says the plain fact. */
+  const keeping = (): string => props.agent.kind === "note"
+    ? `keeping the note ${agents.named(props.agent).name} as its memory`
+    : props.agent.memory === 0
+      ? "and there is nothing under it yet to keep"
+      : `keeping memory in ${memoryOf(props.agent)}`
+
   return <span class="relative">
-    {/* WHERE THE MEMORY GOES. "Fresh start" does not say that the subtree's
-        memory file survives the new chat, and that is the whole reason a
-        person presses it rather than closing the agent — so the sentence is
-        in the button's own name, after the visible words, as well as under
-        the pointer. */}
-    <Tip text={`Start over, keeping memory in ${memoryOf(props.agent)}`}>
+    {/* WHERE THE MEMORY GOES. "Fresh start" does not say that the memory
+        survives the new chat, and that is the whole reason a person presses
+        it rather than closing the chat — so the sentence is in the button's
+        own name, after the visible words, as well as under the pointer. */}
+    <Tip text={`Start over, ${keeping()}`}>
       <button ref={trigger} type="button" class={LINE_VERB} data-testid={TESTID.chatFreshSession}
         data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}
-        onClick={pressed}>Fresh start<span class="sr-only"> — start over, keeping memory in {memoryOf(props.agent)}</span></button>
+        onClick={pressed}>Fresh start<span class="sr-only"> — start over, {keeping()}</span></button>
     </Tip>
     <Show when={confirm.where() === "asking"}>
       <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-label"

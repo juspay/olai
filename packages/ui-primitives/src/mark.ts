@@ -1,6 +1,6 @@
 /**
  * THE BOX A PLACE'S MARK IS DRAWN IN, wherever a name and a mark share a line:
- * the sidebar's Chats rows, the side panel's title and picker, a palette row.
+ * the sidebar's Chats rows, the chat page's head, a palette row.
  *
  * A kind's glyph draws itself `h-full w-full` and takes whatever box its caller
  * gives it (`olai-plugin-files`' `Glyph` says so from the other side), so a mark

@@ -16,6 +16,8 @@ import { DELEGATE, SLEEP, briefFor, sleepFor } from "./sleep.ts"
 import { HARNESS_MEMORY_OFF } from "./teaching.ts"
 
 const AGENT: NodeAgent = {
+  kind: "node",
+  beside: false,
   id: "health",
   file: "house.olai",
   title: "Health",

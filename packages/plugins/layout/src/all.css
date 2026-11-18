@@ -21,3 +21,18 @@
 :root {
   scroll-padding-top: var(--height-chrome);
 }
+
+/* THE LINE OF ROOM AT A PAGE'S FOOT, and the one screen that cannot spare it
+ * (`./contracts/clearance.ts` is what reads it).
+ *
+ * A handset turned sideways is 390 pixels tall and past the `md` breakpoint,
+ * so it wears a desktop's spacing on a screen with none to give. A page whose
+ * foot is PINNED — a chat page's composer — spends that line out of the band
+ * the reader is reading, every scroll of the way down. The hardware's own
+ * inset and the frame's thumb bar are still cleared whatever the height:
+ * those are bars over the page rather than room around it. */
+@media (max-height: 540px) {
+  :root {
+    --room-foot: 0.25rem;
+  }
+}

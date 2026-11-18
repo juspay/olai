@@ -117,7 +117,7 @@ import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
-import { REMINDING, teachingFor } from "./teaching.ts"
+import { remindingFor, teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -259,10 +259,6 @@ export interface PanelOptions {
    * telling it nothing.
    */
   readonly agentAt?: (to: Conversing) => NodeAgent | null
-  /** THE ADDRESS A NODE AGENT'S ROW STANDS FOR, where its title names a place
-   *  and it is that place's chat — said once in its first message
-   *  (`./teaching.ts`'s `ABOUT`). Absent, or `null`, says nothing. */
-  readonly aboutAt?: (agent: NodeAgent) => string | null
   /**
    * EVERY HOW MANY MESSAGES A NODE AGENT IS REMINDED OF ITS WRITING RULE
    * (`./settings.ts`'s `remind-every`, `./teaching.ts`'s `REMINDER`) — the
@@ -345,36 +341,16 @@ export interface Panel {
    */
   readonly overheard: () => ReadonlyArray<Overheard>
   /**
-   * A CHAT WAS GIVEN A HOME — write down that this conversation was ASSIGNED to
-   * a node agent rather than opened for one ({@link ./sessions.ts}).
-   *
-   * The other half of the gesture that writes the pointer onto a node, and it
-   * is here because the record is: the composition root holds the ops layer and
-   * this file holds what olai overheard, exactly as they hold the two halves of
-   * the roster (`@olai/server`'s `assignSession`).
-   *
-   * WHAT IT DECIDES is which contract that session is taught on its next
-   * message ({@link ./teaching.ts}): an assigned chat is told to bank what it
-   * knows into the subtree, because its transcript is the only copy of it.
-   *
-   * IT NEVER REFUSES. A mark that could not be written is a session taught the
-   * ordinary contract instead of the migration one — a worse sentence, not a
-   * lost assignment — and the property, which is the assignment, has already
-   * landed by the time this is called. So it logs, the way every other write to
-   * this record does.
-   */
-  readonly assigned: (to: Conversing) => Effect.Effect<void>
-  /**
    * ... and OLAI REPLACED ONE WITH ANOTHER — write down WHICH conversation took
    * this one's place, as the full `{agent, session}` pair, for the *fresh
    * session* affordance. Fresh start may hand the node to another engine, so
    * the pair is what the successor is named by: an id with no engine could
    * not say whose.
    *
-   * Same shape and same silence as {@link Panel.assigned}, and what a lost write
-   * costs here is one old session coming back as a conversation nobody claims
-   * — re-filed into Chats and offered back to the node that had just left it,
-   * which somebody can see and nothing acts on.
+   * It logs rather than refuses, the way every other write to this record
+   * does, and what a lost write costs here is one old session coming back as
+   * a conversation nobody claims — offered back to the node that had just
+   * left it, which somebody can see and nothing acts on.
    */
   readonly replaced: (to: Conversing, by: Conversing) => Effect.Effect<void>
   /**
@@ -855,14 +831,11 @@ const silence = (agent: string): string =>
  * A WRITE TO THIS MACHINE'S RECORD, ATTEMPTED — and its failure logged rather
  * than handed to anybody ({@link ./sessions.ts}'s own rule for its writers).
  *
- * ONE SPELLING for every writer that keeps that rule: the two migration marks
- * ({@link Panel.assigned}, {@link Panel.replaced}). What they share is why
- * neither of them refuses — each runs AFTER the half of its gesture that
- * mattered has already landed, so a refusal here would be telling somebody
- * their assignment, or their turn, failed when it did not. What differs is
- * one sentence, which is the argument ({@link assignLost} and
- * {@link replaceLost}): a lost write costs something different each time, and
- * that is the half worth saying out loud.
+ * ONE SPELLING for the writer that keeps that rule ({@link Panel.replaced}).
+ * Why it does not refuse: it runs AFTER the half of its gesture that mattered
+ * has already landed, so a refusal here would be telling somebody their turn
+ * failed when it did not. What a lost write costs is the sentence that rides
+ * with it ({@link replaceLost}), which is the half worth saying out loud.
  *
  * `undefined` is a chat composed with no record at all, which is the state
  * every test in this package is in unless it says otherwise.
@@ -891,14 +864,10 @@ const tookLost = (teach: Teaching, failure: Memory.MemoryFailure): string =>
     : `a node agent's message could not be counted (${failure.why}) — ` +
       `its writing rule is reminded one message later than it would have been`
 
-const assignLost = (failure: Memory.MemoryFailure): string =>
-  `a chat was assigned to a node agent and that it was ASSIGNED could not be written down ` +
-  `(${failure.why}) — the pointer landed, and the session will be taught the ordinary ` +
-  `contract rather than the one that asks it to bank what it knows`
 const replaceLost = (failure: Memory.MemoryFailure): string =>
   `a node agent was given a fresh session and what it replaced could not be written down ` +
   `(${failure.why}) — the new session is bound, and the old one comes back as a chat ` +
-  `no node claims, re-filed into Chats`
+  `no node claims`
 
 export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, never> =>
   Effect.gen(function*() {
@@ -1345,11 +1314,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * conversation rather than against whichever one the panel has come to be
      * in ({@link contracted}).
      *
-     * WHICH OF THE TWO CONTRACTS, and whether this is the reminder's message,
-     * come off the same row the `taught` mark does, in one read: a session
-     * somebody ASSIGNED to a node is told to bank what its transcript knows,
-     * and one olai opened for a node is told the standing law alone
-     * ({@link ./teaching.ts}'s `Arrival`); the count on that row says which
+     * WHETHER THIS IS THE REMINDER'S MESSAGE comes off the same row the
+     * `taught` mark does, in one read: the count on that row says which
      * message this is. Two reads of that row would be two answers to one
      * question, and the second could be taken after a write that moved it.
      */
@@ -1374,8 +1340,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // message that merely REMINDS carries none of them — the reminder is one
       // line of law, not a second briefing.
       const lines = teaches
-        ? [...teachingFor(node, row?.assigned === true ? "assigned" : "opened", options.aboutAt?.(node) ?? null), ...preamble]
-        : reminds ? REMINDING : []
+        ? [...teachingFor(node), ...preamble]
+        : reminds ? remindingFor(node) : []
       // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
       // engine's own answer and not an assumption of this file's
       // (`@kolu/acp/engine`'s `PromptChannel`). The switch is EXHAUSTIVE on
@@ -2220,7 +2186,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         return at === null
           ? Effect.fail(
             new UsageFailure({
-              reason: "no agent has been chosen for this panel yet — pick one to start",
+              reason: "no agent has been chosen for this chat yet — pick one to start",
             }),
           )
           : use(at.agent)
@@ -2412,7 +2378,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // not go is the same however they failed to.
           return undeliverable(key, prompt, {
             gone: "unreachable",
-            why: "no agent has been chosen for this panel yet",
+            why: "no agent has been chosen for this chat yet",
           })
         }
         const agent = at.agent
@@ -3357,7 +3323,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         if (at === null) {
           return Effect.fail(
             new UsageFailure({
-              reason: "no agent has been chosen for this panel yet — pick one to start",
+              reason: "no agent has been chosen for this chat yet — pick one to start",
             }),
           )
         }
@@ -3622,21 +3588,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       state: () => state,
       enginesMoved,
       overheard: () => options.overheard?.rows() ?? [],
-      // THE TWO MARKS THE MIGRATION GESTURES LEAVE, and both are written the
-      // way everything else in this record is: behind a gesture that has
-      // already been answered, logging what it could not write rather than
-      // taking the gesture away from somebody ({@link ./sessions.ts}).
-      assigned: (to) => Effect.gen(function*() {
-        if (options.overheard?.at(to)?.wakesCleared === true) return
-        // Filing gives a conversation a new, asleep home. Old manual wake
-        // picks are not authority to wake that new node (or its trash).
-        for (const row of options.scoping?.rows() ?? []) {
-          if (row.agent !== to.agent || row.session !== to.session) continue
-          const cleared = yield* Effect.result(options.scoping!.set(to, row.plugin, null))
-          if (cleared._tag === "Failure") { yield* Effect.logWarning(cleared.failure.message); return }
-        }
-        yield* noting(options.overheard?.assign(to, true), assignLost)
-      }),
       // THE REPLACED ENGINE'S CACHED LISTING IS STALE NOW, and nothing else
       // will invalidate it: a fresh start on a node that already had one never
       // switches `talking` (the seat opens the new conversation in the slot
@@ -3810,7 +3761,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           const scoping = options.scoping ?? null
           if (scoping === null) {
             return yield* new UsageFailure({
-              reason: "this panel keeps no doorbells: no plugin here rings a conversation",
+              reason: "this chat keeps no doorbells: no plugin here rings a conversation",
             })
           }
           // A SCOPE WRITE DISOWNS WHAT THE OLD SCOPE WAS HOLDING — every scope

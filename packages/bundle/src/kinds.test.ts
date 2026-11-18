@@ -263,10 +263,11 @@ test("the built vocabulary carries every row's words, regardless of runtime enab
  * It reads the REAL bundle rather than a fixture, because a fixture cannot
  * drift and the real plugins can.
  *
- * THERE ARE FIVE WORDS NOW, and chat's three are the ones that arrived without
+ * THERE ARE SIX WORDS NOW, and chat's four are the ones that arrived without
  * an appliance under them: `agent-session`, which was a bare key core owned
- * (`@olai/format`'s `AGENT_PROP`) until the panel became a row, and the two
- * marks the pass keeps (`agent-slept`, `agent-sleep`). Their constants are
+ * (`@olai/format`'s `AGENT_PROP`) until the panel became a row, the two
+ * marks the pass keeps (`agent-slept`, `agent-sleep`), and `chat-opens`, the
+ * switch that says a note's chat opens beside the page. Their constants are
  * `olai-plugin-chat/binding`'s — a door with no imports at all, so the composed
  * words there are LITERALS rather than compositions, which is a second spelling
  * of exactly the kind this test exists to hold. That package's own
@@ -281,12 +282,13 @@ test("a plugin's own composed word is the one the bundle composes", async () => 
     return [...built.keys()].filter((word) => word.startsWith(`${row.id}-`))
   })
   expect([...built.keys()].sort()).toEqual([...expected].sort())
-  // Not vacuous: five words are taught — kolu's `terminal`, odu's `run`,
-  // chat's `agent-session`, chat's `agent-slept` and chat's `agent-sleep` — so
-  // the walk above compared something. A COUNT and not a floor, for this file's
-  // usual reason: a derivation that came back short would satisfy the equality
-  // by comparing less, and the number is one line to move when a sixth arrives.
-  expect(expected.length).toBe(5)
+  // Not vacuous: six words are taught — kolu's `terminal`, odu's `run`,
+  // chat's `agent-session`, chat's `agent-slept`, chat's `agent-sleep` and
+  // chat's `chat-opens` — so the walk above compared something. A COUNT and
+  // not a floor, for this file's usual reason: a derivation that came back
+  // short would satisfy the equality by comparing less, and the number is one
+  // line to move when a seventh arrives.
+  expect(expected.length).toBe(6)
   // ...and each plugin's own constant is on that list, which is the half a
   // fixture cannot check — `takes` is written with it, and so is the walk that
   // finds the keys a vault declared.

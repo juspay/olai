@@ -133,7 +133,7 @@ export function BarDoor(props: {
 
   const trigger = (
     // OVER the bar, not under it: this chip sits IN the header, so its tip has
-    // to cover the bar and the chat dock that shares the page's layer — the
+    // to cover the bar and whatever shares the page's layer — the
     // same claim the panel behind this button already makes. At the page's
     // layer the coral rule cut the first line of it.
     <Tip text={props.name} layer={LAYER.over}>

@@ -205,6 +205,25 @@ Then(
   },
 );
 
+/**
+ * ...AND ONE KEY THE RUN MUST NOT DRAW, which is a different claim from "no
+ * properties": the block HAS keys, and this one is left out of the run
+ * because the plugin that taught the word draws the fact somewhere better
+ * (`outline.row.placement`'s `inRows: false`).
+ *
+ * A scenario reads a key that IS drawn first, so the run is on screen before
+ * this asks what is missing from it — absence waited for is absence on the
+ * frame before the reading landed.
+ */
+Then("the document shows no property {string}", async function (this: OlaiWorld, key: string) {
+  await this.frontLane().locator(`${DOCUMENT_PAGE}:visible`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await documentLine(this, key).count(),
+    0,
+    `the document page draws \`${key}\` as a property chip`,
+  );
+});
+
 Then("the document shows no properties", async function (this: OlaiWorld) {
   // The page is drawn from a reading that already carries `props`, so once
   // this section is on screen the run is either there or it is not — waiting

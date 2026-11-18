@@ -18,19 +18,19 @@ The sidebar lists the files olai serves and your pinned pages, tabs keep several
 
 ## Move between panes
 
-A pane is one page beside another in the same window. `Alt` + click a link opens it in the pane to the right; `Cmd` + `Shift` + `W` closes one.[^panes]
+A pane is one page beside another in the same window. `Alt` + click a link opens it in the pane to the right; `Cmd` + `Shift` + `W` closes one.[^panes] A chat is a pane too.[^chatpane]
 
 ## Pin a page or a layout
 
-Pinned pages sit in a list between the calendar and the file tree. You can pin a row's page, a document, or a page narrowed with a filter query ([filtering.md](filtering.md)).[^pins][^shelf] The palette can also pin a layout of panes.[^layout]
+Pinned pages sit in a list between the calendar and the file tree. You can pin a row's page, a document, a page narrowed with a filter query ([filtering.md](filtering.md)), or a layout of panes.[^pins][^shelf][^layout]
 
 ## Keep several pages open
 
-On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` opens a new one.[^tabs] Each tab holds one page or a split of panes, and remembers its filter and scroll position.[^tabstate][^tabsback]
+On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` opens a new one.[^tabs] Each tab holds one page or a split of panes, and keeps its filter and scroll position.[^tabstate][^tabsback]
 
 ## Use the palette, and capture a line
 
-`Cmd` + `K` opens the palette, a search box with commands under it. It opens pages, searches the directory, runs commands on the row you are zoomed into, and reaches your agent conversations ([search.md](search.md)).[^palette] Type `+` and a line, press `Enter`, and the line goes to the directory's inbox; you stay on the page.[^capture][^inboxfile] `olai surface capture` sends a line from a terminal.[^terminal]
+`Cmd` + `K` opens the palette, a search box with commands under it. It opens pages, searches the directory, runs commands on the row you are zoomed into, and reaches your chats ([search.md](search.md)).[^palette] Type `+` and a line, press `Enter`, and it goes to the directory's inbox; you stay on the page.[^capture][^inboxfile] `olai surface capture` sends a line from a terminal.[^terminal]
 
 [^plus]: The `+` on the **Outlines** heading holds **New outline** and **New document** ([editing.md](editing.md)).
 
@@ -41,6 +41,10 @@ On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` open
 [^inbox]: The inbox is an ordinary outline that captured lines land in, and you can type into it. The **Inbox** badge counts the rows in it marked **To do** or **Doing**, at any depth. A row marked done or cancelled leaves the count, a row with no mark was never in it, and the badge is hidden when the count is zero.
 
 [^panes]: `Alt` + `←` and `Alt` + `→` move the focus only when you are not typing: while the caret is in a row they stay the text box's own word jump, so press `Escape` first. `Alt` + click on a link to a heading inside a document, or on a line of a document's contents, opens that document at the heading. `Cmd` + click, middle-click and `Shift` + click stay the browser's own, and open a new browser tab or window.
+
+[^chatpane]: A conversation is a page of its own address, so it opens in a pane and comes back with a reload like any other page ([node agents](node-agents.md)). **Open beside ›** on a chat puts the row or document it is about in the pane next to it.
+
+    A click on a link inside a chat's pane opens in the pane to its left, or in a new one to its right when there is nothing there, so the conversation stays. Below `md` the panes are a strip of tabs that stays under the header while the page scrolls.
 
 [^pins]: In a row's menu, **Pin to sidebar** pins that row's page, and the entry reads **Unpin from sidebar** once it is pinned. In the palette, **Pin this page** pins the focused pane's page in one press, **Pin this page…** asks what to call a narrowed page first, and **Unpin this page** takes the focused page off the list. With nothing pinned, the list is not drawn at all.
 
@@ -54,7 +58,7 @@ On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` open
 
 [^tabs]: The other ways to open a tab are the `+` at the end of the strip and **Open in new tab** from a link's menu. `Cmd` + `Shift` + `.` and `Cmd` + `Shift` + `,` move to the next and previous tab, and `Cmd` + `Shift` + `X` closes the tab in front, as do its `×` and a middle-click. Right-click a tab for **Duplicate tab** and **Close other tabs**, and drag a tab along the strip to reorder it.
 
-[^tabstate]: The tab in front is the one the address bar, the sidebar, Back and every pane gesture act on, while the sidebar, the agent panel and the palette are shared by every tab. A tab opened from a link opens behind the one in front, and closing the last tab leaves one tab on the front page. Back and Forward move within the tab in front, and closing a tab takes its pages out of them.
+[^tabstate]: The tab in front is the one the address bar, the sidebar, Back and every pane gesture act on, while the sidebar and the palette are shared by every tab. A tab opened from a link opens behind the one in front, and closing the last tab leaves one tab on the front page. Back and Forward move within the tab in front, and closing a tab takes its pages out of them.
 
 [^tabsback]: The open tabs are remembered in this browser, so a reload brings them back, though each tab's Back history starts fresh. A phone has no strip of tabs: **Open in new tab** shows the page straight away, and the tabs from your desk are kept for when you come back to it ([plugins/tabs.md](plugins/tabs.md)).
 
@@ -106,6 +110,7 @@ Drag a pin to reorder the list: press, move, and a line shows where it will land
 | `Alt` + `←` / `Alt` + `→` | Moves focus to the neighbouring pane, when you are not typing |
 | `Cmd` + `Shift` + `W` | Closes the focused pane |
 | `Cmd` + click, middle-click, `Shift` + click | The browser's own: a new browser tab or window |
+| A plain click inside a chat's pane | Opens it in the pane to the left, or in one opened to the right |
 
 | What you want | How |
 | --- | --- |

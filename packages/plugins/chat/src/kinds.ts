@@ -63,11 +63,11 @@
  * would be two answers about one string.
  */
 
-import { canonicalDate, sessionIn } from "@olai/format"
+import { canonicalDate, OPENS_ALONE, OPENS_BESIDE, sessionIn } from "@olai/format"
 
 /** Internal words; other plugins ask chat.seating for the reading. */
-export { SESSION_KIND, SESSION_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE } from "./binding.ts"
-import { SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
+export { OPENS_KIND, OPENS_TYPE, SESSION_KIND, SESSION_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE } from "./binding.ts"
+import { OPENS_KIND, OPENS_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 
 /**
  * The contribution, as `@olai/plugin-api`'s registry reads it — spent by the
@@ -134,7 +134,26 @@ const SLEEPING = {
   },
 } as const
 
-export const kinds = [SESSION, SLEPT, SLEEPING] as const
+/**
+ * WHERE A NOTE'S CHAT OPENS, as a kind — the fourth word this plugin
+ * contributes, and the second one a PERSON writes.
+ *
+ * A NOTE'S FRONT MATTER IS WHERE IT LIVES, which is the one thing that makes it
+ * unlike the three above: the tie on a note is two keys in its YAML block, and
+ * this is the other one. {@link SLEEPING}'s two-word argument holds word for
+ * word — a value somebody types by hand reads as what it means, and the key
+ * being ABSENT is the same answer as `alone` (`./server/agents.ts` asks it).
+ */
+const OPENS = {
+  kind: OPENS_KIND,
+  takes: `\`${OPENS_TYPE}\` (\`${OPENS_ALONE}\` or \`${OPENS_BESIDE}\`)`,
+  admits: (value: string) => {
+    const word = value.trim()
+    return word === OPENS_ALONE || word === OPENS_BESIDE
+  },
+} as const
+
+export const kinds = [SESSION, SLEPT, SLEEPING, OPENS] as const
 
 /**
  * THIS PLUGIN'S OWN VOCABULARY, as `@olai/format` takes one — for the readings
@@ -158,5 +177,6 @@ const OWN = new Map([
   [SESSION_TYPE, { ...SESSION, kind: SESSION_TYPE, claims: SESSION_TYPE }],
   [SLEPT_TYPE, { ...SLEPT, kind: SLEPT_TYPE, claims: SLEPT_TYPE }],
   [SLEEPING_TYPE, { ...SLEEPING, kind: SLEEPING_TYPE, claims: SLEEPING_TYPE }],
+  [OPENS_TYPE, { ...OPENS, kind: OPENS_TYPE, claims: OPENS_TYPE }],
 ])
 export const ownKinds = { built: OWN, enabled: OWN }

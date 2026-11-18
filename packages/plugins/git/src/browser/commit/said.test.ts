@@ -625,11 +625,23 @@ test("the panel promises to record only what there is to record", () => {
   )).toBe(false)
 })
 
-test("filing names its own writer and counts writes, including the Chats root", () => {
-  expect(WHO.filer).toBe("olai filed conversations into the Inbox")
-  expect(wroteOf("filer", 1)).toBe("olai filed into the Inbox · 1 write")
-  expect(wroteOf("filer", 3)).toBe("olai filed into the Inbox · 3 writes")
+test("the move names its own writer and counts writes", () => {
+  expect(WHO.move).toBe("olai moved chats onto their notes")
+  expect(wroteOf("move", 1)).toBe("olai moved chats onto their notes · 1 write")
+  expect(wroteOf("move", 3)).toBe("olai moved chats onto their notes · 3 writes")
   expect(WHO.auto).toBe("auto-commit")
+})
+
+/** The word nothing writes any more. An installed olai signed real commits
+ *  `filer`, so the table owes them a sentence — and it has to read as
+ *  something that HAPPENED, since the server that filed into Inbox › Chats is
+ *  gone. Pending is what is waiting now, which nothing can be waiting as
+ *  `filer`, so it takes the plain fall-through rather than a count sentence
+ *  of its own. */
+test("the retired filer still has a sentence, in the past tense", () => {
+  expect(WHO.filer).toBe("olai filed conversations into the Inbox")
+  expect(WHO.filer).toContain("filed")
+  expect(wroteOf("filer", 2)).toBe("olai filed conversations into the Inbox 2")
 })
 
 // ── the readout as the health dot reads it ─────────────────────────────

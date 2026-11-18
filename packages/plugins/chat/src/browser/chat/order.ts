@@ -151,10 +151,10 @@ const cut = (
 /**
  * The fold: seed from a full-set frame, and step one delta.
  *
- * A MODULE CONSTANT rather than a function called per panel, because it holds
- * nothing — the accumulator is the framework's to keep, one per registration,
- * and two panels open at once (the dock and the mobile sheet are two
- * components) each get their own from the same pair of callbacks.
+ * A MODULE CONSTANT rather than a function called per reader, because it
+ * holds nothing — the accumulator is the framework's to keep, one per
+ * registration, so two conversations drawn at once (two panes, each with its
+ * own) each get their own from the same pair of callbacks.
  *
  * THE STEP REBUILDS THE LISTS ONLY WHEN MEMBERSHIP OR ORDER MOVED, and that
  * distinction is the whole point: a frame naming three keys whose `seq` this

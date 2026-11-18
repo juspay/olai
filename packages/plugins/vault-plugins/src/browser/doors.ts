@@ -10,7 +10,7 @@
  * These four are different in one way — the component that DECLARES them is not
  * the component that DRAWS with them. The sidebar's `+` wants the palette, and
  * the sidebar must keep its rows with navigation switched off; the page wants
- * the agent panel, and the page must keep working with chat switched off; the
+ * the pane beside it, and the page must keep working with chat switched off; the
  * palette's first level wants the engines, and the level must still open where
  * no engine is installed. Each of those is one component declaring the service
  * and a different component asking, every frame, whether anybody is holding it.
@@ -35,7 +35,7 @@
 
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { EnginesService } from "olai-plugin-chat/browser-engines"
-import type { DockDoor } from "olai-plugin-chat/dock"
+import type { BesideDoor } from "olai-plugin-chat/beside"
 import type { Navigation, PaletteControl } from "olai-plugin-navigation/contract"
 
 /** Held by the `palette` component, which declares both of the app shell's
@@ -55,12 +55,12 @@ const lane = heldService<Navigation>()
 export const holdRouter = lane.hold
 export const router = lane.read
 
-/** Held by the `dock` component. `undefined` is a serve with no chat, a chat
- *  with no shell seat, or a phone — and in all three the plugin page simply
- *  does not dock and offers no verb that would. */
-const panel = heldService<DockDoor>()
-export const holdDock = panel.hold
-export const dock = panel.read
+/** Held by the `beside` component. `undefined` is a serve with chat off, or
+ *  one with no router for a pane to open in — and the page's *Ask for a
+ *  change…* row is then not drawn at all. */
+const aside = heldService<BesideDoor>()
+export const holdBeside = aside.hold
+export const beside = aside.read
 
 /** Held by the `engines` component. `undefined` is a serve that offers no
  *  agent at all, where *New plugin* still mints a folder and says so. */

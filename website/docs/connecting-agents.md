@@ -1,7 +1,7 @@
 # Point an agent at a running olai
 
 An agent outside olai talks to a running server over MCP at `/mcp`.[^outside]
-It calls the same tools the agent panel's agents do.[^panel]
+It calls the same tools olai's own agents do.[^panel]
 
 ## Every write goes through the server
 
@@ -79,8 +79,8 @@ once.[^recipes]
 [^outside]: An agent outside olai means a coding agent you run in a terminal,
     a script of your own, or a cron job.
 
-[^panel]: The agent panel is the right-hand panel in the page. The agents in
-    it, and how you talk to them, are [chat.md](chat.md).
+[^panel]: olai's own agents are the ones you chat with in the page. What they
+    are, and how you talk to them, are [chat.md](chat.md).
 
 [^writer]: There are two ways in, the page and `/mcp`, and both go through the
     running server. There is no way in over stdio and no second process:
@@ -93,7 +93,7 @@ once.[^recipes]
     address it got on the `serving` line, and a restart can land on a different
     port ([running.md](running.md#flags)).
 
-[^token]: The agent panel in the page sends the token it was given, which the
+[^token]: A conversation in the page sends the token it was given, which the
     server accepts and ignores. A request from any other address is refused
     unless it carries that token. Calling the server from another machine is
     the closed block at the foot of this page.

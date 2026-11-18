@@ -40,6 +40,8 @@ const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
 const AGENT: NodeAgent = {
+  kind: "node",
+  beside: false,
   id: "health",
   file: "Work.olai",
   title: "Health",

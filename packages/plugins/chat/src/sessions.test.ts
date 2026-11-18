@@ -92,9 +92,13 @@ describe("what it does with a file it cannot make sense of", () => {
     expect((await run(forDirectory(HERE))).at(IN)?.taught).toBeUndefined()
   })
 
-  test("`assigned` is only `true`, the way `taught` is", async () => {
-    already(HERE, [{ agent: "claude", session: "sess-1", assigned: "yes" }])
-    expect((await run(forDirectory(HERE))).at(IN)?.assigned).toBeUndefined()
+  test("a mark this olai no longer keeps is read past rather than refused", async () => {
+    // An older machine's file carries `assigned` — the mark a chat filed onto
+    // a node used to leave. Nothing asks for it now, so the row comes back
+    // whole and without it, rather than the file reading as unreadable.
+    already(HERE, [{ agent: "claude", session: "sess-1", assigned: true, taught: true }])
+    const row = (await run(forDirectory(HERE))).at(IN)
+    expect(row).toEqual({ ...IN, taught: true })
   })
 
   test("`taken` is only a positive whole number; anything else is a session that has taken nothing", async () => {
@@ -197,24 +201,6 @@ describe("what olai writes back", () => {
     expect(heard.rows()).toEqual([{ ...IN, said: { text: "on it", at: "2026-09-02T09:00:00Z" } }])
   })
 
-  test("that a chat was ASSIGNED comes back, which is what teaches it once", async () => {
-    // The migration mark: nothing in a transcript says a conversation was
-    // moved to a node, so a serve that forgot would teach the ordinary
-    // contract and the distillation order would never go out.
-    const heard = await run(forDirectory(HERE))
-    await run(heard.assign(IN))
-    expect((await run(forDirectory(HERE))).at(IN)?.assigned).toBe(true)
-  })
-
-  test("assigning a session already assigned writes nothing at all", async () => {
-    already(HERE, [{ agent: "claude", session: "sess-1", assigned: true }])
-    const heard = await run(forDirectory(HERE))
-    await run(heard.assign(IN))
-    expect(written(HERE)["heard"]).toEqual([
-      { agent: "claude", session: "sess-1", assigned: true },
-    ])
-  })
-
   test("what olai replaced a session WITH is written on the session left behind", async () => {
     const heard = await run(forDirectory(HERE))
     await run(heard.supersede(IN, { agent: "claude", session: "sess-2" }))
@@ -247,15 +233,13 @@ describe("what olai writes back", () => {
   })
 
   test("the marks sit beside each other on one row rather than replacing it", async () => {
-    // A chat assigned to a node, taught, and later given a fresh session is one
-    // conversation with three things overheard about it.
+    // A chat taught and later given a fresh session is one conversation with
+    // two things overheard about it.
     const heard = await run(forDirectory(HERE))
-    await run(heard.assign(IN))
     await run(heard.took(IN, true))
     await run(heard.supersede(IN, { agent: "claude", session: "sess-2" }))
     expect((await run(forDirectory(HERE))).at(IN)).toEqual({
       ...IN,
-      assigned: true,
       taught: true,
       taken: 1,
       superseded: { agent: "claude", session: "sess-2" },

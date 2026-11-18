@@ -9,6 +9,7 @@
     "./browser": "./src/browser.tsx",
     "./*": "./src/*",
     "./routing": "./src/routing.tsx",
+    "./elsewhere": "./src/elsewhere.ts",
     "./routes": "./src/routes.ts",
     "./workspace": "./src/workspace.ts",
     "./landing": "./src/landing.ts",
@@ -16,7 +17,6 @@
     "./palette-model": "./src/palette/items.ts",
     "./palette-asking": "./src/palette/asking.ts",
     "./slots": "./src/slots.ts",
-    "./seat": "./src/seat.tsx",
     "./testids": "./src/testids.ts",
     "./address/address.ts": "./src/address/address.ts",
     "./address/Face.tsx": "./src/address/Face.tsx",
@@ -45,6 +45,7 @@
   "olai": {
     "contracts": [
       "./routing",
+      "./elsewhere",
       "./routes",
       "./workspace",
       "./landing",
@@ -52,7 +53,6 @@
       "./palette-model",
       "./palette-asking",
       "./slots",
-      "./seat",
       "./testids",
       "./address/address.ts",
       "./address/Face.tsx",

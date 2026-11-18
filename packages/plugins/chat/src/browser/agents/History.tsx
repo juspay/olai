@@ -2,7 +2,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, For, Show } from "solid-js"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { historySeat } from "./history.ts"
-import { WITHIN } from "@olai/web/client/layer.ts"
+import { LAYER } from "@olai/web/client/layer.ts"
 import { Conversation } from "../chat/Conversation.tsx"
 import type { Chat } from "../chat/state.ts"
 import { whenOf } from "../chat/when.ts"
@@ -49,7 +49,16 @@ export function History(props: { readonly chat: Chat; readonly node: string }) {
         onClick={() => { picker.shut(); const row = agent(); if (row?.session) props.chat.loadSession(row.engine, row.session) }}>Back to current chat ↩</button>
     }</Show>
     <Show when={picker.open()}>
-      <ul ref={picker.setList} class={`absolute inset-x-3 top-full ${WITHIN.pop} mt-1 max-h-80 list-none overflow-x-hidden overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`} data-testid={TESTID.chatSessionList}>
+      {/* A PAGE LAYER AND NOT A `WITHIN` ONE, because what this list hangs
+          over is not only its own box: the pinned composer is a `sticky`
+          wrapper at {@link LAYER.row} (`./Fold.tsx`, `./Page.tsx`), which is
+          a stacking context of its own in the page's band — so a list in the
+          single-digit band painted UNDER it, and with a short transcript the
+          two overlap and the textarea took the presses meant for the list's
+          top rows. The rule layer.ts states, read straight: anything hanging
+          off a row over the page takes a page layer. `page` is the rung: over
+          the composer, still under the strip, the drawers and the app bar. */}
+      <ul ref={picker.setList} class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-x-hidden overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`} data-testid={TESTID.chatSessionList}>
         <li class="px-2 py-1 text-label text-muted" data-testid={TESTID.chatPastSessions} data-count={past().length}>Earlier chats ({past().length})</li>
         <Key each={past()} by={one => `${one.agent}\0${one.id}`}>{session => <li><Conversation session={session()}
           successor={successorIn(agents.chats()?.sessions ?? [], session())} current={(visiting()?.agent ?? agent()?.engine) === session().agent && (visiting()?.session ?? agent()?.session) === session().id}

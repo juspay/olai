@@ -1,8 +1,6 @@
 import { rowElements } from "./row-elements.ts"
 import { usePane } from "olai-plugin-navigation/pane"
 import { usePaneId, useRouter, useShown } from "olai-plugin-navigation/routing"
-import { PageSeat } from "olai-plugin-navigation/seat"
-import { atFile } from "olai-plugin-navigation/routes"
 /**
  * One whole outline: the roots of a file, expanded.
  *
@@ -341,10 +339,6 @@ export function OutlinePage(props: {
           </div>
         </Show>
       </Editable>
-      {/* THE SEAT, under the whole outline and outside the sweep surface. The
-          place is the FILE this page draws, which is what makes the front
-          page `/` and a landing like `house.olai#install` this outline's. */}
-      <PageSeat place={atFile(props.file)} name={router.routes.name(atFile(props.file)) ?? props.file} />
     </>
   )
 }

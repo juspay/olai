@@ -32,8 +32,14 @@ Feature: What a plugin tells you, and what it waits to tell you
     # the files arriving one at a time the way the guide tells an agent to
     # write them.
     When a conversation about the plugin "timer" called "Timer"
+    # ...and the README keeps the tie the conversation wrote into it, which is
+    # what says the folder is being built (`chat-agent-session` in its front
+    # matter); an agent rewriting its own README keeps the block.
     And I rewrite "plugins/timer/README.md" as:
       """
+      ---
+      chat-agent-session: claude
+      ---
       # Timer
 
       Counts the minutes while you are not looking.
@@ -190,8 +196,8 @@ Feature: What a plugin tells you, and what it waits to tell you
     Then the plugin page is "review"
     When the terminal agent runs the plugin "timer"
     Then the Plugins row "timer" is "review"
-    # The word, because this folder has no README to carry a title.
-    And the notification is titled "timer is ready for you"
+    # The README's own heading, which is the title the conversation wrote.
+    And the notification is titled "Timer is ready for you"
     And there should be no page errors
 
   Scenario: A build that finished before a reboot is still finished after one

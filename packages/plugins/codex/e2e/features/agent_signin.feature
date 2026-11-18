@@ -158,11 +158,12 @@ Feature: Signing in to Codex from inside olai
     And I open the outline "lanes.olai"
     And the agent needs a sign-in
     When I press new chat in Chats
-    And I choose the new chat place "default"
+    And I type "a lane nobody" into the palette
+    And I choose the new chat item "lane-fresh"
     And I choose new chat engine "Codex"
     And I type new chat draft "sign in first"
     And I send the new chat draft
-    Then the pending Inbox conversation is unfolded as "new-chat" with engine "codex"
+    Then the pending conversation is unfolded as "new-chat" with engine "codex"
     And the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"
     And the panel offers a sign-in
@@ -172,16 +173,18 @@ Feature: Signing in to Codex from inside olai
     Then the panel offers no sign-in
     And the panel shows no such refusal
     And the agent is idle
-    And the new Inbox conversation is unfolded as "new-chat" with engine "codex"
+    And the new conversation is unfolded as "new-chat" with engine "codex"
     When I ask the agent "opened after signing in"
     Then the agent has answered "opened after signing in" exactly once
 
   @signin
-  Scenario: A listed Codex chat resumes its own session after signing in
+  Scenario: A stored Codex chat resumes its own session after signing in
     Given I open the app
     And I show the done nodes
+    And I open the outline "lanes.olai"
     And the agent needs a sign-in
-    When I open the filed "codex" conversation "the last conversation" as node "listed-chat"
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "codex" conversation "the last conversation"
+    When I press the agent "lane-fresh"
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"
     And the panel offers a sign-in

@@ -78,10 +78,10 @@ Then("layout has released its document styles and viewport observers", async fun
     window.visualViewport?.dispatchEvent(new Event("resize"));
     window.visualViewport?.dispatchEvent(new Event("scroll"));
     window.dispatchEvent(new Event("resize"));
-    return ["--visible-h", "--visible-bottom", "--width-sidebar", "--width-panel"]
+    return ["--visible-h", "--visible-bottom", "--width-sidebar"]
       .map((name) => document.documentElement.style.getPropertyValue(name));
   });
-  assert.deepStrictEqual(values, ["", "", "", ""]);
+  assert.deepStrictEqual(values, ["", "", ""]);
 });
 
 When("the desktop window narrows to {int} pixels", async function (this: OlaiWorld, width: number) {

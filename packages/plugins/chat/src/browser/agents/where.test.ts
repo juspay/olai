@@ -1,43 +1,57 @@
 import { expect, test } from "bun:test"
-import { whereRows } from "./where.ts"
+import { itemRows } from "./where.ts"
+import type { ItemLocation } from "olai-plugin-chat/wire"
 
-const node = (id: string, parent: string | null = null, path: string[] = []) => ({ id, title: id, file: "work.olai", path, parent })
-const base = { defaultOffered: true, defaultParent: null, here: null, recent: [], nodes: [], typed: "" }
+const node = (id: string, path: string[] = []): ItemLocation =>
+  ({ key: id, kind: "node", title: id, file: "work.olai", path })
+const note = (path: string): ItemLocation =>
+  ({ key: `/${path}`, kind: "note", title: path.slice(path.lastIndexOf("/") + 1, -3), file: path, path: [] })
+const base = { here: null, recent: [], items: [], typed: "" }
 
-test("Default leads, then Here, then Recent; Nodes only once something is typed", () => {
-  const rows = whereRows({ ...base, here: "here", recent: ["agent"], nodes: [node("here"), node("agent", "home"), node("home")] })
-  expect(rows.map(row => [row.section, row.node?.id])).toEqual([["Default", undefined], ["Here", "here"], ["Recent", "home"]])
+test("Here leads, then Recent; the searched sections only once something is typed", () => {
+  const rows = itemRows({ ...base, here: "here", recent: ["agent"], items: [node("here"), node("agent"), node("home")] })
+  expect(rows.map(row => [row.section, row.item.key])).toEqual([["Here", "here"], ["Recent", "agent"]])
 })
 
-test("Recent deduplicates parents, skips the default container and stops at five", () => {
-  const parents = Array.from({ length: 10 }, (_, i) => node(`parent${i}`))
-  const children = parents.map(one => node(`child-${one.id}`, one.id))
-  const rows = whereRows({ ...base, defaultParent: "chats-2",
-    nodes: [node("chats-2"), node("default-child", "chats-2"), ...parents, ...children, node("duplicate", "parent0")],
-    recent: ["default-child", "duplicate", ...children.map(one => one.id)] })
-  expect(rows.map(row => row.node?.id)).toEqual([undefined, "parent0", "parent1", "parent2", "parent3", "parent4"])
+// NOTHING IS OFFERED BY DEFAULT: a chat is about a thing the person picked,
+// and with nothing typed, nowhere to stand and no chats behind them there is
+// no row to press.
+test("with nowhere to stand and nothing typed there is no row at all", () => {
+  expect(itemRows({ ...base, items: [node("home")] })).toEqual([])
 })
 
-test("no Inbox entry, no Default row — the rest still offered", () => {
-  const rows = whereRows({ ...base, defaultOffered: false, here: "here", nodes: [node("here")] })
-  expect(rows.map(row => row.section)).toEqual(["Here"])
+test("Here takes the focused pane's note", () => {
+  const rows = itemRows({ ...base, here: "/notes/plan.md", items: [note("notes/plan.md")] })
+  expect(rows.map(row => [row.section, row.item.key])).toEqual([["Here", "/notes/plan.md"]])
 })
 
-test("typing filters every section by title and trail, and caps Nodes at twenty", () => {
-  const nodes = [node("here"), ...Array.from({ length: 40 }, (_, i) => node(`garden${i}`, null, ["Plans"]))]
-  const rows = whereRows({ ...base, here: "here", nodes, typed: "plans" })
-  expect(rows.some(row => row.section === "Default" || row.section === "Here")).toBe(false)
+test("Recent stops at five", () => {
+  const items = Array.from({ length: 10 }, (_, i) => node(`chat${i}`))
+  const rows = itemRows({ ...base, items, recent: items.map(one => one.key) })
+  expect(rows.map(row => row.item.key)).toEqual(["chat0", "chat1", "chat2", "chat3", "chat4"])
+})
+
+test("typing filters every section by title and trail, and caps each kind at twenty", () => {
+  const items = [
+    node("here"),
+    ...Array.from({ length: 40 }, (_, i) => node(`garden${i}`, ["Plans"])),
+    ...Array.from({ length: 40 }, (_, i) => note(`plans/garden${i}.md`)),
+  ]
+  const rows = itemRows({ ...base, here: "here", items, typed: "plans" })
+  expect(rows.some(row => row.section === "Here")).toBe(false)
   expect(rows.filter(row => row.section === "Nodes")).toHaveLength(20)
-  expect(whereRows({ ...base, typed: "inbox" }).map(row => row.section)).toEqual(["Default"])
+  expect(rows.filter(row => row.section === "Notes")).toHaveLength(20)
 })
 
-test("a node is listed once, under the first section that names it", () => {
-  const rows = whereRows({ ...base, here: "home", recent: ["agent"], nodes: [node("home"), node("agent", "home")], typed: "o" })
-  expect(rows.filter(row => row.node?.id === "home").map(row => row.section)).toEqual(["Here"])
-  expect(new Set(rows.map(row => row.node?.id)).size).toBe(rows.length)
+test("an item is listed once, under the first section that names it", () => {
+  const rows = itemRows({ ...base, here: "home", recent: ["/notes/home.md"],
+    items: [node("home"), note("notes/home.md")], typed: "ho" })
+  expect(rows.map(row => [row.section, row.item.key]))
+    .toEqual([["Here", "home"], ["Recent", "/notes/home.md"]])
 })
 
-test("the default container is never offered again under another heading", () => {
-  const rows = whereRows({ ...base, defaultParent: "chats", here: "chats", nodes: [node("chats")], typed: "" })
-  expect(rows.map(row => row.section)).toEqual(["Default"])
+test("the searched nodes come before the searched notes", () => {
+  const rows = itemRows({ ...base, items: [note("plans/garden.md"), node("garden")], typed: "garden" })
+  expect(rows.map(row => [row.section, row.item.key]))
+    .toEqual([["Nodes", "garden"], ["Notes", "/plans/garden.md"]])
 })

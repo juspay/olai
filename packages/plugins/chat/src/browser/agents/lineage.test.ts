@@ -42,6 +42,8 @@ const CHAIN: ReadonlyArray<SessionInfo> = [
 
 const bound = (session: string | null, engine = "claude"): Agents => [{
   id: "spaces",
+  kind: "node",
+  beside: false,
   file: "lanes.olai",
   title: "Xyne Spaces",
   engine,

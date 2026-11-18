@@ -32,12 +32,7 @@
  *     the count on every boot, and one that counted from the transcript would
  *     count words the agent never took. Written in the SAME write as `taught`,
  *     so the two cannot disagree about the message that carried the contract.
- *   - {@link Overheard.assigned} — that this session was MOVED to a node agent
- *     rather than opened for one. It decides WHICH of the two standing
- *     instructions goes out ({@link ./teaching.ts}), and it is the same kind of
- *     fact `taught` is: a gesture happened once and nothing can re-derive it —
- *     the transcript of a chat somebody assigned is indistinguishable from the
- *     transcript of one olai opened for a node.
+ *
  *   - {@link Overheard.superseded} — the conversation that replaced this one,
  *     as the FULL PAIR `{agent, session}`, WHERE OLAI ITSELF DID THE
  *     REPLACING. The adapter reports a `/clear` in its own corner of
@@ -71,8 +66,8 @@
  * None of them could be put in the vault without writing to the board on every
  * turn, which is a commit on every turn — so the ruling's line is kept where it
  * is drawn: config in the vault, bookkeeping on the machine. WHICH node a
- * session belongs to is the config half and is the property; that a chat was
- * assigned, and what replaced it, are things that HAPPENED here. `seen` is the
+ * session belongs to is the config half and is the property; what replaced a
+ * conversation is a thing that HAPPENED here. `seen` is the
  * same argument in its sharpest form: it is the one field here nobody could
  * hand-write even if they wanted to, because "I have read this" is not a
  * statement about the conversation at all — it is a statement about the PERSON,
@@ -93,8 +88,8 @@
  *
  * Nobody hand-writes this file — the gesture that binds a node writes a
  * property now, and these rows appear behind turns a person is having and
- * behind the two gestures that move a binding. So it grows one row per session
- * that is ever taught, assigned, replaced or overheard, and it is capped the way
+ * behind the gestures that move a binding. So it grows one row per session
+ * that is ever taught, replaced or overheard, and it is capped the way
  * {@link ./scopes.ts} is and for the same reason: {@link ROWS} rows,
  * least-recently-touched evicted, because a count cap costs no probe and cannot
  * be wrong about a conversation it has never asked about. What an eviction
@@ -207,18 +202,6 @@ export interface Overheard extends Conversing {
    * which costs one reminder later than it would have come.
    */
   readonly taken?: number
-  /**
-   * This session was ASSIGNED to a node agent — an ordinary chat given a home
-   * rather than a conversation opened for one.
-   *
-   * NOT CLEARED when a node lets it go, because what it says is how this
-   * conversation ARRIVED, and that does not stop having happened. It is read
-   * together with {@link taught} in the one place that asks, so a session
-   * taught its migration contract is never taught a second one.
-   */
-  readonly assigned?: boolean
-  /** Inherited manual wakes were cleared when this conversation was filed. */
-  readonly wakesCleared?: true
   /** The conversation that REPLACED this one, as the PAIR `{agent, session}`,
    *  where olai made the replacement — fresh start may hand the node to
    *  another engine, and the successor is whoever the node runs now. Absent
@@ -274,15 +257,6 @@ export interface Sessions {
    * write the same next value.
    */
   readonly took: (to: Conversing, taught: boolean) => Effect.Effect<void, MemoryFailure>
-  /**
-   * Mark this conversation as ASSIGNED to a node agent — said once, by the
-   * gesture that writes the pointer onto a node (`@olai/server`'s
-   * `assignSession`), and after the property has landed rather than before it.
-   *
-   * A no-op for one already marked, for `taught`'s reason: the row already
-   * says what this would write, and a chat is assigned once.
-   */
-  readonly assign: (to: Conversing, wakesCleared?: true) => Effect.Effect<void, MemoryFailure>
   /**
    * ... and write down that OLAI replaced this conversation with another —
    * said by the gesture that re-points a bound node at a fresh session.
@@ -364,6 +338,12 @@ interface Written {
  * acknowledged in, which costs one unread mark that a look at the conversation
  * clears — and it is the right way round, since the other reading would be a
  * conversation marked read that nobody has looked at.
+ *
+ * A FIELD THIS OLAI NO LONGER KEEPS IS SIMPLY NOT READ, which is what makes an
+ * older machine's file a file this one can read: every row is rebuilt field by
+ * field from the names below, so a key nothing here asks for (the `assigned`
+ * mark an older olai wrote when a chat was filed onto a node) is dropped
+ * silently rather than refused.
  */
 const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
   const written = (held as Written).heard
@@ -382,8 +362,6 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
       session,
       ...(one["taught"] === true ? { taught: true } : {}),
       ...(typeof taken === "number" && Number.isSafeInteger(taken) && taken > 0 ? { taken } : {}),
-      ...(one["assigned"] === true ? { assigned: true } : {}),
-      ...(one["wakesCleared"] === true ? { wakesCleared: true as const } : {}),
       ...supersededIn(one["superseded"], agent),
       ...saidIn(one["said"]),
       ...(seen === null ? {} : { seen }),
@@ -488,12 +466,6 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
           ...(taught ? { taught: true } : {}),
           taken: (row?.taken ?? 0) + 1,
         })),
-      assign: (to, wakesCleared) =>
-        write(
-          to,
-          (row) => (row?.assigned === true && (wakesCleared !== true || row.wakesCleared === true)
-            ? undefined : { ...row, ...to, assigned: true, ...(wakesCleared === true ? { wakesCleared: true as const } : {}) }),
-        ),
       supersede: (to, by) =>
         write(
           to,

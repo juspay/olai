@@ -40,7 +40,6 @@ export const tools = location<LayoutTool>("layout.tools")
 import { serviceTag } from "@olai/plugin-api/contracts"
 import type { Accessor } from "solid-js"
 import type { SetOptions } from "@olai/web/client/preference.ts"
-import type { ChatSnap } from "./layout/prefs.ts"
 /**
  * WHAT THIS DEPLOYMENT CALLS ITSELF, and how long it has been up.
  *
@@ -103,10 +102,9 @@ export const thumbs = location<Thumb>("layout.thumbs")
 /**
  * THE SHELL'S GEOMETRY, as a row that draws inside it reads it.
  *
- * Six rows want some of this: whether the viewport is at the desktop
- * breakpoint, whether the right panel is open and how wide it is (and the
- * verb that opens it), whether the directory column is a column or a rail,
- * and the drag handle that resizes the panel. Every one of them used to reach a module signal in `./layout/prefs.ts`
+ * Several rows want some of this: whether the viewport is at the desktop
+ * breakpoint, whether the directory column is a column or a rail, and how
+ * wide it is. Every one of them used to reach a module signal in `./layout/prefs.ts`
  * or `./layout/media.ts` — declared doors carrying live state — so none of them
  * declared a dependency on the shell, none of them stopped asking when it left,
  * and a serve with no layout row answered every question with a default that
@@ -117,7 +115,7 @@ export const thumbs = location<Thumb>("layout.thumbs")
  * It is not the bar. `Bar` is the chrome's three facts about ONE PLACE — the
  * pill's classes, its breakpoint, its popover — and a row that draws a readout
  * up there names it. This is the shell's geometry, which is what a row drawing
- * a PAGE or a PANEL wants and is a different question; `desktop` is on both
+ * a PAGE wants and is a different question; `desktop` is on both
  * because it is one media query and the two callers are asking it about
  * different things.
  *
@@ -146,24 +144,9 @@ export interface Shell {
   /** Live width, clamped to the current viewport. */
   readonly sidebarWidth: Accessor<number>
   readonly setSidebarWidth: (px: number, opts?: SetOptions) => void
-  /** Whether the seat's panel — the column on the right of the page — is
-   *  open. The frame draws it only while the `app.panel` seat is taken AND
-   *  this says so, on a desktop; the occupant opens it when it has something
-   *  to put there, and closes it from its own face. */
-  readonly panelOpen: Accessor<boolean>
-  readonly setPanelOpen: (open: boolean) => void
-  readonly togglePanel: () => void
-  readonly panelWidth: Accessor<number>
-  readonly setPanelWidth: (px: number, opts?: SetOptions) => void
-  readonly panelSnap: Accessor<ChatSnap>
-  readonly setPanelSnap: (snap: ChatSnap) => void
-  /** Put the sidebar (and the seat's panel) back to default widths — the
-   *  palette's command. */
-  readonly resetPanelWidths: () => void
-  /** The panel's own drag handle, drawn by whoever is in the seat. The BOX is
-   *  the shell's and what is inside it is the tenant's, so the handle travels
-   *  with the geometry rather than as a slot the tenant fills. */
-  readonly PanelHandle: () => JSX.Element
+  /** Put the directory column back to its default width — the palette's
+   *  command. */
+  readonly resetSidebarWidth: () => void
 }
 export const shell = serviceTag<Shell>("layout.shell")
 

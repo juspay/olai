@@ -50,7 +50,7 @@ Feature: A fresh start may pick a different engine
     And the agents roster holds 1 agents
     When I open the node menu of "install"
     Then the node menu does not offer "Start an agent"
-    And the node menu offers "Close the agent"
+    And the node menu offers "Close the chat"
     # Fresh start is one entry: a submenu of the agents, the node's own first.
     And chat's "Fresh start" in the node menu opens a submenu
     When I open the node menu's "Fresh start" agents

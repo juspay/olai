@@ -38,13 +38,12 @@
   --color-doing: #8A5800;
   --color-alarm: #C0313F;
 
-  /* Panel widths. The reader owns the live values: layout/css.ts writes pixel
-   * lengths onto `:root` from localStorage preferences, and both the dock and
-   * the padding App reserves for it read the same custom property so they
-   * cannot drift. The rail is not a preference — it is the fixed collapsed
-   * face of the sidebar. The sidebar is 17rem: a column of names and counts,
-   * not a second page. The panel is the chat dock's. */
-  --width-panel: 26rem;
+  /* Column widths. The reader owns the live value: layout/css.ts writes a
+   * pixel length onto `:root` from the stored preference, and both the sidebar
+   * column and the padding the app reserves for it read the same custom
+   * property so they cannot drift. The rail is not a preference — it is the
+   * fixed collapsed face of the sidebar. The sidebar is 17rem: a column of
+   * names and counts, not a second page. */
   --width-sidebar: 17rem;
   --width-rail: 3rem;
 

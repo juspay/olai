@@ -19,7 +19,8 @@ Feature: A long conversation arrives at its end, and a reconnect keeps what the 
 
   Background:
     Given I open the outline "house.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
 
   Scenario: A re-seeding redial keeps every row the tab already holds

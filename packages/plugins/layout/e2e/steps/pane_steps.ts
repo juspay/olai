@@ -257,6 +257,55 @@ Then("there are {int} pane tabs", async function (this: OlaiWorld, n: number) {
   );
 });
 
+/**
+ * A PHONE SCROLLS THE DOCUMENT, so this is the window's own scroll — what a
+ * reader does half-way down a long conversation.
+ *
+ * IT FAILS WHEN THE PAGE DID NOT SCROLL, which is the whole of its worth: the
+ * step used to ask for a scroll, wait 150 ms and assert nothing, so a page
+ * with nothing to scroll — or one whose scroll went to a box instead of the
+ * document — passed every assertion about what "stays in view" afterwards. A
+ * document with no room to scroll is the failure, not a quiet pass.
+ *
+ * NO FIXED WAIT: the end is waited FOR, by reading the scroll back until it
+ * is at the bottom (smooth scrolling and a transcript still settling both
+ * land here), and a scroll that never arrives fails as itself.
+ */
+When("I scroll the page to its end", async function (this: OlaiWorld) {
+  const room = await this.page.evaluate(() => {
+    const doc = document.documentElement
+    window.scrollTo(0, doc.scrollHeight)
+    return doc.scrollHeight - window.innerHeight
+  });
+  assert.ok(room > 1, `the page has nothing to scroll: ${room}px of room under the viewport`);
+  await this.waitUntil(
+    async () => await this.page.evaluate(() =>
+      window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2),
+    "the page to be scrolled to its end",
+  );
+});
+
+/** ...and the strip is still there afterwards, pinned under the app header:
+ *  the way back to the page a conversation is about must not scroll away.
+ *
+ *  THE SCROLL IS RE-ASSERTED HERE, because this is the step a scenario trusts:
+ *  a strip at the top of an UNSCROLLED page is where a strip always is, and
+ *  says nothing about what happens when a person reads to the end. */
+Then("the pane tabs stay under the header", async function (this: OlaiWorld) {
+  const tabs = this.frontLane().locator(PANE_TABS);
+  await tabs.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const scrolled = await this.page.evaluate(() => window.scrollY);
+  assert.ok(scrolled > 0, "the page is not scrolled, so nothing here is about staying in view");
+  const header = await this.page.locator(APP_HEADER).boundingBox();
+  const box = await tabs.boundingBox();
+  assert.ok(header && box && Math.abs(box.y - header.y - header.height) <= 1,
+    `the pane strip scrolled away: ${JSON.stringify({ header, box, scrolled })}`);
+  // THE BAR ITSELF IS STILL THERE TOO: the strip is pinned UNDER it, so a bar
+  // that scrolled away would take the strip with it and this measurement
+  // would still agree.
+  assert.ok(header && Math.abs(header.y) <= 1, `the app header scrolled away: ${JSON.stringify(header)}`);
+});
+
 When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index: number) {
   await this.pane(index).evaluate(root => {
     let host = root.parentElement
@@ -334,4 +383,103 @@ When("I widen the first pane by dragging its divider", async function (this: Ola
   await this.page.mouse.up();
   await this.waitUntil(async () => new URL(this.page.url()).searchParams.get("w") !== before,
     "the resize to change the workspace widths");
+});
+
+// ── each tab's own place in the page ───────────────────────────────────
+//
+// A split below `md` is a strip of tabs over ONE page, and the thing that
+// scrolls there is the document — so "where this tab stands" is the window's
+// own scroll, read at the moment a scenario asks and compared after a tab has
+// been away and come back. The failure these are written against is a tab
+// that inherits wherever the tab before it left the window.
+
+/** What a scenario remembered about the tab it was reading. One per world,
+ *  and a world is one scenario, so nothing here outlives the run. */
+const stood = new WeakMap<OlaiWorld, number>();
+
+/**
+ * Down a screen, and no further: part way through a long page is the only
+ * place a drifting restore shows. Fails when the page had nowhere to go,
+ * which is a scenario asserting nothing.
+ *
+ * AND IT WAITS FOR THE PAGE TO SETTLE THERE. A document whose blocks are
+ * still being drawn moves under a scroll that lands in the middle of it, so
+ * what the next step remembers has to be where the page CAME TO REST rather
+ * than the number this step asked for — otherwise the scenario is about this
+ * step's own race and not about tabs at all.
+ */
+When("I scroll this tab down a screen", async function (this: OlaiWorld) {
+  const room = await this.page.evaluate(() => {
+    window.scrollTo({ top: window.innerHeight, behavior: "instant" });
+    return document.documentElement.scrollHeight - window.innerHeight;
+  });
+  assert.ok(room > 1, `this tab has nothing to scroll: ${room}px of room under the viewport`);
+  let was = "";
+  let still = 0;
+  await this.waitUntil(async () => {
+    const now = await this.page.evaluate(() => `${window.scrollY}/${document.documentElement.scrollHeight}`);
+    still = now === was ? still + 1 : 0;
+    was = now;
+    // THREE READINGS THE SAME, position and height both: a document drawing
+    // its blocks is still the same height for one reading at a time, and a
+    // page that settles and then moves again is the thing this is waiting
+    // out.
+    return still >= 3 && !now.startsWith("0/");
+  }, "this tab to come to rest part way down its page");
+});
+
+/** Where the page stands now, as the place this tab must come back to. */
+When("I remember where this tab stands", async function (this: OlaiWorld) {
+  stood.set(this, await this.page.evaluate(() => window.scrollY));
+});
+
+When("I press Alt+Left", async function (this: OlaiWorld) {
+  await pressed(this, "Alt+ArrowLeft");
+});
+
+/** BACK WHERE IT WAS, read once rather than waited for: putting a tab back is
+ *  part of the same update that draws it, so a place that is not there by the
+ *  frame after the switch is the bug — and the number it came back at is the
+ *  whole of what a failure has to say. */
+Then("this tab stands where it was left", async function (this: OlaiWorld) {
+  const was = stood.get(this);
+  assert.ok(was !== undefined, "no scenario remembered where this tab stood");
+  assert.ok(was > 0, "the tab was remembered at the top, where every tab starts");
+  await this.waitForFrame();
+  const now = await this.page.evaluate(() => ({
+    at: window.scrollY,
+    room: document.documentElement.scrollHeight - window.innerHeight,
+  }));
+  assert.ok(Math.abs(now.at - was) <= 2,
+    `this tab was left at ${was}px and came back at ${now.at}px (${now.room}px of room): each tab keeps its own place`);
+});
+
+/** THE NEWEST LINE, on a phone — the document is the chat's scrollport there,
+ *  so a conversation opened at its end is a window scrolled to the bottom. */
+Then("this tab is at the end of what it shows", async function (this: OlaiWorld) {
+  const seen = { at: 0, room: 0 };
+  await this.waitUntil(async () => {
+    Object.assign(seen, await this.page.evaluate(() => ({
+      at: window.scrollY,
+      room: document.documentElement.scrollHeight - window.innerHeight,
+    })));
+    return seen.room > 1 && seen.at >= seen.room - 48;
+  }, "this tab to stand at the end of what it shows").catch(() => {
+    assert.fail(`this tab stands at ${seen.at}px of ${seen.room}px: a chat opens at its newest line`);
+  });
+});
+
+/** THE FIRST LINE — a page this tab has not shown before opens where every
+ *  page opens, at its top. Read once rather than waited for, and after a
+ *  frame: putting an arriving tab where it belongs is part of the update that
+ *  draws it, so a wait would only be waiting for a drift to arrive. The page
+ *  must have had somewhere to drift TO, or this says nothing. */
+Then("this tab is at the top of what it shows", async function (this: OlaiWorld) {
+  await this.waitForFrame();
+  const now = await this.page.evaluate(() => ({
+    at: window.scrollY,
+    room: document.documentElement.scrollHeight - window.innerHeight,
+  }));
+  assert.ok(now.room > 1, `this tab shows nothing taller than the screen: ${now.room}px of room`);
+  assert.ok(now.at <= 2, `this tab stands at ${now.at}px of ${now.room}px: a page it has not shown opens at its top`);
 });

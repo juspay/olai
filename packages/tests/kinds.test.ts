@@ -35,14 +35,25 @@ const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\
 
 test("the suffix sweep reads the repository and the actual registrations", async () => {
   expect(sources.length).toBeGreaterThan(100)
-  const registrations = sources.filter(source => /^packages\/plugins\/[^/]+\/src\/server\.ts$/.test(source.file) && /\bFileKinds\b/.test(source.code))
+  // THE ROWS THAT CLAIM A KIND, which is not every row that names the
+  // registry: a plugin may READ `FileKinds` to ask what this build serves
+  // without claiming anything itself (chat asks whether a note's kind is
+  // claimed at all before it runs its one-time move). What marks a claim is
+  // the registration, and the convention is that the claim is inert in
+  // `./claim.ts`.
+  const naming = sources.filter(source => /^packages\/plugins\/[^/]+\/src\/server\.ts$/.test(source.file) && /\bFileKinds\b/.test(source.code))
+  const registrations = naming.filter(source => /register\(claim\)/.test(source.code))
   expect(registrations.length).toBeGreaterThan(0)
+  // ...and a row holding a claim module registers it: a `claim.ts` nobody
+  // registers is a kind this sweep would otherwise never see.
+  for (const reader of naming.filter(source => !registrations.includes(source))) {
+    expect(reader.code).not.toMatch(/import\s*\{\s*claim\s*\}\s*from\s*["']\.\/claim\.ts["']/)
+  }
   for (const server of registrations) {
     const row = server.file.slice(0, -"src/server.ts".length)
     const { claim } = await import(pathToFileURL(resolve(ROOT, row, "src/claim.ts")).href) as { claim: Omit<Claim, "kind"> }
     // Follow the row's registration to its inert claim module. No second
     // roster of suffixes or allowed server filenames lives in this sweep.
-    expect(server!.code).toMatch(/register\(claim\)/)
     expect(server!.code).toMatch(/import\s*\{\s*claim\s*\}\s*from\s*["']\.\/claim\.ts["']/)
     for (const ext of claim.exts) {
       const spelled = new RegExp(`["']${escape(ext)}["']`)

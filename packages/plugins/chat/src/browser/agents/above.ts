@@ -45,8 +45,8 @@ interface Graph {
 
 /** One graph per page reading. `Shown` is an immutable snapshot, so a `WeakMap`
  *  is enough: a new reading is a new object, and a page nobody holds is
- *  collectable. This matters because every agent line (a page, each fold, the
- *  dock) asks in its own memo; without it each one rebuilt every open page's
+ *  collectable. This matters because every agent line (a page, each fold, a
+ *  chat page) asks in its own memo; without it each one rebuilt every open page's
  *  whole tree on every roster or page frame. */
 const graphs = new WeakMap<Shown, Graph>()
 
@@ -147,7 +147,7 @@ export const agentAbove = (trail: ReadonlyArray<string>, roster: Roster): Row | 
   // Reversed: the CLOSEST ancestor is the last crumb, and the pill names only
   // that one even where several ancestors have agents.
   for (let at = trail.length - 1; at >= 0; at--) {
-    const row = roster.chatAt({ kind: "row", id: trail[at]! })
+    const row = roster.at(trail[at]!)
     if (row !== undefined) return row
   }
   return undefined

@@ -31,8 +31,8 @@
  * ## The trail is read here, not passed in
  *
  * Every surface that draws either shape already knows its node, and only the
- * node: asking `./above.ts` for its ancestors means a folded row, a docked
- * conversation and a page's head answer one question one way. The memo tracks
+ * node: asking `./above.ts` for its ancestors means a folded row, a chat page
+ * and a page's head answer one question one way. The memo tracks
  * the pages and the roster, so an agent started or stopped above retargets the
  * pill in place.
  */
@@ -116,7 +116,7 @@ export function CrumbMark(props: { readonly node: string }) {
   const agents = useAgents()
   const router = useMaybeRouter()
   return (
-    <Show when={agents.chatAt({ kind: "row", id: props.node })}>
+    <Show when={agents.at(props.node)}>
       {(row) => (
         <Tip text={`Open the conversation with ${agents.named(row()).name}`}>
           <button
@@ -133,7 +133,7 @@ export function CrumbMark(props: { readonly node: string }) {
               event.preventDefault()
               event.stopPropagation()
               if (router === undefined) return
-              focusAgent(router, agents, row())
+              focusAgent(router, row())
               // What a followed link says after it moved (`routing.tsx`'s
               // `follow`), so a palette or a header box closes itself.
               event.currentTarget.dispatchEvent(new CustomEvent("olai-navigated", { bubbles: true }))

@@ -11,9 +11,10 @@ const p = await b.newPage({ viewport: { width: 1440, height: 900 } })
 await p.goto(url)
 await p.waitForSelector('[data-testid="outline-list"]')
 // A new chat from the `+` on the sidebar's Chats heading: the palette opens
-// at New chat, the default place is taken, and the first message creates it.
+// at New chat, whose rows are the items a chat can be about — the first is
+// what the focused pane is showing — and the first message starts it.
 await p.locator('[data-testid="chat-new"]').click()
-await p.locator('[data-testid="palette-item"][data-id="new-chat-default"]').click()
+await p.locator('[data-testid="palette-item"]').first().click()
 await p.locator('[data-testid="palette-input"]').fill("hold")
 await p.locator('[data-testid="palette-input"]').press("Enter")
 await p.locator('[data-testid="chat-input"]').waitFor()

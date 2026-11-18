@@ -19,8 +19,36 @@
  * snapshot. The caller supplies that snapshot; there is no second live store
  * behind this door, and no conversation process is needed to read a seat.
  */
-import { agentsIn, declarationsOf, type Derived } from "@olai/format"
-import { ownKinds, SESSION_TYPE } from "./kinds.ts"
+import { agentsIn, declarationsOf, type Derived, type NodeAgents, notesIn, type Reading } from "@olai/format"
+import { OPENS_TYPE, ownKinds, SESSION_TYPE } from "./kinds.ts"
 
 export const seatingIn = (derived: Derived) =>
   agentsIn(derived, declarationsOf(derived, ownKinds), SESSION_TYPE)
+
+/**
+ * ...AND THE WHOLE ROSTER, which is the NODES above and then the NOTES — the
+ * reading this plugin's own server builds its carrier from.
+ *
+ * TWO READINGS AND ONE ORDER. A node keeps its tie as a property on its row and
+ * its memory in the rows under it; a note keeps its tie in the YAML block at the
+ * top of the file and IS its own memory. Nothing else can have one. They are
+ * joined here, nodes first and then notes in corpus order, because the join is
+ * the roster — every lookup below it is by ITEM KEY (`@olai/format`'s
+ * `itemKey`: a node's id, or `/` and a note's path), and a second assembly
+ * somewhere else would be a second answer to what the roster is.
+ *
+ * IT TAKES A READING AND NOT A DERIVATION, which is the one thing that keeps it
+ * out of the door above: the notes are read off the SET (the documents the
+ * directory holds and their front matter), and a derivation carries records. So
+ * the offered `chat.seating` stays the node reading — that is the question a
+ * mirror asks, and the only one it can answer from what it holds.
+ */
+export const rosterIn = (
+  reading: Pick<Reading, "set" | "claims" | "derived">,
+): NodeAgents => {
+  const declarations = declarationsOf(reading.derived, ownKinds)
+  return [
+    ...agentsIn(reading.derived, declarations, SESSION_TYPE),
+    ...notesIn(reading.set, reading.claims, declarations, SESSION_TYPE, OPENS_TYPE),
+  ]
+}

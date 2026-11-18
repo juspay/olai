@@ -292,4 +292,9 @@ describe("what the README says this is", () => {
   test("prose with no heading still has a sentence", () => {
     expect(toldBy("Just prose.\n")).toEqual({ title: "", description: "Just prose." })
   })
+
+  test("the front matter that ties the builder chat is not the title or the sentence", () => {
+    expect(toldBy("---\nchat-agent-session: claude:abc\n---\n# Swatch\n\nA colour swatch.\n"))
+      .toEqual({ title: "Swatch", description: "A colour swatch." })
+  })
 })

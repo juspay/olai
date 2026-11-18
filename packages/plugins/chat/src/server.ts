@@ -1,5 +1,4 @@
-import { newChat, chatLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
-import { aboutIn, chatsIn, placeIn, type Placed } from "./server/places.ts"
+import { newChat, itemLocations, type LocationQuery, type NewChatInput, seated } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -74,9 +73,13 @@ import { conversationsProvision } from "./server/conversations.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
+  type AgentItem,
   documentAt,
-  type NodeAgent,
+  isMarkdown,
+  itemKey,
+  itemOf,
   type OpFailure,
+  notesClaimed,
   othersOf,
   type Reading,
   UsageFailure,
@@ -86,6 +89,7 @@ import {
   Clock,
   definePlugin,
   Env,
+  FileKinds,
   Kinds,
   LocalState,
   Offers,
@@ -106,12 +110,12 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@kolu/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect, Scope, Semaphore } from "effect"
+import { Deferred, Duration, Effect, Scope, Semaphore, Stream } from "effect"
 
 import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
-import { makeFiler } from "./server/filer.ts"
+import { applyMoves } from "./server/move.ts"
 import type { Forecast } from "./wire.ts"
 import { type Asked, makeSleeper, START } from "./server/sleep.ts"
 import { readings } from "./server/readings.ts"
@@ -123,12 +127,17 @@ import { openLocalState } from "./local.ts"
 import { forLocalState as liveIn } from "./live.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
-import { seatingIn } from "./seating.ts"
+import { rosterIn, seatingIn } from "./seating.ts"
 import { Config, SLEEP_OFF, sleepingPolicy } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
-import { roster as agentsRoster } from "./server/agents.ts"
-import { closeAgent, type Binding, setSleeping, startAgentSession } from "./server/binding.ts"
+// WHY A SESSION MAY NOT WRITE THE KEY IT IS SEATED ON — the clause the ticket
+// below carries, and the one the STANDING reservation on that key spends
+// (`./policy.ts`, enforced at every agent face whether or not this row is
+// composed). One word, one answer.
+import { OPENS, SEATS } from "./policy.ts"
+import { roster as agentsRoster, type RosterReading } from "./server/agents.ts"
+import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, retie, setOpens, setSleeping, startAgentSession } from "./server/binding.ts"
 import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -173,19 +182,6 @@ interface VaultRevision {
 const asFailure = (refusal: Refusal): OpFailure => refusal as OpFailure
 
 /**
- * WHY A SESSION MAY NOT WRITE THE KEY IT IS SEATED ON — this plugin's own
- * sentence, carried on the ticket beside the keys it is about.
- *
- * A node agent may write the vault and still may not rewrite the property that
- * says WHICH conversation it is: that is the binding rather than the work, and
- * it is a person's gesture in the panel. The refusal spends this clause
- * verbatim (`@olai/ops`' `doorRefusal`), which is why it reads as a reason and
- * starts in lower case.
- */
-const SEATS =
-  "it is what seats a conversation on a node, and that is a person's gesture in the panel"
-
-/**
  * ...AND WHY IT MAY NOT WRITE THE MEMO OF ITS OWN SLEEP, which is the second
  * key a seated session is refused.
  *
@@ -209,14 +205,14 @@ const MEMO =
  * decision, and the row-menu verb is where it is made.
  */
 const SLEEPING_MARK =
-  "it is whether olai may tidy this chat on its own, which is a person's choice in the panel"
+  "it is whether olai may tidy this chat on its own, which is a person's choice at the chat's own controls"
 
 export default definePlugin({
   environment: [
     {"key": "OLAI_AGENT_PATH", "secret": false, "says": "the directories containing agent executables"},
   ],
   name,
-  needs: [Bundle, Env, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
+  needs: [Bundle, Env, FileKinds, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
   config: Config,
   apply: (settings) => Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
@@ -229,6 +225,10 @@ export default definePlugin({
     // rather than per tick (`./settings.ts` holds the words and the rule).
     const sleeping = settings.sleep === "on"
     const spans = sleepingPolicy(settings)
+    // WHICH KINDS OF FILE THIS BUILD SERVES — read for one question: whether a
+    // note's kind is claimed at all, which is what arms the one-time move
+    // below (`notesServed`).
+    const fileKinds = yield* FileKinds
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
@@ -412,7 +412,6 @@ export default definePlugin({
     const streams = yield* readings(Deferred.await(ready))
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
-    let filer: { readonly full: Effect.Effect<void>; readonly settled: (agent: string) => Effect.Effect<void> } | null = null
     /**
      * THE PASS, once this row has wired it — `null` before that and after the
      * scope closes, which is what makes a request that arrives in either window
@@ -436,18 +435,12 @@ export default definePlugin({
     let sessionsRevision = 0
 
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
-     *  carries a session property, what it is called, how big its subtree is. */
+     *  and which note carries a tie, what it is called, how big its memory is. */
     const nodeAgents = agentsRoster()
-    /** THE REVISION THE ROSTER WAS LAST BUILT FROM, whole enough to say what a
-     *  chat row is about — its title read as a place, and that place still
-     *  held (`./server/places.ts`). `null` before the vault has loaded. Only
-     *  `levelWith` writes it, in the same step that moves the roster, so the two
-     *  cannot be a revision apart. */
-    let latest: Placed | null = null
-    const levelWith = (reading: Placed | null) => {
-      nodeAgents.seen(reading?.derived ?? null)
-      latest = reading
-    }
+    /** THE ROSTER, LEVELLED WITH A REVISION — the records and the documents
+     *  both, because half the roster is read off a note's front matter
+     *  (`./server/agents.ts`'s `RosterReading`). */
+    const levelWith = (reading: RosterReading | null) => nodeAgents.seen(reading)
 
     /**
      * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned into
@@ -507,7 +500,7 @@ export default definePlugin({
      */
     const ring = yield* detached
 
-    const publishState = (state: ChatState, entries: ReadonlyMap<string, ChatEntry>, node: string | null): void => {
+    const publishState = (state: ChatState, entries: ReadonlyMap<string, ChatEntry>): void => {
       // Node bindings move behind conversation frames: a session opening,
       // a contract taught, or a line written down at the end of a turn.
       republishAgents()
@@ -530,7 +523,6 @@ export default definePlugin({
         }
         if (lastStatus === "thinking" && state.status !== "thinking") {
           ring(seen({ kind: "turn", ...who, status: "done" }))
-          if (filer !== null && node !== null) ring(filer.settled(who.agent))
           const produced = [...entries.values()]
             .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
               entry.kind === "agent" && entry.seq > agentSeqAtTurn
@@ -577,82 +569,84 @@ export default definePlugin({
         )
         : use(chat)
 
-    /** WHAT THE TWO BINDING GESTURES REACH — the roster's reading of a node, and
-     *  ONE property write through the gate a keystroke goes through, with the
-     *  vault's own refusal on the way back out.
+    /** WHAT THE BINDING GESTURES REACH — the roster's reading of an item, the
+     *  one property write a row's tie takes and the two document doors a
+     *  note's takes, with the vault's own refusal on the way back out.
      *
-     *  THE KEY IS THE ROSTER'S ANSWER, asked per gesture rather than captured:
-     *  which column this board keeps its bindings in is a DECLARATION
+     *  THE KEYS ARE THE ROSTER'S ANSWER, asked per gesture rather than
+     *  captured: which column this board keeps its ties in is a DECLARATION
      *  ({@link ./kinds.ts}), so it moves with a revision, and the first key that
      *  carrier names is the one a writer should prefer — a vault's own migration
      *  row over the word this kind claims. */
     const bindingPermit = yield* Semaphore.make(1)
     const creationPermit = yield* Semaphore.make(1)
+    const gate = ops.gate as WriteGate
     const binding: Binding = {
       exclusive: work => bindingPermit.withPermit(work),
-      changed: Effect.gen(function*() {
-        mine?.cells.sessionsRevision.set(++sessionsRevision)
-        if (filer !== null) yield* filer.full
-      }),
-      boundAt: (node) => nodeAgents.nodeAt(node),
+      changed: Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision)),
+      boundAt: (item) => nodeAgents.nodeAt(item),
       key: () => nodeAgents.key(),
+      opensKey: () => nodeAgents.opensKey(),
       write: (node, value) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value }), asFailure),
       remove: (node) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value: "" }), asFailure),
       mark: (node, value) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.sleepKey(), value }), asFailure),
+      // THE TEXT AS THE GATE HOLDS IT, read afresh per gesture rather than off
+      // the roster's revision: a note the person has just saved is a note this
+      // write must not compose its edit from an older copy of.
+      text: (path) =>
+        Effect.map(gate.read, (reading) => {
+          const document = documentAt(reading.set, path)
+          return document !== undefined && isMarkdown(document) ? document.body : null
+        }),
+      doc: (path, text, was) => Effect.asVoid(gate.run({ op: "doc", file: path, text, was }, "web")),
     }
 
     /**
-     * WHAT EVERY GESTURE THAT MOVED A BINDING DOES AFTERWARDS — bump the
-     * revision every tab's roster is drawn off, and let the filer re-file what
-     * the vault now claims.
+     * WHAT EVERY GESTURE THAT MOVED A TIE DOES AFTERWARDS — bump the
+     * revision every tab's roster is drawn off.
      *
      * One `const` because it is one sentence said in five places, and because
-     * the SECOND caller of it is not a person: the mint below is reached both
+     * the SECOND caller of it is not a person: the start below is reached both
      * by a press on the surface and by a row that named core's `conversations`
      * key (`@olai/plugin-api`'s {@link Conversations}, which this row stands
      * behind), and a machine-opened conversation that did not
-     * republish would be a node agent nobody's sidebar had heard of.
+     * republish would be an agent nobody's sidebar had heard of.
      */
-    const published = Effect.gen(function*() {
-      mine?.cells.sessionsRevision.set(++sessionsRevision)
-      if (filer !== null) yield* filer.full
-    })
+    const published = Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision))
 
     /**
-     * THE THREE ACTS, ONCE — the mint a person's *New chat* runs and the mint
-     * another row's `open` runs, which are the same mint.
+     * THE START, ONCE — the one a person's *New chat* runs, the one a door on
+     * a page runs, and the one another row's `open` runs.
      *
      * It was written inside the surface procedure, which was right while the
      * only caller was a keystroke. A second caller arriving (core's
-     * {@link Conversations}) would have had to say the same four thunks again,
-     * and the two copies would have been where "the Inbox moved under us" and
-     * "that parent can no longer hold a chat" quietly got two answers. The
-     * permit, the committed reading the seat is written against and the refusal
-     * sentences are all `./server/new-chat.ts`'s; what is here is this row's
-     * four doors into the vault.
+     * {@link Conversations}) would have had to say the same thunks again,
+     * and the two copies would have been where "that item already has a chat"
+     * quietly got two answers. The permit, the reading the seat is written
+     * against and the refusal sentences are all `./server/new-chat.ts`'s;
+     * what is here is this row's doors into the vault.
      */
-    const mintConversation = (open: Chat.Chat, input: NewChatInput) => {
-      const gate = ops.gate as WriteGate
-      return creationPermit.withPermit(newChat({
-        current: vault.inbox.current,
+    const mintConversation = (open: Chat.Chat, input: NewChatInput) =>
+      creationPermit.withPermit(newChat({
         read: gate.read,
-        write: request => gate.run(request, "filer"),
-        start: (node, agent, committed) => Effect.gen(function*() {
-          // Ops has committed the new node, but revision delivery may still
-          // be queued. Seat against that committed reading, not the earlier
-          // roster used to paint the sidebar.
-          levelWith(committed)
-          return yield* startAgentSession(open, binding, { node, agent })
-        }),
-        // THE CHAT ROWS OF THE READING THE REFUSAL IS ASKED OVER, by the pure
-        // seating reading (`./seating.ts`) — never by moving the roster, which
-        // is the revision handler's alone.
-        chats: (reading) => seatingIn(reading.derived),
+        // THE SEAT, WITH THE ROSTER LEVEL AT BOTH ENDS — the order is
+        // `./server/new-chat.ts`'s `seated`, which argues it and is where the
+        // claim is tested; what is here is this row's doors into the vault.
+        start: (node, agent, committed) =>
+          seated({
+            committed,
+            level: levelWith,
+            read: gate.read,
+            start: startAgentSession(open, binding, { node, agent }),
+          }),
+        // THE ROSTER OF THE READING THE REFUSAL IS ASKED OVER, by the pure
+        // reading (`./seating.ts`'s `rosterIn`) — never by moving the carrier,
+        // which is the revision handler's alone.
+        chats: (reading) => rosterIn(reading),
       }, input))
-    }
 
     /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
      *
@@ -732,64 +726,78 @@ export default definePlugin({
       seen: ({ input }: { input: { agent: string; session: string; at: string } }) =>
         withChat((open) => open.seen(input, input.at))
           .pipe(Effect.tap(() => Effect.sync(republishAgents))),
-      locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input, vault.inbox.current())),
-      // A CHAT ABOUT A PLACE (`about`) carries its first message (`say`) and
+      locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => itemLocations(reading as Reading, input)),
+      // THE CHAT OF AN ITEM (`item`) carries its first message (`say`) and
       // is handed it HERE, once, the way another row's `open` is: the door on
-      // a page stays on that page, so there is no page of the chat row's own
-      // for the words to wait on. A refused send is the answer's `refusal`.
-      newChat: ({ input }: { input: NewChatInput & { readonly say?: string } }) =>
+      // a page stays on that page, so there is nowhere else for the words to
+      // wait. A refused send is the answer's `refusal`.
+      newChat: ({ input }: { input: NewChatInput }) =>
         withChat(open => Effect.gen(function*() {
           const made = yield* mintConversation(open, input)
-          if (made.to === null || input.say === undefined || input.say.trim() === "") return made
-          const said = yield* Effect.result(open.inConversation(made.to, undefined, panel => panel.send(input.say!, [], [], false, [])))
+          const say = input.say
+          if (made.to === null || say === undefined || say.trim() === "") return made
+          // The roster is level with the tie the start wrote, so these words
+          // carry the contract (`mintConversation`'s `start`).
+          const said = yield* Effect.result(open.inConversation(made.to, undefined, panel => panel.send(say, [], [], false, [])))
           return said._tag === "Failure" ? { ...made, refusal: said.failure.message } : made
         })).pipe(Effect.tap(() => published)),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
         withChat((open) => startAgentSession(open, binding, input)).pipe(
-          // Publish after both the binding and its history link are written.
-          Effect.tap(() => Effect.gen(function*() {
-            mine?.cells.sessionsRevision.set(++sessionsRevision)
-            if (filer !== null) yield* filer.full
-          })),
+          // Publish after both the tie and its history link are written.
+          Effect.tap(() => published),
         ),
       setSleeping: ({ input }: { input: { node: string; on: boolean } }) =>
         // SLEEP OFF IS THE SETTINGS' ANSWER, and it comes before the write: a
         // mark written while the pass cannot run at all would be a promise the
-        // row's own label does not keep (`./settings.ts`'s `SLEEP_OFF`).
+        // row's own label does not keep (`./settings.ts`'s `SLEEP_OFF`). The
+        // other refusal — a NOTE, which is never tidied — is the gesture's own
+        // (`./server/binding.ts`).
         sleeping
           ? bindingPermit.withPermit(setSleeping(binding, input)).pipe(
-            // THE REVISION IS BUMPED AND THE FILER IS NOT ASKED, which is the one
-            // thing this gesture does not share with the binding's: the mark
-            // decides whether olai TIDIES a chat, and the filer is about which
-            // conversations are CLAIMED — a node is no more or less an agent for
-            // being opted in, so there is nothing for it to file. The revision is
-            // what republishes the roster, which is where `sleeps` rides.
-            Effect.tap(() => Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision))),
+            Effect.tap(() => published),
           )
           : Effect.fail(new UsageFailure({ reason: SLEEP_OFF })),
+      // WHERE A NOTE'S CHAT OPENS — the same permit the tie's writes take,
+      // because it is the same block of the same file: a switch flipped while
+      // a start is writing the tie would otherwise race it through the gate
+      // and lose one of the two keys (`./server/binding.ts`).
+      setOpens: ({ input }: { input: { path: string; beside: boolean } }) =>
+        bindingPermit.withPermit(setOpens(binding, input)).pipe(
+          Effect.tap(() => published),
+        ),
       closeAgent: ({ input }: { input: { node: string } }) =>
         bindingPermit.withPermit(closeAgent(binding, input)).pipe(
-          // Publish after the binding is gone: the seat closes and the roster
+          // Publish after the tie is gone: the seat closes and the roster
           // repaints without the released agent.
-          Effect.tap(() => Effect.gen(function*() {
-            mine?.cells.sessionsRevision.set(++sessionsRevision)
-            if (filer !== null) yield* filer.full
-          })),
+          Effect.tap(() => published),
+        ),
+      // ...AND THE WAY BACK FROM A TIE SOMETHING OUTSIDE OLAI TOOK OFF. The
+      // same permit the other tie writes take, for the same reason: it is the
+      // same block of the same file. The roster is what answers both of its
+      // refusals, so the readings are handed in here rather than reached for
+      // inside the gesture (`./server/binding.ts`).
+      retie: ({ input }: { input: { node: string; agent: string; session: string } }) =>
+        bindingPermit.withPermit(retie(binding, {
+          seatable: (item) => nodeAgents.seatableAt(item),
+          claimedBy: (to) => nodeAgents.agentAt(to)?.id ?? null,
+        }, input)).pipe(
+          Effect.tap(() => published),
         ),
       /**
-       * PUT ONE NODE'S AGENT TO SLEEP — the seat, handed back by hand.
+       * PUT ONE ITEM'S AGENT TO SLEEP — the seat, handed back by hand.
        *
-       * NO BINDING PERMIT AND NO FILER RUN, which is the whole difference from
-       * `closeAgent` above: nothing is written to the vault here. The property
-       * naming the conversation stays exactly where it is, so there is no
-       * binding to serialise against and nothing for the filer to re-file —
-       * what moves is the SCOPE, and the roster is republished by the
-       * scheduler's own `onLive` the moment it closes.
+       * NO BINDING PERMIT, which is the whole difference from `closeAgent`
+       * above: nothing is written to the vault here. The tie naming the
+       * conversation stays exactly where it is, so there is nothing to
+       * serialise against — what moves is the SCOPE, and the roster is
+       * republished by the scheduler's own `onLive` the moment it closes.
+       * A NOTE'S AGENT IS PUT TO SLEEP LIKE A NODE'S: this frees a seat out of
+       * the eight, which is about the process and not about memory — only the
+       * two tidying verbs below refuse a note.
        */
-      sleep: ({ input }: { input: { node: string } }) =>
-        withChat((open) => open.sleep(input.node)),
+      sleep: ({ input }: { input: { node: string } }) => withChat((open) => open.sleep(input.node)),
       /**
        * THE PASS, ASKED FOR BY HAND — the row verb's half, and the only way into
        * the pass that is not the loop's own clock.
@@ -801,6 +809,9 @@ export default definePlugin({
        */
       tidyMemory: ({ input }: { input: { node: string } }) =>
         Effect.gen(function*() {
+          if (itemOf(input.node).kind === "note") {
+            return { _tag: "Refused" as const, said: NO_SLEEP_ON_A_NOTE }
+          }
           const pass = sleeper
           if (pass === null) return { _tag: "Refused" as const, said: SLEEP_OFF }
           const asked = yield* Effect.provideService(pass.now(input.node), Scope.Scope, owned)
@@ -865,23 +876,27 @@ export default definePlugin({
 
     // ── the fifth door, and the one a row that is not chat reaches a chat by ──
 
-    /** The chat rows at these addresses, in the vault as it stands now, keyed
-     *  by the address asked about and holding only the ones a chat is at —
-     *  the server's half of the browser's `chatAt` (`./server/places.ts`).
-     *  Read off the reading in hand with the pure seating, built ONCE for the
-     *  whole question, so every address is answered about one revision and a
-     *  question from another row never moves chat's own roster under it; no
-     *  reading yet is no chat anywhere. */
-    const chatRowsAt = (abouts: ReadonlyArray<string>): Effect.Effect<ReadonlyMap<string, NodeAgent>> =>
+    /** THE ROSTER ROWS OF THESE ITEMS, in the vault as it stands now, keyed by
+     *  item key and holding only the ones a chat is on — the server's half of
+     *  what another row asks about an item.
+     *
+     *  Read off the reading in hand with the pure roster reading
+     *  (`./seating.ts`'s `rosterIn`), built ONCE for the whole question, so
+     *  every item is answered about one revision and a question from another
+     *  row never moves chat's own carrier under it; no reading yet is no chat
+     *  anywhere. */
+    const chatRowsAt = (
+      abouts: ReadonlyArray<AgentItem>,
+    ): Effect.Effect<ReadonlyMap<string, { readonly engine: string; readonly session: string | null }>> =>
       Effect.map(ops.reading, (read) => {
-        const found = new Map<string, NodeAgent>()
+        const found = new Map<string, { readonly engine: string; readonly session: string | null }>()
         const reading = read as Reading | null | undefined
         if (reading === null || reading === undefined) return found
-        const seated = chatsIn(reading, seatingIn(reading.derived))
+        const seated = rosterIn(reading)
         for (const about of abouts) {
-          const place = placeIn(reading, about)
-          const row = place === null ? undefined : seated.at(place)
-          if (row !== undefined) found.set(about, row)
+          const key = itemKey(about)
+          const row = seated.find((one) => one.id === key)
+          if (row !== undefined) found.set(key, { engine: row.engine, session: row.session })
         }
         return found
       })
@@ -930,14 +945,14 @@ export default definePlugin({
       // nowhere.
       send: (to, text, preamble) =>
         withChat(open => open.inConversation(to, undefined, panel => panel.send(text, [], [], false, preamble))),
-      // THE CHAT AT AN ADDRESS, read off the vault as it stands now rather
+      // THE CHAT OF AN ITEM, read off the vault as it stands now rather
       // than off whichever revision last reached this row — a caller following
-      // a revision of its own is answered about that one or a later one
-      // (`./server/places.ts`). One address or a list of them, both over the
-      // one reading and the one seating {@link chatRowsAt} builds per call.
+      // a revision of its own is answered about that one or a later one. One
+      // item or a list of them, both over the one reading and the one roster
+      // {@link chatRowsAt} builds per call.
       seatAt: (about) =>
         Effect.map(chatRowsAt([about]), (rows) => {
-          const row = rows.get(about)
+          const row = rows.get(itemKey(about))
           return row === undefined || row.session === null ? null : { agent: row.engine, session: row.session }
         }),
       chatsAt: (abouts) => Effect.map(chatRowsAt(abouts), (rows) => new Set(rows.keys())),
@@ -1000,9 +1015,85 @@ export default definePlugin({
      * the whole published snapshot and {@link VaultRevision} names the parts
      * chat touches.
      */
+    /**
+     * THE ONE-TIME MOVE, ARMED ON A POSITIVE SIGNAL — once per activation,
+     * under the binding permit, before any gesture can write a tie (every one
+     * of them takes the same permit, and every one of them needs a chat this
+     * fires ahead of).
+     *
+     * THE SIGNAL IS THE CLAIM, which is the fact the migration is actually
+     * waiting for: a chat moves onto a NOTE, and whether this build serves
+     * notes at all is what the file-kind registry says (`@olai/format`'s
+     * `notesClaimed`, asked of `FileKinds`). It is not at the build and not on
+     * every revision, and each of those was wrong in its own direction:
+     *
+     *   - AT THE BUILD, the snapshot the write gate holds can still be the
+     *     directory as it was read before the file rows registered their kinds
+     *     — outlines only, with no note in the set. A move judged there finds
+     *     nothing to move onto and a one-shot that ran would be spent: after a
+     *     boot that logged nothing, the directory's link-titled chat rows
+     *     would stay rows for good.
+     *   - ON EVERY REVISION, a serve with the markdown row switched OFF never
+     *     reaches "nothing to do": the reading can never name a note, so the
+     *     migration re-read the whole directory on every change for the life
+     *     of the process. Nobody serving notes pays for a migration about
+     *     notes.
+     *
+     * So the applier asks {@link notesServed} BEFORE it asks for a reading,
+     * and what fires it is both doors: the registry's own change — a row may
+     * claim its kind when no further revision is owed — and every published
+     * revision after it, since the first published revision is the first
+     * reading that is the whole directory and the window between the two is
+     * the one `namesNotes` closes (`./server/move.ts`). With no note's kind
+     * claimed, the directory is never read.
+     */
+    const notesServed = (): boolean => notesClaimed(fileKinds.current().values())
+    /** Whether the move has run, and whether a run is in flight: the applier
+     *  answers `false` for a reading that has not caught up with the claim
+     *  yet, and the revisions that arrive while one attempt is still going
+     *  must not start a second (`./server/move.ts`'s `namesNotes`). */
+    let moved = false
+    let moving = false
+    const moveOnce = (): void => {
+      if (moved || moving) return
+      moving = true
+      ring(bindingPermit.withPermit(applyMoves({
+        // THE ONE FACT THAT IS ASKED BEFORE THE DIRECTORY IS READ — see the
+        // paragraph above, and `./server/move.ts`'s `Mover.served`.
+        served: notesServed,
+        read: gate.read,
+        text: binding.text,
+        // Its writes are signed `move` rather than `web`: nobody pressed
+        // anything, and the commit is the one a person may want to revert.
+        doc: (path, text, was) => Effect.asVoid(gate.run({ op: "doc", file: path, text, was }, "move")),
+        remove: (node) => Effect.asVoid(gate.run({ op: "prop", id: node, key: nodeAgents.key(), value: "" }, "move")),
+        key: nodeAgents.key,
+        opensKey: nodeAgents.opensKey,
+        log: (line) => Effect.logInfo(line),
+      })).pipe(
+        Effect.tap((ran) => Effect.sync(() => { moved = ran })),
+        // A RUN THAT FAILED IS A RUN THAT IS OVER: the flag is released
+        // whichever way the attempt ended, so a refused write does not leave
+        // the migration permanently in flight.
+        Effect.ensuring(Effect.sync(() => { moving = false })),
+        // WHAT CAN STILL FAIL HERE is the READING — a directory that will not
+        // load at all — and it is said rather than thrown: `moved` stays
+        // false, so the next revision arms the migration again.
+        Effect.catchCause((cause) => Effect.logWarning(`chat: the one-time move could not read the directory: ${cause}`)),
+        Effect.asVoid,
+      ))
+    }
+    // ...AND THE REGISTRATION ITSELF ARMS IT, not only the revisions after it:
+    // a file row that claims its kind late — a dynamic plugin, a row that came
+    // back — may do it when no further revision is owed, and the migration
+    // would then wait for an edit somebody made for another reason. Both
+    // doors are the same `moveOnce`, which runs the walk once.
+    moveOnce()
+    yield* Effect.forkScoped(Stream.runForEach(fileKinds.changes, () => Effect.sync(moveOnce)))
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         levelWith(revision.value)
+        moveOnce()
         // WHICH NODE AGENT THE OPEN CONVERSATION BELONGS TO is a PROPERTY, so a
         // revision can change it. Without this the panel would go on saying it
         // belonged to nobody until the next time a session opened.
@@ -1145,9 +1236,6 @@ export default definePlugin({
         overheard: yield* sessionsIn(localState),
         live: liveIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
-        // WHAT A NODE AGENT'S ROW IS ABOUT, off the same revision the roster
-        // was built from (`./server/places.ts`).
-        aboutAt: (agent) => latest === null ? null : aboutIn(latest, seatingIn(latest.derived), agent),
         // THE PERIOD AS DECODED, from the settings this row was applied with —
         // a change re-applies the row, so the panel never holds a stale one.
         remindEvery: settings["remind-every"],
@@ -1169,14 +1257,16 @@ export default definePlugin({
             // package owns — invisible while there was one forbidden key and
             // untrue of half its subjects the moment there were two.
             //
-            // TWO KINDS, TWO CLAUSES: the binding and the sleep memo are
-            // forbidden for different reasons, and a table (a MAP on the rule)
-            // rather than a set is what lets each carry the reason it is one
+            // FOUR KINDS, FOUR CLAUSES: the binding, the sleep memo, the
+            // sleep mark and the note's *opens* switch are forbidden for
+            // different reasons, and a table (a MAP on the rule) rather than
+            // a set is what lets each carry the reason it is one
             // (`@olai/ops`' `door.ts` argues the shape).
             () => [
               ...nodeAgents.keys().map((key) => ({ key, says: SEATS })),
               ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
               ...nodeAgents.sleepKeys().map((key) => ({ key, says: SLEEPING_MARK })),
+              ...nodeAgents.opensKeys().map((key) => ({ key, says: OPENS })),
             ],
             "chat-agent",
             // ...AND WHERE IT MAY WRITE WHILE A PASS IS TIDYING THIS NODE. The
@@ -1220,21 +1310,10 @@ export default definePlugin({
       yield* Deferred.succeed(ready, chat)
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start
-      const gate = ops.gate as WriteGate
-      filer = yield* makeFiler({
-        exclusive: work => bindingPermit.withPermit(work),
-        read: gate.read,
-        write: request => gate.run(request, "filer"),
-        key: nodeAgents.key,
-        current: vault.inbox.current,
-        assigned: chat.assigned,
-        log: line => Effect.logInfo(line),
-      }, vault.inbox, { all: chat.sessions, one: chat.sessionsFor })
-      yield* Effect.addFinalizer(() => Effect.sync(() => { filer = null }))
-      // ... AND THE PASS THAT TIDIES A NODE AGENT'S MEMORY, in the same scope
-      // and by the same rules as the filer above: it is chat's own server half,
-      // it holds chat's own doors, and it stops when this fork's scope closes —
-      // which is what cancels a turn that is still running
+      // ... AND THE PASS THAT TIDIES A NODE AGENT'S MEMORY, in this fork's own
+      // scope: it is chat's own server half, it holds chat's own doors, and it
+      // stops when that scope closes — which is what cancels a turn that is
+      // still running
       // (`./server/sleep.ts` states the order).
       //
       // `serving` rather than `chat`, because these closures are called long
@@ -1242,14 +1321,19 @@ export default definePlugin({
       // beside, not a variable something may empty.
       const serving = chat
       if (sleeping) {
-        // THE HANDLE IS KEPT, unlike the loop's, and for the reason `filer`'s
-        // is: a request that arrives after this scope closes has to be refused
-        // in words rather than run against a sleeper that is gone. The
+        // THE HANDLE IS KEPT, unlike the loop's: a request that arrives after
+        // this scope closes has to be refused in words rather than run against
+        // a sleeper that is gone. The
         // finalizer is what makes the window between the two unobservable —
         // null BEFORE the pass exists and null AFTER it is gone, both of which
         // are "no pass to ask for" (`conversation.tidyMemory`).
         sleeper = yield* makeSleeper({
-          nodes: () => nodeAgents.nodes(),
+          // NODES ONLY, which is the whole of how the pass learns about notes:
+          // a note IS its chat's memory, so there is nothing under it to
+          // consolidate and no memo to stamp. Filtered where the pass is wired
+          // rather than inside it, so the pass goes on being a thing that
+          // tidies subtrees and knows nothing about files.
+          nodes: () => nodeAgents.nodes().filter((one) => one.kind === "node"),
           // THE READING THE STRIP'S FORECAST IS JUDGED OVER: the set the rows
           // were just built from, not whatever the loop last read a tick ago.
           reading: () => nodeAgents.reading(),

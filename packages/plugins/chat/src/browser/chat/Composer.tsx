@@ -700,9 +700,10 @@ export function Composer(props: {
       // writer had not finished choosing. Navigation starts a window-capture
       // guard (`@olai/web/client/composition.ts`) that stops such a key
       // reaching any handler, and while the palette's row is on, this line
-      // never runs. But the composer is drawn from the DOCK (`app.panel`, the
-      // shell's slot) and from a row's fold (`outline.row.fold`, the
-      // outline's), neither of which carries navigation's lifetime — so with
+      // never runs. But the composer is drawn from a chat's own page
+      // (`app.route`, navigation's slot) and from a row's fold
+      // (`outline.row.fold`, the outline's), neither of which carries
+      // navigation's lifetime — so with
       // that row switched off the guard is simply absent and this is the only
       // thing standing between an IME and a half-sent turn.
       if (composing(event)) return
@@ -716,7 +717,11 @@ export function Composer(props: {
   }
 
   return (
-    <div class="relative shrink-0 p-2">
+    // THE PADDING AROUND IT GOES BACK ON A SHORT SCREEN (`short`,
+    // `../all.css`): this box is PINNED to the bottom of a chat page, so what
+    // it spends is spent out of the conversation — and on a handset turned
+    // sideways there are 390 pixels for both.
+    <div class="relative shrink-0 p-2 short:p-1">
       <Show when={open()}>
         <CompletionMenu
           completing={found()}
@@ -792,7 +797,9 @@ export function Composer(props: {
         // was a `box-shadow` under the app's own outline (the `outline-none`
         // never removed that one — `@olai/appearance/chrome.css` is
         // unlayered), and forced colours deletes box-shadows outright.
-        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body placeholder:text-muted focus:border-accent"
+        // ...AND ITS TWO LINES SIT TIGHTER ON A SHORT SCREEN, where the room
+        // around them is room the conversation above does not get.
+        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body placeholder:text-muted focus:border-accent short:py-1"
         data-testid={TESTID.chatInput}
         // WHAT THE RETURN KEY DOES, said to the on-screen keyboard: this box's
         // Enter sends (`onKey`, one scroll down — Shift+Enter is the newline),

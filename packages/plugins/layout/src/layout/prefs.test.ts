@@ -3,16 +3,10 @@ import { followLayout } from "./prefs-owner.ts"
 import { expect, test } from "bun:test"
 
 import {
-  CHAT_DEFAULT_PX,
-  PANEL_MAX_PX,
-  PANEL_MIN_PX,
-  PANEL_WIDTH_KEY,
   clamp,
-  fitWidths,
+  fitSidebar,
   MIN_MAIN_PX,
   parsePx,
-  parseSnap,
-  RAIL_WIDTH_PX,
   SIDEBAR_DEFAULT_PX,
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
@@ -21,7 +15,7 @@ import {
 // The live half is this row's own now, and private: the door carries the keys,
 // the bounds and the arithmetic (`./prefs.ts`), and the readings a consumer
 // spends travel on `layout.shell` (`../index.ts`).
-import { setPanelWidth, setSidebarWidth } from "./live.ts"
+import { setSidebarWidth } from "./live.ts"
 import { parseBool } from "@olai/web/client/preference.ts"
 import { remembering } from "@olai/web/client/preference.testlib.ts"
 
@@ -49,14 +43,7 @@ test("parsePx clamps and rejects non-numbers", () => {
   expect(parsePx("12.7", 256, 180, 480)).toBe(180)
 })
 
-test("parseSnap only accepts full; everything else is half", () => {
-  expect(parseSnap("full")).toBe("full")
-  expect(parseSnap(null)).toBe("half")
-  expect(parseSnap("half")).toBe("half")
-  expect(parseSnap("whatever")).toBe("half")
-})
-
-test("the width setters forward persist: false, so a pointermove writes nothing", () => {
+test("the width setter forwards persist: false, so a pointermove writes nothing", () => {
   // The factory's own test proves `set` honours the option; this one holds
   // the hop in front of it — a setter that stopped forwarding `opts` would
   // turn every pointermove of a drag into a storage write while the factory
@@ -69,12 +56,9 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
     const stop = followLayout()
     try {
     setSidebarWidth(300, { persist: false })
-    setPanelWidth(300, { persist: false })
     expect(store.size).toBe(0)
     setSidebarWidth(301)
-    setPanelWidth(302)
     expect(store.get(SIDEBAR_WIDTH_KEY)).toBe("301")
-    expect(store.get(PANEL_WIDTH_KEY)).toBe("302")
     } finally {
       stop()
       release()
@@ -84,32 +68,16 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
   })
 })
 
-test("fitWidths keeps a main pane on a 1024px laptop at max stored widths", () => {
-  const { side, chat } = fitWidths(
-    SIDEBAR_MAX_PX,
-    PANEL_MAX_PX,
-    true,
-    true,
-    1024,
-  )
-  expect(side + chat + MIN_MAIN_PX).toBeLessThanOrEqual(1024)
+test("fitSidebar keeps a main pane on a 600px window at the max stored width", () => {
+  const side = fitSidebar(SIDEBAR_MAX_PX, true, 600)
+  expect(side + MIN_MAIN_PX).toBeLessThanOrEqual(600)
   expect(side).toBeGreaterThanOrEqual(SIDEBAR_MIN_PX)
-  expect(chat).toBeGreaterThanOrEqual(PANEL_MIN_PX)
 })
 
-test("fitWidths leaves defaults alone on a wide screen", () => {
-  const { side, chat } = fitWidths(
-    SIDEBAR_DEFAULT_PX,
-    CHAT_DEFAULT_PX,
-    true,
-    true,
-    1440,
-  )
-  expect(side).toBe(SIDEBAR_DEFAULT_PX)
-  expect(chat).toBe(CHAT_DEFAULT_PX)
+test("fitSidebar leaves the default alone on a wide screen", () => {
+  expect(fitSidebar(SIDEBAR_DEFAULT_PX, true, 1440)).toBe(SIDEBAR_DEFAULT_PX)
 })
 
-test("fitWidths with chat only leaves room for the rail", () => {
-  const { chat } = fitWidths(SIDEBAR_DEFAULT_PX, PANEL_MAX_PX, false, true, 600)
-  expect(chat + RAIL_WIDTH_PX + MIN_MAIN_PX).toBeLessThanOrEqual(600)
+test("fitSidebar hands a railed column its stored width back untouched", () => {
+  expect(fitSidebar(SIDEBAR_MAX_PX, false, 600)).toBe(SIDEBAR_MAX_PX)
 })

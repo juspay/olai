@@ -158,13 +158,13 @@ A read answers with the same map a write would produce, so a key with no value i
 </details>
 
 <details>
-<summary>The <code>chat-agent-session</code> property</summary>
+<summary>The <code>chat-agent-session</code> and <code>chat-opens</code> keys</summary>
 
 ### `chat-agent-session`
 
-This is the one exception, and it is a type the chat plugin declares rather than a key olai itself reads. A row carrying a property of that type is a node agent: an agent that lives on a row.
+This is the one exception, and it is a type the chat plugin declares rather than a key olai itself reads. A row carrying a property of that type is a node agent: an agent that lives on a row. A Markdown document carrying the same key in its front matter is a document with a chat of its own.
 
-The row's title is the agent's name, the note under it is the agent's instructions, and the rows beneath it are its memory. The list behind the agent panel is the search `prop:chat-agent-session` ([node-agents.md](node-agents.md)). The chat plugin contributes the type, so a serve running without chat does not read it ([live-properties.md](live-properties.md)).
+The row's title is the agent's name, the note under it is the agent's instructions, and the rows beneath it are its memory. A document is itself the memory of its chat. The list of chats in the sidebar is every row and document carrying this key ([node-agents.md](node-agents.md)). The chat plugin contributes the type, so a serve running without chat does not read it ([live-properties.md](live-properties.md)).
 
 One key holds two things, which engine the agent runs on and which conversation it is talking through, split at the first colon:
 
@@ -174,6 +174,22 @@ chat-agent-session: claude:0f3c…    ...and one that is talking through that co
 ```
 
 The engine is required and the session is optional, so a row is a node agent as soon as the value is there, and the second half says which conversation it is using. Only the first colon splits the value: an engine id is one of olai's own short names and holds no colon, while a session id comes from the engine and may hold several. A directory can put this type on a key of its own name ([plugins/chat.md](plugins/chat.md)).
+
+An agent writing through olai cannot set this key, take it off, or change it, on a row or in a document's front matter. The write is refused with *it is what ties a conversation to a node or a note, and that is a person's own gesture*.
+
+### `chat-opens`
+
+The second key a document's front matter keeps, beside the tie: where that document's chat opens when you press it in **Chats** or the palette.
+
+| Value | What it means |
+| --- | --- |
+| `alone` | the chat's own page, by itself |
+| `beside` | the document on the left and the chat on the right |
+| the key absent | the same as `alone` |
+
+The **Opens** switch on the chat's page writes it, and olai takes it off again when the chat is closed. Anything other than `beside` reads as `alone`. A row has no such key, so a row's chat always opens alone. A directory can put this type on a key of its own name too.
+
+An agent writing through olai cannot set this key, take it off, or change it either. That write is refused with *it is whether a note's chat opens beside the page, and that is the person's choice on the note*.
 
 </details>
 

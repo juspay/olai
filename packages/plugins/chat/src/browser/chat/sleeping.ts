@@ -19,12 +19,19 @@ import type { Forecast, NodeAgentRow } from "../../wire.ts"
 import type { Address } from "./address.ts"
 
 /** WHICH ROW OF THE AGENTS ROSTER THIS CONVERSATION IS, or `undefined` — the
- *  node agent whose engine and conversation are the ones on screen.
+ *  NODE agent whose engine and conversation are the ones on screen.
  *
  *  A PLAIN CHAT HAS NO SUCH ROW, and that is the whole gate: a conversation
  *  nobody is seated on has no node to mark, so it gets no switch. Read off the
  *  agents reading the browser already holds — the rows `AgentPalette.ts` finds
  *  the shown conversation among — never by walking the vault from here.
+ *
+ *  A NOTE'S CHAT HAS NO SWITCH EITHER, and for the same reason the verb
+ *  refuses one (`../../server/binding.ts`'s `NO_SLEEP_ON_A_NOTE`): a note IS
+ *  the memory of its chat, so there is nothing under it to tidy and no pass
+ *  that would. The gate is here rather than in the item, so the sleep line,
+ *  the *Tidy memory* press beside it and the bar that holds them all answer
+ *  one question once — wherever that conversation is drawn.
  */
 export const nodeAgentOf = (
   rows: ReadonlyArray<NodeAgentRow>,
@@ -32,7 +39,7 @@ export const nodeAgentOf = (
 ): NodeAgentRow | undefined =>
   to === undefined
     ? undefined
-    : rows.find((row) => row.engine === to.agent && row.session === to.session)
+    : rows.find((row) => row.kind === "node" && row.engine === to.agent && row.session === to.session)
 
 /** THE SWITCH'S WORDS: `aria-checked` is the mark itself, and this is what a
  *  person reads beside it. */
