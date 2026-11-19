@@ -24,7 +24,7 @@ import { Index } from "solid-js"
  * the whole reason the attempt is the agent's and not this component's.
  */
 
-import type { AuthMethod, SignIn as Attempt, SignInLink } from "olai-plugin-chat/wire"
+import type { AuthMethod, SignIn as Attempt, SignInLink } from "@kolu/acp/wire"
 import { agentIn } from "olai-plugin-chat/wire"
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js"
 
@@ -193,7 +193,7 @@ export function SignIn(props: { readonly chat: Chat }) {
         {/* WHAT THE METHOD IS. The agent's own description was the `title`'s
             alone; it is in the button's name now, after the method's visible
             name, and under the pointer as this app's own tip. */}
-        <For each={methods().filter((method) => method.kind !== "byHand")}>{method =>
+        <For each={methods().filter((method) => method.runs !== "hand")}>{method =>
           <Tip text={method.description ?? ""} disabled={!method.description}><button type="button"
             class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent"
             data-testid={TESTID.chatSignInMethod} data-method={method.id}
@@ -208,7 +208,7 @@ export function SignIn(props: { readonly chat: Chat }) {
           pipe, so a button would be one that could not finish what it looks
           like it starts — and the command names an absolute path because the
           engine may be one olai found on a search path of its own. */}
-      <For each={methods().filter((method) => method.kind === "byHand")}>{method => (
+      <For each={methods().filter((method) => method.runs === "hand")}>{method => (
         <div class="mt-2" data-testid={TESTID.chatSignInByHand} data-method={method.id}>
           <p class="m-0 text-label text-muted">{method.name} — run this in a terminal on the server:</p>
           <pre

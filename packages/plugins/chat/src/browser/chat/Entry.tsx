@@ -57,7 +57,8 @@ import { useRouter } from "olai-plugin-navigation/routing"
  */
 import { servedDirectory } from "../vault.ts"
 import { SAYING_MS } from "olai-plugin-chat/wire"
-import type { ChatEntry, Delivery } from "olai-plugin-chat/wire"
+import type { ChatEntry } from "olai-plugin-chat/wire"
+import type { Delivery } from "@kolu/acp/wire"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 

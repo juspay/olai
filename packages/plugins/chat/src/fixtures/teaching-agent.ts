@@ -18,67 +18,41 @@
  * the rule from "taught once per node".
  */
 
-const write = (value: unknown): void => {
-  process.stdout.write(`${JSON.stringify(value)}\n`)
-}
-
-const respond = (id: unknown, result: unknown): void => {
-  write({ jsonrpc: "2.0", id, result })
-}
-
-const notify = (method: string, params: unknown): void => {
-  write({ jsonrpc: "2.0", method, params })
-}
+import { listen, respond, unknownMethod, update } from "./jsonrpc.testlib.ts"
 
 let sessions = 0
 let session = ""
 
-let pending = ""
-process.stdin.setEncoding("utf8")
-process.stdin.on("data", (chunk: string) => {
-  pending += chunk
-  const lines = pending.split("\n")
-  pending = lines.pop() ?? ""
-  for (const line of lines) {
-    if (line.trim() === "") continue
-    const message = JSON.parse(line) as {
-      readonly id?: unknown
-      readonly method?: string
-      readonly params?: { readonly sessionId?: string; readonly prompt?: ReadonlyArray<{ readonly text?: string }> }
+listen<{
+  readonly id?: unknown
+  readonly method?: string
+  readonly params?: { readonly sessionId?: string; readonly prompt?: ReadonlyArray<{ readonly text?: string }> }
+}>(message => {
+  switch (message.method) {
+    case "initialize":
+      respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
+      return
+    case "session/new":
+      sessions += 1
+      session = `sess-${sessions}`
+      respond(message.id, { sessionId: session })
+      return
+    case "session/load":
+      session = message.params?.sessionId ?? session
+      respond(message.id, { sessionId: session })
+      return
+    case "session/prompt": {
+      const text = message.params?.prompt?.[0]?.text ?? ""
+      // The prompt, back as prose — one chunk, which is what a settled
+      // paragraph is on this wire.
+      update(session, {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: `heard: ${text}` },
+      })
+      respond(message.id, { stopReason: "end_turn" })
+      return
     }
-    switch (message.method) {
-      case "initialize":
-        respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
-        continue
-      case "session/new":
-        sessions += 1
-        session = `sess-${sessions}`
-        respond(message.id, { sessionId: session })
-        continue
-      case "session/load":
-        session = message.params?.sessionId ?? session
-        respond(message.id, { sessionId: session })
-        continue
-      case "session/prompt": {
-        const text = message.params?.prompt?.[0]?.text ?? ""
-        // The prompt, back as prose — one chunk, which is what a settled
-        // paragraph is on this wire.
-        notify("session/update", {
-          sessionId: session,
-          update: {
-            sessionUpdate: "agent_message_chunk",
-            content: { type: "text", text: `heard: ${text}` },
-          },
-        })
-        respond(message.id, { stopReason: "end_turn" })
-        continue
-      }
-    }
+    default:
+      unknownMethod(message)
   }
 })
-
-/** A MODULE rather than a script, which is what keeps its names its own: two
- *  fixtures in one folder both spelling `write` are two globals colliding
- *  otherwise (`./stale-session-agent.ts` and `./doorbell-agent.ts` say the same
- *  line). */
-export {}

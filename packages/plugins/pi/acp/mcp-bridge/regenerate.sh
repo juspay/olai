@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Rebuild ../patches/pi-mcp-servers.patch.
 #
-# Same discipline as the sibling rig (packages/plugins/claude/acp/session-list-info/regenerate.sh —
+# Same discipline as the sibling rig (`@kolu/acp-claude`'s adapter/session-list-info/regenerate.sh —
 # its header names the failures this shape exists to answer): the patch is
 # machine-diffed against pi-acp's PRISTINE dist/index.js after the four
 # splices below land by ANCHOR, never by line number; `patch -p1 -F0` at

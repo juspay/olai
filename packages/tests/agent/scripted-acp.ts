@@ -821,7 +821,7 @@ const authMethodsOffered = (): ReadonlyArray<Record<string, unknown>> => {
  *
  *  Each carries the one FACT the patched adapter's `session/list` adds beyond
  *  the protocol's four fields (`_meta.claudeCode`,
- *  `packages/plugins/claude/acp/patches/session-list-info.patch`): the adapter always reads a count,
+ *  `@kolu/acp-claude`'s `adapter/patches/session-list-info.patch`): the adapter always reads a count,
  *  and the OLDER of this pair is the one a `/clear` left behind, so the fake
  *  names what replaced it. The second line of a picker's row is what a
  *  scenario reads off this. */
@@ -1803,8 +1803,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       })
       // SAID OUT LOUD, like the `set property` verb above and for the same
       // reason: the refusal's own sentence is the assertion, and an olai tool's
-      // result is not drawn into the call's detail (`chat/src/agent.ts`'s
-      // `detailOf`), so the words have to come back as prose to be read.
+      // result is not drawn into the call's detail (`@kolu/acp-client`'s
+      // `agent.ts`'s `detailOf`), so the words have to come back as prose to
+      // be read.
       //
       // ONE MESSAGE EACH, and that is the scenario's business rather than
       // tidiness: two long results in one row is one row whose prose a reader —
@@ -2240,7 +2241,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
   // A BACKGROUND TASK, ARMED — the one call whose whole point is to outlive
   // the turn it was made in, reported the way the patched adapter reports one
-  // (`packages/plugins/claude/acp/patches/README.md`): the tool answers the moment the task is
+  // (`@kolu/acp-claude`'s `adapter/patches/README.md`): the tool answers the moment the task is
   // running, so the call goes `in_progress` and STAYS there, carrying the
   // harness's own task on its `_meta`. The frames are the shapes a real
   // `Bash(run_in_background)` produced through that adapter on 2026-08-24,
@@ -2951,7 +2952,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // over the same transcript, and the harness starts its task again. What
     // reaches a client then is not a new agent: everything that agent does goes
     // on being stamped with the call that SPAWNED it, so olai's patched adapter
-    // reopens that very call (`packages/plugins/claude/acp/patches/README.md`'s "a task's second life",
+    // reopens that very call (`@kolu/acp-claude`'s `adapter/patches/README.md`'s "a task's second life",
     // measured on the real wire by `packages/tests/tasks.ts`). Which is exactly
     // what this sends: a `tool_call_update` putting the old call back to
     // `in_progress`, with nothing else on the frame — no title (the row was

@@ -1,5 +1,5 @@
-import { spelling } from "./leg.ts"
-/** Adapter fixtures shared by the leg bench and the executable e2e fake. */
+import { spelling } from "@kolu/acp-claude"
+/** Adapter fixtures shared by the executable e2e fake. */
 import type { ToolCall, ToolCallContent } from "@agentclientprotocol/sdk"
 /** Structural CallToolResult subset used by these text-only fixtures. */
 export interface CallToolResult {

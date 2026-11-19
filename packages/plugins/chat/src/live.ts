@@ -39,8 +39,8 @@
  * reopening it would be inventing a budget it never had.
  */
 
-import type { ChatLocalState } from "./local.ts"
-import { MemoryFailure, word } from "./memory.ts"
+import { type ChatLocalState, word } from "./local.ts"
+import { MemoryFailure } from "@kolu/acp-client"
 import { Effect } from "effect"
 
 /** This state machine's section in chat's one machine-local document. */

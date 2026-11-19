@@ -20,7 +20,7 @@
  * legible in a screenshot, in a high-contrast theme and to a reader who cannot
  * tell `done` from `alarm`. The sentence is what the screen reader gets, and it
  * is a whole sentence rather than the tag — `handed` means nothing to anyone
- * who has not read `../../../../plugins/chat/src/servers.ts`.
+ * who has not read `@kolu/acp-client`'s `servers.ts`.
  *
  * `handed` HAS NO MARK, which is the state's own honesty: there is nothing to
  * report yet. Every row on an agent that says nothing per server is this one,
@@ -29,19 +29,20 @@
  *
  * A RECORD OVER THE CLOSED UNION rather than a lookup with a fallback: a fifth
  * standing on the wire fails to compile here, which is the same discipline
- * `../../../../plugins/chat/src/chat.ts`'s `EVIDENCE` keeps over the event vocabulary.
+ * {@link ./ToolFrame.tsx}'s `LOOK` keeps over ACP's tool statuses.
  *
  * WHAT IS DELIBERATELY NOT A ROW HERE is whether a standing means this
  * conversation does not HAVE the server. That is what decides which rows get a
  * sentence of their own ({@link ./Missing.tsx}), and it is already answered by
- * a total switch beside the union itself (`@olai/surface`'s `whyNot`) — a
- * second answer in this table would be a second thing free to disagree with it,
- * and the disagreement renders as a failure row with no reason under it.
+ * a total switch beside the shape itself (`olai-plugin-chat/wire`'s
+ * `notHere`) — a second answer in this table would be a second thing free to
+ * disagree with it, and the disagreement renders as a failure row with no
+ * reason under it.
  */
 
-import type { ServerStanding } from "olai-plugin-chat/wire"
+import type { Server } from "@kolu/acp/wire"
 export const SAID: {
-  readonly [K in ServerStanding["kind"]]: {
+  readonly [K in Server["standing"]]: {
     /**
      * The mark beside the name on a chip, or `null` for the standing with
      * nothing to report.

@@ -36,7 +36,7 @@
  *   - {@link Overheard.superseded} — the conversation that replaced this one,
  *     as the FULL PAIR `{agent, session}`, WHERE OLAI ITSELF DID THE
  *     REPLACING. The adapter reports a `/clear` in its own corner of
- *     `session/list` ({@link ./events.ts}'s `Stored`) and says nothing about
+ *     `session/list` (`@kolu/acp-client`'s `events.ts`'s `Stored`) and says nothing about
  *     a re-pointing olai made, so without this a node agent's own previous
  *     session would come back as a conversation nobody claims
  *     ({@link ./succession.ts}). It names the pair because fresh start may
@@ -153,8 +153,8 @@
 
 import { Effect, Semaphore } from "effect"
 
-import type { ChatLocalState } from "./local.ts"
-import { MemoryFailure, word } from "./memory.ts"
+import { type ChatLocalState, word } from "./local.ts"
+import { MemoryFailure } from "@kolu/acp-client"
 import { ROWS } from "./scopes.ts"
 
 /** This state machine's section in chat's one machine-local document. */
@@ -331,7 +331,7 @@ interface Written {
  * BOTH NAMES ARE LOAD-BEARING and a row missing either is dropped: a row that
  * does not say which agent and which session names no conversation, and there
  * is nothing to guess. Everything else is read leniently and a strange value
- * reads as absent — the same rule {@link ./memory.ts}'s `word` is. A `taught`
+ * reads as absent — the same rule {@link ./local.ts}'s `word` is. A `taught`
  * that is not `true` is untaught, which costs one extra teaching; a `said` that
  * will not parse is a door with no line on it, which is what every door starts
  * as; a `seen` that will not parse is a conversation nothing has been
@@ -480,8 +480,9 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
         write(to, (row) =>
           // THE LATER MARK WINS, and the comparison is on the STRINGS because
           // the stamps are one shape: every one of them is minted by
-          // `Date#toISOString` (`./transcript.ts`'s `stamp`), fixed-width UTC,
-          // so `>=` on the words is the order of the instants they spell.
+          // `Date#toISOString` (`@kolu/acp-harness`'s `transcript.ts`'s
+          // `stamp`), fixed-width UTC, so `>=` on the words is the order of the
+          // instants they spell.
           //
           // WHY IT MATTERS: two tabs a frame apart both acknowledge, and the
           // one still holding the roster before the agent's newest line names

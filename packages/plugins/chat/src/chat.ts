@@ -9,7 +9,8 @@
  * collection and gets the conversation in its first frame.
  *
  * This file is the join, and it is the only place that knows both halves:
- * {@link ./agent.ts} speaks ACP and emits typed events; {@link ./transcript.ts}
+ * `@kolu/acp-client`'s `agent.ts` speaks ACP and emits typed events;
+ * `@kolu/acp-harness`'s `transcript.ts`
  * turns those into rows; the surface members below are how a browser sees them.
  * Nothing above knows an agent exists, and nothing below knows a browser does.
  *
@@ -91,38 +92,50 @@
  *     landed — so the whole path from browser to agent stays a string, and the
  *     one place that knows otherwise is the module that owns that directory.
  */
-import type { Advertised } from "@olai/plugin-api/services"
+import type { Advertised, ToolServer } from "@olai/plugin-api/services"
 
-import { type Attached, type AttachChunk, type AuthMethod, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type SignIn, type Talking } from "olai-plugin-chat/wire"
+import { type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
+import type { PlanStep } from "@kolu/acp/wire"
 
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@kolu/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
 import { emitter } from "@olai/log"
-import { Deferred, Effect, Fiber, References, Semaphore } from "effect"
+import { Effect, Fiber, References, Semaphore } from "effect"
 
-import * as AcpAgent from "./agent.ts"
+import * as AcpAgent from "@kolu/acp-client"
+import {
+  type Change,
+  type Harness,
+  type HarnessChange,
+  type HarnessOptions,
+  HarnessRefused,
+  type HarnessState,
+  HarnessUnavailable,
+  holding,
+  type HttpServer,
+  joined,
+  type Opening,
+  type RowHead,
+  says,
+  startHarness,
+  type TurnEnded,
+} from "@kolu/acp-harness"
 import type { Conversing, Overheard, Sessions } from "./sessions.ts"
 import { choiceOf, here, offBecause, type Installed, type Roster } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
-import * as Deliveries from "./deliveries.ts"
-import type { AgentEvent, Stored } from "./events.ts"
+import type { Stored } from "@kolu/acp-client"
 import { lastSaid } from "./heard.ts"
+import type { Json } from "./json.ts"
 import * as Listings from "./listings.ts"
-import type { Models } from "./models.ts"
-import * as Memory from "./memory.ts"
-import { ephemeralLocalState } from "./local.ts"
+import type { Models } from "@kolu/acp-client"
 import { annotated } from "./prompt.ts"
-import type { Probe } from "./probes.ts"
+import type { Probe } from "@kolu/acp-client"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { remindingFor, teachingFor } from "./teaching.ts"
-import { type Change, says, Transcript } from "./transcript.ts"
-import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
-
-export type { ToolServer } from "./agent.ts"
 
 /** One conversation a plugin may wake, optionally narrowed to a node scope. */
 export interface WakeScope {
@@ -131,6 +144,53 @@ export interface WakeScope {
   readonly session: string
   readonly pick: import("./json.ts").Json
 }
+
+/**
+ * WHICH CONVERSATION — the pair, because a session id means nothing to the
+ * wrong agent.
+ *
+ * Olai's own identity for a conversation, spelled the way {@link ./memory.ts}
+ * and `@olai/surface`'s `SessionInfo` already spell it rather than minted a
+ * second time. It is what a held body is addressed to (`@kolu/acp-harness`'s
+ * `holding`, which is generic over the address precisely because kolu has one
+ * conversation and olai has a table of them).
+ */
+export interface Addressed {
+  readonly agent: string
+  readonly session: string
+}
+
+/**
+ * How many bodies ONE plugin may have waiting for ONE conversation before the
+ * oldest is dropped.
+ *
+ * A count and not a byte budget, because what a body costs is the plugin's
+ * business and what this end can honestly bound is how many of them it is
+ * holding. Thirty-two is far past the number a coalescing plugin ever reaches
+ * — a plugin that keys its sentences holds exactly one — so the cap only ever
+ * bites on a plugin that is ringing without one, which is the case worth
+ * bounding.
+ *
+ * NO ELISION LINE when it bites. Saying "and 4 more" would be core composing a
+ * sentence, which is the one thing the doorbell's whole shape refuses.
+ */
+export const SLOTS = 32
+
+/**
+ * ... and how many CONVERSATIONS are held for at all, evicted
+ * least-recently-held-for.
+ *
+ * The other unbounded axis: a plugin scoped to conversations a person has long
+ * since stopped opening would otherwise grow one list per conversation for the
+ * life of the process. The same rule {@link ./scopes.ts} evicts a pick by, and
+ * for the same reason — membership of an agent's session list is not proof of
+ * anything, so the only safe eviction order is the one this end can see.
+ *
+ * BOTH CAPS ARE OLAI'S, handed to a holding that keeps neither by default:
+ * kolu holds one slot per watched terminal for one conversation, and the watch
+ * list is its bound.
+ */
+const CONVERSATIONS = 32
 
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
@@ -186,18 +246,32 @@ export interface PanelOptions {
    *  the panel was in is keyed by ({@link ./memory.ts}), which is what makes
    *  "the conversation you were last in" survive a restart. */
   readonly cwd: string
-  /** This directory's remembered conversation. The scheduler supplies one
-   * shared instance so it can route boot before any panel starts; a standalone
-   * panel builds the ordinary state-home implementation itself. */
+  /** WHERE THE MODEL A PERSON CHOSE IS WRITTEN DOWN, so a switch survives a
+   *  restart. The scheduler supplies one shared instance so it can route boot
+   *  before any panel starts; omitting it is a panel whose model pin is the
+   *  agent's own. Handed straight to the conversation, which is the only end
+   *  that can tell a SWITCH from the agent re-asserting its pin at the door. */
   readonly models?: Models
-  readonly memory?: Memory.Memory
+  /** THIS DIRECTORY'S REMEMBERED CONVERSATION — which one it was last in and
+   *  on which model, so a restart opens that one rather than whichever the
+   *  agent has most recently.
+   *
+   *  REQUIRED, and that is the whole of the argument for the keyword: an
+   *  activation's cache is SHARED by every panel the scheduler builds
+   *  (`./scoped.ts` mints one and hands it to all of them), so a panel that
+   *  quietly made its own when the field was missing would be a second answer
+   *  to "what does this activation remember" — reachable only by forgetting to
+   *  pass one, which is exactly when it would be wrong. A caller that wants a
+   *  panel to remember nothing durable says so in words
+   *  ({@link ./memory.ts}'s `volatile`). */
+  readonly memory: AcpAgent.Memory
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
    *  session is opened after that. */
-  readonly tools: () => AcpAgent.ToolServer | null
+  readonly tools: () => ToolServer | null
   /** The OPTIONAL servers to look for, once per conversation — whatever else
-   *  this host turns out to be running ({@link ./probes.ts}). A THUNK, and
-   *  carried through to {@link ./agent.ts} untouched: what is on the list is the
+   *  this host turns out to be running (`@kolu/acp-client`'s `probes.ts`). A THUNK, and
+   *  carried through to `@kolu/acp-client`'s `agent.ts` untouched: what is on the list is the
    *  composition root.s business, and so is WHEN the list is settled — a serve
    *  whose integrations are fibers answers a different list per conversation, so
    *  this side holds no copy of one. Omitting it is a chat that asks this
@@ -273,11 +347,12 @@ export interface PanelOptions {
   /** Publish transcript changes — ALL THREE of the things one carries: rows
    *  upserted by key, removes for a session that was replaced, and the text
    *  APPENDED to a row already there, which is what a chunk of a streaming
-   *  answer is and moves no row at all ({@link ./transcript.ts}, and `says` for
+   *  answer is and moves no row at all (`@kolu/acp-harness`'s `transcript.ts`,
+   *  and `says` for
    *  the question "does this change say anything"). Naming two of the three is
    *  what this comment used to do and what the guard below used to ask, and it
    *  cost every token of every answer. */
-  readonly onTranscript: (change: Change) => void
+  readonly onTranscript: (change: Change<ChatEntry>) => void
 }
 
 /** One conversation and one ACP process. The scheduler adds the node-pool
@@ -419,14 +494,14 @@ export interface Panel {
   ) => Effect.Effect<Attached, OpFailure>
   /** Deliver a message the agent would not take, again — `id` is the `user`
    *  row's own key. The prompt is the one that failed, kept beside that row
-   *  ({@link ./transcript.ts}) with its pictures and node lines, so what lands
+   *  (`@kolu/acp-harness`'s `transcript.ts`) with its pictures and node lines, so what lands
    *  is the same message rather than a browser's reconstruction of it. Refuses
    *  when that row is not waiting to be sent, which two tabs can genuinely
    *  race. */
   readonly resend: (id: string) => Effect.Effect<void, OpFailure>
   /**
-   * SIGN IN — with a method the agent advertised (`./wire/members.ts`'s
-   * {@link AuthMethod}), or with `null` for the chooser.
+   * SIGN IN — with a method the agent advertised (`@kolu/acp/wire`'s
+   * `AuthMethod`), or with `null` for the chooser.
    *
    * The chooser is the panel's own: `/login` was pressed and the row that lists
    * the methods goes up, which is all this does. A named method is the AGENT's
@@ -559,7 +634,7 @@ export interface Panel {
       say: () => string | null,
       options?: {
         /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
-         *  see {@link ./deliveries.ts}. A body with no key never replaces. */
+         *  see `@kolu/acp-harness`'s `holding.ts`. A body with no key never replaces. */
         readonly coalesce?: string
         /** Whether this body is OLAI'S OWN TURN — see
          *  `@olai/plugin-api`'s `Deliveries.deliver`, which argues the option,
@@ -580,13 +655,13 @@ export interface Panel {
      * nobody observing it, no memo and no commit
      * (`olai-plugin-chat`'s `server/sleep.ts`).
      *
-     * THE SAME VERB A CLEARED DOORBELL USES (`./deliveries.ts`'s `dropped`),
+     * THE SAME VERB A CLEARED DOORBELL USES (`@kolu/acp-harness`'s `holding.ts`'s `dropped`),
      * reached from the other end: there a person took the words away, here the
      * caller that wrote them is going. Nothing is lost by it, for the reason
      * above — and a body that was already HANDED is not in the holding at all,
      * so this cannot unsay anything the agent has seen.
      */
-    readonly withdraw: (to: Deliveries.Addressed) => Effect.Effect<void>
+    readonly withdraw: (to: Addressed) => Effect.Effect<void>
   }
   /** THIS conversation wakes on THAT file, for that plugin's doorbell — or, with
    *  `file: null`, on nothing. The one write behind the strip's scope control.
@@ -652,49 +727,13 @@ const sameWake = (
  */
 const CANCEL_GRACE = "5 seconds"
 
-/**
- * What a person is told when their own cancel overtook their own message.
- *
- * The words are kept and the row is retryable, like every other way a steer
- * fails to land — but the reason is worth saying differently, because this one
- * is not the agent's doing. Both buttons are on screen at once by design, and
- * pressing them in quick succession is a coherent thing to want: say the next
- * thing, then decide the whole turn was wrong. What must not happen is the
- * message quietly starting the turn back up.
- */
-const CANCELLED_UNDER_IT =
-  "the turn was stopped before this reached it — the message below is still yours to send"
-
-/**
- * WHY a message did not land: the reading and the sentence, as ONE value.
- *
- * Not two parameters. `key`, `prompt` and `why` are all strings, so a call site
- * handing them over in the wrong order compiles and draws somebody's prompt as
- * the reason it failed — and the classification is not independent of the
- * sentence anyway: they are one account of one failure.
- *
- * An {@link AcpAgent.AgentGone} IS one of these, structurally, which is the
- * point rather than a coincidence — the two lanes that already have a failure
- * pass it whole, and the one case that has none (a person's own cancel
- * overtaking their own message) writes the pair out where a reader can see both
- * halves at once.
- */
-/** WHO this panel is talking to: the roster row a person picked, and the agent
- *  module started from it. A named pair rather than an inline object because
- *  three things take one now — the slot, the delivery decision, and the turn
- *  that a silence has to name the agent of. */
+/** WHO this panel is talking to: the roster row a person picked, and the one
+ *  conversation started from it. A named pair rather than an inline object
+ *  because three things take one — the slot, the delivery decision, and the
+ *  turn that a silence has to name the agent of. */
 interface Bound {
   readonly row: Installed
-  readonly agent: AcpAgent.Agent
-}
-
-interface Undelivered {
-  readonly gone: AcpAgent.Gone
-  readonly why: string
-  /** ... and whether the agent said no for want of a signature — the one
-   *  refusal a row can say more about than "Not sent" ({@link UserEntry}'s
-   *  `auth`). */
-  readonly auth?: boolean
+  readonly harness: Harness<ChatEntry>
 }
 
 /**
@@ -714,88 +753,13 @@ interface Undelivered {
  * ({@link ./sessions.ts}'s `Overheard.taken`).
  */
 interface Teaching {
-  readonly to: Deliveries.Addressed
+  readonly to: Addressed
   /** The contract, the reminder, or nothing — verbatim what rides under the
    *  message and what the notice shows. */
   readonly lines: ReadonlyArray<string>
   /** These lines ARE the contract, so this message marks the session `taught`
    *  — the record's own name for the fact, handed straight to `took`. */
   readonly taught: boolean
-}
-
-/**
- * WHAT EACH KIND OF FRAME IS EVIDENCE OF — the one table two questions are
- * answered from.
- *
- * Two things ask "has the agent said anything since I looked", and they are not
- * the same question. Exactly one frame kind separates them, and getting that
- * one wrong is the bug this table was written for:
- *
- *   - **`shown`** is what a person can SEE — prose, tool frames, questions.
- *     {@link begin} asks it of a turn at both of its endings: *did these words
- *     produce anything?* A turn that ends having shown none of these has said
- *     nothing, whatever else went over the wire, and the panel used to draw
- *     exactly that — nothing — over the message somebody had just sent.
- *   - **`arrived`** is anything that could only have come from the other end of
- *     the pipe, drawn or not. {@link cancel} asks it of a turn it has told to
- *     stop: *is this process still alive down there?* A zero-token usage frame
- *     answers that — something is reading its input and reporting — and answers
- *     nothing at all about the first question. It IS the auth-failure signature
- *     on the wires that fail quietly: an agent with no provider key it can
- *     resolve sends a lone `usage_update {used:0}` and then a SUCCESSFUL
- *     `end_turn`, so the one frame that arrived was the one that meant nothing
- *     had. One count serving both meant a message that never reached a model
- *     was neither marked unsent nor spoken about.
- *   - **`neither`** is everything olai says ABOUT the agent rather than
- *     anything the agent said: a boot that failed, a process that exited, a
- *     session that ended. A `model` announcement is one of these too — it
- *     arrives when a SESSION opens as readily as when a turn starts.
- *
- * A RECORD over the closed vocabulary rather than two sets, because
- * {@link ./events.ts} is closed on purpose and this is a question every member
- * has to answer. Sets are opt-in: a member added later would default to
- * `neither` in silence, and the two ways that goes wrong are a turn accused of
- * silence for something it drew, and a silent turn nobody is told about. The
- * record makes a new member fail to compile until somebody answers.
- */
-const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "neither" } = {
-  said: "shown",
-  tool: "shown",
-  asked: "shown",
-  usage: "arrived",
-  // A replay is the agent saying what it said BEFORE this turn, so it is
-  // evidence the pipe is alive and evidence of nothing about these words.
-  userSaid: "arrived",
-  replayStarted: "arrived",
-  replayEnded: "arrived",
-  askSettled: "neither",
-  commands: "neither",
-  // A sign-in is olai's own account of a process it is running, said while no
-  // turn is in flight (a sign-in is what happens when a turn could not start).
-  signIn: "neither",
-  // The handshake, which is olai asking rather than the agent volunteering —
-  // and which happens before any turn, so it could not be evidence about one.
-  advertised: "neither",
-  // WHO THE AGENT IS SIGNED IN AS: a fact about the process, said at the
-  // handshake, at each session opened, and mid-turn when the agent re-reads
-  // its own identity. It is never evidence that these words produced anything.
-  identity: "neither",
-  servers: "neither",
-  model: "neither",
-  models: "neither",
-  toolTerminals: "shown",
-  settings: "neither",
-  plan: "shown",
-  session: "neither",
-  // OLAI'S OWN, and said before the request that could be answered at all: it
-  // is this end announcing what it is about to ask for, so it is evidence of
-  // nothing — not that words were drawn, and not that anything is alive down
-  // the pipe.
-  opening: "neither",
-  sessionTitled: "neither",
-  sessionOver: "neither",
-  gone: "neither",
-  trouble: "neither",
 }
 
 /**
@@ -846,8 +810,8 @@ const silence = (agent: string): string =>
  * just worth a sentence, they decide what may be shown.
  */
 const noting = (
-  write: Effect.Effect<void, Memory.MemoryFailure> | undefined,
-  why: (failure: Memory.MemoryFailure) => string,
+  write: Effect.Effect<void, AcpAgent.MemoryFailure> | undefined,
+  why: (failure: AcpAgent.MemoryFailure) => string,
 ): Effect.Effect<void> =>
   write === undefined ? Effect.void : Effect.gen(function*() {
     const done = yield* Effect.result(write)
@@ -857,17 +821,30 @@ const noting = (
 /** ... and what each of them costs when it is lost, said where the write is
  *  rather than at the call site: the sentence is about this record, and the
  *  gesture that made the write is a package away. */
-const tookLost = (teach: Teaching, failure: Memory.MemoryFailure): string =>
+const tookLost = (teach: Teaching, failure: AcpAgent.MemoryFailure): string =>
   teach.taught
     ? `a node agent was taught its contract and it could not be written down ` +
       `(${failure.why}) — the next message in this session will say it again`
     : `a node agent's message could not be counted (${failure.why}) — ` +
       `its writing rule is reminded one message later than it would have been`
 
-const replaceLost = (failure: Memory.MemoryFailure): string =>
+const replaceLost = (failure: AcpAgent.MemoryFailure): string =>
   `a node agent was given a fresh session and what it replaced could not be written down ` +
   `(${failure.why}) — the new session is bound, and the old one comes back as a chat ` +
   `no node claims`
+
+/** WHAT A ROW OLAI MINTED ITSELF IS CALLED — the prefix its ids wear, so a row
+ *  this panel wrote can be told from one the conversation did without asking
+ *  either of them. Two readers: the minting, and the wipe that takes them with
+ *  the conversation they were about. */
+const OURS = "olai:"
+
+/** ... and what a lost note of WHICH conversation this directory is in costs:
+ *  nothing anybody is waiting on, and the next boot adopting whichever one the
+ *  agent has most recently instead of the one somebody was in. */
+const remembranceLost = (failure: AcpAgent.MemoryFailure): string =>
+  `which conversation this directory was in could not be written down (${failure.why}) — ` +
+  `a restart opens whichever one this agent has most recently`
 
 export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, never> =>
   Effect.gen(function*() {
@@ -888,20 +865,49 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * READ IN TWO PLACES now, which is new and is the shape of the fact rather
      * than a duplication: this file reads the AGENT out of it, because which
      * subprocess to start is a question that comes before there is one to ask,
-     * and {@link ./agent.ts} reads the conversation and the model out of it,
+     * and `@kolu/acp-client`'s `agent.ts` reads the conversation and the model out of it,
      * because those are facts about a session only the thing holding one can
      * act on. One writer per field, and the write is the agent's.
      */
     const memory = options.memory
-      ?? Memory.volatile()
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
-    /** One agent, built from the roster row that named it. The handler is
-     *  passed in because the two are mutually referential: the agent needs
-     *  somewhere to send its events, and the thing that consumes them needs the
-     *  agent to drive. */
+    /** THE ONE MCP SERVER OLAI HANDS WHATEVER IT STARTS — its own tool face,
+     *  with the bearer line composed here because it is olai's: the thing at
+     *  the other end carries the headers it was given rather than deciding how
+     *  somebody else's route lets a caller in. Whatever else this host turns
+     *  out to be running arrives through the probes beside it.
+     *
+     *  ONE COMPOSITION FOR BOTH ENDS. A conversation is handed this list and
+     *  so is the probe below, and the two differ in nothing — a second
+     *  spelling of the same entry is a second place for the header, the name
+     *  or the scheme to be wrong, in a value that decides whether an agent can
+     *  reach olai's own tools at all.
+     */
+    const ownServers = (): ReadonlyArray<HttpServer> => {
+      const own = options.tools()
+      return own === null ? [] : [{
+        kind: "http" as const,
+        name: own.name,
+        url: own.url,
+        headers: { Authorization: `Bearer ${own.token}` },
+      }]
+    }
+
+    /**
+     * A CLIENT THIS PANEL IS NOT TALKING THROUGH — the one thing olai still
+     * starts an `@kolu/acp-client` agent for by itself, and it is a QUESTION
+     * rather than a conversation: what has this engine got stored here.
+     *
+     * Everything a person says goes through `@kolu/acp-harness` instead
+     * ({@link using}), which spawns its own child. So this takes no event
+     * handler — a replay from an agent nobody is talking to has no business in
+     * the transcript on screen, and the only verb asked of it brings the
+     * process up without opening a session — and its `purpose` is the one it
+     * can have, which is what tells the two kinds of child apart in a log.
+     */
     const logContext = yield* Effect.service(References.CurrentLogAnnotations)
-    const spawn = (row: Installed, onEvent: (event: AgentEvent) => void, purpose = "conversation") =>
+    const probeFor = (row: Installed) =>
       AcpAgent.make({
         id: row.id,
         leg: row.leg,
@@ -914,146 +920,79 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // variables to take away (`@kolu/acp/engine`'s `Adapter.unset`).
         unset: row.adapter.unset,
         cwd: options.cwd,
-        tools: options.tools,
+        // OLAI'S OWN SERVER FIRST, as the one entry the client is handed, and
+        // the probed ones after it (`@kolu/acp-client`'s `mcpServersOf`) —
+        // which is the order a person reads the roster in ({@link ownServers}).
+        tools: ownServers,
         probes: options.probes,
         advertised: options.advertised,
         memory,
         models: options.models,
-        onEvent,
-      }).pipe(Effect.annotateLogs({ ...logContext, purpose }))
+        onEvent: () => {},
+      }).pipe(Effect.annotateLogs({ ...logContext, purpose: "session list" }))
 
-    const transcript = new Transcript()
+    /**
+     * THE CONVERSATION AS THIS PANEL HOLDS IT — the rows `@kolu/acp-harness`
+     * publishes as deltas, folded into one map, and the rows olai mints itself
+     * ({@link ours}).
+     *
+     * A COPY, deliberately, and the one a fresh subscription is seeded with:
+     * the harness publishes what MOVED, because a streaming answer is one row
+     * and six hundred pieces and publishing the whole of it per piece puts the
+     * sum of its prefixes on the wire. Somebody has to hold the sum, and it is
+     * the end that answers {@link Panel.entries} — which is also the end that
+     * counts the questions, reads the strip off the rows and takes the agent's
+     * last line off them.
+     *
+     * It is not persisted and never was: the agent's own session is the
+     * persistence, and a second copy on a disk would be a second thing to be
+     * wrong.
+     */
+    const rows = new Map<string, ChatEntry>()
     /** The conversation's own tmp directory, for pictures pasted into it.
      *  Emptied when a conversation is left and when the chat stops. */
     const files = Attachments.make()
 
-    /**
-     * WHAT AN AGENT HAS SAID ABOUT ITSELF before it has said anything: nothing.
+    /** ... and as the panel's own `talking`, which carries what the agent said
+     *  it can do beside who it is — what the composer offers and promises out
+     *  of.
      *
-     * The state a freshly bound agent is in for the length of a handshake, and
-     * the honest one — a panel that has not been told cannot offer an
-     * interruption on somebody's behalf, or promise a person their words will
-     * be got to. Both directions of being wrong here are cheap and only one of
-     * them is: a control that appears a moment late costs a click; a control
-     * that was there before the agent said it took one is a person pressing
-     * *interrupt* at an agent that will refuse it.
-     */
-    const SAYS_NOTHING = {
-      steers: false,
-      queues: false,
-      // ... AND NOTHING TO SIGN IN WITH, asserted rather than inferred: `as
-      // const` over the record is what keeps the two flags' shape readonly,
-      // which is the shape every reader of {@link advertises} sees.
-      methods: [] as ReadonlyArray<AuthMethod>,
-    } as const
-
-    /**
-     * ... and what the CURRENT agent has said, once it has.
+     *  READ OFF THE CONVERSATION ITSELF ({@link conversation}) rather than
+     *  copied beside it: these three are the harness's own account of what
+     *  this agent advertised at its handshake, and a copy would be a second
+     *  place for them to be wrong — one that has to be emptied by hand at
+     *  every swap, and that answers for the agent before last wherever
+     *  somebody forgets.
      *
-     * Beside {@link talking} rather than inside it because the two move at
-     * different times and for different reasons: WHO this panel is talking to
-     * is decided when somebody picks, and WHAT that agent can do is decided at
-     * the handshake, which is a subprocess and a round trip later. Kept here it
-     * is one assignment per boot; folded into `talking` it would be a field
-     * every writer of that member had to remember not to flatten.
-     */
-    let advertises: {
-      readonly steers: boolean
-      readonly queues: boolean
-      readonly methods: ReadonlyArray<AuthMethod>
-    } = SAYS_NOTHING
-
-    /**
-     * Whether THIS CONVERSATION has ever held a message behind a running turn.
+     *  NOTHING, before a conversation has said anything, and that is the
+     *  honest state of an agent that has not spoken yet: a panel that has not
+     *  been told cannot offer an interruption on somebody's behalf, or promise
+     *  a person their words will be got to. Both directions of being wrong
+     *  here are cheap and only one of them is: a control that appears a moment
+     *  late costs a click; a control that was there before the agent said it
+     *  took one is a person pressing *interrupt* at an agent that will refuse
+     *  it.
      *
-     * IT WITHDRAWS THE INTERRUPTION, and it is the one place in this file that
-     * works around somebody else's defect rather than stating a rule of its
-     * own. The pinned adapter leaves a turn's `session/prompt` unanswered
-     * forever if a `_session/steering` is injected into any turn of a session
-     * that has once held a queued one — the steered words run and stream, and
-     * only a cancel ends the turn. Verified on the wire with no olai in it:
-     * fresh sessions steer cleanly, one sequential turn steers cleanly, two
-     * steer cleanly, and one QUEUED turn earlier in the session poisons every
-     * steer after it.
-     *
-     * AND IT IS NOT THE WHOLE OF THE DEFECT. A session in which a turn armed
-     * a `Monitor` hangs the same way with nothing ever queued, so this latch
-     * is still OPEN — `queuedHere` false, the interruption still offered. Widening it is a
-     * change to what the panel OFFERS rather than a fact about the adapter,
-     * so it waits on a ruling. The measurement — every history tried, both
-     * pins, and the pristine run that says whose bug it is — is written once,
-     * in `packages/plugins/claude/acp/patches/README.md`, because it is a fact about the pin.
-     *
-     * Before this PR the combination was unreachable — olai never sent a
-     * mid-turn `session/prompt` on this leg — so the queue is what makes it
-     * reachable, and the queue is the default. The human ruled the guard in:
-     * offer nothing that hangs the conversation, and take the safe direction
-     * when a stale tab asks for one anyway (a plain prompt, which is what the
-     * message was going to be).
-     *
-     * WHAT IT COSTS is said out loud because it is not small: after one message
-     * typed during a turn, this conversation has no interruption for the rest
-     * of its life. `+ new` and opening a stored conversation both clear it,
-     * because it is the SESSION the adapter poisons — which is also why it is
-     * dropped on {@link AgentEvent}'s `sessionOver` rather than on anything
-     * about the agent.
-     *
-     * AND A TURN A DOORBELL STARTED IS A TURN LIKE ANY OTHER, which is the one
-     * thing this paragraph gained with the second doorbell and the one a reader
-     * would otherwise get wrong. {@link offer} is shaped so a doorbell's OWN
-     * body is never the message that queues — it declines to hand anything over
-     * while a turn is running, and `deliveries.test.ts` pins that. What it
-     * cannot do is stop a doorbell's turn from being the turn a PERSON then
-     * types behind: the boundary flush starts one at an agent that has just
-     * gone idle, and a message sent into it queues and spends the latch exactly
-     * as it would behind anybody else's turn.
-     *
-     * That is not a leak to be plugged, and the shape that would plug it is the
-     * wrong one: the adapter is poisoned by a session having HELD a queued
-     * prompt at all, so a conversation that went on advertising the control
-     * because the turn in front was a machine's would be offering an
-     * interruption that hangs it. What is owed is saying so — a person who
-     * scoped this conversation opted it into machine-started turns, and `+ new`
-     * is how the control comes back.
-     *
-     * It goes when the adapter is FIXED, which is not the same as when the
-     * pin moves: the 0.66.0 → 0.70.0 bump moved it four releases and #1039
-     * stayed open. 0.70.0 → 0.73.0 is a different swallow (#958, candidate
-     * #1065), not this latch. `packages/plugins/claude/acp/patches/README.md` is where each bump
-     * records whether it re-measured this.
-     */
-    let queuedHere = false
-
-    /** ... and as the panel's own `talking`, which carries two things more:
-     *  what this agent SAID it can do ({@link advertises}) and whether an
-     *  interruption is still on offer here ({@link queuedHere}), which is what
-     *  the composer offers and promises out of. */
+     *  `steers` ARRIVES WITH BOTH HALVES ALREADY IN IT — the agent advertised
+     *  steering, AND this conversation has not spent its latch on a message
+     *  held behind a running turn. The latch is the conversation's own, because
+     *  the defect it works around is the pinned adapter's: a session that has
+     *  once queued a prompt never settles a steered turn again, and `+ new` or
+     *  a stored conversation opened is how the control comes back. A panel
+     *  deriving that bit from two fields would be a second copy of a rule the
+     *  conversation already keeps. */
     const bound = (row: Installed): Talking => ({
       kind: "agent",
       id: row.id,
       name: row.name,
-      queues: advertises.queues,
-      // BOTH HALVES, in the one bit the composer reads: the agent said it
-      // takes an interruption, AND this conversation is one where taking it
-      // still ends. A client deriving that from two fields would be a second
-      // copy of a rule this end already knows, which is the argument
-      // `../../web/src/client/chat/busy.ts` makes for every decision like it.
-      steers: advertises.steers && !queuedHere,
+      queues: conversation?.queues ?? false,
+      steers: conversation?.steers ?? false,
       // ... AND WHAT IT CAN BE SIGNED IN WITH, which is the third thing this
       // member answers for and the only one a person PRESSES rather than reads:
       // an agent that offered no way in shows no `/login` at all, exactly as an
       // agent that offered no commands shows no command list.
-      methods: advertises.methods,
+      methods: conversation?.methods ?? [],
     })
-
-    /** Who this panel is talking to, said again — the one door for everything
-     *  that changes what is ON OFFER without changing who is answering: a
-     *  handshake landing, a message taking its place in the agent's queue, a
-     *  conversation ending. Nothing to say when nobody is bound. */
-    const rebind = (): void => {
-      const at = talking
-      if (at !== null) move({ talking: bound(at.row) })
-    }
 
     // The cell's own default, with the two fields that differ: an agent is
     // being started, and the roster is this machine's. Restating the others
@@ -1073,31 +1012,35 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  agent after the one thing that stops them has run: a subprocess spawned
      *  then is one nothing will ever kill. */
     let closing = false
-    /** The turns in flight — usually none or one, and more only for an agent
-     *  that queues a mid-turn message instead of steering it. Every question
-     *  anybody asks about them, and why they are a set, is {@link ./turns.ts}. */
-    const turns = new Turns()
-    /** WHAT A DOORBELL SAID THAT IS NOT AT THE AGENT YET, per conversation —
-     *  memory only, capped, and never on a disk ({@link ./deliveries.ts}). It
-     *  is not the queue that was deleted, and that module's header is where the
-     *  difference is argued. */
-    const held = Deliveries.holding()
+    /** The conversation's own account of itself, as the harness last published
+     *  it — `null` until one has been opened, which is what every projection
+     *  below reads through. */
+    let conversation: HarnessState | null = null
     /**
-     * Whether the cancel a person last pressed has been said out loud yet.
+     * WHAT A DOORBELL SAID THAT IS NOT AT THE AGENT YET, per conversation —
+     * memory only, capped on both axes, and never on a disk.
      *
-     * A cancel stops EVERY turn in flight, so each of them answers `cancelled`
-     * — and the whole point of the press was one decision, so it is worth one
-     * line in the conversation. Which turn gets to say it cannot be the rule:
-     * the answers come back in the agent's own order, and the pinned adapter
-     * answers for a turn it had merely queued as readily as for the one it was
-     * running.
+     * `@kolu/acp-harness`'s `holding`, which is where this module went when the
+     * two products turned out to hold the same thing: a body is held while a
+     * turn is running or while nobody is in the conversation it is for, bodies
+     * sharing a key replace each other IN PLACE so arrival order survives the
+     * replacing, and the pairing of that key is with the SENDER so two plugins'
+     * `digest`es cannot swallow each other. It is not the queue that was
+     * deleted (#194): that argument is about words a person typed and has no
+     * second copy of, and a doorbell's body is a derivation of state that is
+     * still true, so whatever derived it rings again.
      *
-     * Reset by {@link cancel}, which is the only thing that makes a press
-     * exist. It says nothing about a turn the agent cancelled on its own —
-     * there is no press for that to be a duplicate of, and a notice about it is
-     * news.
+     * THE VALUE IS A THUNK AND A FLAG. The words are asked for at the moment
+     * they are written ({@link offer}), because a body that waited through a
+     * turn is about a world that has had a turn to move; the flag says the turn
+     * it becomes is OLAI'S OWN (`@olai/plugin-api`'s `Deliveries.deliver`), and
+     * it rides the value because the body can wait.
      */
-    let stopSaid = false
+    const held = holding<Addressed, { readonly say: () => string | null; readonly sleep: boolean }>({
+      keyOf: (to) => JSON.stringify([to.agent, to.session]),
+      slots: SLOTS,
+      conversations: CONVERSATIONS,
+    })
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
@@ -1163,77 +1106,208 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * their message belongs in is the one being opened.
      */
     const opening = yield* Semaphore.make(1)
-    /** Everything the agent has said FOR ITSELF, counted — everything
-     *  {@link EVIDENCE} calls `arrived` or `shown`. Read by {@link cancel}. */
+    /**
+     * EVERYTHING THE CONVERSATION HAS PUBLISHED SINCE THIS PANEL CAME UP,
+     * counted — every change of either kind, drawn or not.
+     *
+     * What a reader needs is never a total but a CHANGE — has anything arrived
+     * since I looked — and a monotonic counter answers that with no clock to
+     * read and nothing to reset. {@link cancel} asks it of an agent it has told
+     * to stop: a conversation still reporting anything at all is one still
+     * working towards the stop it was asked for, and one that has gone silent
+     * with a cancel outstanding is the case nobody could see before.
+     */
     let heard = 0
-    /** ... and the narrow one: everything a person can SEE it say — what
-     *  {@link EVIDENCE} calls `shown`. Read by {@link begin}. */
-    let shown = 0
 
     /** A change that says nothing is not published — asked of the change
-     *  itself ({@link ./transcript.ts}'s `says`) rather than by naming its
-     *  fields here. This line used to name two of the three, which meant every
-     *  chunk of every streaming answer was dropped and the paragraph appeared,
+     *  itself (`@kolu/acp-harness`'s `says`) rather than by naming its fields
+     *  here. This line used to name two of the three, which meant every chunk
+     *  of every streaming answer was dropped and the paragraph appeared,
      *  whole, when the turn ended. */
-    const publish = (change: Change) => {
+    const publish = (change: Change<ChatEntry>) => {
       if (!says(change)) return
-      if (replaying) return
-      options.onTranscript(change)
+      if (!replaying) {
+        options.onTranscript(change)
+        return
+      }
+      // A CONVERSATION BEING LEFT GOES AT ONCE, and what is held is only what
+      // replaces it: the rows a reader is looking at have stopped being true
+      // the moment the one they belong to is gone, and a panel that held the
+      // emptying until the replay had arrived would be drawing somebody else's
+      // conversation for the length of an open.
+      if (change.removes.length > 0) {
+        options.onTranscript({ upserts: [], removes: change.removes, appends: [] })
+      }
     }
 
     /**
-     * WHETHER A REPLAY IS BEING HELD — and a replay is published ONCE, when it
-     * has arrived, rather than as it arrives.
+     * ONE CHANGE INTO THIS PANEL'S OWN COPY, and then out to whoever is
+     * watching.
      *
-     * A `session/load` re-sends the whole conversation before it answers
-     * ({@link ./agent.ts}), and published as it came, every tab drew that
-     * history a few rows a frame: a long conversation typed itself out again
-     * and the pane followed it down the screen for seconds. Nobody is reading a
-     * conversation that has not finished opening, so the rows are built here
-     * and handed over whole at `replayEnded`, which is one frame for every
-     * reader — the shape a tab that joins afterwards already gets from its
-     * snapshot.
+     * THE APPENDS LAND HERE TOO, which is the half a caller forgets: the
+     * conversation publishes a chunk as the text and the offset it belongs at,
+     * and the row it grows is published whole only when something else moves
+     * it. A copy that applied only the upserts would hand a late-joining tab a
+     * paragraph that stopped at the last whole row.
+     */
+    const fold = (change: Change<ChatEntry>): void => {
+      // A WIPE TAKES THIS PANEL'S OWN ROWS WITH IT. The conversation clears
+      // the rows IT minted — a new session, or the one a load empties before
+      // its replay — and it has never heard of the ones olai wrote
+      // ({@link ours}). Those are words ABOUT the conversation being left, so
+      // they go in the same breath: a notice explaining a chat nobody is in
+      // any more is the inheritance a `clear` exists to prevent. Asked as
+      // "does this change remove every row the conversation holds", which is
+      // what a wipe is and what a single row disappearing is not.
+      const theirs = [...rows.keys()].filter((id) => !id.startsWith(OURS))
+      const wipe = change.removes.length > 0
+        && theirs.length > 0
+        && theirs.every((id) => change.removes.includes(id))
+      const removes = wipe
+        ? [...change.removes, ...[...rows.keys()].filter((id) => id.startsWith(OURS))]
+        : change.removes
+      for (const row of change.upserts) rows.set(row.id, row)
+      for (const id of removes) rows.delete(id)
+      for (const piece of change.appends) {
+        const row = rows.get(piece.of)
+        if (row === undefined) continue
+        rows.set(piece.of, {
+          ...row,
+          text: `${row.text.slice(0, piece.at)}${piece.text}`,
+        })
+      }
+      publish(wipe ? { ...change, removes } : change)
+    }
+
+    /** How many rows olai itself has minted, for the ids it mints them under
+     *  ({@link ours}). */
+    let minted = 0
+
+    /**
+     * OLAI'S OWN ROW IN THE CONVERSATION — a sentence about this panel, or the
+     * detail of a write its ops layer refused.
      *
-     * The CLEAR that starts a replay is not held: the conversation being left
-     * goes at once, and what is held is only what replaces it. So the change
-     * that ends the hold is every row there is and no removes — nothing was
-     * published since the transcript was empty. Whatever else lands in
-     * between (a `gone` and its notice, a settle) is in the transcript by then
-     * and goes out with it.
+     * MINTED HERE rather than through the harness, and the reason is the row
+     * that matters most: the thing worth saying loudest is usually that there
+     * is NO conversation — a boot that could not read this directory's note, an
+     * engine that would not start — and there is no harness then to say it
+     * with. The id is this panel's own (`olai:N`) so it cannot collide with one
+     * the conversation minted, and the `seq` follows the last row there is, so
+     * it sorts where it happened.
      *
-     * `replayEnded` is emitted on EVERY way out of a load — answered, refused,
-     * or the agent dying mid-replay — so a hold cannot outlive its load.
+     * A REFUSAL is the same act for the same reason read from the other end:
+     * the agent is handed the structured detail in its tool result, and what it
+     * then says about it is prose — so the refusal lands as data, which is what
+     * makes "a refused write shows its detail in chat" true however the agent
+     * phrases it.
+     */
+    const ours = (
+      content:
+        | { readonly kind: "notice"; readonly text: string }
+        | { readonly kind: "refusal"; readonly text: string; readonly refusal: OpFailure },
+    ): void => {
+      minted += 1
+      let last = -1
+      for (const row of rows.values()) last = Math.max(last, row.seq)
+      fold({
+        upserts: [{ ...content, id: `${OURS}${minted}`, seq: last + 1, since: new Date().toISOString() }],
+        removes: [],
+        appends: [],
+      })
+    }
+
+    /**
+     * WHETHER A CONVERSATION IS STILL BEING OPENED — and what it replays is
+     * published ONCE, when it has arrived, rather than as it arrives.
+     *
+     * A `session/load` re-sends the whole conversation before it answers, and
+     * olai KEEPS those frames (`whenReplayed: "keep"`): this panel is the only
+     * copy of the conversation there is, so they are the record rather than a
+     * poorer second one. Published as they came, every tab drew that history a
+     * few rows a frame — a long conversation typed itself out again and the
+     * pane followed it down the screen for seconds. Nobody is reading a
+     * conversation that has not finished opening, so the rows are folded into
+     * this panel's copy as they arrive and handed over whole when the open
+     * settles, which is one frame for every reader — the shape a tab that joins
+     * afterwards already gets from its snapshot.
+     *
+     * The CLEAR that starts one is not held: the conversation being left goes
+     * at once, and what is held is only what replaces it. So the change that
+     * ends the hold is every row there is and no removes — nothing was
+     * published while the copy was empty.
+     *
+     * HELD ACROSS THE WHOLE OPEN and dropped on every way out of one — the
+     * conversation answered, refused, or the child dying under it — which is
+     * what {@link opened} is for: a hold that outlived its open would be a
+     * panel that has stopped publishing.
      */
     let replaying = false
     const landed = (): void => {
       replaying = false
-      publish({ upserts: [...transcript.entries()], removes: [], appends: [] })
+      publish({ upserts: [...rows.values()], removes: [], appends: [] })
     }
+
+    /**
+     * ... AND AN OPEN THAT DID NOT HAPPEN LEAVES NO CONVERSATION BEHIND, but
+     * keeps every word SAID about it.
+     *
+     * A `session/load` re-emits the whole transcript BEFORE it answers, so an
+     * open refused after the replay — a permission mode the agent would not
+     * take, a signature it wanted first — leaves this end holding the rows of a
+     * conversation it is not in. Nothing was published while the open was held,
+     * so they go by being dropped.
+     *
+     * A NOTICE IS NOT ONE OF THEM, whoever minted it. What was SAID about the
+     * attempt — this panel's own sentence about a note it could not read, or
+     * the conversation's about an open the agent refused — is the only account
+     * of it a person can read, and it is about the attempt rather than about
+     * the conversation that did not open. So the history goes and the
+     * sentences stay.
+     *
+     * ASKED BY KIND and not by the prefix olai's own rows wear ({@link ours}),
+     * which is the one thing worth writing down here: BOTH ends mint notices,
+     * and the refusal that explains this very failure is usually the
+     * CONVERSATION'S — a prefix test would take it away with the replay it is
+     * about, which `agent.mode.test.ts` is the proof of.
+     */
+    const unopenedRows = (before: ReadonlySet<string>): void => {
+      for (const [id, row] of [...rows]) {
+        if (!before.has(id) && row.kind !== "notice") rows.delete(id)
+      }
+      replaying = false
+    }
+
+    /**
+     * ... AND THE TWO OF THEM AS ONE BRACKET AROUND AN OPEN, which is what
+     * both places that open a conversation actually want.
+     *
+     * The rule is that publishing is held from the moment an open starts until
+     * it has landed or been given up on, and that what the panel held BEFORE
+     * the attempt is what an open that did not happen leaves behind. Written
+     * out at each caller it was the same four lines twice, with the before-set
+     * remembered by hand; here the remembering and the releasing cannot come
+     * apart.
+     */
+    const replayed = <E>(open: Effect.Effect<void, E>) =>
+      Effect.gen(function*() {
+        replaying = true
+        const before = new Set(rows.keys())
+        const outcome = yield* Effect.result(open)
+        if (outcome._tag === "Failure") unopenedRows(before)
+        else landed()
+        return outcome
+      })
 
     const move = (next: Partial<ChatState>) => {
       state = { ...state, ...next, uploadScope: files.scope() }
       options.onState(state)
     }
 
-    /**
-     * How many questions are still waiting on a person, COUNTED off the rows
-     * rather than tallied beside them.
-     *
-     * A question being open is already written down — it is the row whose
-     * outcome is `null`, which is the thing the panel draws and the thing the
-     * transcript's own tests are about. A counter kept alongside would be that
-     * same fact in a second place, staying right only for as long as every
-     * future writer remembered both.
-     */
-    const asking = (): number => {
-      let waiting = 0
-      for (const entry of transcript.entries().values()) {
-        if (entry.kind === "ask" && entry.ask.outcome === null) waiting++
-      }
-      return waiting
-    }
-
-    /** ... and WHAT THIS CONVERSATION STILL HAS OUT — the background tasks it
+    /** WHAT THIS CONVERSATION STILL HAS OUT — the background tasks it armed
+     *  and the agents it sent, read off the rows rather than tallied beside
+     *  them. A list kept alongside would be that same fact in a second place,
+     *  staying right only for as long as every future writer remembered both.
+     *  The projection itself is over values and lives beside its own tests
      *  armed and the agents it sent, read off the rows for the same reason and
      *  published under the same rule. The projection itself is over values and
      *  lives beside its own tests ({@link ./watching.ts}); what belongs to this
@@ -1248,7 +1322,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  fields are what the strip draws, and a task whose name or stamp has not
      *  changed is not news to it. */
     const watched = (): void => {
-      const out = watching(transcript.entries())
+      const out = watching(rows)
       if (!sameWatching(out, state.watching)) move({ watching: out })
     }
 
@@ -1259,14 +1333,20 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * Two fields out of two places, because a conversation is
      * `(agent, session)` and this file holds those halves apart: WHO is being
      * talked to is {@link talking}, and WHICH of that agent's conversations is
-     * open is the cell's own `session`. A doorbell is addressed to the pair, so
-     * this is where the two are put back together — once, rather than at each of
-     * the four places that ask.
+     * open is the conversation's own ({@link conversation}'s `sessionId`). A
+     * doorbell is addressed to the pair, so this is where the two are put back
+     * together — once, rather than at each of the four places that ask.
+     *
+     * OFF THE CONVERSATION RATHER THAN OFF THE PUBLISHED CELL, which is the
+     * one thing worth saying about these three lines: `state.session` is this
+     * same fact after a `move`, so a reader that took it would answer with the
+     * conversation before last for the length of an open — and what is
+     * addressed in that window is a doorbell's held words.
      */
-    const conversationOf = (): Deliveries.Addressed | null => {
+    const conversationOf = (): Addressed | null => {
       const at = talking
-      const open = state.session
-      return at === null || open === null ? null : { agent: at.row.id, session: open.id }
+      const open = conversation?.sessionId ?? null
+      return at === null || open === null ? null : { agent: at.row.id, session: open }
     }
 
     /**
@@ -1286,7 +1366,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * one does.
      */
     const boundTo = (
-      to: Deliveries.Addressed | null = conversationOf(),
+      to: Addressed | null = conversationOf(),
     ): string | null => (to === null ? null : options.agentAt?.(to)?.id ?? null)
 
     /**
@@ -1431,7 +1511,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // FIRST READ, gating the MARK on the send being unmarked for now: a
         // send that already had its answer taught nobody anything, whatever
         // `teaching()` believed when the prompt was built.
-        const row = transcript.entries().get(key)
+        const row = rows.get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
         const done = yield* Effect.result(overheard.took(teach.to, teach.taught))
         if (done._tag === "Failure") {
@@ -1455,9 +1535,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // contract that was said; the notice belongs to the pane it was said
         // TO, which is the one that went. The one place in this function that
         // knows both things is the line that asks both questions again.
-        const after = transcript.entries().get(key)
+        const after = rows.get(key)
         if (after === undefined || after.kind !== "user" || after.delivery !== undefined) return
-        publish(transcript.add("notice", teach.lines.join("\n")))
+        ours({ kind: "notice", text: teach.lines.join("\n") })
       })
 
     /**
@@ -1484,7 +1564,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // boundary, and a turn that added no prose re-offers the line before
         // it — so a stamp taken now would say *just now* about words from an
         // hour ago, on the one member whose name is what olai HEARD.
-        const said = lastSaid(transcript.entries())
+        const said = lastSaid(rows)
         if (said === null) return
         const done = yield* Effect.result(overheard.said(to, said))
         if (done._tag === "Failure") {
@@ -1519,7 +1599,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * A projection over two facts this file already holds, published through
      * {@link move} like every other thing the panel knows: the picks
      * ({@link ./scopes.ts}) say which doorbells are on and on what file, and the
-     * held bodies ({@link ./deliveries.ts}) say how many of each plugin's
+     * held bodies (`@kolu/acp-harness`'s `holding.ts`) say how many of each plugin's
      * sentences are waiting. Nothing else writes `wake`, which is what keeps the
      * runtime's own rule intact — it moves what the store and the chat decided
      * onto the wire, and there is no overlay anywhere for this cell.
@@ -1534,7 +1614,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * still kept and still rung — it is the strip that draws one panel.
      */
     const wakeOf = (
-      to: Deliveries.Addressed | null = conversationOf(),
+      to: Addressed | null = conversationOf(),
     ): ChatState["wake"] => {
       if (to === null) return []
       const counted = held.counts(to)
@@ -1552,285 +1632,263 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         }))
     }
 
-    /** The agent's events, as rows and as state. The one place the vocabulary
-     *  of {@link ./events.ts} is consumed. */
-    const receive = (event: AgentEvent): void => {
-      // How much this agent has said, ever, under BOTH readings of "said".
-      // What every reader needs is not a count but a CHANGE — has anything
-      // arrived since I looked — and a monotonic counter answers that with no
-      // clock to read and nothing to reset. {@link cancel} asks the wide one
-      // about an agent that was told to stop; {@link begin} asks the narrow one
-      // about a turn, either way it ended. ONE lookup on the path every frame
-      // of every conversation takes ({@link EVIDENCE}).
-      const evidence = EVIDENCE[event._tag]
-      if (evidence !== "neither") heard++
-      if (evidence === "shown") shown++
-      switch (event._tag) {
-        case "said":
-          publish(transcript.say(event.text))
-          return
-        case "userSaid":
-          // A replay only: live, we put the user's own message in ourselves
-          // when the turn was accepted — whole, because we have the whole of it
-          // before anything is on the wire. A replay does not arrive whole, so
-          // the chunks accumulate the way the agent's own prose does.
-          publish(transcript.userSaid(event.text))
-          return
-        case "toolTerminals":
-          publish(transcript.tool(event.id, { terminals: event.terminals }))
-          return
-        case "tool": {
-          const change = transcript.tool(event.id, {
-            title: event.title,
-            status: event.status,
-            detail: event.detail,
-            progress: event.progress,
-            diffs: event.diffs,
-            called: event.called,
-            row: event.row,
-            reply: event.reply,
-            locations: event.locations,
-            parent: event.parent,
-            spawned: event.spawned,
-            armed: event.armed,
-            provisional: event.provisional,
-          })
-          if (
-            !says(change)
-            && event.armed?.report !== undefined
-            && event.title === undefined
-            && event.status === undefined
-          ) {
-            tell(Effect.logDebug(
-              `task-notification for ${event.id} has no announced row; report dropped`,
-            ))
-          }
-          publish(change)
-          // A tool frame is the only frame that can arm a background task, send
-          // an agent out, or report the end of either — and only a frame that
-          // says something about one of the three fields the list is made of can
-          // move it, which is a small fraction of the frames a turn sends. The
-          // list is a walk of the rows (`asking` next door makes the argument
-          // for that), so the walk is worth not taking per progress chunk of
-          // every call.
-          //
-          // `spawned` is the one that had to be ADDED with the strip's second
-          // kind, and it is not covered by `status`: a spawn is announced
-          // `pending` and a frame carrying only `_meta.claudeCode.subagent`
-          // moves nothing else. Left out, an agent reached the strip late — on
-          // whatever unrelated frame happened to carry a status next — which for
-          // a fan-out is the whole of the stretch anybody is watching.
-          if (
-            event.armed !== undefined || event.spawned !== undefined
-            || event.status !== undefined
-          ) watched()
-          return
+    /**
+     * THE PLAN, WHICH IS THE ONE THING THE CONVERSATION SAYS AS A ROW AND THIS
+     * PANEL DRAWS AS A CELL.
+     *
+     * `@kolu/acp-harness` keeps the agent's plan at one key for the life of a
+     * session — each update replaces the whole thing and an empty one removes
+     * it — because kolu draws it in the column. Olai draws it under the agent
+     * line instead ({@link ChatState.plan}), and has never declared a `plan`
+     * row, so the row is taken out of the change here and turned into the cell
+     * it belongs on. It is the one kind this panel reads rather than shows, and
+     * the cast below is what says so: the conversation is generic over OLAI'S
+     * row union, and this is the row it writes that the union does not name.
+     *
+     * The key is remembered rather than spelled, so the removal that empties a
+     * plan is recognised without this end knowing what the conversation files
+     * one under.
+     */
+    let planAt: string | null = null
+
+    /**
+     * WHOSE TURN IS OLAI'S OWN — the row id of the pass a doorbell started with
+     * `sleep`, or `null`.
+     *
+     * Kept here because the mark lives exactly as long as that turn does
+     * ({@link ChatState.sleep}), and the thing that says a turn ended is now a
+     * change rather than a fiber this file is holding: a question asked inside
+     * a pass must not go on being suppressed once the pass is over.
+     */
+    let sleepTurn: string | null = null
+
+    /**
+     * THE PANEL'S ONE WORD, read off the conversation's phase.
+     *
+     * Three of olai's five statuses are this end's own and are not derived
+     * here: `off` is a serve with no engine at all, `booting` is an open this
+     * file has in flight ({@link changeSession}), and `gone` is an agent that
+     * is not there. What is left is the pair a reader watches move — and
+     * `asking` is not a status of olai's, because a question is true AT THE
+     * SAME TIME as the turn that is blocked on it ({@link ChatState.asking}
+     * counts those separately).
+     *
+     * A CONVERSATION THE AGENT REFUSED IS NOT A DEAD AGENT, which is the one
+     * place this reading parts company with the conversation's own: the
+     * harness calls a refused open `offline` because it has no session to be
+     * in, and the subprocess it kept is precisely the one a sign-in has to run
+     * against (`@kolu/acp-harness`'s `refusedOpen`). Drawn as `gone`, the
+     * panel would take itself down between the refusal and the signature —
+     * taking the sign-in row, the retry and the fold with it, on every state
+     * frame the attempt publishes. The agent ANSWERED, so it is there, and the
+     * refusal has a face of its own ({@link ChatState.unopened}).
+     */
+    const facing = (now: HarnessState): ChatState["status"] =>
+      now.phase === "offline"
+        ? now.refusal !== null && talking?.harness.alive() === true
+          ? "idle"
+          : "gone"
+        : now.phase === "starting"
+        ? "booting"
+        : now.phase === "idle"
+        ? "idle"
+        : "thinking"
+
+    /** WHAT THE PICKER CHOOSES FROM, which is the model control's own row read
+     *  as a list — the same `configOptions` entry the client built the row out
+     *  of, so a second advertisement of the same choices would be one more
+     *  place for them to disagree. */
+    const choices = (now: HarnessState): ChatState["models"] =>
+      now.options.find((one) => one.kind === "model")?.choices
+        .map((one) => ({ value: one.value, name: one.label })) ?? []
+
+    /**
+     * THE SIGN-IN THIS PANEL DRAWS, out of the one the conversation publishes.
+     *
+     * THREE ARMS WHERE THE CONVERSATION HAS ONE ROW, and the fold is the
+     * panel's own: what olai draws is the ATTEMPT — a command it is running,
+     * or a page the agent opened — and the chooser is what there is when no
+     * attempt is in flight, whoever put the row up. The methods are not read
+     * off here at all: they are on `talking`, where they say whether `/login`
+     * is offered at all ({@link bound}).
+     *
+     * A method's LABEL is looked up in that same advertisement, because the
+     * attempt names the method by its id and a person reads a name.
+     *
+     * AND A CHOOSER SOMEBODY CLOSED STAYS CLOSED, which is this panel's own
+     * answer and not the conversation's: the conversation keeps the agent's
+     * offer standing after a cancel, on the reading that the refusal behind it
+     * still stands (`@kolu/acp-harness`'s `signInCancel`) — and it does, which
+     * is why the REFUSAL is still on screen. But *get this off my screen* is
+     * half of what a person means by pressing cancel, so the row is this
+     * panel's to take down ({@link signInCancel}) and this is what keeps the
+     * next state frame from putting it straight back. Only the chooser: an
+     * ATTEMPT is something new happening, and a refused open or a person
+     * asking again brings the offer back at the door each of them goes
+     * through.
+     */
+    let dismissed = false
+
+    const signingIn = (now: HarnessState): ChatState["signIn"] => {
+      const attempt = now.signIn?.attempt ?? null
+      if (now.signIn === null) return null
+      if (attempt === null) return dismissed ? null : { kind: "choosing" }
+      const label = now.methods.find((one) => one.id === attempt.method)?.name ?? attempt.method
+      // A LINK IS THE AGENT'S OWN FLOW — it opened a page and is waiting on it
+      // — and anything else is a command this end ran, whose output IS the
+      // story of what happened.
+      return attempt.link !== null
+        ? {
+          kind: "agent",
+          method: attempt.method,
+          label,
+          link: attempt.link,
+          why: attempt.state === "failed" ? attempt.output : null,
         }
-        case "asked":
-          publish(transcript.ask(event.id, event.message, event.fields, event.parent, event.link))
-          move({ asking: asking() })
-          return
-        case "askSettled":
-          publish(transcript.settleAsk(event.id, event.outcome))
-          move({ asking: asking() })
-          return
-        case "commands":
-          move({ commands: event.commands })
-          return
-        case "signIn":
-          // REPLACED, never merged, and that is what makes the agent the one
-          // writer of an attempt: the row this event carries IS the attempt, and
-          // a panel that patched it field by field would be a second place
-          // deciding what a sign-in currently is.
-          move({ signIn: event.signIn })
-          return
-        case "advertised":
-          advertises = {
-            steers: event.steers,
-            queues: event.queues,
-            methods: event.methods,
-          }
-          // ON `talking`, because it is a fact about WHO this panel is talking
-          // to and that is the one member that answers for an agent. A frame
-          // with nobody bound is a handshake that finished after its agent was
-          // swapped out, and there is nobody for it to be about.
-          rebind()
-          return
-        case "identity":
-          // THE WHOLE VALUE, replaced rather than merged, and `null` is a
-          // statement of its own — the agent's process ended, so it is no
-          // longer reporting — rather than a no-op. That is why the arm exists
-          // beside `move`'s ordinary partials: the absence of a chip has to be
-          // sayable.
-          move({ identity: event.identity })
-          return
-        case "servers":
-          // A fact about the conversation, so it lands on the cell beside the
-          // model and the commands rather than as a row: a notice scrolls away
-          // and this is true for as long as the session is.
-          move({ servers: event.servers })
-          return
-        case "settings":
-          move({ settings: event.settings })
-          return
-        case "plan":
-          move({ plan: event.entries })
-          return
-        case "models":
-          move({ models: event.choices })
-          return
-        case "model":
-          move({ model: event.name })
-          return
-        case "usage":
-          // Beside the model, on the cell, for the model's own reason: it is a
-          // standing property of the conversation rather than something that
-          // HAPPENED in it. Several arrive per turn and the newest wins — the
-          // agent is revising a number it already told us, not adding a second.
-          move({ usage: event.usage })
-          return
-        case "session": {
-          // A conversation is open, so nothing is waiting to be opened again.
-          // HERE rather than in the two verbs that can open one, because this
-          // is the event both of them end in — and because a BOOT opens one
-          // without either of them being called at all.
-          opened()
-          const at = talking
-          const now = at === null ? null : { agent: at.row.id, session: event.id }
-          move({
-            status: state.status === "thinking" ? "thinking" : "idle",
-            session: { id: event.id, title: event.title, updatedAt: null },
-            // WHICH NODE AGENT THIS CONVERSATION BELONGS TO, in the same breath
-            // and for the doorbells' reason below: the binding is per
-            // conversation, so the node that was true a moment ago was about a
-            // different one — and a header naming the last conversation's node
-            // over this one's is the one wrong thing this member can say.
-            bound: boundTo(now),
-            trouble: null,
-            unopened: null,
-            // WHICH DOORBELLS THIS CONVERSATION HAS ON, said in the same breath
-            // the conversation itself is — the picks are per conversation, so
-            // the row that was true a moment ago was about a different one.
-            // The pair is spelled out because `state.session` is what this very
-            // move is setting.
-            wake: wakeOf(now),
-          })
-          // ... AND WHATEVER WAS HELD FOR IT GOES IN NOW, on its own fiber and
-          // NEVER from here. This arm is reached from INSIDE the `opening`
-          // permit — `entered` emits it synchronously from within the open —
-          // and a semaphore is not reentrant, so a flush taken here would
-          // deadlock the open it is part of. The two verbs that open a
-          // conversation flush after that permit RELEASES ({@link changeSession}
-          // and the boot arm below), which is the same moment one beat later
-          // and the only one that is safe.
-          return
+        : {
+          kind: "terminal",
+          method: attempt.method,
+          label,
+          output: attempt.output,
+          running: attempt.state === "running",
+          code: attempt.code,
+          why: null,
         }
-        case "opening":
-          // NOTHING IS PUBLISHED. This is the subject a refusal will need and
-          // no face reads it: the panel is already `booting`, and an open that
-          // lands names its conversation a moment later on the arm above.
-          attempting = event.id
-          return
-        case "sessionTitled":
-          if (state.session === null) return
-          move({ session: { ...state.session, title: event.title } })
-          return
-        case "sessionOver":
-          // The panel shows ONE conversation, so asking for a new one empties
-          // it. A break line under the old rows was tried and is not what "new
-          // conversation" means to the person who pressed it: the agent's
-          // context is gone, nothing above the line can be followed up, and a
-          // transcript you cannot refer to is history the panel is keeping for
-          // its own sake. A LOAD clears too, in the replay that follows. Only a
-          // DEAD agent leaves the rows where they are — nobody asked for that,
-          // and the `gone` notice explains them.
-          if (event.why === "new" || event.why === "refused") publish(transcript.clear())
-          // The servers go with the session they were handed TO. The next one
-          // is probed fresh and says so before it opens; leaving the last
-          // one's roster up in between would be the panel answering "which
-          // servers does this conversation have?" about a conversation that no
-          // longer exists — and, for a dead agent, about one nobody is in.
-          // The usage goes with the session it was usage OF. A fresh
-          // conversation has spent nothing and a loaded one has spent whatever
-          // it spent; either way the number from the last one is about a
-          // context that no longer exists, and leaving it up would be the
-          // panel answering "should I compact?" about somebody else.
-          // ... and the INTERRUPTION comes back, because what withdrew it was
-          // this session's own history: the adapter's queue bookkeeping is
-          // per-session, so a fresh conversation and a stored one opened are
-          // both clean ({@link queuedHere}). Said in the same breath as the
-          // session going, since it is the same fact.
-          queuedHere = false
-          move({
-            session: null,
-            settings: [],
-            plan: [],
-            // ... and so does the node this conversation belonged to. A panel
-            // between sessions belongs to nobody: the BINDING is untouched on
-            // disk, keyed by the conversation, and a session reopened comes
-            // back to its own node — but a header naming the last one's node
-            // over a panel with no conversation in it would be claiming an
-            // association that has nothing to hold it. `null` because
-            // `state.session` is only nulled by this very move.
-            bound: null,
-            commands: [],
-            asking: asking(),
-            watching: watching(transcript.entries()),
-            servers: [],
-            usage: null,
-            // ... and the doorbell rows go with the conversation they were
-            // about. The PICKS are untouched — they are on disk, keyed by the
-            // conversation, and a conversation reopened comes back with its own
-            // — but a strip drawing the last one's file over the next one would
-            // be the inheritance the ruling forbids. `null` because
-            // `state.session` is only nulled by this very move.
-            wake: wakeOf(null),
-          })
-          rebind()
-          return
-        case "replayStarted":
-          publish(transcript.clear())
-          replaying = true
-          watched()
-          // Emptying the rows is one of the three things that can change how
-          // many questions are open, so it is one of the three that recounts.
-          // Every clear is preceded by the agent withdrawing what was waiting,
-          // so this is belt to that brace rather than the only strap — but the
-          // count is a function of the rows, and that should be true at every
-          // point the rows move rather than at the two it usually moves at.
-          move({ asking: asking() })
-          return
-        case "replayEnded":
-          transcript.settle()
-          landed()
-          // ... and the strip with it, for the reason the two turn boundaries
-          // below recount: settling STRANDS, an agent is strandable where a
-          // background task is not, and a replayed conversation whose last turn
-          // left somebody out would otherwise open with a dead subagent on the
-          // strip and a clock ticking under it.
-          watched()
-          return
-        case "gone":
-          // ABANDON rather than settle, and this is the one place the
-          // difference matters: a turn ending leaves an armed task alone,
-          // because the task outlives the turn and the harness will report its
-          // end. A dead agent reports nothing ever again — so the tasks it left
-          // out there are abandoned like every other call it never came back
-          // for, and the live faces on those rows go out with it.
-          publish(transcript.abandon())
-          watched()
-          publish(transcript.add("notice", event.why))
-          // Through the same door the two open verbs use, so a refusal that was
-          // about a LIVE agent does not outlive the process it was about.
-          wentAway(event.why)
-          return
-        case "trouble":
-          publish(transcript.add("notice", event.message))
-          move({ trouble: event.message })
-          return
-      }
     }
 
+    /** WHICH CONVERSATION THE CELL IS ALREADY REPORTING, so that entering one
+     *  can be told from reporting on the one that is open. */
+    let reported: string | null = null
+
+    /**
+     * EVERYTHING THE CONVERSATION KNOWS ABOUT ITSELF, ONTO THE CELL — one
+     * projection, run on every state change rather than a field per event.
+     *
+     * The harness publishes its state WHOLE, because it is small and a patch of
+     * it would be a second thing to get right; this is the other half of that
+     * bargain. What is NOT here is everything the panel knows that the
+     * conversation does not: which engines this machine has, which agent was
+     * picked, what a boot could not read, what a doorbell is holding.
+     *
+     * THE PAIR IS READ OFF THE CONVERSATION and handed to both readers that
+     * need it ({@link conversationOf}), rather than taken from `state.session`
+     * a line later: the pair is what a doorbell is addressed to and what a
+     * node binding is keyed by, and this very move is the thing that changes
+     * it. Reading it back out of the cell would be answering with the
+     * conversation before last.
+     */
+    const projecting = (): void => {
+      const now = conversation
+      const at = talking
+      if (now === null || at === null) return
+      const to = conversationOf()
+      // A CONVERSATION ENTERED, as against one being reported on again — the
+      // one thing this projection cannot read off the state it is handed,
+      // because every other field of it is true for as long as the
+      // conversation is. What it decides is the two faces an open takes DOWN:
+      // a refusal that has stopped being true, and the banner of whatever went
+      // wrong before it. Asked on the id, so the verbs that open one and the
+      // boot that adopts one all answer it the same way.
+      const entered = to !== null && to.session !== reported
+      reported = to === null ? null : to.session
+      // ... and a conversation entered is a chooser nobody has closed: the row
+      // a person dismissed was about the conversation that would not open.
+      if (entered) dismissed = false
+      move({
+        ...(entered ? { unopened: null, trouble: null } : {}),
+        // `off` is the one face this does not touch: a serve whose last engine
+        // was switched off has no conversation to report, and the sentence it
+        // is showing is about the roster rather than about an agent.
+        ...(state.status === "off" ? {} : { status: facing(now) }),
+        talking: bound(at.row),
+        session: to === null ? null : { id: to.session, title: now.title, updatedAt: null },
+        // ... AND WHICH NODE AGENT THIS CONVERSATION BELONGS TO, in the same
+        // breath, for the doorbells' reason below: the binding is per
+        // conversation, so the node that was true a moment ago was about a
+        // different one — and a header naming the last conversation's node over
+        // this one's is the one wrong thing this member can say.
+        bound: boundTo(to),
+        // ... and the doorbell rows go with the conversation they are about.
+        // The PICKS are untouched — they are on disk, keyed by the conversation
+        // — but a strip drawing the last one's file over the next one would be
+        // the inheritance the human ruled out.
+        wake: wakeOf(to),
+        model: now.model === null ? null : now.model.name,
+        models: choices(now),
+        settings: now.options,
+        commands: now.commands,
+        servers: now.servers,
+        usage: now.usage,
+        identity: now.identity,
+        asking: now.openAsks.length,
+        signIn: signingIn(now),
+        // ... AND A TURN THAT IS RUNNING IS WHERE A STOPPED ONE STOPS BEING
+        // NEWS. `cancelled` is the verdict on the turn that just ENDED and is
+        // read a turn at a time by the pass that writes a node agent's memo
+        // (`server/sleep.ts`), so a verdict left standing makes every later
+        // pass over that node a cancelled one — the loop warns, retries, and
+        // warns again, for ever, over a node nobody stopped twice. A turn in
+        // flight is the next turn's `begin` as the conversation reports it
+        // ({@link ChatState.cancelled}), which is the moment the last one's
+        // ending stopped being the thing this panel is saying.
+        ...(now.busySince === null ? {} : { cancelled: false }),
+      })
+    }
+
+    /**
+     * WHAT THE CONVERSATION SAYS, as the panel's rows and the panel's state —
+     * the one place `@kolu/acp-harness`'s vocabulary is consumed.
+     *
+     * THREE KINDS AND NOTHING ELSE. Rows travel as deltas, because a streaming
+     * answer is one row and six hundred pieces; state travels whole; and a TURN
+     * ENDING is its own report, because what a product does about one is not
+     * readable off either of the other two — `cancelled` is a turn somebody
+     * STOPPED rather than one that finished, and a turn that produced nothing
+     * is a delivery that failed even though the agent answered.
+     */
+    const onChange = (change: HarnessChange<ChatEntry>): void => {
+      // How much has arrived, ever. What every reader needs is not a total but
+      // a CHANGE — has anything come since I looked — and a monotonic counter
+      // answers that with no clock to read and nothing to reset
+      // ({@link cancel} is the reader).
+      heard++
+      if (change.kind === "state") {
+        conversation = change.state
+        projecting()
+        return
+      }
+      if (change.kind === "turn") {
+        ended(change)
+        return
+      }
+      // THE PLAN COMES OUT FIRST, before anything is folded: it is a cell here
+      // and a row there ({@link planAt}).
+      const upserts: Array<ChatEntry> = []
+      let plan: ReadonlyArray<PlanStep> | null = null
+      for (const row of change.upserts as ReadonlyArray<ChatEntry | (RowHead & { kind: "plan"; steps: ReadonlyArray<PlanStep> })>) {
+        if (row.kind === "plan") {
+          planAt = row.id
+          plan = row.steps
+          continue
+        }
+        upserts.push(row)
+      }
+      const removes = change.removes.filter((id) => id !== planAt)
+      if (planAt !== null && removes.length !== change.removes.length) {
+        planAt = null
+        plan = []
+      }
+      fold({ upserts, removes, appends: change.appends })
+      if (plan !== null) move({ plan })
+      // THE PROJECTION OVER THE ROWS, recounted only where a row moved: a
+      // chunk of a streaming answer moves none of them, and this is a walk of
+      // the whole map. How many questions are OPEN is not read here at all —
+      // the conversation counts those itself and publishes them with every
+      // state frame ({@link projecting}), and a second walk for the same cell
+      // would be the same fact in two places.
+      if (upserts.length === 0 && removes.length === 0) return
+      watched()
+    }
     /** The roster row with that id, or `null` — the one place a name off the
      *  wire is turned into something startable. A browser that asks for an
      *  agent this machine does not have is a STALE TAB rather than a fault, so
@@ -1840,71 +1898,383 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     const rowFor = (id: string): Installed | null =>
       here(options.roster()).find((row) => row.id === id) ?? null
 
+    /** ONE LINE FROM THE CONVERSATION, with what it was said ABOUT as its
+     *  annotations.
+     *
+     *  The pair is the shape every logger in that half takes — a record, then
+     *  a sentence — and the record is not decoration: a `chat agent exited`
+     *  line carries which session it was and WHY the child went, which is how
+     *  a reaped scope is told from a crash in a log. Flattening it into the
+     *  sentence, or dropping it, is how both facts stop being searchable. */
+    const logging = (
+      at: (message: string) => Effect.Effect<void>,
+      about: unknown,
+      said?: string,
+    ): Effect.Effect<void> =>
+      said === undefined
+        ? at(String(about))
+        : Effect.annotateLogs(
+          at(said),
+          typeof about === "object" && about !== null ? about as Record<string, unknown> : {},
+        )
+
+    /** ... and the three levels of them, into olai's own logger with this
+     *  panel's annotations on them — the one place `@kolu/acp-harness` says
+     *  anything that is not a row or a state. */
+    const harnessLog = {
+      info: (about: unknown, said?: string) => tell(logging(Effect.logInfo, about, said)),
+      warn: (about: unknown, said?: string) => tell(logging(Effect.logWarning, about, said)),
+      error: (about: unknown, said?: string) => tell(logging(Effect.logError, about, said)),
+    }
+
+    /** WORK THIS PANEL STARTS BESIDE A CHANGE IT WAS HANDED — the turn-boundary
+     *  write and the doorbell flush, which are Effects reached from a callback
+     *  that is not one. Through {@link aside}, so the panel's own stop can
+     *  still interrupt them, and through the emitter, which is what carries
+     *  this panel's log annotations into whatever they say. */
+    const alongside = (work: Effect.Effect<void>): void => tell(aside(work))
+
     /**
-     * The agent for this row, started if it is not the one already talking —
-     * and the previous one STOPPED if it was somebody else.
+     * WHAT A TOOL CALL IS, AS OLAI READS IT — the product's half of the row,
+     * and the only thing about a call that is not the protocol's.
+     *
+     * THREE THINGS, and each is a different kind of answer:
+     *
+     *   - the agent's own PANES for a `terminal/*` call, which arrive as a
+     *     frame carrying nothing else. They are the call's own output as it
+     *     runs, so they are the row's and nobody else's.
+     *   - WHAT OLAI ADVERTISES THE CALL AS. A frame is one row however many
+     *     calls it made, so the row is composed rather than picked: a Code Mode
+     *     `execute` that ran three of olai's tools is three advertised titles
+     *     on one line, and a row that showed the first of them would be
+     *     claiming the other two did not happen. The OWNER is taken only where
+     *     they agree — two plugins' tools in one script is one row that is not
+     *     either of theirs, so it draws neither one's face rather than half of
+     *     one — and the REPLY is single-call only, because that is the wire
+     *     rather than a choice: a script returns ONE value, and which of three
+     *     calls it belongs to is not said anywhere.
+     *   - the ENGINE'S OWN SPELLING of the call, which is `untilNamed`'s whole
+     *     reason: it is taken while the row has no name and never again, so the
+     *     friendly title that arrives with the ownership a frame later cannot
+     *     be overwritten by the raw label repeating itself.
+     *   - WHAT IS WORTH FOLDING UNDER IT, which for a call of olai's own is
+     *     what was ASKED and never the answer again: the reply is drawn by the
+     *     owning plugin's own face, and a fold repeating it underneath says the
+     *     same thing twice. The conversation's default fold is the call's input
+     *     AND its output together (`@kolu/acp-client`'s `detailOf`, which can
+     *     only leave the output out for a call it was TOLD olai owns — and the
+     *     harness builds its agent without that advertisement, since olai's
+     *     ownership is read here instead). So the fold is written here, on
+     *     every frame of the call, because the harness's own `detail` is
+     *     applied before this reading and would otherwise bring the answer back
+     *     with the frame that settles the call.
+     *
+     * A call nothing recognised answers nothing at all, which is what lets a
+     * background task's own report stay a report rather than minting a card for
+     * a call nobody made.
+     */
+    const readCall: HarnessOptions<ChatEntry>["readCall"] = (frame, held) => {
+      if (frame.terminals !== undefined) return { extra: { terminals: frame.terminals } }
+      const owned = frame.mcp.map((one) => options.advertised?.(one.server, one.tool) ?? null)
+      const ours = owned.length > 0 && owned.every((one) => one !== null)
+        ? {
+          title: [...new Set(owned.map((one) => one!.title))].join(" · "),
+          owner: new Set(owned.map((one) => one!.owner)).size === 1 ? owned[0]!.owner : undefined,
+        }
+        : null
+      const reply = ours === null || frame.mcp.length !== 1 ? undefined : frame.answer as Json
+      const named = frame.called === undefined ? {} : { untilNamed: { called: frame.called } }
+      // HOW THIS CALL'S QUESTION REACHES A PERSON — the one thing olai reads
+      // off a frame for a call that is NOT one of its own: the agent's built-in
+      // "ask the human" tool belongs to no plugin here, and the row it would
+      // draw sits directly above the form it opened
+      // ({@link ./wire/members.ts}'s `ToolEntry.asksThroughForm`). So it is
+      // written on both arms below rather than only on the owned one.
+      const asking = frame.asksThroughForm === true ? { asksThroughForm: true as const } : undefined
+      if (ours === null) {
+        return asking === undefined && frame.called === undefined
+          ? undefined
+          : { ...(asking === undefined ? {} : { extra: asking }), ...named }
+      }
+      // THE INPUT ALONE, as the agent wrote it — or what this call was last
+      // read as, for the frame that carries only the answer: the arming frame
+      // is where the arguments are, so a reading taken off the frame in front
+      // of us alone would empty the fold at the moment the call settles.
+      const asked = frame.input === undefined || frame.input === null
+        ? held?.detail
+        : JSON.stringify(frame.input, null, 2)
+      return {
+        extra: {
+          // THE NAME OLAI GIVES IT, which arrives with the ownership and
+          // replaces the engine's raw label exactly once: every later frame of
+          // this call composes the same title out of the same advertisement.
+          text: ours.title,
+          ...(ours.owner === undefined ? {} : { row: ours.owner }),
+          ...(reply === undefined ? {} : { reply }),
+          ...(asked === undefined ? {} : { detail: asked }),
+          ...asking,
+        },
+        ...named,
+      }
+    }
+
+    /** ... and WRITING DOWN which conversation this directory is in, with the
+     *  model under it. The CALLER'S now: the conversation is told which one to
+     *  open and remembers nothing itself, so the note a boot reads back is
+     *  written here, at the one moment the answer changes. */
+    const remembering = (): Effect.Effect<void, AcpAgent.MemoryFailure> | undefined => {
+      const at = talking
+      const now = conversation
+      if (at === null || now === null || now.sessionId === null) return undefined
+      return memory.remember({
+        agent: at.row.id,
+        session: now.sessionId,
+        model: now.model?.id ?? null,
+      })
+    }
+
+    /**
+     * A TURN ENDED, and what this panel makes of it.
+     *
+     * The rows are already written and the state is already published — the
+     * conversation reports a turn after both — so what is left here is the
+     * three facts a PRODUCT keeps about a turn, none of which is readable off
+     * a row:
+     *
+     *   - **it was CANCELLED**, which is a turn somebody STOPPED rather than
+     *     one that finished. `idle` with no trouble is exactly what a turn that
+     *     ENDED looks like, so a pass watching this conversation would record a
+     *     stopped rewrite as a finished sleep ({@link ChatState.cancelled}).
+     *   - **it SAID NOTHING**, which is not a turn that went well: the agent
+     *     answered that the turn was over and nothing came back, which is what
+     *     an agent that cannot reach a model looks like from here. The banner
+     *     STAYS UP, unlike every other ending, because there is nothing else on
+     *     screen to say this happened.
+     *   - **it did not land**, where the agent refused it or nothing ever
+     *     answered. The row says so itself; what the banner adds is the reason,
+     *     where no caller was waiting to be told one.
+     *
+     * AND IT IS THE TURN BOUNDARY, which is where two of this panel's own
+     * writes belong: the line a node agent's door draws comes off the rows once
+     * the paragraph is closed, and a doorbell's held words go in at the first
+     * moment an idle agent can take them. Both are forked, so nothing about a
+     * turn ending waits on a permit a send may be holding.
+     */
+    const ended = (turn: TurnEnded): void => {
+      const at = talking
+      // HOW THE TURN ENDED, as the facts a reader of this panel keeps.
+      let outcome: Partial<ChatState> = {}
+      if (turn.outcome === "cancelled") {
+        outcome = { cancelled: true, trouble: null }
+      } else if (turn.outcome === "ended" && turn.silent && at !== null) {
+        const why = silence(at.row.name)
+        ours({ kind: "notice", text: why })
+        outcome = { trouble: why }
+      } else if (turn.outcome === "ended") {
+        // A turn that came back is the proof that whatever went wrong before
+        // has stopped being true.
+        outcome = { trouble: null }
+      } else if (turn.why !== null) {
+        outcome = { trouble: turn.why }
+      }
+      // THE PASS'S MARK GOES WITH THE TURN IT DESCRIBES, and in the SAME state
+      // as how that turn ended. A question asked inside a sleep must not go on
+      // being suppressed after the turn that asked it is over — and a reader
+      // that sees the mark come off is reading the verdict in that one frame
+      // (`server/sleep.ts`), so a mark dropped a frame before its outcome reads
+      // a turn that died as one that finished.
+      if (sleepTurn === turn.row) {
+        sleepTurn = null
+        outcome = { ...outcome, sleep: false }
+      }
+      move(outcome)
+      alongside(saidHere())
+      alongside(flushing)
+    }
+    /**
+     * THE CONVERSATION THIS PANEL WAS IN IS OVER, and everything that was true
+     * of it goes with it.
+     *
+     * One place rather than a list repeated at each caller: the rows are what
+     * an agent said and what the OTHER agent said is not this conversation's
+     * history; the servers were handed to the session they were handed TO; the
+     * usage was usage OF it; and the node and the doorbell rows are keyed by
+     * the pair, so drawing the last one's over the next one would be the
+     * inheritance the human ruled out.
+     *
+     * Only a SWAP needs it. A conversation replaced inside one process is
+     * cleared by the conversation itself (olai's `whenNewSession: "clear"`, and
+     * a load clears before the replay that refills the panel), and a DEAD agent
+     * leaves its rows exactly where they are — nobody asked for them to go, and
+     * the notice under them explains them.
+     */
+    const left = (): void => {
+      publish({ upserts: [], removes: [...rows.keys()], appends: [] })
+      rows.clear()
+      planAt = null
+      move({
+        session: null,
+        settings: [],
+        plan: [],
+        bound: null,
+        commands: [],
+        asking: 0,
+        watching: [],
+        servers: [],
+        usage: null,
+        wake: wakeOf(null),
+        // ... AND THE SIGN-IN ROW GOES WITH THE PROCESS THAT OFFERED IT. The
+        // attempt it draws is the outgoing agent's, and the conversation kills
+        // a login with its own scope (`@kolu/acp-harness`'s `stop`) — so a row
+        // left up offers buttons on behalf of a subprocess that no longer
+        // exists. The conversation says so itself in one last frame, which
+        // this panel cannot read: `talking` is already `null` by the time it
+        // arrives ({@link projecting} answers about a panel that is talking to
+        // somebody), so the one place that knows the agent is leaving says it.
+        signIn: null,
+        // ... AND SO DOES THE ACCOUNT IT NAMED, for the same reason read one
+        // field over: the chip is what the agent said about ITSELF, and the
+        // agent has been stopped. A panel still naming an account describes a
+        // subprocess that is not there.
+        identity: null,
+      })
+    }
+
+    /**
+     * ... AND THE AGENT GOES WITH IT — the whole of what unbinding one is, in
+     * the one place both callers reach.
+     *
+     * Three things stop being true together and must stop together: the cached
+     * listings are about a conversation nobody can reach any more, this panel
+     * is talking to nobody, and the subprocess is ASKED to go rather than
+     * dropped. Written out at each site it was five statements in one order
+     * held by a comment that said "the same sequence, for the same reasons" —
+     * which is the rule living in prose rather than in code.
+     *
+     * The REASON is the only thing that differs, and it is not decoration: a
+     * switched agent and a plugin switched off are two different things to
+     * find in a log beside one child's exit.
+     *
+     * NOT what {@link stopWithReason} does, deliberately: a panel that is
+     * going away keeps its rows and forgets no listing, because there is
+     * nobody left to draw either.
+     */
+    const unbind = (at: Bound, why: AcpAgent.StopReason): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        listings.forget(at.row.id)
+        talking = null
+        conversation = null
+        left()
+        yield* Effect.promise(() => at.harness.stop(why))
+      })
+
+    /**
+     * WHERE THIS AGENT READS ITS SIGNATURE, in the one sentence that names it
+     * (`@kolu/acp-harness`, which puts it in front of a person who was told
+     * nobody is signed in).
+     *
+     * OLAI KNOWS NO CREDENTIAL STORE and deliberately names none: each engine's
+     * is its own business — `opencode auth login`, a key in a config file, a
+     * token in the environment — and this process cannot tell which of them an
+     * agent read. What it CAN say truthfully is the thing that is true of every
+     * one of them and is the trap this comes from: a spawned agent inherits
+     * olai's own environment, and a systemd user unit's is not a login shell's
+     * ({@link ../../../website/docs/running.md}).
+     */
+    const SIGNED_IN_FROM = "the environment olai itself runs in"
+
+    /**
+     * The conversation for this row, OPENED — and the agent that was talking
+     * before it stopped, where it was somebody else.
      *
      * One agent at a time, which is the shape of the ruling: a conversation is
      * bound to one, and the panel holds one conversation. A second live
      * subprocess would be a second language-model session held open for a
      * conversation nobody is looking at.
      *
-     * The transcript goes with the process. Rows are what an agent said, and
-     * what the OTHER agent said is not this conversation's history — so they
-     * are cleared here rather than left to the incoming agent's own
-     * `replayStarted`, which would leave a beat in which the old agent's
-     * answers sit under the new one's header. Everything else about the last
-     * conversation goes for the same reason it goes when a session ends: the
-     * model, the room left in a context that no longer exists, the servers that
-     * conversation was short of.
+     * SPAWN AND OPEN ARE ONE CALL now, because they are one sequence whose
+     * order is a protocol fact: `startHarness` spawns, hands shakes, opens or
+     * resumes, applies the leg's permission mode and the remembered model, and
+     * stops the child itself if any of it fails — so a refusal cannot leave an
+     * adapter running for every retry. Which conversation to open is the one
+     * argument ({@link Opening}): a boot ADOPTS (the remembered one, else the
+     * most recent, else fresh), a picker names one, and `+ new` asks for a
+     * fresh one.
      *
      * UNDER ITS OWN PERMIT ({@link binding}), which every caller reaches
-     * through this function rather than having to remember: the two verbs that
-     * open a conversation hold {@link switching} as well, and a BOOT holds
-     * neither, so the guard that matters has to be here. Two callers
-     * interleaving would leave the panel talking to one agent and drawing
-     * another's name, and, worse, would spawn two agent modules with only one
-     * of them ever stopped.
+     * through this function rather than having to remember: the verbs that open
+     * a conversation hold {@link switching} as well, and a BOOT holds neither,
+     * so the guard that matters has to be here. Two callers interleaving would
+     * leave the panel talking to one agent and drawing another's name, and,
+     * worse, would spawn two children with only one of them ever stopped.
      */
-    const using = (row: Installed): Effect.Effect<AcpAgent.Agent, AcpAgent.AgentGone> =>
+    const using = (
+      row: Installed,
+      opens: Opening,
+    ): Effect.Effect<void, HarnessRefused | HarnessUnavailable> =>
       binding.withPermit(Effect.gen(function*() {
         // A SHUTDOWN has already taken the agent this would replace, and a
         // subprocess started after it is one nothing will ever stop.
         if (closing) {
-          return yield* new AcpAgent.AgentGone({
-            gone: "unreachable",
-            why: "the server is shutting down",
-          })
+          return yield* Effect.fail(new HarnessUnavailable("the server is shutting down"))
         }
+        // WHICH CONVERSATION THIS IS FOR, before it is asked for and whichever
+        // way this open is served: a refusal is answered by the same line under
+        // every open ({@link refusedOpen}), and the one thing that line cannot
+        // work out for itself is what was being opened.
+        attempting = opens.kind === "resume" ? opens.id : null
         const already = talking
-        if (already !== null && already.row.id === row.id) return already.agent
+        // THE SAME AGENT KEEPS ITS PROCESS, and what moves is which
+        // conversation it is in: a new session and a stored one opened are both
+        // verbs of the conversation's own, and a panel that respawned an
+        // adapter for either would pay a handshake — and a second
+        // language-model session — for a thing the one it has already does. The
+        // rows, the model, the usage and the servers go with the session the
+        // conversation leaves, because the conversation says so.
+        if (already !== null && already.row.id === row.id && already.harness.alive()) {
+          listings.forget(already.row.id)
+          opened()
+          switch (opens.kind) {
+            case "fresh":
+              yield* Effect.tryPromise({
+                try: () => already.harness.newSession(),
+                catch: (cause) => cause as HarnessRefused | HarnessUnavailable,
+              })
+              break
+            case "resume":
+              yield* Effect.tryPromise({
+                try: () => already.harness.loadSession(opens.id),
+                catch: (cause) => cause as HarnessRefused | HarnessUnavailable,
+              })
+              break
+            case "adopt":
+              // THE CONVERSATION IT IS IN IS THE ONE A BOOT WOULD HAVE ADOPTED.
+              // Nothing to open: this is the answer to "which agent", and this
+              // agent is already answering.
+              break
+          }
+          conversation = already.harness.state()
+          projecting()
+          yield* noting(remembering(), remembranceLost)
+          return
+        }
         if (already !== null) {
           // WHAT IT HAS STORED HAS MOVED, and it stops being the agent we ask
           // afresh every time: this panel has just spent a conversation in it
           // (a fresh one minted, a stored one retitled), so anything kept about
           // it from before is a list that does not name the conversation
           // somebody was just in — the exact complaint the fan-out answers.
-          listings.forget(already.row.id)
-          talking = null
-          // THROUGH THE EVENT, not through a second list of what a conversation
-          // ending costs. Stopping an agent deliberately emits nothing (a
-          // `gone` about a process somebody asked to stop would be a lie), so
-          // the swap has to say it — and saying it here is the difference
-          // between one place that knows which fields go with a session and
-          // two that have to be kept in step.
-          receive({ _tag: "sessionOver", why: "new" })
-          yield* already.agent.stopWithReason("agent switched")
+          yield* unbind(already, "agent switched")
         }
         // ... and the three that do NOT go with a session, because they are
         // about the AGENT: the model is a different agent's answer, a refused
         // open was about a process that is gone, and a banner about it with it.
+        //
+        // WHAT THE LAST AGENT SAID ABOUT ITSELF IS NOT NEWS ABOUT THIS ONE
+        // either, and nothing here has to remember that: `talking`'s three
+        // advertised fields are read off the conversation ({@link bound}),
+        // which has just been emptied with the agent that was in it.
         opened()
-        // WHAT THE LAST AGENT SAID ABOUT ITSELF IS NOT NEWS ABOUT THIS ONE.
-        // Reset before the state below rather than after, because that state
-        // reads it: a panel that kept the outgoing agent's answers would offer
-        // an interruption on an agent that has not handshaken yet, on the
-        // strength of what a different subprocess once advertised.
-        advertises = SAYS_NOTHING
         move({
           // WHO, and — because it is one member — no longer a question that
           // could still be being asked while it names somebody.
@@ -1913,14 +2283,117 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           trouble: null,
           // ... AND A SIGN-IN ROW ABOUT SOMEBODY ELSE GOES WITH IT. The attempt
           // it drew was the outgoing agent's, and that agent has just been
-          // stopped (`./agent.ts` kills a login with its scope) — so a row left
-          // up would offer buttons on behalf of a process that no longer
-          // exists, on the strength of an advertisement from another one.
+          // stopped — so a row left up would offer buttons on behalf of a
+          // process that no longer exists, on the strength of an advertisement
+          // from another one.
           signIn: null,
         })
-        const made = yield* spawn(row, receive)
-        talking = { row, agent: made }
-        return made
+        /**
+         * THE BRING-UP CAN BE GIVEN UP ON, which is a thing only the
+         * conversation can do and so a thing it is told
+         * (`@kolu/acp-harness`'s `HarnessOptions.abandonWhen`).
+         *
+         * Spawning the adapter, shaking hands and opening are one promise, and
+         * a promise does not notice an interrupt: this panel opens a
+         * conversation INSIDE the reading that asked for it (`./scoped.ts`),
+         * and a reader that goes away a beat later — a tab re-subscribing, a
+         * page that was taken down — interrupts the fiber waiting here while
+         * the open carries on. What that costs is not a wasted handshake: an
+         * open LAUNCHES every MCP server the session was composed with and
+         * spends the agent's own record of the conversation, for nobody.
+         *
+         * So the fiber's own signal goes over with it. The conversation stops
+         * its process the moment the signal aborts and opens nothing, under
+         * the same word the scope that went away is released with — a reader
+         * leaving is its scope being released, and the log line a person finds
+         * should say so.
+         */
+        const made = yield* Effect.tryPromise({
+          try: (signal) =>
+            startHarness<ChatEntry>({
+              leg: row.leg,
+              adapter: row.adapter,
+              cwd: options.cwd,
+              configDir: SIGNED_IN_FROM,
+              // OLAI'S OWN SERVER, as the one entry handed over, and whatever
+              // else this host turns out to be running after it (`probes`).
+              // The bearer line is composed HERE because it is olai's: the
+              // conversation carries the headers it was given rather than
+              // deciding how somebody else's route lets a caller in.
+              mcpServers: ownServers(),
+              probes: options.probes,
+              // NOTHING FOR THE CONVERSATION TO TEACH. Olai's standing words
+              // are a node agent's contract, decided per message against a
+              // binding that moves ({@link teaching}), and they ride under the
+              // person's own words in the body this file composes. So the slot
+              // is empty and the session is told it has already been taught —
+              // the honest way of saying this end owes it nothing.
+              teaching: "",
+              taught: true,
+              log: harnessLog,
+              opens,
+              // WHO THIS CONVERSATION IS WITH, as this machine's roster names
+              // it: the client files its notes and annotates its log lines
+              // under this id, and the records they land in are keyed by the
+              // engine a person installed
+              // (`@kolu/acp-harness`'s `HarnessOptions.agent`).
+              agent: row.id,
+              // ... AND WHERE THE MODEL A PERSON CHOSE LIVES. Handed over in
+              // place of `model`, which is the pin as ONE value read once: the
+              // record answers for every conversation this harness opens and
+              // takes every move back, so a switch survives a restart without
+              // this end reading a pin or putting one back. The client is the
+              // only end that can tell a SWITCH from the agent re-asserting
+              // its own pin at the door, and this is the durable place it
+              // never had to put one.
+              ...(options.models === undefined ? {} : { models: options.models }),
+              readCall,
+              // The row's NAME comes off the advertisement in `readCall`'s own
+              // `extra`, which is why no `retitle` rule is passed: olai's
+              // friendly title is composed afresh from the same advertisement
+              // on every frame of the call rather than taken once.
+              // OLAI'S FOUR, and the whole of what this panel is: a new session
+              // CLEARS, because this panel is the only copy of the conversation
+              // there is; its rows are numbered from zero and start again after
+              // a wipe, because a browser reads a row's `seq` as how many are
+              // behind it; a conversation the agent cannot come back to is
+              // REPORTED rather than quietly replaced by a different one; and a
+              // replay is KEPT, because nothing else here holds those rows.
+              whenNewSession: "clear",
+              numbering: "restarts",
+              whenLoadRefused: "report",
+              whenReplayed: "keep",
+              // ... AND WHEN THIS END STOPS WANTING IT ({@link abandonWhen}).
+              abandonWhen: { signal, reason: "scope released" },
+              onChange,
+            }),
+          catch: (cause) => cause as HarnessRefused | HarnessUnavailable,
+        })
+        talking = { row, harness: made }
+        conversation = made.state()
+        projecting()
+        // THE AGENT SAID NO, AND IS STILL RUNNING — the one refusal a bring-up
+        // keeps its child for, and the one it does not THROW: an open refused
+        // for want of a signature leaves the subprocess up, because that
+        // subprocess is the one the sign-in has to run against, and the
+        // conversation publishes what it was told rather than raising it
+        // (`@kolu/acp-harness`'s `refusedOpen`, and `HarnessState.refusal`).
+        //
+        // SO THE PANEL ASKS, after what the conversation does know about itself
+        // is on the cell. A harness handed back with a refusal on it is not a
+        // conversation: nothing opened, `sessionId` is null, and a caller that
+        // read the return alone would call the open landed — write the node's
+        // binding, flush a doorbell's held words into a conversation that does
+        // not exist, and leave a person looking at a composer with no account
+        // of why nothing happens. Failing here is what puts the refusal, the
+        // retry and the sign-in row on screen, by the same line under every
+        // other refused open ({@link refusedOpen}).
+        if (conversation.refusal !== null) {
+          return yield* Effect.fail(
+            new HarnessRefused(conversation.refusal, "signed-out", false),
+          )
+        }
+        yield* noting(remembering(), remembranceLost)
       }))
 
     /**
@@ -1934,8 +2407,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * which is exactly what `binding` exists to serialize.
      */
     const enginesMoved: Effect.Effect<void> = binding.withPermit(Effect.gen(function*() {
-      const rows = options.roster()
-      const startable = here(rows)
+      // `roster` rather than `rows`: this file's `rows` is the conversation,
+      // and one word for two tables is how a reader ends up asking the wrong
+      // one what happened.
+      const roster = options.roster()
+      const startable = here(roster)
       const at = talking
       // WHOSE ENGINE HAS LEFT — asked of the LIVE list rather than of anything
       // remembered, because the list is the only thing that moved. Only the
@@ -1944,16 +2420,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // leaving as a plugin switched off.
       const orphaned = at !== null && !startable.some((row) => row.id === at.row.id)
       if (at !== null && orphaned) {
-        // THE SWAP'S OWN SEQUENCE, in the same order and for the same reasons —
-        // the cached listings are about a conversation nobody can reach, the
-        // event is what tells the transcript a session ended, and the process is
-        // asked to go rather than dropped. `why: "gone"` rather than `"new"`:
-        // nothing is replacing it.
-        listings.forget(at.row.id)
-        talking = null
-        receive({ _tag: "sessionOver", why: "gone" })
-        yield* at.agent.stopWithReason("plugin disabled")
-        advertises = SAYS_NOTHING
+        // THE SWAP'S OWN SEQUENCE, reached through the one verb that IS it
+        // ({@link unbind}) — the only thing that differs is the word this
+        // child's exit is logged under.
+        yield* unbind(at, "plugin disabled")
       }
       // ...AND THE FACE, which is one decision over two facts: whether anything
       // is left to talk to at all, and whether the conversation this panel was
@@ -1965,10 +2435,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // conversation stopped. It is the same face and the same `no-engine` word
       // a serve composed without an engine row shows, which is the invariant
       // this whole lane rests on — switched off and never named are one state.
-      const because = offBecause(rows)
+      const because = offBecause(roster)
       if (because !== null) {
         move({
-          roster: rows.map(choiceOf),
+          roster: roster.map(choiceOf),
           status: "off",
           off: because,
           talking: null,
@@ -1978,7 +2448,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         return
       }
       move({
-        roster: rows.map(choiceOf),
+        roster: roster.map(choiceOf),
         // COMING BACK is `idle` and not the status it left: `off` is the only
         // state the panel can be in that a returning row invalidates, and what
         // is true afterwards is a panel with a picker and no conversation, which
@@ -2059,11 +2529,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         "MemoryFailure",
         (failure) =>
           Effect.sync(() => {
-            publish(transcript.add(
-              "notice",
-              `the agent this directory was last talking to could not be read (${failure.why}) — ` +
+            ours({
+              kind: "notice",
+              text: `the agent this directory was last talking to could not be read (${failure.why}) — ` +
                 `asking which one to use instead`,
-            ))
+            })
             return null
           }),
       )
@@ -2089,7 +2559,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * which is the longest that window has ever been.
      */
     const settled = (): void => {
-      move({ status: turns.busy ? "thinking" : "idle" })
+      move({ status: conversation?.phase === "working" || conversation?.phase === "asking" ? "thinking" : "idle" })
     }
 
     /** A verb that OPENS a conversation with a named agent — the three steps
@@ -2099,10 +2569,26 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  one line that differs. */
     const openWith = (
       id: string,
-      use: (agent: AcpAgent.Agent) => Effect.Effect<void, AcpAgent.AgentGone>,
+      opens: Opening,
       completed?: Effect.Effect<void, OpFailure>,
     ): Effect.Effect<void, OpFailure> =>
-      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use), completed))
+      withRow(id, (row) => changeSession(using(row, opens), completed))
+
+    /** WHAT THE AGENT THIS PANEL IS TALKING TO HAS STORED HERE, asked of the
+     *  conversation rather than of a second process: the one it is already
+     *  holding is the one whose list this is, and starting a probe copy of the
+     *  very agent somebody is talking to would be a second language-model
+     *  session opened to answer a question about the first. Its refusal wears
+     *  the listing module's own vocabulary, which is the client's. */
+    const storedIn = (harness: Harness<ChatEntry>): Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> =>
+      Effect.tryPromise({
+        try: () => harness.sessions(),
+        catch: (cause) =>
+          new AcpAgent.AgentGone({
+            gone: "unreachable",
+            why: cause instanceof Error ? cause.message : String(cause),
+          }),
+      })
 
     /**
      * What every installed agent has stored here — the question, answerable.
@@ -2117,7 +2603,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * A PROBE ENTERS NO CONVERSATION and says nothing into this one. Its events
      * go nowhere — a replay from an agent nobody is talking to has no business
      * in the transcript on screen — and `sessions` is the one verb that brings
-     * up the process without opening a session ({@link ./agent.ts}'s
+     * up the process without opening a session (`@kolu/acp-client`'s `agent.ts`'s
      * `onProcess`), so nothing is entered and the directory's note is not
      * rewritten by a question about it.
      */
@@ -2129,7 +2615,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       roster: () => here(options.roster()),
       running: (row) => {
         const at = talking
-        return at !== null && at.row.id === row.id ? at.agent.sessions : options.runningSessions?.(row.id) ?? null
+        return at !== null && at.row.id === row.id
+          ? storedIn(at.harness)
+          : options.runningSessions?.(row.id) ?? null
       },
       // UNDER {@link binding}, the permit that says one agent is bound at a
       // time — because this is the other place a subprocess is started, and a
@@ -2161,11 +2649,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           if (at !== null && at.row.id === row.id) {
             // NOT WORTH KEEPING: the agent this panel is talking to is the one
             // whose list this panel is changing.
-            return { stored: yield* at.agent.sessions, keep: false }
+            return { stored: yield* storedIn(at.harness), keep: false }
           }
           const borrowed = options.runningSessions?.(row.id)
           if (borrowed != null) return { stored: yield* borrowed, keep: false }
-          const probe = yield* spawn(row, () => {}, "session list")
+          const probe = yield* probeFor(row)
           // STOPPED whichever way the question went, INTERRUPTION included. A
           // probe left running is the same stray process one line up, arrived
           // at from the other direction.
@@ -2178,8 +2666,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     /** A verb that needs somebody to talk to. Refused in words when there is
      *  nobody — the panel is drawing the picker, and what the caller asked for
      *  is a thing to do IN a conversation. */
-    const onAgent = <A>(
-      use: (agent: AcpAgent.Agent) => Effect.Effect<A, OpFailure>,
+    const onConversation = <A>(
+      use: (harness: Harness<ChatEntry>) => Promise<A>,
     ): Effect.Effect<A, OpFailure> =>
       Effect.suspend(() => {
         const at = talking
@@ -2189,16 +2677,34 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               reason: "no agent has been chosen for this chat yet — pick one to start",
             }),
           )
-          : use(at.agent)
+          : Effect.tryPromise({
+            try: () => use(at.harness),
+            catch: (cause) => asFailure(cause),
+          })
       })
 
-    /** An agent failure, as something a caller can render — ONE translation,
-     *  used by every verb. Three call sites used to answer this differently
-     *  (`busy` here, `not-found` there), which made "what kind of refusal is a
-     *  dead agent" a question with three answers. `busy` is the honest one: the
-     *  agent is not available right now, and the next prompt retries the boot. */
-    const asFailure = (gone: AcpAgent.AgentGone): OpFailure =>
-      new BusyFailure({ reason: gone.why })
+    /** A conversation's refusal, as something a caller can render — ONE
+     *  translation, used by every verb. `busy` is the honest kind for an agent
+     *  that is not there: it is not available right now, and the next prompt
+     *  retries the boot. A refusal the agent ANSWERED is the agent speaking,
+     *  and its sentence is what a person reads. */
+    const asFailure = (cause: unknown): OpFailure =>
+      cause instanceof HarnessRefused
+        ? new UsageFailure({ reason: cause.why })
+        : new BusyFailure({
+          reason: cause instanceof Error ? cause.message : String(cause),
+        })
+    /**
+     * WHAT THIS PANEL SENT, BY THE ROW IT WAS SENT ON — the body, kept for the
+     * one verb that may need it again.
+     *
+     * The prompt rather than the row: the row carries the pictures' NAMES and
+     * the prompt carries their paths, so a retry rebuilt from the screen would
+     * be a different message wearing the same words ({@link resend}). A
+     * delivery that LANDED drops its entry, so what is kept is only what a
+     * person may still be offered a button under.
+     */
+    const outgoing = new Map<string, string>()
 
     /**
      * Send. Not "send or queue" — SEND, whatever the agent is doing.
@@ -2208,13 +2714,19 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * message made them hold it in their head and come back; queueing it HERE
      * made the panel hold it for them, out of sight, until the turn it should
      * have changed was over — and then a cancel threw it away. Both were the
-     * same mistake, and neither is what happens now.
+     * same mistake, and neither is what happens now: the words go out as a
+     * plain prompt and the AGENT holds them behind the turn it is working on,
+     * which is why nothing here has to know what that turn is.
      *
-     * Queue-capable agents receive ordinary prompts and hold them in order.
-     * This preserves Claude's `/compact` when another message arrives. Agents
-     * advertising steering without a queue use steering for busy sends; the
-     * explicit gesture also selects steering on queue-capable agents.
-     * The row is published before either delivery path starts.
+     * WHICH LANE THEY TAKE IS THE CONVERSATION'S, not this file's. A steer is
+     * the asked-for exception; an agent that advertises steering without a
+     * queue takes a busy send that way whether it was asked or not; a message
+     * with files is never steered; a steer aimed at a turn somebody CANCELLED
+     * under it is refused rather than quietly started afresh; and a message
+     * sent behind a running turn is marked `queued` until the agent picks it
+     * up. All of that moved with the turns (`@kolu/acp-harness`), and so did
+     * every mark a row takes when a delivery does not land. What is left here
+     * is olai's half: what the words are ABOUT, and what rides under them.
      */
     const send = (
       text: string,
@@ -2243,16 +2755,22 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
         // BEHIND WHATEVER IS OPENING A CONVERSATION ({@link opening}), which is
         // what makes "the words are on screen from the moment you send them"
-        // and "a replay empties the transcript" stop contradicting each other.
-        // The permit covers the ROW as well as the delivery, deliberately: a
-        // row written before the replay is a row the replay takes away.
+        // and "a replay fills the panel" stop contradicting each other: a row
+        // minted into that gap is a row the conversation it was going into
+        // takes away.
         yield* opening.withPermit(Effect.gen(function*() {
+          const at = talking
+          if (at === null) {
+            return yield* new UsageFailure({
+              reason: "no agent has been chosen for this chat yet — pick one to start",
+            })
+          }
           // WHAT A NODE AGENT IS TOLD — the contract if this conversation
           // belongs to one and has not been told yet, the reminder on its Nth
           // message — INSIDE the permit, with the delivery it rides under.
           //
-          // It was asked outside, and that was the one thing on this path that
-          // had no business being: a send that PARKS on the permit while a
+          // It was asked outside once, and that was the one thing on this path
+          // that had no business being: a send that PARKS on the permit while a
           // session switch completes is an ordinary event with two tabs open,
           // and the contract addressed before the wait was delivered into the
           // conversation that arrived after it. Both halves went wrong at once
@@ -2260,599 +2778,54 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // carrying the OLD one's node, and the mark was written onto the old
           // binding, which then spent the rest of its life believing it had
           // been taught. That is exactly what {@link Teaching} pairs the lines
-          // with a conversation to prevent; the pair held from build to mark
-          // and was broken between build and DELIVER.
-          //
-          // Nothing is lost by moving it: `teaching()` is two synchronous
-          // in-memory reads and `annotated` is pure. `files.claim` above is the
-          // only thing on this path that earned its place outside — each claim
-          // is a `realpath`, and a conversation being opened has no business
-          // queueing behind somebody else's filesystem.
+          // with a conversation to prevent.
           const teach = teaching(preamble)
-          const prompt = Attachments.promptWith(
+          // WHAT GOES TO THE AGENT, which is not what the ROW records. `body`
+          // is the person's words with olai's lines under them, the nodes the
+          // message was about, and the paths of the pictures; `text` is the
+          // words alone, because that is what a person reads back and what
+          // *send again* sends ({@link ./prompt.ts} owns the one rule for
+          // putting lines under a message).
+          const body = Attachments.promptWith(
             Context.promptWith(annotated(said, teach?.lines ?? []), context),
             attachments,
           )
-          // The user's own message goes in FIRST and from the server, so both
-          // tabs see it and a send that fails does not leave one behind. What
-          // the ROW carries is the file NAMES: the tmp path is for the agent,
-          // and a reader wants to see which picture went with which message.
-          const row = transcript.user(said, {
-            ...(attachments.length === 0
-              ? {}
-              : { attachments: attachments.map(Attachments.nameOf) }),
-            // The nodes as the set answered for them, in the row rather than
-            // only in the prompt: what the message was ABOUT is part of what
-            // was said, so it survives a reload and reaches the other tab like
-            // everything else here.
-            ...(context.length === 0 ? {} : { context }),
-          })
-          publish(row.change)
-          // ... AND THE CONTRACT IS SAID AND MARKED as the delivery's own
-          // first act, both halves together and both only where the message
-          // it rode under was TAKEN ({@link contracted}).
-          //
-          // AFTER the delivery's decision rather than before the row, which
-          // is two corrections in one. A send the agent refused used to leave
-          // the notice standing — a conversation visibly quoting a contract
-          // the agent never took, with the mark rightly withheld beside it,
-          // so the transcript and the record said different things. And the
-          // ORDER is truer now the writing is awaited: the lines ride UNDER
-          // the person's words in the prompt ({@link ./prompt.ts}'s
-          // `annotated`), so the answer rows must not get between the message
-          // and its notice either — an awaited write is an event window, and
-          // the turn's first chunk was observed crossing it. The fork that
-          // begins the turn is the only thing after the decision, so the
-          // shape that cannot lose is the delivery handing its first act to
-          // the turn itself.
-          yield* deliver(
-            row.key,
-            prompt,
-            steer,
-            teach === null ? undefined : contracted(teach, row.key),
-          )
+          const sent = yield* sending.withPermit(Effect.tryPromise({
+            try: () =>
+              at.harness.prompt({
+                text: said,
+                body,
+                extra: {
+                  // The file NAMES: the tmp path is for the agent, and what a
+                  // reader wants off the row is which picture went with which
+                  // message.
+                  ...(attachments.length === 0
+                    ? {}
+                    : { attachments: attachments.map(Attachments.nameOf) }),
+                  // The nodes as the set answered for them, in the row rather
+                  // than only in the prompt: what the message was ABOUT is part
+                  // of what was said, so it survives a reload and reaches the
+                  // other tab like everything else here.
+                  ...(context.length === 0 ? {} : { context }),
+                },
+                // OLAI'S PICTURES TRAVEL AS PATHS IN THE BODY, which is the
+                // whole of its transport and is unchanged: the bytes were
+                // written to this conversation's own tmp directory as they
+                // arrived ({@link ./attachments.ts}) and the agent reads them
+                // off the disk they are on. So there is nothing here for the
+                // conversation's own attachment machinery to carry, and the
+                // caps and refusals it keeps are about blocks olai never sends.
+                files: [],
+              }, steer),
+            catch: (cause) => asFailure(cause),
+          }))
+          outgoing.set(sent.rowId, body)
+          // ... AND THE CONTRACT IS SAID AND MARKED, both halves together and
+          // both only where the message it rode under was TAKEN
+          // ({@link contracted}).
+          if (teach !== null) yield* contracted(teach, sent.rowId)
         }))
       })
-
-    /**
-     * Get one prompt to the agent NOW, whatever it is doing — and, when that
-     * cannot be done, leave the words with the person who typed them.
-     *
-     * THE ORDINARY LANE IS THE ONLY LANE unless somebody asked otherwise: a
-     * plain `session/prompt`, which starts a turn this file owns whether or not
-     * another is already running. What the agent does with a second one is the
-     * agent's own business — it holds it behind the first and runs it next, in
-     * order — and that is the point: nothing here has to know what the running
-     * turn IS, so a `/compact` is waited for exactly as a grep is.
-     *
-     * STEERING IS THE ASKED-FOR EXCEPTION, and every condition on it is a
-     * condition on the ASK: somebody made the interrupting gesture, the agent
-     * advertised that it takes one, and there is a turn in flight to put it in.
-     * Any of those missing and this is a plain prompt — which is the safe
-     * direction and the only one it fails in, since the message goes either
-     * way. It is aimed at the turn the agent is ON ({@link Turns.head}), which
-     * with several in flight is the oldest: interrupting the one it is working
-     * on is what interrupting means, and the ones behind it have not started.
-     *
-     * A steer that lands starts NOTHING here — the words are in a turn this
-     * file already owns — so the row is not queued behind anything and the
-     * transcript says nothing about it.
-     *
-     * UNDER A PERMIT, because the first thing it does is read which lane to take
-     * and the last thing it does is take it. Two tabs sending at an idle agent
-     * both read `head === null` otherwise, and both start a turn: the second
-     * ticket replaces the first, whose end is then correctly silenced as a turn
-     * that was superseded — so a real turn would end with the panel saying
-     * nothing about it. The ticket answers WHICH turn is speaking; it was never
-     * going to answer how many may start, and narrowing that window is not
-     * closing it. The permit is held for one round trip: `begin` forks rather
-     * than awaiting a turn, and a steer answers as soon as the message is on the
-     * agent's input — a teaching send is the exception at the PERMIT, not the
-     * turn: its first message holds `sending` (and `opening` above it) across
-     * the record write ({@link begin}'s hail) before the prompt is on the wire.
-     *
-     * WHAT THE PERMIT DOES NOT COVER IS CANCEL, and it must not: a person who
-     * has sent a message and then thought better of the whole turn is pressing
-     * the one button that has to work while something else is in flight. So a
-     * steer can be overtaken — cancel wins the pipe, the turn ends, and the
-     * steer comes back saying there was nothing to steer. That answer is the
-     * same one the settle race gives, and the two want opposite things done:
-     * one is a turn that finished on its own and the message becomes an
-     * ordinary prompt; the other is a turn a person STOPPED, and starting a
-     * fresh one with the message they sent into it would be the panel
-     * un-cancelling on their behalf. The ticket the steer was aimed at is what
-     * tells them apart — see {@link Turn.stopped}.
-     */
-    const deliver = (
-      key: string,
-      prompt: string,
-      steer: boolean,
-      first?: Effect.Effect<void>,
-    ): Effect.Effect<void> =>
-      sending.withPermit(Effect.gen(function*() {
-        const at = talking
-        if (at === null) {
-          // Unreachable from the panel — there is no box to type into while
-          // nobody has been chosen — and said on the ROW rather than thrown,
-          // because these are somebody's words and the rule for words that did
-          // not go is the same however they failed to.
-          return undeliverable(key, prompt, {
-            gone: "unreachable",
-            why: "no agent has been chosen for this chat yet",
-          })
-        }
-        const agent = at.agent
-        // WHICH turn this steer is aimed at, kept rather than re-read: by the
-        // time it answers, it may be over. The one the agent is working on,
-        // which is the oldest — the ones behind it are waiting at the agent and
-        // interrupting a turn that has not started is nothing at all.
-        const aimed = turns.head
-        // An agent that advertises steering but no prompt queue takes busy
-        // sends through steering. A second ordinary prompt can overwrite its
-        // pending turn (Codex), leaving the first request unanswered forever.
-        // Queue-capable agents retain the explicit interruption gesture.
-        const steeringSend = steer || !advertises.queues
-        if (steeringSend && aimed !== null && advertises.steers && !queuedHere) {
-          const steered = yield* Effect.result(agent.steer(prompt))
-          if (steered._tag === "Failure") {
-            // WHICH failure it was is the agent's reading, not ours: it is the
-            // wire that knows whether anything answered, and this is the one
-            // fact the row's two faces are drawn out of.
-            return undeliverable(key, prompt, steered.failure)
-          }
-          if (steered.success === "taken") {
-            // Delivered, and into the turn a person could see running — so a
-            // banner about the last thing that went wrong is a banner about
-            // something the agent has visibly moved on from.
-            // ... AND THE DELIVERY'S FIRST ACT, here as anywhere (`first`).
-            if (first !== undefined) yield* first
-            return move({ trouble: null })
-          }
-          // The agent ANSWERED — "nothing to steer" — so nothing took the
-          // message, which is a refusal however the turn came to be over.
-          if (aimed.stopped) {
-            return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
-          }
-        }
-        yield* begin(at, key, prompt, { first })
-      }))
-
-    /**
-     * The message did not land, said on the row it was typed into — in the ONE
-     * of two ways this end can honestly say it.
-     *
-     * A REFUSAL is a certainty: nothing took the message, and this end can say
-     * so — the agent answered no (a method it does not have, a session it does
-     * not know, a turn its own sender had stopped), or there was nothing to ask
-     * at all (no process, no session open). The row keeps the prompt
-     * ({@link ./transcript.ts}) and offers *send again*, because nothing
-     * happened and asking again is honest.
-     *
-     * The ROW's two faces are two where {@link ./agent.ts}'s `Gone` is three,
-     * and the fold is deliberate: those two arms differ in whether the agent is
-     * still there, which is a fact about the CONVERSATION and not about these
-     * words. A message that did not go did not go.
-     *
-     * SILENCE is not. The steer went out, the deadline passed, and an agent
-     * that took the message and then went quiet is indistinguishable from one
-     * that never took it. So the row says exactly that and offers NOTHING to
-     * press: a retry here would hand somebody a duplicate they had no way to
-     * predict. The words stay on screen, which was always the promise — what is
-     * missing is the certainty, not the message.
-     *
-     * The distinction is not made here and never was ours to make: it is
-     * {@link ./agent.ts}'s `Gone`, decided at the wire, where "did anything
-     * answer" is a fact rather than a guess. This file used to infer it from a
-     * comment.
-     *
-     * A silence also goes in as a NOTICE, which a refusal does not need. Both
-     * put the reason on the banner, and the banner is cleared by the next turn
-     * that comes back — fine for a row that goes on saying *not sent* with a
-     * button under it, and not fine for the one thing nobody will act on: what
-     * happened to those words is a fact about the conversation, so it belongs
-     * in the conversation.
-     */
-    const undeliverable = (key: string, prompt: string, failed: Undelivered): void => {
-      markUndelivered(key, prompt, failed.gone, failed.auth === true)
-      if (failed.gone === "unanswered") publish(transcript.add("notice", failed.why))
-      move({ trouble: failed.why })
-    }
-
-    /** WHICH mark the row takes — the whole of the difference, in one place
-     *  because both delivery lanes reach it: a refusal keeps the prompt beside
-     *  the row and hands a person the button that sends it again; a silence
-     *  keeps nothing, which is what makes the button unofferable rather than
-     *  merely undrawn ({@link ./transcript.ts}).
-     *
-     *  SILENCE is the arm that is named, and the other is everything else. The
-     *  question this answers is "may I honestly offer these words again", and
-     *  exactly one of `Gone`'s three values says no to it — so naming the two
-     *  that say yes would be this line having an opinion about which ways a
-     *  message can fail to go, which is the thing it does not have to have. */
-    const markUndelivered = (
-      key: string,
-      prompt: string,
-      gone: AcpAgent.Gone,
-      auth = false,
-    ): void => {
-      publish(
-        gone === "unanswered"
-          ? transcript.unanswered(key)
-          : transcript.refused(key, prompt, auth),
-      )
-    }
-
-    /**
-     * Run one prompt as a turn.
-     *
-     * Accepted, not awaited: the turn runs on its own fiber and reports through
-     * the transcript, so a five-minute turn is not a five-minute call. A
-     * teaching send still detaches the turn; what it waits for is the fork's
-     * first act — the mark write — before releasing `sending`.
-     *
-     * The ticket is written down BEFORE the fork and the fiber is filled in
-     * after, so a turn is on the record from the instant it starts rather than
-     * from whenever the fork returns. That NARROWS the window a concurrent
-     * send would read to decide between prompting and steering; what CLOSES it
-     * is {@link deliver}'s permit, because no amount of narrowing makes a
-     * read-then-write atomic and the ticket was never the mechanism for that.
-     *
-     * What the ticket is for is IDENTITY: the fiber's own reports are gated on
-     * still BEING the turn, because a turn that settled while its replacement
-     * was starting has nothing true left to say about where the conversation
-     * stands, and saying it anyway would mark a thinking panel idle.
-     *
-     * It is handed the ROW as well as the prompt, because a prompt is a
-     * delivery like a steer is: a turn that never started because the agent was
-     * not there took nobody's message anywhere, and the words deserve the same
-     * account of themselves ({@link undeliverable}).
-     *
-     * ## ENTER IT HOLDING `sending`, and that is a precondition rather than a habit
-     *
-     * The first thing this reads is `turns.busy`, and on `true` it LATCHES
-     * {@link queuedHere} — permanently, for the life of the conversation. That
-     * read is only stable while nothing else may call `turns.open`, which is
-     * exactly what the {@link sending} permit buys: both callers ({@link
-     * deliver} and {@link offer}) hold it across their own decision and this
-     * call, so no turn can appear between the two.
-     *
-     * A THIRD CALLER THAT DID NOT WOULD SPEND SOMEBODY'S INTERRUPT, silently
-     * and for good, on a turn that was not running when it looked. It is
-     * written here rather than only at the callers because that is where a
-     * third one would read, and because the cost of getting it wrong is a
-     * control that never comes back rather than an error anybody sees.
-     */
-    const begin = (
-      at: Bound,
-      key: string,
-      prompt: string,
-      /**
-       * TWO FACTS ABOUT THIS ONE TURN, which is why they travel together rather
-       * than as two optional positions.
-       *
-       * `first` is an act to run before the prompt crosses the wire — a
-       * contract's mark, which `send` needs — and `sleep` says the turn is
-       * OLAI'S OWN: a pass over a node agent's own memory, whose question
-       * nobody is there to answer and whose alert is therefore suppressed
-       * ({@link ChatState.sleep}). Only a delivery says the second
-       * ({@link offer}), and the mark lives exactly as long as this turn does.
-       */
-      turn: { readonly first?: Effect.Effect<void>; readonly sleep?: boolean } = {},
-    ): Effect.Effect<void> =>
-      Effect.gen(function*() {
-        /** A turn was ALREADY running when this one started — which, since
-         *  every send is a plain prompt, is what any message typed while the
-         *  agent works is. The agent holds this one behind that one. */
-        const alongside = turns.busy
-        if (alongside) {
-          yield* Effect.logInfo("message queued behind a running turn").pipe(
-            Effect.annotateLogs({
-              agent: at.row.id,
-              ...(state.session === null ? {} : { session: state.session.id }),
-            }),
-          )
-          // ... AND THE INTERRUPTION IS WITHDRAWN FROM THIS CONVERSATION, from
-          // this moment on ({@link queuedHere}): the adapter cannot settle a
-          // turn it steers once a session has queued, and a control that hangs
-          // the conversation is not one to draw. Said once — the panel is told
-          // when it becomes true, not once per message after that.
-          if (!queuedHere) {
-            queuedHere = true
-            rebind()
-          }
-        }
-        const ticket = turns.open(key)
-        // ... AND THE ROW SAYS SO, which is the half a person can see. It is
-        // the only thing standing between "I pressed send and nothing is
-        // happening" and knowing the words are at the agent with a turn in
-        // front of them — and it is a statement about THIS end's own turns
-        // (one went out, none has started on it), never a guess at what the
-        // agent is doing with it. It comes off below, when the turns in front
-        // of it end.
-        if (alongside) publish(transcript.queued(key))
-        // The rows go first, and the order is the point. A dead agent's rows
-        // are deliberately left where they are, so this turn is starting over a
-        // transcript that may hold calls the last one abandoned — and the panel
-        // is about to be told a turn is in flight. Said in the other order,
-        // there is a frame in which every one of those calls is drawn as work
-        // in progress again ({@link ./transcript.ts}'s `begins`).
-        //
-        // NOT WHEN A TURN IS STILL RUNNING, though: what `begins` does is mark
-        // what the LAST turn walked away from, and a turn that is still going
-        // has walked away from nothing. Its calls are live, and stranding them
-        // because somebody typed a second message would be the panel saying a
-        // running grep had been abandoned.
-        // ... and STRANDING TAKES THINGS OFF THE STRIP, which is why the recount
-        // is here beside it rather than only on the frames the agent sends. A
-        // background task is exempt from stranding by construction
-        // ({@link ./transcript.ts}'s `#strand`), so while the strip carried only
-        // tasks its membership could move on a tool frame and on nothing else,
-        // and one gate covered it. An AGENT is not exempt: a spawn its turn
-        // walked away from is over, and nothing after this point will ever say
-        // so on a frame — so a strip that was not recounted here would carry a
-        // dead subagent, with a clock ticking under it in every open tab, for
-        // the rest of the conversation.
-        if (!alongside) {
-          publish(transcript.begins())
-          watched()
-        }
-        move({ status: "thinking", trouble: null, cancelled: false, ...(turn.sleep === true ? { sleep: true } : {}) })
-        // How much the agent had SHOWN before this turn was asked for — the
-        // narrow count ({@link EVIDENCE}), and it answers one question in both
-        // directions the turn can end. On a turn that FAILED: whether the
-        // prompt demonstrably arrived, since an agent that streamed so much as
-        // a thought was working on it. On a turn that SUCCEEDED: whether
-        // anything came of it at all. A count answers "has anything arrived"
-        // with no clock to read.
-        const quietSince = shown
-
-        /**
-         * Nothing a person can see has arrived since this turn was asked for.
-         *
-         * A function rather than a value because it is read at the END of the
-         * turn, and `shown` moves throughout it.
-         *
-         * IT IS THE CONVERSATION'S COUNT, not this turn's, and it cannot be
-         * anything else: a frame names no turn on any wire olai speaks, so
-         * which of two turns in flight drew a row is not a fact this end has.
-         * What that costs is one direction only, which is why it is the right
-         * approximation: a turn that really was silent while a sibling was
-         * talking goes unremarked (nothing is claimed), and a turn that drew
-         * something is never accused of silence. Several turns at once is the
-         * ordinary shape now — a message typed while the agent works is one —
-         * and this errs towards saying nothing about all of them. An explicit
-         * refusal while this ticket is still behind an older turn is stronger
-         * evidence, handled below: that queued prompt was never taken up.
-         */
-        const quiet = (): boolean => shown === quietSince
-
-        // The fork's first act must be before the prompt for the ANSWER's
-        // sake — and this fiber must WAIT for it for the next SEND's sake.
-        // The first is the easy half: the act runs first in the fork ({@link
-        // deliver}). The second is the one detaching would betray: the
-        // mirror the next send's `teaching()` reads moves when the write
-        // LANDS ({@link ./sessions.ts}'s `write`), and this fiber — the
-        // `send`, under the `opening` and `sending` the next one parks on —
-        // would otherwise return with the write still crossing the
-        // disk: a pair of sends fired in the same tick would then both teach,
-        // the second off a mirror a millisecond short of true. So the fork
-        // hails when its first act is done, under `ensuring`: even its
-        // creeping EACCES is an outcome the send gets to stop waiting for —
-        // the mark's failure is a log ({@link contracted}), never a send on
-        // hold for the record's sake.
-        const hailed = yield* Deferred.make<void>()
-        const running = yield* Effect.forkDetach(
-          Effect.gen(function*() {
-            // The delivery's FIRST ACT, before the prompt crosses the wire:
-            // a contract's mark, so its notice answers before anything the
-            // agent could say — the shape `send`'s once-a-conversation
-            // teaching needs, and the one place it can hold by construction
-            // ({@link deliver}).
-            if (turn.first !== undefined) {
-              yield* Effect.ensuring(turn.first, Deferred.succeed(hailed, undefined))
-            }
-            const outcome = yield* Effect.result(at.agent.prompt(prompt))
-            // Whether this turn was the LAST one running. The notices go in
-            // either way — they are things that happened, and they happened —
-            // and only the state is withheld: a turn that ends while another is
-            // still going has nothing true left to say about where the
-            // conversation stands, and saying it anyway would mark a thinking
-            // panel idle.
-            //
-            // Left the set HERE rather than in the `ensuring` below, because
-            // every line under this one is asking whether anything is still
-            // running and the answer has to already be true.
-            // Read before removing the ticket. A prompt explicitly refused
-            // while an older turn still heads the queue has not been taken
-            // up, even if that older turn streamed between send and refusal.
-            // `quiet()` cannot distinguish those frames: they name a session,
-            // not a prompt. Queue order supplies the missing evidence here.
-            const refusedWhileQueued = turns.head !== ticket
-              && outcome._tag === "Failure" && outcome.failure.gone === "refused"
-            const current = turns.leave(ticket)
-            // ... and so is the SETTLE, for `begins`' reason read from the
-            // other end: a turn that ends while another is still running must
-            // not strand the running turn's calls. The last one out settles,
-            // and settling is idempotent over rows that have already stopped.
-            //
-            // EVERY turn closes its own paragraph, though, which is the half of
-            // settling that is true whoever else is running: the agent's prose
-            // grows the row that is open, so a turn that ended without closing
-            // one leaves the NEXT turn's first words on the end of its last
-            // sentence — two answers in one paragraph, with the question
-            // between them somewhere above.
-            publish(current ? transcript.settle() : transcript.stopSaying())
-            // ... and the strip is recounted with it, for `begins`' reason one
-            // turn-boundary over: settling is the OTHER place a spawn can be
-            // stranded, and a stranded spawn is one the strip must stop
-            // carrying.
-            if (current) {
-              watched()
-              // ... AND IT IS WHERE A NODE AGENT'S DOOR GETS ITS LINE. The
-              // paragraph is closed by the settle above, so this is the first
-              // moment the agent's last word is a whole sentence rather than a
-              // prefix ({@link saidHere}). Forked for `flushing`'s reason and
-              // silent for a conversation no node claims, which is nearly all
-              // of them.
-              yield* aside(saidHere())
-              // ... AND THE TURN BOUNDARY IS WHERE A DOORBELL'S WORDS GET IN.
-              // `turns.leave` answered TRUE, which is exactly "the set emptied"
-              // ({@link ./turns.ts}), so this is the first moment since the body
-              // was held at which an idle agent can take it — and it is the
-              // moment for EVERY way a turn can end, a cancel included: a
-              // cancelled turn is still a boundary, and a person who wants the
-              // doorbell to stop clears the file.
-              //
-              // FORKED, so nothing about this turn's ending waits on a permit a
-              // send may be holding. DETACHED, because the fiber that reaches
-              // this line is itself detached and about to finish.
-              yield* aside(flushing)
-            }
-            // WHOEVER THE AGENT IS ON NOW HAS STOPPED WAITING. This turn is
-            // over, so the message behind it is the one being worked on — and
-            // this row is not waiting for anything either, however it ended.
-            //
-            // Both, and in this order, because they are two different rows in
-            // the ordinary case and the same row in none of them. Asked of the
-            // SET rather than remembered, so a message that was third in line
-            // keeps saying so until the two in front of it have really gone
-            // ({@link ./turns.ts}'s `head`).
-            publish(transcript.taken(key))
-            const next = turns.head
-            if (next !== null) publish(transcript.taken(next.key))
-            if (outcome._tag === "Failure") {
-              publish(transcript.add("notice", outcome.failure.message))
-              // A turn that produced NOTHING is a delivery that failed, and it
-              // is said on the row like any other ({@link markUndelivered}) —
-              // a refusal where the agent said no or was never reached at all,
-              // a silence where the pipe died with the prompt on it.
-              //
-              // An agent that SAID something first is the case this must not
-              // touch, and the reason this file used to mark nothing here: it
-              // demonstrably had the prompt and worked on it, so a row calling
-              // that undelivered would contradict the answer sitting above it.
-              // What has changed is that "did it arrive" is now answerable —
-              // by the turn's own silence, and by `Gone` where it is not.
-              if (quiet() || refusedWhileQueued) {
-                markUndelivered(key, prompt, outcome.failure.gone, outcome.failure.auth === true)
-              }
-              // ... AND THE WAY TO SIGN IN, when the reason nothing was taken is
-              // that nobody is signed in. Said BEFORE the status below, because
-              // the turn is over either way — what changes is that this panel
-              // now has something to offer, and it is offered while the row
-              // saying "Not sent" is still on screen under it.
-              if (askingToSignIn(outcome.failure)) move({ signIn: { kind: "choosing" } })
-              // WHETHER THERE IS STILL AN AGENT, which is a different question
-              // from whether the turn ran and is answered by the same value: a
-              // turn the agent REFUSED is a turn that ended — the process is
-              // there, it just spoke, the conversation is open, and the next
-              // prompt goes to it. Everything else is this end unable to reach
-              // one, and the panel says so.
-              //
-              // Both readings used to be `refused`, so a turn an agent answered
-              // an error to left a live agent's panel saying `not running` — in
-              // a conversation it was still in — until some later turn happened
-              // to succeed.
-              const alive = outcome.failure.gone === "refused"
-              if (current) {
-                move({ status: alive ? "idle" : "gone", trouble: outcome.failure.message })
-              }
-              return
-            }
-            // Cancelling means stop, and it means only that: everything typed
-            // reached the agent when it was typed, so there is nothing left
-            // here for a cancel to decide the fate of. The messages BEHIND the
-            // stopped turn are the agent's — held in its own queue, in its own
-            // order — and this end does not reach into it. (What the pinned
-            // adapter does with them is its own answer, and it is the honest
-            // one: the words run. Verified on the wire, 2026-08-24.)
-            //
-            // ONE NOTICE PER PRESS, and it belongs to the PRESS rather than to
-            // a turn: a cancel stops the conversation, so every turn in flight
-            // comes back `cancelled` — including a message that was still
-            // waiting behind the running one, which the pinned adapter answers
-            // that way while running its words anyway (verified on the wire).
-            // A person who pressed one button wants to be told once, and the
-            // order the answers come back in is the agent's, so *which* turn
-            // says it cannot be the rule.
-            //
-            // A `cancelled` NOBODY ASKED FOR is always news, which is the other
-            // half of the same test: the agent stopped a turn on its own, and
-            // there is no press for the notice to be a duplicate of.
-            //
-            // AND IT IS THE ONE SILENCE THAT IS ACCOUNTED FOR, which is why it
-            // returns rather than falling through: a turn somebody stopped
-            // before it said anything has a notice about it already, and the
-            // arm below would put a second one under it blaming the agent for
-            // obeying.
-            if (outcome.success === "cancelled") {
-              if (!ticket.stopped || !stopSaid) {
-                stopSaid = ticket.stopped
-                publish(transcript.add("notice", "cancelled"))
-              }
-              // ...AND THE CANCELLATION IS CARRIED, because `idle` with no
-              // `trouble` is exactly what a turn that ENDED looks like: a pass
-              // watching this conversation would otherwise record a stopped
-              // rewrite as a finished sleep.
-              if (current) move({ status: "idle", trouble: null, cancelled: true })
-              return
-            }
-            // A TURN THAT SAID NOTHING is not a turn that went well, and until
-            // this arm existed it was drawn as one: the agent answered
-            // `end_turn`, the panel went idle, and what a person got back for
-            // their message was an empty space under it. That is what an agent
-            // which cannot reach a model can look like from here — one
-            // zero-token usage frame and then a SUCCESSFUL end_turn, with no
-            // error anywhere on the wire — and it is the one failure the panel
-            // had no face for at all.
-            //
-            // Said for EVERY agent rather than for the one it was found on: a
-            // turn with nothing in it is nothing to read whoever produced it,
-            // and no agent has a reason to end one. It costs an ordinary turn
-            // nothing — a turn that said anything at all skips it.
-            //
-            // The banner STAYS UP, unlike every other ending here, because
-            // there is nothing else on screen to say this happened: a notice
-            // scrolls with the transcript and the next thing a person does is
-            // send again.
-            if (quiet()) {
-              const why = silence(at.row.name)
-              publish(transcript.add("notice", why))
-              if (current) move({ status: "idle", trouble: why })
-              return
-            }
-            // A turn that came back is the proof that whatever went wrong
-            // before has stopped being true. Leaving the banner up after it
-            // would make the panel report a state it can see it is not in.
-            if (current) move({ status: "idle", trouble: null })
-          }).pipe(
-            // Belt to the brace above: the body leaves the set on its own way
-            // out, and an INTERRUPT (a shutdown, a conversation change) never
-            // reaches that line.
-            Effect.ensuring(Effect.sync(() => {
-              turns.leave(ticket)
-              // THE PASS'S MARK GOES WITH THE TURN IT DESCRIBES, on every way
-              // a turn can end — including an interrupt, which never reaches
-              // the line above. A question asked inside a sleep must not go on
-              // being suppressed after the turn that asked it is over.
-              if (turn.sleep === true) move({ sleep: false })
-            })),
-          ),
-        )
-        ticket.fiber = running
-        // ... AND THE WAIT, paired with the hail above: the only end of it
-        // that matters is the fork's first act having RUN, however it ended.
-        // Raced against the fiber's own exit (`await`, not `join`) so a
-        // `running` interrupted before `ensuring` installed cannot park this
-        // waiter on the deferred alone, holding `opening` and `sending`.
-        if (turn.first !== undefined) {
-          yield* Effect.race(
-            Deferred.await(hailed),
-            Effect.asVoid(Fiber.await(running)),
-          )
-        }
-      })
-
     /**
      * ONE ATOMIC ARM-DECISION for a doorbell's words: hand them over, or say
      * they are still held.
@@ -2902,7 +2875,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * here is two-valued rather than three.
      */
     const offer = (
-      to: Deliveries.Addressed,
+      to: Addressed,
       /**
        * The words, ASKED HERE and nowhere earlier — past the identity check,
        * past `turns.busy`, under both permits, at the last instant before the
@@ -2928,16 +2901,20 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     ): Effect.Effect<"handed" | "held" | "nothing"> =>
       opening.withPermit(Effect.gen(function*() {
         const at = talking
+        const now = at === null ? null : at.harness.state()
         // NOT THIS PANEL'S CONVERSATION — no agent bound, none open, or one
         // that is somebody else's. There is exactly one conversation this
         // process can prompt, so every other conversation's bodies wait for
         // somebody to open them.
         if (
-          at === null || state.session === null
-          || at.row.id !== to.agent || state.session.id !== to.session
+          at === null || now === null || now.sessionId === null
+          || at.row.id !== to.agent || now.sessionId !== to.session
         ) return "held"
         return yield* sending.withPermit(Effect.gen(function*() {
-          if (turns.busy) return "held" as const
+          // ASKED OF THE CONVERSATION ITSELF, now, rather than of the state
+          // this panel last published: the re-read is only worth anything if it
+          // is the live one, and a published frame is a beat old.
+          if (at.harness.state().busySince !== null) return "held" as const
           const body = say()
           // NOTHING LEFT TO SAY. The subject settled while the body waited, so
           // there is no row — and the caller drops the slots rather than asking
@@ -2945,10 +2922,33 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           if (body === null) return "nothing" as const
           // MARKED, and marked by core from the registry binding: the plugin
           // never supplies its own name ({@link ../../surface/src/chat.ts}'s
-          // `rang`).
-          const row = transcript.user(body, { rang: from })
-          publish(row.change)
-          yield* begin(at, row.key, body, { sleep })
+          // `rang`). The ROW is this end's to compose — a turn it starts is one
+          // the conversation mints the row it is handed — and it takes every
+          // delivery mark a person's message does.
+          // THE PASS'S MARK GOES UP FIRST, before the row and the turn it is
+          // about: the conversation publishes `working` the instant the turn
+          // opens, and a watcher that saw a turn start without the mark on it
+          // would read olai's own pass as somebody's message — a question
+          // alerted on that nobody is there to answer
+          // ({@link ChatState.sleep}).
+          if (sleep) move({ sleep: true })
+          const started = yield* Effect.result(Effect.tryPromise({
+            try: () => at.harness.hostTurn({ kind: "user", text: body, rang: from }, body),
+            catch: (cause) => asFailure(cause),
+          }))
+          // A CONVERSATION THAT WOULD NOT TAKE IT IS ONE THAT IS HOLDING IT:
+          // the body stays where it was and the next boundary tries again,
+          // which is the same answer a running turn gives. There is nobody to
+          // report a refusal to — a watcher sink has nowhere to put one — which
+          // is why this answer is three-valued rather than four.
+          if (started._tag === "Failure") {
+            if (sleep) move({ sleep: false })
+            return "held" as const
+          }
+          outgoing.set(started.success.rowId, body)
+          // ... and the mark now belongs to a TURN, which is what takes it off
+          // again however that turn ends ({@link ended}).
+          if (sleep) sleepTurn = started.success.rowId
           return "handed" as const
         }))
       }))
@@ -2958,7 +2958,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *
      * ONE PLUGIN AT A TIME — the one whose body has been waiting longest — and
      * all of that plugin's held bodies together, joined whole with a blank line
-     * between them ({@link ./deliveries.ts}'s `joined`). Not every plugin's
+     * between them (`@kolu/acp-harness`'s `holding.ts`'s `joined`). Not every plugin's
      * bodies in one message, because the row carries ONE `rang` and a row marked
      * with one plugin's name carrying another's paragraph would be exactly the
      * signature the mark exists to prevent. A second plugin's bodies go at the
@@ -2970,7 +2970,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *
      * On `"held"` nothing moves at all and the next boundary tries again.
      */
-    const flush = (to: Deliveries.Addressed): Effect.Effect<void> =>
+    const flush = (to: Addressed): Effect.Effect<void> =>
       Effect.gen(function*() {
         // A LOOP, because a batch that has entirely settled writes no row — and
         // no row is no turn, and no turn is no next boundary. One plugin's
@@ -2982,19 +2982,19 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           const waiting = held.waiting(to)
           const oldest = waiting[0]
           if (oldest === undefined) return
-          const mine = waiting.filter((slot) => slot.from === oldest.from)
+          const batch = waiting.filter((slot) => slot.from === oldest.from)
           // THE WORDS ARE NOT ASKED FOR HERE. {@link offer} asks them, past its
           // own two permits, at the instant before the row is written — so a
           // batch whose turn is still running is not composed and thrown away,
           // and a plugin counting its own deliveries never counts an ask that
           // did not land.
-          const arm = yield* offer(to, () => Deliveries.joined(mine), oldest.from, oldest.sleep === true)
+          const arm = yield* offer(to, () => joined(batch, (body) => body.say()), oldest.from, oldest.value.sleep)
           if (arm === "held") return
           // `"handed"` wrote a row; `"nothing"` found every body settled and
           // wrote none. Both take the slots — the second so the next pass does
           // not ask them again and get the same silence — and both keep the
           // strip's count honest.
-          held.took(to, mine)
+          held.took(to, batch)
           move({ wake: wakeOf() })
           // ONE ROW PER BOUNDARY, but a batch that said nothing is not a row:
           // where it settled, the loop goes on to the plugin behind it rather
@@ -3026,13 +3026,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * is applied, and the idle arm still costs exactly one turn.
      */
     const deliverTo = (
-      to: Deliveries.Addressed,
+      to: Addressed,
       say: () => string | null,
       from: string,
       how?: { readonly coalesce?: string; readonly sleep?: true },
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        held.hold(to, from, say, how?.coalesce, how?.sleep)
+        held.hold(to, from, { say, sleep: how?.sleep === true }, how?.coalesce)
         // The strip's count moves the moment the body is held, which is the
         // panel's own rule: the alternative to holding words out of sight is
         // not dropping them, it is showing that they are waiting.
@@ -3070,7 +3070,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * The refusal channel is the easy half and it was missing: `agent.cancel`
      * used to swallow the notification's own failure, so a cancel that could
      * not be put on the wire typed as a success. That is fixed at the source
-     * ({@link ./agent.ts}) and mapped here like every other verb's refusal.
+     * (`@kolu/acp-client`'s `agent.ts`) and mapped here like every other verb's refusal.
      *
      * It is not the half a person sees. A cancel is a NOTIFICATION: it is
      * written and never answered, and under Bun a pipe reports nothing back to
@@ -3100,30 +3100,20 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * report.
      */
     const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
-      const running = turns.busy
-      yield* onAgent((agent) => Effect.mapError(agent.cancel, asFailure))
+      const running = conversation?.busySince != null
+      yield* onConversation((harness) => harness.cancel())
       if (!running) return
-      // Marked AFTER the cancel is on the wire rather than before, because a
-      // cancel that could not be delivered stopped nothing — and on EVERY
-      // ticket, for the reason {@link ./turns.ts} gives. What reads the mark is
-      // a steer still in flight against one of these turns: it is about to come
-      // back "nothing to steer", and this is the only thing that says the
-      // reason was a person rather than the turn finishing. It outlives the
-      // turn, which is the point — by then the ticket is all that is left of it.
-      const asked = turns.stopping()
-      // ... and this press has not been spoken about yet. Reset HERE, beside
-      // the marking and under nothing: `stopping` is what makes a press exist,
-      // so it is the one moment "has this been said" can honestly go back to
-      // no.
-      stopSaid = false
+      // WHETHER ANYTHING HAS ARRIVED SINCE, counted off the changes the
+      // conversation publishes ({@link heard}) rather than off a clock: an
+      // agent that is still streaming tool progress is working towards the stop
+      // it was asked for and will take it when its step returns, and one that
+      // has gone silent with a cancel outstanding is the case nobody could see
+      // before. The two want opposite things said about them.
       const quietSince = heard
       yield* aside(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
-        // A turn that has LEFT the set is one that ended, which is the cancel
-        // having worked. Asking about the tickets this press was about, rather
-        // than about the status, is what makes the second press of the button
-        // about the turns it was pressed for.
-        if (asked.every((ticket) => !turns.has(ticket))) return
+        // A conversation with nothing in flight is one whose cancel worked.
+        if (conversation?.busySince == null) return
         // ...and an agent that has said anything since is one still working
         // towards the stop it was asked for, which is not a thing to accuse
         // anybody of.
@@ -3166,36 +3156,55 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // the same invariant: everything that means something INSIDE a
       // conversation waits for the conversation.
       opening.withPermit(Effect.gen(function*() {
+        // TAKING THE PROMPT IS ONE STEP WITH READING IT, under the same permit
+        // a send takes, and that is what makes a second click a refusal rather
+        // than a second send: whichever press gets there first leaves with the
+        // words, and the other finds nothing waiting.
         const prompt = yield* sending.withPermit(Effect.sync(() => {
-          const waiting = transcript.undelivered(id)
-          if (waiting !== null) publish(transcript.sent(id))
-          return waiting
+          const waiting = outgoing.get(id)
+          if (waiting !== undefined) outgoing.delete(id)
+          return waiting ?? null
         }))
         if (prompt === null) {
           return yield* new UsageFailure({
             reason: "that message is not waiting to be sent — it went, or its conversation did",
           })
         }
+        // THE SAME ROW, SENT AGAIN, which is why this is the conversation's own
+        // verb rather than a fresh prompt: the words a person can see are the
+        // ones that go, the marks come off the row they are on, and a row the
+        // conversation does not hold as undelivered is refused — so a retry
+        // cannot mint a second copy of somebody's message.
+        //
         // NEVER AS AN INTERRUPTION, whatever the original send was: a retry is
         // a person asking for a message to go, not for a turn to be broken
         // into, and the turn the first attempt was aimed at is over — that is
         // usually why there is a retry at all.
         //
-        // NO `first`, and it is a choice now rather than the shape: the kept
-        // prompt carries whatever contract lines the FIRST attempt assembled
-        // ({@link send}'s `annotated`), so the agent hears them when this one
-        // finally goes — but if that attempt's write never landed, nothing
-        // re-tries the mark here: the retell rides the NEXT message, exactly
-        // the price {@link contracted}'s failed write pays, rather than a
-        // mark attempted under whoever the panel belongs to by then.
-        yield* deliver(id, prompt, false)
+        // The kept prompt carries whatever contract lines the FIRST attempt
+        // assembled ({@link send}'s `annotated`), so the agent hears them when
+        // this one finally goes — but if that attempt's write never landed,
+        // nothing re-tries the mark here: the retell rides the NEXT message,
+        // exactly the price {@link contracted}'s failed write pays, rather than
+        // a mark attempted under whoever the panel belongs to by then.
+        const went = yield* Effect.result(
+          onConversation((harness) => harness.sendAgain(id, prompt, [])),
+        )
+        if (went._tag === "Failure") {
+          // THE WORDS GO BACK WHERE THEY WERE. The one thing this must never do
+          // is make a message disappear on its way to failing again, and the row
+          // is still there saying it did not go.
+          outgoing.set(id, prompt)
+          return yield* Effect.fail(went.failure)
+        }
       }))
 
     /**
      * An OPEN that the agent refused, and what it would take to try it again.
      *
      * The other half of a `ChatState.unopened`, kept HERE for the reason a
-     * refused message's prompt is kept beside its row ({@link ./transcript.ts}):
+     * refused message's prompt is kept beside its row
+     * (`@kolu/acp-harness`'s `transcript.ts`):
      * a face offering a retry with nothing behind it draws a button that
      * refuses, and an attempt with no face is a failure nobody can see. Neither
      * is constructible while the two are written and dropped together —
@@ -3205,11 +3214,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * is not always a thing anybody named: a boot adopts its own, and a
      * description would be this file re-deciding that on a retry.
      */
-    let unopened: { readonly again: Effect.Effect<void, AcpAgent.AgentGone>; readonly completed?: Effect.Effect<void, OpFailure> } | null = null
+    let unopened: { readonly again: Effect.Effect<void, HarnessRefused | HarnessUnavailable>; readonly completed?: Effect.Effect<void, OpFailure> } | null = null
 
     /**
-     * WHICH CONVERSATION THE OPEN IN FLIGHT IS FOR, as the verb doing it said
-     * ({@link ./events.ts}'s `opening`) — `null` for one that picks its own.
+     * WHICH CONVERSATION THE OPEN IN FLIGHT IS FOR — the id the verb asked for,
+     * or `null` for one that picks its own.
      *
      * Held rather than passed, because the two open paths could not both pass
      * it: a picker's load is given an id, and a BOOT adopts one nobody named.
@@ -3217,15 +3226,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * however it was reached.
      */
     let attempting: string | null = null
-
     /** The agent said no to opening a conversation. The panel says so, with
      *  the agent's own words and the offer to try again — and stays IDLE,
      *  because the agent answered and is therefore running ({@link
      *  ../../surface/src/chat.ts}'s `Unopened`). */
     /**
-     * WHETHER THIS REFUSAL IS SOMETHING A SIGN-IN WOULD FIX — the half of
-     * {@link AcpAgent.AgentGone}'s `auth` that needs the AGENT to have offered a
-     * way in.
+     * WHETHER THIS REFUSAL IS SOMETHING A SIGN-IN WOULD FIX — the conversation's
+     * own reading of it ({@link HarnessRefused}'s `signIn`, taken off the
+     * protocol's code and the agent's error data rather than off its prose),
+     * and the half that needs the AGENT to have offered a way in.
      *
      * BOTH HALVES, and the second is not a formality: an agent can say
      * "authenticate first" and then advertise no method at all (a credential
@@ -3235,12 +3244,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * the agent's own words, with a retry — which is also what happens for
      * every refusal that is not about a signature at all.
      */
-    const askingToSignIn = (failure: AcpAgent.AgentGone): boolean =>
-      failure.auth === true && advertises.methods.length > 0
+    const askingToSignIn = (cause: HarnessRefused): boolean =>
+      cause.signIn !== "no" && (conversation?.methods.length ?? 0) > 0
 
     const refusedOpen = (
-      failure: AcpAgent.AgentGone,
-      again: Effect.Effect<void, AcpAgent.AgentGone>,
+      failure: HarnessRefused,
+      again: Effect.Effect<void, HarnessRefused | HarnessUnavailable>,
       completed?: Effect.Effect<void, OpFailure>,
     ): void => {
       unopened = { again, completed }
@@ -3257,7 +3266,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       //
       // THE SERVERS GO, for `sessionOver`'s reason met from the other side. The
       // roster is composed and announced BEFORE `session/new` is asked — it is
-      // the very list that call is handed ({@link ./agent.ts}) — so an open
+      // the very list that call is handed (`@kolu/acp-client`'s `agent.ts`) — so an open
       // that comes back a NO leaves a strip answering "which servers does this
       // conversation have?" about a conversation that does not exist. Empty
       // means "there is no conversation" on this member
@@ -3266,8 +3275,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       move({
         status: "idle",
         // ... AND THE ONE CLASSIFICATION A FACE MAY BRANCH ON, where the agent
-        // answered a `session/load` with ACP's `-32002` ({@link
-        // ./agent.ts}'s `missingOf`). `why` is still the agent's own sentence
+        // answered a `session/load` with ACP's `-32002` (`@kolu/acp-client`'s
+        // `agent.ts`'s `missingOf`). `why` is still the agent's own sentence
         // and still what is shown; this says that asking for the SAME
         // conversation again can only ever get the same answer, which is the
         // difference between a body with a retry on it and a body with a way
@@ -3295,8 +3304,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // it: what the agent said is still what happened, and the buttons are
         // what a person can do about it. `Try again` stays where it is, and is
         // honest — the retry is exactly what signing in makes work.
+        //
+        // A REFUSAL IS ALWAYS NEWS, so a chooser somebody closed over the LAST
+        // one comes back with this one ({@link signingIn}): they asked for this
+        // open, and this is what it would take.
         signIn: askingToSignIn(failure) ? { kind: "choosing" } : null,
       })
+      dismissed = false
     }
 
     /**
@@ -3307,18 +3321,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * has nothing to do with any process, while running a method is the agent
      * spawning one and reporting on it. So the first arm is a `move` and nothing
      * else, and the second is a fork — the attempt may last minutes, and what
-     * happens while it runs arrives as `signIn` events (`./agent.ts`).
+     * happens while it runs arrives as `signIn` events (`@kolu/acp-client`'s `agent.ts`).
      *
      * WHAT HAPPENS AT THE END is {@link signedIn}, and only on success: a failed
      * attempt leaves its own row on screen (the output IS the failure), and a
      * cancelled one leaves nothing, which the panel has already done.
      */
+
     const signIn = (method: string | null): Effect.Effect<void, OpFailure> =>
       Effect.suspend(() => {
-        if (method === null) {
-          move({ signIn: { kind: "choosing" } })
-          return Effect.void
-        }
         const at = talking
         if (at === null) {
           return Effect.fail(
@@ -3327,14 +3338,29 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             }),
           )
         }
+        // SOMEBODY IS ASKING, so a row they closed earlier is not the answer to
+        // this press ({@link signingIn}).
+        dismissed = false
+        if (method === null) {
+          // THE CHOOSER IS A ROW THE CONVERSATION PUTS UP, signed in or not,
+          // and one already on screen — the agent's own, or a running attempt —
+          // is left exactly as it is.
+          at.harness.askSignIn()
+          projecting()
+          return Effect.void
+        }
         return aside(Effect.gen(function*() {
-          const outcome = yield* at.agent.signIn(method)
+          const outcome = yield* Effect.tryPromise({
+            try: () => at.harness.signIn(method),
+            catch: (cause) => asFailure(cause),
+          })
           if (outcome !== "signed-in") return
           yield* Effect.catch(signedIn(at), (failure) =>
             Effect.sync(() => move({ trouble: failure.reason })))
-        }))
+        }).pipe(Effect.catch((failure) =>
+          Effect.sync(() => move({ trouble: failure.reason }))
+        )))
       })
-
     /**
      * ... AND THE CONVERSATION COMES BACK, because the process at the other end
      * has just been told who it is.
@@ -3359,17 +3385,19 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         const waiting = unopened
         if (waiting !== null) return changeSession(waiting.again, waiting.completed)
         const session = state.session?.id ?? state.unopened?.what ?? null
-        return session === null
-          ? openWith(at.row.id, (agent) => agent.boot)
-          : openWith(at.row.id, (agent) => agent.loadSession(session))
+        return openWith(
+          at.row.id,
+          session === null ? { kind: "adopt", memory } : { kind: "resume", id: session },
+        )
       })
+
 
     /** One line to the process a terminal sign-in is running
      *  ({@link Panel.signInInput}). A refusal from the agent is the caller's to
      *  read: nothing is waiting for a line, or the sign-in is one the AGENT
      *  runs and there is no process to type into. */
     const signInInput = (text: string): Effect.Effect<void, OpFailure> =>
-      onAgent((agent) => Effect.mapError(agent.signInInput(text), asFailure))
+      onConversation((harness) => harness.signInInput(text))
 
     /**
      * ... AND OUT OF IT ({@link Panel.signInCancel}).
@@ -3383,8 +3411,18 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      */
     const signInCancel: Effect.Effect<void, OpFailure> = Effect.suspend(() => {
       const at = talking
+      // ... AND IT STAYS OFF, which the row's own `move` cannot promise by
+      // itself: the conversation keeps the agent's offer standing where the
+      // refusal behind it stands, and the next state frame would draw it again
+      // ({@link signingIn} is where this is read).
+      dismissed = true
       move({ signIn: null })
-      return at === null ? Effect.void : Effect.asVoid(at.agent.signInCancel)
+      return at === null
+        ? Effect.void
+        : Effect.asVoid(Effect.tryPromise({
+          try: () => at.harness.signInCancel(),
+          catch: (cause) => asFailure(cause),
+        }))
     })
 
     /** ... and a conversation is open, so neither half of that is true any
@@ -3426,7 +3464,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ... AND A SIGN-IN GOES WITH THE PROCESS IT WAS ABOUT. The agent
         // stopped emitting anything when it died, so nothing else will ever
         // move this row — and buttons that press nothing are how somebody
-        // finds out. The attempt itself died with the subprocess (`./agent.ts`
+        // finds out. The attempt itself died with the subprocess
+        // (`@kolu/acp-client`'s `agent.ts`
         // kills a login with its scope).
         signIn: null,
       })
@@ -3442,12 +3481,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * than the thing this file would pick.
      */
     const changeSession = (
-      what: Effect.Effect<void, AcpAgent.AgentGone>,
+      what: Effect.Effect<void, HarnessRefused | HarnessUnavailable>,
       completed?: Effect.Effect<void, OpFailure>,
     ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
-          if (turns.busy) {
+          if (conversation?.busySince != null) {
             return yield* new BusyFailure({
               reason: "a turn is running; cancel it before switching conversations",
             })
@@ -3455,36 +3494,70 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // The pictures went with it. They exist so that a prompt in THIS
           // conversation can name them, and no prompt in the next one will.
           yield* files.discard
+          /**
+           * WHAT THIS OPEN IS BEING TRIED INSTEAD OF, where it is being tried
+           * instead of anything: the face a refusal left up, and the status it
+           * left behind it. Read BEFORE the panel says `booting`, because that
+           * is the first thing this verb makes untrue.
+           */
+          const resting = state.unopened === null ? null : state.status
           move({ status: "booting" })
-          // HELD ACROSS THE WHOLE OPEN, not around it: what a send has to wait
-          // for is the replay, which is the last thing to happen and the thing
-          // that empties the transcript ({@link opening}).
-          const outcome = yield* opening.withPermit(Effect.result(what))
+          // HELD ACROSS THE WHOLE OPEN, not around it ({@link replayed}): what
+          // a send has to wait for is the replay, which is the last thing to
+          // happen and the thing that fills the panel ({@link opening}).
+          const outcome = yield* replayed(opening.withPermit(what)).pipe(
+            /**
+             * AN OPEN NOBODY WAITED FOR LEAVES THE PANEL AS IT FOUND IT.
+             *
+             * The attempt is TAKEN before it is run — `reopen` empties the
+             * slot, and every other open calls {@link opened} on its way in —
+             * so a refusal arms it again ({@link refusedOpen}) and a landing
+             * drops it for good. An open that is given up on does neither:
+             * the reader that asked for it went away (`./scoped.ts` opens one
+             * inside the reading), and what is left is the one pair this file
+             * says must not be constructible — a face offering a retry with
+             * nothing behind it, whose button can only ever answer *no
+             * conversation is waiting to be opened*.
+             *
+             * So the attempt goes back where it was, with the status that was
+             * drawn over it. Only where the refusal is still the panel's face:
+             * an open that landed has already cleared it ({@link projecting}),
+             * and a fresh conversation that was abandoned was never a retry of
+             * anything — arming one there would be the same lie read the other
+             * way round.
+             */
+            Effect.onInterrupt(() =>
+              Effect.sync(() => {
+                if (resting === null || unopened !== null || state.unopened === null) return
+                unopened = { again: what, ...(completed === undefined ? {} : { completed }) }
+                move({ status: resting })
+              })
+            ),
+          )
           if (outcome._tag === "Failure") {
             // THE AGENT SAID NO, as against there being no agent to say it —
-            // `refused` and only `refused` ({@link ./agent.ts}'s `Gone`). It is
-            // running, it just will not open this; the panel says that rather
-            // than reporting a dead process, and holds what it would take to
-            // ask again.
-            if (outcome.failure.gone === "refused") {
+            // a {@link HarnessRefused} and nothing else. It is running, it just
+            // will not open this; the panel says that rather than reporting a
+            // dead process, and holds what it would take to ask again.
+            if (outcome.failure instanceof HarnessRefused) {
               refusedOpen(outcome.failure, what, completed)
             } else {
               wentAway(outcome.failure.message)
             }
-            return yield* asFailure(outcome.failure)
+            return yield* Effect.fail(asFailure(outcome.failure))
           }
           if (completed !== undefined) yield* completed
           settled()
           // ... AND WHATEVER A DOORBELL HELD FOR THE CONVERSATION JUST OPENED
           // GOES IN, as its first message.
           //
-          // HERE and not in {@link receive}'s `session` arm, which is where the
-          // fact actually lands: that arm runs INSIDE the permit released one
-          // line above — `entered` emits it synchronously from within the open
-          // — and {@link opening} is not reentrant, so a flush taken there would
-          // block the fiber already holding it and the open would never
-          // complete. This is the same moment one beat later, outside the
-          // permit, and it is the only safe one.
+          // HERE and not where the conversation reports that it is open: that
+          // report arrives from INSIDE the permit released one line above —
+          // the open publishes it synchronously — and {@link opening} is not
+          // reentrant, so a flush taken there would block the fiber already
+          // holding it and the open would never complete. This is the same
+          // moment one beat later, outside the permit, and it is the only safe
+          // one.
           yield* aside(flushing)
         }),
       )
@@ -3516,7 +3589,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         if (state.status !== "idle" || talking?.row.id !== agent || state.session?.id !== session) {
           return yield* new UsageFailure({ reason: "wait for this conversation to be idle before changing its settings" })
         }
-        yield* onAgent((at) => Effect.mapError(at.setSetting(session, config, value), asFailure))
+        yield* onConversation((harness) => harness.setOption(config, String(value)))
       })))
 
     /**
@@ -3553,13 +3626,20 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     const stopWithReason = (reason: AcpAgent.StopReason) => Effect.gen(function*() {
       closing = true
-      // End the transport before joining work which may be waiting on it.
+      // End the transport before joining work which may be waiting on it. The
+      // conversation stops its own turns with the child: a turn still on the
+      // wire ends a moment later, and nothing it would have said is published
+      // after the stop.
+      //
+      // WITH THE REASON, which is not decoration: the line a person reads when
+      // a child goes is the client's own, and a reaped scope, a switched agent
+      // and a shutdown are three different things to find in a log. It is
+      // carried through the conversation rather than said beside it, so there
+      // is one account of one exit.
       const at = talking
       talking = null
-      if (at !== null) yield* at.agent.stopWithReason(reason)
-      // EVERY turn, not the newest ({@link ./turns.ts}).
-      const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
-      for (const fiber of running) yield* Fiber.interrupt(fiber)
+      conversation = null
+      if (at !== null) yield* Effect.promise(() => at.harness.stop(reason))
       // ...AND EVERY OTHER FIBER THIS PANEL STARTED, which is what
       // {@link aside} exists to make possible. They used to be
       // `Effect.forkDetach` — the GLOBAL scope, so a stopped panel's
@@ -3579,7 +3659,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     })
 
     return {
-      entries: () => transcript.entries(),
+      entries: () => rows,
       refreshWakes: (left) => {
         for (const row of left) held.dropped(row, row.plugin)
         const wake = wakeOf()
@@ -3628,8 +3708,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // done says so where it was asked.
       cancel,
       setSetting,
-      setModel: (agent, session, value) => setSetting(agent, session,
-        talking?.row.leg.models?.config ?? "", value),
+      // ... AND WRITTEN DOWN BY THE END THAT ASKED, which is not this one: the
+      // request goes through the client, and the client files what the agent
+      // CONFIRMED against this conversation in the store handed over with it
+      // ({@link PanelOptions.models}, passed to the harness above). A write
+      // here would be a second one, filing the PICKER'S word for the same
+      // model where the agent's own spelling already went — and the two
+      // spellings are exactly what the put-back has to translate between.
+      setModel: (agent, session, value) =>
+        setSetting(agent, session, talking?.row.leg.models?.config ?? "", value),
       // NOT under a permit, and not gated on the panel being idle: this changes
       // nothing about the agent, and a conversation that is mid-answer is
       // exactly the one somebody is reading (`seen` above argues the rest).
@@ -3637,13 +3724,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // WITH the agent that was chosen, always: every new chat asks, so there
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.
-      newSession: (id: string, completed) => openWith(id, (agent) => agent.newSession, completed),
+      newSession: (id: string, completed) => openWith(id, { kind: "fresh" }, completed),
       // The answer to the panel's own question, which is not the same verb: a
       // boot that stopped to ask has not asked for a NEW conversation, so what
       // this opens is the one that agent's own boot would have adopted —
       // {@link Panel.chooseAgent}. `boot` is idempotent and picks its own, which
       // is why it is also what a refused one is retried with.
-      chooseAgent: (id: string) => openWith(id, (agent) => agent.boot),
+      chooseAgent: (id: string) => openWith(id, { kind: "adopt", memory }),
       // WITH the agent whose conversation it is, because the list spans all of
       // them now: a row picked out of it may belong to the agent this panel is
       // not talking to, and opening it is a change of agent as well as of
@@ -3651,7 +3738,23 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // through, so the switch, the stale-tab refusal and the permit are the
       // same ones — the only thing that differs is what is opened at the end.
       loadSession: (agentId: string, id: string) =>
-        openWith(agentId, (agent) => agent.loadSession(id)),
+        Effect.suspend(() => {
+          const at = talking
+          // THE SAME PROCESS, where it is the same agent and it is still there:
+          // moving to another of its conversations is a verb of the
+          // conversation's own, and a panel that respawned an adapter to do it
+          // would pay a handshake for a switch. Another agent's conversation is
+          // another subprocess by construction, which is what `openWith` is.
+          return at !== null && at.row.id === agentId && at.harness.alive()
+            ? changeSession(Effect.suspend(() => {
+              attempting = id
+              return Effect.tryPromise({
+                try: () => at.harness.loadSession(id),
+                catch: (cause) => cause as HarnessRefused | HarnessUnavailable,
+              })
+            }))
+            : openWith(agentId, { kind: "resume", id })
+        }),
       /**
        * The refused OPEN, tried again — whichever it was.
        *
@@ -3692,22 +3795,21 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // a listing comes through, so the migration list, the panel's *past
       // sessions* and the picker's own superseded line cannot come to disagree
       // about which conversations a node agent has had.
-      liveSessions: (agent) => talking !== null && talking.row.id === agent ? talking.agent.sessions : null,
+      liveSessions: (agent) => talking !== null && talking.row.id === agent ? storedIn(talking.harness) : null,
       sessions: Effect.map(
         listings.all,
         (listed) => succeeded(listed, options.overheard?.rows() ?? []),
       ),
       answer: (id, answers) =>
-        onAgent((agent) =>
-          Effect.flatMap(
-            agent.answer(id, answers),
-            (took) =>
-              took ? Effect.void : Effect.fail(
-                new UsageFailure({
-                  reason: "that question is not waiting any more — it was answered or withdrawn",
-                }),
-              ),
-          )),
+        Effect.flatMap(
+          onConversation((harness) => harness.answer(id, answers)),
+          (took) =>
+            took ? Effect.void : Effect.fail(
+              new UsageFailure({
+                reason: "that question is not waiting any more — it was answered or withdrawn",
+              }),
+            ),
+        ),
 
       // ONE CLOSURE PER PLUGIN, and the name is in it rather than in an
       // argument — see {@link Panel.doorFor}. Both halves of the keying live
@@ -3800,7 +3902,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
-          publish(transcript.refuse(`\`${tool}\` was refused`, failure))
+          ours({ kind: "refusal", text: `\`${tool}\` was refused`, refusal: failure })
         }),
       start: Effect.gen(function*() {
         // Eager, on the server's own start, because the panel is meant to show
@@ -3830,9 +3932,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // into a panel whose conversation is still being replayed — and
           // deliberately NOT the directory's permit, so a shutdown does not
           // queue behind a boot.
-          const outcome = yield* opening.withPermit(Effect.result(
-            Effect.flatMap(using(chosen), (agent) => agent.boot),
-          ))
+          const outcome = yield* replayed(
+            opening.withPermit(using(chosen, { kind: "adopt", memory })),
+          )
           if (outcome._tag === "Failure") {
             // A warning rather than an error: the panel is already showing
             // this, and the next prompt retries the boot exactly as a crash
@@ -3843,15 +3945,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // The same distinction the session verbs make, at the other place
             // a conversation is opened: an agent that ANSWERED the open with
             // a no is running, and a boot that never reached one is not.
-            // WHAT IT WAS TRYING TO OPEN IS ON THE FACE HERE TOO, and this is
-            // the arm that could never say it: a boot adopts its own
-            // conversation, so nothing at this end was ever handed one to name.
-            // The verb says it instead ({@link ./events.ts}'s `opening`), which
-            // is why a boot's refusal now names the conversation AND the node
-            // agent it belongs to — the trap this arm used to be the whole of.
-            // Trying again is the boot itself, which is idempotent and re-opens.
-            if (outcome.failure.gone === "refused") {
-              refusedOpen(outcome.failure, Effect.flatMap(using(chosen), (a) => a.boot))
+            // Trying again is the boot itself, which adopts and re-opens.
+            if (outcome.failure instanceof HarnessRefused) {
+              refusedOpen(outcome.failure, using(chosen, { kind: "adopt", memory }))
             } else {
               wentAway(outcome.failure.message)
             }

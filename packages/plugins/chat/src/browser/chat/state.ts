@@ -104,9 +104,9 @@ export interface Chat {
    * without shipping its whole history (juspay/olai#663).
    *
    * It is the oldest `seq` this tab holds: rows carry a dense `seq` from `0`
-   * (`transcript.ts`), so the oldest one names exactly the rows below it that
-   * the tab has never had. It reaches ZERO when the reader has walked back to
-   * the start, which is what hides the door.
+   * (`@kolu/acp-harness`'s `transcript.ts`), so the oldest one names exactly
+   * the rows below it that the tab has never had. It reaches ZERO when the
+   * reader has walked back to the start, which is what hides the door.
    */
   readonly earlier: Accessor<number>
   /** The "earlier messages" fetch is in flight — the door's own pressed state. */
@@ -493,9 +493,9 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
    * door, and what hides it.
    *
    * ONE READING: {@link oldest}. A row's `seq` is dense from `0` in a
-   * conversation (`transcript.ts` mints them `0, 1, 2…`, and only a clear
-   * restarts the count), so the oldest `seq` this tab holds IS the number of
-   * rows below it — the rows it has never had. That is also the boundary the
+   * conversation (`@kolu/acp-harness`'s `transcript.ts` mints them `0, 1, 2…`,
+   * and only a clear restarts the count), so the oldest `seq` this tab holds
+   * IS the number of rows below it — the rows it has never had. That is also the boundary the
    * next page is fetched below ({@link loadEarlier}), so the door's number and
    * the fetch cannot name two different rows.
    */
@@ -554,7 +554,7 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
       // below it in the column is either somebody else's message or one that
       // was answered long ago.
       if (row === undefined || row.kind !== "user") continue
-      if (row.auth !== true || row.delivery !== "refused" || handedBack === row.id) return null
+      if (row.signIn === undefined || row.delivery !== "refused" || handedBack === row.id) return null
       handedBack = row.id
       return row.text
     }

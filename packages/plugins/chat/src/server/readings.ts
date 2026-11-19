@@ -15,19 +15,20 @@ import type { OpFailure } from "@olai/format"
 import { type Cadence, cadence } from "../cadence.ts"
 import type { Chat, ReadingObserver } from "../scoped.ts"
 import type { PanelAddress } from "../wire/session.ts"
-import { CHAT_OFF, type ChatEntry, type ChatState, type Saying, TRANSCRIPT_WINDOW } from "../wire.ts"
+import { CHAT_OFF, type ChatEntry, type ChatState, TRANSCRIPT_WINDOW } from "../wire.ts"
+import type { Saying } from "@kolu/acp/wire"
 
 class Key extends Data.Class<{ readonly node: string | null; readonly agent: string | null; readonly session: string | null }> {}
 
 type Sink<A> = (value: A) => void
-type Rows<T> = CollectionDeltasMsg<string, T>
+type Deltas<T> = CollectionDeltasMsg<string, T>
 interface Reading {
   readonly state: () => ChatState
   readonly entries: ReadonlyMap<string, ChatEntry>
   readonly clock: Cadence
   readonly states: Set<Sink<ChatState>>
-  readonly rows: Set<Sink<Rows<ChatEntry>>>
-  readonly pieces: Set<Sink<Rows<Saying>>>
+  readonly rows: Set<Sink<Deltas<ChatEntry>>>
+  readonly pieces: Set<Sink<Deltas<Saying>>>
 }
 
 /** Which reading a `PanelAddress` names — the RcMap key, spelled once so the
@@ -65,8 +66,8 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       let state: ChatState = CHAT_OFF
       const entries = new Map<string, ChatEntry>()
       const states = new Set<Sink<ChatState>>()
-      const rows = new Set<Sink<Rows<ChatEntry>>>()
-      const pieces = new Set<Sink<Rows<Saying>>>()
+      const rows = new Set<Sink<Deltas<ChatEntry>>>()
+      const pieces = new Set<Sink<Deltas<Saying>>>()
       const clock = yield* Effect.acquireRelease(
         Effect.sync(() => cadence({ onFrame: (frame) => {
           for (const key of frame.rows.removes) entries.delete(key)
@@ -182,11 +183,11 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       send(value.state())
       return value.states
     }) },
-    transcript: { source: (to: PanelAddress) => subscribe<Rows<ChatEntry>>(to, (value, send) => {
+    transcript: { source: (to: PanelAddress) => subscribe<Deltas<ChatEntry>>(to, (value, send) => {
       send({ kind: "snapshot", entries: newest(value.entries) })
       return value.rows
     }) },
-    saying: { source: (to: PanelAddress) => subscribe<Rows<Saying>>(to, (value, send) => {
+    saying: { source: (to: PanelAddress) => subscribe<Deltas<Saying>>(to, (value, send) => {
       send({ kind: "snapshot", entries: [...value.clock.onWire()] })
       return value.pieces
     }) },

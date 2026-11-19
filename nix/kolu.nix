@@ -1,4 +1,4 @@
-# The vendored TypeScript sources olai consumes — SEVEN SEED NAMES, and kolu
+# The vendored TypeScript sources olai consumes — ELEVEN SEED NAMES, and kolu
 # computes the rest.
 #
 # This file used to carry the whole closure: a hand-written 32-entry `members`
@@ -100,11 +100,15 @@ let
     src = npins.kolu;
 
     # THE SEEDS — what olai's own source imports by name. The list is in TWO
-    # halves, and the halves are different owners: the ROOT's four are what
+    # halves, and the halves are different owners: the ROOT's eight are what
     # olai's app is built on wherever it likes — the framework (`@kolu/surface*`,
-    # imported anywhere, like `effect`) and the protocol vocabulary
+    # imported anywhere, like `effect`), the protocol vocabulary
     # (`@kolu/acp`, whose `./wire` half `@olai/surface` re-exports and whose
-    # `./engine` half every engine plugin registers against) — and the rest is
+    # `./engine` half every engine plugin registers against), the ACP client
+    # and conversation every agent runs through (`@kolu/acp-client`,
+    # `@kolu/acp-harness`), the Claude engine's own leg (`@kolu/acp-claude`)
+    # and the subprocess socket under all of them
+    # (`@kolu/child`) — and the rest is
     # the padi INTEGRATION the `kolu` plugin owns. A tenant seed is declared
     # beside the tenant, in `packages/plugins/kolu/default.nix`'s `koluSeeds`,
     # and arrives here as `extraSeeds` through the fold — so this file's own
@@ -113,17 +117,34 @@ let
     #
     # `@kolu/padi-client` and `@kolu/terminal-vocab` are not here because they
     # are not seeds: they arrive through `@kolu/solid-dockrow`, whose closure is
-    # 37 of the 42. That naming is load-bearing and was wrong here for a round —
+    # 39 of the 46. That naming is load-bearing and was wrong here for a round —
     # it credited `@kolu/detect`, whose closure is ONE member, itself. Nothing
-    # was missing, because the seven-seed union is the same 42 either way; but an
+    # was missing, because the eleven-seed union is the same 46 either way; but an
     # edit that believed it and dropped the dock row would hydrate a tree with no
     # `@kolu/padi-client` in it while `olai-plugin-kolu/appliance` still imports it, and
     # the sibling walk that used to catch exactly that is gone by design.
     #
     # `@kolu/acp` is a LEAF — its closure is one member, itself — so the seed
-    # buys exactly the directory it names.
+    # buys exactly the directory it names. `@kolu/acp-claude` adds nothing to
+    # the union — it is in `@kolu/acp-harness`'s closure already — and is named
+    # anyway, because `olai-plugin-claude` imports it directly and a member that
+    # arrives only through another package's closure is the hazard the dock-row
+    # paragraph above describes: the day that other seed moves, the import
+    # nobody declared hydrates nothing.
     seeds = [
       "@kolu/acp"
+      # the Claude engine's own leg, model table and pinned adapter, which
+      # `olai-plugin-claude`'s server, install and testlib halves import.
+      "@kolu/acp-claude"
+      # the ACP client chat runs every agent through: the subprocess, the
+      # handshake, sessions, turns, sign-in.
+      "@kolu/acp-client"
+      # the conversation above that client: the turns, the rows a panel draws,
+      # and the bodies held for a conversation nobody is in.
+      "@kolu/acp-harness"
+      # every subprocess olai starts — chat's agent, a pane's `git`, the
+      # browser's chromium, the web build — comes from this one socket.
+      "@kolu/child"
       "@kolu/surface-app"
       "@kolu/surface-cli"
       "@kolu/surface-mcp"

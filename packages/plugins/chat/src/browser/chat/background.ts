@@ -11,8 +11,8 @@
  *
  * Three sentences are worth saying about such a call, and each is drawn from a
  * fact the WIRE carries rather than from a guess about somebody else's process
- * ({@link ../../../../surface/src/chat.ts}'s `Armed`, put there by the pinned
- * adapter's patch — `packages/plugins/claude/acp/patches/README.md`):
+ * (`@kolu/acp/wire`'s `Armed`, put there by the pinned adapter's patch —
+ * `@kolu/acp-claude`'s `adapter/patches/README.md`):
  *
  *   - **what is being watched** — {@link watchOf}, the description the task was
  *     armed with, which is the sentence a person recognises it by and which the
@@ -35,7 +35,7 @@
  * WHAT IS NOT HERE, and cannot be honestly drawn from anywhere: **the task's
  * own events, one by one.** A monitor's every line reaches the model and the
  * task's output file, and nothing at all in the SDK stream carries it — measured
- * against the pinned CLI, and written down in `packages/plugins/claude/acp/patches/README.md`, because
+ * against the pinned CLI, and written down in `@kolu/acp-claude`'s `adapter/patches/README.md`, because
  * the next person to look will assume the adapter is dropping it. What the
  * panel gets instead is the agent's own prose about each event, in the
  * autonomous turns the harness wakes it for, which lands in the transcript as
@@ -43,8 +43,8 @@
  * the agent's words rather than the task's.
  */
 
-import { type Armed, type ChatEntry, isTaskOut } from "olai-plugin-chat/wire"
-import { isRunning } from "./running.ts"
+import { type ChatEntry, isTaskOut } from "olai-plugin-chat/wire"
+import type { Armed } from "@kolu/acp/wire"
 
 /** The task this row armed, or `null` for every row that armed nothing — which
  *  is nearly all of them, and every row in a conversation where nothing was
@@ -77,10 +77,13 @@ export const watchOf = (entry: ChatEntry | undefined): string | null =>
  * THE RULE IS `isTaskOut`'s, in the surface beside the status vocabulary,
  * because the SERVER asks it about the same row — it is what decides which
  * calls a turn may not strand and how many tasks the conversation still has out
- * ({@link ../../../../plugins/chat/src/transcript.ts}). A rail that went out while the
+ * (`@kolu/acp-harness`'s `transcript.ts`). A rail that went out while the
  * count stayed up would be a clock ticking in every open tab under a row that
- * says nothing is happening. What is added here is the KIND check
- * ({@link ./running.ts}) and the WORD.
+ * says nothing is happening. The rule is asked ONCE and whole: `isTaskOut`
+ * already ends in the pair that decides whether a call is still running, so a
+ * second liveness test here would be the same question answered twice and free
+ * to drift from the count. What is added is the KIND check — `armed` is a tool
+ * row's field, and a row somebody typed cannot carry one — and the WORD.
  *
  * The case that rule catches which the transcript's exemption deliberately does
  * not: a dead agent's conversation reports the death of nothing, so its armed
@@ -93,7 +96,7 @@ export const watchOf = (entry: ChatEntry | undefined): string | null =>
  * harness may reset is not a fact this end holds.
  */
 export const stillOf = (entry: ChatEntry | undefined): string | null =>
-  isRunning(entry) && isTaskOut(entry) ? STILL : null
+  entry?.kind === "tool" && isTaskOut(entry) ? STILL : null
 
 /**
  * ... and HOW IT ENDED, in the harness's own word — `null` while it is still

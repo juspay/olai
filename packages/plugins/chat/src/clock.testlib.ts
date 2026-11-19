@@ -1,16 +1,16 @@
 /**
  * A clock a test moves by hand.
  *
- * Three files in this package inject one into the thing they are testing — the
- * transcript's stamps ({@link ./transcript.ts}), the strip's own reading of
- * them ({@link ./watching.ts}), and how long ago a stored conversation was
- * touched ({@link ./listings.ts}) — and each of them had written the same five
- * lines. That is the shape `web/src/client/chat/rows.testlib.ts` and
- * `live.testlib.ts` already answer one package over, and the reason is the same
- * one: a helper copied is a helper that gets FIXED once. The copies here had
- * already drifted in the two ways copies drift — one took an ISO string and one
- * an epoch number, one returned the new instant from `pass` and one did not —
- * so a reader moving between two of them had to check which they were in.
+ * Two tests in this package inject one into the rule they are about — the
+ * strip's own reading of a row's stamps ({@link ./watching.ts}) and how long
+ * ago a stored conversation was touched ({@link ./listings.ts}) — and each of
+ * them had written the same five lines. That is the shape
+ * `browser/chat/rows.testlib.ts` and `browser/chat/live.testlib.ts` already
+ * answer one directory over, and the reason is the same one: a helper copied
+ * is a helper that gets FIXED once. The copies here had already drifted in the
+ * two ways copies drift — one took an ISO string and one an epoch number, one
+ * returned the new instant from `pass` and one did not — so a reader moving
+ * between two of them had to check which they were in.
  *
  * WHY IT IS INJECTED AT ALL, said once here rather than at each caller: the
  * interesting cases are a minute and three hours apart, and waiting for them is

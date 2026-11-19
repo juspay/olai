@@ -36,7 +36,7 @@
 
 let
   lib = pkgs.lib;
-  kit = import ../plugin-kit { inherit pkgs; };
+  kit = import ../plugin-kit { inherit pkgs pins; };
 
   # The kolu copier is a plain script in the kolu pin (kolu's consumer.nix
   # names it). The fold runs the SAME script over the plugins' hydrate pairs so

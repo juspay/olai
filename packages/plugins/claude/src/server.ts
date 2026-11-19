@@ -13,13 +13,13 @@
  *
  * ## What is on THIS side of the wall, and what is not
  *
- * Here: how to find this adapter on a host, how to read its wire
- * ({@link ./leg.ts}), what its model picker calls things ({@link ./models.ts}),
- * where a person gets it, and the mark it wears ({@link ./browser.tsx}, on the
- * other door). Not here, and never: a session, a prompt, a transcript. An engine
- * plugin hands over data and pure functions; `olai-plugin-chat` does the talking. That
- * is what makes every bet in this directory a thing with a unit test rather than
- * a branch reachable only by starting a subprocess.
+ * Here: how to find this adapter on a host, where a person gets it, and the
+ * mark it wears ({@link ./browser.tsx}, on the other door). How to read its
+ * wire, what its model picker calls things and which variables it reads as
+ * "remote" are `@kolu/acp-claude`'s — the same leg kolu runs, against the same
+ * pinned adapter. Not here, and never: a session, a prompt, a transcript. An
+ * engine plugin hands over data and pure functions; `olai-plugin-chat` does the
+ * talking.
  *
  * ## The executable path belongs to this engine
  *
@@ -33,32 +33,17 @@ import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@kolu/acp/en
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
-import { INSTALL, NAME } from "./install.ts"
-import { CLAUDE } from "./leg.ts"
-import { name } from "./index.ts"
+import { CLAUDE, NAME, REMOTE_SIGNALS } from "@kolu/acp-claude"
 
-/**
- * THE VARIABLES THE ADAPTER READS AS "THIS PERSON IS SOMEWHERE ELSE", and must
- * not: `acp-agent.js` (0.81.2) computes `isRemote` as exactly
- * `NO_BROWSER || SSH_CONNECTION || SSH_CLIENT || SSH_TTY || CLAUDE_CODE_REMOTE`,
- * and on a remote session it drops its paste-a-code login methods in favour of a
- * full-screen `claude /login`. Olai runs on the far side of a browser and is
- * always that remote session; the person is not.
- */
-export const REMOTE_SIGNALS: ReadonlyArray<string> = [
-  "NO_BROWSER",
-  "SSH_CONNECTION",
-  "SSH_CLIENT",
-  "SSH_TTY",
-  "CLAUDE_CODE_REMOTE",
-]
+import { INSTALL } from "./install.ts"
+import { name } from "./index.ts"
 
 /**
  * THE ADAPTER'S OWN-MEMORY SWITCH, set unconditionally on its spawn — the
  * variable that tells Claude Code its automatic memory is OFF.
  *
  * The name is exported so this file's tests and its `at` share one spelling,
- * the way {@link REMOTE_SIGNALS} is shared. The e2e fake arms the operator's
+ * the way `@kolu/acp-claude`'s `REMOTE_SIGNALS` is shared. The e2e fake arms the operator's
  * contrary value (`"0"`) by its literal name, because what it proves is that
  * the `at` merge wins over olai's own environment — a spelling imported from
  * here would tie the two together, and they rev on different clocks.

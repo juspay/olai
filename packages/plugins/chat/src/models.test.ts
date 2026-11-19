@@ -2,7 +2,8 @@ import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { forLocalState } from "./models.ts"
 import { localHarness } from "./local.testlib.ts"
-import { MemoryFailure, type ChatLocalState } from "./local.ts"
+import { MemoryFailure } from "@kolu/acp-client"
+import type { ChatLocalState } from "./local.ts"
 
 const run = <A, E>(work: Effect.Effect<A, E>) => Effect.runPromise(work)
 const to = (session: string, agent = "alpha") => ({ agent, session })

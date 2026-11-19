@@ -32,10 +32,11 @@ import { join } from "node:path"
 
 import type { NodeAgent } from "@olai/format"
 import type { ChatEntry, ChatState } from "olai-plugin-chat/wire"
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { lines, REMINDING, teachingFor } from "./teaching.ts"
@@ -121,6 +122,7 @@ const withChat = async (
     roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
+    memory: volatile(),
     overheard: await run(sessionsIn(local.forDirectory(cwd))),
     ...(remindEvery === undefined ? {} : { remindEvery }),
     agentAt: (to) =>
@@ -134,7 +136,7 @@ const withChat = async (
     // instead would be asking the transcript about itself; this is what a panel
     // would have drawn.
     onTranscript: (change) => {
-      for (const [key, entry] of change.upserts) entries.set(key, entry)
+      for (const entry of change.upserts) entries.set(entry.id, entry)
       for (const key of change.removes) entries.delete(key)
       for (const piece of change.appends) {
         const row = entries.get(piece.of)

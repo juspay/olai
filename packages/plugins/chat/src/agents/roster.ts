@@ -8,7 +8,7 @@
  * SENTENCE a machine that has not got it is owed. Everything else in this
  * package takes the answer: {@link ../chat.ts} publishes the whole table so the
  * panel can ask which one a conversation is for, {@link ../memory.ts} writes the
- * chosen id down beside the conversation, and {@link ../agent.ts} spawns what
+ * chosen id down beside the conversation, and `@kolu/acp-client`'s `agent.ts` spawns what
  * the row says.
  *
  * ## THE TABLE IS GONE, and that is the phase
@@ -60,7 +60,7 @@
  *     service (the home-manager unit) it inherits neither your profile nor your
  *     login shell, so an `opencode` you can run in a terminal is not necessarily
  *     one this process can see — the same trap an optional server's probe
- *     documents from the other side ({@link ../probes.ts}, and the plugin whose
+ *     documents from the other side (`@kolu/acp-client`'s `probes.ts`, and the plugin whose
  *     probe it is). Set, it REPLACES the search path rather than adding to it,
  *     so it can also say "look nowhere": the empty string finds no agent, which
  *     is what the e2e suite spawns a server with when a scenario is not about

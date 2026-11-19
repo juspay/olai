@@ -15,7 +15,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { ephemeralLocalState, type ChatLocalState } from "./local.ts"
@@ -959,6 +959,7 @@ test("agent switches, disabled plugins and listing probes have distinct exit rea
     roster: () => roster.map(seated),
     cwd,
     tools: () => null,
+    memory: volatile(),
     onState: () => {},
     onTranscript: () => {},
   }))
@@ -1300,5 +1301,60 @@ test("a binding re-pointed back at a replaced chat is opened once the write has 
     bind("stored")
     const back = await run(readNode())
     expect(back.state().unopened?.what).toBe("stored")
+  }, ["--refuse-load"])
+})
+
+/**
+ * AN OPEN NOBODY WAITED FOR LEAVES THE PANEL AS IT FOUND IT — the retry half
+ * of the bring-up fix (`chat.ts`'s `changeSession`).
+ *
+ * A refusal puts up a face with a button on it, and the attempt behind that
+ * button is TAKEN by the press: `reopen` empties the slot before it opens
+ * anything, so an open that is given up on halfway — the reader that asked for
+ * it went away, and this scheduler opens inside the reading — would leave the
+ * one pair this panel says must not be constructible: a body offering *Try
+ * again* with nothing behind it, whose button can only answer *no conversation
+ * is waiting to be opened*.
+ *
+ * So both halves come back: the attempt, and the status the refusal was drawn
+ * over. The probe is what makes the interrupt land INSIDE the open — a held
+ * Deferred rather than a sleep — and the second press is what says the
+ * restored attempt is the live one rather than a field nobody reads.
+ */
+test("an open given up on over a refusal puts the retry and its face back", async () => {
+  await withLaggingBinding(async ({ bind, read, probe }) => {
+    bind("stored")
+    const refused = await run(read("stored"))
+    expect(refused.state().unopened?.what).toBe("stored")
+    expect(refused.state().status).toBe("idle")
+
+    await run(Effect.scoped(Effect.gen(function*() {
+      const reached = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      probe(Effect.gen(function*() {
+        // The NEXT open runs freely: this one is the one being abandoned.
+        probe(Effect.void)
+        yield* Deferred.succeed(reached, undefined)
+        yield* Deferred.await(release)
+      }))
+      const press = yield* Effect.forkChild(refused.reopen, { startImmediately: true })
+      yield* Deferred.await(reached)
+      // The slot is empty while the open is in flight — that is what makes
+      // this the case the restore exists for.
+      yield* Fiber.interrupt(press)
+      yield* Deferred.succeed(release, undefined)
+    })))
+
+    expect(refused.state().unopened?.what).toBe("stored")
+    expect(refused.state().status).toBe("idle")
+    // ... and the button works: the retry that comes back is the attempt
+    // itself, so pressing it reaches the agent and is refused again rather
+    // than answering that nothing is waiting.
+    const again = await run(Effect.result(refused.reopen))
+    expect(again._tag).toBe("Failure")
+    if (again._tag === "Failure") {
+      expect(again.failure.reason).toContain("refused on purpose")
+    }
+    expect(refused.state().unopened?.what).toBe("stored")
   }, ["--refuse-load"])
 })

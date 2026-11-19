@@ -15,11 +15,13 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel, type Panel } from "./chat.ts"
-import type { Change } from "./transcript.ts"
+import { volatile } from "./memory.ts"
+import type { Change } from "@kolu/acp-harness"
+import type { ChatEntry } from "olai-plugin-chat/wire"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "replay-agent.ts")
 
@@ -56,14 +58,15 @@ const until = async (what: string, ready: () => boolean, ms = 8_000): Promise<vo
   throw new Error(`waited ${ms}ms for ${what} and it never happened`)
 }
 
-const texts = (change: Change): ReadonlyArray<string> => change.upserts.map(([, entry]) => entry.text)
+const texts = (change: Change<ChatEntry>): ReadonlyArray<string> => change.upserts.map((row) => row.text)
 
 test("a loaded conversation is published as one change, after the one that clears the last", async () => {
-  const told: Array<Change> = []
+  const told: Array<Change<ChatEntry>> = []
   const chat: Panel = await run(makePanel({
     roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
+    memory: volatile(),
     scoping: null,
     onState: () => {},
     onTranscript: (change) => told.push(change),
@@ -88,7 +91,7 @@ test("a loaded conversation is published as one change, after the one that clear
     const rows = during.slice(1).filter((change) => change.upserts.length > 0)
     expect(rows).toHaveLength(1)
     expect(during.slice(1).flatMap((change) => change.appends)).toEqual([])
-    expect(rows[0]?.upserts.map(([key]) => key).toSorted()).toEqual([...chat.entries().keys()].toSorted())
+    expect(rows[0]?.upserts.map((row) => row.id).toSorted()).toEqual([...chat.entries().keys()].toSorted())
     expect(texts(rows[0]!)).toContain("what did we decide?")
     expect(texts(rows[0]!)).toContain("we decided to order the cabinets.")
   } finally {

@@ -15,27 +15,31 @@ import { Schema } from "effect"
 
 import {
   type AgentEntry,
-  Armed,
-  Ask,
   type ChatEntry,
   ChatEntry as ChatEntryUnion,
-  Delivery,
-  FileDiff,
   isTaskOut,
   NodeContext,
-  OpFailure,
-  Spawned,
   type ToolEntry,
   type UserEntry,
-  Json,
 } from "./members.ts"
+import { Json } from "../json.ts"
+import { OpFailure } from "@olai/format"
+import { Armed, Ask, Delivery, FileDiff, SignInReason, Spawned } from "@kolu/acp/wire"
+import { armedTask, sentAgent } from "../outings.testlib.ts"
 
 /**
  * The PRE-UNION shape, pinned here so the old schema can be deleted from the
  * spec without losing the encoding proof. Field order and optionality are the
  * contract for rows the writer produces: those must stringify identically
  * through this and through {@link ChatEntryUnion}. The decoder is stricter
- * than this pin — see the negative cases below.
+ * than this pin — see the negative cases below, which is also why the three
+ * present-or-absent marks are `Boolean` here and `Literal(true)` there.
+ *
+ * IT GROWS WITH THE ROW, which is the one obligation this pin carries: a
+ * field the union gains and this does not is a field the proof stops being
+ * about, silently — the rows below would go on matching because neither side
+ * emits it. Every field here is in the union's own order, since that order IS
+ * what is being pinned.
  */
 const ChatEntryFlat = Schema.Struct({
   id: Schema.String,
@@ -50,6 +54,7 @@ const ChatEntryFlat = Schema.Struct({
   called: Schema.optionalKey(Schema.String),
   row: Schema.optionalKey(Schema.String),
   reply: Schema.optionalKey(Json),
+  asksThroughForm: Schema.optionalKey(Schema.Boolean),
   progress: Schema.optionalKey(Schema.String),
   diffs: Schema.optionalKey(Schema.Array(FileDiff)),
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -60,10 +65,13 @@ const ChatEntryFlat = Schema.Struct({
   ask: Schema.optionalKey(Ask),
   streaming: Schema.optionalKey(Schema.Boolean),
   stranded: Schema.optionalKey(Schema.Boolean),
+  resumed: Schema.optionalKey(Schema.String),
+  startedAt: Schema.optionalKey(Schema.String),
   context: Schema.optionalKey(Schema.Array(NodeContext)),
   attachments: Schema.optionalKey(Schema.Array(Schema.String)),
   queued: Schema.optionalKey(Schema.Boolean),
   delivery: Schema.optionalKey(Delivery),
+  signIn: Schema.optionalKey(SignInReason),
   rang: Schema.optionalKey(Schema.String),
 })
 
@@ -118,6 +126,21 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       context: [CONTEXT],
       attachments: ["shot.png"],
       delivery: "refused",
+    },
+  },
+  {
+    // The refusal that has something to DO about it: the agent would not take
+    // the message because of the account it is signed in as. Carried so the
+    // proof is about the field rather than about its absence.
+    name: "user (refused for want of a signature)",
+    entry: {
+      id: "user:5",
+      seq: 13,
+      since: SINCE,
+      kind: "user",
+      text: "rewrite the kitchen note",
+      delivery: "refused",
+      signIn: "account",
     },
   },
   {
@@ -202,7 +225,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       },
       locations: ["house.olai:4"],
       parent: "tool:agent-1",
-      spawned: { kind: "Explore" },
+      spawned: sentAgent({ kind: "Explore" }),
     },
   },
   {
@@ -219,11 +242,11 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       text: "kolu watch --states waiting,awaiting",
       status: "failed",
       progress: 'Background command "kolu fleet watch" failed with exit code 3',
-      armed: {
+      armed: armedTask({
         task: "bwa85c0r2",
         description: "kolu fleet watch",
         ended: "failed",
-      },
+      }),
     },
   },
   {
@@ -236,6 +259,25 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       text: "Grep",
       status: "in_progress",
       stranded: true,
+    },
+  },
+  {
+    // The call whose question reaches a person AS A FORM, which is drawn
+    // nowhere at all — and the stamps a resumed outing wears. Both are fields
+    // the writer decides and this union has to declare, so both are carried by
+    // a representative rather than left to an absence that would pass whatever
+    // the union did with them.
+    name: "tool (asks through a form, resumed)",
+    entry: {
+      id: "tool:call-5",
+      seq: 14,
+      since: SINCE,
+      kind: "tool",
+      text: "AskUserQuestion",
+      status: "in_progress",
+      asksThroughForm: true,
+      resumed: "2026-08-21T13:00:00.000Z",
+      startedAt: "2026-08-21T13:00:00.000Z",
     },
   },
   {
@@ -342,6 +384,13 @@ const REJECTED: ReadonlyArray<{ name: string; row: unknown }> = [
   {
     name: "stranded: false",
     row: { ...HEAD, kind: "tool", status: "pending", stranded: false },
+  },
+  {
+    // The same rule on the field this PR added: a call that does not ask
+    // through a form says nothing, so `false` is a row no writer here mints
+    // and a reader must not have to read.
+    name: "asksThroughForm: false",
+    row: { ...HEAD, kind: "tool", status: "pending", asksThroughForm: false },
   },
 ]
 
@@ -451,17 +500,17 @@ describe("which rows have a task still out", () => {
   })
 
   test("armed, no ending, and the wire still calls the call running", () => {
-    expect(isTaskOut(row({ armed: { task: "bu13xz2ie" } }))).toBe(true)
+    expect(isTaskOut(row({ armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(true)
     // `pending` is a running state — it is what every call is announced with.
-    expect(isTaskOut(row({ status: "pending", armed: { task: "bu13xz2ie" } }))).toBe(true)
+    expect(isTaskOut(row({ status: "pending", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(true)
   })
 
   test("... and NOT once the harness has said how it ended", () => {
     expect(
-      isTaskOut(row({ status: "failed", armed: { task: "bu13xz2ie", ended: "killed" } })),
+      isTaskOut(row({ status: "failed", armed: armedTask({ task: "bu13xz2ie", ended: "killed" }) })),
     ).toBe(false)
     expect(
-      isTaskOut(row({ status: "completed", armed: { task: "bu13xz2ie", ended: "completed" } })),
+      isTaskOut(row({ status: "completed", armed: armedTask({ task: "bu13xz2ie", ended: "completed" }) })),
     ).toBe(false)
   })
 
@@ -470,21 +519,21 @@ describe("which rows have a task still out", () => {
     // a cancelled turn resolves an armed call to `failed`, the harness never
     // says what became of the task, and nothing is ever going to. A count that
     // kept this row would keep the strip up for the life of the panel.
-    expect(isTaskOut(row({ status: "failed", armed: { task: "bu13xz2ie" } }))).toBe(false)
-    expect(isTaskOut(row({ status: "completed", armed: { task: "bu13xz2ie" } }))).toBe(false)
+    expect(isTaskOut(row({ status: "failed", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(false)
+    expect(isTaskOut(row({ status: "completed", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(false)
   })
 
   test("... and NOT when its own turn walked away from it", () => {
     // A dead agent's tasks: the exemption that keeps an armed row unstranded
     // is the transcript's, and it stops at the conversation's end.
     expect(
-      isTaskOut(row({ stranded: true, armed: { task: "bu13xz2ie" } })),
+      isTaskOut(row({ stranded: true, armed: armedTask({ task: "bu13xz2ie" }) })),
     ).toBe(false)
   })
 
   test("a row that armed nothing has no task out, however it stands", () => {
     expect(isTaskOut(row({}))).toBe(false)
     expect(isTaskOut(row({ status: "completed" }))).toBe(false)
-    expect(isTaskOut(row({ spawned: { kind: "Explore" } }))).toBe(false)
+    expect(isTaskOut(row({ spawned: sentAgent({ kind: "Explore" }) }))).toBe(false)
   })
 })

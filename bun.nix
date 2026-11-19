@@ -12,13 +12,13 @@
 , ...
 }:
 {
-  "@agentclientprotocol/sdk@1.3.0" = fetchurl
+  "@agentclientprotocol/sdk@1.9.0" = fetchurl
     {
-      url = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.3.0.tgz";
-      hash = "sha512-i3h/efaeuMUFAO1HSfo97QZQnnvMd7wWBYtBsdL6UMZg3a78sk3Ffya5Xu7C7tYsXomXoDXJBAzQF2PcFKAhIQ==";
+      url = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.9.0.tgz";
+      hash = "sha512-saCOTPYBK1iqWqJFAYHXbg3+zCoFXyZZFoqQAwdTWkbrZZPpAETr80QOnYr2l+dzPwL0jpNhn3eDY8MoEIDbUA==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.3.0.tgz";
+      tarballUrl = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.9.0.tgz";
       dependencies = { };
       peerDependencies = {
         "zod" = "^3.25.0 || ^4.0.0";
@@ -1663,7 +1663,6 @@
   };
   "@olai/appearance" = copyPathToStore ./packages/appearance;
   "@olai/bundle" = copyPathToStore ./packages/bundle;
-  "@olai/child" = copyPathToStore ./packages/child;
   "@olai/edit-history" = copyPathToStore ./packages/edit-history;
   "@olai/edit-intents" = copyPathToStore ./packages/edit-intents;
   "@olai/effect-cordis" = copyPathToStore ./packages/effect-cordis;
@@ -2943,25 +2942,6 @@
     manifest = {
       tarballUrl = "https://registry.npmjs.org/@types/unist/-/unist-3.0.3.tgz";
       dependencies = { };
-      peerDependencies = { };
-      optionalDependencies = { };
-      optionalPeers = [ ];
-      bin = { };
-      os = [ ];
-      cpu = [ ];
-      hasInstallScript = false;
-    };
-  };
-  "@types/ws@8.18.1" = fetchurl
-    {
-      url = "https://registry.npmjs.org/@types/ws/-/ws-8.18.1.tgz";
-      hash = "sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==";
-    } // {
-    manifest = {
-      tarballUrl = "https://registry.npmjs.org/@types/ws/-/ws-8.18.1.tgz";
-      dependencies = {
-        "@types/node" = "*";
-      };
       peerDependencies = { };
       optionalDependencies = { };
       optionalPeers = [ ];
@@ -9703,26 +9683,6 @@
       peerDependencies = { };
       optionalDependencies = { };
       optionalPeers = [ ];
-      bin = { };
-      os = [ ];
-      cpu = [ ];
-      hasInstallScript = false;
-    };
-  };
-  "ws@8.22.0" = fetchurl
-    {
-      url = "https://registry.npmjs.org/ws/-/ws-8.22.0.tgz";
-      hash = "sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==";
-    } // {
-    manifest = {
-      tarballUrl = "https://registry.npmjs.org/ws/-/ws-8.22.0.tgz";
-      dependencies = { };
-      peerDependencies = {
-        "bufferutil" = "^4.0.1";
-        "utf-8-validate" = ">=5.0.2";
-      };
-      optionalDependencies = { };
-      optionalPeers = [ "bufferutil" "utf-8-validate" ];
       bin = { };
       os = [ ];
       cpu = [ ];

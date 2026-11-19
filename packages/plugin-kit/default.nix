@@ -8,7 +8,9 @@
 # mechanisms below, nothing else.
 #
 #   - `mark`      — a tenant's own logo, out of that tenant's pin, as a TS module.
-#   - `npmAdapter`— one ACP adapter built from an npm shim (with its own lock).
+#   - `npmAdapter`— one ACP adapter built from an npm shim (with its own lock):
+#                   kolu's `nix/npm-adapter.nix`, read out of the kolu pin,
+#                   because both products build the same pinned adapter.
 #   - `contract`  — the validator: known keys, right types, `.generated.` infix,
 #                   knob-vs-manifest equality. Every refusal names the plugin.
 #   - `knobShell` — the `--set-default` / `--run` lines for `makeWrapper` and the
@@ -17,13 +19,13 @@
 #
 # A plugin keeps its own derivations, lock, patches and generated files; this
 # directory holds only what the root and every plugin read the same way.
-{ pkgs }:
+{ pkgs, pins }:
 let
   contractDoor = import ./nix/contract.nix { inherit pkgs; };
 in
 {
   mark = import ./nix/mark.nix { inherit pkgs; };
-  npmAdapter = import ./nix/npm-adapter.nix { inherit pkgs; };
+  npmAdapter = import "${pins.kolu}/nix/npm-adapter.nix" { inherit pkgs; };
   contract = contractDoor.contract;
   # The pure door of the SAME validator (`nix/contract.nix`): every refusal as
   # a message list rather than a throw, read by the fold's `diagnostics` and by

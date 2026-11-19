@@ -17,7 +17,8 @@
 import { AGENT_ENV } from "@kolu/acp/engine"
 import { describe, expect, test } from "bun:test"
 
-import { DISABLE_AUTO_MEMORY_ENV, ENGINE, REMOTE_SIGNALS } from "./server.ts"
+import { REMOTE_SIGNALS } from "@kolu/acp-claude"
+import { DISABLE_AUTO_MEMORY_ENV, ENGINE } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
 const CWD = "/vault"

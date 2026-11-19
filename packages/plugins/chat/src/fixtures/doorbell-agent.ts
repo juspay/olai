@@ -27,13 +27,7 @@
  * not wait for a boot's reopen and that a stop interrupts one.
  */
 
-const write = (value: unknown): void => {
-  process.stdout.write(`${JSON.stringify(value)}\n`)
-}
-
-const respond = (id: unknown, result: unknown): void => {
-  write({ jsonrpc: "2.0", id, result })
-}
+import { listen, respond, unknownMethod, write } from "./jsonrpc.testlib.ts"
 
 let minted = 0
 /** The prompts this agent has been asked and not yet answered, with the timer
@@ -42,76 +36,65 @@ const running = new Map<unknown, ReturnType<typeof setTimeout> | null>()
 
 process.stderr.write("doorbell-agent: started\n")
 
-let pending = ""
-process.stdin.setEncoding("utf8")
-process.stdin.on("data", (chunk: string) => {
-  pending += chunk
-  const lines = pending.split("\n")
-  pending = lines.pop() ?? ""
-  for (const line of lines) {
-    if (line.trim() === "") continue
-    const message = JSON.parse(line) as {
-      readonly id?: unknown
-      readonly method?: string
-      readonly params?: {
-        readonly sessionId?: string
-        readonly prompt?: ReadonlyArray<{ readonly text?: string }>
+listen<{
+  readonly id?: unknown
+  readonly method?: string
+  readonly params?: {
+    readonly sessionId?: string
+    readonly prompt?: ReadonlyArray<{ readonly text?: string }>
+  }
+}>(message => {
+  switch (message.method) {
+    case "initialize":
+      respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
+      return
+    case "session/new":
+      respond(message.id, { sessionId: `sess-${++minted}` })
+      return
+    case "session/load":
+      if (process.argv.includes("--hold-load")) {
+        // A LOAD THAT NEVER ANSWERS, for the shutdown test: the boot's reopen
+        // must not make `chat.start` wait for this, and a stop must interrupt
+        // it rather than wait out a real agent's two-minute deadline.
+        setTimeout(() => respond(message.id, { sessionId: message.params?.sessionId }), 600_000)
+        return
       }
+      if (process.argv.includes("--refuse-load")) {
+        write({
+          jsonrpc: "2.0",
+          id: message.id,
+          error: { code: -32603, message: "no such conversation: refused on purpose" },
+        })
+        return
+      }
+      respond(message.id, { sessionId: message.params?.sessionId })
+      return
+    case "session/cancel": {
+      for (const [id, timer] of running) {
+        if (timer !== null) clearTimeout(timer)
+        respond(id, { stopReason: "cancelled" })
+      }
+      running.clear()
+      return
     }
-    switch (message.method) {
-      case "initialize":
-        respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
-        continue
-      case "session/new":
-        respond(message.id, { sessionId: `sess-${++minted}` })
-        continue
-      case "session/load":
-        if (process.argv.includes("--hold-load")) {
-          // A LOAD THAT NEVER ANSWERS, for the shutdown test: the boot's reopen
-          // must not make `chat.start` wait for this, and a stop must interrupt
-          // it rather than wait out a real agent's two-minute deadline.
-          setTimeout(() => respond(message.id, { sessionId: message.params?.sessionId }), 600_000)
-          continue
-        }
-        if (process.argv.includes("--refuse-load")) {
-          write({
-            jsonrpc: "2.0",
-            id: message.id,
-            error: { code: -32603, message: "no such conversation: refused on purpose" },
-          })
-          continue
-        }
-        respond(message.id, { sessionId: message.params?.sessionId })
-        continue
-      case "session/cancel": {
-        for (const [id, timer] of running) {
-          if (timer !== null) clearTimeout(timer)
-          respond(id, { stopReason: "cancelled" })
-        }
-        running.clear()
-        continue
+    case "session/prompt": {
+      const text = message.params?.prompt?.[0]?.text ?? ""
+      const held = /^wait:(\d+)$/.exec(text)
+      if (held !== null) {
+        const id = message.id
+        running.set(
+          id,
+          setTimeout(() => {
+            running.delete(id)
+            respond(id, { stopReason: "end_turn" })
+          }, Number(held[1])),
+        )
+        return
       }
-      case "session/prompt": {
-        const text = message.params?.prompt?.[0]?.text ?? ""
-        const held = /^wait:(\d+)$/.exec(text)
-        if (held !== null) {
-          const id = message.id
-          running.set(
-            id,
-            setTimeout(() => {
-              running.delete(id)
-              respond(id, { stopReason: "end_turn" })
-            }, Number(held[1])),
-          )
-          continue
-        }
-        respond(message.id, { stopReason: "end_turn" })
-        continue
-      }
+      respond(message.id, { stopReason: "end_turn" })
+      return
     }
+    default:
+      unknownMethod(message)
   }
 })
-
-/** A MODULE and not a script, which is the only thing keeping these three
- *  fixtures from redeclaring each other's helpers in one program. */
-export {}

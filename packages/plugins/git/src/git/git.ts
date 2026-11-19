@@ -65,7 +65,7 @@
  * {@link open} itself is cheap and not a cache — a directory can become a
  * repository while the server is running, and a handle kept for life would
  * miss that. The ops layer memoizes a positive answer; this file does not
- * rely on that. The subprocess is `@olai/child`'s — git's residue on top is
+ * rely on that. The subprocess is `@kolu/child`'s — git's residue on top is
  * its env (`LC_ALL=C`, `GIT_TERMINAL_PROMPT=0`), that a hang is an answer
  * rather than a throw, and the index gate, which is the caller's (#360), not
  * the socket's. What IS keyed for the life of the process is that gate:
@@ -80,7 +80,7 @@
  * touch the index.
  */
 
-import { Hung, run } from "@olai/child"
+import { Hung, run } from "@kolu/child"
 import { Effect, Semaphore } from "effect"
 import * as fs from "node:fs"
 import { join, resolve } from "node:path"
@@ -131,7 +131,7 @@ interface Said {
 
 /** Run git, and answer with whether it worked and what it said. Never fails:
  *  every outcome is an answer the caller decides what to do with. The
- *  subprocess is `@olai/child`'s; the residue on top is git's own env
+ *  subprocess is `@kolu/child`'s; the residue on top is git's own env
  *  (`LC_ALL=C`, `GIT_TERMINAL_PROMPT=0`) and that a hang is an answer rather
  *  than a throw — a wedged hook cannot fail a write that has already landed. */
 const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
@@ -1041,7 +1041,7 @@ const unlock = (placed: Placement): Effect.Effect<UnlockResult, UnlockRefused> =
  * WHAT THAT COSTS is that a shutdown waits out a wedged git. THREE steps at
  * {@link BUDGET} and not two, because the `hung` arm below asks the index one
  * more question from inside the same uninterruptible region — plus up to three
- * seconds of `@olai/child`'s stopping grace each, so about thirty-nine seconds
+ * seconds of `@kolu/child`'s stopping grace each, so about thirty-nine seconds
  * in the pathological case, against a service manager that allows ninety. Reading the
  * ref back in the finalizer instead was tried and is worse: at the moment of an
  * interrupt HEAD may already have moved while olai's own git is still alive
@@ -1126,7 +1126,7 @@ const commit = (
           // back into the real index, so a landed commit leaves nothing staged
           // for them and a commit that never ran leaves what the `add` staged.
           // One extra subprocess, on the one path where olai does not know what
-          // happened, and no race behind it: `@olai/child` kills the child and
+          // happened, and no race behind it: `@kolu/child` kills the child and
           // awaits it before this arm is reached, so nothing of olai's is still
           // moving HEAD while this reads.
           //

@@ -1,16 +1,12 @@
 /** Confirmed model choices, keyed by engine and session. The store is owned
  * by chat's activation and uses its declared local-state door. Nothing here
  * selects or opens a conversation. Initialization is deferred until an open. */
+import type { MemoryFailure, Models } from "@kolu/acp-client"
 import { Effect, Semaphore } from "effect"
 import type { Conversing } from "./sessions.ts"
 import { ROWS } from "./scopes.ts"
-import { word } from "./memory.ts"
-import type { ChatLocalState, MemoryFailure } from "./local.ts"
+import { type ChatLocalState, word } from "./local.ts"
 
-export interface Models {
-  readonly read: (to: Conversing) => Effect.Effect<string | null, MemoryFailure>
-  readonly write: (to: Conversing, model: string) => Effect.Effect<void, MemoryFailure>
-}
 interface Choice extends Conversing { readonly model: string }
 const same = (a: Conversing, b: Conversing) => a.agent === b.agent && a.session === b.session
 const capped = (rows: ReadonlyArray<Choice>) => rows.slice(-ROWS)

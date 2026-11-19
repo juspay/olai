@@ -44,8 +44,8 @@ import { Schema } from "effect"
 import { AgentItem } from "@olai/format"
 
 import { Agents, ItemLocation, NO_AGENT_ROSTER, sameAgentRoster } from "./wire/agents.ts"
+import { AskAnswer, Saying } from "@kolu/acp/wire"
 import {
-  AskAnswer,
   AgentChoice,
   AttachChunk,
   Attached,
@@ -54,7 +54,6 @@ import {
   ChatState,
   Conversation,
   Listed,
-  Saying,
   SessionInfo,
 } from "./wire/members.ts"
 
@@ -262,7 +261,7 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /** One line for the process a terminal sign-in is running — the code it
-       *  asked for. The newline is the SERVER's to add (`./agent.ts`): what a
+       *  asked for. The newline is the SERVER's to add (`@kolu/acp-client`'s `agent.ts`): what a
        *  person typed is a code, and every one of these CLIs reads it by line. */
       signInInput: {
         input: Schema.Struct({

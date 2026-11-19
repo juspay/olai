@@ -68,6 +68,8 @@ The first message carries an instruction from olai.[^preamble] On a row, the not
 
 [^earlier]: The conversation line's **Earlier chats ↑** lists those chats with the counts and dates its agent supplies. Choosing one opens it in the same fold or page and puts **Back to current chat ↩** on the line. An earlier chat stays writable, and opening it changes neither which chat the item has nor the current conversation. Pi lists at most its newest fifty conversations.
 
+    Whenever a fold or page moves to another conversation, as here or at a fresh start, olai tells the agent to close the one it left. Going back opens that one again from the agent's own record.
+
 [^seats]: Eight is the limit on agents awake at once. An agent left idle is closed after 48 hours, which the chat plugin's `idle-ms` setting shortens. Reading a conversation, work that is running and a question you have not answered each keep an agent awake.
 
 [^waiting]: When no agent can be given up, starting or opening a chat is refused with *All 8 agents are awake — put one to sleep in Chats.* Where the conversation would be drawn, olai says that quietly and offers no retry, because it is holding your request: **This chat opens here as soon as a seat frees.** Putting one agent to sleep is all you have to do.

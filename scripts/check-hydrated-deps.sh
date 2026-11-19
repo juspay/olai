@@ -2,7 +2,7 @@
 # ONE PIN'S VERSION AGREEMENT — asked the same way of every pin, and asking it
 # is the whole of this script's job.
 #
-# olai consumes three pinned trees as RAW TYPESCRIPT: kolu's thirty-two members
+# olai consumes three pinned trees as RAW TYPESCRIPT: kolu's forty-six members
 # (nix/kolu.nix), `@odu/run-client` (nix/odu.nix) and Cordis's four (nix/cordis.nix). None of them is in bun.lock.
 # The isolated linker (bunfig.toml has the full argument) puts only the ROOT
 # package's direct dependencies into the one node_modules those hydrated

@@ -372,7 +372,10 @@ export function Composer(props: {
           .map((command) => ({
             value: command.name,
             label: `/${command.name}`,
-            hint: command.description,
+            // The agent's own second line, and `undefined` for a command that
+            // carries none: the menu draws a row with no hint rather than an
+            // empty one.
+            hint: command.description ?? undefined,
             // The AGENT'S own list, off the chat cell this tab already holds —
             // no answer behind it to be inside the settle of
             // (`../settled.ts`).

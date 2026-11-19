@@ -10,19 +10,10 @@
  */
 
 import type { LocalState, Refusal } from "@olai/plugin-api/services"
-import { Data, Effect, Semaphore } from "effect"
+import { MemoryFailure } from "@kolu/acp-client"
+import { Effect, Semaphore } from "effect"
 
 export type LocalSection = "memory" | "models" | "wake" | "heard" | "live"
-
-/** A chat-local record could not be read or written. The panel renders this
- * tagged failure as a transcript row rather than losing the gesture quietly. */
-export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
-  readonly why: string
-}> {
-  override get message(): string {
-    return this.why
-  }
-}
 
 export interface ChatLocalState {
   /** One section, or `null` when this machine has never written it. */
@@ -38,6 +29,13 @@ const object = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {}
+
+/** A legible field of this document: a string somebody wrote. Anything else —
+ *  a number, a missing key, the empty string — reads as absent, which is how
+ *  every section here is parsed leniently without a strange value becoming a
+ *  record that half exists. */
+export const word = (value: unknown): string | null =>
+  typeof value === "string" && value !== "" ? value : null
 
 const reasonOf = (failure: Refusal): string => {
   const shaped = failure as { readonly reason?: unknown; readonly why?: unknown }

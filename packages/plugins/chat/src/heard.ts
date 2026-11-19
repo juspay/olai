@@ -12,11 +12,11 @@
  * ## Why the ROWS and not the wire
  *
  * A turn's prose arrives as hundreds of chunks and settles into one row
- * ({@link ./transcript.ts}'s `say`), so the honest moment to take a line is the
- * TURN BOUNDARY and the honest thing to take it from is the row: the same text
- * a reader has in front of them, after the paragraph is closed. Anything read
- * mid-turn is a prefix, and a door drawn from a prefix says something the agent
- * did not finish saying.
+ * (`@kolu/acp-harness`'s `transcript.ts`'s `say`), so the honest moment to take
+ * a line is the TURN BOUNDARY and the honest thing to take it from is the row:
+ * the same text a reader has in front of them, after the paragraph is closed.
+ * Anything read mid-turn is a prefix, and a door drawn from a prefix says
+ * something the agent did not finish saying.
  *
  * ## What counts as the agent's last word
  *

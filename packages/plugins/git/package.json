@@ -21,7 +21,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@olai/child": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/plugin-api": "workspace:*",

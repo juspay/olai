@@ -10,14 +10,14 @@
  * where did it bind, is it gone, and what did it say — and they are here so
  * two copies cannot drift onto different events.
  *
- * The subprocess itself is `@olai/child`'s. What remains here is READINESS:
+ * The subprocess itself is `@kolu/child`'s. What remains here is READINESS:
  * the `serving` line, which is this server's own interface and not a fact
  * about subprocesses. The wait discipline — listeners at spawn, wait on the
  * event, a clock that throws with what the child said — is the socket's
  * default, so these tests stop re-earning it.
  */
 import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
-import { type Child, start } from "@olai/child"
+import { type Child, start } from "@kolu/child"
 import { findLogfmt } from "@olai/log/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
@@ -68,7 +68,7 @@ export interface WebChild {
   readonly exited: () => Promise<number | null>
   /**
    * The close, or a throw after `ms` with what the child said. The listener
-   * is the one `@olai/child` attached at spawn — attaching after kill is the
+   * is the one `@kolu/child` attached at spawn — attaching after kill is the
    * hazard the socket exists to not have.
    */
   readonly wait: (ms: number, why: string) => Promise<number | null>

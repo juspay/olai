@@ -38,10 +38,11 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed, Standing } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import type { ChatState } from "./wire/members.ts"
 
 /** The agent a session-opening case talks to — the same fixture the lifecycle
@@ -122,6 +123,7 @@ const panelOver = async (initial: ReadonlyArray<Installed>) => {
     roster: () => table.map(seated),
     cwd,
     tools: () => null,
+    memory: volatile(),
     onState: (state) => void states.push(state),
     onTranscript: () => {},
   }))
@@ -226,7 +228,7 @@ test("losing the last available engine retains missing rows and recovers on inst
   let table: ReadonlyArray<Standing> = [seated(CLAUDE), missing]
   const panel = await run(makePanel({
     roster: () => table,
-    cwd, tools: () => null, onState: () => {}, onTranscript: () => {},
+    cwd, tools: () => null, memory: volatile(), onState: () => {}, onTranscript: () => {},
   }))
   try {
     table = [missing]

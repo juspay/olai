@@ -74,7 +74,8 @@ import { Dynamic } from "solid-js/web"
 import { servedDirectory } from "../vault.ts"
 import { Terminals } from "./Terminals.tsx"
 import { fileKind } from "@olai/format"
-import type { ToolEntry, ToolStatus } from "olai-plugin-chat/wire"
+import type { ToolEntry } from "olai-plugin-chat/wire"
+import type { ToolStatus } from "@kolu/acp/wire"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
@@ -201,7 +202,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
     props.entry.reply !== undefined
     || props.entry.detail !== undefined
     || (!ended() && props.entry.reply === undefined && props.entry.progress !== undefined)
-    || Boolean(props.entry.armed?.report)
+    || Boolean(armedOf(props.entry)?.report)
 
   return (
     <div
@@ -314,7 +315,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
                   differ — a monitor somebody STOPPED, drawn `✗` because ACP has
                   no other word for it — this is the one that says what
                   happened. */}
-              <Show when={armed().ended}>
+              <Show when={endedOf(props.entry)}>
                 {(ended) => (
                   <span
                     class="shrink-0 text-muted"
@@ -451,7 +452,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             the task — `armed.report` — which is the vocabulary the ending
             already uses. Markdown, because they are prose, the same
             pipeline as the main agent's answer. */}
-        <Show when={props.entry.armed?.report}>
+        <Show when={armedOf(props.entry)?.report}>
           {(report) => (
             <Markdown
             claims={servedDirectory()?.claims()}

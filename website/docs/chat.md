@@ -81,13 +81,15 @@ A conversation opens with its newest sixty messages.[^scroll] A restart reopens 
 
 [^none]: Under **No agent yet.**, the heading **Install one of these to start an agent:** lists every agent whose plugin is on and whose command this machine has not got. Each entry says why that agent is unavailable, with a link where a link helps. The last line says your notes work without any agent. olai looks for each agent's command once when its plugin starts, so after installing a command, switch that plugin off and on again.
 
-[^methods]: When an agent refuses to work because it is not signed in, olai treats that refusal as a request to sign in. A row whose chat belongs to an agent whose plugin is off here shows only that agent's reason, because a different agent may still be available. The **Plugins** panel lists an agent whose plugin is on but whose command is missing under **Needs you**, with the same sentence.
+[^methods]: You need not wait to be refused: as soon as the agent reports that nobody is signed in, the ways in are on screen. A refusal for want of a signature is the other door, and olai reads one as a request to sign in.
 
-[^command]: A sign-in command, which Claude Code offers, runs in the directory olai serves. Its output appears in the conversation as it is printed, with any addresses in it clickable, and one line of it takes the code you type. Exit code 0 means it worked. Any other exit code leaves the output on screen with a way to try again.
+    A row whose chat belongs to an agent whose plugin is off shows only that agent's reason, because a different agent may still be available. The **Plugins** panel says the same of an agent whose command is missing.
+
+[^command]: A sign-in command, which Claude Code offers, runs in the directory olai serves. Its output appears in the conversation as it is printed, with any addresses in it clickable, and one line of it takes the code you type. Exit code 0 means it worked, even when you pressed cancel just before the command finished. Any other exit code leaves the output on screen with a way to try again.
 
 [^card]: A sign-in page is shown as a card holding the agent's own message, the host the page is on, and a link to it. The agent tells olai when the page has done its job, and the request the agent was waiting on is answered.
 
-[^wizard]: Some agents sign in through a series of questions in a terminal, as OpenCode does. For those, you see a label and the exact command to type in a terminal on the server, and no button. A box for an API key is never offered, so an agent whose only way in is an API key is listed without one.
+[^wizard]: Some agents sign in through a series of questions in a terminal, as OpenCode does. For those, you see a label and the exact command to type in a terminal on the server, and no button. A box for an API key is never offered, so an agent whose only way in is an API key is listed without one. Any other kind of sign-in that olai has no way to run is left out the same way.
 
 [^one]: Pressing the same sign-in method a second time joins the attempt already running; pressing a different method is refused. So two browser tabs can watch one sign-in and either can finish it, and cancelling stops it. After you sign in, olai retries what you asked for, and a message refused because the agent was not signed in stays marked *not sent*, with its words back in the box.
 
@@ -148,6 +150,10 @@ A model you chose comes back after a restart, and the agent line names it before
 ![Terminal output](images/acp/acp-terminal-output.png)
 
 Output keeps the newest whole characters and says that it was cut: 64 KiB by default, and up to 1 MiB where the agent asks for more. Commands that olai itself runs start in the directory olai serves, unless the agent gives an absolute directory, and cancelling stops them together with the processes they started.
+
+A tool call that failed discloses what it was asked to do rather than what came back. The reason is already on the call's own line, and showing it again under the line would say one error twice.
+
+When the agent asks you something through a form, the form is the only thing drawn: the call it asked through gets no line of its own, because the question is already the question.
 
 A turn that ends having produced nothing gets a notice naming the agent and asking you to check that it is signed in, and that its provider key is set in the environment olai itself runs in.
 

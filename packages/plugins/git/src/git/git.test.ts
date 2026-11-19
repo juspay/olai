@@ -1383,7 +1383,7 @@ test("interrupting integrate mid-rebase removes the worktree", async () => {
   await Effect.runPromise(Effect.gen(function*() {
     const fiber = yield* asEffect(root, (g) => g.integrate(standing)).pipe(Effect.forkChild)
     // Wait for the worktree to be there — the rebase is running inside it —
-    // then stop the fiber. `@olai/child`'s `run` has no abort hook, so the
+    // then stop the fiber. `@kolu/child`'s `run` has no abort hook, so the
     // rebase subprocess is still alive in that directory when the release
     // runs — exactly the residue the review named — and `worktree remove
     // --force` removes it anyway.

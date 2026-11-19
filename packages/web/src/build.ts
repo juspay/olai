@@ -2,7 +2,7 @@
  * asset publication. Static head/CSS/public-file/preload policy comes from
  * bundle row asset exports, on a graph never loaded by either runtime. */
 
-import { start } from "@olai/child"
+import { start } from "@kolu/child"
 import { mkdtempSync, rmSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"

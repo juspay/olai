@@ -18,7 +18,7 @@
  * any `Monitor` has been armed: both histories prevented earlier adapters from
  * settling a steered turn, and changing the order exposed the second trigger.
  * Keep that precautionary order; the steering-history table in
- * `packages/plugins/claude/acp/patches/README.md#steering-history-measurements`
+ * `@kolu/acp-claude`'s `adapter/patches/README.md#steering-history-measurements`
  * records the current measurements and their limits.
  *
  * NOT PART OF THE SUITE — nothing imports it and `just e2e` never runs it. It

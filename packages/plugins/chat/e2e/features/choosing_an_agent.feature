@@ -886,7 +886,7 @@ Feature: Choosing a node agent's engine
     And the node agent's fold is ready
     # THE FIRST ENGINE HERE THAT SENDS `agent_thought_chunk`, which is what makes
     # this a claim: omp narrates its deliberation on the same feed as its prose.
-    # `packages/plugins/chat/src/agent.ts` has no case for that update kind, and
+    # `@kolu/acp-client`'s `agent.ts` has no case for that update kind, and
     # its default arm drops a whole kind this panel has no view for — on purpose,
     # and it says why there. Two things then follow, and this asserts both ends
     # of them: the scratchpad must not be drawn as speech (a transcript is a

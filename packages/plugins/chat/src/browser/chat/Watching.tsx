@@ -43,7 +43,7 @@
  * WHAT IT DOES NOT DRAW, and cannot: **when a task last did something.** A
  * monitor's events are on no wire olai can reach — they go to the model and to
  * the task's own output file, and no message underneath the adapter carries one
- * (`packages/plugins/claude/acp/patches/README.md` records the measurement). A "last event 20s ago"
+ * (`@kolu/acp-claude`'s `adapter/patches/README.md` records the measurement). A "last event 20s ago"
  * that was really "armed 20s ago" would be the panel inventing the one fact a
  * person would trust it for. So the strip says what it knows: this is out, and
  * this is how long it has been. An AGENT is the case where that limit does not
@@ -71,7 +71,6 @@ import { useConversationUI } from "./ui.tsx"
 import type { Chat } from "./state.ts"
 
 export function Watching(props: { readonly chat: Chat }) {
-  const { isPreviewing, togglePreview } = useConversationUI().previewing
   const out = () => props.chat.state().watching
   return (
     <Show when={out().length > 0}>
@@ -131,15 +130,15 @@ function Strip(props: { readonly chat: Chat }) {
             )
             /**
              * AN AGENT IS A DOOR AND A TASK IS NOT, which is the whole reason
-             * the kind is on the wire ({@link @olai/surface}'s `Watched`).
+             * the kind is on the wire (`@kolu/acp/wire`'s `Watching`).
              *
              * A subagent's calls are not in the transcript any more, so this
              * strip is where a person watching a fan-out goes to read one —
              * press the agent, and its work opens in the shelf below. A
              * background task has nothing behind that door and never will: its
              * events reach the model and the task's own output file, and no
-             * message underneath the adapter carries one (`packages/plugins/claude/acp/
-             * patches/README.md` records the measurement). A control that opened an
+             * message underneath the adapter carries one (`@kolu/acp-claude`'s
+             * `adapter/patches/README.md` records the measurement). A control that opened an
              * empty box would be worse than no control, so the two are drawn
              * as what they are — one pressable, one not.
              */

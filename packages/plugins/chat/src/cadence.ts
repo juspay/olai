@@ -1,7 +1,7 @@
 /**
  * The CADENCE a growing row reaches the wire at — the other half of
- * {@link ./transcript.ts}'s appends, and the second half of the fix for
- * `transcript-stream-quadratic`.
+ * `@kolu/acp-harness`'s `transcript.ts`'s appends, and the second half of the
+ * fix for `transcript-stream-quadratic`.
  *
  * The transcript says WHAT changed: this text belongs at that offset of that
  * row ({@link Change.appends}). It says nothing about frames, keys or clocks,
@@ -59,10 +59,9 @@
  */
 
 import { SAYING_MS, sayingEnd, sayingKey } from "olai-plugin-chat/wire"
-import type { Saying } from "olai-plugin-chat/wire"
-import { movesRows } from "./transcript.ts"
-
-import type { Change } from "./transcript.ts"
+import type { ChatEntry } from "olai-plugin-chat/wire"
+import type { Saying } from "@kolu/acp/wire"
+import { type Change, movesRows } from "@kolu/acp-harness"
 
 /** The pieces half of a frame: what to write into the `saying` collection and
  *  what to take out of it. Keyed here, because keys are this module's. */
@@ -71,8 +70,17 @@ export interface Pieces {
   readonly removes: ReadonlyArray<string>
 }
 
+/** ... and the rows half, keyed HERE for the same reason and now for a second
+ *  one: a change arrives as the harness says it — whole rows, each carrying
+ *  its own `id` — and a collection is written by KEY. The one place that turns
+ *  one into the other is the one place that already owns what a key is. */
+export interface Rows {
+  readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
+  readonly removes: ReadonlyArray<string>
+}
+
 /**
- * One publication: the rows exactly as the transcript said them, and the
+ * One publication: the rows exactly as the conversation said them, and the
  * pieces this module decided go with them. Rows first — see the header.
  *
  * The rows half is the two fields a collection is WRITTEN with and not the
@@ -82,7 +90,7 @@ export interface Pieces {
  * apply would draw the same text twice.
  */
 export interface Frame {
-  readonly rows: Pick<Change, "upserts" | "removes">
+  readonly rows: Rows
   readonly pieces: Pieces
 }
 
@@ -93,7 +101,7 @@ const NOTHING = { upserts: [], removes: [] } as const
 /**
  * How a window is waited out.
  *
- * HANDED IN, with the real clock as the default, for {@link Transcript}'s own
+ * HANDED IN, with the real clock as the default, for the transcript's own
  * reason: this module is a data structure with no server under it, and a
  * window read off `setTimeout` directly would be the one thing here that could
  * only be asserted by waiting for it. A test hands in a hand-turned one and
@@ -118,7 +126,7 @@ const afterReally: After = (millis, run) => {
 export interface Cadence {
   /** One change from the transcript, turned into frames — none, one, or (when
    *  a held piece is displaced) one carrying both. */
-  readonly publish: (change: Change) => void
+  readonly publish: (change: Change<ChatEntry>) => void
   /** Every piece currently ON the wire, by key — what a new subscriber's
    *  snapshot of the `saying` collection is. Never what is still waiting: a
    *  reader is handed what was published, and the row it belongs to carries
@@ -192,9 +200,9 @@ export const cadence = (options: {
     }
   }
 
-  const publish = (change: Change): void => {
+  const publish = (change: Change<ChatEntry>): void => {
     // Whether this change speaks for a ROW at all — asked once, in the rows'
-    // own words ({@link ./transcript.ts}'s `movesRows`), because both the
+    // own words (`@kolu/acp-harness`'s `movesRows`), because both the
     // supersession below and the frame at the end turn on it.
     const moved = movesRows(change)
     // The pieces this call sends AHEAD of their window: one per row displaced
@@ -229,7 +237,7 @@ export const cadence = (options: {
     const removes: Array<string> = []
     if (moved) {
       const rows = new Set<string>([
-        ...change.upserts.map(([key]) => key),
+        ...change.upserts.map((row) => row.id),
         ...change.removes,
       ])
       if (waiting !== null && rows.has(waiting.piece.of)) drop()
@@ -250,7 +258,13 @@ export const cadence = (options: {
     const pieces = upserts.length > 0 || removes.length > 0
     if (!moved && !pieces) return
     options.onFrame({
-      rows: moved ? change : NOTHING,
+      // ... AND THE ROWS TAKE THEIR KEYS HERE, which is the whole of what this
+      // module adds to them: a row carries its own `id` and a collection is
+      // written by key, so the pairing is made once, where the pieces' own
+      // keys are made.
+      rows: moved
+        ? { upserts: change.upserts.map((row) => [row.id, row] as const), removes: change.removes }
+        : NOTHING,
       pieces: pieces ? { upserts, removes } : NOTHING,
     })
   }

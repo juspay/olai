@@ -1,5 +1,6 @@
 /**
- * WHO THIS ENGINE IS, AND HOW A PERSON GETS IT — spelled once, spent once.
+ * HOW A PERSON GETS THIS ENGINE — spelled once, spent once. Its name is
+ * `@kolu/acp-claude`'s `NAME`, the one both products show.
  *
  * THE SERVER HALF IS THE ONE THAT SPENDS IT: {@link ./server.ts}'s probe hands
  * this value back as the `NotHere` arm of its answer, so the roster publishes
@@ -20,13 +21,8 @@
  * package knows.
  */
 
+import { NAME } from "@kolu/acp-claude"
 import type { NotHere } from "@kolu/acp/engine"
-
-/** WHAT A PERSON READS — in the picker, in the header beside the model, and on
- *  the row below. The plugin's, because "Claude Code" is a name rather than the
- *  word `claude` with a capital letter, and a core table mapping one to the
- *  other is exactly what this phase deleted. */
-export const NAME = "Claude Code"
 
 /**
  * ...AND WHAT A MACHINE THAT HAS NONE IS TOLD.

@@ -29,7 +29,7 @@ import { Show } from "solid-js"
 
 import { Tip } from "@olai/web/client/Tip.tsx"
 
-import type { AuthStatus } from "olai-plugin-chat/wire"
+import type { AuthStatus } from "@kolu/acp/wire"
 
 import { TESTID } from "../../testids.ts"
 import { identityOf, identityTitleOf } from "../chat/identityChip.ts"

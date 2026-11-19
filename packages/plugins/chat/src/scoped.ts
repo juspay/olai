@@ -7,7 +7,7 @@ import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@ola
 import type { OpFailure } from "@olai/format"
 import { Deferred, Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
-import { AgentGone, type StopReason } from "./agent.ts"
+import { AgentGone, type StopReason } from "@kolu/acp-client"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import { here } from "./agents/roster.ts"
@@ -15,10 +15,10 @@ import * as Memory from "./memory.ts"
 import { type LiveMark, type LiveRecord, marksOf, RECORDED } from "./live.ts"
 import type { Conversing } from "./sessions.ts"
 import type { PanelAddress } from "./wire/session.ts"
-import type { Change } from "./transcript.ts"
+import type { Change } from "@kolu/acp-harness"
 import { succeeded } from "./succession.ts"
 import { pastOf } from "./lineage.ts"
-import { agentIn, type Listed } from "olai-plugin-chat/wire"
+import { agentIn, type ChatEntry, type Listed } from "olai-plugin-chat/wire"
 
 /** Keep idle chats warm for 48 hours. With this long window, the capacity cap
  * bounds resident node agents: an LRU of 8, evicting only eligible idle scopes.
@@ -125,7 +125,7 @@ export interface Chat extends Panel {
    * the scope closes with its own reason ({@link StopReason}'s `put to sleep`)
    * — all three because they are one act: closing the scope stops the
    * subprocess, and stopping the subprocess is what ends the turn and settles
-   * the questions ({@link ./agent.ts}'s `leaving`). NOTHING IS UNBOUND: the
+   * the questions (`@kolu/acp-client`'s `agent.ts`'s `leaving`). NOTHING IS UNBOUND: the
    * node goes on naming its conversation, so the roster draws it `asleep` and
    * opening it again continues where it left off. Releasing the binding is
    * `closeAgent`, a different verb with a different answer.
@@ -154,16 +154,23 @@ export interface Chat extends Panel {
 
 export interface ReadingObserver {
   readonly state: (state: ReturnType<Panel["state"]>) => void
-  readonly transcript: (change: Change) => void
+  readonly transcript: (change: Change<ChatEntry>) => void
 }
 
 /** The scheduler's policy and dependencies. Unlike a panel, this always owns
  * a node pool; there is no optional field that changes which lifecycle `make`
- * constructs. */
-export interface Options extends PanelOptions {
+ * constructs.
+ *
+ * THE ONE FIELD IT RELAXES is the activation's remembered conversation: a
+ * PANEL must be handed one, because a panel that minted its own would be a
+ * second answer to what this activation remembers ({@link PanelOptions.memory});
+ * the SCHEDULER is the end that mints it, once, and hands the same one to
+ * every panel it builds. */
+export interface Options extends Omit<PanelOptions, "memory"> {
+  readonly memory?: PanelOptions["memory"]
   readonly onConversationClosed?: (state: ReturnType<Panel["state"]>) => void
   readonly onConversationState?: (state: ReturnType<Panel["state"]>, entries: ReturnType<Panel["entries"]>, node: string | null) => void
-  readonly onConversationTranscript?: (state: ReturnType<Panel["state"]>, change: Change) => void
+  readonly onConversationTranscript?: (state: ReturnType<Panel["state"]>, change: Change<ChatEntry>) => void
   /** Current user-controlled wake activation, read through its Cordis service.
    * Absent for delivery-only plugins, which use node-derived recipients. */
   readonly wake: (plugin: string) => object | undefined
@@ -274,7 +281,14 @@ interface PendingDelivery {
   readonly options?: { readonly coalesce?: string; readonly sleep?: true }
 }
 
-const empty: Change = { upserts: [], removes: [], appends: [] }
+const empty: Change<ChatEntry> = { upserts: [], removes: [], appends: [] }
+
+/** A reader joining is handed the whole conversation as one change: every row
+ *  the panel holds now, upserted at once. `gone` names the rows that reader was
+ *  shown before and has to drop first — what a conversation being REPLACED
+ *  looks like, as against one being added to. */
+const whole = (panel: Panel, gone: ReadonlyArray<string> = []): Change<ChatEntry> =>
+  ({ ...empty, removes: gone, upserts: [...panel.entries().values()] })
 
 /** Build the scheduler. Focused state-machine tests call `makePanel` directly;
  * package consumers always get the node-scoped lifecycle. */
@@ -494,8 +508,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const publishSwitch = (before: Panel, after: Panel): void => {
       const gone = [...before.entries().keys()]
       if (gone.length > 0) panelOptions.onTranscript({ ...empty, removes: gone })
-      const arrived = [...after.entries()]
-      if (arrived.length > 0) panelOptions.onTranscript({ ...empty, upserts: arrived })
+      const arrived = whole(after)
+      if (arrived.upserts.length > 0) panelOptions.onTranscript(arrived)
       panelOptions.onState(after.state())
       liveMoved()
     }
@@ -1214,7 +1228,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               yield* Effect.catch(slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
             }
             observer.state(slot.panel.state())
-            observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
+            observer.transcript(whole(slot.panel))
             return slot.panel
           })))
         }
@@ -1239,7 +1253,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             : yield* Effect.acquireRelease(rootPanel(), panel => panel.stop)
           if (panel !== root) yield* Effect.catch(panel.loadSession(to.agent, to.session), () => Effect.void)
           observer.state(panel.state())
-          observer.transcript({ ...empty, upserts: [...panel.entries()] })
+          observer.transcript(whole(panel))
           return panel
         }
         readerNodes.set(observer, place.node.id)
@@ -1255,7 +1269,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }
           if (!slot.history) yield* flush(slot)
           observer.state(slot.panel.state())
-          observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
+          observer.transcript(whole(slot.panel))
           return slot.panel
         }))
       })
@@ -1318,7 +1332,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * here because they are not three acts: `close` stops the panel with
        * this reason, the panel stops its subprocess, and that is what ends the
        * turn in flight and settles every question still waiting
-       * (`agent.ts`'s `leaving`). A verb that cancelled first would be asking
+       * (`@kolu/acp-client`'s `agent.ts`'s `leaving`). A verb that cancelled first would be asking
        * an agent to finish politely before killing it, and the one thing a
        * person pressing this asked for is that it STOP.
        *
@@ -1470,7 +1484,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               const previous = replaced === null ? null : {
                 agent: agentIn(slot.state)?.id, session: replaced,
               }
-              const before = [...slot.panel.entries()].map(([id]) => id)
+              const before = [...slot.panel.entries().keys()]
               const completed = Effect.gen(function*() {
                 const session = slot.panel.state().session
                 if (session === null) return yield* new UsageFailure({
@@ -1495,7 +1509,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 // existing readers still need the new state and cleared replay.
                 for (const reader of readingListeners(slot)) {
                   reader.state(slot.state)
-                  reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+                  reader.transcript(whole(slot.panel, before))
                 }
                 yield* flush(slot)
                 if (committed !== undefined) yield* committed({ agent, session: session.id })
@@ -1513,7 +1527,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   // the existing reader face and report their gesture's error.
                   for (const reader of readingListeners(slot)) {
                     reader.state(state)
-                    reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+                    reader.transcript(whole(slot.panel, before))
                   }
                   return null
                 }

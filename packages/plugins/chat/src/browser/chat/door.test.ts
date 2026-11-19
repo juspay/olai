@@ -16,6 +16,7 @@
 import { describe, expect, test } from "bun:test"
 
 import { doorOf } from "./door.ts"
+import { sentAgent } from "../../outings.testlib.ts"
 import { toolRow as row } from "./rows.testlib.ts"
 
 describe("which rows have a door at all", () => {
@@ -45,12 +46,12 @@ describe("what the door says", () => {
     // under the row (`./spawn.ts`). A door beside it reading *no calls yet*
     // would be a control that opens on an empty shelf, drawn at the one moment
     // somebody is looking hardest.
-    expect(doorOf(row({ spawned: { kind: "Explore" }, status: "pending" }), 0)).toBeNull()
-    expect(doorOf(row({ spawned: { kind: "Explore" }, status: "in_progress" }), 0))
+    expect(doorOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "pending" }), 0)).toBeNull()
+    expect(doorOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "in_progress" }), 0))
       .toBeNull()
     // ... and an agent that FINISHED having called nothing has its whole answer
     // in the row's own fold, so there is still nothing to open.
-    expect(doorOf(row({ spawned: { kind: "Explore" }, status: "completed" }), 0))
+    expect(doorOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "completed" }), 0))
       .toBeNull()
   })
 
@@ -59,15 +60,15 @@ describe("what the door says", () => {
     // behind it, so it is the one string here a reader reads as a fact — and a
     // plural on a single call is the panel getting a fact wrong in the smallest
     // possible way.
-    expect(doorOf(row({ spawned: { kind: "Explore" }, status: "completed" }), 1))
+    expect(doorOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "completed" }), 1))
       .toBe("1 call")
   })
 
   test("more than one counts them", () => {
-    expect(doorOf(row({ spawned: {} }), 7)).toBe("7 calls")
+    expect(doorOf(row({ spawned: sentAgent() }), 7)).toBe("7 calls")
     // Still counting while the agent is out: the door opens beside the live
     // rail rather than after it.
-    expect(doorOf(row({ spawned: { kind: "Explore" }, status: "in_progress" }), 2))
+    expect(doorOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "in_progress" }), 2))
       .toBe("2 calls")
   })
 })
@@ -79,7 +80,7 @@ describe("which agent the door opens onto", () => {
     // a door saying only how many calls are behind it would be four identical
     // buttons — and which you press decides what you read.
     expect(
-      doorOf(row({ text: "Task", spawned: { said: "count the markdown files" } }), 3),
+      doorOf(row({ text: "Task", spawned: sentAgent({ said: "count the markdown files" }) }), 3),
     ).toBe("count the markdown files · 3 calls")
   })
 
@@ -88,10 +89,10 @@ describe("which agent the door opens onto", () => {
     // *explore the outline* is furniture, and furniture in a 26rem drawer is
     // the line that pushes the conversation off the screen.
     expect(
-      doorOf(row({ text: "explore the outline", spawned: { said: "explore the outline" } }), 3),
+      doorOf(row({ text: "explore the outline", spawned: sentAgent({ said: "explore the outline" }) }), 3),
     ).toBe("3 calls")
     // ... including the case where the spawn described itself not at all, where
     // falling back to the title is what makes the two equal.
-    expect(doorOf(row({ text: "Task", spawned: {} }), 3)).toBe("3 calls")
+    expect(doorOf(row({ text: "Task", spawned: sentAgent() }), 3)).toBe("3 calls")
   })
 })

@@ -3,8 +3,8 @@
 
 import { Effect, Schema, Semaphore } from "effect"
 
-import type { ChatLocalState } from "./local.ts"
-import { MemoryFailure, word } from "./memory.ts"
+import { type ChatLocalState, word } from "./local.ts"
+import { MemoryFailure } from "@kolu/acp-client"
 
 const WAKE = "wake"
 

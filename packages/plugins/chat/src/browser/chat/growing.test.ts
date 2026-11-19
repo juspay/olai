@@ -8,7 +8,7 @@
  */
 
 import { sayingKey } from "olai-plugin-chat/wire"
-import type { Saying } from "olai-plugin-chat/wire"
+import type { Saying } from "@kolu/acp/wire"
 import { describe, expect, test } from "bun:test"
 
 import { grownText, type Growing, TRANSCRIPT_TAIL } from "./growing.ts"

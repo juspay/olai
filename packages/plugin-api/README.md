@@ -145,7 +145,7 @@ Interception on the `vault` service arrives with later phases. So does HMR: no B
 
 ## One probe, and what it answers
 
-A plugin's tool is not necessarily on the machine olai is serving from, so a plugin may declare a **probe**: one call, per chat session, answering *is it here* and *what is a person owed if it is not* — **at the same time, off one reading**. That is an invariant with an incident behind it ([`olai-plugin-chat`](../chat/README.md)'s `agent.ts`): a caller that asked once for the entry to hand over and again for the sentence to say would start somebody's daemon twice per conversation and could answer the two questions about two different instants.
+A plugin's tool is not necessarily on the machine olai is serving from, so a plugin may declare a **probe**: one call, per chat session, answering *is it here* and *what is a person owed if it is not* — **at the same time, off one reading**. That is an invariant with an incident behind it (`@kolu/acp-client`'s `agent.ts`, the client [`olai-plugin-chat`](../chat/README.md) runs every agent through): a caller that asked once for the entry to hand over and again for the sentence to say would start somebody's daemon twice per conversation and could answer the two questions about two different instants.
 
 It replaces three fields. A `probe` beside an `mcpServer` was those two readings; and a `failures` table — `Record<tag, string>` — **cannot hold the sentences that exist**, because three of kolu's five carry a deadline, a cause or the daemon's own refusal, none of which is knowable before the failing. A table core looked a tag up in would leave core composing what it must not compose. So the sentence rides on the answer, whole, and core displays it.
 

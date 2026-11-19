@@ -19,7 +19,7 @@
  *     drawn where the AGENT ITSELF said the server attached and nowhere else;
  *     a name with no mark is one olai handed over and nobody has reported on,
  *     which is every row on an agent that says nothing per server
- *     (`../../../../plugins/chat/src/servers.ts`).
+ *     (`@kolu/acp-client`'s `servers.ts`).
  *   - **"plus the agent's own"** — the hedge, and the reason this strip can be
  *     read as an answer at all. Olai lists what olai handed over; the servers a
  *     person put in their own agent's config are configured where olai cannot
@@ -71,7 +71,7 @@
 
  */
 
-import type { ChatServer } from "olai-plugin-chat/wire"
+import type { Server } from "@kolu/acp/wire"
 import { For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
@@ -126,8 +126,8 @@ export function Roster(props: { readonly chat: Chat }) {
 
 /** One server on the roster: its name, how it stands, and — on hover — where it
  *  is. */
-function Chip(props: { readonly server: ChatServer }) {
-  const said = () => SAID[props.server.standing.kind]
+function Chip(props: { readonly server: Server }) {
+  const said = () => SAID[props.server.standing]
   const mark = () => said().mark
   return (
     <Tip text={`${props.server.name} ${said().sentence}${
@@ -141,7 +141,7 @@ function Chip(props: { readonly server: ChatServer }) {
         // asserting the mark: which glyph says "connected" is a decision about
         // pixels, and a test that pinned it would fail the next time somebody
         // improved it. Tests assert behaviour, not styling.
-        data-standing={props.server.standing.kind}
+        data-standing={props.server.standing}
         data-at={props.server.at}
       >
         {/* A server whose plugin has a page for it is a LINK to that page —

@@ -34,13 +34,13 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import type { Leg } from "@kolu/acp/engine"
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
-import { makePanel as makeChat, type Panel } from "./chat.ts"
-import { SLOTS } from "./deliveries.ts"
+import { makePanel as makeChat, type Panel, SLOTS } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
-import { MemoryFailure } from "./memory.ts"
+import { MemoryFailure } from "@kolu/acp-client"
 
 /** Every plugin can be told, which is the ordinary serve — the arm where one
  *  cannot is `a tenant this serve did not compose` below. */
@@ -144,6 +144,7 @@ const panel = async (
     roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
+    memory: volatile(),
     scoping: options.scoping ?? null,
     onState: () => {},
     onTranscript: () => {},

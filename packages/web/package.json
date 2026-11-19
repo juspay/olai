@@ -11,12 +11,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//child": "@olai/child is the subprocess socket src/build.ts rides for the Tailwind CLI. The browser bundle must never import it — this is a build-script dependency, the same carve-out `node:child_process` was.",
+  "//child": "@kolu/child is the subprocess socket src/build.ts rides for the Tailwind CLI, hydrated from kolu's pin into the root node_modules (`nix/kolu.nix`'s seeds) rather than declared here — the same way `@kolu/acp` reaches its importers. The browser bundle must never import it — this is a build-script dependency, the same carve-out `node:child_process` was.",
   "//dependencies": "Runtime dependencies support browser composition and shared rendering. The child-process dependency is build-only for Tailwind; Babel and Tailwind tooling never enter the browser graph. NO PLUGIN IS HERE, and that is a claim rather than an accident of the current list — see //boundary. Fourteen entries left with it in the same pass and for a duller reason: `unified`, `remark-*`, `rehype-*`, `lowlight`, `highlight.js`, `mdast-util-to-string` and @olai/markdown-ui were the markdown pipeline this package stopped owning when the renderers became rows, and @solid-primitives/keyed had no reader left either. A declared dependency nothing imports is a wall this manifest claims to be behind and is not, which is what makes a stale line worth deleting rather than tolerating.",
   "//tailwind": "TWO entries, and the second is not redundant. @tailwindcss/cli is the binary src/build.ts spawns. `tailwindcss` is what `@import \"tailwindcss\"` inside src/client/styles.css resolves — and under the isolated linker (bunfig.toml) a transitive dependency of the CLI is nested where nothing outside it can see, so the CLI fails with \"Can't resolve 'tailwindcss'\" until this package declares it directly. Hoisted trees (srid/drishti) never notice; this one does.",
   "dependencies": {
     "@kobalte/core": "^0.13.13",
-    "@olai/child": "workspace:*",
     "@olai/fonts": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/surface": "workspace:*",

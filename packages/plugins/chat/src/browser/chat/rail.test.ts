@@ -11,6 +11,7 @@ import { describe, expect, test } from "bun:test"
 
 import { TESTID } from "../../testids.ts"
 import { railOf, sameRail } from "./rail.ts"
+import { armedTask, sentAgent } from "../../outings.testlib.ts"
 import { toolRow as row } from "./rows.testlib.ts"
 
 describe("which rail a row hangs", () => {
@@ -20,12 +21,12 @@ describe("which rail a row hangs", () => {
   })
 
   test("a spawn's rail says the agent is working", () => {
-    expect(railOf(row({ status: "in_progress", spawned: { kind: "Explore" } })))
+    expect(railOf(row({ status: "in_progress", spawned: sentAgent({ kind: "Explore" }) })))
       .toEqual({ said: "Working…", name: TESTID.chatSpawnWorking })
   })
 
   test("an armed task's rail says it is still running", () => {
-    expect(railOf(row({ status: "in_progress", armed: { task: "bu13xz2ie" } })))
+    expect(railOf(row({ status: "in_progress", armed: armedTask({ task: "bu13xz2ie" }) })))
       .toEqual({ said: "Still running…", name: TESTID.chatArmedStill })
   })
 
@@ -37,21 +38,21 @@ describe("which rail a row hangs", () => {
     expect(
       railOf(row({
         status: "in_progress",
-        spawned: { kind: "Explore" },
-        armed: { task: "ad58764267416dc7e" },
+        spawned: sentAgent({ kind: "Explore" }),
+        armed: armedTask({ task: "ad58764267416dc7e" }),
       })),
     ).toEqual({ said: "Working…", name: TESTID.chatSpawnWorking })
   })
 
   test("... and nothing once each of them is over", () => {
-    expect(railOf(row({ status: "completed", spawned: { kind: "Explore" } }))).toBeNull()
+    expect(railOf(row({ status: "completed", spawned: sentAgent({ kind: "Explore" }) }))).toBeNull()
     expect(
-      railOf(row({ status: "completed", armed: { task: "bu13xz2ie", ended: "completed" } })),
+      railOf(row({ status: "completed", armed: armedTask({ task: "bu13xz2ie", ended: "completed" }) })),
     ).toBeNull()
     // ... including a task the harness has not spoken about whose CALL its
     // turn walked away from, which is what a dead agent leaves behind.
     expect(
-      railOf(row({ status: "in_progress", stranded: true, armed: { task: "bu13xz2ie" } })),
+      railOf(row({ status: "in_progress", stranded: true, armed: armedTask({ task: "bu13xz2ie" }) })),
     ).toBeNull()
   })
 })

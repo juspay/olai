@@ -67,7 +67,7 @@ const BOUND_MS = BOOT_TIMEOUT * 4
 /**
  * The child's close, not a deadline. {@link BOOT_TIMEOUT} is the hang
  * detector and throws; it is not a `false`. The listener is the one
- * `@olai/child` attached at spawn.
+ * `@kolu/child` attached at spawn.
  */
 const stopped = (child: WebChild, why: string): Promise<number | null> =>
   child.wait(BOOT_TIMEOUT, `${why} did not stop within ${BOOT_TIMEOUT}ms`)
