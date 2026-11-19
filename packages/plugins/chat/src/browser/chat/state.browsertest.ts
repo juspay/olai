@@ -276,3 +276,40 @@ test("a refused fresh start signs in through the node while keeping the previous
     await Effect.runPromise(Scope.close(activation, Exit.void))
   }
 })
+
+/** WHAT A PAGE ASKS FOR SAYS WHETHER IT FOLLOWS THE NODE. The node's chat —
+ *  read off the roster, or visited by hand while the node is bound to it — is
+ *  asked for as the node's current chat, which the server serves only while
+ *  it still is; an earlier chat is asked for as a plain visit. */
+test("a page asks for the node's chat as current and for an earlier chat as a visit", async () => {
+  const asked: Array<unknown> = []
+  const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
+    unary: () => Effect.void,
+    stream: (tag, input) => Stream.callback<unknown>(queue => Effect.sync(() => {
+      const member = tag.split("/").at(-2)
+      if (member === "state") asked.push(input)
+      Queue.offerUnsafe(queue, member === "state" ? CHAT_OFF : { kind: "snapshot", entries: [] })
+    })),
+  }, () => true) }))
+  const activation = Scope.makeUnsafe()
+  await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
+  const row: Row = { id: "one", kind: "node", beside: false, file: "Work.olai", title: "one", engine: "alpha", session: "now", memory: 1, standing: "idle", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null }
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ at: () => row, chatOf: () => row, named: one => ({ name: one.title }), rows: () => [row], engines: () => [], standings: () => [], only: () => null, missing: () => null, chats: () => null, askChats: () => {} }) }))
+  const view = createRoot(dispose => ({ dispose, reading: createConversation(owner.reading, () => "one", () => true) }))
+  try {
+    await settle()
+    expect(asked).toEqual([{ agent: "alpha", session: "now", current: true }])
+    // Visiting the chat the node is bound to is still following it: the
+    // same reading, nothing asked again.
+    owner.reading.visit("one", { agent: "alpha", session: "now" })
+    await settle()
+    expect(asked).toEqual([{ agent: "alpha", session: "now", current: true }])
+    owner.reading.visit("one", { agent: "alpha", session: "earlier" })
+    await settle()
+    expect(asked.at(-1)).toEqual({ agent: "alpha", session: "earlier" })
+    expect(Object.hasOwn(asked.at(-1) as object, "current")).toBe(false)
+  } finally {
+    view.dispose(); owner.dispose(); wire.dispose()
+    await Effect.runPromise(Scope.close(activation, Exit.void))
+  }
+})

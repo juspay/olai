@@ -7,7 +7,7 @@
  * releases its process credential before the next wake acquires another.
  */
 
-import type { NodeAgent, OpFailure } from "@olai/format"
+import { type NodeAgent, type OpFailure, UsageFailure } from "@olai/format"
 import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
 import { Deferred, Duration, Effect, Exit, Fiber, References, Scope } from "effect"
@@ -1088,6 +1088,11 @@ test("trash releases a running node and takes its scopes with it", async () => {
   }
 })
 
+/** A visit and a node address are never answered `null` (`Chat.reading`); a
+ *  bench that reads one says so rather than carrying the case around. */
+const served = <A, E, R>(reading: Effect.Effect<A | null, E, R>): Effect.Effect<A, E, R> =>
+  Effect.flatMap(reading, (panel) => panel === null ? Effect.die("a visit was answered with nothing") : Effect.succeed(panel))
+
 
 /** The node binding deliberately lags behind the live slot. Probes can be
  * held with Deferreds so the tests choose ordering without wall-clock sleeps.
@@ -1101,11 +1106,29 @@ const withLaggingBinding = async (use: (bench: {
   /** The reader the BROWSER holds while a node's chat is refused: the node
    *  address, whose pair is whatever the durable binding currently says. */
   readNode: () => Effect.Effect<Effect.Success<ReturnType<typeof makePanel>>, OpFailure>
+  /** The reader a page holds while it FOLLOWS the node's chat: the pair its
+   *  roster last named, asked for as the node's CURRENT chat — which the
+   *  scheduler serves only while it still is, answering `null` otherwise. */
+  follow: (session: string) => Effect.Effect<Effect.Success<ReturnType<typeof makePanel>> | null, OpFailure>
+  said: ReturnType<typeof logging>["said"]
+  /** Runs an effect under the collector, so the lines `said` counts are its. */
+  run: ReturnType<typeof logging>["run"]
+  /** How many MCP credentials have been minted: one per seat acquired. */
+  tickets: () => number
+  /** ...and how many have been released: one per seat closed. */
+  returned: () => number
+  /** Point `agentAt` alone at a session, leaving `nodeAt`'s binding as it is:
+   *  the two readings of one tie disagreeing, as they do for an instant when
+   *  the tie changes under a reader, held still so a case can stand in it. */
+  claim: (session: string) => void
 }) => Promise<void>, args: ReadonlyArray<string> = []) => {
-  const { run, fork } = logging()
+  const { run, fork, said } = logging()
+  let minted = 0
+  let back = 0
   let node: NodeAgent = {
     kind: "node", beside: false, id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2,
   }
+  let claimed: string | null = null
   let ask: Effect.Effect<void> = Effect.void
   const tab = Scope.makeUnsafe()
   const chat = await run(make({
@@ -1118,8 +1141,8 @@ const withLaggingBinding = async (use: (bench: {
     seatableAt: id => id === node.id,
     nodes: () => [node], wake: () => undefined,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
-    agentAt: to => to.agent === node.engine && to.session === node.session ? node : null,
-    ticket: () => ({ bearer: "ticket-one", release: () => {} }),
+    agentAt: to => to.agent === node.engine && to.session === (claimed ?? node.session) ? node : null,
+    ticket: () => { minted += 1; return { bearer: "ticket-one", release: () => { back += 1 } } },
     onState: () => {}, onTranscript: () => {},
   }))
   try {
@@ -1128,12 +1151,21 @@ const withLaggingBinding = async (use: (bench: {
       chat,
       bind: session => { node = { ...node, session } },
       probe: next => { ask = next },
-      read: session => chat.reading({ agent: "alpha", session }, {
+      read: session => served(chat.reading({ agent: "alpha", session }, {
         state: () => {}, transcript: () => {},
-      }).pipe(Effect.provideService(Scope.Scope, tab)),
-      readNode: () => chat.reading({ node: "one" }, {
+      })).pipe(Effect.provideService(Scope.Scope, tab)),
+      readNode: () => served(chat.reading({ node: "one" }, {
         state: () => {}, transcript: () => {},
-      }).pipe(Effect.provideService(Scope.Scope, tab)),
+      })).pipe(Effect.provideService(Scope.Scope, tab)),
+      follow: session => {
+        const to = { agent: "alpha", session, current: true as const }
+        return chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, tab))
+      },
+      said,
+      run,
+      tickets: () => minted,
+      returned: () => back,
+      claim: session => { claimed = session },
     })
   } finally {
     await run(Scope.close(tab, Exit.void))
@@ -1302,6 +1334,197 @@ test("a binding re-pointed back at a replaced chat is opened once the write has 
     const back = await run(readNode())
     expect(back.state().unopened?.what).toBe("stored")
   }, ["--refuse-load"])
+})
+
+/** How many agent processes this bench has started so far. */
+const started = (said: ReadonlyArray<{ message: string }>): number =>
+  said.filter((line) => line.message.includes("chat agent ready")).length
+
+/**
+ * A PAGE FOLLOWING A NODE'S CHAT ASKS FOR IT BY PAIR, AND ITS PAIR CAN BE ONE
+ * BEHIND. The roster it read named the chat a fresh start has just replaced:
+ * the press ended a history visit before the request went out, or a frame
+ * from inside the fresh start still carried the old binding. Read as a visit,
+ * that ask opened the old chat in a history seat of its own: an agent nobody
+ * wanted, abandoned a few milliseconds later when the page's roster moved.
+ *
+ * Asked as the node's CURRENT chat, it is served only while it is, and
+ * otherwise the reading holds nothing.
+ */
+test("following the chat a fresh start just replaced starts no agent", async () => {
+  await withLaggingBinding(async ({ chat, bind, follow, said, tickets, run }) => {
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(first.session)
+    const second = (await run(chat.startAgentSession("one", "alpha")))!
+    // The durable write has not landed: the binding still names `first`.
+    const agents = started(said)
+    const seats = tickets()
+    const followed = await run(follow(first.session))
+    expect(started(said)).toBe(agents)
+    expect(tickets()).toBe(seats)
+    expect(followed).toBe(null)
+    expect(chat.state().session?.id).toBe(second.session)
+  })
+})
+
+/** ...and once the write HAS landed, the old pair names no node at all. That
+ *  is the case a visit answers by asking the engine for its stored sessions —
+ *  with the node asleep, a process started only to ask — and then opening the
+ *  pair beside every node. A follow asks nothing and opens nothing. */
+test("following a pair no node is bound to asks the engine nothing", async () => {
+  await withLaggingBinding(async ({ chat, bind, follow, said, tickets, run }) => {
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(first.session)
+    const second = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(second.session)
+    await run(chat.sleep("one"))
+    const lines = said.length
+    const seats = tickets()
+    const followed = await run(follow(first.session))
+    expect(said.slice(lines).filter((line) => line.annotations["purpose"] === "session list")).toEqual([])
+    expect(started(said.slice(lines))).toBe(0)
+    expect(tickets()).toBe(seats)
+    expect(followed).toBe(null)
+  })
+})
+
+/** ...and for the chat that would not open, where a load is not merely wasted
+ *  but refused: following the lost pair after a fresh start tries nothing. */
+test("following the lost chat after a fresh start tries no load", async () => {
+  await withLaggingBinding(async ({ chat, bind, follow, readNode, said, run }) => {
+    bind("stored")
+    expect((await run(readNode())).state().unopened?.what).toBe("stored")
+    const fresh = (await run(chat.startAgentSession("one", "alpha")))!
+    const agents = started(said)
+    const followed = await run(follow("stored"))
+    expect(started(said)).toBe(agents)
+    expect(followed).toBe(null)
+    expect(chat.state().session?.id).toBe(fresh.session)
+    expect(chat.state().unopened).toBe(null)
+  }, ["--refuse-load"])
+})
+
+/** THE OTHER HALF: a follow of the chat the node IS bound to opens it, at
+ *  once, with one agent — nothing about asking as a follower holds a real
+ *  open back. */
+test("following the node's bound chat with nobody awake opens it with one agent", async () => {
+  await withLaggingBinding(async ({ bind, follow, said, tickets, run }) => {
+    bind("stored")
+    const agents = started(said)
+    const panel = await run(follow("stored"))
+    expect(panel?.state().session?.id).toBe("stored")
+    expect(started(said)).toBe(agents + 1)
+    expect(tickets()).toBe(1)
+  })
+})
+
+/** A binding pointed BACK at a replaced chat (an undo, a pull from the other
+ *  machine) makes it the node's chat again, and a follower opens it where the
+ *  node's chat lives: the node's own seat, not a history seat beside it. */
+test("following a binding re-pointed back at a replaced chat opens it in the node's seat", async () => {
+  await withLaggingBinding(async ({ chat, bind, follow, run }) => {
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(first.session)
+    const second = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(second.session)
+    // A reader sees the write land.
+    const live = (await run(follow(second.session)))!
+    expect(live.state().session?.id).toBe(second.session)
+
+    bind(first.session)
+    const back = await run(follow(first.session))
+    expect(back).toBe(live)
+    expect(live.state().session?.id).toBe(first.session)
+  })
+})
+
+/** A fresh start whose binding write FAILED leaves the node bound to the chat
+ *  it meant to replace, so that chat is still the node's. Its claim on that
+ *  pair goes with the write: a follower is served it in the node's seat, not
+ *  left with nothing. */
+test("a fresh start whose binding write fails gives the old chat back to its followers", async () => {
+  await withLaggingBinding(async ({ chat, bind, follow, readNode, run }) => {
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(first.session)
+    const failed = await run(Effect.result(chat.startAgentSession("one", "alpha", () =>
+      Effect.fail(new UsageFailure({ reason: "the binding could not be written" })))))
+    expect(failed._tag).toBe("Failure")
+
+    const followed = await run(follow(first.session))
+    expect(followed?.state().session?.id).toBe(first.session)
+    expect(followed).toBe(await run(readNode()))
+  })
+})
+
+/** ...AND SO DOES ONE CUT OFF BEFORE ITS WRITE BEGAN: the tab that pressed
+ *  went away, and the request went with it. The interrupt here lands while
+ *  the new chat is being announced to the node's readers, after the seat has
+ *  claimed the old pair and before the write that would justify the claim. */
+test("a fresh start cut off before its binding write gives the old chat back to its followers", async () => {
+  await withLaggingBinding(async ({ chat, bind, follow, readNode, run }) => {
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(first.session)
+    const reader = Scope.makeUnsafe()
+    let start: Fiber.Fiber<unknown, unknown> | undefined
+    let wrote = false
+    try {
+      await run(chat.reading({ node: "one" }, {
+        state: (state) => {
+          if (start !== undefined && state.session !== null && state.session.id !== first.session) start.interruptUnsafe()
+        },
+        transcript: () => {},
+      }).pipe(Effect.provideService(Scope.Scope, reader)))
+      start = Effect.runFork(chat.startAgentSession("one", "alpha", () => Effect.sync(() => { wrote = true })))
+      expect(Exit.hasInterrupts(await Effect.runPromise(Fiber.await(start)))).toBe(true)
+      expect(wrote).toBe(false)
+
+      const followed = await run(follow(first.session))
+      expect(followed?.state().session?.id).toBe(first.session)
+      expect(followed).toBe(await run(readNode()))
+    } finally {
+      await run(Scope.close(reader, Exit.void))
+    }
+  })
+})
+
+/** ...WHILE A WRITE ALREADY UNDER WAY IS NOT CUT: it completes, the claim it
+ *  justifies stands, and a follower of the replaced pair is answered with
+ *  nothing until the binding the bench reads catches up. */
+test("a fresh start interrupted during its binding write finishes the write, and its claim stands", async () => {
+  await withLaggingBinding(async ({ chat, bind, follow, run }) => {
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
+    bind(first.session)
+    let wrote = false
+    await run(Effect.scoped(Effect.gen(function*() {
+      const writing = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      const start = yield* Effect.forkChild(chat.startAgentSession("one", "alpha", () => Effect.gen(function*() {
+        yield* Deferred.succeed(writing, undefined)
+        yield* Deferred.await(release)
+        wrote = true
+      })), { startImmediately: true })
+      yield* Deferred.await(writing)
+      const stopping = yield* Effect.forkChild(Fiber.interrupt(start), { startImmediately: true })
+      yield* Deferred.succeed(release, undefined)
+      yield* Fiber.join(stopping)
+    })))
+    expect(wrote).toBe(true)
+    expect(await run(follow(first.session))).toBe(null)
+  })
+})
+
+/** A FOLLOWER ANSWERED "NO" HOLDS NOTHING, a seat included. The tie this
+ *  follower read names the pair, so a seat is acquired for its node; by then
+ *  the node's own binding says otherwise, and the seat made only to say so
+ *  is closed again, its credential with it. */
+test("a follower answered no from a seat it made leaves no seat behind", async () => {
+  await withLaggingBinding(async ({ chat, claim, follow, tickets, returned, run }) => {
+    claim("stored")
+    expect(await run(follow("stored"))).toBe(null)
+    expect(tickets()).toBe(1)
+    expect(returned()).toBe(1)
+    expect(chat.live().size).toBe(0)
+  })
 })
 
 /**

@@ -4599,12 +4599,19 @@ When("I return to the parent agent {string}", async function (this: OlaiWorld, n
   await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
 });
 
+/** Every agent process the server has started so far, read off its own log:
+ *  the one way these steps count. */
+const agentStarts = (world: OlaiWorld): number => world.serverLog.text.split("chat agent ready").length - 1;
 When("the agent starts so far are counted", function (this: OlaiWorld) {
-  this.notedAgentStarts = this.serverLog.text.split("chat agent ready").length - 1;
+  this.notedAgentStarts = agentStarts(this);
 });
 Then("no further agent process has started", function (this: OlaiWorld) {
   assert.notEqual(this.notedAgentStarts, null);
-  assert.equal(this.serverLog.text.split("chat agent ready").length - 1, this.notedAgentStarts);
+  assert.equal(agentStarts(this), this.notedAgentStarts);
+});
+Then("exactly one further agent process has started", function (this: OlaiWorld) {
+  assert.notEqual(this.notedAgentStarts, null);
+  assert.equal(agentStarts(this), this.notedAgentStarts! + 1);
 });
 Then("the list-asks have grown", async function (this: OlaiWorld) {
   assert.notEqual(this.notedListAsks, null);

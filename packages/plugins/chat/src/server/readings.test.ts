@@ -190,6 +190,44 @@ test("a seat freed while the reading is between attempts is not lost", async () 
 })
 
 /**
+ * NOT A NODE'S CHAT IS NOT A REFUSAL. A page following a node asked for a pair
+ * the node has just replaced; the scheduler acquired nothing for it, and the
+ * page's own roster is about to move it on. So nothing is drawn — no sentence,
+ * no *Try again* — and nothing is waited for: a seat freeing is no reason to
+ * ask again for a chat that is not the node's.
+ */
+test("a reading that is not a node's chat stays off, draws no refusal and waits for nothing", async () => {
+  const bench = seatBench()
+  let attempts = 0
+  let released = 0
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const asked = yield* Deferred.make<void>()
+    const seen = yield* Queue.unbounded<ChatState>()
+    const source = yield* readings(Effect.succeed({
+      reading: () => Effect.gen(function*() {
+        attempts++
+        yield* Effect.acquireRelease(Effect.void, () => Effect.sync(() => { released++ }))
+        yield* Deferred.succeed(asked, undefined)
+        return null
+      }),
+      seats: bench.seats,
+    }))
+    const to = { agent: "test", session: "replaced", current: true as const }
+    yield* Effect.forkScoped(Stream.runForEach(source.state.source(to), value => Queue.offer(seen, value)))
+    yield* Deferred.await(asked)
+    yield* Effect.sync(bench.free)
+    const late = Option.getOrThrow(yield* Stream.runHead(source.state.source(to)))
+    expect(late).toEqual(CHAT_OFF)
+    expect(attempts).toBe(1)
+    // What the attempt holds is the reading's, released with it, as an open
+    // reading's is.
+    expect(released).toBe(0)
+    expect([...yield* Queue.takeAll(seen)].every(state => state.unopened === null)).toBe(true)
+  })))
+  expect(released).toBe(1)
+})
+
+/**
  * THE WINDOW AND THE PAGE — the two halves of juspay/olai#663's delivery.
  *
  * The transcript here is a hundred rows; the delivery is the newest

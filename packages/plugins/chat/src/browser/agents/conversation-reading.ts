@@ -1,10 +1,15 @@
 import { createMemo, untrack, type Accessor } from "solid-js"
 import type { PanelAddress } from "../../wire/session.ts"
 import type { Chat } from "../chat/state.ts"
+import { isPast } from "./past.ts"
 import type { createAgentReadings } from "./reading.ts"
 import { talking } from "./roster.ts"
 
-/** A page's lease follows its live binding or its explicit history visit. */
+/** A page's lease follows its live binding or its explicit history visit, and
+ *  its address says which: a pair the node is bound to is asked for as the
+ *  node's CURRENT chat, which the server serves only while it still is — so a
+ *  page whose roster is a frame behind starts nothing for the chat just
+ *  replaced — and an earlier chat is asked for as a visit. */
 export const createConversation = (
   reading: ReturnType<typeof createAgentReadings> | undefined,
   node: Accessor<string>,
@@ -22,6 +27,10 @@ export const createConversation = (
     return { agent: agent.engine, session: agent.session }
   }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
   const hasPanel = createMemo(() => talking(reading?.agents.at(node())))
+  /** Whether the pair in hand is the node's chat rather than an earlier one —
+   *  the one question {@link isPast} answers, asked of the visit if there is
+   *  one; with none, the pair is the roster's own and so the node's. */
+  const following = createMemo(() => !isPast(reading?.visiting(node()), reading?.agents.at(node())))
   const address = createMemo<PanelAddress>(() => {
     const visited = reading?.visiting(node())
     return visited === undefined ? { node: node() } : { agent: visited.agent, session: visited.session }
@@ -44,7 +53,10 @@ export const createConversation = (
     const to = pair()
     // Once bound, the session pair is the subscription identity. Switching
     // from a node address to the same history entry keeps the same reading.
-    const at = to ?? address()
+    // Whether that pair is followed or visited is part of it: the server
+    // answers the two differently, so a page whose answer flips takes a new
+    // subscription.
+    const at = to === null ? address() : following() ? { ...to, current: true as const } : to
     return untrack(() => ({ shared: reading.conversation(at, to), node: node() }))
   }, null, {
     equals: (a, b) => a === b || (a !== null && b !== null && a.shared === b.shared && a.node === b.node),

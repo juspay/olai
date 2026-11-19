@@ -523,6 +523,7 @@ Feature: A node with an `agent-session` property IS an agent
     # Classified at the wire, by the protocol's own code and never by the
     # sentence: what the body says is olai's, in words about this machine.
     Then the panel says this chat is not on this machine
+    When the agent starts so far are counted
     # The engine's own sentence is still there — the id in it is how somebody
     # recognises which chat this was — and it is no longer an alarm, because
     # nothing here is broken.
@@ -551,6 +552,10 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     Then the panel shows no such refusal
     And there is somewhere to type into
+    # ...and the press started one agent: the fresh chat's own, because the
+    # engine's refusal had already stopped the one before it. None for the
+    # chat it left.
+    And exactly one further agent process has started
 
   @scratch:lanes
   Scenario: An EARLIER chat the engine cannot find is said plainly, and offers no fresh start
