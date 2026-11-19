@@ -1307,12 +1307,19 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (to.current === true) {
           const node = nodeFor(to.agent, to.session)
           if (node === null) return null
-          return yield* working(node.id, undefined, ({ slot }) => slot.opening.withPermit(Effect.gen(function*() {
+          const answer = yield* working(node.id, undefined, ({ slot, fresh }) => slot.opening.withPermit(Effect.gen(function*() {
             const binding = settledBinding(slot, nodeAt(node.id))
-            if (binding !== readingKey(to) || slot.lagging.has(binding)) return null
+            if (binding !== readingKey(to) || slot.lagging.has(binding)) return { panel: null, unused: fresh ? slot : null }
             readerNodes.set(observer, node.id)
-            return yield* into(slot)
+            return { panel: yield* into(slot), unused: null }
           })))
+          // A SEAT MADE ONLY TO SAY NO GOES AGAIN: the binding moved while it
+          // was being acquired, so nothing asked for it. Unless somebody has
+          // taken it since, it is closed as `reread` closes one, ticket and
+          // process with it, and this reading holds nothing.
+          const unused = answer.unused
+          if (unused !== null) yield* Effect.suspend(() => unused.uses === 0 ? close(unused, "scope released") : Effect.void)
+          return answer.panel
         }
         const place = yield* locate(to)
         if (place === null) {
@@ -1556,34 +1563,42 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   && (previous.agent !== agent || previous.session !== session.id)
                   ? readingKey({ agent: previous.agent, session: previous.session })
                   : null
-                if (replaced !== null) {
-                  slot.superseded.add(replaced)
-                  // ... AND THE SAME PAIR AS A BINDING STILL TO MOVE. The write
-                  // is `committed` below; until a node reader sees it land, the
-                  // durable answer to "what is this node bound to" is the chat
-                  // that was just replaced ({@link NodeSlot.lagging}).
-                  slot.lagging.add(replaced)
-                }
-                // Retain old identities for this slot's lifetime: readers may
-                // already hold a binding snapshot when persistence catches up.
-                // A harness may return the same identity for fresh start. Its
-                // existing readers still need the new state and cleared replay.
-                for (const reader of readingListeners(slot)) {
-                  reader.state(slot.state)
-                  reader.transcript(whole(slot.panel, before))
-                }
-                yield* flush(slot)
-                // A WRITE THAT FAILED TAKES THE CLAIM BACK: the node is still
-                // bound to the replaced pair, so it is the node's chat and a
-                // page following the node must be served it here. Left
-                // standing, the claim would answer that page with nothing.
-                if (committed !== undefined) yield* committed({ agent, session: session.id }).pipe(
-                  Effect.tapError(() => Effect.sync(() => {
-                    if (replaced === null) return
-                    slot.superseded.delete(replaced)
-                    slot.lagging.delete(replaced)
-                  })),
-                )
+                // THE CLAIM AND THE WRITE THAT JUSTIFIES IT ARE ONE ACT. The
+                // write cannot be cut in half, and the claim is taken back on
+                // every exit where it did not land — a failed write, or an
+                // interrupt (a tab closed mid-press) that arrived before it
+                // began: the node is then still bound to the replaced pair, so
+                // it is the node's chat, and a page following the node must be
+                // served it here rather than answered with nothing.
+                let written = false
+                yield* Effect.gen(function*() {
+                  if (replaced !== null) {
+                    slot.superseded.add(replaced)
+                    // ... AND THE SAME PAIR AS A BINDING STILL TO MOVE. The
+                    // write is `committed` below; until a node reader sees it
+                    // land, the durable answer to "what is this node bound to"
+                    // is the chat that was just replaced
+                    // ({@link NodeSlot.lagging}).
+                    slot.lagging.add(replaced)
+                  }
+                  // Retain old identities for this slot's lifetime: readers may
+                  // already hold a binding snapshot when persistence catches up.
+                  // A harness may return the same identity for fresh start. Its
+                  // existing readers still need the new state and cleared replay.
+                  for (const reader of readingListeners(slot)) {
+                    reader.state(slot.state)
+                    reader.transcript(whole(slot.panel, before))
+                  }
+                  yield* flush(slot)
+                  yield* Effect.uninterruptible(Effect.tap(
+                    committed?.({ agent, session: session.id }) ?? Effect.void,
+                    () => Effect.sync(() => { written = true }),
+                  ))
+                }).pipe(Effect.onExit(() => Effect.sync(() => {
+                  if (written || replaced === null) return
+                  slot.superseded.delete(replaced)
+                  slot.lagging.delete(replaced)
+                })))
               })
               const result = yield* Effect.acquireUseRelease(
                 Effect.sync(() => { slot.mutingReaders = true }),

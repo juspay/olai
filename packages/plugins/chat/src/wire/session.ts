@@ -16,8 +16,8 @@ export type Conversing = typeof Conversing.Type
  *  one roster frame behind, and the scheduler serves such a pair only while the
  *  node is still bound to it, holding nothing otherwise. Without it, the pair
  *  is a visit — an earlier chat somebody chose — and is opened wherever it
- *  lives. Absent is a visit so that every caller that does not say, an old tab
- *  included, keeps the meaning a pair always had. */
+ *  lives. Absent is a visit, so every caller that does not say keeps the
+ *  meaning a pair always had. */
 export const PanelAddress = Schema.Union([
   Schema.Struct({ ...Conversing.fields, current: Schema.optionalKey(Schema.Literal(true)) }),
   Schema.Struct({ node: Schema.String }),
