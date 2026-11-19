@@ -74,8 +74,16 @@ export interface LiveSession {
  * scope exposed for the server's roster projection. */
 export interface Chat extends Panel {
   readonly sessionsFor: (agent: string) => Effect.Effect<Listed>
-  /** A reader owns its hold until its Effect scope closes. */
-  readonly reading: (to: PanelAddress, observer: ReadingObserver) => Effect.Effect<Panel, OpFailure, Scope.Scope>
+  /** A reader owns its hold until its Effect scope closes.
+   *
+   *  `null` is "not this node's chat": a pair asked for as a node's CURRENT
+   *  chat ({@link PanelAddress}) that the node is no longer bound to, or whose
+   *  replacement this seat is still waiting to see written. Nothing is opened
+   *  for it — no history seat, no root panel, no load, no session listing —
+   *  and it holds only the reader's own registration, because the page that
+   *  asked is one roster frame behind and asks again when that frame arrives.
+   *  A visit and a node address never answer `null`. */
+  readonly reading: (to: PanelAddress, observer: ReadingObserver) => Effect.Effect<Panel | null, OpFailure, Scope.Scope>
   /** Apply a browser gesture only to the conversation it was drawn for. */
   readonly inConversation: <A>(to: PanelAddress, scope: string | null | undefined, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
   /**
@@ -235,23 +243,26 @@ interface NodeSlot {
    * replacements and remains meaningful after notification delivery resumes. */
   mutingReaders: boolean
   /** Replacements this slot made, keyed by engine and session; owned by it.
-   *  Kept for the slot's whole life, because an explicit navigation to one of
-   *  these pairs is a HISTORY visit for as long as the slot exists. */
+   *  Kept for the slot's whole life, because a VISIT to one of these pairs is
+   *  a history visit for as long as the slot exists. Withdrawn only when the
+   *  binding write that justified the replacement fails: the node is then
+   *  still bound to the pair, so it is that node's chat and not history. */
   readonly superseded: Set<string>
   /**
    * ... AND THE SUBSET THE DURABLE BINDING HAS NOT CAUGHT UP WITH YET, which is
    * a much shorter life and has to be.
    *
-   * The node ADDRESS is reconciled against `nodeAt` rather than navigated to:
-   * what a tab holding it asks for is "whatever this node is bound to", and
-   * the answer lags the live slot for as long as the property write takes. A
-   * pair in here is one this slot replaced and still sees on the binding, so
-   * loading it would undo the replacement; a pair that is merely SUPERSEDED is
-   * not, because a binding re-pointed BACK at an old chat — an undo, a pull
-   * from the other machine — is a person asking for it, and must be opened.
+   * Two readers ask "whatever this node is bound to" rather than navigating:
+   * the node ADDRESS, and a pair asked for as the node's CURRENT chat. Both
+   * are answered against `nodeAt`, and that answer lags the live slot for as
+   * long as the property write takes. A pair in here is one this slot replaced
+   * and still sees on the binding, so loading it would undo the replacement; a
+   * pair that is merely SUPERSEDED is not, because a binding re-pointed BACK at
+   * an old chat — an undo, a pull from the other machine — is a person asking
+   * for it, and must be opened, in this seat.
    *
    * Emptied the moment the binding reads anything this slot is not waiting on,
-   * which is the write having landed.
+   * which is the write having landed ({@link settledBinding}).
    */
   readonly lagging: Set<string>
   openingFor: Conversing | null
@@ -1165,9 +1176,32 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       yield* Effect.forEach([...closing.values()], Deferred.await, { discard: true })
     })
 
-    /** One routing rule for subscriptions and explicit navigation. Locate reads
-     * durable bindings; this permit reconciles that snapshot with replacements
-     * owned by the live slot. History work starts only after releasing it. */
+    /**
+     * HAS THE DURABLE WRITE LANDED? It has the moment the binding reads
+     * anything this slot is not waiting on — its own new pair, or a later one,
+     * or one somebody typed. The wait ends there and for good: what is left in
+     * `superseded` is history routing, and a binding pointed BACK at a
+     * replaced chat is a person asking for that chat rather than a write that
+     * has not arrived ({@link NodeSlot.lagging}).
+     *
+     * ONE RULE FOR BOTH READERS THAT ASK "WHATEVER THIS NODE IS BOUND TO" —
+     * the node address and a pair asked for as the node's current chat — read
+     * under the slot's `opening` permit, and answering the binding's key.
+     */
+    const settledBinding = (slot: NodeSlot, bound: NodeAgent | null): string | null => {
+      const binding = bound?.session == null
+        ? null
+        : readingKey({ agent: bound.engine, session: bound.session })
+      if (binding === null || !slot.lagging.has(binding)) slot.lagging.clear()
+      return binding
+    }
+
+    /** One routing rule for VISITS by pair, subscriptions and explicit
+     * navigation both. Locate reads durable bindings; this permit reconciles
+     * that snapshot with replacements owned by the live slot, so a pair the
+     * slot has replaced is visited in a history seat of its own. History work
+     * starts only after releasing it. A pair asked for as the node's current
+     * chat does not come through here ({@link reading}). */
     const inNodeConversation = <A, E, R>(
       place: NonNullable<Effect.Success<ReturnType<typeof locate>>>,
       to: Conversing,
@@ -1201,16 +1235,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return yield* working(to.node, undefined, ({ slot }) => slot.opening.withPermit(Effect.gen(function*() {
             const bound = nodeAt(to.node)
             const state = slot.panel.state()
-            // HAS THE DURABLE WRITE LANDED? It has the moment the binding reads
-            // anything this slot is not waiting on — its own new pair, or a
-            // later one, or one somebody typed. The wait ends there and for
-            // good: what is left in `superseded` is history routing, and a
-            // binding pointed BACK at a replaced chat is a person asking for
-            // that chat rather than a write that has not arrived.
-            const binding = bound?.session == null
-              ? null
-              : readingKey({ agent: bound.engine, session: bound.session })
-            if (binding === null || !slot.lagging.has(binding)) slot.lagging.clear()
+            const binding = settledBinding(slot, bound)
             // A refused open belongs to this seat. Reading it must not replace
             // the pending new/resume operation with another load.
             //
@@ -1219,9 +1244,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // start is handed the OLD pair — and where that pair is one the
             // engine does not have, loading it would put the refusal that was
             // just escaped back over the conversation that escaped it. The
-            // pair-addressed door reads `superseded` for the same race
-            // ({@link inNodeConversation}); this is that door for the node
-            // address, narrowed to the window where the two can disagree.
+            // pair-addressed doors read the same record for the same race:
+            // a visit through `superseded` ({@link inNodeConversation}), a
+            // follower through `lagging`, below.
             if (state.unopened === null && binding !== null && bound?.session != null
               && !slot.lagging.has(binding)
               && (state.session === null || state.session.id !== bound.session || agentIn(state)?.id !== bound.engine || state.status === "gone")) {
@@ -1245,19 +1270,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           if (held.size === 0 && readers.get(key) === held) readers.delete(key)
           released(node)
         }))
-        const place = yield* locate(to)
-        if (place === null) {
-          const state = root.state()
-          const panel = state.session?.id === to.session && agentIn(state)?.id === to.agent
-            ? root
-            : yield* Effect.acquireRelease(rootPanel(), panel => panel.stop)
-          if (panel !== root) yield* Effect.catch(panel.loadSession(to.agent, to.session), () => Effect.void)
-          observer.state(panel.state())
-          observer.transcript(whole(panel))
-          return panel
-        }
-        readerNodes.set(observer, place.node.id)
-        return yield* inNodeConversation(place, to, slot => Effect.gen(function*() {
+        const into = (slot: NodeSlot) => Effect.gen(function*() {
           const state = slot.panel.state()
           if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
             // An agent's refusal is conversation state, not a broken wire.
@@ -1271,7 +1284,49 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           observer.state(slot.panel.state())
           observer.transcript(whole(slot.panel))
           return slot.panel
-        }))
+        })
+        /**
+         * THE NODE'S CURRENT CHAT, AS A PAGE FOLLOWING IT LAST SAW IT — served
+         * only while it still is.
+         *
+         * The page's pair can be one roster frame behind: a fresh start ends a
+         * history visit before its request goes out, and a frame published
+         * from inside it can still carry the old binding. Read as a visit, that
+         * pair is opened in a history seat or a root panel — an agent nobody
+         * wanted, abandoned when the page's roster moves a moment later. Here
+         * it is answered `null` instead, and nothing is opened.
+         *
+         * NO `locate`: its listing arm can start a process just to ask. The
+         * first node whose binding names the pair is the one asked about, as
+         * a visit's `locate` would find it. Then under that seat's permit the
+         * binding is read again, because a fresh start may have finished
+         * while this waited, and a pair this seat replaced and still sees on
+         * the binding is the write not having landed — not the node's chat.
+         * What passes runs the visit's own arm, in the node's own seat.
+         */
+        if (to.current === true) {
+          const node = nodeFor(to.agent, to.session)
+          if (node === null) return null
+          return yield* working(node.id, undefined, ({ slot }) => slot.opening.withPermit(Effect.gen(function*() {
+            const binding = settledBinding(slot, nodeAt(node.id))
+            if (binding !== readingKey(to) || slot.lagging.has(binding)) return null
+            readerNodes.set(observer, node.id)
+            return yield* into(slot)
+          })))
+        }
+        const place = yield* locate(to)
+        if (place === null) {
+          const state = root.state()
+          const panel = state.session?.id === to.session && agentIn(state)?.id === to.agent
+            ? root
+            : yield* Effect.acquireRelease(rootPanel(), panel => panel.stop)
+          if (panel !== root) yield* Effect.catch(panel.loadSession(to.agent, to.session), () => Effect.void)
+          observer.state(panel.state())
+          observer.transcript(whole(panel))
+          return panel
+        }
+        readerNodes.set(observer, place.node.id)
+        return yield* inNodeConversation(place, to, into)
       })
 
     /**
@@ -1317,7 +1372,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // pair here could replace a freshly opened session while its binding
         // write is still landing; no new process can satisfy the old token.
         if (scope !== undefined || !mayOpen) return refuse()
-        return Effect.scoped(Effect.flatMap(reading(to, { state: () => {}, transcript: () => {} }), apply))
+        // A pair asked for as the node's current chat that no longer is one
+        // matches nothing to act on either.
+        return Effect.scoped(Effect.flatMap(reading(to, { state: () => {}, transcript: () => {} }),
+          (panel) => panel === null ? refuse() : apply(panel)))
       })
 
     return {
@@ -1494,14 +1552,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 // engines. The newly opened pair is current, never superseded.
                 slot.superseded.delete(readingKey({ agent, session: session.id }))
                 slot.lagging.delete(readingKey({ agent, session: session.id }))
-                if (previous?.agent !== undefined
-                  && (previous.agent !== agent || previous.session !== session.id)) {
-                  slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
+                const replaced = previous?.agent !== undefined
+                  && (previous.agent !== agent || previous.session !== session.id)
+                  ? readingKey({ agent: previous.agent, session: previous.session })
+                  : null
+                if (replaced !== null) {
+                  slot.superseded.add(replaced)
                   // ... AND THE SAME PAIR AS A BINDING STILL TO MOVE. The write
                   // is `committed` below; until a node reader sees it land, the
                   // durable answer to "what is this node bound to" is the chat
                   // that was just replaced ({@link NodeSlot.lagging}).
-                  slot.lagging.add(readingKey({ agent: previous.agent, session: previous.session }))
+                  slot.lagging.add(replaced)
                 }
                 // Retain old identities for this slot's lifetime: readers may
                 // already hold a binding snapshot when persistence catches up.
@@ -1512,7 +1573,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   reader.transcript(whole(slot.panel, before))
                 }
                 yield* flush(slot)
-                if (committed !== undefined) yield* committed({ agent, session: session.id })
+                // A WRITE THAT FAILED TAKES THE CLAIM BACK: the node is still
+                // bound to the replaced pair, so it is the node's chat and a
+                // page following the node must be served it here. Left
+                // standing, the claim would answer that page with nothing.
+                if (committed !== undefined) yield* committed({ agent, session: session.id }).pipe(
+                  Effect.tapError(() => Effect.sync(() => {
+                    if (replaced === null) return
+                    slot.superseded.delete(replaced)
+                    slot.lagging.delete(replaced)
+                  })),
+                )
               })
               const result = yield* Effect.acquireUseRelease(
                 Effect.sync(() => { slot.mutingReaders = true }),

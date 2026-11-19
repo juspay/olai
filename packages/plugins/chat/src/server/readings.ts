@@ -18,7 +18,10 @@ import type { PanelAddress } from "../wire/session.ts"
 import { CHAT_OFF, type ChatEntry, type ChatState, TRANSCRIPT_WINDOW } from "../wire.ts"
 import type { Saying } from "@kolu/acp/wire"
 
-class Key extends Data.Class<{ readonly node: string | null; readonly agent: string | null; readonly session: string | null }> {}
+/** `current` is part of the key: a pair asked for as a node's current chat and
+ *  the same pair visited are two readings, because only the first may be
+ *  answered with nothing. */
+class Key extends Data.Class<{ readonly node: string | null; readonly agent: string | null; readonly session: string | null; readonly current: boolean }> {}
 
 type Sink<A> = (value: A) => void
 type Deltas<T> = CollectionDeltasMsg<string, T>
@@ -34,7 +37,9 @@ interface Reading {
 /** Which reading a `PanelAddress` names — the RcMap key, spelled once so the
  *  subscribe path and the page path cannot key one conversation two ways. */
 const keyOf = (to: PanelAddress): Key =>
-  new Key("node" in to ? { node: to.node, agent: null, session: null } : { node: null, ...to })
+  new Key("node" in to
+    ? { node: to.node, agent: null, session: null, current: false }
+    : { node: null, agent: to.agent, session: to.session, current: to.current === true })
 
 /** The newest {@link TRANSCRIPT_WINDOW} rows, in conversation order — what one
  *  subscribe ships. Sorted by `seq` rather than trusted to the map's insertion
@@ -62,7 +67,9 @@ const pageOf = (
 export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) => Effect.gen(function*() {
   const held = yield* RcMap.make({
     lookup: (key: Key) => Effect.gen(function*() {
-      const to: PanelAddress = key.node !== null ? { node: key.node } : { agent: key.agent!, session: key.session! }
+      const to: PanelAddress = key.node !== null
+        ? { node: key.node }
+        : { agent: key.agent!, session: key.session!, ...(key.current ? { current: true as const } : {}) }
       let state: ChatState = CHAT_OFF
       const entries = new Map<string, ChatEntry>()
       const states = new Set<Sink<ChatState>>()
@@ -138,6 +145,12 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
           // child belongs to nobody: an open that SUCCEEDED gives its scope to
           // the reading's, and every other ending — refused, or the loop
           // interrupted mid-open — closes it where it stands.
+          //
+          // A SUCCESS WITH NO PANEL is a pair asked for as a node's current
+          // chat that is not one any more (`../scoped.ts`'s `Chat.reading`).
+          // It is not a refusal: the reader stays as it was built, at
+          // `CHAT_OFF`, with nothing drawn and nothing to wait for, and the
+          // registration it holds goes with the reading like an open one's.
           const opened = yield* Effect.result(
             Effect.provideService(chat.reading(to, observer), Scope.Scope, attempt).pipe(
               Effect.onExit(exit =>

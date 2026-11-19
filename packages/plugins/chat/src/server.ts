@@ -1355,8 +1355,13 @@ export default definePlugin({
           // THE NARROWING IS THE WIRING'S, and it is where the panel's own
           // contract meets the pass's: what the pass may do to the conversation
           // it watches is stop its turn (`./server/sleep.ts`'s `Stoppable`).
+          // The pass names the conversation itself and never asks for a node's
+          // current chat, so `null` is not an answer it can meet; it is
+          // refused rather than assumed away.
           watch: (to, observer) =>
-            Effect.map(serving.reading(to, observer), (panel) => ({ cancel: panel.cancel })),
+            Effect.flatMap(serving.reading(to, observer), (panel) => panel === null
+              ? Effect.fail(new UsageFailure({ reason: "the conversation changed; nothing to watch" }))
+              : Effect.succeed({ cancel: panel.cancel })),
           withdraw: (to) => serving.withdraw(SLEEP_WORD, to),
           read: gate.read,
           write: (request) => gate.run(request, "sleep"),

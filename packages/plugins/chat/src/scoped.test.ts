@@ -1088,6 +1088,11 @@ test("trash releases a running node and takes its scopes with it", async () => {
   }
 })
 
+/** A visit and a node address are never answered `null` (`Chat.reading`); a
+ *  bench that reads one says so rather than carrying the case around. */
+const served = <A, E, R>(reading: Effect.Effect<A | null, E, R>): Effect.Effect<A, E, R> =>
+  Effect.flatMap(reading, (panel) => panel === null ? Effect.die("a visit was answered with nothing") : Effect.succeed(panel))
+
 
 /** The node binding deliberately lags behind the live slot. Probes can be
  * held with Deferreds so the tests choose ordering without wall-clock sleeps.
@@ -1138,12 +1143,12 @@ const withLaggingBinding = async (use: (bench: {
       chat,
       bind: session => { node = { ...node, session } },
       probe: next => { ask = next },
-      read: session => chat.reading({ agent: "alpha", session }, {
+      read: session => served(chat.reading({ agent: "alpha", session }, {
         state: () => {}, transcript: () => {},
-      }).pipe(Effect.provideService(Scope.Scope, tab)),
-      readNode: () => chat.reading({ node: "one" }, {
+      })).pipe(Effect.provideService(Scope.Scope, tab)),
+      readNode: () => served(chat.reading({ node: "one" }, {
         state: () => {}, transcript: () => {},
-      }).pipe(Effect.provideService(Scope.Scope, tab)),
+      })).pipe(Effect.provideService(Scope.Scope, tab)),
       follow: session => {
         const to = { agent: "alpha", session, current: true as const }
         return chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, tab))
@@ -1437,7 +1442,7 @@ test("a fresh start whose binding write fails gives the old chat back to its fol
 
     const followed = await run(follow(first.session))
     expect(followed?.state().session?.id).toBe(first.session)
-    expect(await run(readNode())).toBe(followed)
+    expect(followed).toBe(await run(readNode()))
   })
 })
 

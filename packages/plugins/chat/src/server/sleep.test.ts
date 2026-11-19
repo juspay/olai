@@ -212,7 +212,9 @@ const withBench = async (
       // THE PASS'S OWN CONTRACT, narrowed here as the wiring narrows it: what it
       // may do to the conversation it watches is stop its turn.
       watch: (to, observer) =>
-        Effect.map(chat.reading(to, observer), (panel) => ({ cancel: panel.cancel })),
+        Effect.flatMap(chat.reading(to, observer), (panel) => panel === null
+          ? Effect.fail(new UsageFailure({ reason: "the conversation changed; nothing to watch" }))
+          : Effect.succeed({ cancel: panel.cancel })),
       // READ EVERY TIME, and answered with the vault of the moment: the second
       // read is a real second reading rather than the first one replayed.
       read: Effect.suspend(() => {
