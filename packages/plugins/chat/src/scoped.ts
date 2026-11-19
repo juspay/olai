@@ -159,8 +159,15 @@ export interface ReadingObserver {
 
 /** The scheduler's policy and dependencies. Unlike a panel, this always owns
  * a node pool; there is no optional field that changes which lifecycle `make`
- * constructs. */
-export interface Options extends PanelOptions {
+ * constructs.
+ *
+ * THE ONE FIELD IT RELAXES is the activation's remembered conversation: a
+ * PANEL must be handed one, because a panel that minted its own would be a
+ * second answer to what this activation remembers ({@link PanelOptions.memory});
+ * the SCHEDULER is the end that mints it, once, and hands the same one to
+ * every panel it builds. */
+export interface Options extends Omit<PanelOptions, "memory"> {
+  readonly memory?: PanelOptions["memory"]
   readonly onConversationClosed?: (state: ReturnType<Panel["state"]>) => void
   readonly onConversationState?: (state: ReturnType<Panel["state"]>, entries: ReturnType<Panel["entries"]>, node: string | null) => void
   readonly onConversationTranscript?: (state: ReturnType<Panel["state"]>, change: Change<ChatEntry>) => void
@@ -275,6 +282,13 @@ interface PendingDelivery {
 }
 
 const empty: Change<ChatEntry> = { upserts: [], removes: [], appends: [] }
+
+/** A reader joining is handed the whole conversation as one change: every row
+ *  the panel holds now, upserted at once. `gone` names the rows that reader was
+ *  shown before and has to drop first — what a conversation being REPLACED
+ *  looks like, as against one being added to. */
+const whole = (panel: Panel, gone: ReadonlyArray<string> = []): Change<ChatEntry> =>
+  ({ ...empty, removes: gone, upserts: [...panel.entries().values()] })
 
 /** Build the scheduler. Focused state-machine tests call `makePanel` directly;
  * package consumers always get the node-scoped lifecycle. */
@@ -494,8 +508,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const publishSwitch = (before: Panel, after: Panel): void => {
       const gone = [...before.entries().keys()]
       if (gone.length > 0) panelOptions.onTranscript({ ...empty, removes: gone })
-      const arrived = [...after.entries().values()]
-      if (arrived.length > 0) panelOptions.onTranscript({ ...empty, upserts: arrived })
+      const arrived = whole(after)
+      if (arrived.upserts.length > 0) panelOptions.onTranscript(arrived)
       panelOptions.onState(after.state())
       liveMoved()
     }
@@ -1214,7 +1228,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               yield* Effect.catch(slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
             }
             observer.state(slot.panel.state())
-            observer.transcript({ ...empty, upserts: [...slot.panel.entries().values()] })
+            observer.transcript(whole(slot.panel))
             return slot.panel
           })))
         }
@@ -1239,7 +1253,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             : yield* Effect.acquireRelease(rootPanel(), panel => panel.stop)
           if (panel !== root) yield* Effect.catch(panel.loadSession(to.agent, to.session), () => Effect.void)
           observer.state(panel.state())
-          observer.transcript({ ...empty, upserts: [...panel.entries().values()] })
+          observer.transcript(whole(panel))
           return panel
         }
         readerNodes.set(observer, place.node.id)
@@ -1255,7 +1269,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }
           if (!slot.history) yield* flush(slot)
           observer.state(slot.panel.state())
-          observer.transcript({ ...empty, upserts: [...slot.panel.entries().values()] })
+          observer.transcript(whole(slot.panel))
           return slot.panel
         }))
       })
@@ -1495,7 +1509,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 // existing readers still need the new state and cleared replay.
                 for (const reader of readingListeners(slot)) {
                   reader.state(slot.state)
-                  reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries().values()] })
+                  reader.transcript(whole(slot.panel, before))
                 }
                 yield* flush(slot)
                 if (committed !== undefined) yield* committed({ agent, session: session.id })
@@ -1513,7 +1527,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   // the existing reader face and report their gesture's error.
                   for (const reader of readingListeners(slot)) {
                     reader.state(state)
-                    reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries().values()] })
+                    reader.transcript(whole(slot.panel, before))
                   }
                   return null
                 }

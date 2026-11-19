@@ -19,6 +19,7 @@ import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel, type Panel } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import type { Change } from "@kolu/acp-harness"
 import type { ChatEntry } from "olai-plugin-chat/wire"
 
@@ -65,6 +66,7 @@ test("a loaded conversation is published as one change, after the one that clear
     roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
+    memory: volatile(),
     scoping: null,
     onState: () => {},
     onTranscript: (change) => told.push(change),

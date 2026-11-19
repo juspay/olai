@@ -71,7 +71,6 @@ import { useConversationUI } from "./ui.tsx"
 import type { Chat } from "./state.ts"
 
 export function Watching(props: { readonly chat: Chat }) {
-  const { isPreviewing, togglePreview } = useConversationUI().previewing
   const out = () => props.chat.state().watching
   return (
     <Show when={out().length > 0}>

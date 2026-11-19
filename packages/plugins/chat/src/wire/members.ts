@@ -48,17 +48,11 @@
  * was never sent.
  */
 import { Json } from "../json.ts"
-export { Json } from "../json.ts"
 
 import { Conversing } from "./session.ts"
 import {
   Armed,
   Ask,
-  AskAnswer,
-  AskChoice,
-  AskField,
-  AskLink,
-  AskOutcome,
   AuthMethod,
   AuthStatus,
   Command,
@@ -75,44 +69,34 @@ import {
   ToolStatus,
   Usage,
   Watching,
-  YES_NO,
 } from "@kolu/acp/wire"
-import {
-  BusyCause,
-  BusyFailure,
-  Found,
-  isOpFailure,
-  kindOf,
-  OpFailure,
-  UsageFailure,
-} from "@olai/format"
+import { isStillRunning } from "@kolu/acp-harness"
+import { BusyCause, Found, OpFailure } from "@olai/format"
 import { Schema } from "effect"
 
 /**
- * The ask vocabulary — and {@link FileDiff} and {@link Usage} below —
- * re-exported rather than declared.
+ * The ask vocabulary — and {@link FileDiff}, {@link Usage} and
+ * {@link AuthStatus} — are IMPORTED and not re-exported.
  *
- * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO`, `FileDiff`,
- * `Usage` and `AuthStatus` belong to `@kolu/acp` now — they are ACP's
- * elicitation, diff, usage and identity shapes in olai's spelling, and the
- * package that speaks the protocol is
- * the one that owns its words. They are re-exported HERE because they TRAVEL: the
- * transcript entry below carries them, the browser draws them, and consumers
- * keep importing them from the spec they already import everything else from
- * — exactly the arrangement `RepoState` has, declared by `@olai/git` and
- * re-exported through `@olai/format`.
+ * They belong to `@kolu/acp` now: they are ACP's elicitation, diff, usage and
+ * identity shapes in olai's spelling, and the package that speaks the protocol
+ * owns its words. They travel on the rows below, so this file names them — but
+ * a reader that wants one goes to the package that owns it, which is the rule
+ * {@link ../wire.ts}'s own door states and used to contradict by re-publishing
+ * them. A plugin re-publishing the floor's words would put the fence's own
+ * arrow through: a general package importing a refusal shape from a row is a
+ * general package importing a row.
  *
  * They come off the `@kolu/acp/wire` subpath, which is the half of that
  * package with no protocol payload in it: the projections over ACP's own
  * payloads ride the main entry, and only `olai-plugin-chat` reads those.
  */
-export { AskAnswer, AskChoice, AskField, AskLink, AskOutcome, AuthStatus, FileDiff, Usage, YES_NO }
 
 /**
  * A NODE a message is about — what "ask agent" on a row arms the composer with.
  *
- * The armed thing is an ID and only an id ({@link ../../surface/src/index.ts}'s
- * `chat.send`): a browser knows which row was clicked and nothing else that will
+ * The armed thing is an ID and only an id ({@link ../wire.ts}'s
+ * `conversation.send`): a browser knows which row was clicked and nothing else that will
  * still be true when the server reads it. Everything below is the SET's answer,
  * read at the moment the turn is accepted — so the agent is never told a title
  * that disagrees with the file, and a node the set no longer declares between
@@ -306,7 +290,7 @@ export const UserEntry = Schema.Struct({
    *
    * Absent on every row that WENT, rather than a `null` arm — the ordinary
    * message says nothing about this, the same way it says nothing about diffs.
-   * It is cleared by {@link ../index.ts}'s `chat.resend` when the retry lands,
+   * It is cleared by {@link ../wire.ts}'s `conversation.resend` when the retry lands,
    * so the row stops advertising a failure that has stopped being true.
    */
   delivery: Schema.optionalKey(Delivery),
@@ -434,7 +418,7 @@ export const ToolEntry = Schema.Struct({
    * through `@kolu/acp-harness`'s transcript).
    *
    * The ask row beside it IS that question, so the call is drawn nowhere at
-   * all ({@link ./browser/chat/lanes.ts}'s `asksInAForm`): a card reading
+   * all ({@link ../browser/chat/lanes.ts}'s `asksInAForm`): a card reading
    * *AskUserQuestion* above the form it opened is the same question twice,
    * the second time in words nobody chose.
    *
@@ -724,61 +708,26 @@ export const sayingEnd = (piece: Pick<Saying, "at" | "text">): number =>
 export const SAYING_MS = 120
 
 /**
- * Which of a tool call's four statuses mean it HAS NOT COME BACK.
+ * WHICH STATUSES MEAN A CALL HAS NOT COME BACK, whether a CALL is still
+ * running, and whether the BACKGROUND TASK it armed is still out — the three
+ * rules the writer and every reader must answer identically, and they are
+ * `@kolu/acp-harness`'s because the writer is.
  *
- * Here, beside the field, because BOTH ENDS ask it and they must not answer
- * differently. The server asks when a turn ends — which of its calls were
- * abandoned, and so must be marked {@link ToolEntry.stranded} — and the browser
- * asks to decide whether to draw a live rail under a spawn and a ticking
- * duration on a frame. Two spellings of one four-word vocabulary is one of them
- * being missed the day ACP grows a fifth status, and the way that shows up is a
- * server marking a call finished while a panel goes on timing it.
+ * They were written twice: the class that mints these rows strands the calls
+ * a turn walked away from by one spelling, and this panel drew the rail, the
+ * strip and the clock by another. Two spellings of one vocabulary is a rail
+ * that goes out under a clock that goes on counting, and the day ACP grows a
+ * fifth status it is a server marking a call finished while a panel times it.
+ * So the end that WRITES the fields owns the rules, beside the transcript
+ * that writes them, and this row's readers ask it.
  *
- * `pending` is a RUNNING state, which is the one thing here that is not
- * obvious: the adapter announces EVERY tool call with it, so it means
- * "announced" rather than "not started". The writer always writes a status, so
- * there is no absent case to treat as the same thing. Anything spelled some
- * other way is not something this protocol will call running.
+ * Re-exported rather than re-pointed at every reader, which is the one place
+ * this file publishes somebody else's name on purpose: these are rules ABOUT
+ * the row declared below, every asker already has that row in hand, and the
+ * alternative is a browser file reaching into the conversation's own package
+ * to ask a question about a value it was handed.
  */
-export const isRunningStatus = (status: ToolStatus): boolean =>
-  status === "pending" || status === "in_progress"
-
-/**
- * ... and whether a CALL has not come back — the same question with the two
- * facts a status alone cannot carry folded in.
- *
- * A status is STICKY: an agent that died between announcing a call and
- * reporting on it leaves that row `pending` for as long as the panel is open,
- * deliberately, because the row is the honest record of what was said. What
- * the row adds is olai's own observation that the turn walked away from it
- * ({@link ToolEntry.stranded}). Three faces in the browser and two rules on the
- * server ask this pair, which is one more reason than {@link isRunningStatus}
- * needed to live here.
- */
-export const isStillRunning = (entry: ToolEntry): boolean =>
-  entry.stranded !== true && isRunningStatus(entry.status)
-
-/**
- * ... and whether the BACKGROUND TASK this call armed is still out there.
- *
- * THE ONE RULE, in the one place both ends can ask it, for
- * {@link isRunningStatus}'s reason word for word — and it is not a hypothetical
- * here: this rule is asked by the server twice (which calls a turn may not
- * strand, and how many tasks a conversation still has out) and by the browser
- * twice (the rail under the row, and whether its clock has anything to tick
- * for), and one of those answering differently from the others is a rail that
- * goes out under a clock that goes on counting.
- *
- * TWO HALVES, and the second is why this is not simply "has an `armed` whose
- * ending is unsaid". The harness's own ending is the ordinary way a task stops
- * being out — `null` for as long as nothing has said one, which is how
- * `@kolu/acp/wire`'s {@link Armed} spells a field a frame has not spoken about
- * — but a call can also reach a terminal ACP status without one (a cancelled
- * turn resolving what it left outstanding), and a task whose CALL is over is
- * not a task anybody is going to hear about again.
- */
-export const isTaskOut = (entry: ToolEntry): boolean =>
-  entry.armed !== undefined && entry.armed.ended === null && isStillRunning(entry)
+export { isRunningStatus, isStillRunning, isTaskOut } from "@kolu/acp-harness"
 
 /**
  * ... and whether the AGENT this call sent out is still out there.
@@ -878,7 +827,7 @@ export const sentToDo = (spawned: Spawned | undefined, title: string): string =>
  * A CHUNK, not a file: the bytes arrive as a sequence of these, because a
  * frame that scaled with the file would eventually be an oversized frame, and
  * the wire answers one of those by closing the socket rather than failing the
- * call — see {@link ./attach.ts}, which owns the numbers.
+ * call — see `@kolu/surface`'s `frame-chunking`, which owns the numbers.
  */
 export const AttachChunk = Schema.Struct({
   /** Browser uploads must remain in the live conversation they started in. */
@@ -1213,7 +1162,7 @@ export const Talking = Schema.Union([
      * none of these, exactly as a `/compact` nobody implements is not.
      *
      * The METHODS THEMSELVES are drawn from this, and what a button then does
-     * is a gesture ({@link ../../wire.ts}'s `signIn`) rather than a fact — one
+     * is a gesture ({@link ../wire.ts}'s `signIn`) rather than a fact — one
      * of them is a process this end runs and the other is a wait on the agent.
      */
     methods: Schema.Array(AuthMethod),
@@ -1368,7 +1317,7 @@ export type Unopened = typeof Unopened.Type
  *
  * ## CORE'S OWN VOCABULARY, and legitimately so
  *
- * Like {@link Wake.fault} one cell over: neither reason is a fact about an
+ * Like {@link ../scopes.ts}'s `Scoped.fault` one cell over: neither reason is a fact about an
  * ENGINE. They are facts about the SERVE — its enabled engine rows and a
  * set of probes that all answered no. What an
  * individual engine has to say for itself is still its own words in its own
@@ -1746,11 +1695,11 @@ export const CHAT_OFF: ChatState = {
 
 /** Why a chat verb said no. `OpFailure`'s four kinds already cover it — `busy`
  *  for a turn in flight, `not-found` for a session that is gone, `usage` for an
- *  empty prompt — and a second vocabulary would be a second thing to decode. */
+ *  empty prompt — and a second vocabulary would be a second thing to decode.
+ *
+ *  NAMED HERE AND NOT RE-PUBLISHED: a consumer that wants to ask which KIND a
+ *  refusal is, or to draw its detail, asks `@olai/format`, which owns those
+ *  verbs and is where every other row of this repo gets them
+ *  ({@link ../wire.ts}'s door says so in as many words). Re-exporting them
+ *  through a row was this file answering a question it does not own. */
 export const ChatFailure = OpFailure
-
-/** Re-exported so a consumer of the surface can name a refusal, ask which
- *  KIND it is and draw its detail without also depending on the format
- *  package: the browser subscribes to this spec, not to the format, and a
- *  second answer to "which kind is this" is exactly what it must not have. */
-export { BusyFailure, isOpFailure, kindOf, OpFailure, UsageFailure }

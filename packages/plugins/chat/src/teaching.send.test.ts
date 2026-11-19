@@ -36,6 +36,7 @@ import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { lines, REMINDING, teachingFor } from "./teaching.ts"
@@ -121,6 +122,7 @@ const withChat = async (
     roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
+    memory: volatile(),
     overheard: await run(sessionsIn(local.forDirectory(cwd))),
     ...(remindEvery === undefined ? {} : { remindEvery }),
     agentAt: (to) =>

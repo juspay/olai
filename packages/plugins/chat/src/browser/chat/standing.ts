@@ -29,7 +29,7 @@
  *
  * A RECORD OVER THE CLOSED UNION rather than a lookup with a fallback: a fifth
  * standing on the wire fails to compile here, which is the same discipline
- * `../../../../plugins/chat/src/chat.ts`'s `EVIDENCE` keeps over the event vocabulary.
+ * {@link ./ToolFrame.tsx}'s `LOOK` keeps over ACP's tool statuses.
  *
  * WHAT IS DELIBERATELY NOT A ROW HERE is whether a standing means this
  * conversation does not HAVE the server. That is what decides which rows get a

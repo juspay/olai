@@ -38,6 +38,7 @@ import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel, SLOTS } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { MemoryFailure } from "@kolu/acp-client"
 
@@ -143,6 +144,7 @@ const panel = async (
     roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
+    memory: volatile(),
     scoping: options.scoping ?? null,
     onState: () => {},
     onTranscript: () => {},

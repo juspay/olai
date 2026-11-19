@@ -15,8 +15,8 @@
  * rather than out of a guess:
  *
  *   - **who it is** — the kind of agent, in whatever words whoever configured
- *     it used ({@link ../../../../surface/src/chat.ts}'s `Spawned`), or the
- *     bare word when the spawn named none;
+ *     it used (`@kolu/acp/wire`'s `Spawned`), or the bare word when the spawn
+ *     named none;
  *   - **what it was asked** — the frame's own title, which for this adapter is
  *     the description the call was made with, with the prompt itself one fold
  *     away. Neither is decided here: the row already draws them, and it draws
@@ -34,8 +34,7 @@
  * is what stops them disagreeing about whether a row is a spawn at all.
  */
 
-import { type ChatEntry, sentToDo } from "olai-plugin-chat/wire"
-import { isRunning } from "./running.ts"
+import { type ChatEntry, isAgentOut, sentToDo } from "olai-plugin-chat/wire"
 
 /**
  * WHO the call sent out, or `null` for a row that sent nobody — which is every
@@ -95,7 +94,7 @@ export const whoOf = (entry: ChatEntry | undefined): string | null => {
  * calls that will never report, and every one of those rails would light up
  * together. The server knows which calls its turns abandoned, and says so on
  * the row (`stranded`), so the fact is now where the face is: this is a
- * function of ONE argument, and {@link ./running.ts} is the whole of the rule.
+ * function of ONE argument, and `isAgentOut` is the whole of the rule.
  *
  * WHICH IS ALSO WHAT MAKES IT CHEAP. Every row of the transcript computes this,
  * and a row that reads only itself wakes only when itself changes — no
@@ -108,13 +107,22 @@ export const whoOf = (entry: ChatEntry | undefined): string | null => {
  * @param entry the row being drawn
  */
 export const doingOf = (entry: ChatEntry | undefined): string | null => {
+  // THE RULE IS `isAgentOut`'s, in the wire beside the status vocabulary,
+  // because the SERVER asks it about the same row — it is what the strip above
+  // the scroll counts the agents it has out by. Asked whole rather than
+  // re-derived here as a spawn plus a liveness test: two spellings of one rule
+  // are two answers free to disagree, and this one would disagree with the
+  // count.
+  //
   // `pending` is what a spawn is ANNOUNCED with and what most of them wear for
   // most of their lives, so it is a RUNNING state rather than a case to fall
   // through, and a row nothing has said about yet is taken to be wearing it.
-  // Both of those are {@link ./running.ts}'s to say now — the elapsed readout
-  // on this same row asks the same question, and the frame draws the same
-  // field.
-  return whoOf(entry) !== null && isRunning(entry) ? WORKING : null
+  // Both of those are that rule's to say — the elapsed readout on this same row
+  // ends in the same pair, and the frame draws the same field.
+  //
+  // What is added here is the KIND check: `spawned` is a tool row's field, and
+  // a row somebody typed cannot carry one.
+  return entry?.kind === "tool" && isAgentOut(entry) ? WORKING : null
 }
 
 /**

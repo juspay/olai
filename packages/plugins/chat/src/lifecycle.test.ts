@@ -18,6 +18,7 @@ import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import type { Memory } from "@kolu/acp-client"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "lifecycle-agent.ts")
@@ -253,6 +254,7 @@ describe("a message that queues behind a running turn", () => {
         roster: () => [seated(row)],
         cwd,
         tools: () => null,
+        memory: volatile(),
         onState: () => {},
         onTranscript: () => {},
       }),
@@ -334,6 +336,7 @@ describe("a message that queues behind a running turn", () => {
       roster: () => [seated(row)],
       cwd,
       tools: () => null,
+      memory: volatile(),
       onState: () => {},
       onTranscript: () => {},
     }))
@@ -534,6 +537,7 @@ test.each([true, false])("a call that asks through a form says so on the row, as
     roster: () => [seated(row)],
     cwd,
     tools: () => null,
+    memory: volatile(),
     onState: () => {},
     onTranscript: () => {},
   }))

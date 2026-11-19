@@ -30,6 +30,13 @@ const object = (value: unknown): Record<string, unknown> =>
     ? value as Record<string, unknown>
     : {}
 
+/** A legible field of this document: a string somebody wrote. Anything else —
+ *  a number, a missing key, the empty string — reads as absent, which is how
+ *  every section here is parsed leniently without a strange value becoming a
+ *  record that half exists. */
+export const word = (value: unknown): string | null =>
+  typeof value === "string" && value !== "" ? value : null
+
 const reasonOf = (failure: Refusal): string => {
   const shaped = failure as { readonly reason?: unknown; readonly why?: unknown }
   if (typeof shaped.reason === "string") return shaped.reason

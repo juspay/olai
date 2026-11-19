@@ -7,8 +7,9 @@
  * The forks this guards were `Effect.forkDetach`, which attaches to the GLOBAL
  * scope: a turn-boundary write, a doorbell flush at three moments, a cancel
  * watcher and a deferred session cancel all went on running after the panel
- * that started them had stopped. Each of them is now the panel's or the
- * agent's, interrupted by its `stopWithReason`.
+ * that started them had stopped. Each of them is now held by whatever it
+ * belongs to — the panel here, the conversation in `@kolu/acp-harness` — and
+ * interrupted when that owner stops.
  *
  * What that change does NOT do is alter what a person sees, and pretending
  * otherwise would be inventing evidence. Every one of those tasks is already
@@ -19,7 +20,7 @@
  * plugin that made it, and the honest proof of a fiber's owner is that there is
  * exactly one place a fiber can be made.
  *
- * So: two sites, each named with the handle that holds it. A third appearing
+ * So: one site, named with the handle that holds it. A second appearing
  * anywhere in this package fails here, which is the property the audit's
  * section 9 actually asked for — *identify the right owner for each task, then
  * make its shutdown cancel or join the task* — kept as something a reviewer can

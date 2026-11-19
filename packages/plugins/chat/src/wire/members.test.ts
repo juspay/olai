@@ -19,12 +19,12 @@ import {
   ChatEntry as ChatEntryUnion,
   isTaskOut,
   NodeContext,
-  OpFailure,
   type ToolEntry,
   type UserEntry,
-  Json,
 } from "./members.ts"
-import { Armed, Ask, Delivery, FileDiff, Spawned } from "@kolu/acp/wire"
+import { Json } from "../json.ts"
+import { OpFailure } from "@olai/format"
+import { Armed, Ask, Delivery, FileDiff, SignInReason, Spawned } from "@kolu/acp/wire"
 import { armedTask, sentAgent } from "../outings.testlib.ts"
 
 /**
@@ -32,7 +32,14 @@ import { armedTask, sentAgent } from "../outings.testlib.ts"
  * spec without losing the encoding proof. Field order and optionality are the
  * contract for rows the writer produces: those must stringify identically
  * through this and through {@link ChatEntryUnion}. The decoder is stricter
- * than this pin — see the negative cases below.
+ * than this pin — see the negative cases below, which is also why the three
+ * present-or-absent marks are `Boolean` here and `Literal(true)` there.
+ *
+ * IT GROWS WITH THE ROW, which is the one obligation this pin carries: a
+ * field the union gains and this does not is a field the proof stops being
+ * about, silently — the rows below would go on matching because neither side
+ * emits it. Every field here is in the union's own order, since that order IS
+ * what is being pinned.
  */
 const ChatEntryFlat = Schema.Struct({
   id: Schema.String,
@@ -47,6 +54,7 @@ const ChatEntryFlat = Schema.Struct({
   called: Schema.optionalKey(Schema.String),
   row: Schema.optionalKey(Schema.String),
   reply: Schema.optionalKey(Json),
+  asksThroughForm: Schema.optionalKey(Schema.Boolean),
   progress: Schema.optionalKey(Schema.String),
   diffs: Schema.optionalKey(Schema.Array(FileDiff)),
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -57,10 +65,13 @@ const ChatEntryFlat = Schema.Struct({
   ask: Schema.optionalKey(Ask),
   streaming: Schema.optionalKey(Schema.Boolean),
   stranded: Schema.optionalKey(Schema.Boolean),
+  resumed: Schema.optionalKey(Schema.String),
+  startedAt: Schema.optionalKey(Schema.String),
   context: Schema.optionalKey(Schema.Array(NodeContext)),
   attachments: Schema.optionalKey(Schema.Array(Schema.String)),
   queued: Schema.optionalKey(Schema.Boolean),
   delivery: Schema.optionalKey(Delivery),
+  signIn: Schema.optionalKey(SignInReason),
   rang: Schema.optionalKey(Schema.String),
 })
 
@@ -115,6 +126,21 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       context: [CONTEXT],
       attachments: ["shot.png"],
       delivery: "refused",
+    },
+  },
+  {
+    // The refusal that has something to DO about it: the agent would not take
+    // the message because of the account it is signed in as. Carried so the
+    // proof is about the field rather than about its absence.
+    name: "user (refused for want of a signature)",
+    entry: {
+      id: "user:5",
+      seq: 13,
+      since: SINCE,
+      kind: "user",
+      text: "rewrite the kitchen note",
+      delivery: "refused",
+      signIn: "account",
     },
   },
   {
@@ -236,6 +262,25 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
     },
   },
   {
+    // The call whose question reaches a person AS A FORM, which is drawn
+    // nowhere at all — and the stamps a resumed outing wears. Both are fields
+    // the writer decides and this union has to declare, so both are carried by
+    // a representative rather than left to an absence that would pass whatever
+    // the union did with them.
+    name: "tool (asks through a form, resumed)",
+    entry: {
+      id: "tool:call-5",
+      seq: 14,
+      since: SINCE,
+      kind: "tool",
+      text: "AskUserQuestion",
+      status: "in_progress",
+      asksThroughForm: true,
+      resumed: "2026-08-21T13:00:00.000Z",
+      startedAt: "2026-08-21T13:00:00.000Z",
+    },
+  },
+  {
     name: "ask (pending, subagent)",
     entry: {
       id: "ask:1",
@@ -339,6 +384,13 @@ const REJECTED: ReadonlyArray<{ name: string; row: unknown }> = [
   {
     name: "stranded: false",
     row: { ...HEAD, kind: "tool", status: "pending", stranded: false },
+  },
+  {
+    // The same rule on the field this PR added: a call that does not ask
+    // through a form says nothing, so `false` is a row no writer here mints
+    // and a reader must not have to read.
+    name: "asksThroughForm: false",
+    row: { ...HEAD, kind: "tool", status: "pending", asksThroughForm: false },
   },
 ]
 

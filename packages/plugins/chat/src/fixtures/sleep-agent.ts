@@ -29,14 +29,7 @@
 
 import { existsSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-
-const write = (value: unknown): void => {
-  process.stdout.write(`${JSON.stringify(value)}\n`)
-}
-
-const respond = (id: unknown, result: unknown): void => {
-  write({ jsonrpc: "2.0", id, result })
-}
+import { listen, respond, unknownMethod, update, write } from "./jsonrpc.testlib.ts"
 
 /** Where the session was opened, which is where the markers are — the vault the
  *  conversation is about rather than this process's cwd. */
@@ -59,130 +52,98 @@ const running = new Set<unknown>()
 
 process.stderr.write("sleep-agent: started\n")
 
-let pending = ""
-process.stdin.setEncoding("utf8")
-process.stdin.on("data", (chunk: string) => {
-  pending += chunk
-  const lines = pending.split("\n")
-  pending = lines.pop() ?? ""
-  for (const line of lines) {
-    if (line.trim() === "") continue
-    const message = JSON.parse(line) as {
-      readonly id?: unknown
-      readonly method?: string
-      readonly result?: unknown
-      readonly params?: {
-        readonly cwd?: string
-        readonly sessionId?: string
-        readonly prompt?: ReadonlyArray<{ readonly text?: string }>
+listen<{
+  readonly id?: unknown
+  readonly method?: string
+  readonly result?: unknown
+  readonly params?: {
+    readonly cwd?: string
+    readonly sessionId?: string
+    readonly prompt?: ReadonlyArray<{ readonly text?: string }>
+  }
+}>(message => {
+  switch (message.method) {
+    case "initialize":
+      respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
+      return
+    case "session/new":
+    case "session/load":
+      if (typeof message.params?.cwd === "string") cwd = message.params.cwd
+      respond(message.id, { sessionId: message.params?.sessionId ?? `sess-${++minted}` })
+      return
+    case "session/cancel": {
+      for (const id of running) {
+        running.delete(id)
+        respond(id, { stopReason: "cancelled" })
       }
+      touch(".sleep-cancelled")
+      return
     }
-    switch (message.method) {
-      case "initialize":
-        respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
-        continue
-      case "session/new":
-      case "session/load":
-        if (typeof message.params?.cwd === "string") cwd = message.params.cwd
-        respond(message.id, { sessionId: message.params?.sessionId ?? `sess-${++minted}` })
-        continue
-      case "session/cancel": {
-        for (const id of running) {
-          running.delete(id)
-          respond(id, { stopReason: "cancelled" })
-        }
-        touch(".sleep-cancelled")
-        continue
+    case "session/prompt": {
+      touch(".sleep-asked")
+      const id = message.id
+      running.add(id)
+      if (has(".sleep-vanish")) {
+        // THE CONVERSATION IS GONE, mid-turn: the panel is left holding a
+        // prompt nothing will ever answer.
+        process.exit(0)
       }
-      case "session/prompt": {
-        touch(".sleep-asked")
-        const id = message.id
-        running.add(id)
-        if (has(".sleep-vanish")) {
-          // THE CONVERSATION IS GONE, mid-turn: the panel is left holding a
-          // prompt nothing will ever answer.
-          process.exit(0)
-        }
-        if (has(".sleep-ask")) {
-          // A STRUCTURED QUESTION, and no reply to the prompt: the turn stays
-          // open on the ask row until somebody answers it or cancels.
-          write({
-            jsonrpc: "2.0",
-            id: `ask-${++asked}`,
-            method: "elicitation/create",
-            params: {
-              mode: "form",
-              sessionId: message.params?.sessionId,
-              toolCallId: `call-${asked}`,
-              message: "Which rows should I archive?",
-              requestedSchema: {
-                type: "object",
-                properties: {
-                  question_0: {
-                    type: "string",
-                    title: "Archive",
-                    oneOf: [
-                      { const: "all", title: "all" },
-                      { const: "none", title: "none" },
-                    ],
-                  },
+      if (has(".sleep-ask")) {
+        // A STRUCTURED QUESTION, and no reply to the prompt: the turn stays
+        // open on the ask row until somebody answers it or cancels.
+        write({
+          jsonrpc: "2.0",
+          id: `ask-${++asked}`,
+          method: "elicitation/create",
+          params: {
+            mode: "form",
+            sessionId: message.params?.sessionId,
+            toolCallId: `call-${asked}`,
+            message: "Which rows should I archive?",
+            requestedSchema: {
+              type: "object",
+              properties: {
+                question_0: {
+                  type: "string",
+                  title: "Archive",
+                  oneOf: [
+                    { const: "all", title: "all" },
+                    { const: "none", title: "none" },
+                  ],
                 },
               },
             },
-          })
-          continue
-        }
-        if (has(".sleep-hold")) continue
-        // A TURN THAT SHOWS NOTHING is a turn the panel reports as having
-        // produced nothing (`chat.ts`'s silent-turn notice), and a real tidying
-        // agent always shows the frames it edited rows with. So this one does
-        // too: the pass is being tested over an ordinary turn, not over an
-        // agent that answered with nothing.
-        const call = `call-${++asked}`
-        write({
-          jsonrpc: "2.0",
-          method: "session/update",
-          params: {
-            sessionId: message.params?.sessionId,
-            update: {
-              sessionUpdate: "tool_call",
-              toolCallId: call,
-              title: "Archive the September rows",
-              kind: "edit",
-              status: "in_progress",
-              locations: [{ path: join(cwd, "Work.olai"), line: 2 }],
-              rawInput: {},
-            },
           },
         })
-        write({
-          jsonrpc: "2.0",
-          method: "session/update",
-          params: {
-            sessionId: message.params?.sessionId,
-            update: {
-              sessionUpdate: "tool_call_update",
-              toolCallId: call,
-              status: "completed",
-              rawOutput: { moved: 3 },
-            },
-          },
-        })
-        running.delete(id)
-        respond(id, { stopReason: "end_turn" })
-        continue
+        return
       }
-      default:
-        // A request this fixture does not speak is refused the way a real
-        // agent refuses it, so a caller that asks one (`session/close`) is not
-        // left waiting for an answer that never comes.
-        if (message.method !== undefined && message.id !== undefined) {
-          write({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: `method not found: ${message.method}` } })
-        }
+      if (has(".sleep-hold")) return
+      // A TURN THAT SHOWS NOTHING is a turn the panel reports as having
+      // produced nothing (`chat.ts`'s silent-turn notice), and a real tidying
+      // agent always shows the frames it edited rows with. So this one does
+      // too: the pass is being tested over an ordinary turn, not over an
+      // agent that answered with nothing.
+      const call = `call-${++asked}`
+      update(message.params?.sessionId, {
+        sessionUpdate: "tool_call",
+        toolCallId: call,
+        title: "Archive the September rows",
+        kind: "edit",
+        status: "in_progress",
+        locations: [{ path: join(cwd, "Work.olai"), line: 2 }],
+        rawInput: {},
+      })
+      update(message.params?.sessionId, {
+        sessionUpdate: "tool_call_update",
+        toolCallId: call,
+        status: "completed",
+        rawOutput: { moved: 3 },
+      })
+      running.delete(id)
+      respond(id, { stopReason: "end_turn" })
+      return
     }
+    default:
+      unknownMethod(message)
   }
 })
-
-/** A MODULE and not a script, so this fixture and its neighbours can share one
- *  program. */
-export {}

@@ -22,7 +22,7 @@
  * fact that matters least often.
  */
 
-import type { AuthStatus } from "olai-plugin-chat/wire"
+import type { AuthStatus } from "@kolu/acp/wire"
 
 /** The chip's own words: `label · email`, `label · detail`, `label`, or
  *  `Not signed in`. */

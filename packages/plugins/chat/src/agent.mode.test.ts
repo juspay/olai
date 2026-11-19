@@ -6,6 +6,7 @@ import { join } from "node:path"
 
 import { namedExactly } from "@kolu/acp/engine"
 import { makePanel } from "./chat.ts"
+import { volatile } from "./memory.ts"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 
@@ -161,7 +162,7 @@ for (const stored of [false, true]) {
           models: { config: "model", nameIn: namedExactly } },
       }
       const panel = await run(makePanel({
-        roster: () => [seated(row)], cwd, tools: () => null,
+        roster: () => [seated(row)], cwd, tools: () => null, memory: volatile(),
         onState: () => {}, onTranscript: () => {},
       }))
       try {

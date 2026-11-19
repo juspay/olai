@@ -149,6 +149,56 @@ const cut = (
 }
 
 /**
+ * The INTAKE: one walk that turns rows into this fold's two working maps.
+ *
+ * The same three rules read twice over, which is what put them here: a row
+ * that asks through a form is not a member at all ({@link ./lanes.ts}'s
+ * `asksInAForm`), a member's place is its `seq`, and a member made by a
+ * subagent is filed under the frame that spawned it. Spelled in two places
+ * they are two answers free to drift — and the third rule arrived with both
+ * copies having to learn it.
+ *
+ * IT KEYS BY `entry.id`, which is the collection's own key by construction:
+ * the wire keys the transcript collection by the bare row id and the
+ * client-held pages are rebuilt through the same `byKey`, so the pair handed
+ * to a seed carries the key twice and the ROW is the half both callers have.
+ *
+ * {@link TRANSCRIPT_ORDER}'s `step` keeps a walk of its own rather than
+ * calling this, and the reason is the one thing a delta can do that a whole
+ * set cannot: it must RETRACT. A row already in the maps that arrives asking
+ * through a form has to be taken back out ({@link forget}), and a row whose
+ * `seq` or filing has not moved must leave the lists alone — neither question
+ * exists when the maps start empty.
+ */
+const intake = (entries: Iterable<ChatEntry>): { seq: Map<string, number>; under: Map<string, string> } => {
+  const seq = new Map<string, number>()
+  const under = new Map<string, string>()
+  for (const entry of entries) {
+    if (asksInAForm(entry)) continue
+    seq.set(entry.id, entry.seq)
+    const parent = filedUnder(entry)
+    if (parent !== null) under.set(entry.id, parent)
+  }
+  return { seq, under }
+}
+
+/** A row OUT of the membership, answering whether anything was actually there
+ *  — the one spelling of a departure, because there are two ways out and they
+ *  must be the same way. Out of the order, and out of the filing with it: a
+ *  lane that kept a departed key would hand a preview a row nothing can read,
+ *  and the `<For>` over it would draw a hole — the one thing this fold
+ *  promises about membership.
+ *
+ *  BOTH DELETES RUN, which is why this is not one short-circuiting
+ *  expression: a row can be in the order and in the filing, and stopping at
+ *  the first would leave a lane holding a key the column has forgotten. */
+const forget = (held: Ordered, key: string): boolean => {
+  const wasOrdered = held.seq.delete(key)
+  const wasFiled = held.under.delete(key)
+  return wasOrdered || wasFiled
+}
+
+/**
  * The fold: seed from a full-set frame, and step one delta.
  *
  * A MODULE CONSTANT rather than a function called per reader, because it
@@ -183,14 +233,7 @@ const cut = (
  */
 export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered> = {
   init: (entries) => {
-    const seq = new Map<string, number>()
-    const under = new Map<string, string>()
-    for (const [key, entry] of entries) {
-      if (asksInAForm(entry)) continue
-      seq.set(key, entry.seq)
-      const parent = filedUnder(entry)
-      if (parent !== null) under.set(key, parent)
-    }
+    const { seq, under } = intake(entries.map(([, entry]) => entry))
     return { ...cut(seq, under), seq, under }
   },
   step: (held, { upserts, removes }) => {
@@ -198,23 +241,19 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
     let appendable = removes.length === 0 && held.under.size === 0
     let maximum = held.keys.length === 0 ? -Infinity : held.seq.get(held.keys.at(-1)!)!
     const appended: string[] = []
-    for (const key of removes) {
-      if (held.seq.delete(key)) moved = true
-      // ... and out of the filing with it. A lane that kept a removed key would
-      // hand a preview a row nothing can read, and the `<For>` over it would
-      // draw a hole — the one thing this fold promises about membership.
-      if (held.under.delete(key)) moved = true
-    }
+    for (const key of removes) if (forget(held, key)) moved = true
     for (const [key, entry] of upserts) {
       // A CALL THAT ASKS THROUGH A FORM LEAVES, which is the one membership
       // answer that can arrive after a row is already in the list: the flag
       // comes off the frame that names the tool, and a call can be announced
-      // before it is named ({@link ./lanes.ts}'s `asksInAForm`). Spelled as a
-      // departure rather than as a `continue`, so the row goes out of the
-      // order and out of the filing the way a remove does.
+      // before it is named ({@link ./lanes.ts}'s `asksInAForm`). It leaves by
+      // the same door a remove does ({@link forget}) rather than by a
+      // `continue`, because that is the invariant: a row that asks through a
+      // form goes out of the order and out of the filing exactly the way a
+      // removed one does. What it adds is that an append can no longer be
+      // assumed — the list lost a row.
       if (asksInAForm(entry)) {
-        if (held.seq.delete(key)) moved = true
-        if (held.under.delete(key)) moved = true
+        if (forget(held, key)) moved = true
         appendable = false
         continue
       }
@@ -254,9 +293,11 @@ const NO_ROWS: ReadonlyArray<string> = []
  * page at a time, never changes once fetched, and is strictly older than the
  * live window — so it needs none of the fold's incremental machinery, only the
  * one walk that turns rows into the column's keys and each agent's lane
- * ({@link cut}, which is why this cannot be a `.map` at the call site). The two
- * lists it answers with concatenate cleanly with the fold's: every history `seq`
- * is below every window `seq`, and nothing is in both.
+ * ({@link intake} then {@link cut}, which is why this cannot be a `.map` at the
+ * call site, and which is the seed's own pair of steps — the membership rules
+ * are read in one place for both). The two lists it answers with concatenate
+ * cleanly with the fold's: every history `seq` is below every window `seq`, and
+ * nothing is in both.
  *
  * It takes the ROWS rather than a map so a caller names the order its own set is
  * in; the caller here sorts by `seq` first (the fetch pages are newest-first
@@ -265,14 +306,7 @@ const NO_ROWS: ReadonlyArray<string> = []
 export const orderOf = (
   entries: ReadonlyArray<ChatEntry>,
 ): { readonly keys: ReadonlyArray<string>; readonly lanes: ReadonlyMap<string, ReadonlyArray<string>> } => {
-  const seq = new Map<string, number>()
-  const under = new Map<string, string>()
-  for (const entry of entries) {
-    if (asksInAForm(entry)) continue
-    seq.set(entry.id, entry.seq)
-    const parent = filedUnder(entry)
-    if (parent !== null) under.set(entry.id, parent)
-  }
+  const { seq, under } = intake(entries)
   return cut(seq, under)
 }
 

@@ -3,22 +3,24 @@
  * the panel's live faces are built on.
  *
  * A module rather than a constant inside whichever face asked first, because
- * three now ask and they must not be able to disagree. The rail under a spawn
- * says an agent is out ({@link ./spawn.ts}); the readout on a frame's own line
- * says how long a call has been going ({@link ./elapsed.ts}); and the frame
- * draws the status as a mark, a colour and a spoken word
- * ({@link ./ToolFrame.tsx}). The first two are drawn from the same row at the
- * same moment, so a status one called running and the other did not would put a
- * duration on a row with no live face, or a live face on a row with no
- * duration — one panel saying two things about one call.
+ * the panel asks this question from more than one place and they must not be
+ * able to disagree. The readout on a frame's own line says how long a call has
+ * been going ({@link ./elapsed.ts}); the frame draws the status as a mark, a
+ * colour and a spoken word ({@link ./ToolFrame.tsx}); and the two live rails —
+ * an agent out ({@link ./spawn.ts}) and a task out ({@link ./background.ts}) —
+ * ask the wire's own `isAgentOut` and `isTaskOut`, which END IN THIS SAME PAIR
+ * and so cannot drift from it. The readout and the rails are drawn from the
+ * same row at the same moment, so a status one called running and the other did
+ * not would put a duration on a row with no live face, or a live face on a row
+ * with no duration — one panel saying two things about one call.
  *
  * IT TAKES THE ROW, and that is the whole of what it takes — which is what
- * makes both faces functions of the thing they are drawn beside. Two facts have
+ * makes every face a function of the thing it is drawn beside. Two facts have
  * to be true and the row now carries both:
  *
  *   - **the wire still calls it running** — ACP's own status, in ACP's own
- *     words ({@link ../../../../surface/src/chat.ts}'s `isRunningStatus`,
- *     which is where that vocabulary lives because the SERVER reads it too).
+ *     words (`olai-plugin-chat/wire`'s `isRunningStatus`, which is where that
+ *     vocabulary lives because the SERVER reads it too).
  *     `status` is a tool row's field, required, so the KIND is the
  *     discriminant rather than a re-check of a field's absence: a user row
  *     cannot carry a status, and guessing from absence would put a live face
@@ -38,12 +40,13 @@
  * amount of asking the conversation gets there. The faces got simpler by
  * getting more correct: they take a row, and a row is what a face is about.
  *
- * THE PAIR ITSELF IS THE SURFACE'S (`isStillRunning`), because the SERVER asks
- * it too — it is what decides which calls a turn strands and how many tasks a
- * conversation still has out. What is left here is the KIND check, which is the
- * browser's own: this narrows a row of the union to a tool call so the two faces
- * below can read a stamp off it without an optional chain a line under the check
- * that ruled the absence out.
+ * THE PAIR ITSELF IS THE WIRE'S (`isStillRunning`), because the SERVER asks it
+ * too — it is what decides which calls a turn strands and how many tasks a
+ * conversation still has out, and it is the end of the wire's own `isAgentOut`
+ * and `isTaskOut` that the rails ask. What is left here is the KIND check,
+ * which is the browser's own: this narrows a row of the union to a tool call so
+ * the readout below can read a stamp off it without an optional chain a line
+ * under the check that ruled the absence out.
  *
  * WHAT IS NOT HERE is what a status LOOKS like. The mark, the tone and the
  * spoken word stay in the frame that draws them, and the split is not

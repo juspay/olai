@@ -1263,8 +1263,8 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
    *  assertions; real keys are corpus files, values the plugin words it may
    *  spell. */
   const ALLOWED: Record<string, ReadonlyArray<string> | string> = {
-    "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu; the pin note spells `KOLU_ACP_AGENT` because that rename is what the bump did, and the knob happens to be the claude row's",
-    "nix/kolu.nix": ["claude#knob", "kolu", "mcp"],
+    "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu; the pin note spells `KOLU_ACP_AGENT` because that rename is what the bump did, and the knob happens to be the claude row's; the bare word is the SEED `@kolu/acp-claude`, a kolu package this file hydrates — the Claude row imports it, and a seed list that left it to another package's closure is the hazard this file argues against twenty lines up",
+    "nix/kolu.nix": ["claude", "claude#knob", "kolu", "mcp"],
     "// justfile": "kolu-deps names the framework pin; git/odu are tool names, files/pins are recipe names",
     justfile: ["git", "kolu", "odu", "files", "pins"],
     "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; the comments enumerate the wrapper-baked knobs (OLAI_ACP_*, OLAI_ODU_BIN, OLAI_HIMALAYA) so the wrap text explains itself",

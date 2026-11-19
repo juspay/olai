@@ -959,6 +959,7 @@ test("agent switches, disabled plugins and listing probes have distinct exit rea
     roster: () => roster.map(seated),
     cwd,
     tools: () => null,
+    memory: volatile(),
     onState: () => {},
     onTranscript: () => {},
   }))

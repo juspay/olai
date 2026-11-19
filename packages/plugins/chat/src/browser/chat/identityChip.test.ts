@@ -9,7 +9,7 @@
 
 import { describe, expect, test } from "bun:test"
 
-import type { AuthStatus } from "olai-plugin-chat/wire"
+import type { AuthStatus } from "@kolu/acp/wire"
 
 import { identityOf, identityTitleOf } from "./identityChip.ts"
 

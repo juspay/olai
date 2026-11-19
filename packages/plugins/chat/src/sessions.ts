@@ -153,9 +153,8 @@
 
 import { Effect, Semaphore } from "effect"
 
-import type { ChatLocalState } from "./local.ts"
+import { type ChatLocalState, word } from "./local.ts"
 import { MemoryFailure } from "@kolu/acp-client"
-import { word } from "./memory.ts"
 import { ROWS } from "./scopes.ts"
 
 /** This state machine's section in chat's one machine-local document. */
@@ -332,7 +331,7 @@ interface Written {
  * BOTH NAMES ARE LOAD-BEARING and a row missing either is dropped: a row that
  * does not say which agent and which session names no conversation, and there
  * is nothing to guess. Everything else is read leniently and a strange value
- * reads as absent — the same rule {@link ./memory.ts}'s `word` is. A `taught`
+ * reads as absent — the same rule {@link ./local.ts}'s `word` is. A `taught`
  * that is not `true` is untaught, which costs one extra teaching; a `said` that
  * will not parse is a door with no line on it, which is what every door starts
  * as; a `seen` that will not parse is a conversation nothing has been

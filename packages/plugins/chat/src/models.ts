@@ -5,8 +5,7 @@ import type { MemoryFailure, Models } from "@kolu/acp-client"
 import { Effect, Semaphore } from "effect"
 import type { Conversing } from "./sessions.ts"
 import { ROWS } from "./scopes.ts"
-import { word } from "./memory.ts"
-import type { ChatLocalState } from "./local.ts"
+import { type ChatLocalState, word } from "./local.ts"
 
 interface Choice extends Conversing { readonly model: string }
 const same = (a: Conversing, b: Conversing) => a.agent === b.agent && a.session === b.session

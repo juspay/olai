@@ -9,21 +9,9 @@
  * put a row in the conversation it is about to leave.
  */
 
-const write = (value: unknown): void => {
-  process.stdout.write(`${JSON.stringify(value)}\n`)
-}
-
-const respond = (id: unknown, result: unknown): void => {
-  write({ jsonrpc: "2.0", id, result })
-}
-
-const update = (sessionId: string, frame: unknown): void => {
-  write({ jsonrpc: "2.0", method: "session/update", params: { sessionId, update: frame } })
-}
+import { listen, respond, unknownMethod, update } from "./jsonrpc.testlib.ts"
 
 const tick = () => new Promise((done) => setTimeout(done, 5))
-
-export {}
 
 const replay = async (id: unknown, sessionId: string): Promise<void> => {
   update(sessionId, { sessionUpdate: "user_message_chunk", content: { type: "text", text: "what did we decide?" } })
@@ -42,39 +30,25 @@ const replay = async (id: unknown, sessionId: string): Promise<void> => {
   respond(id, {})
 }
 
-let pending = ""
-process.stdin.setEncoding("utf8")
-process.stdin.on("data", (chunk: string) => {
-  pending += chunk
-  const lines = pending.split("\n")
-  pending = lines.pop() ?? ""
-  for (const line of lines) {
-    if (line.trim() === "") continue
-    const message = JSON.parse(line) as {
-      readonly id?: unknown
-      readonly method?: string
-      readonly params?: { readonly sessionId?: string }
-    }
-    switch (message.method) {
-      case "initialize":
-        respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
-        continue
-      case "session/new":
-        respond(message.id, { sessionId: "fresh" })
-        continue
-      case "session/load":
-        void replay(message.id, message.params?.sessionId ?? "stored")
-        continue
-      case "session/prompt":
-        respond(message.id, { stopReason: "end_turn" })
-        continue
-      default:
-        // A request this fixture does not speak is refused the way a real
-        // agent refuses it, so a caller that asks one (`session/close`) is not
-        // left waiting for an answer that never comes.
-        if (message.method !== undefined && message.id !== undefined) {
-          write({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: `method not found: ${message.method}` } })
-        }
-    }
+listen<{
+  readonly id?: unknown
+  readonly method?: string
+  readonly params?: { readonly sessionId?: string }
+}>(message => {
+  switch (message.method) {
+    case "initialize":
+      respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
+      return
+    case "session/new":
+      respond(message.id, { sessionId: "fresh" })
+      return
+    case "session/load":
+      void replay(message.id, message.params?.sessionId ?? "stored")
+      return
+    case "session/prompt":
+      respond(message.id, { stopReason: "end_turn" })
+      return
+    default:
+      unknownMethod(message)
   }
 })
