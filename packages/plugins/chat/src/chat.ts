@@ -1996,20 +1996,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       }
     }
 
-    /** The model a PERSON chose for that conversation, out of this machine's
-     *  own record — the durable half of the pair ({@link ./memory.ts} holds the
-     *  transient one). A record that will not read is no pin at all: the
-     *  conversation opens on whatever the agent picks, which is what it did
-     *  before anybody chose. */
-    const remembers = (agent: string, session: string): Effect.Effect<string | null> =>
-      options.models === undefined
-        ? Effect.succeed(null)
-        : Effect.catchTag(
-          options.models.read({ agent, session }),
-          "MemoryFailure",
-          () => Effect.succeed(null),
-        )
-
     /** ... and WRITING DOWN which conversation this directory is in, with the
      *  model under it. The CALLER'S now: the conversation is told which one to
      *  open and remembers nothing itself, so the note a boot reads back is
@@ -2257,13 +2243,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // from another one.
           signIn: null,
         })
-        // THE MODEL A PERSON CHOSE for the conversation being resumed, read
-        // before the options are composed: this is a record on a disk, and an
-        // object literal is no place to wait on one. A conversation nobody
-        // named — a fresh one, or the one a boot adopts — opens on whatever the
-        // agent picks, and what somebody chooses after that is written down
-        // when they choose it ({@link Panel.setModel}).
-        const pinned = opens.kind === "resume" ? yield* remembers(row.id, opens.id) : null
         /**
          * THE BRING-UP CAN BE GIVEN UP ON, which is a thing only the
          * conversation can do and so a thing it is told
@@ -2308,7 +2287,21 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               taught: true,
               log: harnessLog,
               opens,
-              ...(pinned === null ? {} : { model: pinned }),
+              // WHO THIS CONVERSATION IS WITH, as this machine's roster names
+              // it: the client files its notes and annotates its log lines
+              // under this id, and the records they land in are keyed by the
+              // engine a person installed
+              // (`@kolu/acp-harness`'s `HarnessOptions.agent`).
+              agent: row.id,
+              // ... AND WHERE THE MODEL A PERSON CHOSE LIVES. Handed over in
+              // place of `model`, which is the pin as ONE value read once: the
+              // record answers for every conversation this harness opens and
+              // takes every move back, so a switch survives a restart without
+              // this end reading a pin or putting one back. The client is the
+              // only end that can tell a SWITCH from the agent re-asserting
+              // its own pin at the door, and this is the durable place it
+              // never had to put one.
+              ...(options.models === undefined ? {} : { models: options.models }),
               readCall,
               // The row's NAME comes off the advertisement in `readCall`'s own
               // `extra`, which is why no `retitle` rule is passed: olai's
@@ -3681,22 +3674,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // done says so where it was asked.
       cancel,
       setSetting,
-      // ... AND WRITTEN DOWN, which is this end's half now: the conversation is
-      // TOLD which model to open on and remembers nothing itself, so the pin a
-      // person chose is kept here, at the one moment somebody chooses one. A
-      // record that will not take it costs the choice at the next restart and
-      // nothing else, which is not worth taking the gesture away over.
+      // ... AND WRITTEN DOWN BY THE END THAT ASKED, which is not this one: the
+      // request goes through the client, and the client files what the agent
+      // CONFIRMED against this conversation in the store handed over with it
+      // ({@link PanelOptions.models}, passed to the harness above). A write
+      // here would be a second one, filing the PICKER'S word for the same
+      // model where the agent's own spelling already went — and the two
+      // spellings are exactly what the put-back has to translate between.
       setModel: (agent, session, value) =>
-        Effect.flatMap(
-          setSetting(agent, session, talking?.row.leg.models?.config ?? "", value),
-          () =>
-            noting(
-              options.models?.write({ agent, session }, value),
-              (failure) =>
-                `the model somebody chose could not be written down (${failure.why}) — ` +
-                `this conversation opens on the agent's own default after a restart`,
-            ),
-        ),
+        setSetting(agent, session, talking?.row.leg.models?.config ?? "", value),
       // NOT under a permit, and not gated on the panel being idle: this changes
       // nothing about the agent, and a conversation that is mid-answer is
       // exactly the one somebody is reading (`seen` above argues the rest).

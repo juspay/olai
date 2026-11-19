@@ -258,6 +258,10 @@ describe("a message that queues behind a running turn", () => {
       }),
     )
     let queued: ReadonlyArray<string> = []
+    /** Whether the SECOND of the two rows is the marked one — the claim the
+     *  texts cannot make here, since both prompts are the one word the fixture
+     *  holds open. */
+    let behind = false
     try {
       await run(chat.start)
       const deadline = Date.now() + 8_000
@@ -267,17 +271,27 @@ describe("a message that queues behind a running turn", () => {
       expect(chat.state().session?.id).toBe("sess-1")
 
       await run(chat.send("queue-wait", [], []))
-      await run(chat.send("hi", [], []))
-      await Effect.runPromise(Effect.sleep("400 millis"))
-      queued = [...chat.entries().values()]
-        .filter((entry) => entry.kind === "user" && entry.queued === true)
+      await run(chat.send("queue-wait", [], []))
+      // READ INSIDE THE WINDOW, which is what the mark is about: the fixture
+      // answers each prompt 250ms after it arrives, so this is while the first
+      // turn is still running and nothing has started on the second. A mark
+      // read after that turn ENDED would be a row going on claiming to be next
+      // — the half the conversation now takes off again
+      // (`@kolu/acp-harness`) — so a turn held open is the only way to see the
+      // half it puts on.
+      await Effect.runPromise(Effect.sleep("100 millis"))
+      const mine = [...chat.entries().values()].filter((entry) => entry.kind === "user")
+      behind = mine.length === 2 && mine[1]?.queued === true
+      queued = mine
+        .filter((entry) => entry.queued === true)
         .map((entry) => entry.text)
     } finally {
       await run(chat.stop)
       await Effect.runPromise(Effect.sleep("40 millis"))
     }
 
-    expect(queued).toEqual(["hi"])
+    expect(queued).toEqual(["queue-wait"])
+    expect(behind).toBe(true)
   }, 15_000)
 
   /**
