@@ -48,6 +48,11 @@ Feature: Fresh node sessions have distinct identities and durable history
     When I remember this conversation as "second"
     And I open the fold history
     And I open the past session "cabinet first session"
+    Then the panel is in the remembered conversation "first"
+    # The visit has its own agent by now. From here on nothing new is asked
+    # for: the press replaces the chat in the node's own seat, and a page
+    # still holding the chat it just replaced must not start one for it.
+    When the agent starts so far are counted
     And I start a fresh session
     Then the panel has a different conversation from "first"
     And the panel has a different conversation from "second"
@@ -58,6 +63,9 @@ Feature: Fresh node sessions have distinct identities and durable history
     Then the panel says this agent has had 2 past sessions
     And the past sessions hold "cabinet first session"
     And the past sessions hold "cabinet second session"
+    When I reload the page
+    And the node agent's fold is ready
+    Then no further agent process has started
 
   Scenario: Replacing an unused fresh session does not strand earlier history
     When I start a fresh session
