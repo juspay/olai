@@ -426,7 +426,18 @@ test("a refused resume closes its scope, drops the record and leaves the reader 
 
 test("a held reader does not spin the idle timer, and gets its budget back when it leaves", async () => {
   const local = ephemeralLocalState()
-  const record = liveIn(local)
+  const kept = liveIn(local)
+  /** Every instant the scheduler has written as this conversation's budget
+   *  start, in order. A history rather than a read of the record, because the
+   *  mark itself goes when the conversation is reaped. */
+  const starts: Array<number> = []
+  const record: LiveRecord = {
+    read: kept.read,
+    write: (marks) => Effect.suspend(() => {
+      for (const mark of marks) if (mark.node === "one") starts.push(mark.touched)
+      return kept.write(marks)
+    }),
+  }
   const forks = { count: 0 }
   const released: Array<string> = []
   const it = await restartable({
@@ -446,22 +457,33 @@ test("a held reader does not spin the idle timer, and gets its budget back when 
       transcript: () => {},
     }).pipe(Effect.provideService(Scope.Scope, tab)))
     await until("the held conversation to be live", () => it.chat.live().has("one"))
+    const touched = () => starts.at(-1) ?? Number.NEGATIVE_INFINITY
 
-    // SEVERAL BUDGETS PASS WHILE THE READER HOLDS IT. A re-arm that kept the
-    // old instant would sleep for zero and fork again at once; a few timer
-    // arms are the honest answer, hundreds are the spin.
+    // SEVERAL BUDGETS PASS WHILE THE READER HOLDS IT. Each one that runs out
+    // under a reader is a touch, so the record's instant walks forward a budget
+    // at a time; three budgets on, the conversation has outlived three of
+    // them. A re-arm that kept the old instant would sleep for zero and fork
+    // again at once — the instant never moves, and the forks are what pile up
+    // instead, so the wait ends on whichever comes first.
+    const heldAt = Date.now()
     const before = forks.count
-    await it.run(Effect.sleep("600 millis"))
+    await until("three budgets to run out under the reader, or the timer to spin",
+      () => touched() >= heldAt + 3 * 150 || forks.count - before >= 20)
     expect(forks.count - before).toBeLessThan(20)
     expect(it.chat.live().has("one")).toBe(true)
 
     // ... AND LEAVING HANDS IT A FULL BUDGET rather than evicting it on the
-    // frame the reader looked away.
+    // frame the reader looked away: the leaving is the touch, so a budget the
+    // record was given starts no earlier than it. Read once the reap is done —
+    // the seat leaves the live map as its close begins and gives its ticket
+    // back as the close ends — so a release that did not touch fails here
+    // rather than by waiting out a budget that never comes.
     const left = Date.now()
     await it.run(Scope.close(tab, Exit.void))
-    await it.run(Effect.sleep("60 millis"))
     expect(it.chat.live().has("one")).toBe(true)
-    await until("the released conversation to be reaped", () => !it.chat.live().has("one"), 2000)
+    await until("the released conversation to be reaped", () => released.length > 0, 2000)
+    expect(starts.some((at) => at >= left)).toBe(true)
+    expect(it.chat.live().has("one")).toBe(false)
     expect(Date.now() - left).toBeGreaterThan(80)
     expect(released).toEqual(["one"])
   } finally {
