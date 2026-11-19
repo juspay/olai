@@ -245,8 +245,8 @@ interface NodeSlot {
   /** Replacements this slot made, keyed by engine and session; owned by it.
    *  Kept for the slot's whole life, because a VISIT to one of these pairs is
    *  a history visit for as long as the slot exists. Withdrawn only when the
-   *  binding write that justified the replacement fails: the node is then
-   *  still bound to the pair, so it is that node's chat and not history. */
+   *  binding write that justified the replacement does not land: the node is
+   *  then still bound to the pair, so it is that node's chat, not history. */
   readonly superseded: Set<string>
   /**
    * ... AND THE SUBSET THE DURABLE BINDING HAS NOT CAUGHT UP WITH YET, which is
@@ -1287,14 +1287,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         })
         /**
          * THE NODE'S CURRENT CHAT, AS A PAGE FOLLOWING IT LAST SAW IT — served
-         * only while it still is.
-         *
-         * The page's pair can be one roster frame behind: a fresh start ends a
-         * history visit before its request goes out, and a frame published
-         * from inside it can still carry the old binding. Read as a visit, that
-         * pair is opened in a history seat or a root panel — an agent nobody
-         * wanted, abandoned when the page's roster moves a moment later. Here
-         * it is answered `null` instead, and nothing is opened.
+         * only while it still is, `null` otherwise ({@link Chat.reading}).
          *
          * NO `locate`: its listing arm can start a process just to ask. The
          * first node whose binding names the pair is the one asked about, as
