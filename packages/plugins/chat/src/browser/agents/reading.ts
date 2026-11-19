@@ -139,7 +139,10 @@ export const createAgentReadings = (agents: Roster) => {
   return {
     agents, ui, page, newChat, retainUI,
     conversation: (to: PanelAddress, expected: Conversing | null) => {
-      const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
+      // FOLLOWED AND VISITED ARE TWO READINGS of one pair, since the server
+      // answers them differently; the `ui` below stays keyed by the pair, so
+      // a draft stays with the conversation whichever way it is read.
+      const key = JSON.stringify("session" in to ? [to.agent, to.session, to.current === true] : ["node", to.node])
       let entry = conversations.get(key)
       if (entry === undefined) {
         entry = runWithOwner(owner, () => createRoot(dispose => {
