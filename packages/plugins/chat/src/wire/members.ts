@@ -427,6 +427,23 @@ export const ToolEntry = Schema.Struct({
   called: Schema.optionalKey(Schema.String),
   row: Schema.optionalKey(Schema.String),
   reply: Schema.optionalKey(Json),
+  /**
+   * This call's question reaches a person AS A FORM — the agent's own "ask the
+   * human" tool, as that agent's own leg names it (`@kolu/acp`'s
+   * `Leg.asksThroughForm`, carried onto the frame by `@kolu/acp-client` and
+   * through `@kolu/acp-harness`'s transcript).
+   *
+   * The ask row beside it IS that question, so the call is drawn nowhere at
+   * all ({@link ./browser/chat/lanes.ts}'s `asksInAForm`): a card reading
+   * *AskUserQuestion* above the form it opened is the same question twice,
+   * the second time in words nobody chose.
+   *
+   * Only ever `true`, like {@link ToolEntry.stranded} and
+   * {@link AgentEntry.streaming}: a call that does not ask this way says
+   * nothing, and the tool name it was decided from is one adapter's spelling
+   * that stays upstream of this wire.
+   */
+  asksThroughForm: Schema.optionalKey(Schema.Literal(true)),
   /** What the call is SAYING as it runs — the protocol's incremental content
    *  blocks. Separate from `detail` because it is the live half: a call that
    *  has been running for thirty seconds has something to show, and its
@@ -827,7 +844,7 @@ export const outSince = (entry: ToolEntry): string =>
  * THE ONE RULE, in the one place every end can ask it, and it is here because
  * it was NOT here and the cost was measured twice. Under the adapter olai ships
  * with, an `Agent` call's title is the TOOL's name — a row's title is pinned at
- * the first frame that carries one ({@link ../../plugins/chat/src/transcript.ts}'s
+ * the first frame that carries one (`@kolu/acp-harness`'s `transcript.ts`'s
  * `#named`), deliberately, so a call cannot rename itself while somebody is
  * reading it — so four agents dispatched in one message are four rows reading
  * `Task`. {@link Spawned.said} exists to answer that, and answering it four
@@ -1298,7 +1315,7 @@ export type UnopenedCause = typeof UnopenedCause.Type
  *
  * WHAT IT DOES NOT CARRY is how to try again. That is the server's, kept beside
  * the reason the way an undelivered message's prompt is kept beside its row
- * ({@link ../../plugins/chat/src/transcript.ts}): a browser reconstructing the attempt
+ * (`@kolu/acp-harness`'s `transcript.ts`): a browser reconstructing the attempt
  * would be a browser deciding which conversation to open, and it does not know
  * which one was asked for — a boot picks its own.
  */
@@ -1582,8 +1599,9 @@ export const ChatState = Schema.Struct({
    *
    * WHICH MEANS IT MOVES ON MORE THAN TOOL FRAMES NOW, and that is the trap
    * worth writing down. A background task is exempt from stranding by
-   * construction (`chat/src/transcript.ts`'s `#strand`), so while this list held
-   * only tasks its membership could change on a tool frame and on nothing else.
+   * construction (`@kolu/acp-harness`'s `transcript.ts`'s `#strand`), so while
+   * this list held only tasks its membership could change on a tool frame and
+   * on nothing else.
    * An AGENT is not exempt: a spawn its turn walked away from is over, and
    * nothing after that point will ever say so on a frame. A producer that
    * republished only on tool frames would leave a dead subagent on the strip,

@@ -21,6 +21,10 @@
  * older rule is the row that is DELIBERATELY EXEMPT — a question — and the
  * older rule is exactly what that row still needs.
  *
+ * ... AND WHETHER IT IS DRAWN AT ALL ({@link asksInAForm}), which is the same
+ * question asked one step earlier: a call that asks through a form is the form
+ * beside it, so the column does not draw it and no lane holds it either.
+ *
  *   **When the lane has to name itself.** A rail is enough while it is obvious
  *   whose it is — the `Agent` frame is right above it, or the row above is
  *   another call by the same agent — and it stops being obvious the moment the
@@ -104,6 +108,34 @@ import type { ChatEntry } from "olai-plugin-chat/wire"
  */
 export const filedUnder = (entry: ChatEntry | undefined): string | null =>
   entry?.kind === "tool" ? entry.parent ?? null : null
+
+/**
+ * ... AND THE ROW NOBODY DRAWS AT ALL — a call whose question reaches a person
+ * as the FORM beside it ({@link ./wire/members.ts}'s
+ * `ToolEntry.asksThroughForm`).
+ *
+ * The prior question to {@link filedUnder}'s, and the one kind of row where
+ * the answer is neither the column nor a lane. An agent's built-in *ask the
+ * human* tool announces a tool call and then elicits: the ask row IS that
+ * call's question, drawn with the options and the boxes, and the card above it
+ * says the same thing again in the adapter's own spelling. One question, one
+ * row.
+ *
+ * DECIDED HERE, beside membership, and read at the one door every row passes
+ * through on its way to being drawn ({@link ./order.ts}) rather than at the
+ * face that would render the card: the fold's own lists, the previews over
+ * them and anything counting rows all read that list, so a row suppressed at
+ * the render site would still be a hole in every one of them. Nothing is
+ * rewritten — the row is on the wire and in the record, it is simply not a
+ * thing the conversation draws.
+ *
+ * WHICH call that is came decided: the agent's own leg named the tool, the
+ * client put the answer on the frame and the harness carried it onto the row
+ * (`@kolu/acp`'s `Leg.asksThroughForm`). The name it was decided from is one
+ * adapter's spelling and never reaches the browser.
+ */
+export const asksInAForm = (entry: ChatEntry | undefined): boolean =>
+  entry?.kind === "tool" && entry.asksThroughForm === true
 
 /** A row drawn in a lane: whose it is, and what the lane says here. */
 export interface Lane {

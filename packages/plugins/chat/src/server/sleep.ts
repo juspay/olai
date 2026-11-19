@@ -663,7 +663,7 @@ export const makeSleeper = (
           //
           // UNCONDITIONAL, and it is a no-op on a pass that handed its turn over:
           // a body the agent has already been given is not in the holding at all
-          // (`olai-plugin-chat`'s `deliveries.ts`).
+          // (`@kolu/acp-harness`'s `holding.ts`).
           yield* doors.withdraw(to)
         }))
         yield* doors.deliver(to, () => sleepFor(agent, movedRows))

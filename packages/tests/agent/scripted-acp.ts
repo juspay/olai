@@ -1803,8 +1803,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       })
       // SAID OUT LOUD, like the `set property` verb above and for the same
       // reason: the refusal's own sentence is the assertion, and an olai tool's
-      // result is not drawn into the call's detail (`chat/src/agent.ts`'s
-      // `detailOf`), so the words have to come back as prose to be read.
+      // result is not drawn into the call's detail (`@kolu/acp-client`'s
+      // `agent.ts`'s `detailOf`), so the words have to come back as prose to
+      // be read.
       //
       // ONE MESSAGE EACH, and that is the scenario's business rather than
       // tidiness: two long results in one row is one row whose prose a reader —

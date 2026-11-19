@@ -256,3 +256,46 @@ test("a subagent's question stays in the column beside the agent that asked it",
   expect(held.keys).toEqual(["tool:agent-1", "ask:1"])
   expect(laned(held)).toEqual([["tool:agent-1", ["tool:call-1"]]])
 })
+
+/** The call an agent's own *ask the human* tool makes — the one row the
+ *  conversation draws nowhere, because the question it asks is the form
+ *  beside it (`./lanes.ts`'s `asksInAForm`). */
+const asksInForm = (id: string, seq: number, parent?: string): ChatEntry => ({
+  id,
+  seq,
+  since: "2026-08-21T12:00:00.000Z",
+  kind: "tool",
+  text: id,
+  status: "pending",
+  asksThroughForm: true,
+  ...(parent === undefined ? {} : { parent }),
+})
+
+test("a call that asks through a form is in neither the column nor a lane", () => {
+  const held = opened(
+    call("tool:agent-1", 1),
+    asksInForm("tool:form-1", 2),
+    asksInForm("tool:form-2", 3, "tool:agent-1"),
+    asked("ask:1", 4),
+  )
+  expect(held.keys).toEqual(["tool:agent-1", "ask:1"])
+  expect(laned(held)).toEqual([])
+})
+
+test("a call that says so on a later frame leaves the list it was already in", () => {
+  // The flag comes off the frame that NAMES the tool, and a call is announced
+  // before it is named — so the row is in the column for a frame and has to
+  // leave it, the way a row that learns whose it is does.
+  const held = frame(opened(call("tool:form-1", 1)), [asksInForm("tool:form-1", 1)])
+  expect(held.keys).toEqual([])
+  expect(laned(held)).toEqual([])
+})
+
+test("... and out of the lane it had been filed in", () => {
+  const held = frame(
+    opened(call("tool:agent-1", 1), call("tool:form-1", 2, "tool:agent-1")),
+    [asksInForm("tool:form-1", 2, "tool:agent-1")],
+  )
+  expect(held.keys).toEqual(["tool:agent-1"])
+  expect(laned(held)).toEqual([])
+})

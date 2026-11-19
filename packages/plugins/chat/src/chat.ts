@@ -9,7 +9,8 @@
  * collection and gets the conversation in its first frame.
  *
  * This file is the join, and it is the only place that knows both halves:
- * `@kolu/acp-client`'s `agent.ts` speaks ACP and emits typed events; {@link ./transcript.ts}
+ * `@kolu/acp-client`'s `agent.ts` speaks ACP and emits typed events;
+ * `@kolu/acp-harness`'s `transcript.ts`
  * turns those into rows; the surface members below are how a browser sees them.
  * Nothing above knows an agent exists, and nothing below knows a browser does.
  *
@@ -333,7 +334,8 @@ export interface PanelOptions {
   /** Publish transcript changes — ALL THREE of the things one carries: rows
    *  upserted by key, removes for a session that was replaced, and the text
    *  APPENDED to a row already there, which is what a chunk of a streaming
-   *  answer is and moves no row at all ({@link ./transcript.ts}, and `says` for
+   *  answer is and moves no row at all (`@kolu/acp-harness`'s `transcript.ts`,
+   *  and `says` for
    *  the question "does this change say anything"). Naming two of the three is
    *  what this comment used to do and what the guard below used to ask, and it
    *  cost every token of every answer. */
@@ -479,7 +481,7 @@ export interface Panel {
   ) => Effect.Effect<Attached, OpFailure>
   /** Deliver a message the agent would not take, again — `id` is the `user`
    *  row's own key. The prompt is the one that failed, kept beside that row
-   *  ({@link ./transcript.ts}) with its pictures and node lines, so what lands
+   *  (`@kolu/acp-harness`'s `transcript.ts`) with its pictures and node lines, so what lands
    *  is the same message rather than a browser's reconstruction of it. Refuses
    *  when that row is not waiting to be sent, which two tabs can genuinely
    *  race. */
@@ -619,7 +621,7 @@ export interface Panel {
       say: () => string | null,
       options?: {
         /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
-         *  see {@link ./deliveries.ts}. A body with no key never replaces. */
+         *  see `@kolu/acp-harness`'s `holding.ts`. A body with no key never replaces. */
         readonly coalesce?: string
         /** Whether this body is OLAI'S OWN TURN — see
          *  `@olai/plugin-api`'s `Deliveries.deliver`, which argues the option,
@@ -640,7 +642,7 @@ export interface Panel {
      * nobody observing it, no memo and no commit
      * (`olai-plugin-chat`'s `server/sleep.ts`).
      *
-     * THE SAME VERB A CLEARED DOORBELL USES (`./deliveries.ts`'s `dropped`),
+     * THE SAME VERB A CLEARED DOORBELL USES (`@kolu/acp-harness`'s `holding.ts`'s `dropped`),
      * reached from the other end: there a person took the words away, here the
      * caller that wrote them is going. Nothing is lost by it, for the reason
      * above — and a body that was already HANDED is not in the holding at all,
@@ -1565,7 +1567,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * A projection over two facts this file already holds, published through
      * {@link move} like every other thing the panel knows: the picks
      * ({@link ./scopes.ts}) say which doorbells are on and on what file, and the
-     * held bodies ({@link ./deliveries.ts}) say how many of each plugin's
+     * held bodies (`@kolu/acp-harness`'s `holding.ts`) say how many of each plugin's
      * sentences are waiting. Nothing else writes `wake`, which is what keeps the
      * runtime's own rule intact — it moves what the store and the chat decided
      * onto the wire, and there is no overlay anywhere for this cell.
@@ -1974,7 +1976,18 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         : null
       const reply = ours === null || frame.mcp.length !== 1 ? undefined : frame.answer as Json
       const named = frame.called === undefined ? {} : { untilNamed: { called: frame.called } }
-      if (ours === null) return frame.called === undefined ? undefined : named
+      // HOW THIS CALL'S QUESTION REACHES A PERSON — the one thing olai reads
+      // off a frame for a call that is NOT one of its own: the agent's built-in
+      // "ask the human" tool belongs to no plugin here, and the row it would
+      // draw sits directly above the form it opened
+      // ({@link ./wire/members.ts}'s `ToolEntry.asksThroughForm`). So it is
+      // written on both arms below rather than only on the owned one.
+      const asking = frame.asksThroughForm === true ? { asksThroughForm: true as const } : undefined
+      if (ours === null) {
+        return asking === undefined && frame.called === undefined
+          ? undefined
+          : { ...(asking === undefined ? {} : { extra: asking }), ...named }
+      }
       // THE INPUT ALONE, as the agent wrote it — or what this call was last
       // read as, for the frame that carries only the answer: the arming frame
       // is where the arguments are, so a reading taken off the frame in front
@@ -1991,6 +2004,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           ...(ours.owner === undefined ? {} : { row: ours.owner }),
           ...(reply === undefined ? {} : { reply }),
           ...(asked === undefined ? {} : { detail: asked }),
+          ...asking,
         },
         ...named,
       }
@@ -2921,7 +2935,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *
      * ONE PLUGIN AT A TIME — the one whose body has been waiting longest — and
      * all of that plugin's held bodies together, joined whole with a blank line
-     * between them ({@link ./deliveries.ts}'s `joined`). Not every plugin's
+     * between them (`@kolu/acp-harness`'s `holding.ts`'s `joined`). Not every plugin's
      * bodies in one message, because the row carries ONE `rang` and a row marked
      * with one plugin's name carrying another's paragraph would be exactly the
      * signature the mark exists to prevent. A second plugin's bodies go at the
@@ -3166,7 +3180,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * An OPEN that the agent refused, and what it would take to try it again.
      *
      * The other half of a `ChatState.unopened`, kept HERE for the reason a
-     * refused message's prompt is kept beside its row ({@link ./transcript.ts}):
+     * refused message's prompt is kept beside its row
+     * (`@kolu/acp-harness`'s `transcript.ts`):
      * a face offering a retry with nothing behind it draws a button that
      * refuses, and an attempt with no face is a failure nobody can see. Neither
      * is constructible while the two are written and dropped together —

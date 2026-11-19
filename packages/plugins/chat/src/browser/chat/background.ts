@@ -78,7 +78,7 @@ export const watchOf = (entry: ChatEntry | undefined): string | null =>
  * THE RULE IS `isTaskOut`'s, in the surface beside the status vocabulary,
  * because the SERVER asks it about the same row — it is what decides which
  * calls a turn may not strand and how many tasks the conversation still has out
- * ({@link ../../../../plugins/chat/src/transcript.ts}). A rail that went out while the
+ * (`@kolu/acp-harness`'s `transcript.ts`). A rail that went out while the
  * count stayed up would be a clock ticking in every open tab under a row that
  * says nothing is happening. What is added here is the KIND check
  * ({@link ./running.ts}) and the WORD.

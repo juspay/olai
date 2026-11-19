@@ -9,7 +9,8 @@
  * fan-out and read the published cell — which is a great deal of machinery
  * between a reader and *is a stranded spawn on the strip?*, and that question
  * is worth more than the machinery. Here it is a function over values, asked
- * the way {@link ./turns.ts}'s and {@link ./calls.ts}' rules are.
+ * the way `@kolu/acp-harness`'s `turns.ts` and the client's `calls.ts` rules
+ * are.
  *
  * BOTH HALVES LIVE HERE because they are one thing said twice: WHAT the strip
  * says, and whether that is news. The second exists only to keep the first off

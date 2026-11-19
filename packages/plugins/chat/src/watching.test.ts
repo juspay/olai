@@ -10,8 +10,8 @@
  * fixture agent to announce a spawn and then walk away from it is an
  * arrangement of somebody else's script rather than an assertion about this
  * rule. So the projection came out into a module of its own, `chat.ts` calls
- * it, and the rules are asked here the way {@link ./turns.ts}' and
- * {@link ./calls.ts}' are.
+ * it, and the rules are asked here the way `@kolu/acp-harness`'s `turns.ts`
+ * and the client's `calls.ts` are.
  *
  * WHAT EACH TEST IS ABOUT is a way the strip lies. A strip is a live face with
  * a clock on it and a door behind it: an entry that should not be there is a

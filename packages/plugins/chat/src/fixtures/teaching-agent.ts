@@ -86,6 +86,6 @@ process.stdin.on("data", (chunk: string) => {
 
 /** A MODULE rather than a script, which is what keeps its names its own: two
  *  fixtures in one folder both spelling `write` are two globals colliding
- *  otherwise (`./stale-session-agent.ts` and `./doorbell-agent.ts` say the same
+ *  otherwise (`./doorbell-agent.ts` and `./lifecycle-agent.ts` say the same
  *  line). */
 export {}

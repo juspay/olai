@@ -481,8 +481,9 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
         write(to, (row) =>
           // THE LATER MARK WINS, and the comparison is on the STRINGS because
           // the stamps are one shape: every one of them is minted by
-          // `Date#toISOString` (`./transcript.ts`'s `stamp`), fixed-width UTC,
-          // so `>=` on the words is the order of the instants they spell.
+          // `Date#toISOString` (`@kolu/acp-harness`'s `transcript.ts`'s
+          // `stamp`), fixed-width UTC, so `>=` on the words is the order of the
+          // instants they spell.
           //
           // WHY IT MATTERS: two tabs a frame apart both acknowledge, and the
           // one still holding the roster before the agent's newest line names

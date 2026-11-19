@@ -38,7 +38,7 @@ import type { ChatEntry } from "olai-plugin-chat/wire"
 import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
 
-import { filedUnder } from "./lanes.ts"
+import { asksInAForm, filedUnder } from "./lanes.ts"
 
 /**
  * The accumulator: the keys in conversation order, and where each of them
@@ -85,7 +85,7 @@ export interface Ordered {
    * rather than a widened value on that one because the two move on different
    * frames and the cheap test above is `seq` alone: a row's place in the
    * conversation is fixed when it is born, and its attribution can arrive
-   * several frames later (`chat/src/transcript.ts` carries `parent` forward
+   * several frames later (`@kolu/acp-harness`'s `transcript.ts` carries `parent` forward
    * across the frames one call arrives on) — so a pair would have to be
    * compared field by field on every upsert of every streaming row.
    */
@@ -186,6 +186,7 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
     const seq = new Map<string, number>()
     const under = new Map<string, string>()
     for (const [key, entry] of entries) {
+      if (asksInAForm(entry)) continue
       seq.set(key, entry.seq)
       const parent = filedUnder(entry)
       if (parent !== null) under.set(key, parent)
@@ -205,6 +206,18 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
       if (held.under.delete(key)) moved = true
     }
     for (const [key, entry] of upserts) {
+      // A CALL THAT ASKS THROUGH A FORM LEAVES, which is the one membership
+      // answer that can arrive after a row is already in the list: the flag
+      // comes off the frame that names the tool, and a call can be announced
+      // before it is named ({@link ./lanes.ts}'s `asksInAForm`). Spelled as a
+      // departure rather than as a `continue`, so the row goes out of the
+      // order and out of the filing the way a remove does.
+      if (asksInAForm(entry)) {
+        if (held.seq.delete(key)) moved = true
+        if (held.under.delete(key)) moved = true
+        appendable = false
+        continue
+      }
       if (held.seq.get(key) !== entry.seq) {
         if (!held.seq.has(key) && entry.seq >= maximum) {
           appended.push(key)
@@ -255,6 +268,7 @@ export const orderOf = (
   const seq = new Map<string, number>()
   const under = new Map<string, string>()
   for (const entry of entries) {
+    if (asksInAForm(entry)) continue
     seq.set(entry.id, entry.seq)
     const parent = filedUnder(entry)
     if (parent !== null) under.set(entry.id, parent)

@@ -456,9 +456,9 @@ test("actual MCP reports update the roster and warn once, fenced to this session
 
 test("an absent catalogue leaves raw titles and files no reply on the row", async () => {
   const events: AgentEvent[] = []
-  let reads = 0
   const agent = await Effect.runPromise(make({ ...options(),
-    leg: { ...QUEUES, mcpCall: () => [{ server: "ours", tool: "read" }], replyIn: () => { reads++; return {} } },
+    leg: { ...QUEUES, mcpCall: () => [{ server: "ours", tool: "read" }],
+      replyIn: () => ({ answered: "and filed nowhere" }) },
     onEvent: event => events.push(event),
   }))
   try {
@@ -467,13 +467,14 @@ test("an absent catalogue leaves raw titles and files no reply on the row", asyn
     const frames = events.filter(event => event._tag === "tool")
     expect(frames.length).toBe(2)
     expect(frames[0]?.title).toBe("engine_tool")
-    expect(frames.every(frame => frame.row === undefined && frame.reply === undefined)).toBe(true)
     // THE ROW is what an absent catalogue decides: no owner, and no reply
-    // filed under it. The leg is still asked for the call's ANSWER, which is
-    // the event's own field now (`@kolu/acp-client`'s `tool` event's
-    // `answer`) and is read for every frame whether olai advertises the tool
-    // or not — olai draws none of it.
-    expect(reads).toBe(frames.length)
+    // filed under it. The leg is asked for the call's ANSWER whether olai
+    // advertises the tool or not — that is the event's own field now
+    // (`@kolu/acp-client`'s `tool` event's `answer`) — and what the leg says
+    // reaches that field and NOTHING THE PANEL DRAWS: a call no catalogue
+    // claims is not olai's to put a face on.
+    expect(frames.every(frame => frame.row === undefined && frame.reply === undefined)).toBe(true)
+    expect(frames.at(-1)?.answer).toEqual({ answered: "and filed nowhere" })
   } finally { await Effect.runPromise(agent.stop) }
 })
 
@@ -498,3 +499,58 @@ test.each([false, true])("completion uses remembered identity with late catalogu
     expect(frames[1]?.detail).toBeUndefined()
   } finally { await Effect.runPromise(agent.stop) }
 })
+
+/**
+ * THE CALL AN AGENT'S OWN FORM TOOL MAKES, as the panel writes it down.
+ *
+ * The agent's built-in *ask the human* tool announces a tool call and then
+ * elicits, so the conversation gets a card and the question it is about, one
+ * above the other, saying the same thing twice — once in the adapter's own
+ * spelling. Which tool that is, is the engine's own leg's answer
+ * (`@kolu/acp`'s `Leg.asksThroughForm`); it reaches the frame through
+ * `@kolu/acp-client` and the row through this panel's own reading, and the
+ * browser draws the row nowhere (`browser/chat/lanes.ts`'s `asksInAForm`).
+ *
+ * It is a PANEL case because the carrying is the panel's: the flag lands on a
+ * call olai does not own, which is the arm of the reading that mints nothing
+ * else at all.
+ */
+test.each([true, false])("a call that asks through a form says so on the row, asking=%s", async (asks) => {
+  const row: Installed = {
+    id: "opencode",
+    name: "opencode",
+    adapter: { command: process.execPath, args: [FIXTURE] },
+    // THE CALL ID IS THE NAME for this leg, which is the shape of the engines
+    // that put it there (`@kolu/acp`'s `Leg.toolNameOf`) and all this fixture's
+    // frame carries that a leg may read.
+    leg: {
+      ...QUEUES,
+      toolNameOf: (id: string) => id,
+      ...(asks ? { asksThroughForm: (name: string) => name === "display-1" } : {}),
+    },
+    prompt: { kind: "first-turn" },
+  }
+  const chat = await Effect.runPromise(makeChat({
+    roster: () => [seated(row)],
+    cwd,
+    tools: () => null,
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+  const calls = () =>
+    [...chat.entries().values()].filter((entry) => entry.kind === "tool")
+  try {
+    await Effect.runPromise(chat.start)
+    // A SEND DOES NOT WAIT FOR THE TURN — the row arrives on a frame the agent
+    // sends afterwards, which is what every case here that reads one waits for.
+    await Effect.runPromise(chat.send("display-tool", [], []))
+    const deadline = Date.now() + 8_000
+    while (Date.now() < deadline && calls().length === 0) {
+      await Effect.runPromise(Effect.sleep("20 millis"))
+    }
+    expect(calls()).toHaveLength(1)
+    expect(calls()[0]?.asksThroughForm).toBe(asks ? true : undefined)
+  } finally {
+    await Effect.runPromise(chat.stop)
+  }
+}, 15_000)

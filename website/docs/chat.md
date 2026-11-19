@@ -153,6 +153,8 @@ Output keeps the newest whole characters and says that it was cut: 64 KiB by def
 
 A tool call that failed discloses what it was asked to do rather than what came back. The reason is already on the call's own line, and showing it again under the line would say one error twice.
 
+When the agent asks you something through a form, the form is the only thing drawn: the call it asked through gets no line of its own, because the question is already the question.
+
 A turn that ends having produced nothing gets a notice naming the agent and asking you to check that it is signed in, and that its provider key is set in the environment olai itself runs in.
 
 When the agent refuses to open a conversation, olai says **The agent couldn't open a chat.** with the agent's reason, a **Try again** button, and, where this is the row's current chat, **Start fresh chat**. Two other refusals have screens of their own: a chat this machine has no record of, and every seat being taken ([node agents](node-agents.md)).
