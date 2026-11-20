@@ -1,25 +1,3 @@
-/**
- * THE GENERATOR, run by `../../default.nix` and by nothing else — bytes in, one
- * TypeScript module out.
- *
- * Argv around {@link ./inline.ts}, kept apart from it so the transform stays a
- * pure function a test can ask questions of and the IO stays where the
- * derivation can see it fail. The three arguments are the pinned file's store
- * path, the revision `npins/sources.json` records, and a short name for the
- * source (`juspay/kolu packages/client/favicon.svg`, `juspay/odu logo.svg`) so
- * the generated header is readable without a store path.
- *
- * ## Why the revision is in the header, and why this emits `.ts` and not `.json`
- *
- * The generated file is gitignored, so a pin bump changes the logo with NO
- * REVIEWABLE DIFF — the PR shows one sha in `npins/sources.json` and nothing
- * else. That is the honest cost of never vendoring a copy. What it buys back is
- * this header: `head -3` on the generated module says which revision of which
- * repository the bytes came from, so a stale one is diagnosable by looking at it
- * rather than by reasoning about when `just install` last ran. A `.json` could
- * not carry that line, and a bundler could not tree-shake it.
- */
-
 import { inlineMark, MARK_TOKEN } from "./inline.ts"
 
 const path = process.argv[2]

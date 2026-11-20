@@ -1,21 +1,11 @@
-/** Pure newline framing and the initialize/tools-list exchange. The transport
- * owns pipes, deadlines and child lifetime; this module owns protocol evolution. */
-/** The answer and all four failure modes travel one channel. Callers own
- * judgement and sentences, so transport failure never throws through a session
- * opening. Stderr is evidence, capped separately from the protocol stream. */
 export type Evidence =
   | {
-    /** Names and input property keys, for the caller to judge. */
     readonly _tag: "answered"
     readonly tools: ReadonlyArray<{ readonly name: string; readonly inputs: ReadonlyArray<string> }>
   }
-  /** The OS would not start it — the spawn call raised. */
   | { readonly _tag: "couldNotStart"; readonly cause: string }
-  /** It never reached either answer inside the deadline. */
   | { readonly _tag: "timedOut"; readonly deadlineMs: number }
-  /** Its pipes went away with no answer on them. */
   | { readonly _tag: "closed" }
-  /** Writing to it, or parsing what came back, failed. */
   | { readonly _tag: "failed"; readonly cause: string }
 
 
@@ -29,8 +19,6 @@ export interface Step {
   readonly answer?: Evidence
 }
 
-/** Bound the unfinished response before splitting, matching the transport's
- * existing 4 MiB limit even when a chunk contains several complete frames. */
 export const frame = (buffer: string, chunk: string): { lines: string[]; rest: string } | { error: string } => {
   const text = buffer + chunk
   if (text.length > 4 * 1024 * 1024) return { error: "MCP response exceeds 4 MiB" }

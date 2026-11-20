@@ -5,8 +5,6 @@ import { tmpdir } from "node:os"
 import { Cause, Effect, Exit, Fiber } from "effect"
 import { askStdioMcp } from "./stdio-mcp.ts"
 
-// Each fixture is a process speaking over real pipes; its directory belongs
-// to the test and its process belongs to the transport scope.
 const dirs: string[] = []
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })

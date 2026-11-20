@@ -1,24 +1,7 @@
-/**
- * THE TRANSFORM AT ITS OWN BENCH — synthetic SVGs only, and deliberately not a
- * copy of a tenant's real one.
- *
- * The real bytes are asserted over by the derivation that reads them
- * ({@link ../../default.nix} runs {@link ./emit.ts} on the store path) and by
- * each tenant's `browser/mark.test.ts`, which holds the pin-bump invariants
- * over what actually got generated. A fixture copy here would be the vendored
- * asset this whole design exists to refuse, one directory removed — and it
- * would go stale the first time a tenant redrew its logo, which is precisely
- * the day these cases would need to be true.
- *
- * So what is asked here is the FUNCTION: that it tokenises what it says it
- * tokenises, drops what it says it drops, and refuses each construct by name.
- */
-
 import { expect, test } from "bun:test"
 
 import { inlineMark, MARK_TOKEN } from "./inline.ts"
 
-/** A whole document around some body, with a viewBox the cases can read back. */
 const doc = (body: string, viewBox = "70 108 372 340"): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" role="img">${body}</svg>`
 
@@ -71,8 +54,6 @@ test("a hex colour survives the final #-sweep untouched", () => {
   expect(body).toContain(`stroke="#020617"`)
 })
 
-/** Each refusal, by the construct it names. The message carries the source path
- *  in every case, because a failed build's one useful question is which file. */
 test.each([
   ["a <script> element", doc(`<script>alert(1)</script><rect/>`), "<script>"],
   ["a <style> element", doc(`<style>#topStep{fill:red}</style><rect/>`), "<style>"],
@@ -111,16 +92,11 @@ test("an asset that draws nothing throws rather than emitting an empty box", () 
 })
 
 test("a SINGLE-QUOTED id is collected, rewritten and re-scanned like any other", () => {
-  // XML admits both quote styles, and a grammar that read only `"` would leave
-  // such an id uncollected AND unrewritten — invisible to the re-scan whose
-  // whole job is to prove the rewrite total. It would ship a mark claiming
-  // `id="lift"` from every other element on the page.
   const out = inlineMark(
     doc(`<defs><filter id='lift'><feDropShadow dy='2'/></filter></defs><rect filter='url(#lift)'/>`),
     SRC,
   )
   expect(out.body).toContain(`id='${MARK_TOKEN}lift'`)
-  // The attribute's own quotes are the single ones; the url inside carries none.
   expect(out.body).toContain(`url(#${MARK_TOKEN}lift)`)
   expect(out.body).not.toContain(`id='lift'`)
 })
@@ -132,9 +108,6 @@ test("... and a single-quoted reference to an id nothing declares still fails th
 })
 
 test("a `#` in a COMMENT is prose, not a broken reference", () => {
-  // The sweep reads a `#` as a claim about an id. An upstream note carrying an
-  // issue number would otherwise fail the build over a sentence — a pin bump
-  // refused for a comment nobody drew.
   const out = inlineMark(doc(`<!-- see #4312 for why the lift is 13 --><rect fill="#F59E0B"/>`), SRC)
   expect(out.body).not.toContain("4312")
   expect(out.body).toContain(`fill="#F59E0B"`)
@@ -146,11 +119,6 @@ test("... and so is a `#` in text content", () => {
 })
 
 test("a SPLICED comment cannot survive the strip — the fixpoint closes it", () => {
-  // Removing one match splices what is on either side of it, and two halves can
-  // close up into a delimiter that was not there before. `<!-<!-- -->-` is one
-  // match; taking it leaves `<!--`, which a single pass would hand on as
-  // "clean". This is the shape CodeQL's incomplete-multi-character-sanitization
-  // rule names, and what survives here is inlined into somebody's transcript.
   const spliced = `<!-<!-- -->- still a comment --><rect fill="#F59E0B"/>`
   const out = inlineMark(doc(spliced), SRC)
   expect(out.body).not.toContain("<!--")
@@ -159,9 +127,6 @@ test("a SPLICED comment cannot survive the strip — the fixpoint closes it", ()
 })
 
 test("... and a delimiter left standing after the fixpoint is REFUSED, never passed through", () => {
-  // An unterminated `<!--` is not a comment this can take out, so it is not a
-  // thing this quietly ships: the file refuses what it cannot honour, and comment
-  // syntax surviving a fixpoint strip is exactly that.
   expect(() =>
     inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)
   ).toThrow("<!")
@@ -169,9 +134,6 @@ test("... and a delimiter left standing after the fixpoint is REFUSED, never pas
 })
 
 test("`--!>` closes a comment too, so the strip takes the whole of it", () => {
-  // HTML's comment-end-bang state accepts `--!>`. A strip that knew only `-->`
-  // would walk past this and leave the comment — and its free-form text — in
-  // the markup that goes into a transcript.
   const out = inlineMark(doc(`<!-- see #4312 --!><rect fill="#F59E0B"/>`), SRC)
   expect(out.body).not.toContain("4312")
   expect(out.body).not.toContain("--!>")
@@ -179,9 +141,6 @@ test("`--!>` closes a comment too, so the strip takes the whole of it", () => {
 })
 
 test("a DECLARATION or a processing instruction is refused, whatever kind it is", () => {
-  // The refusal is deliberately broader than the strip: `<!` and `<?` cover
-  // comments, CDATA, doctypes and PIs together, rather than enumerating a
-  // grammar this file does not parse. None of them is a thing a favicon needs.
   expect(() => inlineMark(doc(`<![CDATA[ x ]]><rect fill="#F59E0B"/>`), SRC)).toThrow("<!")
   expect(() => inlineMark(doc(`<?xml-stylesheet href="x"?><rect fill="#F59E0B"/>`), SRC)).toThrow("<?")
   expect(() => inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)).toThrow("<!")

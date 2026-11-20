@@ -1,5 +1,3 @@
-/** Stateless stdio MCP interrogation. Each caller owns its child through Scope.
- * Tool requirements and user-facing sentences remain with the caller. */
 import { spawn, type ChildProcess } from "node:child_process"
 import { Effect, type Scope } from "effect"
 import { frame, parse, step, type Evidence, type Exchange } from "./stdio-mcp-protocol.ts"
@@ -8,7 +6,6 @@ const PROTOCOL = "2025-06-18"
 
 export type Verdict = Evidence & { readonly stderr: string }
 
-/** Interrogate a child using newline-delimited JSON-RPC, including pagination. */
 const askOver = async (child: ChildProcess, deadlineMs: number, signal?: AbortSignal): Promise<Verdict> => {
   const { stdout } = child
   if (child.stdin === null || stdout === null) {
@@ -71,8 +68,6 @@ const askOver = async (child: ChildProcess, deadlineMs: number, signal?: AbortSi
 }
 
 
-/** Spawn and register termination atomically. Cancellation aborts the transport
- * wait; closing the caller's scope kills and joins the disposable child. */
 export const askStdioMcp = (options: {
   readonly command: string
   readonly args: ReadonlyArray<string>
@@ -80,8 +75,6 @@ export const askStdioMcp = (options: {
   readonly timeout: number
 }): Effect.Effect<Verdict, never, Scope.Scope> => Effect.gen(function*() {
   const child = yield* Effect.acquireRelease(
-    // Only an exception from spawn is evidence that the OS could not start
-    // the child. A defect in our interrogation is not an executable diagnosis.
     Effect.try({
       try: () => spawn(options.command, [...options.args], {
         stdio: ["pipe", "pipe", "pipe"], ...(options.env === undefined ? {} : { env: options.env }),
@@ -91,28 +84,16 @@ export const askStdioMcp = (options: {
     child => Effect.promise(() => new Promise<void>(resolve => {
       if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) { resolve(); return }
       child.once("close", () => resolve())
-      // This child only answers a disposable capability question. It has no
-      // user work to flush; SIGTERM grace would let a wedged peer delay every
-      // withdrawal. SIGKILL plus close joins it before the owner releases.
       child.kill("SIGKILL")
     })),
   )
   return yield* Effect.promise(signal => askOver(child, options.timeout, signal))
 }).pipe(Effect.catch(verdict => Effect.succeed(verdict)))
 
-/** One `tools/call` result, verbatim, or the reason there is none. */
 export type Called =
   | { readonly _tag: "called"; readonly results: ReadonlyArray<Record<string, unknown>>; readonly stderr: string }
   | { readonly _tag: "failed"; readonly cause: string; readonly stderr: string }
 
-/**
- * ...AND ONE SCRIPTED SESSION: initialize, then call each tool in order and
- * hand back every result. The interrogation's sibling, for a caller that has
- * to see a server DO something rather than list what it could — a check or a
- * scenario driving the real Playwright MCP. The child is scoped exactly as
- * {@link askStdioMcp}'s is; a result the peer marks `isError` fails the run
- * with its own text, because a call that did not happen is not a result.
- */
 export const callStdioMcp = (options: {
   readonly command: string
   readonly args: ReadonlyArray<string>
