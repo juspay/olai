@@ -1,25 +1,3 @@
-/**
- * THE HOST, NOT THE FURNITURE — and so the two slot names this bench needs are
- * its own.
- *
- * It got them by importing `olai-plugin-layout/slots` for the side effect of
- * that module's `declare module`, which is the whole of what a `import type {}`
- * with no bindings was doing: the boot package's own runtime suite spelled a
- * plugin to borrow two type-level names. What is under test here is
- * `./runtime.ts` — who is mounted, whose fibers survive a re-compose, which
- * owner a component spends, what a failed `apply` leaves behind — and none of
- * that knows or cares what `app.header` draws. A borrowed fixture is how
- * `@olai/bundle`'s `fence.test.ts` came to read `olai-plugin-layout` for
- * `@olai/web`, where the table now holds an empty list.
- *
- * TWO NAMES NOBODY SERVES, therefore, and one of each KIND the assertions
- * below actually exercise: an `app`-keyed seat, so `only` has a single slot to
- * answer for, and a `plugin`-keyed one, so `hung` has an owner to carry. The
- * faces answer STRINGS because every assertion reads what a face returned, and
- * a string is the smallest value two registrations can be told apart by — a
- * `JSX.Element` here would put a UI runtime on the graph of a test about
- * fibers.
- */
 import { location as slotContract } from "@olai/plugin-api"
 import { afterEach, expect, test } from "bun:test"
 import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, slotFacade, slotLocation } from "@olai/plugin-api"
@@ -58,12 +36,6 @@ const Value = serviceTag<{ version: string }>("source.value")
 afterEach(() => composeTo([], client))
 
 test("a row the server remounted starts its browser half again, and its neighbours keep theirs", async () => {
-  // A config edit restarts a row's SERVER fiber and the serve mounts a fresh
-  // sibling. The old sibling's cell streams end NORMALLY, which is not a
-  // transport failure, so the retry fence does not bring the subscriptions
-  // back. Only a fresh activation re-reads its cells — and only the row whose
-  // mount generation moved may be restarted, or a policy edit would discard
-  // every other plugin's local state.
   const started: string[] = []
   const half = (name: string) => ({
     default: definePlugin({ name, needs: [], apply: Effect.sync(() => { started.push(name) }) }),
@@ -135,7 +107,6 @@ test("a consumer that fails after waiting is visible and retried on the next com
   await composeTo([reader], client)
   expect(hint("reader")).toContain("source.value")
   await composeTo([reader, source], client)
-  // The dependency-triggered activation finishes after the provider itself.
   for (let turn = 0; turn < 100 && !hint("reader")?.includes("late failure"); turn++) {
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
@@ -152,7 +123,6 @@ test("component lifetimes spend their owning plugin's wire, slot and service nam
   const provider = {
     default: definePlugin({ name: "source", needs: [], apply: Effect.void }),
     components: { detail: definePlugin({
-      // The author of a component cannot choose a different plugin owner.
       name: "somebody-else", needs: [Offers, Slots, Wired], apply: Effect.gen(function*() {
         wire = (yield* Wired).client()
         yield* (yield* Slots).register("bench.mark", { place: "cluster", body: () => "detail" })

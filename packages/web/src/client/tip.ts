@@ -1,111 +1,32 @@
-/**
- * The two things about a hover tip that are not "a div and two handlers":
- * where it goes, and the fact that there is only ever one.
- *
- * The browser's own `title` tooltip was what this replaces: it cannot be read
- * by a keyboard, it cannot be styled to look like the page, and — the reason
- * it had to go — it is placed by the platform, which let a long one run off
- * the right edge of the window with the end of the sentence outside the
- * screen. A tip nobody can finish reading is a tip that did not say anything.
- *
- * Both halves live here rather than in the component because both are worth
- * testing on their own: the arithmetic is a function of three numbers, and
- * "only one tip is open" is an invariant ACROSS components, which no single
- * component can keep.
- */
-
 import { createSignal } from "solid-js"
 
-/** How close to the window's edge a tip may come. */
 const MARGIN = 8
 
-/** How far below the anchor — or the header, if the anchor sits inside it —
- *  a tip starts. */
 const TIP_GAP = 4
 
-/**
- * The left edge to draw a tip at: under its anchor, pulled back when that
- * would push its right edge past the window, and never past the left edge —
- * a tip wider than the window has nowhere to go, and hanging off the LEFT is
- * strictly worse, because that is the end you start reading at.
- *
- * Widths are the caller's, measured after the tip has drawn: a tip wraps, so
- * what it is wide is a fact about the text, the font and the window, and not
- * one this can be told in advance.
- */
 export const clampedLeft = (
   anchorLeft: number,
   tipWidth: number,
   viewportWidth: number,
 ): number => Math.max(MARGIN, Math.min(anchorLeft, viewportWidth - tipWidth - MARGIN))
 
-/**
- * The top edge to draw a tip at: under its anchor, but never under the
- * header.
- *
- * A header pill's box ends INSIDE the bar. Starting {@link TIP_GAP} below
- * THAT is how the coral rule used to cut the first line of the sentence —
- * the bar is a stacking context above the page layer, so the tip was
- * painted through rather than merely overlapping. The floor is the bar's
- * bottom edge when there is one, and the anchor's own bottom when there
- * is not (a row's tip, already below the chrome).
- */
 export const clampedTop = (anchorBottom: number, floor: number): number =>
   Math.max(anchorBottom, floor) + TIP_GAP
 
-/**
- * The top edge to RE-place a tip at once it has drawn and its height is a
- * fact ({@link clampedTop} answers the ask before the height is known):
- * the asked top, unless that would run the tip's bottom past the window's
- * bottom margin — then it is LIFTED until the bottom sits at the margin.
- *
- * The lift never parks above the bar's floor PLUS the gap the ask itself
- * was given ({@link clampedTop}'s spacing is the least a re-placement owes
- * it), nor above the same top margin the sides keep. A tip taller than the
- * room between that pin and the bottom margin keeps the pin and
- * overflows: no lift can help it, and parking higher would lie about
- * both ends.
- *
- * This is arithmetic of one axis — a bottom cannot be clamped before the
- * height exists, and the height is the caller's to read off the drawn box,
- * the same fact-of-the-text-sharing {@link clampedLeft} declares.
- */
 export const liftedTop = (
   top: number,
   tipHeight: number,
   viewportHeight: number,
   floor: number,
 ): number => {
-  // Bar below or no bar at all: without one the floor arg is zero, and
-  // the margin is the pin.
   const pin = Math.max(floor + TIP_GAP, MARGIN)
   return top + tipHeight + MARGIN > viewportHeight
     ? Math.max(pin, viewportHeight - tipHeight - MARGIN)
     : top
 }
 
-// ── one tip, ever ──────────────────────────────────────────────────────
-
-/**
- * WHICH tip is open, for the whole document — one signal, because "at most one
- * tip is on screen" is a fact about the page and not about any tip in it.
- *
- * Each tip closing itself on its own `mouseleave` is not enough, and the bug
- * that says so was on screen: a pointer resting on a mark while the tree
- * re-rendered under it — a fold, a preference pick, a frame from the live store —
- * leaves the mark somewhere else with the pointer over nothing, and a browser
- * fires no `mouseleave` for an element that moved out from under a STATIONARY
- * pointer. That tip was then open for good: the only event that would have
- * closed it was one that could no longer happen. Hover the next mark and there
- * were two, saying the same sentence a few pixels apart, both unreadable —
- * which is exactly what four items waiting on one blocker looked like.
- *
- * So opening one closes every other by construction: they all read this, and
- * the one whose token is not in it draws nothing.
- */
 export type Tipped = { readonly shown: () => boolean }
 
-/** One coordinator per rendered app. Each tip subscribes only to itself. */
 export const createTips = () => {
   type Token = Tipped & { shown: () => boolean; set: (value: boolean) => void }
   let open: Token | undefined

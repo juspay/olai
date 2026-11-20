@@ -7,7 +7,6 @@ export const documentBox = (element: Element | undefined) => {
   if (b.width === 0 || b.height === 0) return null
   return { left: b.left + window.scrollX, right: b.right + window.scrollX, top: b.top + window.scrollY, bottom: b.bottom + window.scrollY }
 }
-/** A snapshot chooses eligible receivers; live membership and geometry govern aiming. */
 export const carrySession = <C extends Carried>(carried: C, table: Landings) => {
   const snapshot = table.lift(carried)
   let aimed: Lifted | null = null
@@ -28,7 +27,6 @@ export const carrySession = <C extends Carried>(carried: C, table: Landings) => 
     },
     end: async (drop: boolean) => {
       try {
-        // Capture the destination's indicated work before clearing its visit.
         // Do not await here: indicators and pointer resources leave immediately.
         return drop && aimed !== null && table.standing(aimed.receiver)
           ? aimed.receiver.drop(carried, point.x, point.y) : null
@@ -36,7 +34,6 @@ export const carrySession = <C extends Carried>(carried: C, table: Landings) => 
     },
   }
 }
-/** Component-owned pointer and long-press carries; click suppression is read by the carrier. */
 export const createCarry = (payload: () => Carried | null, table: () => Landings | undefined, options: { readonly onLift?: () => void; readonly refused?: (why: string) => void } = {}) => {
   const gesture = createLifting(() => {
     const value = payload(), landings = table()

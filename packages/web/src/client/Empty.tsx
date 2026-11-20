@@ -1,27 +1,10 @@
-/**
- * A page that has nothing on it, said with the leaf that is the app's mark.
- *
- * The SENTENCE is still the claim and it still carries the testid the
- * scenarios wait on. What this adds is the mark above it, so an empty page
- * is not a lone line of dim type on a field of paper — and, where the owner
- * of the page knows one, the NEXT STEP: a short second line saying what will
- * appear here, and one button that does the obvious thing. An empty page that
- * only says it is empty leaves a person to guess what to do next.
- *
- * Both are the caller's, because only the page's owner knows what belongs on
- * it and which verb starts it. This component knows no plugin and reaches no
- * service.
- */
-
 import { Dynamic } from "solid-js/web"
 import { Show } from "solid-js"
 
 import { TESTID } from "@olai/ui-primitives/testids.ts"
 import { Leaf } from "@olai/web/client/Leaf.tsx"
 
-/** The one thing an empty page offers to do. */
 export interface EmptyAction {
-  /** The button's words, Sentence case: `New outline`, `Go home`. */
   readonly label: string
   readonly href?: string
   readonly run?: () => void
@@ -31,14 +14,9 @@ export interface EmptyAction {
 export function Empty(props: {
   readonly testid?: string
   readonly line: string
-  /** What will appear here, or how it gets here, in one short line. */
   readonly detail?: string
   readonly action?: EmptyAction
 }) {
-  // The sentence is always `nothing`. The shared steps find an empty page by
-  // that id plus the exact words, and a page that put its own id there instead
-  // was a page those steps could not see. A page-specific id, when the caller
-  // has one, stays on the block so that page's own steps still find it.
   const pageId = () => props.testid !== undefined && props.testid !== TESTID.nothing ? props.testid : undefined
   return (
     <div class="flex flex-col items-start gap-5 py-12" data-testid={pageId()}>

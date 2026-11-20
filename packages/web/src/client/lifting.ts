@@ -1,9 +1,6 @@
 import { createDrags, TRAVEL_PX, type Gesture } from "./pointer.ts"
 import { longPressOn } from "./longPress.ts"
 
-/** A carrier decides what a lift means. This owner decides when a press becomes
- * a lift, owns its listeners and scroll claim, and suppresses its trailing click.
- * Nothing is claimed before pointer travel or the touch hold deadline. */
 export const createLifting = <S>(lift: (source: S) => Pick<Gesture, "onPage" | "onEnd"> | null) => {
   const drags = createDrags()
   let travelled = false
@@ -25,7 +22,6 @@ export const createLifting = <S>(lift: (source: S) => Pick<Gesture, "onPage" | "
         flight?.onEnd(up)
       },
     })
-    // Starting first cancels the previous flight before acquiring the new one.
     if (held) begin()
   }
   let pressed: { source: S } | undefined
@@ -33,7 +29,6 @@ export const createLifting = <S>(lift: (source: S) => Pick<Gesture, "onPage" | "
   return {
     grab: (event: PointerEvent, source: S) => {
       if (event.button !== 0) return
-      // A release elsewhere may never click the handle. Reset on the next press.
       travelled = false
       if (event.pointerType === "touch") {
         pressed = { source }

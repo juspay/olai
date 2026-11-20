@@ -1,7 +1,3 @@
-/** Generic browser build: Solid compilation, Tailwind utilities and immutable
- * asset publication. Static head/CSS/public-file/preload policy comes from
- * bundle row asset exports, on a graph never loaded by either runtime. */
-
 import { start } from "@kolu/child"
 import { mkdtempSync, rmSync } from "node:fs"
 import { createRequire } from "node:module"
@@ -42,16 +38,9 @@ const solidJsx: BunPlugin = {
 }
 
 /**
- * The utilities, as Tailwind writes them.
- *
- * `@tailwindcss/cli` is invoked by its IN-TREE path, never `bunx`: bunx
- * resolves by name and falls back to fetching the package when the local copy
- * does not match, and the Nix build sandbox has no network, so that fallback
- * is a build failure. `createRequire` walks Node's own resolution outward from
- * this file, so the path stays right wherever in the workspace this ends up.
- *
- * Tailwind has no content-hash naming of its own, so it writes to a temp file
- * in the OS temp dir — both the source tree and the Nix dist may be read-only.
+ * `@tailwindcss/cli` is invoked by its in-tree path, never `bunx`: bunx falls
+ * back to fetching the package when the local copy does not match, and the Nix
+ * build sandbox has no network.
  */
 const tailwindUtilities = async (): Promise<string> => {
   const cli = createRequire(import.meta.url)
@@ -74,8 +63,6 @@ const tailwindUtilities = async (): Promise<string> => {
   ], {
     drain: { stdout: true, stderr: true },
   })
-  // Forward as it arrives so a Nix build log still shows the CLI; the box
-  // is what the hang detector quotes if the CLI never exits.
   tailwind.stdout?.on("data", (chunk: string | Buffer) => {
     process.stdout.write(chunk)
   })
@@ -92,14 +79,11 @@ const tailwindUtilities = async (): Promise<string> => {
   return utilities
 }
 
-/** Row-owned generated styles follow Tailwind's layered utilities. */
 const buildStylesheet = async (): Promise<ArrayBuffer> =>
   new Response(
     `${await tailwindUtilities()}\n${BUILD_ASSETS.map((asset) => asset.css?.() ?? "").join("\n")}`,
   ).arrayBuffer()
 
-/** Preloads are requested by static asset owners; the actual hashed name
- * comes from the single build's asset report. Dynamic modules are not executed. */
 const preloadAssets = async (distDir: string, assets: readonly { readonly file: string }[]): Promise<void> => {
   const links = BUILD_ASSETS.flatMap((owner) => (owner.preloadModules ?? []).map((request) => {
     const pattern = chunkFile(basename(request.module, ".ts"))
@@ -132,7 +116,6 @@ const buildClient = async (distDir: string): Promise<void> => {
       })
     },
   }
-  // Bundle-owned static head contributions must precede deferred scripts and paint.
   const templateDir = mkdtempSync(join(tmpdir(), "olai-head-"))
   const template = join(templateDir, "index.html")
   const original = await Bun.file(resolve(CLIENT, "index.html")).text()
@@ -140,9 +123,6 @@ const buildClient = async (distDir: string): Promise<void> => {
   const { assets } = await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
     distDir,
-    // The same spelling the server pins — see `@olai/surface`'s ASSET_PREFIX.
-    // Reported back on the result; two processes, so they share the constant
-    // rather than a value one of them wrote.
     assetPrefix: ASSET_PREFIX,
     htmlTemplate: template,
     // Both placeholders must match index.html byte for byte; the helper throws
@@ -158,11 +138,6 @@ const buildClient = async (distDir: string): Promise<void> => {
     ],
     plugins: [solidJsx, moduleManifest],
   }).finally(() => rmSync(templateDir, { recursive: true, force: true }))
-  // What the helper emitted, reported rather than re-walked: one row per
-  // compressible file in the hashed dir — the entry, the markdown chunk the
-  // `import()` split out, the stylesheet — with the identity size and whatever
-  // siblings beat it. So "the entry is 700 kB and 185 kB on the wire" stays a
-  // number somebody can see after the step that printed it left this file.
   for (const asset of assets) {
     const siblings = Object.entries(asset.siblings)
       .map(([encoding, size]) => ` ${encoding}=${size}B`)
@@ -170,14 +145,9 @@ const buildClient = async (distDir: string): Promise<void> => {
     console.log(`asset: ${asset.file} ${asset.bytes}B${siblings}`)
   }
   await preloadAssets(distDir, assets)
-  // Keep the bundler's immutable files intact. The uncached shell carries only
-  // their URLs, derived from entryPoint metadata rather than parsed JS or guessed
-  // hashes. A retry adds a query to the failed entry while sharing dependencies
-  // with the original graph, preserving singleton runtimes and surviving state.
   const shell = join(distDir, "index.html")
   const html = await Bun.file(shell).text()
   await Bun.write(shell, html.replace("</head>", `<script id="${BROWSER_MODULES_ID}" type="application/json">${JSON.stringify(browserModules).replaceAll("<", "\\u003c")}</script></head>`))
-  // Install stable public assets after the helper finishes replacing dist.
   for (const asset of BUILD_ASSETS) await asset.install?.(distDir)
 }
 

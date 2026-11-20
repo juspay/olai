@@ -1,7 +1,5 @@
 import { onCleanup } from "solid-js"
 
-/** Decide after the current gesture has delivered its click. A pointer may
- * move focus before that click changes the owning view's visibility. */
 export function createAfterGesture() {
   let pointer = false
   let alive = true
@@ -34,11 +32,9 @@ export function createAfterGesture() {
     document.removeEventListener("dragend", finish, true)
     document.removeEventListener("contextmenu", finish, true)
     window.removeEventListener("blur", finish)
-    // A click may dispose the editor before the deferred blur commits it.
     drain()
   })
   return (task: () => void) => {
-    // Removal can deliver blur after the owner has already been disposed.
     if (!alive) { queueMicrotask(task); return }
     pending.add(task)
     if (!pointer) queueMicrotask(flush)

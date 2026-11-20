@@ -1,10 +1,3 @@
-/**
- * The outline's own type, held to the ruling: a row is a line at the
- * interface's body size (`text-body`, seven steps), a note sits one step under
- * it, a section one above — and Large is the notch, not a second one stacked
- * on the title.
- */
-
 import { expect, test } from "bun:test"
 
 import { LEADING, STEP_REM } from "@olai/appearance/scale.ts"

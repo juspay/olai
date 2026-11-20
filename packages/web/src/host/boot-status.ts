@@ -1,6 +1,3 @@
-/** A host diagnostic must work even when the renderer module cannot load.
- * It names the failure and retries the authoritative selection; it never mounts
- * an inferred shell. Any rendered application takes over presentation. */
 export const bootStatus = (root: Element): {
   readonly failed: (message: string, retry: () => Promise<void>, recovery?: "retry" | "reload") => void
   readonly clear: () => void

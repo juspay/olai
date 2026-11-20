@@ -1,33 +1,9 @@
-/**
- * Which files a query means — `./matching.ts`'s whole rule, over a directory
- * spelled out here rather than served.
- *
- * The order is the assertion, not just the membership: what makes a shortlist
- * usable is that the file somebody is typing towards is the one Enter would
- * take, and that is a property of the buckets rather than of the filter.
- *
- * ONE DOOR over this rule now — the composer's `@` list. The ⌘K palette was
- * the second, matching its own document rows over these buckets, until a
- * search learned to answer with documents as well as records: those rows are
- * ranked hits now, on the server's own scale (`@olai/format`'s
- * `matchingDocuments`, `rankedTogether`). What is asserted here is unchanged
- * by that — it was always this matcher's own rule — and the file stays where
- * it is for `./matching.ts`'s own reason.
- */
-
 import { expect, test } from "bun:test"
 
 import { dirOf, folded, type Folded, matchFiles, nameOf } from "./matching.ts"
 
-/** The cap the composer passes when the node half of the list has nothing to
- *  offer — the whole of it (`./naming.ts` divides it). */
 const LIMIT = 8
 
-/** The match, read as PATHS — which is what these tests are about and not what
- *  the matcher answers with: it hands back the entries it was given, so a
- *  caller keeps whatever it folded alongside the path (`./matching.ts`). Here
- *  the path is the whole claim; what the one caller keeps alongside it is
- *  `../chat/naming.test.ts`'s. */
 const matched = (
   files: ReadonlyArray<Folded>,
   query: string,
@@ -55,8 +31,6 @@ test("an empty query is the whole directory — a bare `@` shows what is there",
 })
 
 test("a query is matched against the file's own NAME first", () => {
-  // `pal` is nowhere near the start of `notes/palette.md` as a path, and it is
-  // exactly how somebody asks for that file.
   expect(matched(DIRECTORY, "pal", LIMIT)).toEqual(["notes/palette.md"])
 })
 
@@ -97,8 +71,6 @@ test("the list is a shortlist — eight rows, whatever the vault is", () => {
 test("what a row reads: the name, and where it sits", () => {
   expect(nameOf("notes/cabinets.md")).toBe("cabinets.md")
   expect(dirOf("notes/cabinets.md")).toBe("notes")
-  // A file at the root has no folder to name, and says so with nothing rather
-  // than with a `/` nobody typed.
   expect(nameOf("house.olai")).toBe("house.olai")
   expect(dirOf("house.olai")).toBe("")
 })

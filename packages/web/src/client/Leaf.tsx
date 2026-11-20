@@ -1,11 +1,3 @@
-/**
- * The palm-leaf mark, at whatever size the caller is.
- *
- * One drawing: the wordmark, and the empty pages that have nothing else to
- * put on the paper. `currentColor`, so a wordmark takes the ink and an empty
- * state takes the muted it sits in.
- */
-
 export function Leaf(props: { readonly class?: string }) {
   return (
     <svg

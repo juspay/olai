@@ -1,4 +1,3 @@
-/** One narrow adapter to the host's stable wire and browser coordinator. */
 import { ROWS } from "@olai/bundle"
 import { standing } from "@olai/plugin-api"
 import { browserManagement, type BrowserManagement } from "@olai/surface/management"

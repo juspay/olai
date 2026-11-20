@@ -1,19 +1,3 @@
-/** Browser architecture claims follow the code across owner boundaries.
- *
- * Every declared browser entry is walked through static and literal dynamic
- * imports. Shared browser utilities are also scanned even when temporarily
- * unreachable. Fixtures are excluded: these equalities describe production
- * callers, while behavior tests remain alongside their owners.
- *
- * The explicit path lists retain the original monopolies: one connection,
- * one names derivation, one dismissal stack and one clock. Moving a module
- * cannot remove it from review. Menu edges resolve real package aliases, and
- * dynamic import checks inspect emitted code so TS type queries do not count
- * as runtime loads. Comments are removed by the fence's own stripper, which
- * derives the trivia gaps from the parser's token boundaries — the same reading
- * the fence's `names` claim uses.
- */
-
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
@@ -21,10 +5,6 @@ import { graphFrom, edgesOf, isBench, transpilers, withoutComments, PACKAGES } f
 
 const CLIENT = import.meta.dirname
 
-/** Comment-free source, by the one stripper this tree has: the door's, which
- *  derives the trivia gaps from the parser's own token boundaries. Babel used to
- *  do this here, and it was a second answer to "what is a comment" that could
- *  disagree with the fence's. */
 const codeOf = (file: string) => withoutComments(path.relative(PACKAGES, file), fs.readFileSync(file, "utf8"))
 
 
@@ -48,13 +28,9 @@ while (pending.length) {
     pending.push(Bun.resolveSync(edge.spec, path.dirname(path.join(PACKAGES, edge.file))))
   }
 }
-/** A bench is not product — the door's reading of it, so a new bench convention
- *  is one edit rather than two answers. */
 const production = (file: string) => !isBench(file)
 const inBrowserPackage = (file: string) => file.startsWith("web/src/client/") || file.startsWith("plugins/") || file.startsWith("markdown-ui/") || file.startsWith("appearance/") || file.startsWith("ui-primitives/")
 const files = new Set(graphs.flatMap(graph => graph.files).filter(file => production(file) && inBrowserPackage(file)))
-// Keep unreachable shared browser utilities under review too: making a static
-// helper lazy or temporarily unused must not make a monopoly disappear.
 for (const entry of fs.readdirSync(CLIENT, { recursive: true, withFileTypes: true })) {
   const full = path.join(entry.parentPath, entry.name)
   if (entry.isFile() && /\.tsx?$/.test(entry.name) && production(full)) files.add(path.relative(PACKAGES, full))
@@ -73,67 +49,18 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> => {
   return matches
 }
 
-// wire.ts's own opening line — "the only file in the client that knows a
-// websocket exists" — tested as the CALL: exactly one file dials. Asserting
-// equality rather than "nothing else" keeps the sweep honest, because a
-// pattern that rotted would report an empty list here instead of passing.
-//
-// THE CALL HAS CHANGED TWICE and the claim has not, which is why the pattern
-// moved with it rather than the test being dropped. It hunted `connectSurface(`
-// while the client dialled one surface; when the plugins grew surfaces of their
-// own it hunted the socket constructor and the watchdog's mint, because the
-// turnkey seam derived its reserved probes from the FIRST SIBLING and core
-// cannot be one, so the wire was assembled here by hand. juspay/kolu#2222 gave
-// that seam a ROOT SLOT and the assembly is gone — one call again, and this is
-// once more a count of the seam rather than of the socket underneath it.
-//
-// The other half of that claim — that NO file in olai spells the four
-// primitives the assembly used to chain, nor the two fusion helpers
-// `@olai/plugin-api` used to export — is repo-wide and lives where those helpers
-// did: `@olai/plugin-api`'s `mechanics.test.ts`, which carries the falsifier the
-// upstream ask travelled with. A client-only sweep could not have made it.
 test("only wire.ts dials: the seam is called exactly once in the client", () => {
   expect(filesSpelling(/connectSurfaces\s*\(/)).toEqual([
     "web/src/client/wire.ts"
   ])
 })
 
-// names.ts's claim — the table is derived ONCE, beside the reading
-// (`createReading` in reading.tsx). App.tsx used to build one over the
-// focused pane for the palette, and NamesProvider one per pane: a
-// navigation copied twice. The call is the act; names.browsertest.ts is the
-// suite that counts the copy's own runs, so it is allowed to name the
-// function. Equality rather than "nothing else", so a second production site
-// is a name on this list.
 test("createNames is called only beside the reading", () => {
   expect(filesSpelling(/createNames\s*\(/)).toEqual([
     "plugins/outlines/src/browser/reading.tsx"
   ])
 })
 
-// status.ts's claim — it "says what each of the five looks like, and nothing
-// else about them" is only safe if nothing else READS them raw. Everything
-// downstream takes the readout whole (a prop, a `data-` attribute) or goes
-// through `lookOf`; the day a component branches on `"retired"` itself, the
-// sixth state lands everywhere status.ts is not. The test files are the
-// legitimate spellers: their fixtures must utter the states to hold the tables
-// to them — `status.test.ts` over the look table, `reaching.test.ts` over
-// WHICH states cannot carry a question, and `named.test.ts` over whether those
-// same states may send `app.get`. None of them branches on a state in the
-// app; they assert about, or stand in for, the tables that do.
-//
-// A FOURTH IS `declared.browsertest.ts`, which hands its subject a live socket
-// because a module that asks nothing into a dead one cannot be asked at all. It
-// sits HERE and not with the panel, and the pair is worth reading together: the
-// batch door it drives is `./declared.ts`, which the panel's transcript reads
-// and the outline page reads too — one question about what the SET declares,
-// asked once per message and remembered — so it stayed when the panel left, and
-// its fixture stayed beside it.
-//
-// THE CLAIM DID NOT SHRINK TO THIS DIRECTORY, which would be a monopoly held
-// only over whoever shares a folder with the definition. The panel is
-// downstream of this readout like every other face, and the same sweep runs over
-// its tree in `packages/plugins/chat/src/browser/claims.test.ts`.
 test("nothing outside connection/status.ts reads the readout's raw states", () => {
   const states = /["'`](connecting|live|degraded|reconnecting|retired)["'`]/
   expect(filesSpelling(states)).toEqual([
@@ -142,67 +69,22 @@ test("nothing outside connection/status.ts reads the readout's raw states", () =
   ])
 })
 
-// The LAW two gestures refuse by — one spelling, and it is not in this package
-// any more. A row dragged over another outline's pane and a destination picked
-// out of a search of the whole set are told the same thing about the format,
-// and they lead into it differently (a pane has a file, a picked row has a
-// title), so the sentence itself is the shared part. It moved to
-// `@olai/format`'s `moving.ts` when the second of those two readings did
-// (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 10): one of its readers is on
-// the other side of the wire now, and a browser-side copy would be the second
-// spelling this claim exists to forbid.
 test("no file here spells the same-file law — it is the format's", () => {
   expect(filesSpelling(/Every outline is an independent tree/)).toEqual([])
 })
 
-// layer.ts's claim — every `z-index` in this client comes from its table. The
-// numbers were never wrong before that module existed; they were spread over
-// twenty call sites, where two of them meant something entirely different from
-// what they looked like (the chat's session list drew at the palette's own `z-50`
-// while sealed inside a panel riding three layers down). What stops that
-// coming back is not the table but this: a bare utility anywhere else fails
-// here, and picking a NAME is the question a bare number lets a person skip.
-// ONE file, its own test included: `layer.test.ts` reads the utilities back
-// out of the table rather than quoting any, which is what lets this list be a
-// single name.
-// SaidLine.tsx's claim about `ALARM_BAND` — "spelled here it changes once".
-// The BAND, not the alarm token: this client paints alarm on a dozen shapes
-// (a badge, a bubble, a banner, a dashed chat entry) and each of those is its
-// own thing. What may not recur is the shortlist panels' alarmed band — the
-// rule at 40% with the same hue at 10% behind it — which three panels drew by
-// hand until they were one call, and which a fourth panel would copy from
-// whichever of them it was written beside. The pattern grips the pair rather
-// than either half, because either half alone is a shape somebody else is
-// entitled to.
 test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () => {
   expect(filesSpelling(/border-b border-alarm\/40[^"'`]*bg-alarm\/10/)).toEqual([
     "web/src/client/SaidLine.tsx"
   ])
 })
 
-// SaidLine.tsx's other claim, and the one packages/web/README.md was already
-// making without anything checking it: the two MOODS are read in one place.
-// What is swept is `data-tone` taken from a VALUE — `data-tone={…}` rather
-// than `data-tone="alarm"` — because that spelling is the fingerprint of a
-// surface deciding for itself what a mood looks like and how it is announced,
-// which is the four-line copy the component exists to end. A literal one is a
-// different thing and is left alone: `Refused.tsx` and `document/BodyRefused.ts`
-// are single-mood boxes over a plain string, and their own headers argue why a
-// component carrying a mood nothing emits would be an abstraction one caller
-// wide. Two hold-outs were found by hand when this test was written (the row
-// editor's line and the selection bar's) — which is the argument for the test.
 test("only SaidLine.tsx reads a said-line's mood", () => {
   expect(filesSpelling(/data-tone=\{/)).toEqual([
     "web/src/client/SaidLine.tsx"
   ])
 })
 
-// chrome.ts's claim, and the one that makes its title composer honest: what a
-// tab is CALLED is written in one place, so a mark applied to it cannot be
-// clobbered by a second writer and a second writer cannot lose the mark. It is
-// a sweep rather than a comment because the failure is silent — a title set
-// somewhere else looks right until the mark clears and puts back a name from
-// before it.
 test("only the scoped appearance owner writes the tab title", () => {
   expect(filesSpelling(/document\.title\s*=/)).toEqual([
     "plugins/theme/src/chrome.ts"
@@ -215,35 +97,10 @@ test("only layer.ts spells a z-index", () => {
   ])
 })
 
-// overlay.ts's claim — hanging overlays mount on the socket. A z-index only
-// compares inside its own stacking context, and a sticky heading is one at
-// LAYER.row: an overlay left in the outline is a preceding sibling of the
-// next heading and is cut in two (`menu-under-headers`, `menu-said-overlay`).
-// The socket is one function, and every overlay that hangs over the outline
-// names it. Equality rather than "at least these", so a fourth rider is a
-// name on this list and a rider that quietly goes back in the tree drops off
-// it and fails here. overlay.ts itself does not match: it is the definition,
-// and the pattern is the CALL.
-// Live or nothing: an offline shell would show outlines that had stopped
-// being true. The install surface's e2e used to ask `navigator.serviceWorker`
-// after the bundle had run; that claim now lives here, on the files that
-// would actually register one, not on the shell HTML.
-// running.ts used to re-default a tool row's status (`entry.status ??
-// "pending"`) because the wire type could not say the field was required on
-// a call and absent on every other kind. The union carries that; a second
-// spelling of the default coming back is a consumer re-establishing a fact
-// the type already has.
 test("statusOf is gone: the type carries a tool row's status", () => {
   expect(filesSpelling(/\bstatusOf\b/)).toEqual([])
 })
 
-// Live or nothing: an offline shell would show outlines that had stopped being
-// true. The origin has a worker again — the framework's fetch-less NOTIFICATION
-// worker, which is the only way an installed PWA can raise a notification at
-// all (`notify.ts`) — and it caches nothing, so the doctrine is
-// untouched. What this sweep now holds is that the REGISTRATION is one call in
-// one file: a second one would be a second policy about what this origin's one
-// worker is, and the register-or-retire invariant is the framework's to own.
 test("only the entry point registers a service worker", () => {
   expect(filesSpelling(/[Ss]erviceWorker/)).toEqual([
     "web/src/client/main.tsx"
@@ -262,23 +119,6 @@ test("overlays that hang over the outline mount on overlayRoot", () => {
   ])
 })
 
-// layer.ts's other claim, from the far end of the same table: what sits above
-// every layer in it is there because the BROWSER puts it there rather than
-// because it out-numbered anybody. A modal `<dialog>` is in the top layer —
-// above every stacking context at once, with the rest of the document inert —
-// which is the only way to promise that nothing underneath is interactive: a
-// panel portalled to the body after it, at the same `LAYER.over`, would paint
-// straight over a z-index that tried.
-//
-// THREE SURFACES ARE UP THERE NOW and the claim had to change shape with
-// them. It is two equalities because there are two different questions. WHO
-// MAY CALL `showModal` is the narrow one: `layer.ts`, which is the one door,
-// and the offline freeze, whose own opening is wrapped in the focus memory
-// `connection/focus.ts` keeps. WHO ENTERS is the list a reader actually
-// wants: the ⌘K palette and the shortcuts sheet it opens. A fourth name on
-// either list is a new thing claiming to cover the whole app — and one that
-// can open from a timer rather than from a gesture or a message would be the
-// first thing able to stand over the freeze (`layer.ts` says why).
 test("the top layer is entered through one door", () => {
   expect(filesSpelling(/showModal\s*\(/)).toEqual([
     "web/src/client/connection/Offline.tsx",
@@ -291,14 +131,6 @@ test("the top layer is entered through one door", () => {
   ])
 })
 
-// drag/sweeping.ts's claim — the outline's SCAFFOLDING is the only thing a
-// drag-across may begin on, and the mark that says so is written as a literal
-// at each site (a JSX spread there would move every `data-` fact a row carries
-// onto Solid's runtime spread path, per row, per frame). A literal cannot be
-// renamed by the type checker, so it is swept instead: exactly the module that
-// reads the attribute and the two components that wear it. A fourth file
-// spelling it is a new surface nobody argued for — and a missing one is a rail
-// that quietly stopped being pressable, which nothing else would notice.
 test("only the outline's scaffolding is marked as a sweep surface", () => {
   expect(filesSpelling(/data-sweep/)).toEqual([
     "plugins/outlines/src/browser/Tree.tsx",
@@ -307,12 +139,6 @@ test("only the outline's scaffolding is marked as a sweep surface", () => {
   ])
 })
 
-// The other two attributes a row's LINE and its HANDLE wear, swept for the same
-// reason and with the same shape. Each is declared once as a constant and
-// written out once as a literal, because a JSX spread would put every attribute
-// of those elements — including the row line's `classList` — on Solid's runtime
-// spread path, per row, per frame. A literal cannot be renamed by the type
-// checker; these are what hold the two spellings together.
 test("a row's line is marked in exactly the module that reads it and the tree that draws it", () => {
   expect(filesSpelling(/data-row-key/)).toEqual([
     "plugins/outlines/src/browser/Tree.tsx",
@@ -320,17 +146,6 @@ test("a row's line is marked in exactly the module that reads it and the tree th
   ])
 })
 
-// A PANE'S index, which is the same kind of claim read from the other end. The
-// workspace DRAWS it — the page itself, and the three chrome projections of the
-// pane list — and what READS it is every place that has to tell two panes of the
-// SAME FILE apart, which is a view this app can draw and therefore a place its
-// identifiers stop being unique. A `Row.key` is a chain from the roots of ITS
-// page (the two row gestures measure through one door, `drag/lines.ts`), and the
-// two element landings scroll under their own pane's root (the kind row’s page component
-// for the heading, `OutlinePage.tsx` for the row). A sixth file spelling it is
-// a new reader, which is a new answer to "which page is this in".
-// The portalled link preview carries its anchor’s pane into nested navigation.
-// Navigation's own self-drawn plugin page host draws a pane like any page.
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
     "plugins/layout/src/pane/Panes.tsx",
@@ -345,10 +160,6 @@ test("a pane's index is drawn by the workspace and read where two panes must be 
   ])
 })
 
-// The handle's is two rather than three, and the missing one is the point:
-// `menu/door.ts` stands down on this mark and spells it as the CONSTANT, so the
-// type checker already holds its end. Only the declaration and the cell that
-// wears it are literals, and only they need a sweep.
 test("a row's handle is marked in the gesture that owns it and the cell that wears it", () => {
   expect(filesSpelling(/data-handle/)).toEqual([
     "plugins/outlines/src/browser/drag/Handle.tsx",
@@ -356,99 +167,30 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
   ])
 })
 
-// TWO CLAIMS STOOD HERE and are `olai-plugin-chat`'s now, which is worth the
-// paragraph rather than a silent deletion: what a tool call's status may be
-// spelled as (the frame owns the LOOK, `@olai/surface` owns the MEANING, and
-// the fixtures that mint a tool row must name one), and the two callers allowed
-// to put the open agent preview away (a lifetime rather than a rule, pinned as
-// the CALL because the failure it guards against hides until two transcripts
-// mint the same key). Every name on both lists was a `chat/` file, so when the
-// panel left this client neither claim had a subject on this side — the sweeps
-// would have held empty lists, true and about nothing, while the twelve faces
-// and fixtures they were written against went unswept. Both moved with their
-// arguments intact to `packages/plugins/chat/src/browser/claims.test.ts`, which
-// is the same sweep rooted at the directory those files are in now.
-//
-// The three claims that did NOT move are the ones whose subject is core's and
-// whose obligation is everybody's — the readout's raw states above, the
-// bundler's literal and the dismissal stack below. Each says at its own list
-// that the panel's row went with the panel, and each is swept a second time
-// over there.
-
-// clock.ts's claim — "the one clock in the client", which for a while was a
-// claim about the DAY and silently untrue about the wall clock. The readouts
-// here that are a reading of it — the commit pill's "12m ago", the chat
-// panel's "47s", the header's "up 2h" — go stale where they stand, and each
-// would otherwise arrive with its own `setInterval`, signal and `onCleanup`.
-// What they have in common was never the number but the LIFETIME, and a
-// disposal written out per feature is one a feature will eventually forget:
-// the timer that outlives the component it drew for is invisible until a
-// panel that has been opened and closed forty times is ticking forty times.
-// So the repeating timer is `createTicking`, once, and a further readout has
-// to reach for it. `clock.ts` itself is the definition, and the pattern is
-// the CALL — which is why its own name is the only one here.
 test("only clock.ts starts a repeating timer", () => {
   expect(filesSpelling(/setInterval\s*\(/)).toEqual([
     "web/src/client/clock.ts"
   ])
 })
 
-// pointer.ts's claim — one file suppresses the text selection under a gesture.
-// It is swept because the file's own note LEANS on it: the save-and-put-back
-// there is not re-entrant, and what makes that survivable is that the value it
-// saves is always `""`, which is only true while nothing else writes the
-// property. A second writer turns a stray `user-select: none` until reload into
-// a wrong value put back, and this is what says so on the day it appears.
 test("only pointer.ts suppresses the page's text selection", () => {
   expect(filesSpelling(/userSelect/)).toEqual([
     "web/src/client/pointer.ts"
   ])
 })
 
-// saying.ts's claim — one receptacle for how long a said-line lingers. SAID_MS
-// was pulled out beside the `Said` type because the ••• menu's dwell and the
-// Trash's "were equal only by hand-maintenance", and the constant turned out
-// to be half the job: both surfaces still spelled the machinery around it and
-// had drifted into two shapes for the same three rules. Reaching for the
-// constant again is what writing the third copy looks like from here. ONE name
-// now: the number was declared in `edit/undoing.ts` while the type it belongs
-// to lived there, and both moved out to the module that counts it down.
 test("only saying.ts counts SAID_MS down", () => {
   expect(filesSpelling(/\bSAID_MS\b/)).toEqual([
     "web/src/client/saying.ts"
   ])
 })
 
-// routes.ts's monopoly, and finding 4's (a) from the debate on some of these
-// sweeps (https://github.com/juspay/oss.olai/blob/main/projects/olai/lowy-electricity/debate-2026-08-19.md): ONE door decides "is
-// this string one of our addresses". `routeNamed` is the only reading of the
-// format's grammar in this client, and a `parseAddress(` anywhere else is a
-// second answer free to disagree with the first — a pin and a written link
-// that open two pages for one address, which is the exact shape
-// `address/address.ts` exists to refuse (it delegates: its `routeIn` call is
-// the door's, and `address.test.ts` holds the two to one answer). A codec
-// may SPLIT a URL without recognising anything — `workspace.ts` reads the
-// format's `splitAddress` for its `/s/` rows and hands every page segment
-// back to `routeOf` — so the grip is the grammar's own entry point, where a
-// recognizer must start.
 test("address recognition has one door: parseAddress( is called only in routes.ts", () => {
   expect(filesSpelling(/parseAddress\s*\(/)).toEqual([
     "plugins/navigation/src/routes.ts"
   ])
 })
 
-// menu/chunk.ts's claim — `DropdownMenu` is not on the first-paint chunk, and
-// nothing may put it back. The split is a fact about the module GRAPH and
-// nothing in the source looks wrong on the day it is undone: one static
-// `import` of `menu/Dropdown.tsx` (or of `./Panel.tsx` / `./Confirm.tsx` behind
-// it) from a file the entry reaches, and the bundler inlines all ~80 kB of it
-// again while every test still passes and every pixel is where it was. So the
-// two edges are swept instead.
-//
-// First, the subpath itself: exactly the three files that live BEHIND the
-// `import()` may name it. The list is the chunk's own contents, and a fourth
-// name is either a new file that belongs in there or a first-paint file that
-// has just re-imported the menu.
 test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
   expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
     "plugins/chat/src/browser/agents/ChatRowPanel.tsx",
@@ -458,37 +200,12 @@ test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
     "plugins/outlines/src/browser/menu/Panel.tsx",
     "plugins/tabs/src/Menu.tsx",
-    // The `•••` on a plugin's own page, behind the same `import()`: one page
-    // draws one of these and the overwhelmingly common visit presses the
-    // primary button and leaves, so the primitive stays off the first paint
-    // (that file's own header argues it).
     "plugins/vault-plugins/src/browser/page/MorePanel.tsx"
   ])
 })
 
-// And the other edge, which is the way the first one would be undone without
-// naming Kobalte at all: the chunk is THREE files, and a static import of any
-// of them from a file the entry reaches drags the whole graph back into
-// `main-*.js`. `Panel.tsx` and `Confirm.tsx` already name the dropdown subpath,
-// so they sail through the sweep above; only this one sees them. (Grok's review
-// of PR #171 found that hole, when the sweep here asked about `Dropdown.tsx`
-// alone.)
-//
-// It resolves the specifier rather than matching it, because the SPELLING
-// cannot say which file is meant: this client holds four `Panel.tsx` — the
-// menu's, the chat's, the commit's and the preferences' — and three of those
-// are imported by first-paint code as `./Panel.tsx` from their own directory.
-//
-// The expectation is the chunk's own SHAPE, as a table: who may import each
-// file of it, and nobody else. `Dropdown.tsx`'s empty list is the claim that
-// used to be a sweep of its own — the entry is reached by the `import(...)` in
-// `menu/chunk.ts`, which carries no `from` and is the split itself.
 const CHUNK = ["Dropdown.tsx", "Panel.tsx", "Confirm.tsx"].map((one) => path.join("plugins/outlines/src/browser/menu", one))
 
-/** What a file statically imports, as client-relative paths. A dynamic
- *  `import(...)` is deliberately not one of them: `import` followed by a paren
- *  never matches, which is what makes `menu/chunk.ts` the one legitimate way
- *  in. */
 const importsOf = (source: { file: string; code: string; runtime: string }): ReadonlyArray<string> =>
   edgesOf(source.file, source.runtime).filter(edge => !edge.dynamic && (edge.spec.startsWith(".") || edge.spec.startsWith("@olai/") || edge.spec.startsWith("olai-plugin-")))
     .map(edge => path.relative(PACKAGES, Bun.resolveSync(edge.spec, path.dirname(path.join(PACKAGES, source.file)))))
@@ -505,68 +222,9 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
   ])
 })
 
-// And the edge those two cannot see: HOW the door itself is spelled, which is
-// finding 4's (b). A `createArrival` call site hands the bundler its
-// `import()` with a LITERAL specifier in the caller, because the bundler
-// READS a literal to cut the chunk — a variable or a computed name compiles
-// and passes every test here while the split quietly goes: the graph back
-// into `main-*.js` behind a specifier the bundler folded in, or a runtime
-// string nothing can resolve. Both `chunk.ts` headers say this in comments
-// next to their own import, and arriving.ts says it in the `@param fetch` —
-// three comments saying one rule, which is the reason the rule lives here.
-//
-// The grip is EVERY dynamic `import(` in the client, since a future chunk is
-// the same law, and the law is the argument's WHOLE SHAPE: one quoted string,
-// closed, then the paren. Checking only the first character lets a computed
-// name in through a literal's clothing — `import("./x" + suffix)` opens with
-// a quote (grok's review of this pin found that) — and the bundler cannot cut
-// on it either. A variable and a template are the same refusal: computed is
-// computed. And the SPELLERS are named, so the sweep cannot pass vacuously the
-// day both chunks fold back into the entry: the two fetch doors, one test
-// baking its own subject in (`inlinePicker.test.ts`, which has to stub
-// `dismiss.ts` before the subject that imports it is loaded), and
-// `layout/Rail.tsx`'s erased TYPE import — the stripper lifts comments, not
-// types, and TypeScript already forces THAT specifier to be a literal.
-//
-// A SECOND SUCH TEST IS `declared.browsertest.ts`, which mocks the wire module
-// before the subject that imports it is loaded — and the LAW is not this
-// directory's alone. The bundle is this package's build script and
-// a plugin's browser half is INSIDE it, mounted through the registry's
-// generated `import()`, which is a chunk boundary rather than an exemption: a
-// computed specifier over there cuts nothing just as surely, and this sweep
-// reads only this directory. So the same whole-shape grip is swept a second
-// time over the panel's own tree, in
-// `packages/plugins/chat/src/browser/claims.test.ts`.
-/**
- * THE ONE FILE THAT COMPUTES A SPECIFIER, and it is the rule's own limit rather
- * than a hole in it.
- *
- * The law above is *a computed specifier cuts no chunk*, and everything it
- * protects rests on there BEING a chunk to cut: a module in this tree, in this
- * bundle, that the bundler would otherwise fold back into the entry. A plugin
- * the VAULT defines has none. Its source did not exist when this bundle was
- * built — an agent wrote it into a directory this serve is about, and the serve
- * compiled it — so what `wire.ts` names is a URL the ROSTER carries, answered by
- * `/_olai/plugins/<name>-<version>.js`, and there is nothing for the build to
- * have split.
- *
- * So the two failures the law exists to prevent are both unreachable here: the
- * graph cannot fold back into `main-*.js`, because it is not in the graph, and
- * the specifier cannot fail to resolve at runtime, because it is a URL the
- * server just told this tab it is serving.
- *
- * ONE FILE, NAMED, for the reason the `filesSpelling` list below is named: an
- * exemption that was a pattern rather than a name would quietly cover the next
- * computed `import()` somebody writes for an ordinary chunk, which is exactly
- * the mistake this test was written after.
- */
 const COMPUTED_BY_DESIGN: ReadonlyArray<string> = ["web/src/client/wire.ts"]
 
 test("every dynamic import() the client spells takes a literal the bundler can read", () => {
-  // The opener, then the one shape the bundler can read: a complete quoted
-  // specifier — escapes allowed, the other quote allowed inside — followed by
-  // the closing paren. Anything beyond it (an operator, another argument) is
-  // a computed name in a literal's clothing.
   const ARG_GEN = /^(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')\s*\)/
   const offenders = SOURCES.filter((one) =>
     !COMPUTED_BY_DESIGN.includes(one.file) &&
@@ -585,49 +243,17 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     "plugins/kolu/src/appliance/props/LivePane.tsx",
     "plugins/outlines/src/browser/menu/chunk.ts",
     "plugins/tabs/src/chunk.ts",
-    // The plugin page's `•••` panel, lazily: a literal specifier the bundler
-    // reads and splits, which is the whole of what this claim asks.
     "plugins/vault-plugins/src/browser/page/Verbs.tsx",
     "web/src/client/wire.ts"
   ])
 })
 
-// dismiss.ts's claim — the two gestures that shut a panel are spelled in ONE
-// file, which since the layer stack is also the claim that every dismissable
-// is ON that stack. Before it, four panels had four copies of "a pointer down
-// outside it" and they had drifted; now a fifth panel written with a listener
-// pair of its own would not merely be a fifth copy, it would be a panel the
-// stack cannot see — one that shuts when something over it is dismissed, which
-// is the exact bug `features/dismiss_stack.feature` exists about and the one
-// thing a scenario about the OTHER panels would never catch.
 test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
   expect(filesSpelling(/create(?:EscapeKeyDown|InteractOutside)\s*\(/)).toEqual([
     "web/src/client/dismiss.ts"
   ])
 })
 
-// ...and the other side of it: WHO JOINS THE STACK WITHOUT `dismissOn`, which
-// is the list of panels whose gestures are somebody else's. The `•••` menu's
-// are Kobalte's, one level up; the palette and the shortcuts sheet are modal
-// `<dialog>`s, so theirs are the PLATFORM's — a close request reaches only the
-// topmost modal, and a press outside one lands on a backdrop the page cannot
-// see past. Those two take a ticket and never read it, which is deliberate
-// rather than dead: a layer UNDERNEATH asks this stack whether a gesture is
-// for it, and while a modal is up the answer has to be no. Each has a reason
-// written where it joins, and the list is short on purpose — a fourth joiner
-// here is either a panel that had to hand-roll its dismissal (worth arguing
-// about) or one that wanted the stack and skipped the dismissal, which is a
-// panel nothing shuts.
-//
-// A FIFTH USED TO BE ON IT and is a package away: the chat composer's
-// completion list, which takes keys in the capture phase ahead of everything
-// and holds a ticket so that "first" means first among the layers on screen.
-// The panel's own file went with the panel, and the RULE did not: `topmost.ts`
-// is still this client's, the stack is still the tab's one stack, and a face in
-// a plugin that took a ticket and shut by nothing would be exactly the bug
-// `features/dismiss_stack.feature` exists about — with the difference that this
-// sweep can no longer see it. So the joiners on the far side are swept over
-// there, in `packages/plugins/chat/src/browser/claims.test.ts`.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
     "plugins/chat/src/browser/agents/ChatRowPanel.tsx",
@@ -638,9 +264,6 @@ test("the stack is joined directly only where the gestures are not dismissOn's",
     "plugins/navigation/src/palette/Shortcuts.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
     "plugins/tabs/src/Menu.tsx",
-    // The plugin page's `•••`, which is the same Kobalte menu as the three
-    // above and takes its dismissal the same way: it is on the tab's one
-    // stack, so Escape over it shuts it and not whatever is under it.
     "plugins/vault-plugins/src/browser/page/MorePanel.tsx",
     "web/src/client/dismiss.ts",
     "web/src/client/topmost.ts"
@@ -661,31 +284,7 @@ test("transcript grips belong to chat", () => {
   expect(filesSpelling(/data-grip/)).toEqual(["plugins/chat/src/browser/chat/Grip.tsx"])
 })
 
-// EVERY PICTURE SAYS WHEN IT IS FETCHED. An `<img>` with no `loading` and no
-// `decoding` is not a neutral omission — it is the browser's heuristics
-// deciding for a surface whose author never looked, and the two ways that goes
-// wrong are opposite and both expensive: a transcript's hundredth avatar
-// fetched before anybody scrolls to it, and the picture a page IS deferred
-// behind layout. The decision is per site and argued at each one, so what this
-// sweep holds is that a site EXISTS to argue at: a new `<img>` anywhere in the
-// browser graph that decided neither is named here before a reader finds it.
-//
-// The markdown rewrite passes without spelling `<img>` as markup: it is the
-// pass that turns a `![](shot.png)` into one (`markdown-ui/rewrite.ts`), and
-// it writes the same two attributes onto the element it keeps — the first
-// picture of a block eager, every later one lazy, which is why the patterns
-// read through a ternary rather than demanding a literal.
-//
-// `claims.test.ts` cannot see the whole app: `website/` is not this graph, and
-// the hypertext preview draws pictures that are a FILE's markup rather than
-// this repo's. Those are not sites to decide at.
 test("every picture the app draws has decided when it is fetched", () => {
-  // A RULE, not a roster. Which files draw pictures rides the plugin-and-face
-  // clock — any plugin that adds an avatar or a preview moves it — while the
-  // policy rides the guidance's, which is to say hardly at all. Enumerating
-  // the drawers made a plugin author who did the right thing edit a test in
-  // `@olai/web` to say so; what is asserted instead is that the set of
-  // drawers that did NOT decide is empty.
   const draws = filesSpelling(/<img\b|tagName === "img"/)
   const decided = (pattern: RegExp): ReadonlyArray<string> => {
     const answered = new Set(filesSpelling(pattern))
@@ -693,30 +292,9 @@ test("every picture the app draws has decided when it is fetched", () => {
   }
   expect(decided(/\bloading\s*[=:][^\n]*?"(?:eager|lazy)"/)).toEqual([])
   expect(decided(/\bdecoding\s*[=:][^\n]*?"(?:async|sync)"/)).toEqual([])
-  // ...and a picture is drawn SOMEWHERE, so an empty result is a sweep that
-  // stopped seeing the tree rather than a tree that stopped drawing.
   expect(draws.length).toBeGreaterThan(0)
 })
 
-// LESS MOTION IS ANSWERED IN ONE PLACE, and these two patterns are the two
-// ways a second answer gets written.
-//
-// The app's answer is a stylesheet — one `@media (prefers-reduced-motion:
-// reduce)` block in `@olai/appearance/chrome.css`, which stills every
-// animation and keeps every colour transition alive for the whole tree at
-// once. A face that re-asks the question in JavaScript is not adding to that
-// policy, it is starting a second one: `matchMedia` read at module scope
-// answers with whatever was true when the tab loaded, and the reader who turns
-// the setting on half an hour in is exactly the reader it was for. So the
-// media query belongs to `motion.ts` and to nothing else.
-//
-// The word "smooth" is the same claim from the other end. CSS smooth scrolling
-// the stylesheet can turn off; a `scrollIntoView({ behavior: "smooth" })`
-// cannot be reached by any sheet, because the manner is an ARGUMENT — so every
-// such scroll has to take it from the one helper, and the only file allowed to
-// spell the word is the one that decides it. This sweep is the reason a new
-// reveal, jump or landing cannot quietly glide past a reader who asked it not
-// to.
 test("the motion preference is read in one file, and the smooth scroll it decides is spelled there", () => {
   expect(filesSpelling(/prefers-reduced-motion/)).toEqual([
     "appearance/src/motion.ts"
@@ -726,59 +304,14 @@ test("the motion preference is read in one file, and the smooth scroll it decide
   ])
 })
 
-// A PERSISTENT ANIMATION IS A PROMISE TO KEEP SAYING SOMETHING, and under
-// `prefers-reduced-motion` the app stops it dead — so the two files below are
-// the two places where that stopping had to be thought about, and the list is
-// short on purpose. Both draw a live cue: the transcript's dot, which exists
-// only while a turn is in flight (its presence is the news, so stilling it
-// costs nothing), and the agent standings, where the pulse used to be the only
-// thing between "working" and "idle" and is now the second of two things
-// (`plugins/chat/src/browser/claims.test.ts` holds that pair apart).
-//
-// A third name here is a spinner, a ping or a bounce that nobody has asked the
-// question of yet: what does it say when it holds still? That is a line a
-// human answers, which is why this is an equality and not a cap.
 test("the app's never-ending animations are the two live cues", () => {
   expect(filesSpelling(/animate-(?:pulse|spin|ping|bounce)/)).toEqual([
     "plugins/chat/src/browser/agents/roster.ts",
     "plugins/chat/src/browser/chat/live.ts",
-    // ...AND A THIRD, which owes the same answer and has it: the dot beside
-    // *Being built* on a plugin's page and in the sidebar's Plugins section.
-    // Held still it is a filled dot beside the words "Being built", which is
-    // the news; the pulse only says the files are still landing right now. It
-    // is the agent standings' arrangement one row over — a cue that is the
-    // second of two things rather than the only one.
     "plugins/vault-plugins/src/browser/state.ts"
   ])
 })
 
-// ...AND THE SAME QUESTION PUT TO THE STYLESHEETS, which the sweep above
-// cannot see at all: `SOURCES` is TypeScript, and the motion that escapes the
-// app's policy is precisely the motion that is NOT written in TypeScript.
-//
-// The policy (`appearance/src/chrome.css`) is unlayered and selects with
-// `:where(*)`, which beats every Tailwind utility — layer order is settled
-// before specificity — and loses to every other unlayered rule with a real
-// selector. Every plugin sheet in this tree is unlayered. So a `@keyframes`
-// and an `animation: … infinite` written by hand in a plugin's `all.css` goes
-// on running for a reader who asked for less motion, the policy
-// notwithstanding, and NOTHING in CSS will say so.
-//
-// Hence a reading of the sheets themselves, in two parts, because either half
-// alone passes by accident. The equality names every stylesheet that promises
-// a never-ending animation — a new one is a line a human has to answer for —
-// and the loop then demands that each of them spells the preference, which is
-// the answer. `markdown-ui` is the one today: the waiting sweep and the
-// streaming caret both opt IN under `(prefers-reduced-motion: no-preference)`,
-// the shape the policy's own comment argues for wherever an animation is
-// written by hand.
-//
-// What this deliberately does NOT do is parse CSS. A sheet could satisfy both
-// halves and still get it wrong — guarding one of its two animations and not
-// the other — and no regex will catch that honestly. The claim is that the
-// question was ASKED in the file where it is owed, not that the file answered
-// it well; the second is a reading a person does, which is what naming the
-// file in an equality is for.
 test("every stylesheet with an endless animation answers the motion preference", () => {
   const sheets: string[] = []
   const walk = (directory: string): void => {
@@ -790,10 +323,6 @@ test("every stylesheet with an endless animation answers the motion preference",
     }
   }
   walk(PACKAGES)
-  // THE RULES, WITHOUT THE PROSE. A comment ARGUING about endless animations
-  // is not one — the motion policy's own note names the word twice — and a
-  // sweep that cannot tell a rule from a sentence about rules makes every
-  // explanation a liability.
   const rules = (file: string): string =>
     fs.readFileSync(path.join(PACKAGES, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, " ")
   const endless = sheets.filter(file => /animation[^;}]*\binfinite\b/.test(rules(file))).sort()
@@ -805,47 +334,9 @@ test("every stylesheet with an endless animation answers the motion preference",
   }
 })
 
-// WHO CHECKS FOR AN IME, and why it is a short list rather than every box.
-//
-// An input method's confirming key arrives as a `keydown` whose `key` reads
-// `Enter`, so any handler that acts on Enter either checks composition or can
-// prove it never sees one. Navigation's activation installs the proof for the
-// whole page — `protectComposition`, a window-CAPTURE listener that stops such
-// a key before it reaches anything (`./composition.ts`) — and that is why most
-// handlers do not repeat the check. The browser's address bar is the example:
-// it is registered at `app.route`, navigation's OWN slot contract, so nothing
-// draws it unless navigation is activated.
-//
-// The boxes below are drawn by owners that name navigation NOWHERE, which
-// makes that guard a fact about the page rather than a promise to them: the
-// chat composer comes from a row's fold (`outline.row.fold`, the outline's)
-// and from the chat's own page; the node agent's plain box
-// is on a page the chat row draws; the note's one-line ask box is drawn into
-// markdown's own `markdown.note-line`; the new-file box is OFFERED (`files.state`'s
-// `New`) and drawn by whoever asks; a property value box is drawn into a
-// document's own properties by `document-properties`, whose needs are
-// `[browserState, markdownState, rendererSlots]`. With navigation switched off
-// each of them is still typeable, so each carries the check itself. The
-// palette is the one that belongs to navigation and checks anyway: it is the
-// box the guard's own row draws, and a modal that takes the whole keyboard is
-// where an ordering bug would be least visible.
-//
-// The rule is ONE predicate (`composition.ts`'s `composing`) because it has
-// two halves and a half-spelled one passes everywhere except the browser half
-// this app's floor includes: Safari delivers the confirming key AFTER
-// `compositionend` has already cleared `isComposing`, which is what
-// `keyCode === 229` is left to catch. Spelling either half by hand is the
-// regression this sweeps for.
-//
-// A new file here is either a hidden dependency somebody closed — fine, say so
-// — or a handler that did not need it, which is worth the argument. A file
-// LEAVING is the regression: a half-composed turn sent on the keystroke that
-// was choosing a word.
 test("every box navigation does not cover checks composition itself", () => {
   expect(filesSpelling(/composing\(/)).toEqual([
-    // The ask box a row's page and a chat's own page share.
     "plugins/chat/src/browser/agents/AskBox.tsx",
-    // The one-line ask box at the top of a note (`markdown.note-line`).
     "plugins/chat/src/browser/agents/NoteLine.tsx",
     "plugins/chat/src/browser/chat/Composer.tsx",
     "plugins/files/src/file/NewFile.tsx",
@@ -853,50 +344,17 @@ test("every box navigation does not cover checks composition itself", () => {
     "plugins/outlines/src/browser/props/PropsDrawer.tsx",
     "web/src/client/composition.ts"
   ])
-  // ...and nowhere else asks the question in halves.
   expect(filesSpelling(/isComposing|keyCode\s*===\s*229/)).toEqual([
     "web/src/client/composition.ts"
   ])
 })
 
-// A CONTROL REVEALED ON HOVER IS A CONTROL A FINGER CANNOT FIND, unless the
-// recipe says otherwise — and in Tailwind 4 this is sharper than it sounds.
-// That version wraps `hover:` and `group-hover:` in `@media (hover: hover)`
-// itself, so on a touch screen the reveal arm does not merely lose a race: it
-// never matches at all, and the control stays at `opacity-0` for the life of
-// the page. Transparent, hit-testable, and invisible — which is worse than
-// absent, because nothing says it is there.
-//
-// `@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER` is the one answer, and the
-// three shared recipes carry it. What this sweeps is the SITES: a component
-// that spells its own `opacity-0` beside a reveal arm, rather than taking a
-// recipe, has re-invented the bug. The list is empty on purpose — every site
-// that had one now consumes the constant — so a name appearing here is a
-// control somebody just hid from every tablet.
 test("no component hides a control behind a hover of its own", () => {
   const reveal = /opacity-0[\s\S]{0,400}?(?:group-hover(?:\/[\w-]+)?:opacity-100|hover:opacity-100)/
   const answered = /SHOWN_WITHOUT_HOVER|\[@media\(hover:none\)\]:opacity-100/
   expect(SOURCES.filter(one => reveal.test(one.code) && !answered.test(one.code)).map(one => one.file)).toEqual([])
 })
 
-// A RING IS A BOX-SHADOW, AND FORCED COLOURS DELETES BOX-SHADOWS. Both claims
-// below are about that one sentence, in the two grammars this app wrote it in.
-//
-// The first is the focus indicator. Fourteen controls used to spell
-// `focus-visible:outline-none` beside a `ring-*`, on the belief — written down
-// in `appearance/src/chrome.css` and wrong — that a utility outranks that
-// sheet's unlayered rule. It does not: layer order is resolved before
-// specificity and Tailwind's utilities are in `@layer utilities`, so every one
-// of those controls was drawing the app's outline AND a second shadow on top,
-// and a High Contrast reader got neither the shadow nor any say in it. The
-// pairing is now always a mistake: the app ring is universal, and a control
-// that wants it placed differently says so with `--olai-ring-offset` and
-// `--olai-ring-radius` rather than by opting out of it.
-//
-// The second is an EDGE drawn as a shadow — `ring-1` beside `border-0`, the
-// spelling a panel reaches for when it wants a hairline without the box model.
-// It disappears in High Contrast and in print, which is two readers for whom
-// the panel loses its boundary entirely.
 test("no control opts out of the app's focus ring in favour of a shadow", () => {
   expect(filesSpelling(/outline-none[^"'`]*\bring-\d/)).toEqual([])
   expect(filesSpelling(/\bring-\d[^"'`]*outline-none/)).toEqual([])
@@ -906,30 +364,6 @@ test("no edge is drawn as a shadow", () => {
   expect(filesSpelling(/border-0[^"'`]*\bring-1\b|\bring-1\b[^"'`]*border-0/)).toEqual([])
 })
 
-// THE `title` ATTRIBUTE IS NOT THIS APP'S TOOLTIP, and `./Tip.tsx`'s own
-// header is the argument: the browser places it, so a long one runs off the
-// right edge of the window, and it is hover-only, so what it says is
-// unavailable to anyone reading with a keyboard or a screen reader. There were
-// 154 of them and seven `<Tip>`s; there are now none, and this is what keeps
-// it that way — a spelling cannot be renamed into safety by the type checker,
-// so it is swept.
-//
-// The list is of FILES, not of attributes, because `title=` has three other
-// meanings in this tree and a regex cannot tell them apart honestly:
-//
-//   - a PROP named `title` that is content. `NodeTitle`, `NodeLine`,
-//     `DropRef` and `TrashPage`'s row all take the node's own words under
-//     that name, which is what the records call them.
-//   - `<iframe title>`, which is a frame's ACCESSIBLE NAME rather than a
-//     tooltip, and is required (`hypertext`).
-//   - `<option title>`, the one DOM `title` left in the app and the one place
-//     it is not AT-dead: a `<select>`'s content model admits no element a tip
-//     could be, a closed option has no box to measure, and HTML-AAM maps
-//     `option/@title` to the accessible description — so the words do reach a
-//     reader there. `chat/.../Model.tsx` argues it at the site.
-//
-// A new file here is a tooltip somebody wrote as an attribute, or one of the
-// three above arriving somewhere new. Either way it owes a sentence.
 test("the title attribute is left only where it is not a tooltip", () => {
   expect(filesSpelling(/\stitle=/)).toEqual([
     "plugins/chat/src/browser/chat/Model.tsx",

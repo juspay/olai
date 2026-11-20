@@ -1,83 +1,12 @@
-/**
- * The quiet pill button: a bordered verb beside something louder.
- *
- * Three sites wear it — the chat header's "sessions" and "+ new", and the menu
- * confirm's Cancel — and they are the same button: a small action a reader
- * should not notice until they go looking for one, drawn as a border, no
- * fill, and muted text that inks on hover. One spelling, because the day this
- * button changes it must change everywhere at once; `claims.test.ts` sweeps
- * for the spelling so a fourth site copies the constant rather than the
- * string.
- *
- * Not `readout.ts`'s PILL — that is the app bar's rounded-full readout chip;
- * this is the bordered BUTTON. Two constants, because they are two shapes
- * that change for two different reasons.
- *
- * No background in this string: Tailwind's preflight already paints a button
- * transparent, so a `bg-transparent` here would say nothing. And no cursor —
- * whether a pointer is offered belongs to the surface the button sits on
- * (the menu panel says `cursor-pointer` beside this; chrome does not).
- *
- * Buttons that LOOK like this one but keep a geometry of their own — the ask
- * form's dismiss, the unpushed line's Push — say why in place: converging
- * them would move pixels, which is a different change from unifying a
- * spelling.
- */
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 export const QUIET_PILL =
   "rounded-control border border-rule px-2 py-0.5 text-label text-muted hover:bg-ink/5 hover:text-ink"
 
-/**
- * Its opposite number: the verb that GOES AHEAD with the one thing a confirm
- * is asked about.
- *
- * Two sites wear it, and they are the same question in two boxes — the `•••`
- * menu's `Move to Trash` and the ⌘K palette's. It is the quiet pill's twin in
- * every measurement and differs only in tone, which is the whole of what it
- * says: this is the answer that does the thing, and the pill beside it (the
- * quiet one) is the way out. So the two are declared together, because a
- * confirm whose two buttons stopped matching is a confirm that reads as a
- * layout accident.
- *
- * `bg-transparent` IS here, unlike its neighbour: the hover fill is a tint of
- * the alarm colour, so the resting state has to say it has none.
- */
 export const ALARM_PILL =
   "rounded-control border border-alarm bg-transparent px-2 py-1 text-label text-alarm hover:bg-alarm/10"
 
-/**
- * ... AND THE THIRD TONE: the verb that GOES AHEAD when nothing is being
- * destroyed.
- *
- * {@link ALARM_PILL} is the answer to a question about losing something — a
- * trash, an empty, a chat replaced by a fresh one — and it is painted alarm
- * because that is what the reader is being asked to weigh. A face where the
- * thing is ALREADY gone has no such question: a chat the engine has no record
- * of cannot be moved to earlier chats, so a red button there would be olai
- * warning a person about a loss that happened before they arrived.
- *
- * The quiet pill's twin in every measurement, like its alarm sibling, and
- * declared with them for the same reason: the day one of the three changes,
- * all three move together.
- */
 export const GO_PILL =
   "rounded-control border border-accent bg-transparent px-2 py-1 text-label text-accent hover:bg-accent/10"
 
-/**
- * The way OUT of a panel a row opened — `Cancel` on the three panels that ask
- * one thing (`edit/RowPanel.tsx`), `Done` on the two that search
- * (`edges/EdgePanel.tsx`, `move/MovePicker.tsx`).
- *
- * A THIRD button vocabulary rather than either pill above, and the difference
- * is what it sits next to: those two are chips beside something louder, and
- * this one is the quiet half of a pair inside a panel — no border at all,
- * reading-size text, and a finger's height under `md`, because these panels
- * are drawn where a thumb reaches them. It was written out three times, which
- * is the count `RowPanel.tsx` itself was extracted at; `claims.test.ts` sweeps
- * for the spelling so a fourth copies the constant.
- *
- * The CURSOR is in the string, unlike {@link QUIET_PILL}'s: all three sites
- * are panels rather than chrome, and a panel offers a pointer.
- */
 export const PANEL_OUT =
   `${TARGET} md:min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 py-1 text-body text-muted hover:text-ink`

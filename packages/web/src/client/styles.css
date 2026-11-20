@@ -1,5 +1,3 @@
-/* The permanent build only composes Tailwind and bundle-owned stylesheet
- * contributions. Application selectors live beside their static owners. */
 @import "tailwindcss";
 @import "@olai/bundle/all.css";
 @source "./";

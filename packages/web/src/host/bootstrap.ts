@@ -1,5 +1,3 @@
-/** The server selects initial browser rows. A live roster supersedes this
- * read even when it arrives while the HTTP request is still in flight. */
 export const bootstrapSelected = async (options: {
   readonly authoritative: () => boolean
   readonly request: () => Promise<Response>

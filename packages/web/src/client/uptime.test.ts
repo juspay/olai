@@ -1,12 +1,3 @@
-/**
- * The one piece of the uptime chip that is arithmetic rather than markup.
- *
- * The wire value is an instant: the same start, a later `now`, is a longer
- * phrase — the local tick. `now` being an argument is what makes that a
- * table rather than an hour of waiting. The wiring — when this tab asks,
- * and that a retired wire does not re-ask — is `./named.test.ts`.
- */
-
 import { describe, expect, test } from "bun:test"
 
 import { sinceOf, stillSeconds, upOf } from "./uptime.ts"
@@ -17,12 +8,8 @@ describe("how long the server has been up", () => {
   const started = "2026-08-29T09:31:00.000Z"
 
   test("the wire value once, the client ticks: the same start, a later now, is a longer up", () => {
-    // Seconds while seconds are the question — a process that just came
-    // back, which is the whole of the signal a restart leaves.
     expect(upOf(started, at("2026-08-29T09:31:12.000Z"))).toBe("Running for 12s")
     expect(upOf(started, at("2026-08-29T09:31:47.900Z"))).toBe("Running for 47s")
-    // Then minutes, hours, days — furniture, coarse, the committed pill's
-    // voice. The last digit of the seconds is not the point past a minute.
     expect(upOf(started, at("2026-08-29T09:33:00.000Z"))).toBe("Running for 2m")
     expect(upOf(started, at("2026-08-29T11:31:00.000Z"))).toBe("Running for 2h")
     expect(upOf(started, at("2026-08-31T09:31:00.000Z"))).toBe("Running for 2d")
@@ -38,9 +25,6 @@ describe("how long the server has been up", () => {
     expect(stillSeconds(started, at("2026-08-29T09:31:12.000Z"))).toBe(true)
     expect(stillSeconds(started, at("2026-08-29T09:31:59.999Z"))).toBe(true)
     expect(stillSeconds(started, at("2026-08-29T09:32:00.000Z"))).toBe(false)
-    // The same refusal `upOf` makes: an unparseable stamp is not a
-    // seconds-band, so `createNow` must not keep a one-second clock
-    // for a chip it will not draw.
     expect(stillSeconds("not a date", at("2026-08-29T09:31:12.000Z"))).toBe(false)
     expect(stillSeconds("", at("2026-08-29T09:31:12.000Z"))).toBe(false)
   })

@@ -1,7 +1,3 @@
-/** Module acquisition belongs to a row. A rejected optional module must not
- * prevent independent providers (including the renderer) from mounting. Keep
- * the failures alongside the successful halves so the inspector can explain
- * an absent browser activation without inventing a running fiber. */
 export class ModuleReloadRequired extends Error {
   constructor(cause: unknown) {
     super(`Retry could not recover this browser module. Reload the page to recover its dependencies. ${String(cause)}`, { cause })
@@ -27,13 +23,6 @@ export const loadRows = async <T>(rows: ReadonlyArray<{
   return { loaded, failed, reloadRequired }
 }
 
-/** An entry fetch can recover under a fresh URL, but a failed static dependency
- * remains cached under its original URL. Preserve shared Effect/Solid identity:
- * retry the entry once, then explicitly require a user-initiated page reload if
- * it still fails. Browsers do not reliably identify the failed dependency in the
- * rejection, so this is a conservative recovery boundary, not a claim that every
- * second failure is cached. Successful modules retain their identity; unrelated
- * roster changes do not keep retrying a graph that needs a new document. */
 export const retryableModule = <T>(
   initial: () => Promise<T>,
   url: () => string | undefined,

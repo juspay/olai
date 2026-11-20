@@ -1,52 +1,16 @@
-/**
- * The LOOK, and only the LOOK.
- *
- * Which state is TRUE is the framework's now (kolu#2160 folds the transport
- * with the health fact and pins that fold in its own suite): a live socket
- * under a dead subscription reads `degraded`, a pending first frame does not,
- * and `needsReload` travels on the readout. Re-asserting any of that here
- * would be the walk this PR deleted coming back as an assertion.
- *
- * What is olai's is what a reader SEES, and this is where that is held: every
- * state has an appearance, no two of them share one, and the state a retry
- * cannot fix is drawn like neither of the states it can. Pure, so it needs
- * neither a socket nor a browser.
- */
-
 import { expect, test } from "bun:test"
 
 import { frozenLookOf, isFrozen, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
-/** The states the table answers for, DERIVED from it — which is not a table
- *  checked against itself, because membership is already a type-level
- *  guarantee (`status.ts`'s `Record` over the framework's union). What is
- *  checked below is the VALUES: that no two states look alike. A hand-spelled
- *  list would let a sixth state force a table row and then quietly escape every
- *  sweep here, which is the half of the promise a type cannot make. */
 const TABLED = Object.keys(LOOK) as ReadonlyArray<keyof typeof LOOK>
 
-/** All five: the table's, plus the one whose look is written rather than
- *  stored. */
 const STATES: ReadonlyArray<SurfaceReadoutStatus> = [...TABLED, "degraded"]
 
-/** One of each, as the framework hands it over — `degraded` carries the names
- *  that make its sentence, and nothing else carries any.
- *
- *  `needsReload` is fixed rather than derived: which states are terminal is the
- *  readout's rule and pinned upstream, nothing here reads the bit (it is
- *  `Offline.tsx`'s, which draws the reload offer on the freeze it is true
- *  under), and re-deriving it in a fixture would be that rule
- *  living on as a second copy in a file about wording. `presentingDown` is the
- *  readout's grace-windowed bit, also upstream's rule; the sweep at the foot of
- *  this file sets it explicitly because that is the fact the freeze reads. */
 const readoutOf = (status: SurfaceReadoutStatus, presentingDown = false): SurfaceReadout =>
   status === "degraded"
     ? { status, stopped: ["documents.keys"], needsReload: false, presentingDown: false }
     : { status, needsReload: false, presentingDown }
 
-// The bug this pill was built around, in one assertion: a tab the server closed
-// at the handshake — the wire retired, never to dial again — must not be drawn
-// as a healthy one, nor as the transient drop it was once projected as.
 test("a retired wire is drawn as neither live nor merely reconnecting", () => {
   expect(LOOK.retired.tone).not.toBe(LOOK.live.tone)
   expect(LOOK.retired.label).not.toBe(LOOK.live.label)
@@ -61,10 +25,6 @@ test("only a live connection is drawn as one", () => {
   }
 })
 
-// Each state's tone is the one its row paints AND the one the health dot folds,
-// so it is pinned per state: a wire re-dialling or a subscription gone quiet
-// wants attention, only a replaced server is broken, and a first dial not yet
-// answered is nothing at all.
 test("every state has its one tone", () => {
   expect(Object.fromEntries(STATES.map((state) => [state, lookOf(readoutOf(state)).tone]))).toEqual({
     connecting: "quiet",
@@ -81,8 +41,6 @@ test("every state says something, and says it differently", () => {
   expect(new Set(looks.map((look) => look.detail)).size).toBe(STATES.length)
 })
 
-// What stopped is NAMED. "Something is not arriving" is the least useful true
-// thing available, and a reader cannot act on it.
 test("the degraded detail names what stopped", () => {
   expect(
     lookOf({
@@ -94,9 +52,6 @@ test("the degraded detail names what stopped", () => {
   ).toContain("documents.keys, transcript")
 })
 
-// A subscription's name is `<row>/<member>` once it crosses a sibling, and the
-// sentence a PERSON reads names the row — the thing with a switch, a panel and
-// a log line — once, however many of its members stopped.
 test("the degraded detail names plugin rows, not raw stream ids", () => {
   const look = lookOf({
     status: "degraded",
@@ -106,7 +61,6 @@ test("the degraded detail names plugin rows, not raw stream ids", () => {
   })
   expect(look.detail).toContain("(git, kolu)")
   expect(look.detail).not.toContain("git/pending")
-  // One row, however many of its subscriptions stopped.
   expect(lookOf({
     status: "degraded",
     stopped: ["git/git", "git/pending"],
@@ -115,14 +69,10 @@ test("the degraded detail names plugin rows, not raw stream ids", () => {
   }).detail).toContain("(git)")
 })
 
-// One door for all five. The table answers four and cannot answer the fifth —
-// its detail names what stopped — so a caller that had to know which shape a
-// state was in would be the split this collapses.
 test("every state is drawn through one function", () => {
   for (const state of TABLED) expect(lookOf(readoutOf(state))).toBe(LOOK[state])
 })
 
-// The rows the health popover reads, in the words a person reads there.
 test("the connection's words are plain", () => {
   expect(LOOK.live.label).toBe("Connected")
   expect(LOOK.connecting.label).toBe("Connecting…")
@@ -130,9 +80,6 @@ test("the connection's words are plain", () => {
   expect(LOOK.retired.label).toBe("The server restarted")
 })
 
-// THE FREEZE CARD: what happened as its heading, and what is being done about
-// it under that. A dropped wire is `Connection lost` over `Reconnecting…`; a
-// replaced server is its own words over the Reload the card draws.
 test("the freeze card says what happened, then what is being done", () => {
   expect(frozenLookOf({ status: "reconnecting", needsReload: false, presentingDown: true }))
     .toEqual({ title: "Connection lost", line: "Reconnecting…" })
@@ -141,8 +88,6 @@ test("the freeze card says what happened, then what is being done", () => {
     .toEqual({ title: "The server restarted", line: "Reload the page to keep working." })
 })
 
-// The health dot folds the very tone the row paints — there is no second
-// reading of the connection for the dot to disagree with.
 test("the dot's tone: live is healthy, a first connect is quiet, only a replaced server is an alarm", () => {
   expect(lookOf(readoutOf("live")).tone).toBe("healthy")
   expect(lookOf(readoutOf("connecting")).tone).toBe("quiet")
@@ -152,32 +97,17 @@ test("the dot's tone: live is healthy, a first connect is quiet, only a replaced
   }
 })
 
-// THE FREEZE IS THE READOUT'S BIT, plus the one drop this page asked for. What
-// is checked here is that olai adds NOTHING to the grace: the framework decides
-// when a down state presents, and the only local exception is the latched
-// roster redial. A state quietly inheriting a second grace here is what the
-// sweep catches.
 test("the freeze waits for the readout's presenting bit, not a local state list", () => {
-  // A drop the wire is still within its grace on: not presented, not frozen.
   expect(isFrozen(readoutOf("reconnecting"), false)).toBe(false)
-  // The first dial is not a local exception any more: it presents on the same
-  // window as every other down state.
   expect(isFrozen(readoutOf("connecting"), false)).toBe(false)
-  // The same drop once the framework says it has presented.
   expect(isFrozen(readoutOf("reconnecting", true), false)).toBe(true)
-  // A replaced server presents at once — the framework's terminal rule, read
-  // through the same bit.
   expect(isFrozen(readoutOf("retired", true), false)).toBe(true)
-  // Reachable is never frozen, whatever the latch says: the falling edge.
   expect(isFrozen(readoutOf("live"), true)).toBe(false)
   expect(isFrozen(readoutOf("degraded"), true)).toBe(false)
 })
 
 test("a roster change this page asked for freezes at once, and only while down", () => {
-  // The grace has not elapsed, but the redial is ours: frozen from the first
-  // frame, so the keyboard hand-back has an owner.
   expect(isFrozen(readoutOf("reconnecting"), true)).toBe(true)
   expect(isFrozen(readoutOf("connecting"), true)).toBe(true)
-  // The latch cannot outlive the down-state it was set on.
   expect(isFrozen(readoutOf("live"), true)).toBe(false)
 })

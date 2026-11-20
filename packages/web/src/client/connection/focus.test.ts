@@ -1,32 +1,8 @@
-/**
- * THE CARET'S HAND-BACK: FOUR RULES AND THE TWO ENDS OF ONE PATIENCE.
- *
- * `focus.ts` is the half of "the page resumes" that a browser will not do by
- * itself — a control the roster froze goes `disabled` under the caret, and the
- * dialog that opens after it records the `<body>` as the focus it took, so
- * `close()` hands the caret to the top of the document. Every answer in here is
- * a decision whose wrong side a browser run would show only as "the caret is
- * somewhere else", which is why they are asserted here rather than walked once
- * through a socket: the dialog's own `showModal` grab must not BECOME the
- * element handed back to, somebody else's caret must not be stolen, an element
- * that is merely still frozen must be waited for, and an element frozen for
- * good must stop being waited for (`configurationFrozen`'s reasons that stay).
- *
- * Bun has no DOM at all — `HTMLElement` and friends are undefined, and the
- * preload defines `location` and nothing else — so the two constructors the
- * module judges targets with are stood in for here, and the page it reads is
- * passed in. The watcher is a stand-in too: what is being asserted about it is
- * that the listener it was given is REMOVED, which a counter says and a real
- * `window` would not.
- */
 import { afterAll, expect, test } from "bun:test"
 import { createRoot, onCleanup } from "solid-js"
 
 import { HAND_BACK_BUDGET_MS, handBackFocus, rememberFocus, returnFocus, watchFocus, type FocusPage } from "./focus.ts"
 
-// THE TWO CONSTRUCTORS the module's filters use, defined for this file and
-// removed after it: `instanceof` is the check, so the doubles have to BE the
-// classes rather than merely look like them.
 class StandInElement {
   isConnected = true
   disabled = false
@@ -43,8 +19,6 @@ class StandInElement {
     return this.disabled && selector.includes(":disabled")
   }
   inert = false
-  /** The document's own answer to who holds the caret, which a window blur
-   *  leaves on the element. */
   get ownerDocument(): { readonly activeElement: Element | null } {
     return { activeElement: page.held() }
   }
@@ -61,22 +35,16 @@ afterAll(() => {
   if (!had.dialog) delete DOM.HTMLDialogElement
 })
 
-/** The page, as the hand-back reads it: a manual clock, a manual frame queue,
- *  and whoever holds the keyboard. */
 const page = (() => {
   let clock = 0
   const frames: Array<() => void> = []
   const cancelled: Array<number> = []
-  /** Whoever holds the keyboard, written by a test and read by the hand-back. */
   const state: { holds: Element | null } = { holds: null }
   return {
     state,
-    /** Read through a call, so a test's assertion is not narrowed to the value
-     *  the test itself last wrote — the hand-back writes it, from a frame. */
     held: (): Element | null => state.holds,
     advance: (ms: number) => { clock += ms },
     get waiting() { return frames.length },
-    /** Run the frame that is due, as the browser would. */
     tick: () => { frames.shift()?.() },
     page: {
       active: () => state.holds,
@@ -99,17 +67,12 @@ test("the memory records a person's caret and forgets it with its owner", () => 
   const { el, stand } = element()
   watcher.fire(el)
   expect(memory.last()).toBe(el)
-  // THE DIALOG'S OWN GRAB IS NOT SOMEBODY TYPING: `showModal` fires `focusin`
-  // on the dialog, and recording it would hand the caret back to a closed
-  // `<dialog>`.
   const dialog = new StandInDialog()
   watcher.fire(dialog as unknown as HTMLElement)
   expect(memory.last()).toBe(el)
   memory.dispose()
   expect(memory.last()).toBeUndefined()
   expect(watcher.counts).toEqual({ added: 2, removed: 2 })
-  // …and it is FORGOTTEN, not merely stopped: a stale answer outliving the
-  // mount that recorded it is what module state did.
   watcher.fire(el)
   expect(memory.last()).toBeUndefined()
 })
@@ -129,20 +92,15 @@ test("a caret the person put down is forgotten; one taken from them is not", () 
   const memory = rememberFocus(watcher.target)
   const { el, stand } = element()
   watcher.fire(el)
-  // The dialog's grab moves focus TO something: still the caret to hand back.
   watcher.leave(el, new StandInDialog())
   expect(memory.last()).toBe(el)
-  // The window lost focus: the element still holds its document's caret.
   page.state.holds = el as unknown as Element
   watcher.leave(el)
   expect(memory.last()).toBe(el)
-  // The roster disabled it under the caret — the case the memory is for.
   page.state.holds = null
   stand.disabled = true
   watcher.leave(el)
   expect(memory.last()).toBe(el)
-  // A press on something that takes no focus: nobody has the caret now, and a
-  // later freeze must not hand it to this element (a stale sidebar link).
   stand.disabled = false
   watcher.leave(el)
   expect(memory.last()).toBeUndefined()
@@ -174,8 +132,6 @@ test("the hand-back gives up on an element that stays frozen", () => {
   stand.disabled = true
   page.state.holds = null
   handBackFocus(memory, page.page)
-  // A FROZEN-FOR-GOOD control — no reader, a broken file — must not be waited
-  // for forever: one frame at a time until the budget passes, and then nothing.
   let ticks = 0
   while (page.waiting > 0 && ticks < 1000) { page.advance(HAND_BACK_BUDGET_MS / 10); page.tick(); ticks++ }
   expect(page.waiting).toBe(0)
@@ -194,8 +150,6 @@ test("somebody else's caret is left alone", () => {
   expect(stand.focused).toBe(0)
 })
 
-/** A stand-in for `window`: the handler is kept so a test can fire it, and the
- *  add/remove pair is counted, which is the whole assertion about ownership. */
 const watcher = (() => {
   const handlers: Array<{ type: string; handler: (event: Event) => void }> = []
   const counts = { added: 0, removed: 0 }
@@ -204,8 +158,6 @@ const watcher = (() => {
   }
   return {
     counts,
-    /** The counts are the file's, and each test that asserts on them says what
-     *  IT added and removed rather than reading another test's total. */
     reset: () => { counts.added = 0; counts.removed = 0 },
     target: {
       addEventListener: (type: string, handler: EventListenerOrEventListenerObject) => {
@@ -219,7 +171,6 @@ const watcher = (() => {
       },
     } as unknown as EventTarget,
     fire: (target: unknown) => dispatch("focusin", { target }),
-    /** `target` loses focus to `to` — `null` being nothing focusable at all. */
     leave: (target: unknown, to: unknown = null) => dispatch("focusout", { target, relatedTarget: to }),
   }
 })()
