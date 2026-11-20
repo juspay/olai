@@ -1,5 +1,3 @@
-/** State and procedures live on the server activation. No vault, directory,
- * operations, navigation or renderer is required to serve this capability. */
 import { definePlugin, Surfaces } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 import { name, surface, faces } from "./wire.ts"

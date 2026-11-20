@@ -1,5 +1,3 @@
-/** Deliberately no Olai domain types: the same capability is served headless
- * and rendered in a tiny shell by ordinary host composition. */
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 export const name = "test-counter"

@@ -1,5 +1,3 @@
-/** A tiny shell receives only a renderer mount and this capability's wire.
- * Requests and presentation are cancelled with the root contribution. */
 import { definePlugin, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createSignal, onCleanup, onMount } from "solid-js"
