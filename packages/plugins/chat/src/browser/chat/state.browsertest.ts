@@ -90,9 +90,6 @@ test("a send waits for its keyed opening, and disposal settles a queued gesture 
 })
 
 test("a paragraph opening wakes the row that grows and the row that stopped, not every row", async () => {
-  // Every row asks "am I the one growing" of one shared memo, and each message
-  // that opens a paragraph moves it: read directly, that woke every row in the
-  // conversation per message.
   const queues = new Map<string, Queue.Enqueue<unknown>>()
   const keys = Array.from({ length: 20 }, (_, at) => `agent:${at}`)
   const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
@@ -172,8 +169,6 @@ test("a node's new session waits for its matching draft owner while auth refusal
     expect(first.state().session?.id).toBe("first")
     publish({ ...current, uploadScope: "next-lifetime", session: { id: "next", title: null, updatedAt: null } })
     await settle()
-    // The binding has not arrived. Seeing "next" here would invite typing
-    // into an owner about to be replaced by the binding's next reader.
     expect(first.state().session).toBeNull()
     expect(first.state().status).toBe("off")
     const next = createRoot(dispose => {
@@ -277,10 +272,6 @@ test("a refused fresh start signs in through the node while keeping the previous
   }
 })
 
-/** WHAT A PAGE ASKS FOR SAYS WHETHER IT FOLLOWS THE NODE. The node's chat —
- *  read off the roster, or visited by hand while the node is bound to it — is
- *  asked for as the node's current chat, which the server serves only while
- *  it still is; an earlier chat is asked for as a plain visit. */
 test("a page asks for the node's chat as current and for an earlier chat as a visit", async () => {
   const asked: Array<unknown> = []
   const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
@@ -299,8 +290,6 @@ test("a page asks for the node's chat as current and for an earlier chat as a vi
   try {
     await settle()
     expect(asked).toEqual([{ agent: "alpha", session: "now", current: true }])
-    // Visiting the chat the node is bound to is still following it: the
-    // same reading, nothing asked again.
     owner.reading.visit("one", { agent: "alpha", session: "now" })
     await settle()
     expect(asked).toEqual([{ agent: "alpha", session: "now", current: true }])

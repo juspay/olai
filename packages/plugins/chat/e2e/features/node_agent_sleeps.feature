@@ -41,15 +41,8 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: A node agent whose memory moved sleeps, and the pass is one commit
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    # THE CONVERSATION FIRST, and that is not staging: the corpus carries no
-    # binding at all, so opening this node's agent is what SEATS one — and the
-    # row's menu has no chat verbs until it is.
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # ...AND THE OPT-IN, PRESSED WHERE A PERSON LOOKS FOR IT: the switch in the
-    # Alerts strip under this conversation, beside *Alert on new mail*. Read back
-    # twice — `aria-checked` is the mark and the vault is the fact under it — and
-    # the row menu's own leg is the next scenario, so both ways in stay covered.
     When I switch sleep when idle on for this conversation
     Then sleep when idle is on for this conversation
     And the vault node "install" has property "chat-agent-sleep" holding "on"
@@ -58,8 +51,6 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the node "hinges" has the title "tidied"
     And node "install" carries the sleep memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
-    # ...AND AFTERWARDS IT SAYS NOTHING NEW TO TIDY, with the memo on the row —
-    # the same fact the node carries, read where a person reads it.
     And the sleep item says "unchanged"
     And the sleep item has a memo
 
@@ -69,7 +60,6 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the outline "house.olai"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # THE ROW MENU'S OWN WAY IN, so the strip is not the only one a suite holds.
     When I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And I open the node menu of "install"
@@ -89,8 +79,6 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the memory under "install" has moved
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # NO PASS AT ALL here, so there is no forecast to read: the item says where the
-    # answer lives instead of offering a switch that could only fail.
     Then the sleep item says "off"
     And the sleep pass has had its chance
     Then the node agent "install" has not been tidied
@@ -101,21 +89,10 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: A question inside a sleep is never announced, and is stopped
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    # AFTER the outline is open, and that is not tidiness: the worker step reads
-    # `navigator.serviceWorker`, which a page still on `about:blank` does not
-    # have — every other `@alerts` scenario reaches the app in its Background
-    # first, and this one has none.
     And the notification worker is ready
-    # THE CONVERSATION IS OPENED, THEN SHUT, AND THE QUESTION COMES AFTER IT.
-    # Nobody is watching when the turn is handed over, which is the state these
-    # assertions are about: `alarmFor` chimes on a count that RISES while
-    # unwatched, so a fold opened first and closed afterwards would raise no
-    # alarm either way and the three silences below would prove nothing.
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I close the agent fold
-    # ...AND THE MARKER COMES BEFORE THE NEWS, which is what keeps the pass from
-    # taking an ordinary turn first (the header says why).
     When the next sleep asks a question
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
@@ -127,22 +104,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the tab says nothing is waiting
     And the agent "install" stands "working"
     And Needs you is absent
-    # ...AND THE QUESTION IS REALLY THERE, which the fold has to open for — a
-    # count that has not risen raises nothing, so this costs the silence above
-    # nothing and is the only face a page has for a question the mark keeps out
-    # of the alert faces.
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And the chat shows a question
     And the server log warns that "install" did not finish: "it asked a question nobody is there to answer, so it was stopped"
-    # ...AND THE ITEM SAYS WHAT THAT COST: a failed pass leaves the node alone for
-    # a day, and the strip is where that is readable rather than inferred from a
-    # log line.
     Then the sleep item says "skipped"
-    # A TICK'S WORTH AFTER THE CANCEL, and it is what the reads below are timed
-    # against: the fake deletes its marker once it has read it, so a pass that
-    # had not remembered the question would come back at the next tick as an
-    # ORDINARY sleep and write the memo this scenario says is not there.
     When the sleep pass has had its chance
     Then node "install" carries no sleep memo
     And olai has recorded 0 commits here
@@ -159,24 +125,10 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    # WHICH HALF, if this ever fails: the marker is one shot, so a pass stopped
-    # after it was read leaves the next one an ordinary turn and no refused call
-    # is ever drawn. Asked first, a failure says whether the turn happened at
-    # all rather than only that the frame is absent.
     Then the sleep turn has tried to write the memo itself
     And the chat shows a failed tool call
     And the agent's answer mentions "is a property this door may not write"
-    # BOTH KEYS, and the backticks are load-bearing: `chat-agent-sleep` is a
-    # substring of `chat-agent-slept`, so an assertion without them would pass on
-    # the memo's refusal alone.
     And the agent's answer mentions "`chat-agent-slept` is a property"
-    # ...AND THE SECOND KEY, in the same turn: the fake TAKES THE MARK OFF (the
-    # node carries `on` going in, so writing `on` again would be no movement at
-    # all and would never reach the door). Refused in the door's own words, with
-    # the backticks load-bearing — `chat-agent-sleep` is a substring of
-    # `chat-agent-slept`, so a bare assertion would pass on the memo's refusal
-    # alone — and the mark is still there afterwards, which is the claim: an
-    # agent cannot opt itself out of being tidied.
     And the agent's answer mentions "`chat-agent-sleep` is a property"
     And the vault node "install" has property "chat-agent-sleep" holding "on"
     And the memo on node "install" is the pass's own
@@ -194,9 +146,6 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
     And the quiet window is given its full run
-    # THE PASS IS MID-TURN, so the item says so rather than "due": a person looking
-    # at the strip while olai tidies is owed the one state that says somebody is
-    # working on their memory.
     Then the sleep item says "running"
     And olai has recorded 0 commits here
     When the agent is released
@@ -207,23 +156,12 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: Tidy memory tidies a node the loop would never have picked up
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    # NOTHING HERE IS DUE, and that is the half that makes the verb the thing
-    # that did it: the corpus's rows carry no stamps, so the loop's "the memory
-    # has moved" test is false for this node and it is never a candidate — the
-    # other scenarios write `the memory under … has moved` for exactly that.
-    #
-    # AND NOBODY HAS ASKED, deliberately: this node carries no `chat-agent-sleep`
-    # mark for the whole scenario, which is the other half — a person's press
-    # runs the pass on a chat the loop would not have touched for either reason.
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And the sleep pass has had its chance
     Then olai has recorded 0 commits here
     And the node agent "install" has not been tidied
     And node "install" carries no sleep memo
-    # ...AND A PERSON ASKS, from ⌘K. The conversation on screen IS this node's,
-    # which is what the palette's one row is about: it names the node it would
-    # act on, and with no node agent's conversation shown there is no row at all.
     When I press the palette shortcut
     And I type "tidy memory" into the palette
     And I press the palette row "tidy-memory"
@@ -242,24 +180,13 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    # THE PASS IS MID-TURN: the fake holds its turn open, so the permit is held
-    # and this node's turn is marked as olai's own.
     Then the node agent "install" has been tidied
-    # ...AND A SECOND ASK IS REFUSED, in the row's own said line — naming the
-    # node it is already tidying, which is what a person is waiting for.
     When I open the node menu of "install"
     And I choose "Tidy memory" from the node menu
     Then the node menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
-    # ...AND THE SAME ASK FROM THE SIDEBAR IS REFUSED THE SAME WAY, in the
-    # Chats row's own said line: the two menus hang the same verb, so a refusal
-    # a person can read on one of them is a refusal they can read on both.
     When I open the Chats menu of "install"
     And I choose "Tidy memory" from the Chats menu
     Then the Chats menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
-    # ...AND NOTHING SECOND STARTED: the one commit here is the held pass's own,
-    # which lands when the fake lets go. The wait is the one every scenario uses
-    # for a commit a MACHINE made — the count below is an immediate read, and a
-    # commit is a moment after the turn ends.
     When the agent is released
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     Then olai has recorded 1 commit here
@@ -275,17 +202,9 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
     Then the node agent "install" has been tidied
-    # A PERSON STOPS IT, which is the one press the pass must not read as a
-    # finished sleep: a cancelled turn lands on `idle` with no trouble.
     When I cancel the turn
     Then the server log warns that "install" did not finish: "its turn was cancelled before it finished, so nothing was written"
-    # ...AND THE NODE IS NOT LEFT ALONE FOR A DAY: the loop's own next look tries
-    # again, and THAT pass completes — which is what says nothing was remembered
-    # against a node somebody stopped.
     And node "install" carries the sleep memo
-    # ...AND THE RETRY'S COMMIT, waited for: the memo above is written BEFORE the
-    # commit, and the count below is an immediate read — the race the step above
-    # exists to lose.
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     And olai has recorded 1 commit here
 
@@ -293,10 +212,6 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: A sleep cannot write outside its own subtree
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    # THE FENCE'S TWO CASES, in one turn: a property on a node that is NOT under
-    # the one being tidied, and a trash of it. Both would land outside the pass's
-    # own commit — under `auto` once the hold releases, or waiting — so reverting
-    # the sleep would not undo them.
     When the next sleep writes outside its subtree at "kitchen"
     And the next sleep trashes "kitchen"
     And I open the "claude" agent on node "install"
@@ -304,8 +219,6 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    # BOTH REFUSED, in the fence's own words — and the pass still finishes: what
-    # it was asked to do was inside the subtree.
     Then the chat shows a failed tool call
     And the agent's answer mentions "olai is tidying this node's knowledge base"
     And node "install" carries the sleep memo
@@ -316,15 +229,9 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: A node agent nobody asked for is left alone, however due it is
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    # NOBODY HAS SAID YES: the memory moves, so the loop's own tests are all
-    # satisfied and this node would be tidied on the next tick — and the mark is
-    # the one thing missing, which is the whole of what the opt-in is.
     And the memory under "install" has moved
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # ...AND THE ITEM SAYS WHY, which is the switch: nobody has asked, so there is
-    # nothing to say about when it will sleep. Read AFTER the fold is open, which
-    # is what makes the item addressable at all.
     Then the sleep item says "unmarked"
     And the sleep pass has had its chance
     Then the node agent "install" has not been tidied
@@ -335,13 +242,8 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: Stop sleeping when idle stops it, and nothing is tidied after that
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    # THE CONVERSATION FIRST: the corpus carries no binding, and the row's menu
-    # has no chat verbs until one is seated.
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # ON THROUGH THE STRIP, OFF THROUGH THE ROW MENU — the two ways in, each
-    # read back where it is pressed: `aria-checked` is the mark, and the menu
-    # that comes after the second press says the row is back to "Sleep when idle".
     When I switch sleep when idle on for this conversation
     Then sleep when idle is on for this conversation
     When I open the node menu of "install"
@@ -351,9 +253,6 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the node menu offers "Sleep when idle"
     And I click away from the node menu
     And sleep when idle is off for this conversation
-    # ...AND THE NEWS COMES AFTER THE MARK IS OFF, which is the order that makes
-    # this about the mark: the node is due on every test the loop has, and it is
-    # still left alone.
     And the memory under "install" has moved
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
@@ -368,24 +267,13 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the outline "house.olai"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # ONE LINE, TWO KINDS OF ITEM: the sleep mark and the wake faces are standing
-    # facts of the same kind and share the head's second strip rather than wearing
-    # one each.
     Then the sleep item and the wake faces share one strip
-    # ...AND NOBODY HAS ASKED, which is the switch's own answer.
     And the sleep item says "unmarked"
     When I switch sleep when idle on for this conversation
-    # NOTHING HAS MOVED, so there is nothing to tidy — said in words rather than
-    # left blank.
     Then the sleep item says "unchanged"
     And the sleep item has no memo
-    # A PHONE'S WIDTH, where the line has to wrap rather than overflow: the sleep
-    # item first, the wake faces on the line below it.
     When I narrow the window to a phone's width
     Then the standing line has wrapped
-    # ...AND A PERSON ASKS, from the item itself rather than from a menu — the same
-    # verb, where they are looking. NOTHING IS DUE, deliberately: the loop would not
-    # have touched this node, which is what makes the press the thing that did it.
     When I press Tidy memory on the strip
     Then the node agent "install" has been tidied
     And the sleep item has a memo
@@ -399,31 +287,14 @@ Feature: A node agent tidies its own memory when nobody is looking
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     When I switch sleep when idle on for this conversation
-    # A PASS FIRST, so this node HAS a memo: the first tidy of a store that has
-    # never had one is due on a single moved row by design — that is what
-    # switching the pass on for old memory is for — and this scenario is about
-    # every pass AFTER that one.
     When I press Tidy memory on the strip
     Then the node agent "install" has been tidied
     And node "install" carries the sleep memo
-    # ONE ROW IS NOT PRESSURE: the fast policy's floor is two, so the loop leaves
-    # this node alone and the line says so — how many rows moved, and what the
-    # floor is, because "not being tidied" and "nothing to tidy" look the same
-    # otherwise.
     When one row under "install" has moved
     Then the sleep item says "little"
     And the sleep item mentions "1 of 2 rows"
-    # ...AND A SECOND ROW IS: the loop takes it on its next look, and the instant
-    # the item names closes with it. `due` is a window of one tick here, which is
-    # why the step that reads it polls from inside the page — and why it also
-    # takes the pass having already taken it (`running`, or a newer memo): on a
-    # loaded box the look lands in the instant the row moved, and the window
-    # has been and gone before a frame could show it.
     When one row under "install" has moved
     Then the sleep item says "due"
     Then the node agent "install" has been tidied
-    # THE COMMIT IS THE LAST THING A PASS DOES, and the machine row above appears
-    # when its turn STARTS — so the count is read after the pass has had its
-    # chance, not the moment the turn began.
     When the sleep pass has had its chance
     Then olai has recorded 2 commits here

@@ -1,29 +1,3 @@
-/**
- * THE KEYSTONE, AT THE LAYER THAT IMPLEMENTS IT — a real chat, over a real
- * subprocess, with a real record on a real disk.
- *
- * The pieces already had suites: what the record holds across a restart
- * (`./sessions.test.ts`), what the words are (`./teaching.test.ts`), and which
- * row becomes a door's line (`./heard.test.ts`). What none of them could see is
- * the RULE, which lives nowhere but `./chat.ts`'s send path — the gate on
- * `taught`, the gate on the row's delivery mark, and the turn boundary the
- * heard line is taken at. Nothing anywhere built `make` with
- * `Options.overheard` and `Options.agentAt`, so an inverted gate or a moved
- * publish would have greened the whole tree.
- *
- * The FIXTURE is what makes it assertable from outside: it says back the prompt
- * it was given (`./fixtures/teaching-agent.ts`), so a case reads what the agent
- * actually received rather than trusting the panel's own notice — which is
- * built from the same value and would be one half of the pair vouching for the
- * other. Both are asserted, separately, for that reason.
- *
- * WHICH NODE AGENT A CONVERSATION IS is the VAULT's answer since the human's
- * ruling of 2026-09-02 (`@olai/format`'s `agents.ts`), and it reaches this
- * package as a thunk the composition root fills. So the cases below arrange it
- * by saying what the set says — including the one thing only a property can do,
- * which is move under an open panel.
- */
-
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
@@ -43,8 +17,6 @@ import { lines, REMINDING, teachingFor } from "./teaching.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "teaching-agent.ts")
 
-/** The node agent every case here is about — the vault's own row, which is
- *  what `Options.agentAt` answers with (`@olai/format`'s {@link NodeAgent}). */
 const SPACES: NodeAgent = {
   kind: "node",
   beside: false,
@@ -67,8 +39,6 @@ const ROW: Installed = {
 let cwd = ""
 let local: LocalHarness
 
-/** THE VAULT, as this case's set answers it — mutable, because the one thing a
- *  property can do that a fixture list cannot is move while a panel is open. */
 let claimed: ReadonlyArray<NodeAgent> = []
 
 beforeEach(() => {
@@ -81,9 +51,6 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true })
 })
 
-/** What olai has written down about this directory's conversations — where the
- *  two facts it overhears land. Empty before it has overheard anything, which
- *  is a file that is not there at all. */
 const record = (): ReadonlyArray<Record<string, unknown>> => {
   const section = local.read(cwd, "heard")
   return Array.isArray(section?.["heard"])
@@ -91,7 +58,6 @@ const record = (): ReadonlyArray<Record<string, unknown>> => {
     : []
 }
 
-/** ... and one conversation's row of it. */
 const overheardIn = (session: string): Record<string, unknown> | undefined =>
   record().find((row) => row["session"] === session)
 
@@ -100,18 +66,10 @@ const settle = (ms = 250) => Effect.runPromise(Effect.sleep(`${ms} millis`))
 
 interface Seat {
   readonly chat: Panel
-  /** Every row the chat published, in order — a test's transcript. */
   readonly rows: () => ReadonlyArray<ChatEntry>
   readonly state: () => ChatState
 }
 
-/**
- * A chat over the fixture agent, opened and ready.
- *
- * `agentAt` is the composition root's own shape (`@olai/server`'s `agents.ts`):
- * the PAIR is looked up against what the set says, so a conversation no
- * property names answers `null` and nothing is taught.
- */
 const withChat = async (
   body: (seat: Seat) => Promise<void>,
   remindEvery?: number,
@@ -130,11 +88,6 @@ const withChat = async (
     onState: (next) => {
       published = next
     },
-    // The transcript this suite reads is the one the SERVER publishes, folded
-    // exactly as the wire's collection folds it — whole rows by key, removes,
-    // and the appends a streaming answer is made of. Reading `chat.entries()`
-    // instead would be asking the transcript about itself; this is what a panel
-    // would have drawn.
     onTranscript: (change) => {
       for (const entry of change.upserts) entries.set(entry.id, entry)
       for (const key of change.removes) entries.delete(key)
@@ -160,13 +113,9 @@ const withChat = async (
   }
 }
 
-/** Every notice olai has put in this conversation — the visible half of the
- *  contract, and what "exactly once" is counted over. */
 const notices = (seat: Seat): ReadonlyArray<string> =>
   seat.rows().filter((row) => row.kind === "notice").map((row) => row.text)
 
-/** ... and what the AGENT was handed, which is the other half and the one the
- *  notice must not be allowed to vouch for. */
 const heard = (seat: Seat): ReadonlyArray<string> =>
   seat.rows().filter((row) => row.kind === "agent").map((row) => row.text)
 
@@ -178,26 +127,16 @@ describe("an agent-associated session is taught, once", () => {
       await run(seat.chat.send("what is blocking the connector?", [], []))
       await settle()
 
-      // What the agent was actually given: the person's words, then olai's
-      // lines under them, which is the seam every annotation rides.
       const [said] = heard(seat)
       expect(said).toContain("what is blocking the connector?")
       expect(said).toContain("This conversation is the node agent for “Xyne Spaces — the org OS”")
       expect(said).toContain(LAW)
 
-      // ... and the same value, verbatim, where a person can read it — in
-      // this ORDER: under the message it rode, and BEFORE the agent's first
-      // answer row, by CONSTRUCTION rather than by pace: the mark the notice
-      // reports on is the turn fork's first act — awaited ahead of the
-      // `prompt` call the answer must come back across — so on this lane no
-      // answer frame can exist while the notice has not landed, and no disk
-      // speed is being raced here.
       expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
       const kinds = seat.rows().map((row) => row.kind)
       expect(kinds.indexOf("notice")).toBeGreaterThan(kinds.indexOf("user"))
       expect(kinds.indexOf("notice")).toBeLessThan(kinds.indexOf("agent"))
 
-      // ... and it is written down, so the next boot does not say it again.
       expect(overheardIn("sess-1")?.["taught"]).toBe(true)
     })
   }, 20_000)
@@ -217,15 +156,6 @@ describe("an agent-associated session is taught, once", () => {
   }, 20_000)
 
   test("two sends in the one tick are taught ONCE — the fork hails the send home", async () => {
-    // The window a DETACHED write always was: `begin`'s fork starts the turn,
-    // the send ends under it, and the second send — the same tick, the
-    // ordinary reach for the box — reads `taught` on a mirror that is a
-    // millisecond short of true. The RED this pinned against, played before
-    // the hail existed: both prompt forks and BOTH notices up — a second
-    // teaching in one conversation, the rule's own sentence. With it: the
-    // first send's `send` holds until its fork's first act has landed — the
-    // write, not the write's scheduling — so the answer below can only be
-    // construction, not pace.
     await withChat(async (seat) => {
       await Promise.all([
         run(seat.chat.send("one", [], [])),
@@ -263,14 +193,8 @@ describe("an agent-associated session is taught, once", () => {
       while (Date.now() < deadline && seat.chat.state().session?.id !== "sess-2") await settle(20)
       expect(seat.chat.state().session?.id).toBe("sess-2")
 
-      // The property re-pointed at the new conversation, which is what the
-      // `•••` verb writes. If the mark were per NODE this would inherit the
-      // first session's — exactly the failure the transcript-is-not-memory rule
-      // exists to prevent.
       claimed = [{ ...SPACES, session: "sess-2" }]
 
-      // The new conversation emptied the transcript, so this is its own first
-      // notice rather than the last one still standing.
       await run(seat.chat.send("first again", [], []))
       await settle()
       expect(notices(seat)).toHaveLength(1)
@@ -281,8 +205,6 @@ describe("an agent-associated session is taught, once", () => {
   }, 20_000)
 
   test("a conversation NO node claims is taught nothing, and nothing is written", async () => {
-    // The property names another conversation entirely — which is every
-    // conversation in olai but the bound ones.
     claimed = [{ ...SPACES, session: "somebody-else" }]
     await withChat(async (seat) => {
       await run(seat.chat.send("hello", [], []))
@@ -294,9 +216,6 @@ describe("an agent-associated session is taught, once", () => {
   }, 20_000)
 
   test("a node the SET no longer declares teaches nothing — a property on a trashed row", async () => {
-    // What a composition root answers once the vault has stopped declaring the
-    // node: telling an agent its memory is a record that is not there is worse
-    // than telling it nothing.
     claimed = []
     await withChat(async (seat) => {
       await run(seat.chat.send("hello", [], []))
@@ -308,9 +227,6 @@ describe("an agent-associated session is taught, once", () => {
 })
 
 describe("... and told, once, what the row that opened it wants it to know", () => {
-  /** The sentences a plugin builder hands over, on the one seam they may ride
-   *  ({@link ./teaching.ts}'s `lines`, which is what this row's provision
-   *  behind core's `conversations` key spells them with before a send). */
   const PREAMBLE = lines([
     "You are building the plugin in plugins/timer.",
     "Write server.ts first, then browser.tsx.",
@@ -323,24 +239,16 @@ describe("... and told, once, what the row that opened it wants it to know", () 
 
       const [said] = heard(seat)
       expect(said).toContain("make a start")
-      // The law the conversation IS, then the job it was opened for — and the
-      // person's own words above both, which is what the seam is for.
       expect(said).toContain(LAW)
       expect(said).toContain(PREAMBLE[0] as string)
       expect(said?.indexOf(LAW)).toBeLessThan(said?.indexOf(PREAMBLE[0] as string) ?? -1)
 
-      // ONE notice, carrying both — because they are one telling, written down
-      // under one mark.
       expect(notices(seat)).toEqual([[...teachingFor(SPACES), ...PREAMBLE].join("\n")])
       expect(overheardIn("sess-1")?.["taught"]).toBe(true)
     })
   }, 20_000)
 
   test("and NEVER twice — a caller that passes it again says nothing again", async () => {
-    // The rule this door inherits rather than re-implements: the preamble goes
-    // where the contract goes, so the mark that stops a session being taught
-    // twice stops this too. A reopened conversation is a taught conversation,
-    // and a caller holding the lines cannot talk its way past that.
     await withChat(async (seat) => {
       await run(seat.chat.send("make a start", [], [], false, PREAMBLE))
       await settle()
@@ -355,8 +263,6 @@ describe("... and told, once, what the row that opened it wants it to know", () 
   }, 20_000)
 
   test("a conversation no node claims hears neither the contract nor the preamble", async () => {
-    // The preamble is a node agent's briefing: nothing is taught for a
-    // conversation the set does not declare, so nothing rides with it either.
     claimed = []
     await withChat(async (seat) => {
       await run(seat.chat.send("make a start", [], [], false, PREAMBLE))
@@ -368,7 +274,6 @@ describe("... and told, once, what the row that opened it wants it to know", () 
 })
 
 describe("... and reminded, every Nth message after", () => {
-  /** Send these, one turn at a time, as a person would. */
   const say = async (seat: Seat, ...words: ReadonlyArray<string>): Promise<void> => {
     for (const one of words) {
       await run(seat.chat.send(one, [], []))
@@ -379,14 +284,12 @@ describe("... and reminded, every Nth message after", () => {
   test("the Nth message carries the reminder — to the agent and as a notice — and the ones around it do not", async () => {
     await withChat(async (seat) => {
       await say(seat, "one", "two", "three", "four")
-      // The teaching is the first message, so the third is the Nth of three.
       expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n"), REMINDING.join("\n")])
       const [one, two, three, four] = heard(seat)
       expect(one).toContain(LAW)
       expect(two).not.toContain("[olai]")
       expect(three).toContain(`three\n\n${REMINDING.join("\n")}`)
       expect(four).not.toContain("[olai]")
-      // ... and the notice sits under the message it rode, not anywhere else.
       const rows = seat.rows()
       const third = rows.findIndex((row) => row.kind === "user" && row.text === "three")
       expect(rows.slice(third + 1).find((row) => row.kind === "notice")?.text).toBe(REMINDING.join("\n"))
@@ -399,8 +302,6 @@ describe("... and reminded, every Nth message after", () => {
       await say(seat, "one", "two")
       expect(notices(seat)).toHaveLength(1)
     }, 3)
-    // THE REDEPLOY: a new record over the same file, and the next message is
-    // the session's third.
     await withChat(async (seat) => {
       await say(seat, "three")
       expect(notices(seat)).toEqual([REMINDING.join("\n")])
@@ -423,9 +324,6 @@ describe("what the panel and the door learn from it", () => {
     await withChat(async (seat) => {
       expect(seat.state().bound).toBe("spaces")
 
-      // A fresh conversation belongs to whoever claims IT — and the property
-      // still names `sess-1`, so the panel belongs to nobody rather than
-      // carrying the last conversation's node across.
       await run(seat.chat.newSession("opencode"))
       const deadline = Date.now() + 8_000
       while (Date.now() < deadline && seat.chat.state().session?.id !== "sess-2") await settle(20)
@@ -440,11 +338,7 @@ describe("what the panel and the door learn from it", () => {
       await settle()
 
       const said = overheardIn("sess-1")?.["said"] as { text: string; at: string } | undefined
-      // The fixture says back what it was given, so the agent's first line is
-      // the person's own words — and the door's line is the AGENT's row.
       expect(said?.text).toContain("heard: what is blocking the connector?")
-      // The instant is the ROW's, not the moment the turn ended: the row is in
-      // the transcript with exactly that stamp on it.
       const row = seat.rows().find((one) => one.kind === "agent")
       expect(said?.at).toBe(row?.since as string)
     })

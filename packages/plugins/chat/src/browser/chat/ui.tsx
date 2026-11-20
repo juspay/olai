@@ -9,8 +9,6 @@ import { createDrafts } from "./drafts.ts"
 import { createFolds } from "./folds.ts"
 import { createPreviewing } from "./previewing.ts"
 
-/** A shared UI reads the live owner's value directly. Multiple page copies
- * may bind the same conversation; releasing one leaves the others intact. */
 const liveReading = <T,>(empty: T) => {
   const [owners, setOwners] = createSignal<ReadonlyArray<Accessor<T>>>([])
   return {

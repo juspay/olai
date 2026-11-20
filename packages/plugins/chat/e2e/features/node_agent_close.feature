@@ -12,27 +12,16 @@ Feature: Closing a node's agent releases it, and the conversation stays the engi
     When I remember this conversation as "installed"
 
   Scenario: Closing from the agent line releases the node and files the conversation nowhere
-    # WHAT THE PRESS COSTS, in the control's own name. It used to say the chat
-    # *moves to Chats*, which was true while an engine's conversations were
-    # filed there and is a promise nothing keeps now.
     Then the close control says "Close the chat. The tie comes off this row, and the conversation is listed nowhere in olai afterwards."
     When I press the close-agent control
     Then no agent fold is open
     And the agents roster has no row for "install"
-    # NOTHING PICKS IT UP. Closing takes the tie off, and a conversation is
-    # somebody's only because an ITEM names it — so the roster is empty here
-    # and after a restart, rather than a freed conversation turning into a row
-    # of its own somewhere.
     And the agents roster holds 0 agents
     When the server stops
     And the server starts again on the same port
     And I open the app
     And I open the outline "house.olai"
     Then the agents roster holds 0 agents
-    # ... AND NOTHING WAS LOST EITHER: the conversation is still in the
-    # engine's own store, and naming it on a row by hand — the `+` at the end
-    # of the property run, which is the recovery a person has — is all it
-    # takes to go on reading it.
     When I zoom into the node "install"
     And I add a property on "install"
     And I name the chat tie of remembered conversation "installed" on "install"
@@ -46,9 +35,6 @@ Feature: Closing a node's agent releases it, and the conversation stays the engi
     Then no agent fold is open
     And the agents roster has no row for "install"
 
-  # THE THIRD PLACE THE VERB LIVES, and the one a person reaches from the
-  # column rather than from the file: the Chats row's own `•••`. Same catalog,
-  # same act — the binding goes, and the row goes with it.
   Scenario: Closing from the Chats row menu releases the node as well
     When I open the outline "yard.olai"
     And I open the Chats menu of "install"

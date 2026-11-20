@@ -1,14 +1,3 @@
-/**
- * ChatEntry is a kind-discriminated union over the writer's encoding.
- *
- * The old shape was one struct with every kind-specific field optional. The
- * new shape is six structs, discriminated on `kind`. These tests are the
- * proof the ruling asked for: every row the writer produces encodes to the
- * same JSON through both schemas; the decoder now also requires the flags'
- * only honest value; and a non-call row with a `status` is a type error
- * rather than a fact a consumer has to re-check.
- */
-
 import { ValidationFailure, verdictOf } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
@@ -27,20 +16,6 @@ import { OpFailure } from "@olai/format"
 import { Armed, Ask, Delivery, FileDiff, SignInReason, Spawned } from "@kolu/acp/wire"
 import { armedTask, sentAgent } from "../outings.testlib.ts"
 
-/**
- * The PRE-UNION shape, pinned here so the old schema can be deleted from the
- * spec without losing the encoding proof. Field order and optionality are the
- * contract for rows the writer produces: those must stringify identically
- * through this and through {@link ChatEntryUnion}. The decoder is stricter
- * than this pin — see the negative cases below, which is also why the three
- * present-or-absent marks are `Boolean` here and `Literal(true)` there.
- *
- * IT GROWS WITH THE ROW, which is the one obligation this pin carries: a
- * field the union gains and this does not is a field the proof stops being
- * about, silently — the rows below would go on matching because neither side
- * emits it. Every field here is in the union's own order, since that order IS
- * what is being pinned.
- */
 const ChatEntryFlat = Schema.Struct({
   id: Schema.String,
   seq: Schema.Int,
@@ -100,10 +75,6 @@ const REFUSAL = new ValidationFailure({
   }]),
 })
 
-/** One well-formed row of each kind, as the transcript's writer actually
- *  produces them — not a hand-built object that happens to type-check. Extra
- *  keys a kind does not carry are absent, which is the encoding the wire has
- *  always used. */
 const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
   {
     name: "user (bare)",
@@ -129,9 +100,6 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
     },
   },
   {
-    // The refusal that has something to DO about it: the agent would not take
-    // the message because of the account it is signed in as. Carried so the
-    // proof is about the field rather than about its absence.
     name: "user (refused for want of a signature)",
     entry: {
       id: "user:5",
@@ -155,11 +123,6 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
     },
   },
   {
-    // A plugin's doorbell put this one there. It goes out down the person's
-    // lane and carries the same delivery vocabulary, which is why it is a
-    // `user` row and not a seventh kind — so the encoding proof needs a
-    // representative that actually carries the mark rather than one that would
-    // pass whatever the union did with an absent field.
     name: "user (rung by a machine)",
     entry: {
       id: "user:4",
@@ -229,10 +192,6 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
     },
   },
   {
-    // The row a background task lives on, with both halves of `armed` on it —
-    // the fields it is armed with and the harness’s own ending — so the
-    // encoding proof has a representative that actually carries the field
-    // rather than one that would pass whatever the union did with it.
     name: "tool (a background task, ended)",
     entry: {
       id: "tool:call-4",
@@ -262,11 +221,6 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
     },
   },
   {
-    // The call whose question reaches a person AS A FORM, which is drawn
-    // nowhere at all — and the stamps a resumed outing wears. Both are fields
-    // the writer decides and this union has to declare, so both are carried by
-    // a representative rather than left to an absence that would pass whatever
-    // the union did with them.
     name: "tool (asks through a form, resumed)",
     entry: {
       id: "tool:call-5",
@@ -354,14 +308,6 @@ test("every kind is represented in the encoding proof", () => {
   ])
 })
 
-/**
- * The union is a stricter decoder, not literally the same byte language.
- *
- * The old struct accepted four shapes the writer never produces: a tool row
- * without `status`, an ask without `ask`, a refusal without `refusal`, and
- * the flags as `false`. A future second producer learns that contract from a
- * red test rather than from a live panel that silently drew nothing.
- */
 const HEAD = {
   id: "row:1",
   seq: 0,
@@ -386,9 +332,6 @@ const REJECTED: ReadonlyArray<{ name: string; row: unknown }> = [
     row: { ...HEAD, kind: "tool", status: "pending", stranded: false },
   },
   {
-    // The same rule on the field this PR added: a call that does not ask
-    // through a form says nothing, so `false` is a row no writer here mints
-    // and a reader must not have to read.
     name: "asksThroughForm: false",
     row: { ...HEAD, kind: "tool", status: "pending", asksThroughForm: false },
   },
@@ -403,9 +346,6 @@ for (const { name, row } of REJECTED) {
 }
 
 test("a kind-wrong extra key is dropped at decode, not re-emitted", () => {
-  // The sanitizing direction: the old struct re-emitted `status` on a user
-  // row; the union accepts the bytes and encodes without the key. Same bytes
-  // for well-formed rows; a second producer's junk does not round-trip.
   const row = { ...HEAD, kind: "user", status: "pending" }
   expect(Schema.is(ChatEntryFlat)(row)).toBe(true)
   const back = decodeUnion(row)
@@ -414,15 +354,6 @@ test("a kind-wrong extra key is dropped at decode, not re-emitted", () => {
   expect(JSON.stringify(encodeUnion(back))).not.toContain("status")
 })
 
-/**
- * A non-call row with a `status` must fail the typecheck. `@ts-expect-error`
- * fails the build when the line it guards compiles — which is what rules out
- * the union collapsing back into a struct with everything optional.
- *
- * Each body is valid on its own without the extra field, so the annotation is
- * the only thing on the line that can fail (the same shape
- * `packages/ops/src/tools.test.ts` uses).
- */
 test("a non-call row with a status is unrepresentable", () => {
   const user = {
     id: "user:1",
@@ -461,8 +392,6 @@ test("a non-call row with a status is unrepresentable", () => {
   expect(tool.status).toBe("pending")
 })
 
-/** `status` is not a key of a user row, even optionally. `extends { status?: … }`
- *  would pass for any object (structural excess); inferring the field does not. */
 type StatusOf<T> = T extends { status: infer S } ? S : never
 type UserStatus = StatusOf<UserEntry>
 type _userHasNoStatus = [UserStatus] extends [never] ? true : false
@@ -471,23 +400,6 @@ const _toolStatus: StatusOf<ToolEntry> = "pending"
 void _userHasNoStatus
 void _toolStatus
 
-/**
- * WHICH ROWS HAVE A TASK STILL OUT — the rule four askings share, as a table.
- *
- * It is here rather than in one of the four because it is `isRunningStatus`'s
- * neighbour and for its reason: the SERVER asks it (which calls a turn may not
- * strand, and what the strip is told is running) and the BROWSER asks it (the
- * rail, and whether the panel's clock has anything to tick for), and one of
- * them answering differently from the others is a rail gone out under a clock
- * still counting.
- *
- * THE SECOND CONJUNCT IS THE POINT of the table. This rule was written out by
- * hand in three places once, and one of the three forgot the STATUS — a row
- * whose call went terminal without the harness saying how the task ended kept
- * the count above zero, which is the strip up and a 1 Hz timer in every open
- * tab under a row that already says the call is over. The code is right; what
- * was missing is anything that fails when somebody simplifies it back.
- */
 describe("which rows have a task still out", () => {
   const row = (extra: Partial<ToolEntry>): ToolEntry => ({
     id: "tool:1",
@@ -501,7 +413,6 @@ describe("which rows have a task still out", () => {
 
   test("armed, no ending, and the wire still calls the call running", () => {
     expect(isTaskOut(row({ armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(true)
-    // `pending` is a running state — it is what every call is announced with.
     expect(isTaskOut(row({ status: "pending", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(true)
   })
 
@@ -515,17 +426,11 @@ describe("which rows have a task still out", () => {
   })
 
   test("... and NOT when the CALL went terminal with the ending unsaid", () => {
-    // The case that was already wrong once, and the one no other test covers:
-    // a cancelled turn resolves an armed call to `failed`, the harness never
-    // says what became of the task, and nothing is ever going to. A count that
-    // kept this row would keep the strip up for the life of the panel.
     expect(isTaskOut(row({ status: "failed", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(false)
     expect(isTaskOut(row({ status: "completed", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(false)
   })
 
   test("... and NOT when its own turn walked away from it", () => {
-    // A dead agent's tasks: the exemption that keeps an armed row unstranded
-    // is the transcript's, and it stops at the conversation's end.
     expect(
       isTaskOut(row({ stranded: true, armed: armedTask({ task: "bu13xz2ie" }) })),
     ).toBe(false)

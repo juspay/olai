@@ -30,7 +30,6 @@ When("I drop a text file exactly at the attachment limit", async function (this:
   await drop(this, MAX_ATTACHMENT_BYTES, "at-limit.txt");
 });
 
-/** Both size boundaries use the same byte pattern; only name and size vary. */
 const confirmsBytes = async (world: OlaiWorld, name: string, size: number): Promise<void> => {
   const hash = createHash("sha256");
   const block = Buffer.alloc(65536, "a");

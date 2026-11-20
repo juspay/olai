@@ -1,23 +1,3 @@
-/**
- * THE ROSTER, ASSEMBLED — what the join does with two halves that can disagree,
- * and which KEY the vault half is read from.
- *
- * Neither half is asserted here: which nodes carry a binding property, and what
- * its two halves are, is `@olai/format`'s suite; what a machine's own record
- * says is this package's `sessions.test.ts`. What is pinned is the SEAM — that
- * the vault leads, that the line olai heard is matched on the PAIR, and what a
- * node agent nobody has started a session for says.
- *
- * ## ...AND THE WORD, WHICH IS THIS PACKAGE'S AND NOBODY ELSE'S
- *
- * `@olai/format` spells no plugin's word, so the reading it exposes takes the
- * declarations and the kind's word as arguments and its own bench makes a kind
- * up. This is where the REAL one is held: the claimed `chat-agent-session`
- * resolving with nothing declared anywhere, the one row that puts the kind on a
- * column of the vault's own naming, and the two ways a board ends up with no
- * node agents at all — a claimed key declared something else, and a column
- * nothing declares.
- */
 import { expect, test } from "bun:test"
 
 import type { Overheard } from "olai-plugin-chat"
@@ -128,8 +108,6 @@ test("a reaped node scope reads asleep while its binding remains durable", () =>
 test("the fact olai writes back travels as null rather than as an absent key", () => {
   const bare: Overheard = { agent: "grok", session: "sess-1" }
   expect(joined(AGENTS, [bare])[0]?.said).toBe(null)
-  // ...and the other half of it travels the same way, so a reader compares two
-  // instants and never has a third state for "nothing was ever written".
   expect(joined(AGENTS, [bare])[0]?.seen).toBe(null)
 })
 
@@ -137,18 +115,10 @@ test("what a person has READ is joined on the PAIR, exactly as the line is", () 
   const acknowledged: Overheard = { ...HEARD, seen: "2026-09-01T16:41:00Z" }
   const rows = joined(AGENTS, [acknowledged])
   expect(rows[0]?.seen).toBe("2026-09-01T16:41:00Z")
-  // A node with no session has no conversation to have read anything in.
   expect(rows[1]?.seen).toBe(null)
-  // ...and the same session under another engine is another conversation's
-  // acknowledgement, which is the pair rule read from the other end.
   expect(joined(AGENTS, [{ ...acknowledged, agent: "claude" }])[0]?.seen).toBe(null)
 })
 
-// ── the reading that points the other way ──────────────────────────────
-
-/** One revision of a board with two node agents on it, one of them bound —
- *  under the key this kind CLAIMS, which is what a vault that has declared
- *  nothing at all carries. */
 const SEEN = readingOf(setOf({
   "lanes.olai": [
     `{"id":"spaces","ord":"a0","title":"Xyne Spaces","custom":{"chat-agent-session":"grok:sess-1"}}`,
@@ -194,17 +164,10 @@ test("a store that has never loaded has no node agents rather than an unknown nu
   carrier.seen(null)
   expect(carrier.rowsWith([])).toEqual([])
   expect(carrier.agentAt({ agent: "grok", session: "sess-1" })).toBeNull()
-  // ...and it still names a key, because a gesture may fire before the first
-  // revision lands and a write with no key is not a write.
   expect(carrier.key()).toBe(SESSION_TYPE)
 })
 
-// ── which key the vault keeps its bindings under ───────────────────────
-
 test("a vault that has declared nothing wears the claimed key out of the box", () => {
-  // TURNING CHAT ON IS THE WHOLE OF TURNING THIS ON: the kind claims its own
-  // composed word, so a board carrying `chat-agent-session` is read with no row
-  // in `_olai/Properties.olai` anywhere — and olai never writes one.
   const carrier = roster()
   carrier.seen(SEEN)
   expect(carrier.nodes().map((one) => one.id)).toEqual(["spaces", "odu"])
@@ -213,9 +176,6 @@ test("a vault that has declared nothing wears the claimed key out of the box", (
 })
 
 test("...and a vault keeping its bindings under a word of its own says so in ONE row", () => {
-  // ONE ROW IN `_olai/Properties.olai` puts this kind on any column a board
-  // likes — here the bare `agent-session`, which is what a vault written before
-  // chat was a plugin carries. The row is what says that key is this kind.
   const migrated = readingOf(setOf({
     "_olai/Properties.olai":
       `{"id":"prop-agent-session","ord":"a0","title":"agent-session","custom":{"type":"chat-agent-session"}}`,
@@ -225,20 +185,11 @@ test("...and a vault keeping its bindings under a word of its own says so in ONE
   const carrier = roster()
   carrier.seen(migrated)
   expect(carrier.nodeAt("spaces")?.session).toBe("sess-1")
-  // THE VAULT'S OWN ROW IS WHAT A WRITER USES, so *start an agent session* on
-  // that board writes back into the column the board already has rather than
-  // growing a second one beside it.
   expect(carrier.key()).toBe("agent-session")
-  // ...and the FENCE forbids both, because the roster would read a binding off
-  // either: a seated agent that could write the claimed key on a migrated board
-  // would be re-seating itself through the door the fence left open.
   expect([...carrier.keys()].sort()).toEqual(["agent-session", SESSION_TYPE].sort())
 })
 
 test("a board that declares the claimed key something else keeps no node agents", () => {
-  // The vault wins in both directions. A row saying the column is prose is a
-  // person saying what they mean, and a default that argued back would be this
-  // plugin overruling them.
   const said = readingOf(setOf({
     "_olai/Properties.olai":
       `{"id":"prop-session","ord":"a0","title":"chat-agent-session","custom":{"type":"text"}}`,
@@ -251,10 +202,6 @@ test("a board that declares the claimed key something else keeps no node agents"
 })
 
 test("a board whose bindings sit on a column nothing declares keeps no node agents", () => {
-  // A KEY'S SPELLING IS NOT A LICENCE. A bare `agent-session` is a word any
-  // vault might be using for something of its own, so a plugin may only ever
-  // declare the key carrying its own name — and a board that wants its bindings
-  // in that column says so with the row above rather than being read anyway.
   const bare = readingOf(setOf({
     "lanes.olai": `{"id":"one","ord":"a0","title":"One","custom":{"agent-session":"claude:s-1"}}`,
   }))
@@ -273,10 +220,6 @@ test("the wire roster carries the current vault edit stamp for agents not yet he
   expect(carrier.rowsWith([])[0]?.changed).toBe("2026-02-01T00:00:00Z")
 })
 
-// ── and the other half of the roster: the notes ────────────────────────
-
-/** One board with a tied NODE and a tied NOTE on it — the note's tie in the
- *  YAML block at the top of the file, where a person can read it. */
 const BOTH = readingOf(setOf(
   {
     "lanes.olai": `{"id":"spaces","ord":"a0","title":"Xyne Spaces","custom":{"chat-agent-session":"grok:sess-1"}}`,
@@ -294,8 +237,6 @@ test("the roster is the nodes and then the notes, each keyed by its item key", (
     ["node", "spaces", "Xyne Spaces", false],
     ["note", "/notes/plan.md", "plan", true],
   ])
-  // ...and both ends of the reading answer about a note exactly as they do
-  // about a node: by key, and by the conversation its tie names.
   expect(carrier.nodeAt("/notes/plan.md")?.engine).toBe("claude")
   expect(carrier.agentAt({ agent: "claude", session: "sess-2" })?.id).toBe("/notes/plan.md")
 })

@@ -33,9 +33,6 @@ Feature: Choosing a node agent's engine
   Scenario: The header says who the conversation is with
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The other half of the ruling: the header shows the agent's icon and name
-    # beside the model. A mark as well as a name because the question is one a
-    # person answers by looking rather than by reading.
     Then the header names the agent "opencode"
     And the header draws that agent's own mark
     And the chat input takes typing
@@ -44,10 +41,6 @@ Feature: Choosing a node agent's engine
   Scenario: An engine that reports no account draws no chip
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # SILENCE IS NOT LOGGED OUT. opencode's fake never advertises or pushes
-    # `_auth/status_update`, so the agent line says nothing about an account —
-    # where the engines that do report say who, and a known logged-out state
-    # says `Not signed in`.
     Then the agent line names no account
     And the header names the agent "opencode"
 
@@ -55,9 +48,6 @@ Feature: Choosing a node agent's engine
   Scenario: One installed agent is not a choice
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # Every olai before this one. Asking a one-row question is friction with no
-    # answer behind it — what a person gets instead is the header saying who
-    # they are talking to, which is the part they did not have.
     And the header names the agent "claude"
 
   @opencode @scratch:chat
@@ -73,12 +63,6 @@ Feature: Choosing a node agent's engine
   Scenario: A call is named from the frame, and keeps that name while the title moves
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # Opencode 2 puts the programmatic name in a FIELD on the frame
-    # (`name: "shell"`) and mints an opaque `chatcmpl-tool-<hex>` id that says
-    # nothing. The `title` is not it either: this agent rewrites it under the
-    # call, the way the real one does — `shell` while it starts, the command
-    # once it is known — and a panel that read the title would rename the row
-    # while somebody was looking at it.
     And I ask the agent "shell"
     Then the chat shows a tool call named "shell"
     And the chat shows a completed tool call
@@ -87,11 +71,6 @@ Feature: Choosing a node agent's engine
   Scenario: A write through opencode's Code Mode reaches the outline
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # Opencode 2 hands an MCP tool to the model as JAVASCRIPT: there is no
-    # `olai_outlines_done` call on this wire at all, only one `execute` whose
-    # script calls `tools.olai.outlines_done`. The panel has to read the call
-    # out of that script — so no permission form is drawn, the write goes
-    # through the real ops layer, and the checkbox in front of a person moves.
     And I ask the agent "done order"
     Then the chat eventually shows "marked order done"
     And node "order" is done
@@ -102,19 +81,10 @@ Feature: Choosing a node agent's engine
   Scenario: A script that batches two of olai's calls names both of them
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # ONE call id, TWO of olai's tools — which the model does whenever it can,
-    # so a row that could only name a script that ran exactly one would lose
-    # the friendly title and the outline link for the commonest case there is.
-    # The row is composed out of both instead, and the engine's own `execute`
-    # stays under the fold.
     And I ask the agent "batch order"
     Then the chat eventually shows "batched two calls on order"
     And node "order" is done
     And the chat shows a tool call named "Read a node · Mark done"
-    # ... and NO outline link and NO write story, which is the wire and not a
-    # gap: both are drawn off the REPLY, a Code Mode script returns one value,
-    # and which of the two calls it belongs to is said nowhere. A row that
-    # drew them would be filing one answer under two questions.
     And the chat shows no story under the call
     When I unfold the tool call
     Then the tool call is called "execute" underneath
@@ -124,11 +94,6 @@ Feature: Choosing a node agent's engine
   Scenario: One of olai's own is answered without anybody being asked
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The same rule at the other door: a permission REQUEST whose script calls
-    # only tools of servers olai handed over is answered here and now — and by
-    # the option's own kind rather than by its place in the list, because
-    # opencode's options lead with an allow where the other agent's lead with
-    # the refusal.
     And I ask the agent "permit kitchen"
     Then the chat eventually shows "once"
     And the chat shows no question
@@ -137,11 +102,6 @@ Feature: Choosing a node agent's engine
   Scenario: A script olai did not hand the tools for is never approved for somebody
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The fail-safe rule, at the door it is most likely to be widened at. Every
-    # MCP tool on this wire arrives inside the same builtin, so the request
-    # says `execute` for olai's own tools, a foreign server's and opencode's
-    # own alike — and the only thing that tells them apart is the script. This
-    # one calls a server olai never handed over.
     And I ask the agent "foreign"
     Then the chat shows a question
 
@@ -149,12 +109,6 @@ Feature: Choosing a node agent's engine
   Scenario: A script olai cannot read in full reaches a person even when every tool in it is ours
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE ONE THAT MATTERS MOST, and the reason the rule is written as narrowly
-    # as it is: opencode asks once per inner call and sends the same frame each
-    # time, so ONE approval covers a WHOLE script. This script reaches the tool
-    # table through a computed key — every tool in it is olai's, and olai still
-    # cannot prove that about the parts it cannot parse. A reader that skipped
-    # what it could not follow would be approving it.
     And I ask the agent "dynamic order"
     Then the chat shows a question
     And node "order" is not done
@@ -163,9 +117,6 @@ Feature: Choosing a node agent's engine
   Scenario: A tool nothing named is never approved by failing to recognise it
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The other REFUSE half. The frame carries no name at all, so nothing can
-    # say which tool this is — and a tool olai cannot name is one a PERSON is
-    # asked about.
     And I ask the agent "nameless"
     Then the chat shows a question
 
@@ -173,11 +124,6 @@ Feature: Choosing a node agent's engine
   Scenario: The composer offers the interruption and promises no queue
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE PAIR THAT FLIPPED. opencode 1.17.9 had no steering and held a
-    # mid-turn prompt behind the running turn; 2.2.7 advertises
-    # `_meta.steering.supported` and REFUSES a second `session/prompt`
-    # outright. So the composer offers the gesture and promises nothing about
-    # waiting its turn — a promise this agent now does the opposite of.
     And I ask the agent "slow"
     Then the composer offers an interruption
     And the composer says nothing about queueing
@@ -189,26 +135,14 @@ Feature: Choosing a node agent's engine
   Scenario: A message sent mid-turn reaches the turn in flight
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # What the gesture is ABOUT, walked end to end: with no queue behind a
-    # running turn, an ordinary send while busy IS the interruption, and the
-    # words go INTO the turn that is already going rather than waiting for one
-    # that is not.
     And I ask the agent "slow"
     Then the chat shows a running tool call
     When I type "done order" into the chat
     And I send the chat message
     Then the chat shows my message "done order"
-    # THE CLAIM: the node moves while the first turn is STILL RUNNING. Nothing
-    # has been released and nothing has ended — a message that waited its turn
-    # could not have done this.
     And node "order" is done
     And the agent is working
-    # ... and it is not waiting for anything: it is IN the turn, so there is no
-    # queue it could be in and nothing on the row to say there is.
     And my message "done order" is no longer waiting
-    # ... and the call the turn is still making is still running. A clock that
-    # stopped here would be the panel saying a running call had been walked
-    # away from.
     And the chat says how long a running call has been going
     When the agent is released
     Then the chat eventually shows "done dawdling"
@@ -218,8 +152,6 @@ Feature: Choosing a node agent's engine
   Scenario: The interrupting gesture is the same door by button and by keyboard
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # One gesture, two doors — the arrangement the other leg already has, and
-    # the one a hand already on the keyboard reaches for.
     And I ask the agent "slow"
     Then the agent is working
     When I interrupt the agent with "done order" by keyboard
@@ -232,10 +164,6 @@ Feature: Choosing a node agent's engine
   Scenario: Cancel is about the turn in flight, and the panel settles
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # A person pressing cancel means the thing they have going. There is only
-    # ever one on this wire now — the agent refuses a second — so the claim is
-    # that it ends and the panel says so rather than sitting at "working" over
-    # a turn nobody will ever hear from.
     And I ask the agent "slow"
     Then the agent is working
     When I cancel the turn
@@ -247,10 +175,6 @@ Feature: Choosing a node agent's engine
     Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
     When I press the agent "kitchen"
     And the node agent's fold is ready
-    # The note beside the session id. A session id means nothing to the other
-    # agent — asking it to load one gets a refusal — so the boot has to know
-    # which agent this conversation is with before it has one to ask. It comes
-    # back without asking again, in the same conversation, on the same agent.
     Then the chat eventually shows "opencode remembers this conversation"
     When the server stops
     And the server starts again on the same port
@@ -275,27 +199,9 @@ Feature: Choosing a node agent's engine
   Scenario: A turn that ends having said nothing says so
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # A TURN THAT PRODUCED NOTHING, and the reason it needed a scenario rather
-    # than a unit test: nothing about it is an error. The agent takes the
-    # prompt, sends one zero-token usage report and answers `end_turn` —
-    # successfully. Every layer between the wire and the panel was working
-    # exactly as designed, and what a person got for their message was an empty
-    # space under it and a panel back at ready.
-    #
-    # It is olai's arm rather than one agent's shape, and it is driven on this
-    # leg because this leg's fake is the one that can produce it on demand.
-    # (opencode 1.17.9 sent exactly this for a provider key it could not
-    # resolve; 2.2.7 answers a provider failure with a JSON-RPC error instead,
-    # which is the scenario below.)
     And I ask the agent "silent"
-    # THE CLAIM: the turn is accounted for. The words are the point — a person
-    # reading this has to be told where to look, and the environment is the
-    # trap (an agent olai spawns inherits olai's, not a login shell's).
     Then the chat eventually shows "ended the turn without saying anything"
     And the chat eventually shows "provider key"
-    # ... and the banner is still up, unlike every other way a turn ends. A
-    # notice scrolls with the transcript, and the next thing somebody does is
-    # send again.
     And the panel says something went wrong
     And the agent is idle
 
@@ -303,9 +209,6 @@ Feature: Choosing a node agent's engine
   Scenario: An ordinary turn is not accused of silence
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The other half, and the one that would make the arm above useless: it
-    # costs a turn that said anything at all nothing, and a panel that
-    # complained after every answer would be a panel nobody reads.
     And I ask the agent "hello"
     Then the agent's answer mentions "opencode says: hello"
     And the chat does not yet show "ended the turn without saying anything"
@@ -315,18 +218,7 @@ Feature: Choosing a node agent's engine
   Scenario: A turn somebody stopped is not accused of it either
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # A cancelled turn has a notice of its own. Blaming the agent for obeying
-    # would be the panel arguing with the person who pressed the button.
-    #
-    # `hush` rather than `slow`, and that is the whole of what this pins: a
-    # held turn that has ANNOUNCED something is a turn the silence arm would
-    # skip anyway, so cancelling one asserts the outcome without reaching the
-    # arm. This turn says nothing at all, so the cancel lands with the count
-    # untouched — which is the ordinary case (a person stops a turn before it
-    # has produced anything) and the one place the early return is the only
-    # thing standing between them and being told the agent went quiet on them.
     And I ask the agent "hush"
-    # The only thing there IS to wait for, which is the point.
     Then the panel says it is busy, with "working"
     When I cancel the turn
     And the agent is released
@@ -338,40 +230,21 @@ Feature: Choosing a node agent's engine
   Scenario: A turn that failed after a usage frame is a message that did not land
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE PROVIDER FAILURE, as opencode 2.2.7 really sends it: one usage frame
-    # and then a JSON-RPC error carrying the provider's own words. A usage
-    # report is not something a person can SEE, so the turn produced nothing —
-    # the words did not land, and the row has to say so and offer them again.
-    # The old single count read that frame as the agent having worked on the
-    # message and left it looking sent.
     And I ask the agent "quota"
     Then the chat shows my message "quota" as "refused"
     And the strip under my message "quota" reads "Not sent"
-    # ... and it is the REFUSAL a person is told about, not a silence: the agent
-    # answered, in its own words.
     And the chat eventually shows "Insufficient balance"
 
   @opencode @scratch:chat
   Scenario: While a turn runs, the panel says so where a person is looking
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The header has said this in small mono chrome beside the model for a
-    # while, and it was not enough: the reader has just pressed enter, so their
-    # eye is at the bottom of the panel. This is the line under their own
-    # message.
     And I ask the agent "slow"
     Then the panel says it is busy, with "working"
-    # THE SAME CUE FOR A READER WHO ASKED FOR LESS MOVEMENT. The dot pulses
-    # here and must not pulse there — the app stills every animation in one
-    # place (`@olai/appearance/chrome.css`) — but stilling a cue must never
-    # delete it: the dot stays drawn, fully opaque and painted, and the strip
-    # goes on saying the word. A preference about movement is not a preference
-    # to be told less.
     And the live dot is pulsing
     When the reader asks for less motion
     Then the live dot holds still, and stays lit
     And the panel says it is busy, with "working"
-    # ... and it goes away, which is the other half of a cue being a cue.
     When the agent is released
     Then the agent is idle
     And the panel does not say it is busy
@@ -389,12 +262,6 @@ Feature: Choosing a node agent's engine
 
   @opencode @omp @agent-stored @scratch:chat
   Scenario: Every engine's stored conversations are reopened with their own identity
-    # THREE ENGINES, THREE TIES, and the count is the claim rather than
-    # bookkeeping: a conversation names the engine it belongs to, so a node
-    # tied to one talks to THAT engine — not one engine's conversation opening
-    # under another's name, and not one row standing in for two. omp is the
-    # third, and it is the one that is FOUND on the search path rather than
-    # shipped, so nothing on this side could have guessed it for it.
     Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
     And node "order" in "house.olai" is tied to the stored "omp" conversation "an Oh My Pi conversation"
     And node "install" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
@@ -414,15 +281,8 @@ Feature: Choosing a node agent's engine
     When I press the agent "kitchen"
     And the node agent's fold is ready
     And I open the fold history
-    # WHAT THE LISTING SAID, KEPT: claude's adapter stamps a count on every
-    # stored conversation and names what replaced the one a `/clear` left
-    # behind, and both are drawn on the row a person picks from.
     Then the row for "an older conversation" says it has 47 messages
     And the row for "an older conversation" was superseded by "the last conversation"
-    # ... and NOTHING IS INVENTED where an engine says nothing. opencode's
-    # listing carries no count, so its row carries none either — read here
-    # through the other way a conversation reaches a node's history: a fresh
-    # session, which is olai saying what replaced what.
     When node "order" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
     And I press the agent "order"
     And the node agent's fold is ready
@@ -446,11 +306,6 @@ Feature: Choosing a node agent's engine
     When I press the agent "kitchen"
     And the node agent's fold is ready
     Then the header names the agent "opencode"
-    # A fresh session may hand the node to ANOTHER engine, so one node's chain
-    # spans both: a row in its history then belongs to the agent this panel is
-    # NOT talking to, and a session id means nothing to the wrong agent. So
-    # opening it is a change of agent as well as of conversation — the same
-    # change + new makes, through the same door.
     When I start a fresh session with "Claude Code"
     Then the header names the agent "claude"
     When I open the fold history
@@ -467,8 +322,6 @@ Feature: Choosing a node agent's engine
     And the node agent's fold is ready
     And I ask the agent "lose"
     Then the chat eventually shows "the conversation store is unreadable"
-    # One engine's store going unreadable is ONE engine's answer: the other
-    # engine's conversation opens on its own node and takes typing.
     When I press the agent "order"
     And the node agent's fold is ready
     Then the header names the agent "opencode"
@@ -485,12 +338,6 @@ Feature: Choosing a node agent's engine
   Scenario: A turn with pi, from the box to the answer — and the banner left out
     When I open the "pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # pi-acp 0.0.33 opens a session by DOUBLING its editor-targeted startup
-    # banner as an ordinary agent chunk (the `session/new` answer's
-    # `_meta.piAcp.startupInfo` carries the exact string). Olai drops the
-    # double, matched on the answer's own text: a transcript is a
-    # conversation, this is not one, and the banner is also the one chunk
-    # that could make a genuinely silent first turn look said.
     Then the header names the agent "pi"
     And the header draws that agent's own mark
     When I ask the agent "hello"
@@ -502,12 +349,6 @@ Feature: Choosing a node agent's engine
   Scenario: A silent turn behind the banner is still named
     When I open the "pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The failure the banner-drop has to NOT make: pi-acp maps a model error
-    # to a plain `end_turn` and sends nothing — no prose, no tool, not even
-    # usage — so olai's silence arm is the whole of what a person gets. The
-    # banner chunk, drawn as speech, would have counted as something said and
-    # the arm would never fire on a conversation's FIRST turn, which is when
-    # an unconfigured provider fails.
     And I ask the agent "silent"
     Then the chat eventually shows "ended the turn without saying anything"
     And the chat does not yet show "pi v0.84.2"
@@ -517,16 +358,6 @@ Feature: Choosing a node agent's engine
   Scenario: pi works a tool olai handed its conversation
     When I open the "pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE PIN'S BRIDGE, answered: pi-acp (0.0.33) stores the session's
-    # handed mcpServers and wires them nowhere — the pin patches its
-    # `session/new` spawn into `-e <bridge>` + the servers in the process
-    # env (packages/plugins/pi/acp/patches/README.md's pi-mcp-servers section), and the bridge
-    # registers them on pi's own extension API under the SAME names this
-    # surface already reads. The scenario mirrors the wire the patch mints:
-    # an `olai_outlines_read:0` call — pending, in_progress, completed, with
-    # the tool's answer riding its card. The round trip that is protocol-
-    # true lives down in packages/plugins/pi/acp/mcp-bridge/roundtrip.test.js, one SDK pair
-    # away from the real servers.
     And I ask the agent "mcp read title install"
     Then the chat shows a completed tool call
     And the chat eventually shows "install the cabinets"
@@ -535,12 +366,6 @@ Feature: Choosing a node agent's engine
   Scenario: A message sent mid-turn to pi queues, with no interruption to offer
     When I open the "pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The one YES pi-acp earns not by advertisement but by the wire (the
-    # spike): a prompt sent while a turn runs is held in the adapter's own
-    # queue and answered in order. There is no steering extension —
-    # `_session/steering` is -32601, and `/steering` in this adapter is a
-    # slash command about pi's own delivery mode — so the gesture the claude
-    # agent has is simply not drawn.
     And I ask the agent "slow"
     Then the chat shows a running tool call
     And the composer says a message would queue
@@ -548,10 +373,6 @@ Feature: Choosing a node agent's engine
     When I type "hello" into the chat
     And I send the chat message
     Then the chat shows my message "hello"
-    # ... and the wire's own answer to the queued message is what the panel
-    # shows: the adapter's queue-announce chunk, spoken as speech where a
-    # client shows speech. The composer claim above is the leg's word; this
-    # line is the frames the word was the reading of.
     And the chat eventually shows "Queued message (position 1)."
     When the agent is released
     Then the chat eventually shows "done dawdling"
@@ -565,13 +386,9 @@ Feature: Choosing a node agent's engine
     When I press the agent "kitchen"
     And the node agent's fold is ready
     Then the header names the agent "pi"
-    # pi's listing says nothing about how long a conversation is, so its row in
-    # the history says nothing either — a fresh session is what puts the
-    # conversation it replaced into that list.
     When I start a fresh session with "Pi"
     And I open the fold history
     Then the row for "a pi conversation" shows no message count
-    # ... and the other engine on this machine is untouched by any of it.
     When I press the agent "order"
     And the node agent's fold is ready
     Then the header names the agent "claude"
@@ -581,9 +398,6 @@ Feature: Choosing a node agent's engine
     Given node "kitchen" in "house.olai" is tied to the stored "pi" conversation "a pi conversation"
     When I press the agent "kitchen"
     And the node agent's fold is ready
-    # `session/load` is the adapter's own session map reattaching a fresh pi
-    # to the stored file; the replays are the conversation, and the note is
-    # how the boot comes back without asking.
     Then the chat eventually shows "pi remembers this conversation"
     When the server stops
     And the server starts again on the same port
@@ -616,9 +430,6 @@ Feature: Choosing a node agent's engine
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call
-    # The engine's own spelling underneath, which on this wire is the builtin
-    # the script ran inside rather than a name the tool was announced under:
-    # there is no `olai_outlines_done` frame anywhere in the conversation.
     Then the tool call is called "execute" underneath
     And the tool call's reply is shown once
 
@@ -636,10 +447,6 @@ Feature: Choosing a node agent's engine
   Scenario: A Code Mode script that threw is still the row it was
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The script gave up before any tool ran, so the completion reports no
-    # calls at all. Nothing is olai's, nothing is named one of ours, and the
-    # row is the ordinary `execute` it looks like — which is the losing
-    # direction this can afford, and the one it takes.
     When I ask the agent "throw"
     Then the chat eventually shows "the script gave up"
     And the chat shows a tool call named "execute"
@@ -649,13 +456,6 @@ Feature: Choosing a node agent's engine
   Scenario: An olai call the ops layer refused is still that call, with no reply to draw
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The script ran one of olai's tools and olai refused it — a node that is
-    # not there. Code Mode does NOT fail the turn for that: the `execute`
-    # completes, reports the error in its metadata and returns the refusal as
-    # the script's value. So the row is still the olai call it was, named and
-    # linked, with nothing to draw a reply from — which is a different thing
-    # from a row nobody could name, and the fold has to say so rather than
-    # showing a success.
     When I ask the agent "fail"
     Then the chat eventually shows "could not mark it"
     And the chat shows a tool call named "Mark done"
@@ -665,43 +465,20 @@ Feature: Choosing a node agent's engine
   Scenario: OpenCode's subagents get doors of their own, and the conversation keeps none of their calls
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # opencode 2 runs a subagent as a SESSION of its own and narrates it on a
-    # channel olai has to ask for at the handshake. Two children, each with a
-    # call and a word of its own: a panel reading the ordinary stream alone
-    # would draw all of it in one column under the main agent, with nobody's
-    # work attributable to anybody — which is what this engine did before, and
-    # what it would silently go back to if olai stopped asking for the channel.
     When I ask the agent "agents"
     Then the chat eventually shows "both subagents reported"
     And the agent is idle
     And the conversation carries none of the subagent's calls
-    # The call that SENT an agent out stays the main agent's own row, and says
-    # which of opencode's agents it sent — read off the `subagent` call's own
-    # `rawInput`, not guessed from a tool's name.
     And the chat still shows a call that sent out an "explore"
-    # ... and each child's own row carries a door onto that child's work alone.
-    # The door says only the COUNT here, and that is the panel being right
-    # rather than a gap: on this wire a child session's row is already named by
-    # what the agent was sent to do, so a door repeating it would say the same
-    # words twice on two lines (`doorOf`). Which agent is behind it is proved
-    # by opening it.
     When I open the agent's work from the transcript
     Then the agent's work is open, and it is "Survey the kitchen"
     And the agent's work shows 1 calls
-    # Each child's rows carry their own session's title in front of the tool's,
-    # which is how opencode spells them — so this door holding one and not the
-    # other is the whole of the claim that two agents' work was told apart.
     And the open agent's work contains "Survey the kitchen: read" but not "Count the orders"
 
   @opencode @scratch:chat
   Scenario: A subagent's question is asked in the subagent's name
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The request arrives stamped with the ROOT session — opencode asks the
-    # connection, and the connection is the root's — and names the child only
-    # on the call it is about. A panel that read the request's own session
-    # would draw a subagent's question in the main agent's voice, which is the
-    # one misattribution a permission form may never make.
     When I ask the agent "agent-asks"
     Then the chat shows a question
     And the question is drawn in the lane of the agent that asked it
@@ -714,36 +491,20 @@ Feature: Choosing a node agent's engine
   Scenario: A subagent that ends badly says so, in the word the agent used
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # opencode closes a child with one of four words and the channel has
-    # three: an `interrupted` child is one somebody stopped, not one that
-    # worked. A lane that closed `completed` for all of them would be the
-    # panel saying an agent that died came back.
     When I ask the agent "agent-fails"
     Then the chat eventually shows "both subagents ended badly"
     And the agent is idle
-    # The spawning rows end with the agent's own failure on them: on this wire
-    # a child that did not finish takes its `subagent` call down with it
-    # (`status: failed`, with the session it was about named in the error).
-    # FOUR rows end failed, and the count is the claim: each child's own card
-    # closes `failed` (the channel has three words where opencode has four, so
-    # an `interrupted` child is not a completed one), and each takes its
-    # spawning call down with it.
     And the chat shows 4 failed tool calls
 
   @opencode @scratch:chat
   Scenario: A child of a child stays inside its own parent's work
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # At depth 2 the root is still the root and `parentSessionId` is the first
-    # child's, so a panel that rooted a lane at the session a frame arrived
-    # under would file the grandchild's work in the main column.
     When I ask the agent "agent-nests"
     Then the chat eventually shows "the nested subagent reported"
     And the conversation carries none of the subagent's calls
     When I open the agent's work from the transcript
     Then the agent's work is open, and it is "Survey the house"
-    # The grandchild's own CARD belongs in its parent's work — that is the
-    # nesting — but its CALLS do not: those are behind its own door.
     And the open agent's work contains "Survey the house: read" but not "Count the hinges: shell"
     When I open the nested agent's work
     Then the agent's work is open, and it is "Count the hinges"
@@ -756,11 +517,6 @@ Feature: Choosing a node agent's engine
   Scenario: One of olai's own, called by a SUBAGENT, is answered without asking
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The child's script is the same Code Mode script the main agent would
-    # have written, and its request is stamped with the ROOT session — so the
-    # auto-allow rule has to read it exactly as it reads the main agent's, and
-    # the row it names has to land behind the CHILD's door rather than in the
-    # conversation.
     When I ask the agent "agent-calls-olai"
     Then the chat eventually shows "the subagent marked it"
     And node "order" is done
@@ -774,17 +530,8 @@ Feature: Choosing a node agent's engine
   Scenario: Cancel lands with an agent still out
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # A fan-out is the state a person is likeliest to press stop in, and the
-    # one where a panel can be left saying an agent is still working after
-    # everything has stopped. Both the strip and the panel have to settle.
     When I ask the agent "agents-slow"
     Then the agent is working
-    # TWO entries for ONE subagent, and the count is the honest record of a
-    # cost this wire imposes: the `subagent` call is the main agent's own row
-    # and the child session is a row of its own, and nothing joins them until
-    # the child is over (`rawOutput.metadata.sessionID` arrives on the
-    # terminal frame alone — `packages/plugins/opencode/docs.md`). Both are
-    # live, so both are on the strip.
     And the strip lists 2 agents still out
     When I cancel the turn
     Then the agent is idle
@@ -795,12 +542,6 @@ Feature: Choosing a node agent's engine
   Scenario: A steer that lost the race is sent again, and heard once
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The one race opencode's steering has: the turn goes idle in the instant
-    # the steer arrives, so the agent answers `promptRequired` — one of its
-    # only two outcomes — and the words have not been taken. The client sends
-    # them as an ordinary prompt instead. Heard ONCE is the whole claim: a
-    # client reading an unrecognised outcome as taken would lose them, and one
-    # that sent without checking would double them.
     When I ask the agent "deaf"
     Then the agent is working
     When I type "hello" into the chat
@@ -814,13 +555,6 @@ Feature: Choosing a node agent's engine
     Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
     When I press the agent "kitchen"
     And the node agent's fold is ready
-    # WHAT A REPLAY CARRIES, captured rather than assumed: `session/load`
-    # replays the `subagent` call and its report and NOTHING on the
-    # child-session channel, so a conversation that had a fan-out comes back
-    # with the record of the delegation and no lane. That is honest — the
-    # child's own calls are not in the stored conversation at all — and it is
-    # better said here than discovered by somebody pressing a door onto
-    # nothing.
     Then the chat eventually shows "opencode remembers this conversation"
     And the chat shows a tool call named "subagent"
     And the call that spawned it offers no door yet
@@ -852,15 +586,6 @@ Feature: Choosing a node agent's engine
   @omp @scratch:chat
   Scenario: The node menu offers claude and Oh My Pi
     When I open the node menu of "kitchen"
-    # The NAME and not the id, which is worth a scenario rather than a
-    # formality because this row is a PROBE: a runnable `omp` on the agent
-    # search path is the machine saying it has one, and the sentence a person
-    # reads is the plugin's own `NAME` ("Oh My Pi", `src/install.ts`). The two
-    # words a menu is built out of are a trap here — the id is `omp`, and the
-    # row next along in `olai.yml` is called `pi` outright, which this name ENDS
-    # in. `not-a-plugin.json` exists to say out loud that neither branding is
-    # that row's; a menu that matched on the id, or read this name as that one,
-    # offers the wrong agent exactly where a person cannot tell.
     Then chat's "Start an agent" in the node menu opens a submenu
     When I open the node menu's "Start an agent" agents
     Then the node menu's "Start an agent" offers the agents "Claude Code|Oh My Pi"
@@ -869,13 +594,6 @@ Feature: Choosing a node agent's engine
   Scenario: The header says who the conversation is with
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # TWO WORDS FOR ONE ROW, from two different places, and the header is the
-    # half that has to agree with the machine rather than with the menu: the row
-    # a person pressed said "Oh My Pi", and what the header names is the id the
-    # fiber is bound under (`omp`) — which is also the string every other step
-    # in this suite compares, and the key the mark is hung under. A mark table
-    # that still held a closed union of three engines would draw somebody
-    # else's glyph beside this name.
     Then the header names the agent "omp"
     And the header draws that agent's own mark
     And the chat input takes typing
@@ -884,16 +602,6 @@ Feature: Choosing a node agent's engine
   Scenario: A turn with omp, from the box to the answer — and its thinking left out
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE FIRST ENGINE HERE THAT SENDS `agent_thought_chunk`, which is what makes
-    # this a claim: omp narrates its deliberation on the same feed as its prose.
-    # `@kolu/acp-client`'s `agent.ts` has no case for that update kind, and
-    # its default arm drops a whole kind this panel has no view for — on purpose,
-    # and it says why there. Two things then follow, and this asserts both ends
-    # of them: the scratchpad must not be drawn as speech (a transcript is a
-    # conversation, and a model talking to itself is not one), and it must not
-    # COUNT as speech either, because the silence arm is fed by the same door —
-    # which is how a turn that only thought would come out looking like a turn
-    # that had something to say.
     And I ask the agent "hello"
     Then the chat eventually shows "omp says: hello"
     And the chat does not yet show "weighing up hello"
@@ -904,15 +612,6 @@ Feature: Choosing a node agent's engine
   Scenario: A command row reads the command the first frame minted, and never moves
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE OTHER HALF of opencode's scenario: where that agent announces a bare
-    # tool name and then rewrites the title under the call (which is why the
-    # shape of that row is "picked once"), this mapper's title for a command
-    # tool is its `$ <command>` start text from the FIRST frame and it does
-    # not move (`acp-event-mapper.ts`'s `buildToolTitle`). With no `_meta`
-    # anywhere to read a name off, the row a person reads IS that first title —
-    # which is why the id's head is what a permission rule must ask about
-    # (the `nameless` scenario below): on this wire the row can say what the
-    # call did without ever saying which tool did it.
     And I ask the agent "bash"
     Then the chat shows a tool call named "$ ls"
     And the chat shows a completed tool call
@@ -921,17 +620,6 @@ Feature: Choosing a node agent's engine
   Scenario: The write through omp's own dispatch door reaches the outline
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE DOOR THIS WIRE HAS AND NO OTHER DOES, and the reason "asks nobody" is
-    # true here in a stronger sense than on opencode: with omp's default
-    # `tools.xdev`, one of olai's tools is never announced as itself. The call is
-    # omp's own `write`, and the tool is named only inside `rawInput.path` —
-    # `xd://mcp__olai_outlines_done`. Nothing about that path decides a
-    # permission (the leg says so where it reads it: display only), and nothing
-    # needs to: `--approval-mode yolo` skips omp's ACP gate for everything but
-    # bash, edit, delete and move, none of which are olai's tools, so no
-    # `session/request_permission` is ever issued for this call at all. What the
-    # path DOES buy is the row — and the write still goes through the real ops
-    # layer, which is the checkbox in front of a person moving.
     And I ask the agent "done order"
     Then the chat eventually shows "marked order done"
     And node "order" is done
@@ -942,14 +630,6 @@ Feature: Choosing a node agent's engine
   Scenario: omp's olai write has its title, outline, clickable story and one reply
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # WHAT THE PATH BUYS, walked as one row: because the leg recognises the
-    # `xd://mcp__olai_outlines_done` the `write` was dispatched through, this
-    # call is drawn as olai's own tool rather than as a file write — the
-    # friendly title in place of the model's intent sentence, the outline it
-    # touched, a story whose node can be pressed through, and the tool's answer
-    # read out of the nesting the `write` wrapped it in
-    # (`details.xdev.inner.rawContent`). Nothing else on this wire says the
-    # tool's name at all, so the row is the reading.
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
@@ -957,27 +637,12 @@ Feature: Choosing a node agent's engine
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call
-    # ... and the reply is asserted ONCE, with no progress line under it: the
-    # inner text is parsed and drawn as the tool's own answer, and a row that
-    # also showed the wrapping `write`'s raw output would be saying the same
-    # thing twice.
-    #
-    # NOT asserted: the name the call is "called" underneath. On the other legs
-    # that name is a tool's programmatic name arriving in a `_meta`; here there
-    # is no `_meta` on any frame, and what omp puts in `title` is the intent
-    # sentence its model wrote — so a scenario pinning a string there would be
-    # pinning another engine's shape onto this wire.
     And the tool call's reply is shown once
 
   @omp @scratch:chat
   Scenario: omp's olai read has a title and outline with no write story
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The other half of the reading, and the half that would be wrong if the two
-    # tools were read the same way: `outlines_read` changes nothing, so there is
-    # no story under the call and nothing for a person to press. The title and
-    # the outline are still read — the recognition is about which tool this is,
-    # not about what that tool did.
     When I ask the agent "context order"
     Then the chat shows a completed tool call
     And the chat shows a tool call named "Read a node"
@@ -988,23 +653,6 @@ Feature: Choosing a node agent's engine
   Scenario: A call olai recognises by its path is still a person's question here
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE TRAP IN THE DOOR, and the one ruling that is this wire's own rather
-    # than every wire's. Olai answers a permission request for one of ITS tools
-    # without asking anybody — `allowedWithoutAsking` matches the name the wire
-    # gives the call against the servers this session was handed. On this wire
-    # the name is `write`: the request's `toolCallId` is `write:0`, and that the
-    # call is really `mcp__olai_outlines_add` lives in the `rawInput.path` and
-    # nowhere the approval rule looks. So the rule cannot fire, and the request
-    # lands on a person — which is the losing direction and the right one: a
-    # path is minted by the agent and may be believed for DISPLAY, but an
-    # approval read off one would be approving in the model's name. The
-    # `tools.xdev: false` shape, whose id head IS the minted `mcp__<server>_…`
-    # name, is where this leg's auto-allow is actually reachable; the default
-    # shape is here. One honesty note about the witness: the REAL omp never
-    # sends this request at all for `write` — its gate's list is
-    # `bash`/`edit`/`delete`/`move` — so what is being witnessed on this wire
-    # is olai's rule and the person it puts in front of one, not a frame omp
-    # was captured sending.
     And I ask the agent "permit"
     Then the chat shows a question
     And the question offers "allow_once"
@@ -1016,12 +664,6 @@ Feature: Choosing a node agent's engine
   Scenario: A tool nothing named is never approved by failing to recognise it
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The fail-safe rule at the one place it can be walked end to end. The call
-    # id is `:<n>` — no name half at all — and `toolNameOf` answers `null` for
-    # exactly that shape (`at <= 0`), so nothing can say which tool this is. A
-    # tool olai cannot name is one a PERSON is asked about; a rule that widened
-    # here would be approving somebody's permissions on their behalf, and the
-    # branch that answers `null` is all that stands between them.
     And I ask the agent "nameless"
     Then the chat shows a question
 
@@ -1029,15 +671,6 @@ Feature: Choosing a node agent's engine
   Scenario: The composer promises nothing about a mid-turn message, because a send ends the turn
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE ONE ENGINE OLAI TALKS TO WHERE A SEND IS NOT A QUEUE. omp advertises
-    # no `promptQueueing`, and it does not need to: a `session/prompt` arriving
-    # while a turn streams CANCELS that turn and runs what was just typed. So
-    # the composer has nothing true to promise about a message sent mid-turn —
-    # nowhere to say "queued behind this one", and no interruption to offer
-    # either, because a send already IS one (`_session/steering` is -32603).
-    # Both absences are asserted, and then the wire's own answer is: the held
-    # turn ends `cancelled` — the same stop reason a person gets from the
-    # button, with the notice that goes with it — and the second turn answers.
     And I ask the agent "slow"
     Then the chat shows a running tool call
     And the composer says nothing about queueing
@@ -1053,14 +686,6 @@ Feature: Choosing a node agent's engine
   Scenario: Cancel is about the turn in flight, and says so once
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The scope of the button on a wire that never has two turns to reach. On
-    # opencode a cancel is about everything in flight, because a message sent
-    # mid-turn is sitting behind the running one; here a send has already
-    # replaced the running turn, so the press has exactly one thing to stop and
-    # exactly one thing to report. `the chat says it once` is the half that
-    # would catch a panel reporting the conversation's history rather than the
-    # press — a notice for every turn that ever ended would be a transcript of
-    # cancellations.
     And I ask the agent "slow"
     Then the chat shows a running tool call
     When I cancel the turn
@@ -1072,13 +697,6 @@ Feature: Choosing a node agent's engine
   Scenario: A turn that ends having said nothing says so
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The same arm the other engines are held to, walked on this wire because the
-    # silence arm is generic and this is where a naive renderer would have
-    # broken it: omp sends a `usage_update` and then a SUCCESSFUL `end_turn`
-    # having produced nothing at all. A lone usage frame is a frame, and it used
-    # to be enough to convince the panel the agent had worked on the message —
-    # so what a person got back was an empty space under their words and a panel
-    # back at ready. The words are the point, and the environment is the trap.
     And I ask the agent "silent"
     Then the chat eventually shows "ended the turn without saying anything"
     And the chat eventually shows "provider key"
@@ -1089,11 +707,6 @@ Feature: Choosing a node agent's engine
   Scenario: An ordinary turn is not accused of silence
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The other half, without which the arm above is worse than useless: a turn
-    # that said anything at all costs nothing to recognise, and the thought
-    # chunks are the new hazard on THIS wire — a panel that counted them would
-    # have no reason to complain here, and a panel that drew them would. What is
-    # asserted is the good answer and the absence of the complaint.
     And I ask the agent "hello"
     Then the agent's answer mentions "omp says: hello"
     And the chat does not yet show "ended the turn without saying anything"
@@ -1103,29 +716,12 @@ Feature: Choosing a node agent's engine
   Scenario: The picker offers the ids it reports, under the names it gives them
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # No alias arithmetic on this wire, and that is a claim about both halves of
-    # the picker. A model's VALUE is the `provider/id` omp reports, and its
-    # display name is the option's own `name` — so the row a person presses says
-    # "Claude Sonnet 5" while the string that travels is
-    # `anthropic/claude-sonnet-5`, and the header has to name the row rather
-    # than the string. The session came up on `litellm/kimi-k3`, so the first
-    # assertion is that a `provider/id` this panel has never been told the name
-    # of is already on screen as the name its picker gave it.
     Then the panel header names the model "Kimi K3"
-    # ...and picking by the DISPLAY name is what proves the list is drawn that
-    # way: an exact-name press finds no row at all if the row carries the raw id.
     When I choose the chat model "Claude Sonnet 5"
-    # ...and a change comes back as a `config_option_update` carrying the whole
-    # set, which is what the header reads — so naming the new label beside the
-    # old one is a reading of the update rather than of this tab's optimism.
     Then the panel header names the model "Claude Sonnet 5"
 
   @omp @scratch:chat
   Scenario: Typing in omp's model menu narrows it by provider
-    # The picker's NAMES never say a provider — "Claude Sonnet 5" is not
-    # `anthropic/claude-sonnet-5` — so "anthropic" can only match the VALUE,
-    # which is what olai will actually send. And the row it narrows to is the
-    # row Enter sends: the session came up on `litellm/kimi-k3`.
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
     When I open the session settings
@@ -1138,10 +734,6 @@ Feature: Choosing a node agent's engine
 
   @omp @scratch:chat
   Scenario: Arrows scroll a long model list to keep the row under the cursor on screen
-    # 32 offered models, and the picker's frame clips at `max-h-80`: the DOWN
-    # walks must drag the list so the row they would take stays visible, which
-    # is the case the box exists for (omp's real list is 84). The DOWN arm of
-    # the wrap is this walk; the UP arm is the second press at the top.
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
     When I open the session settings
@@ -1149,8 +741,6 @@ Feature: Choosing a node agent's engine
     Then the model list has scrolled to the row under the cursor
     When I press "ArrowUp" 20 times in the model filter
     Then the model list is back at the top
-    # ...and UP from the top row wraps to the BOTTOM of the list, which is the
-    # same rule one row over: the cursor moves, the pane follows.
     When I press "ArrowUp" in the model filter
     Then the model list has scrolled to the row under the cursor
 
@@ -1158,34 +748,16 @@ Feature: Choosing a node agent's engine
   Scenario: A message the agent is too busy with its own work to take keeps its words
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The refusal that is NOT a silence, and the words that must survive it: a
-    # prompt arriving while omp is busy with a turn of its OWN (one no client
-    # prompt owns) is answered `-32000 session_busy` with a hint naming what to
-    # do about it, and nothing else at all arrives — no chunk, no usage frame.
-    # A refusal is a certainty, so the row keeps the prompt and says so; a panel
-    # that dropped the words here would be taking somebody's message away with
-    # the one thing they could do about it.
     And I ask the agent "busy"
     Then the chat shows my message "busy" as "refused"
     And the strip under my message "busy" reads "Not sent"
     And the agent is idle
-    # ... and the conversation is not wedged: the refusal is about that one
-    # message, and the next thing somebody does is type.
     And the chat input takes typing
 
   @omp @scratch:chat @acp-session-features
   Scenario: Client-owned terminal output streams into a retained row
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The same REGION the pi corner feeds, fed the other way on this wire: no
-    # `terminal_output` `_meta` ever arrives, because the process being watched
-    # is olai's own — spawned by the agent through `terminal/create` (olai
-    # advertised `terminal: true`), named on the call's `{type: "terminal"}`
-    # block, and drained through `terminal/output` at the end. Two of the lines
-    # asserted here are olai's own rendering ("Running", "Exit 0") and two are
-    # the command's real bytes — the point being that the first pair can only
-    # be true of a process olai is RUNNING, rather than of a transcript an
-    # adapter happened to carry.
     And I ask the agent "slow"
     Then terminal output contains "omp command started"
     And terminal output contains "Running"
@@ -1202,11 +774,6 @@ Feature: Choosing a node agent's engine
     Given node "kitchen" in "house.olai" is tied to the stored "omp" conversation "an Oh My Pi conversation"
     When I press the agent "kitchen"
     And the node agent's fold is ready
-    # A session id means nothing to the wrong agent — asking one to load it gets a
-    # refusal — so the boot has to know which engine this conversation belongs to
-    # before it has one to ask. It comes back without asking again, in the same
-    # conversation and on the same agent, and the restart is the half that says
-    # the note beside the save is what carried it rather than this tab.
     Then the chat eventually shows "omp remembers this conversation"
     When the server stops
     And the server starts again on the same port
@@ -1221,11 +788,6 @@ Feature: Choosing a node agent's engine
     When I press the agent "kitchen"
     And the node agent's fold is ready
     Then the header names the agent "omp"
-    # This wire is the one that answers the question the picker's row asks:
-    # omp stamps a real `messageCount` on each `session/list` entry, so the
-    # history can say how long a stored conversation is without opening it —
-    # and because it is a count the agent reported rather than one this side
-    # inferred, the row can be asserted to the number.
     When I start a fresh session with "Oh My Pi"
     And I open the fold history
     Then the row for "an Oh My Pi conversation" says it has 21 messages

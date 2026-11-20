@@ -1,6 +1,3 @@
-/** Unsent words belong to a conversation in this tab. All its mounted
- * composers share the same draft; closing the last reader keeps the draft
- * without keeping a subscription. The chat activation owns this memory. */
 import { createMemo, createSignal, type Accessor } from "solid-js"
 
 interface Draft {
@@ -14,8 +11,6 @@ const empty = (): Draft => ({ retry: false, text: "", taken: new Set(), caret: 0
 const bin = () => createSignal<Draft>(empty())
 export const createMessageMemory = () => new Map<string, ReturnType<typeof bin>>()
 
-/** A plain page's opening gesture can outlive its plain composer. Transfer
- * those words into the resulting conversation without mounting another Chat. */
 export const keepMessage = (memory: ReturnType<typeof createMessageMemory>, key: string, text: string, retry = false) => {
   if (text === "") return
   let value = memory.get(key)
@@ -38,8 +33,6 @@ export const createMessageDraft = (conversation: Accessor<string | null>, memory
   let first = true
   const current = createMemo(() => {
     const key = conversation()
-    // A reconnect is not a change of conversation. Words typed before the
-    // initial identity arrives belong to that first conversation.
     if (key === null) return previous
     let value = memory.get(key)
     if (value === undefined) {

@@ -1,12 +1,3 @@
-/**
- * The pieces, folded and laid back onto their row.
- *
- * The claim under test is the one the whole two-member arrangement rests on:
- * the join is TOTAL and IDEMPOTENT, so a tab that was handed the row and the
- * pieces a moment apart — in either order, with either one ahead — reads the
- * same string as a tab that has been listening since the first token.
- */
-
 import { sayingKey } from "olai-plugin-chat/wire"
 import type { Saying } from "@kolu/acp/wire"
 import { describe, expect, test } from "bun:test"
@@ -14,9 +5,6 @@ import { describe, expect, test } from "bun:test"
 import { grownText, type Growing, TRANSCRIPT_TAIL } from "./growing.ts"
 
 const piece = (of: string, at: number, text: string): readonly [string, Saying] => [
-  // The server's own spelling, imported rather than written out: a key format
-  // that moved would break the join in the browser while a test that spelled
-  // it here went on passing.
   sayingKey({ of, at }),
   { of, at, text },
 ]
@@ -49,8 +37,6 @@ describe("the fold", () => {
   })
 
   test("a frame that moved nothing hands back the accumulator it was holding", () => {
-    // What this buys is at the reader's end: the memos over this settle, so a
-    // frame about somebody else's member does not wake a panel of rows.
     const held = stepped(seeded(), [piece("agent:1", 0, "x")])
     expect(stepped(held, [], ["never-seen"])).toBe(held)
   })
@@ -66,9 +52,6 @@ describe("the fold", () => {
   })
 
   test("a run stops at a hole rather than gluing across one", () => {
-    // Pieces are contiguous by construction, so a gap is a piece this tab was
-    // never handed — and a string that jumped it would be text in the wrong
-    // order presented as the answer.
     const held = stepped(seeded(), [piece("agent:1", 0, "near"), piece("agent:1", 99, "far")])
     expect(held.tail).toEqual({ of: "agent:1", at: 0, text: "near" })
   })
@@ -81,8 +64,6 @@ describe("the join", () => {
   })
 
   test("a tail the row already carries adds nothing", () => {
-    // What a tab handed a fresh snapshot sees: the row's text is complete as
-    // far as it goes, so a piece inside it is a piece already folded in.
     expect(grownText(row("Hello, world"), { of: "agent:1", at: 5, text: ", world" }))
       .toBe("Hello, world")
   })
@@ -103,9 +84,6 @@ describe("the join", () => {
   })
 
   test("a cancelled turn's row reads as the row, whatever is still held", () => {
-    // A cancel publishes the row whole and takes its pieces off the wire — but
-    // the two arrive as two frames, and between them a reader holds both. The
-    // row is the last word either way.
     const settled = row("as far as it got")
     expect(grownText(settled, { of: "agent:1", at: 9, text: " it got" })).toBe("as far as it got")
   })

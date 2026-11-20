@@ -50,9 +50,6 @@ test("a scheduler refusal is published into the requested reading", async () => 
   })))
 })
 
-/** A scheduler's seat door, as the readings see it: whoever is registered at
- *  the instant of an announcement hears it, and nothing is remembered on this
- *  side — which is the shape the reading has to survive. */
 const seatBench = () => {
   const listeners = new Set<() => void>()
   return {
@@ -70,15 +67,6 @@ const capacity = new BusyFailure({
   cause: { kind: "capacity", capacity: 8 },
 })
 
-/**
- * THE ONE REFUSAL THAT MENDS ITSELF, held open from the reading's side.
- *
- * A full pool is not a fault: nothing about this conversation has to change
- * for it to open, so the attempt waits on the scheduler's own announcement and
- * the panel opens by itself. What is asserted is both halves — the sentence
- * and its cause reach the tab, and the SAME reading then goes live without
- * anybody subscribing again.
- */
 test("a full pool holds the attempt, and the reading opens itself when a seat frees", async () => {
   const bench = seatBench()
   let attempts = 0
@@ -102,8 +90,6 @@ test("a full pool holds the attempt, and the reading opens itself when a seat fr
       why: "All 8 agents are awake — put one to sleep in Chats.",
       cause: { kind: "capacity", capacity: 8 },
     })
-    // A SEAT FREES, and nobody presses anything: the attempt the reading kept
-    // is retried where it stood.
     yield* Effect.sync(bench.free)
     while (state.unopened !== null) state = yield* Queue.take(seen)
     expect(state.status).toBe("idle")
@@ -112,16 +98,6 @@ test("a full pool holds the attempt, and the reading opens itself when a seat fr
   expect(bench.held()).toBe(0)
 })
 
-/**
- * THE WAIT LEAVES WITH THE READING, asserted where it is actually load-bearing:
- * a reading that is STILL PARKED when its last subscriber goes.
- *
- * The earlier version of this claim freed a seat first and then checked the
- * count, which proved nothing — the announcement had already unregistered the
- * waiter. Here nothing ever frees a seat, so the only thing that can take the
- * listener off is the scope closing, which is the ownership this file is
- * responsible for.
- */
 test("a reading that is still waiting for a seat takes its listener with it", async () => {
   const bench = seatBench()
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
@@ -141,21 +117,6 @@ test("a reading that is still waiting for a seat takes its listener with it", as
   expect(bench.held()).toBe(0)
 })
 
-/**
- * AN ANNOUNCEMENT THAT LANDS BETWEEN TWO PARKS IS NOT LOST.
- *
- * This is the race two readings make for two seats: the first announcement
- * wakes both, one of them wins the scheduler's gate, and the second
- * announcement fires while the loser is INSIDE its retry rather than parked.
- * The scheduler keeps no record of it, so a listener that lived only for the
- * duration of a park would leave that reading waiting for something that has
- * already happened — and that face has no *Try again* on it.
- *
- * It is written as one reading and a fake that frees a seat from inside the
- * attempt, because that is the same instant and it is the deterministic way to
- * stand in it: attempt 2 announces and then refuses, so the latch is all there
- * is between it and attempt 3.
- */
 test("a seat freed while the reading is between attempts is not lost", async () => {
   const bench = seatBench()
   let attempts = 0
@@ -166,7 +127,6 @@ test("a seat freed while the reading is between attempts is not lost", async () 
         attempts++
         if (attempts === 1) return Effect.fail(capacity)
         if (attempts === 2) {
-          // The announcement nobody is parked for.
           bench.free()
           return Effect.fail(capacity)
         }
@@ -179,8 +139,6 @@ test("a seat freed while the reading is between attempts is not lost", async () 
     yield* Effect.forkScoped(Stream.runForEach(source.state.source(to), value => Queue.offer(seen, value)))
     let state = yield* Queue.take(seen)
     while (state.unopened === null) state = yield* Queue.take(seen)
-    // One real announcement starts the second attempt; the one that fires
-    // inside it is the one a lost wakeup would drop.
     yield* Effect.sync(bench.free)
     while (state.unopened !== null) state = yield* Queue.take(seen)
     expect(state.status).toBe("idle")
@@ -189,13 +147,6 @@ test("a seat freed while the reading is between attempts is not lost", async () 
   expect(bench.held()).toBe(0)
 })
 
-/**
- * NOT A NODE'S CHAT IS NOT A REFUSAL. A page following a node asked for a pair
- * the node has just replaced; the scheduler acquired nothing for it, and the
- * page's own roster is about to move it on. So nothing is drawn — no sentence,
- * no *Try again* — and nothing is waited for: a seat freeing is no reason to
- * ask again for a chat that is not the node's.
- */
 test("a reading that is not a node's chat stays off, draws no refusal and waits for nothing", async () => {
   const bench = seatBench()
   let attempts = 0
@@ -219,24 +170,12 @@ test("a reading that is not a node's chat stays off, draws no refusal and waits 
     const late = Option.getOrThrow(yield* Stream.runHead(source.state.source(to)))
     expect(late).toEqual(CHAT_OFF)
     expect(attempts).toBe(1)
-    // What the attempt holds is the reading's, released with it, as an open
-    // reading's is.
     expect(released).toBe(0)
     expect([...yield* Queue.takeAll(seen)].every(state => state.unopened === null)).toBe(true)
   })))
   expect(released).toBe(1)
 })
 
-/**
- * THE WINDOW AND THE PAGE — the two halves of juspay/olai#663's delivery.
- *
- * The transcript here is a hundred rows; the delivery is the newest
- * {@link TRANSCRIPT_WINDOW} of them (their oldest `seq` is the count a reader
- * derives), and the page is the run strictly below the cursor the tab names.
- * None of it is a claim about the transcript — the reading keeps every row, and
- * `page` reads them — so what is asserted is exactly the boundary the frame
- * moved.
- */
 const longRows = (count: number): Array<ChatEntry> =>
   Array.from({ length: count }, (_, at) => ({
     kind: "user" as const,
@@ -258,17 +197,12 @@ test("a subscribe ships the newest window, and pages read the rest back", async 
       seats: () => () => {},
     }))
     const to = { agent: "test", session: "long" }
-    // The reading is built and filled by the first subscriber; a tab that joins
-    // afterwards is the one that meets the window.
     yield* Effect.forkScoped(Stream.runDrain(source.state.source(to)))
     yield* Deferred.await(filled)
 
     const snapshot = Option.getOrThrow(yield* Stream.runHead(source.transcript.source(to)))
     if (snapshot.kind !== "snapshot") throw new Error(`expected a snapshot, got a ${snapshot.kind}`)
     expect(snapshot.entries).toHaveLength(TRANSCRIPT_WINDOW)
-    // The window is the RECENT end: the oldest row it carries is the one that
-    // leaves exactly `40` older — the oldest `seq` a tab would derive its door
-    // from.
     expect(snapshot.entries[0]?.[1].seq).toBe(40)
 
     const page = yield* source.page(to, 40, 10)

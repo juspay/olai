@@ -12,7 +12,6 @@ test("question reveal follows document order after a move, and skips detached or
   let waiting = true
   const owner = createRoot(dispose => {
     const forms = createWaitingForms()
-    // Register in the opposite order: mounting order must not choose the form.
     forms.register(second, () => true)
     forms.register(first, () => waiting)
     return { forms, dispose }

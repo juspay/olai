@@ -1,53 +1,6 @@
 import type { Json } from "../../json.ts"
 import type { Refusal } from "../../slots.ts"
 import { Effect } from "effect"
-/**
- * The conversation, as this tab sees it.
- *
- * Two subscriptions, and every verb that CHANGES anything is a surface member —
- * there is no chat state in the browser that the server does not own. What was
- * typed, what the agent said, which tool ran, which session this is: all of it
- * arrives as frames, so two tabs cannot disagree and a reload is a fresh read
- * rather than a replay protocol.
- *
- * The one exception proves the rule: {@link Chat.refused} is this tab's, and
- * always was — it is what the last thing a person did came back with, which is
- * about a click rather than about the conversation. {@link Chat.refuse} writes
- * that line for a caller with something to say that no round trip produced.
- *
- * The transcript is a COLLECTION served with batched deltas, which is why a tab
- * opened halfway through a turn shows the conversation at once: its first frame
- * is the snapshot. THE SNAPSHOT IS A WINDOW, not the whole conversation — the
- * newest `TRANSCRIPT_WINDOW` rows — and the rows before it are pulled a page at
- * a time through `conversation.earlier`, which is what keeps a long
- * conversation's reconnect a small frame instead of several MB (juspay/olai#663,
- * {@link ./state.ts} builds both halves into the one `rows` list). A RECONNECT
- * NEVER TAKES A ROW AWAY: the frame the store prunes goes into a client-held
- * map, and only a conversation that restarted under the tab empties it. Rows are
- * sorted by their own `seq` rather than by the order the
- * keys arrived, because arrival order is a delivery detail and the conversation
- * has an order of its own — and that sort is a FOLD over the frames rather than
- * a pass over the whole transcript per frame ({@link ./order.ts}).
- *
- * **`rows` is KEYS, and each row reads its own value.** `<For>` diffs its list
- * by identity, so what is IN that list decides whether a change patches a row
- * or replaces it — and a row replaced is every piece of state it owns thrown
- * away while the reader is looking at it: an unfolded tool call, a text
- * selection, a scroll position. Strings, compared with `===`, cannot be
- * anything but the same list; the value comes from `entry(key)` inside the row,
- * where a change is a read that re-ran rather than a list that moved. It is the
- * framework's own idiom (`@kolu/surface`'s fleet-top example does exactly this
- * with pids).
- *
- * The pinned collection replaces each upserted leaf whole. Entry objects and
- * their nested arrays therefore change identity on a row update. Rows iterate
- * keys; nested views key terminals and fields by their ids and compare diff
- * inputs by value. The DOM identity scenarios exercise that distinction.
- *
- * This module is also the ONE place in the client where an Effect is run
- * ({@link ./run.ts} is the edge itself). A procedure returns an `Effect`, a
- * click is a DOM event, and the boundary between them belongs somewhere named.
- */
 
 import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, agentIn, transcriptRows, sayingRows, TRANSCRIPT_PAGE } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
@@ -61,17 +14,6 @@ import { createRows, orderOf } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
 import { createConversationUI, type ConversationUI } from "./ui.tsx"
 
-/**
- * What became of one upload — THREE arms, because there are three answers and
- * two of them used to be `null`.
- *
- * `gone` is not a refusal: the conversation this file was being attached to
- * was left while it uploaded, and the server has already thrown the directory
- * it landed in away. Nothing was refused and nobody needs telling; there is
- * simply no chip to draw. A refusal, on the other hand, is something a person
- * has to be able to read, and it travels back WITH the answer so that the
- * caller can say it beside the rest of the gesture's.
- */
 export type Uploaded =
   | { readonly _tag: "stored"; readonly stored: Attached }
   | { readonly _tag: "refused"; readonly failure: OpFailure }
@@ -79,171 +21,39 @@ export type Uploaded =
 
 export interface Chat {
   readonly ui: ConversationUI
-  /** Where the conversation stands: session, model, commands, whether a turn
-   *  is running. */
   readonly state: Accessor<ChatState>
-  /** The row KEYS OF THE CONVERSATION'S OWN COLUMN, in order. Keys rather than
-   *  values so a `<For>` over them diffs stable strings — see the header.
-   *
-   *  NOT every row: a subagent's tool calls are filed under the agent that
-   *  made them and are drawn where that agent is drawn ({@link lanes}), so this
-   *  is the main agent's work and the reader's, plus every question whoever
-   *  asked it. */
   readonly rows: Accessor<ReadonlyArray<string>>
-  /** ... and each spawned agent's own calls, by the transcript key of the
-   *  `Agent` frame that sent it out — what a preview of that agent draws, in
-   *  the same order the conversation put them in. Empty for every conversation
-   *  that spawned nobody. */
   readonly lanes: Accessor<ReadonlyMap<string, ReadonlyArray<string>>>
-  /** One row's current value, read lazily inside that row. `undefined` while a
-   *  key is in the list and its value has not arrived (or has just left). */
   readonly entry: (key: string) => Accessor<ChatEntry | undefined>
-  /**
-   * HOW MANY ROWS OF THIS CONVERSATION ARE OLDER THAN WHAT THE TAB HOLDS — the
-   * number on the "earlier messages" door, and the reason a long chat lands
-   * without shipping its whole history (juspay/olai#663).
-   *
-   * It is the oldest `seq` this tab holds: rows carry a dense `seq` from `0`
-   * (`@kolu/acp-harness`'s `transcript.ts`), so the oldest one names exactly
-   * the rows below it that the tab has never had. It reaches ZERO when the
-   * reader has walked back to the start, which is what hides the door.
-   */
   readonly earlier: Accessor<number>
-  /** The "earlier messages" fetch is in flight — the door's own pressed state. */
   readonly earlierLoading: Accessor<boolean>
-  /** Pull the next page of older rows. A no-op while nothing is older, while a
-   *  page is already in flight, and before the conversation has a first frame to
-   *  take an oldest `seq` from. */
   readonly loadEarlier: () => void
-  /** The last thing a VERB refused — an empty message, a turn already running.
-   *  Separate from `state().trouble`, which is what went wrong where nobody was
-   *  waiting: this one belongs to the click that caused it. */
   readonly refused: Accessor<OpFailure | null>
-  /** Sends whose acceptance has not arrived in this tab yet. The old idle
-   * frame cannot make session controls usable while a send is in flight. */
   readonly pendingSends: Accessor<number>
-  /** Say what a whole GESTURE refused, on the same line every other refusal is
-   *  said on — or clear that line, when it refused nothing.
-   *
-   *  One drop is one answer. Attaching is the only verb a person can aim at
-   *  several things at once, and the reasons come from two places: files the
-   *  shared gate turns down before there is a call to make ({@link
-   *  ./holding.ts}), and uploads the server refuses. Said one at a time, each
-   *  is wiped by the next file's answer — which is a file dropped into the
-   *  panel disappearing with nothing about it on screen. So the caller
-   *  collects them and says them together, here, rather than into a second
-   *  signal of its own: a refusal drawn in two places is one a reader learns
-   *  to skip in both. */
   readonly refuse: (reasons: ReadonlyArray<string>) => void
-  /** What was typed, the files already attached to it — by the paths
-   *  {@link Chat.attach} answered with — and the nodes it is ABOUT, by id.
-   *
-   *  Answers whether the server TOOK it. A composer clears the box the moment
-   *  it sends, which is right — but a send that was refused has to be able to
-   *  put back what it threw away, and the refusal alone does not say what the
-   *  message was.
-   *
-   *  IDS for the context and not the nodes themselves: what this tab drew is a
-   *  frame old, and the set is the server's to read (`server/src/context.ts`).
-   *  A refusal here is usually exactly that — an armed node the set no longer
-   *  declares — and it says so in the ops layer's own words. */
   readonly send: (
     text: string,
     attachments: ReadonlyArray<string>,
     context: ReadonlyArray<string>,
-    /** INTERRUPT the turn the agent is running with this, rather than take a
-     *  place behind it. The deliberate gesture and nothing else: absent, this
-     *  message waits its turn at the agent, which is what pressing enter
-     *  means. Only offered where the agent said it takes one
-     *  (`@olai/surface`'s `Talking.steers`). */
     steer?: boolean,
   ) => Promise<boolean>
-  /** Send a file to the conversation's tmp directory, chunk by chunk, and
-   *  answer with what became of it.
-   *
-   *  It ANSWERS the refusal rather than drawing it, which is the difference
-   *  between one file and a gesture: several files dropped together are
-   *  several of these calls, and a verb that drew each answer as it came would
-   *  rub out the last one's. The caller collects them and says them once
-   *  ({@link Chat.refuse}). */
   readonly attach: (file: File, progress?: UploadProgress) => Promise<Uploaded>
-  /** Try a message the agent would not take again — `id` is the row's own key,
-   *  and the SERVER still holds the prompt behind it. Nothing is rebuilt here:
-   *  the row carries its pictures by name, and a retry assembled from what is
-   *  on screen would be a different message. */
   readonly resend: (id: string) => void
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean, done: () => void) => void
   readonly setModel: (agent: string, session: string, value: string, done: () => void) => void
   readonly cancel: () => void
-  /** Move to a stored conversation — WITH the agent whose it is, which the
-   *  row carries. The list spans every installed agent, so this is a change of
-   *  agent as often as it is a change of conversation. */
   readonly loadSession: (agent: string, id: string) => void
-  /** Try the OPEN the agent refused again. It takes no argument, and that is
-   *  the same rule { Chat.resend} follows: the SERVER holds which one was
-   *  asked for, because a boot picks its own conversation and a browser naming
-   *  one would be asking for something nobody asked for. */
   readonly reopen: () => void
-  /**
-   * Answer a question the agent asked — `id` is the ask row's own id.
-   *
-   * `done` is called when the verb came BACK, whichever way it went: the server
-   * took the answer, or refused it. It is not "it worked" — what worked shows
-   * up as the row settling, like every other consequence in this panel — it is
-   * only "the call is no longer in flight", which is what a form needs to know
-   * to stop being pressable twice.
-   */
   readonly answer: (
     id: string,
     answers: ReadonlyArray<AskAnswer>,
     done?: () => void,
   ) => void
-  /** ... or decline it, which the agent is told about as such. */
   readonly decline: (id: string, done?: () => void) => void
-  /**
-   * SIGN IN — with one of the agent's methods, or with `null` for the chooser
-   * the composer's `/login` asks for (`./Composer.tsx`).
-   *
-   * The row that follows is NOT optimistic: nothing is set here, and what a
-   * person sees is the server's `signIn` frame. That is what makes two tabs one
-   * sign-in — a terminal method is one process and one output stream, and a
-   * local copy of it would be a second.
-   */
   readonly signIn: (method: string | null) => void
-  /** One line to the process a terminal sign-in is running. */
   readonly signInInput: (text: string) => void
-  /** Stop it, or dismiss a finished attempt's row. */
   readonly signInCancel: () => void
-  /**
-   * THE WORDS THE AGENT WOULD NOT TAKE because nobody is signed in, handed back
-   * to the box ONCE — see {@link Chat.takeBack}.
-   */
   readonly takeBack: () => string | null
-  /**
-   * POINT ONE PLUGIN'S DOORBELL AT ONE FILE, for this conversation — or, with
-   * `file: null`, at nothing, which is how one is turned off.
-   *
-   * WITH THE PAIR, the way {@link Chat.loadSession} takes one: a session id
-   * means nothing to the wrong agent, and the panel's own conversation can move
-   * under a picker somebody left open — a boot opens one with nothing called at
-   * all — so a pick that meant "whichever conversation is in front of me" would
-   * sometimes be attached to one a person was not looking at. What is read for
-   * that pair is read at the CLICK ({@link ./Wake.tsx}), which is the moment the
-   * person meant.
-   *
-   * THE ORDER IS THE WIRE'S — `agent`, `session`, `plugin`, `file`, exactly the
-   * member's own field order one hop down and the order `olai-plugin-chat`'s own
-   * `scope` takes them in (the pair, then the plugin, then the file). Three
-   * adjacent strings is a signature where the compiler cannot help: any
-   * permutation type-checks, and a caller that swapped two would store a pick
-   * under a plugin name nothing rings and a conversation nobody has. IT USED TO
-   * lead with the plugin, on the argument that the subject belongs first — a
-   * good sentence and a second order for one tuple, which is the whole of what
-   * makes such a swap silent.
-   *
-   * One verb and not a `clear` beside a `set`: there is one fact here and it
-   * has an empty value.
-   */
   readonly scope: (
     agent: string,
     session: string,
@@ -252,27 +62,9 @@ export interface Chat {
   ) => Effect.Effect<void, Refusal>
 }
 
-/**
- * Where the conversation stands, and NOTHING else.
- *
- * For a reader that has to know whether a turn is running without drawing the
- * conversation — the header toggle and the minimized pill. It subscribes the
- * cell (small) and deliberately not the transcript. The minimized face's last
- * message is a module snapshot in `last.ts`, written only while the open panel
- * is mounted — never a second transcript subscription.
- */
 export const createChatState = (conv: PanelAddress, expected?: Conversing | null): Accessor<ChatState> => {
   const cell = chatWire().streams.state.use(() => conv)
-  // The cell always has a value: the spec declares a default, and the framework
-  // seeds the subscription with it — so `off` is what a page reads before the
-  // first frame, which is exactly what it should read.
-  // A node stream can announce its new session before the binding projection
-  // reaches this tab. Keep that frame away from the previous session's draft
-  // owner: otherwise typing into the new-looking composer is lost on remount.
   // Sessionless refusals still belong to the node and must remain visible.
-  // Surface cells reconcile in place, so keeping the previous object would
-  // still expose its changed session. Show the opening state until the draft
-  // owner matches instead of retaining that mutable reading.
   return createMemo<ChatState>(() => {
     const next = cell() ?? CHAT_OFF
     if (expected !== undefined && next.session !== null
@@ -281,17 +73,6 @@ export const createChatState = (conv: PanelAddress, expected?: Conversing | null
   })
 }
 
-/**
- * DID THE CONVERSATION RESTART UNDER THE TAB WHILE IT WAS AWAY?
- *
- * A snapshot that shares NO key with what the tab holds can be two things: a
- * conversation that restarted while the socket was down (a fresh start or a
- * replay — `seq` begins again at `0`), or a window that moved entirely past the
- * rows the tab holds because the conversation merely grew while it was away.
- * The second KEEPS its rows: its window begins after everything the tab holds.
- * So the restart is the one whose snapshot begins at or below where the held
- * rows begin. A snapshot that shares a key is the same conversation, always.
- */
 const restartedUnderneath = (
   held: ReadonlyMap<string, ChatEntry>,
   entries: ReadonlyArray<readonly [string, ChatEntry]>,
@@ -307,38 +88,13 @@ const restartedUnderneath = (
   return oldestSnapshot <= oldestHeld
 }
 
-// A procedure can settle after the drawer that started it was remounted. Its
-// refusal belongs to this tab's gesture, not to that discarded panel instance.
 export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly expected?: Conversing | null; readonly visit?: (to: Conversing) => void } = {}): Chat => {  const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
   const served = createChatState(conv, options.expected)
   const transcript = chatWire().streams.transcript.useCollection(conv, transcriptRows)
-  // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
-  // second delivery of the first, and the reason a streaming answer costs the
-  // socket the answer rather than three hundred copies of its prefixes
-  // ({@link ./growing.ts}).
   const said = createTail(chatWire().streams.saying.useCollection(conv, sayingRows).fold)
 
-  /**
-   * THE ROW STILL BEING SAID, joined — computed ONCE per frame however many
-   * readers ask for it.
-   *
-   * A memo rather than the join written into {@link entry} below, and the
-   * reason is identity rather than arithmetic: three tracked scopes read the
-   * growing row in one frame (the row itself, the lane over it, the lane of
-   * the row under it), and a join done per call hands each of them a
-   * different object for the same row. `./Transcript.tsx` says in place why
-   * that matters — an entry's identity surviving a frame is what stops one
-   * row's token re-running the attribute effects of every row on screen — and
-   * a per-call join would have quietly made that untrue for the one row it is
-   * about.
-   *
-   * The row is handed back UNCHANGED whenever nothing is added to it, which is
-   * every frame after a paragraph ends: the pieces are still on the wire until
-   * the row that supersedes them is, and the join answers with the row itself
-   * for every one of them.
-   */
   const grown = createMemo((): ChatEntry | undefined => {
     const key = said.of()
     const held = said.tail()
@@ -348,47 +104,10 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     return text === row.text ? row : { ...row, text }
   })
 
-  /**
-   * One row's value — with whatever is still being said laid onto it, when it
-   * is the row being said into.
-   *
-   * THE JOIN IS HERE rather than in the component that draws the text, so that
-   * everything downstream — the row, the lane above it, the minimized pill's
-   * last message — reads one complete row and no consumer has to know the wire
-   * delivers a growing one in two halves ({@link ./growing.ts}).
-   *
-   * WHICH row is growing is asked of a memo that moves once a paragraph, and
-   * through a SELECTOR over it, so a paragraph opening wakes the row that stops
-   * growing and the row that starts — not every row on screen. Reading the memo
-   * itself put every row on it, so every message that opened a paragraph in a
-   * long conversation woke its whole transcript: quadratic over a turn.
-   */
   const growing = createSelector(said.of)
 
-  // THE ORDER, FOLDED — the wire's own frames accumulated into a key list
-  // instead of the whole transcript being re-read and re-sorted per frame.
-  // {@link ./order.ts} is where that shape is argued and where the reader's
-  // half of it lives with it. This is the LIVE WINDOW the server ships; the
-  // rows a reconnect prunes out of it are kept below.
   const window = createRows(transcript.fold)
 
-  /**
-   * EVERY ROW THIS TAB HOLDS, ACROSS RE-SEEDS.
-   *
-   * The collection store is the LIVE WINDOW: a reconnect re-ships the newest
-   * `TRANSCRIPT_WINDOW` rows, and the framework's snapshot arm drops every key
-   * outside it. That is right for the wire and wrong for the reader — a person
-   * four hundred rows up, or one who had just pulled five pages, lost all of it
-   * on a sub-second blink. Rows are immutable history with a dense `seq`, so
-   * this map keeps them: the fold below MERGES a snapshot into it rather than
-   * replacing, and only a conversation that RESTARTED under the tab (a fresh
-   * start or a replay, whose `seq` begins again) empties it.
-   *
-   * A plain `Map` and not a store: rows that have left the window never change
-   * again, and the live ones are read from the collection store for their
-   * per-key reactivity ({@link entry}). {@link history} is the view of this map
-   * outside the window.
-   */
   let held = new Map<string, ChatEntry>()
   let heldSession: string | null | undefined
   const [revision, setRevision] = createSignal(0)
@@ -414,55 +133,22 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
 
   const [earlierLoading, setEarlierLoading] = createSignal(false)
 
-  /**
-   * THE ROWS THIS TAB HOLDS THAT ARE NOT IN THE LIVE WINDOW — what a reconnect
-   * pruned, plus every page pulled. Rebuilt when the window's key set moves (a
-   * re-seed, a new row, a clear) or when a page lands; the ordering is
-   * {@link ./order.ts}'s, one walk below, so this map stays unordered.
-   */
   const history = createMemo(() => {
     revision()
     const inWindow = new Set(window.keys())
     return new Map([...held].filter(([key]) => !inWindow.has(key)))
   })
 
-  /** ... ordered and cut the way the fold cuts its own — one walk, rebuilt only
-   *  when a page lands or the window re-seeds. */
   const older = createMemo(() => orderOf([...history().values()]))
 
-  /**
-   * One row's value — with whatever is still being said laid onto it, when it
-   * is the row being said into.
-   *
-   * THE JOIN IS HERE rather than in the component that draws the text, so that
-   * everything downstream — the row, the lane above it, the minimized pill's
-   * last message — reads one complete row and no consumer has to know the wire
-   * delivers a growing one in two halves ({@link ./growing.ts}).
-   *
-   * WHICH row is growing is asked of a memo that moves once a paragraph, and
-   * through a SELECTOR over it, so a paragraph opening wakes the row that stops
-   * growing and the row that starts — not every row on screen. Reading the memo
-   * itself put every row on it, so every message that opened a paragraph in a
-   * long conversation woke its whole transcript: quadratic over a turn.
-   *
-   * A HISTORY ROW IS NEVER THE GROWING ONE (it is older than the window the
-   * live row is in), so the live window is read first and the join is left to
-   * it; a key the window no longer holds is answered from {@link history}.
-   */
   const entry = (key: string): Accessor<ChatEntry | undefined> => () => {
     const live = transcript.byKey(key)
     if (live !== undefined) return growing(key) ? grown() : live()
     return history().get(key)
   }
 
-  /** THE COLUMN, whole: the pulled pages above the live window. Every history
-   *  `seq` is below every window `seq` and nothing is in both, so the two lists
-   *  concatenate in conversation order with no merge. */
   const rows = createMemo(() => [...older().keys, ...window.keys()])
 
-  /** ... and the LANES, the same way: an agent's calls are never split across
-   *  the boundary (its calls are newer than the frame that sent it out), so the
-   *  two maps are disjoint and one spread combines them. */
   const lanes = createMemo(() => {
     const pulled = older().lanes
     const live = window.lanes()
@@ -471,12 +157,6 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     return new Map([...pulled, ...live])
   })
 
-  /**
-   * THE OLDEST `seq` THIS TAB KNOWS — read from the WINDOW's first key (the fold
-   * keeps the keys in `seq` order) and, once history exists, from that instead;
-   * the two sources are contiguous, so the minimum over both is the boundary
-   * the next page is fetched below.
-   */
   const oldest = (): number | undefined => {
     let min: number | undefined
     for (const row of history().values()) if (min === undefined || row.seq < min) min = row.seq
@@ -488,17 +168,6 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     return min
   }
 
-  /**
-   * HOW MANY ROWS ARE STILL OLDER THAN WHAT THIS TAB HOLDS — the number on the
-   * door, and what hides it.
-   *
-   * ONE READING: {@link oldest}. A row's `seq` is dense from `0` in a
-   * conversation (`@kolu/acp-harness`'s `transcript.ts` mints them `0, 1, 2…`,
-   * and only a clear restarts the count), so the oldest `seq` this tab holds
-   * IS the number of rows below it — the rows it has never had. That is also the boundary the
-   * next page is fetched below ({@link loadEarlier}), so the door's number and
-   * the fetch cannot name two different rows.
-   */
   const earlier = createMemo(() => oldest() ?? 0)
 
   const loadEarlier = (): void => {
@@ -521,38 +190,12 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     )
   }
 
-  /**
-   * THE WORDS THE AGENT WOULD NOT TAKE BECAUSE NOBODY IS SIGNED IN, handed back
-   * to the box — ONCE per row, which is what makes it a hand-back rather than a
-   * loop.
-   *
-   * WHY IT LIVES HERE and not in the row's own drawing: a refused message is
-   * marked `delivery: "refused"` with the words still in the bubble and a *send
-   * again* under it ({@link ./Entry.tsx}) — that is what this panel says about a
-   * message that did not go, and it stays true here. What is different about
-   * this one refusal is that there is somewhere better for the words to be
-   * while a person deals with it: the box they typed them into. Zed's flow does
-   * the same, and the reason is the round trip — the conversation is ABOUT to be
-   * reopened (`olai-plugin-chat`'s `signedIn`), the transcript is about to be
-   * cleared or replayed, and a row the agent never received is not something to
-   * leave a person scrolling for.
-   *
-   * ONCE, KEYED BY THE ROW: an effect that handed the words back whenever the
-   * box was empty would fight anybody who deleted them (`./Composer.tsx` reads
-   * this on every keystroke of an empty box).
-   */
   let handedBack: string | null = null
   const takeBack = (): string | null => {
-    // ONLY WHILE SOMEBODY IS BEING ASKED TO SIGN IN, which is the one moment
-    // the box is the better place for these words: `/login` on an agent that
-    // needs no signature must not reach back for an old refusal.
     if (served().signIn === null) return null
     const keys = rows()
     for (let at = keys.length - 1; at >= 0; at--) {
       const row = entry(keys[at]!)()
-      // The NEWEST thing a person said, which is the only candidate: whatever is
-      // below it in the column is either somebody else's message or one that
-      // was answered long ago.
       if (row === undefined || row.kind !== "user") continue
       if (row.signIn === undefined || row.delivery !== "refused" || handedBack === row.id) return null
       handedBack = row.id
@@ -561,33 +204,9 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     return null
   }
 
-  /**
-   * A VERB THAT OPENS A CONVERSATION IS IN FLIGHT — this tab's own reading,
-   * true from the click rather than from the server's first frame.
-   *
-   * The three doors that open one (`+ new`, the picker's answer, a stored
-   * conversation) each start a subprocess or a replay, and none of them is
-   * instant. The server says `booting` the moment it begins, but that word has
-   * to travel: between the click and the frame carrying it, the cell still
-   * reads `idle` — so the panel looked FINISHED for the first frames of the
-   * longest wait it has, which is exactly when somebody presses the thing
-   * again.
-   *
-   * THIS TAB'S, deliberately, like the picker's own question one level up
-   * (`../agents/Fold.tsx`): it is a person part-way through a gesture. A second tab
-   * has no business being told this one clicked something, and the moment the
-   * server has an opinion the server's is what everyone sees.
-   *
-   * It is a COUNT rather than a flag because the doors can be pressed in
-   * sequence, and a second answer coming back must not clear a first that is
-   * still in flight.
-   */
   const [starting, setStarting] = ui.starting
   const [pendingSends, setPendingSends] = ui.pendingSends
 
-  // Before this keyed reading has opened, there is no upload lifetime to
-  // address. Keep the gesture until its own conversation arrives; never send
-  // the default cell's null scope or borrow another conversation's scope.
   const [awaiting, setAwaiting] = createSignal<ReadonlySet<(scope: string | null) => void>>(new Set())
   let disposed = false
   onCleanup(() => {
@@ -609,15 +228,6 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     return new Promise(resolve => setAwaiting(before => new Set([...before, resolve])))
   }
 
-  /**
-   * Where the conversation stands, with this tab's own press folded in.
-   *
-   * The override is ONE-WAY and it is the narrow one: a panel the server calls
-   * `idle` while a press of ours is in flight is a panel that is starting.
-   * Every other state is the server's and passes straight through — `thinking`
-   * is a turn we would be lying about, `gone` is a process this tab cannot see,
-   * and `off` is a machine with no agent at all.
-   */
   const booting = createMemo(() => new Proxy(served(), {
     get: (target, key, receiver) => key === "status" ? "booting" : Reflect.get(target, key, receiver),
   }))
@@ -626,35 +236,17 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     return starting() > 0 && now.status === "idle" ? booting() : now
   })
 
-  // ... and this tab's guess lives only until the SERVER has one. The moment
-  // the served status is anything but `idle`, the server has taken the story
-  // over — it says `booting` itself, or the open finished, or the agent went —
-  // and a press still counted here would be a fiction outliving its cause. It
-  // is also the bound on the one way the count could stick: a call that never
-  // settles never runs its `done`.
   createEffect(
     on(() => served().status, (status) => {
       if (status !== "idle") setStarting(0)
     }, { defer: true }),
   )
 
-  /** A verb that opens a conversation: the panel says so from the click, and
-   *  stops saying it when the call comes back — however it went. `max(0, …)`
-   *  because the effect above can zero the count while a call is still in
-   *  flight, and a negative one would report `booting` for every later press
-   *  that ended. */
   const opens = (effect: Call<unknown>) => {
     setStarting((held) => held + 1)
     verb(effect, () => setStarting((held) => Math.max(0, held - 1)))
   }
 
-  /** Every verb the same way: clear the last refusal, run, and keep whatever
-   *  this one refuses with. A verb that SUCCEEDS says nothing — the transcript
-   *  is where its consequences show up.
-   *
-   *  `done` is told the call came back, either way. Only a caller that has to
-   *  stop being clickable while it waits passes one; the rest fire and forget,
-   *  which is what "the consequences arrive on the transcript" means. */
   const verb = (effect: Call<unknown>, done?: () => void) => {
     setRefused(null)
     run(
@@ -667,17 +259,6 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     )
   }
 
-  // An open transcript PREVIEW is addressed by a
-  // transcript key ({@link ./previewing.ts}), which is exactly the kind of name
-  // the next conversation re-mints: a fresh transcript counts from `tool:1`, so
-  // a key left over from the last one does not merely go stale, it can COLLIDE —
-  // opening a shelf nobody pressed on somebody else's third tool call, and
-  // lighting the pressed state on the wrong door in the strip and in the
-  // transcript. The shelf's own guard hides a MISSING row and cannot see that
-  // one, which is why the fix is here and not there.
-  //
-  // The transcript preview closes on a session change. Attachment thumbnails
-  // instead follow the live upload scope, so remounting does not discard them.
   createEffect(
     on(() => state().session?.id, () => {
       closePreview()
@@ -727,19 +308,8 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
         setPendingSends(count => count - 1)
       }
     },
-    // The chunk loop is a composed effect ({@link ./attach.ts}) rather than a
-    // verb of its own: what a caller waits for is the path, because it is what
-    // the next `send` carries.
     attach: (file, progress) =>
       new Promise<Uploaded>((resolve) => {
-        // WHICH conversation this is being attached to, read before the first
-        // chunk goes out. An upload takes as many round trips as the file
-        // has chunks, and leaving a conversation is allowed throughout — only
-        // a running TURN blocks that. So the answer can arrive after the
-        // server has thrown the directory it names away, and after the effect
-        // below has cleared what belonged to it. Answering `gone` then is the
-        // honest thing: the file is gone, and a chip for it would offer a send
-        // the server would refuse.
         const asked = state().uploadScope
         if (asked === null) return resolve({ _tag: "gone" })
         run(
@@ -751,9 +321,6 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
           (failure) => resolve({ _tag: "refused", failure }),
           (stored) => {
             if (state().uploadScope !== asked) return resolve({ _tag: "gone" })
-            // The Blob is the one already in hand — this tab is the only
-            // reader that will ever have it, and the name it is filed under is
-            // the SERVER's, which is what the transcript row will carry.
             ui.previews.remember(stored.name, file, asked)
             resolve({ _tag: "stored", stored })
           },
@@ -767,13 +334,7 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     setSetting: (agent, session, config, value, done) => verb(chatWire().procedures.conversation.setSetting({ agent, session, config, value }), done),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),
     cancel: () => verb(chatWire().procedures.conversation.cancel({ conv, scope: state().uploadScope })),
-    // The three doors that OPEN a conversation, and the fourth that reopens
-    // a refused one. Each says so from the click ({@link opens}).
     loadSession: (agent, session) => options.visit?.({ agent, session }),
-    // An ordinary verb, and deliberately not one of the four above: pointing a
-    // doorbell at a file opens nothing, so the panel has nothing to say from
-    // the click — what it did shows up as the strip's own row changing, which
-    // is where somebody who just picked a file is already looking.
     scope: (agent, session, plugin, pick) =>
       chatWire().procedures.conversation.scope({ agent, session, plugin, pick }).pipe(Effect.asVoid, Effect.mapError(error => ({ reason: String(error) }))),
     reopen: () => opens(chatWire().procedures.conversation.reopen({ conv, scope: state().uploadScope })),

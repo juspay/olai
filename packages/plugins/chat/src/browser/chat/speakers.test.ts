@@ -1,14 +1,3 @@
-/**
- * WHOSE FACE GOES OVER WHICH ROW — the rule, without a browser.
- *
- * What is asserted here is the ATTRIBUTION and the RUN: that a plugin's
- * doorbell is never drawn as the person whose lane it travels down, that an
- * agent's calls are the agent rather than a fourth party, and that a face is
- * owed once per stretch rather than once per row. Nothing here reads a class, a
- * glyph or a colour — {@link ./speakers.ts} answers in parties, and what a
- * party LOOKS like is {@link ./Speaker.tsx}'s.
- */
-
 import { describe, expect, test } from "bun:test"
 
 import type { AgentEntry, NoticeEntry, ToolEntry, UserEntry } from "olai-plugin-chat/wire"
@@ -55,8 +44,6 @@ describe("whose row it is", () => {
   })
 
   test("... and the same row with a plugin's mark on it is the PLUGIN's", () => {
-    // The mark is the only difference between the two rows, which is the whole
-    // reason it is stamped: a doorbell travels down the human's lane.
     expect(speakerOf(said({ rang: "kolu" }))).toEqual({ of: "plugin", name: "kolu" })
   })
 
@@ -78,11 +65,6 @@ describe("whose row it is", () => {
   })
 })
 
-// Whether two rows are the same party is asked ONLY to decide whether a face
-// is owed, so it is asserted where that decision is observable — below, on
-// `facedAt`. Asked of the predicate directly it was four cases that could not
-// go red on their own, and one of them (nobody against nobody) an arm no
-// caller can reach: `facedAt` returns before it on a row that is nobody's.
 describe("where a run begins", () => {
   test("the first row of a conversation is always faced", () => {
     expect(facedAt(said(), undefined)).toEqual({ of: "human" })
@@ -138,8 +120,6 @@ describe("which side the words are on", () => {
   test("the person's, and only the person's", () => {
     expect(onTheRight({ of: "human" })).toBe(true)
     expect(onTheRight({ of: "agent" })).toBe(false)
-    // A machine's sentence travels down the human's lane and must never wear
-    // the human's bubble — the row's oldest rule, asked here of its face.
     expect(onTheRight({ of: "plugin", name: "kolu" })).toBe(false)
   })
 })

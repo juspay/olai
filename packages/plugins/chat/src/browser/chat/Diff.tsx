@@ -1,32 +1,5 @@
 import { textOfDiff } from "./carried.ts"
 import { Grip, textCarry } from "./Grip.tsx"
-/**
- * A file the agent rewrote, in the transcript: trimmed, and expanded in place
- * on a click.
- *
- * This is the half of `chat-edit-diffs` that is NOT an outline. An olai write
- * shows up in the tree in front of you and is reported here as a node-level
- * story (the owning plugin’s `tool.reply` face); a direct edit to a `.md` or a source file shows
- * up nowhere at all, so until this drew, the answer to "what did it change" was
- * a terminal.
- *
- * The idiom is Claude Code CLI's, and both halves of it matter. A diff is drawn
- * rather than folded away — it is what the call DID, and a fold would put the
- * one interesting thing behind the same click as the arguments. And it is
- * TRIMMED, because a turn can rewrite four files and a panel is 26rem wide:
- * what shows is the first few rows of the change and a line saying how much
- * more there is, which expands where it stands.
- *
- * What is trimmed is the DIFF and never the file — the line diff collapses
- * unchanged runs into gaps before this sees it ({@link ./diff.ts}) — so the
- * first rows are the change itself rather than the top of a document.
- *
- * The colours are the palette's own two verdicts (`done` for what arrived,
- * `alarm` for what went), and they are spent on the TINT and the marker rather
- * than on the words: text stays `ink`, which is the one pair every palette
- * promises and holds. A line of code read in a colour is a line half the
- * palettes would have to be checked for.
- */
 
 import type { FileDiff } from "@kolu/acp/wire"
 import { createMemo, For, Show } from "solid-js"
@@ -36,19 +9,8 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 import { type DiffLine, diffOf } from "./diff.ts"
 import { useConversationUI } from "./ui.tsx"
 
-/** How many rows a trimmed diff shows. Enough for a small edit to be whole —
- *  which is most of them — and few enough that four rewritten files still read
- *  as a conversation rather than as a page of text. */
 const TRIMMED = 6
 
-/** What each kind of row looks like: the marker in the gutter, and how the row
- *  is painted. A table rather than three ternaries in the markup, so "what does
- *  an added line look like" is answered in one place. TOTAL over the kinds,
- *  including the gap — whose row still asks for a `row` class (it is painted
- *  like an unchanged line) while drawing its own contents below, so its `mark`
- *  and `tone` go unread. Spelled anyway rather than left as a missing key: an
- *  answer of "nothing" is a decision, and `said.ts`'s `MARK` makes the same
- *  one. */
 const LOOK: Readonly<Record<DiffLine["kind"], { mark: string; row: string; tone: string }>> =
   {
     add: { mark: "+", row: "bg-done/10", tone: "text-done" },
@@ -62,29 +24,15 @@ const LOOK: Readonly<Record<DiffLine["kind"], { mark: string; row: string; tone:
   }
 
 export function Diff(props: {
-  /** This block of change, by the name its call gave it ({@link
-   *  ./folds.ts}'s `diffKey`) — what its expansion is remembered under, and
-   *  the same string the list drawing it is keyed by. Handed in rather than
-   *  built here: one call reports several blocks about one file, so the name
-   *  needs the block's place in that report, which only the list has. */
   readonly id: string
   readonly diff: FileDiff
 }) {
   const { isUnfolded, toggleFold } = useConversationUI().folds
-  // Recomputed when the texts change and not on every render: an agent
-  // rewriting a file reports the call twice, and the second report is the same
-  // two texts with a status beside them.
   const texts = createMemo(() => [props.diff.oldText, props.diff.newText] as const, undefined,
     { equals: (a, b) => a[0] === b[0] && a[1] === b[1] })
   const computed = createMemo(() => diffOf(...texts()))
-  // A MEMO, because the fold set is one signal for every diff on screen: any
-  // fold anywhere re-runs this, and a memo over the boolean is what stops that
-  // reaching the slice and the list below it. Without it, opening one diff
-  // re-slices and re-reconciles every other one in the transcript.
   const open = createMemo(() => isUnfolded(props.id))
   const lines = () => computed().lines
-  /** How many rows the trim is holding back — never the `hidden` a gap row
-   *  carries, which counts unchanged lines inside the diff. */
   const more = () => Math.max(0, lines().length - TRIMMED)
   const shown = createMemo(() => (open() ? lines() : lines().slice(0, TRIMMED)))
 
@@ -101,23 +49,14 @@ export function Diff(props: {
     >
       <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
         <Grip has={true} carry={carry} />
-        {/* THE WHOLE PATH under the pointer, because the line truncates it.
-            No companion for a reader: the same path is this span's own text,
-            so nothing is lost when nobody hovers. */}
         <Tip text={props.diff.path}>
           <span class="ml-4 min-w-0 flex-1 truncate text-muted">
             {props.diff.path}
           </span>
         </Tip>
-        {/* A file that did not exist before is different news from one that was
-            rewritten, and the counts alone cannot say it: a new file is all
-            additions, and so is a file everything was appended to. */}
         <Show when={computed().created}>
           <span class="shrink-0 text-done">New</span>
         </Show>
-        {/* The two sides were too far apart to line up, so every row below is
-            a change and the first ones are the top of the old file. Said out
-            loud rather than drawn as though it were an ordinary diff. */}
         <Show when={computed().wholesale}>
           <span class="shrink-0 text-muted" data-testid={TESTID.chatDiffWholesale}>
             Rewritten whole
@@ -139,10 +78,6 @@ export function Diff(props: {
               data-testid={TESTID.chatDiffLine}
               data-kind={line.kind}
             >
-              {/* ONE number column, and it is the line as the file reads NOW
-                  — except for a line that is gone, which has no such number
-                  and shows where it used to be. Two columns is what a diff
-                  tool with a full pane does; this is 26rem wide. */}
               <span
                 class="select-none pr-2 text-right text-muted/80"
                 aria-hidden="true"
@@ -162,14 +97,6 @@ export function Diff(props: {
                 >
                   {LOOK[line.kind].mark}
                 </span>
-                {/* `pre-wrap` so leading indentation is what the file has, and
-                    a long line wraps inside this column. Continuation stays
-                    here — the gutter and the marker keep their width — because
-                    a 26rem conversation with a sideways scrollbar is a panel
-                    that cannot be read. `anywhere` so a token with no space
-                    still cannot push the box wider than it is. The third
-                    column is `minmax(0, 1fr)` so its min-content cannot
-                    stretch the grid. */}
                 <span
                   class="min-w-0 whitespace-pre-wrap wrap-anywhere text-ink"
                   data-testid={TESTID.chatDiffText}
@@ -182,9 +109,6 @@ export function Diff(props: {
         </For>
       </div>
 
-      {/* IN PLACE: the same block grows, so the reader's eye stays where the
-          change is. Absent when the whole diff already fits, because a control
-          that does nothing is worse than no control. */}
       <Show when={more() > 0}>
         <button
           type="button"

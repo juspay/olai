@@ -1,14 +1,3 @@
-/**
- * *ASK ABOUT …* — THE ONE BOX that starts a conversation: on a row's own page,
- * in the line at the top of a note, and on the chat page of an item that has
- * no chat yet. What **Send** does is the caller's (start an agent on the row, or a
- * chat about the page); the words, the choice of agent, the key handling and
- * the sentence a refusal leaves are this box's, once.
- *
- * Where no agent can start, the box says why instead — no agent set up, or the
- * row's own engine missing or switched off — so a press is only ever offered
- * when it can work.
- */
 import { type Accessor, createSignal, For, type JSX, Show } from "solid-js"
 import { composing } from "@olai/web/client/composition.ts"
 import { TESTID } from "../../testids.ts"
@@ -17,17 +6,13 @@ import { EngineAbsence } from "./EngineAbsence.tsx"
 import { useAgents } from "./answered.tsx"
 
 export function AskBox(props: {
-  /** What the box asks about, as a person reads it: *Ask about plan…*. */
   readonly name: string
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
   readonly starting: Accessor<boolean>
   readonly failure: Accessor<string | null>
-  /** Send the words to a start on this engine. */
   readonly send: (engine: string) => void
-  /** The line under the box: what sending does. */
   readonly note: JSX.Element
-  /** An engine the box may not change — a row that already names its own. */
   readonly fixed?: string
   readonly testid: string
   readonly class?: string
@@ -46,10 +31,6 @@ export function AskBox(props: {
           }>{reason => <EngineAbsence id={id()} missing={reason()} testid={TESTID.chatInstall} />}</Show>
         }</Show>
       }>
-        {/* `composing` (`@olai/web/client/composition.ts`) because this box is
-            drawn by the chat row, which names navigation nowhere — so the
-            window-wide guard that keeps an IME's key out of every handler is
-            not promised to it. */}
         <textarea class="min-h-20 w-full resize-y bg-transparent text-body outline-none" data-testid={TESTID.agentPlainInput}
           aria-label={`Ask about ${props.name}`} placeholder={`Ask about ${props.name}…`}
           value={props.draft()} onInput={event => props.setDraft(event.currentTarget.value)}

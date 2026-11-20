@@ -1,25 +1,3 @@
-/**
- * An attachment on a message, drawn three ways for one reason.
- *
- * The row carries a NAME, and that is the base case: a component that assumed
- * bytes would be there would be blank in the common case, because the bytes
- * are in a tmp directory no browser can reach. What can be added to the name
- * depends on what the tab looking at it still holds ({@link ./previews.ts}),
- * and on what KIND of file it is:
- *
- *   - a picture, with its Blob → a thumbnail. What it is is what it looks
- *     like.
- *   - anything else, with its Blob → its SIZE. A PDF has no thumbnail worth
- *     drawing here, and an `<img>` pointed at one is a broken-image icon —
- *     which is a component lying about a file that uploaded perfectly. The
- *     size is the fact a name does not carry.
- *   - no Blob (another tab, or this one after a reload) → the name alone.
- *
- * One component for the composer's pending strip and the transcript's row,
- * because they are the same thing at two moments: what differs is that the
- * pending one can be taken back off, which is `onRemove`.
- */
-
 import { isAttachmentPicture as isPicture } from "@olai/surface"
 import { createMemo, For, onCleanup, Show } from "solid-js"
 
@@ -29,9 +7,6 @@ import { sizeText } from "./previews.ts"
 
 export function Attachments(props: {
   readonly names: ReadonlyArray<string>
-  /** Drawn as a × when given: the composer's strip can drop one before it is
-   *  sent. A row in the transcript is something that happened, and nothing
-   *  about it can be taken back. */
   readonly onRemove?: (name: string) => void
 }) {
   return (
@@ -49,10 +24,6 @@ function Attachment(props: {
   readonly name: string
   readonly onRemove?: (name: string) => void
 }) {
-  /** The object URL lives exactly as long as the element that shows it — Solid
-   *  disposes this memo with the row, and an unrevoked URL is a Blob the tab
-   *  cannot free. Only for a PICTURE: a URL made for a PDF would be a URL an
-   *  `<img>` cannot draw. */
   const ui = useConversationUI()
   const previewOf = (name: string) => ui.previews.previewOf(name, ui.uploadScope.value())
   const source = createMemo<string | undefined>(() => {
@@ -63,8 +34,6 @@ function Attachment(props: {
     return url
   })
 
-  /** What a document says instead of showing itself. `undefined` for a picture
-   *  (the thumbnail is the answer) and for a file this tab never held. */
   const size = () => {
     const blob = previewOf(props.name)
     if (blob === undefined || isPicture(props.name)) return undefined
@@ -82,17 +51,6 @@ function Attachment(props: {
           <img
             src={url()}
             alt={props.name}
-            /* A thumbnail waits for the reader, which costs nothing and is
-               worth saying out loud: a transcript is a column of messages
-               scrolled through from the bottom, and the attachments on the
-               ones above are pictures nobody is looking at. The bytes are
-               already in this tab either way — an object URL over a Blob the
-               upload scope is holding — so what the deferral saves is not the
-               network but the DECODE, which is main-thread work done once per
-               picture at full resolution for a box 96 pixels wide. No
-               `fetchpriority`: there is no fetch to put in a queue, and the
-               guidance reserves `low` for a picture that IS being fetched and
-               is not wanted yet. */
             loading="lazy"
             decoding="async"
             class="max-h-16 max-w-24 rounded-control object-contain"

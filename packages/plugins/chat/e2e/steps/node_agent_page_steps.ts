@@ -23,18 +23,12 @@ import {
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const plain = selector(PLUGIN_TESTID.agentPlainComposer);
-// SCOPED TO THAT BOX, because its fields are not its own: a row page's plain
-// composer and a page's *Ask about …* door are one component now
-// (`agents/AskBox.tsx`), so `agent-plain-input` is on screen twice wherever a
-// seat is drawn beside a row page — an outline page in a split, above all.
 const input = `${plain} ${selector(PLUGIN_TESTID.agentPlainInput)}`;
 const send = `${plain} ${selector(PLUGIN_TESTID.agentPlainSend)}`;
 const picker = `${plain} ${selector(PLUGIN_TESTID.agentPlainEngine)}`;
 const head = selector(PLUGIN_TESTID.agentPageHead);
 const foot = selector(PLUGIN_TESTID.agentPageFoot);
 const PINNED_TITLE = selector(PLUGIN_TESTID.zoomPinnedTitle);
-/** The pinned name is always laid out on a phone; the head painting over it is
- *  what hides it, so "shown" is a question about what a finger would reach. */
 const pinnedShows = async (world: OlaiWorld) =>
   await world.topmostTestidOver(world.page.locator(PINNED_TITLE), "the pinned node name") === PLUGIN_TESTID.zoomPinnedTitle;
 
@@ -91,7 +85,6 @@ Then("the page transcript is unbounded and its composer is on screen", async fun
 });
 Then("the page title has the phone's whole line", async function(this: OlaiWorld) {
   const title = this.page.locator(ZOOM_TITLE);
-  // A page follows its newest line, so the head may be scrolled away already.
   await title.scrollIntoViewIfNeeded();
   const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent!))}`).first();
   const [own, row] = await title.evaluate(el => [el.getBoundingClientRect().width, el.parentElement!.getBoundingClientRect().width]);
@@ -138,18 +131,12 @@ Then("the plain node composer has no available engine", async function(this: Ola
 });
 
 Then("the page has fresh start above its fold history", async function(this: OlaiWorld) {
-  // Compare document order at the top; a pinned head can overlap history
-  // that has already scrolled away while following the newest answer.
   await this.page.evaluate(async () => {
     window.scrollTo(0, 0)
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
   })
   const fresh = this.chat(selector(PLUGIN_TESTID.chatFreshSession));
   const history = this.chat(selector(PLUGIN_TESTID.chatSessions));
-  // THE WORDS ON IT, and the ones only a reader gets. "Fresh start" is what
-  // is drawn; where the memory survives used to live on a `title` and now
-  // rides an sr-only run inside the button, so it is in the control's own
-  // name — and the attribute is gone, which is the other half of the claim.
   const says = (await fresh.innerText()).replace(/\s+/g, " ").trim();
   assert.ok(says.startsWith("Fresh start"), `the page's fresh start reads ${JSON.stringify(says)}`);
   assert.ok(says.includes("keeping memory in"), `the page's fresh start reads ${JSON.stringify(says)}`);

@@ -126,9 +126,6 @@ Feature: A full pool of busy node agents refuses new work visibly
       {"id":"task-9","ord":"a8","title":"capacity task 9"}
       """
     And I open the outline "capacity.olai"
-    # THE NINTH CHAT IS A REAL ONE, started while there was still room and then
-    # left alone: when the eighth agent starts, the pool takes the oldest quiet
-    # seat, which is this one.
     When I open the node menu of "task-9"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 9"
@@ -139,8 +136,6 @@ Feature: A full pool of busy node agents refuses new work visibly
     And I close the agent fold
     And I open the outline "yard.olai"
     And I open the outline "capacity.olai"
-    # ...AND THEN EIGHT AGENTS THAT ARE ALL WAITING ON AN ANSWER. Not one of
-    # them may be reaped, so nothing frees a seat on its own from here.
     When I open the node menu of "task-1"
     And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
@@ -182,13 +177,8 @@ Feature: A full pool of busy node agents refuses new work visibly
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-9" stands "asleep"
-    # A PERSON OPENS THE SLEEPING CHAT and is told the one thing that is true
-    # about it. No alarm, because nothing is wrong with this chat, and nothing
-    # to press, because the server is holding the attempt.
     When I press the agent "task-9"
     Then the panel is waiting for a seat, saying "All 8 agents are awake — put one to sleep in Chats."
-    # ...AND THE WAY OUT IS THE COLUMN THE SENTENCE NAMES. Nothing is pressed
-    # in the panel afterwards: a seat frees, and the chat opens itself.
     When I open the Chats menu of "task-1"
     And I choose "Put to sleep" from the Chats menu
     Then the agent "task-1" stands "asleep"

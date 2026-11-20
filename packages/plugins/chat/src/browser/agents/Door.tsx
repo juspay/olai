@@ -1,11 +1,3 @@
-/**
- * THE DOOR, AS A BOX — the *Ask about <name>…* box a chat page draws for an
- * item that has no chat yet (`./ChatPage.tsx`).
- *
- * The press itself is `./send-about.ts`, which the line at the top of a note
- * and the palette's levels share with this box: a refusal means one thing
- * everywhere, and the levels load it without loading a renderer.
- */
 import { batch, createSignal, type Accessor } from "solid-js"
 import { type AgentItem, itemKey } from "@olai/format"
 import { TESTID } from "../../testids.ts"
@@ -13,12 +5,6 @@ import { agentReadings } from "./reading.ts"
 import { AskBox } from "./AskBox.tsx"
 import { ABOUT_NODE, ABOUT_NOTE, sendAbout, type Sent } from "./send-about.ts"
 
-/**
- * THE DOOR, as a box: an item, what it is called, and the words to start a
- * chat about it with — kept by the activation for this box on this item, so a
- * refused start, or leaving the page, leaves them where they are. `started` is
- * told what came of a press that started something.
- */
 export function AboutBox(props: {
   readonly where: "line" | "page"
   readonly item: Accessor<AgentItem>

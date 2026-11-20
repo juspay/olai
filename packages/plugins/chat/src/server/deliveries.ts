@@ -1,4 +1,3 @@
-/** The service boundary binds delivery authority to the calling Cordis activation. */
 import type { Deliveries, Wakes, Provision } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 import type { Chat } from "../scoped.ts"

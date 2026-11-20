@@ -1,9 +1,3 @@
-/** Chat owns both the machine reading and the sentence drawn from it.
- *
- * The activation-owned roster indexes absence once per revision. Composer and
- * inspector read that same answer; each engine receives an ordinary
- * PluginsRowFace, not the wire schema or a second narrowing of its union.
- */
 import { Show } from "solid-js"
 import type { EnginesService } from "../browser-engines.ts"
 import type { Roster } from "./agents/answered.tsx"
@@ -11,10 +5,6 @@ import { TESTID } from "../testids.ts"
 import { EngineAbsence } from "./agents/EngineAbsence.tsx"
 
 export const enginesService = (roster: Pick<Roster, "missing" | "engines">): EnginesService => ({
-  // THE ROSTER'S OWN FOLD, not a second one: `engines` is the memo every
-  // startable consumer in this row already reads (`./agents/answered.tsx`),
-  // and what crosses the door is it narrowed to the two fields another row may
-  // know — the id it would start and the name a person reads.
   installed: () => roster.engines().map(({ id, name }) => ({ id, name })),
   row: engine => ({
     needs: () => roster.missing(engine) !== null,

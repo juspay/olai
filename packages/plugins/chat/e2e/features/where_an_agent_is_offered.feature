@@ -10,8 +10,6 @@ Feature: An agent is offered only where one can start
   about the row and is always drawn; the start pill is an offer and follows
   what can start.
 
-  # ── the Chats + ──────────────────────────────────────────────────────
-
   @codex @scratch:chat
   Scenario: With several agents New chat offers only those that can start
     Given I open the outline "house.olai"
@@ -42,8 +40,6 @@ Feature: An agent is offered only where one can start
     Then the agent menu says no agent is set up
     And the agent menu does not offer to open plugins
     And there should be no page errors
-
-  # ── a row's •••: Start an agent ─────────────────────────────────────
 
   @scratch:chat
   Scenario: With one agent, Start an agent is a plain entry that starts it
@@ -83,8 +79,6 @@ Feature: An agent is offered only where one can start
     When I open the node menu of "order"
     Then the node menu does not offer "Start an agent"
 
-  # ── availability is live ─────────────────────────────────────────────
-
   @codex @scratch:chat
   Scenario: An agent switched off leaves every menu, and returns when switched on
     Given I open the outline "house.olai"
@@ -97,7 +91,6 @@ Feature: An agent is offered only where one can start
     And I press new chat in Chats
     And I type "pick the hinges" into the palette
     And I choose the new chat item "hinges"
-    # One agent left: it is the one option.
     Then the palette options are "claude"
     When I type new chat draft "engine selection"
     And I send the new chat draft
@@ -105,8 +98,6 @@ Feature: An agent is offered only where one can start
     When I open the plugins panel
     And I switch the plugin "codex" on
     And I close the plugins panel
-    # The new chat took this tab to the chat's own page; the row menu is read
-    # back on the outline it started from.
     And I open the outline "house.olai"
     And I open the node menu of "order"
     Then chat's "Start an agent" in the node menu opens a submenu
@@ -136,8 +127,6 @@ Feature: An agent is offered only where one can start
     Then agent controls are drawn again
     And there should be no page errors
 
-  # ── standings are facts, offers wait ────────────────────────────────
-
   @no-agent @scratch:lanes
   Scenario: A row with an agent shows its standing even when no agent can start
     Given I open the outline "lanes.olai"
@@ -156,11 +145,6 @@ Feature: An agent is offered only where one can start
 
   @phone @scratch:chat
   Scenario: On a wide touch screen the offer is drawn rather than waiting
-    # The scenario above is about ROOM: a 390pt line has none to spare, so the
-    # offer waits there for the row a finger tapped. Past the breakpoint the
-    # line has room for a pill beside the title and the only question left is
-    # the POINTER — and this screen has none, so the offer is simply there and
-    # a thumb takes it. Same context as above, widened.
     Given I open the outline "house.olai"
     When I widen the window to a desk
     Then the agent start pill on "order" is visible

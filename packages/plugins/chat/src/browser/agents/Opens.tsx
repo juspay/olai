@@ -1,22 +1,3 @@
-/**
- * WHERE THIS NOTE'S CHAT OPENS — *Opens alone* / *Opens with <name> beside*,
- * a line on the chat's own page and the only face of the `chat-opens` key.
- *
- * A NOTE ONLY. The answer lives in the note's front matter, beside the tie,
- * where a person can read it and a `git pull` carries it (`../../kinds.ts`).
- * A node's chat has nowhere to keep one, so a node's page draws no switch at
- * all rather than a disabled one.
- *
- * IT IS THE ROSTER'S ANSWER AND NOT THIS COMPONENT'S: `beside` is read off
- * the row the server publishes, so the switch says what the file says — a
- * person editing the key by hand moves it, and a press that the gate refuses
- * leaves it exactly where it was, with the sentence beside it.
- *
- * Drawn as an item of the same shape the sleep line has (`../chat/Sleeping.tsx`):
- * a label, a `role="switch"`, and a refusal in a `role="alert"`, so the two
- * lines under an agent line read as one kind of thing.
- */
-
 import { Result } from "effect"
 import { createSignal, Show } from "solid-js"
 import { runAsync } from "@olai/web/client/run.ts"

@@ -7,7 +7,6 @@ import { createAgentReadings } from "./reading.ts"
 test("palette ancestor metadata shares the conversation's UI, not its pending node UI", () => {
   createRoot(dispose => {
     try {
-      // No roster query is needed to acquire a draft owner.
       const reading = createAgentReadings({ rows: () => [], chats: () => null } as unknown as Roster)
       const ancestor = { node: "install", file: "house.olai", agent: "claude", session: "stored" }
       const conversation = reading.ui({ agent: ancestor.agent, session: ancestor.session })

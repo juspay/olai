@@ -38,12 +38,8 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       And the agent has answered "before idle eviction" exactly once
       When I ask the agent "after idle eviction"
       Then the agent has answered "after idle eviction" exactly once
-      # The done-nodes flip belongs to a page made of rows, and this one is the
-      # chat: it is made below, in the outline, where the row is read.
       When I ask the agent "done order"
       Then the agent is idle
-      # The conversation is the page the row opened; the row this asserts is a
-      # SIBLING, so the file view is where it is drawn.
       When I return to the conversation's outline
       And the node agent's fold is ready
       And I show the done nodes

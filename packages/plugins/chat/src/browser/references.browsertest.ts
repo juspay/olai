@@ -1,16 +1,3 @@
-/**
- * THE PANEL'S HOLD ON THE OUTLINE'S NAMING OF A NODE, across a withdrawal.
- *
- * It was `olai-plugin-outlines`' own bench over a signal in that row's contract
- * door. The value crosses on a service now and the HOLD is this package's, so
- * the claim moved with it — and it is the same claim, plus the one the shape it
- * replaced could not make: what the panel reads is a value its OWN component
- * installed, so a reader in this package is the honest driver.
- *
- * Under the browser condition, because every claim here is about a memo
- * re-running and a scope being released — which a server-resolved Solid does
- * not do at all (`justfile`'s `test` leg argues the split).
- */
 import { expect, test } from "bun:test"
 import { createRoot, createSignal, onCleanup } from "solid-js"
 
@@ -48,8 +35,6 @@ test("the panel's references retract on departure and acquire fresh scoped reade
     consumer.want(["next"])
     expect(consumer.named("next")).toBe("next")
     expect(consumer.title("next")).toBe("Title of next")
-    // AN OBSOLETE RELEASE CANNOT WITHDRAW THE REPLACEMENT — the identity rule
-    // `@olai/ui-primitives`' `heldService` keeps, spent by a real consumer.
     first()
     expect(consumer.named("next")).toBe("next")
     expect(consumer.title("next")).toBe("Title of next")

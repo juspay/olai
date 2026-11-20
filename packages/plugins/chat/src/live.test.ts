@@ -1,13 +1,3 @@
-/**
- * THE RECORD A RESTART READS — its order, its cap, and the shape it keeps.
- *
- * The scheduler's own tests open real conversations and kill a real server's
- * state; these are the decisions that must not need either: an entry more than
- * a capacity old loses its place, and a row that cannot say when it was touched
- * is not guessed at. Which conversations count is the scheduler's question
- * ({@link ./scoped.ts}'s `recordable`) and is tested there.
- */
-
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 
@@ -26,8 +16,6 @@ test("the record is newest first and capped", () => {
 
   const marks = marksOf(live, [waiting])
 
-  // The cap keeps the newest eight; the waiting entry is older than all of
-  // them and loses its place rather than pushing a live conversation out.
   expect(marks).toHaveLength(RECORDED)
   expect(marks.map((mark) => mark.node)).toEqual(
     live.slice(0, RECORDED).map((row) => row.node),
@@ -60,8 +48,6 @@ test("a written record survives to the next activation, and a malformed row is d
     { node: "two", touched: at(2) },
   ])
 
-  // A row a previous build wrote without an instant cannot decide a budget, so
-  // it names nothing rather than being reopened on a guess.
   await run(local.save("live", { live: [{ node: "three", touched: "not a date" }] }))
   expect(forLocalState(local).read()).toEqual([])
 })

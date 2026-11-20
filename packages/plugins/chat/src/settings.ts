@@ -1,27 +1,6 @@
-/** Node-process policy. Machine resources continue to arrive through Env. */
 import { Duration, Effect, Schema, SchemaTransformation } from "effect"
 import { DEFAULT_IDLE } from "./scoped.ts"
 
-/**
- * WHAT THE SLEEP PASS RUNS ON — the spans, and the two numbers that decide WHEN
- * there is enough to do: for the harness and for an operator, and the last two
- * are a person's.
- *
- * THE DEFAULTS ARE THE DESIGN, and the tables below are where they are written:
- * the spans are ways of making the pass quicker for a test or a slow machine,
- * which is why the words are the plain duration
- * spells a person already writes in `_olai/Settings.olai` (`30s`, `6h`, `2d`)
- * and why an unreadable one WARNS AND FALLS BACK rather than stopping the row:
- * the file adapter decodes each leaf on its own
- * (`@olai/plugin-api`'s `decodePolicy`), so a typo here costs the default and
- * a sentence in the panel and nothing else.
- *
- * `sleep-floor` AND `sleep-latest` ARE NOT SPANS AND ARE NOT ONLY THE HARNESS'S:
- * they are what says how much has to have MOVED before a tidy is worth a turn,
- * because consolidation is a lossy rewrite and one that runs after every edit
- * costs more than it returns (`website/docs/chat.md`). A person who wants their memory
- * tidied sooner lowers the floor or shortens the backstop.
- */
 const SPANS = {
   "sleep-after": {
     default: "6h",
@@ -49,24 +28,14 @@ type SpanKey = keyof typeof SPANS
 
 const UNITS: Record<string, number> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
 
-/**
- * A span as the milliseconds it means — `undefined` for a value that is not
- * one.
- *
- * WHOLE NUMBERS, ONE UNIT, AND THE NODE TIMER'S OWN CEILING, which is mail's
- * poll rule word for word (`olai-plugin-mail`'s `pollMillis`): a duration the
- * timer cannot be handed is not a duration this server can wait, and a second
- * spelling of the grammar here would be a second thing to keep in step with
- * what a person reads in the panel.
- */
+/** The ceiling is the Node timer's own: a duration the timer cannot be handed
+ *  is not a duration this server can wait. */
 export const spanMillis = (value: string): number | undefined => {
   const match = /^(\d+)(ms|s|m|h|d)$/.exec(value.trim())
   const ms = match === null ? Number.NaN : Number(match[1]) * UNITS[match[2]!]!
   return Number.isSafeInteger(ms) && ms > 0 && ms <= 2_147_483_647 ? ms : undefined
 }
 
-/** One span, as the field a person writes it in — the schema is the validity
- *  check and the default is what a bad value falls back to. */
 const span = (key: SpanKey) =>
   Schema.String.check(Schema.makeFilter(
     (value: string) => spanMillis(value) !== undefined,
@@ -89,9 +58,6 @@ export const Config = Schema.Struct({
   ),
   "sleep-after": span("sleep-after"),
   "sleep-latest": span("sleep-latest"),
-  // THE SAME SHAPE AS `idle-ms`, and for its reason: a number a person types in
-  // the vault arrives as text, so the schema takes either spelling and the
-  // bounds are the ones the row can actually act on.
   "sleep-floor": Schema.Union([
     Schema.Int,
     Schema.NumberFromString.check(Schema.isInt()),
@@ -104,12 +70,8 @@ export const Config = Schema.Struct({
   "sleep-tick": span("sleep-tick"),
   "sleep-question": span("sleep-question"),
   "sleep-limit": span("sleep-limit"),
-  // HOW OFTEN A NODE AGENT IS REMINDED OF ITS WRITING RULE, in messages it
-  // took — `sleep-floor`'s shape, with zero allowed because zero is the switch:
-  // a person who finds the line noisy turns it off here (`./teaching.ts`'s
-  // `REMINDER`, `website/docs/chat.md`). DIGITS ONLY on the text arm, because with zero
-  // legal a blank property must not read as `Number("")`, which is zero — a
-  // reminder switched off by an empty field nobody meant as "off".
+  // DIGITS ONLY on the text arm, because with zero legal a blank property must
+  // not read as `Number("")`, which is zero.
   "remind-every": Schema.Union([
     Schema.Int,
     Schema.String.check(Schema.isPattern(/^\d+$/)).pipe(
@@ -123,11 +85,6 @@ export const Config = Schema.Struct({
   ),
 })
 
-/** The spans as the durations the pass waits, off the decoded config —
- *  the one place the spellings become numbers, so a caller cannot read one of
- *  them in milliseconds and another in words. The fallback is the same default
- *  the schema carries, read off the same table, because a second spelling of it
- *  here would be a number that drifts from the one a person reads. */
 export const sleepingPolicy = (config: typeof Config.Type) => {
   const of = (key: SpanKey, raw: string): Duration.Duration =>
     Duration.millis(spanMillis(raw) ?? spanMillis(SPANS[key].default)!)
@@ -141,15 +98,4 @@ export const sleepingPolicy = (config: typeof Config.Type) => {
   }
 }
 
-/**
- * WHAT A PERSON IS TOLD WHEN THEY ASK FOR A PASS WITH THE SWITCH OFF — and the
- *  same sentence the mark's own verb is refused with, because a mark written
- *  while the pass cannot run at all would be a promise the row's label does not
- *  keep.
- *
- * The verb stays on the row and says why rather than disappearing: a person who
- * looked for *Tidy memory* and found nothing would go looking for a bug,
- * and the row that hides itself is the row whose absence has no explanation
- * (`olai-plugin-chat`'s `server.ts` refuses with this).
- */
 export const SLEEP_OFF = "sleep is off in this directory's settings"

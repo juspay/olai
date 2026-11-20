@@ -48,8 +48,6 @@ Feature: Node session ownership follows changes to the node
     When I open the Trash
     And I put back "install" from the Trash
     Then "house.olai" holds the node "install"
-    # THE SUBTREE CAME BACK WITH IT, read in the outline where those rows live
-    # — the press below opens the chat itself, which is a page of its own.
     When I open the outline "house.olai"
     Then the node "hinges" is shown
     When I press the agent "install"
@@ -60,8 +58,6 @@ Feature: Node session ownership follows changes to the node
     And the panel header names the node agent "install the cabinets"
     When I ask the agent "done order"
     Then the agent is idle
-    # The page is install's conversation; the rows these assert are its SIBLING
-    # and its parent, so this is the file view.
     When I return to the conversation's outline
     And the node agent's fold is ready
     And I show the done nodes

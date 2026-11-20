@@ -1,5 +1,4 @@
 import { Key } from "@solid-primitives/keyed"
-/** Output survives handle release, so a finished command remains readable. */
 import { Show } from "solid-js"
 import type { TerminalView } from "@kolu/acp/wire"
 export const Terminals = (props: { entries: readonly TerminalView[] }) => (

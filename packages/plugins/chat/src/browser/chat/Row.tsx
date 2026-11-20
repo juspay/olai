@@ -1,36 +1,6 @@
 import { hasText } from "./carried.ts"
 import { Grip, textCarry } from "./Grip.tsx"
 import { textOf } from "./carried.ts"
-/**
- * ONE ROW, WHEREVER IT IS DRAWN — the transcript's column, or the shelf that
- * previews one agent's work.
- *
- * It is a component rather than markup inside {@link ./Transcript.tsx} because
- * there are two lists now and the whole claim of the second is that it is THE
- * SAME DRAWING. A subagent's calls left the column ({@link ./lanes.ts}'s
- * `filedUnder`) and are read through a door instead; what is behind that door
- * has to be the rows a person already knows how to read — the same mark, the
- * same fold, the same diff, behind the same rail — and not a second, thinner
- * rendering of a tool call that drifts from this one the first time either is
- * touched. Spelled twice they would agree by coincidence.
- *
- * WHAT IT DOES NOT DECIDE is which lane a row is in, whether the lane says its
- * name, WHOSE FACE goes over it, or what the live rail underneath says. Those
- * are rules ({@link ./lanes.ts}, {@link ./speakers.ts}, {@link ./rail.ts}) and
- * their INPUTS are facts about a LIST — the row above, the frame that spawned
- * this one, which agent the session is with — which is exactly what a row
- * cannot see. So they are computed by whichever list is drawing and handed in.
- * That is also what lets the shelf differ where it should: every row in it
- * belongs to the one agent the shelf is already named after, so it hands in a
- * lane with no label — and no face at all — rather than repeating that name
- * down its own length.
- *
- * THE GAP UNDER THE ROW is here for the reason it left `./Entry.tsx`: a rail
- * has to be able to cross it. Padding, not a margin — a border is drawn around
- * padding and outside a margin, so a lane's rail reaches from its row down
- * through the space to the next one and a run comes out as one line rather than
- * a column of dashes.
- */
 
 import { createMemo, Show } from "solid-js"
 
@@ -50,24 +20,13 @@ import type { Chat } from "./state.ts"
 export function Row(props: {
   readonly entry: ChatEntry
   readonly chat: Chat
-  /** Whose row this is, or `null` for one the reader's own column owns. */
   readonly lane: Lane | null
-  /** What is still going on under it, or `null` — see {@link ./rail.ts}. */
   readonly rail: Rail | null
-  /** WHOSE RUN STARTS HERE, or `null` for a row inside one — which is most
-   *  rows ({@link ./Speaker.tsx}, over {@link ./speakers.ts}'s rule).
-   *
-   *  Handed in for the lane's reason and it is the same reason: whether this
-   *  row is the FIRST of its speaker's is a fact about the row above it, which
-   *  is a fact about the LIST, and a row cannot see one. */
   readonly speaker: Faced | null
 }) {
   const words = () => textOf(props.chat.entry(props.entry.id)() ?? props.entry)
   const carry = textCarry(words)
   const { isPreviewing, togglePreview } = useConversationUI().previewing
-  // An agent's work door belongs to its row wherever that row is drawn.
-  // Only spawned-agent rows subscribe to the child list; ordinary rows never
-  // wake for somebody else's tool stream.
   const calls = createMemo(() => whoOf(props.entry) === null ? 0 : props.chat.lanes().get(props.entry.id)?.length ?? 0)
   const work = createMemo(() => doorOf(props.entry, calls()))
   return (
@@ -75,28 +34,14 @@ export function Row(props: {
       class="group/row relative ml-4" onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
       classList={{
         [RAIL]: props.lane !== null,
-        // ... unless the rail below is carrying it instead, so that one line
-        // crosses the gap rather than stopping at the edge of this box and
-        // starting again inside it.
         "pb-2": props.rail === null && work() === null,
       }}
       data-testid={props.lane === null ? undefined : TESTID.chatLane}
       data-lane={props.lane?.parent}
     >
-      {/* WHO IS TALKING, once where their run begins — above the words rather
-          than beside them, and above the LANE's own label rather than under it,
-          because the two say different things and the outer one goes first. A
-          face names the PARTY (a person, the agent, a plugin); a lane label
-          names which agent inside a fan-out a question came from, which is a
-          division of the agent's own side and reads as one under the agent's
-          face. */}
       <Show when={props.speaker}>
         {(faced) => <Speaker party={faced().party} agent={faced().agent} />}
       </Show>
-      {/* Once per stretch of one agent's work, not once per call it makes —
-          see `./lanes.ts`. In the column that is now only ever a question,
-          which is the one row that always names its lane; in the shelf it is
-          never drawn at all, because the shelf's own head is the name. */}
       <Show when={props.lane?.label}>
         {(label) => (
           <p
@@ -110,25 +55,9 @@ export function Row(props: {
       </Show>
       <div class="absolute -left-4 top-0"><Grip has={hasText(props.chat.entry(props.entry.id)() ?? props.entry)} carry={carry} /></div>
       <Entry entry={props.entry} chat={props.chat} />
-      {/* THE LIVE RAIL, dropping out of the row the moment an agent is sent out
-          or a task is armed, rather than one that appears whenever something
-          eventually happens down there. It carries the gap to the next row
-          (`pb-2`, taken off the wrapper above) so the rail runs down through
-          it, and it is the same `RAIL` the module that owns what a lane looks
-          like exports — so "one line" is held by one spelling rather than by
-          two that happen to agree.
-
-          The pulsing dot is the header's, by import: a turn in flight and an
-          agent in flight are the same kind of fact, and a panel with two
-          spellings of "this is happening" is a panel with one of them to
-          learn. */}
       <Show when={props.rail}>
         {(rail) => (
           <div class={`${RAIL} ${work() === null ? "pb-2" : ""} pt-1`}>
-            {/* The NAME is on the words rather than on the rail around them, so
-                that what a scenario measures is what a reader sees inset — the
-                rail's own box starts at the row's left edge, and asserting on
-                that would pass on a build that had lost the indent entirely. */}
             <p
               class="flex items-center gap-1 text-caption text-doing"
               data-testid={rail().name}
@@ -141,12 +70,6 @@ export function Row(props: {
           </div>
         )}
       </Show>
-      {/* THE DOOR, on the same rail and directly under whatever the live one
-          said, because they are two halves of one sentence about the same
-          agent: *it is working*, and *here is what it has done*. It is drawn
-          for as long as the row is — a strip entry goes out when the agent
-          reports back, and a record that went with it would be a fan-out you
-          could only read while you were too busy to. */}
       <Show when={work() !== null}>
         <div class={`${RAIL} pb-2 pt-1`}>
           <button

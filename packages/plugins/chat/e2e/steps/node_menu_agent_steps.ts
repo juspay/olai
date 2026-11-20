@@ -1,15 +1,3 @@
-/**
- * CHAT'S ENTRIES ON A ROW'S `•••` — `Start an agent`, `Fresh start` and
- * `Close the chat` — driven where they are a SUBMENU.
- *
- * Chat hangs one entry per gesture (`../../src/browser/verbs.tsx`): the verb
- * itself when one agent can start, and a choice of agents, drawn by outlines as
- * a submenu, when several can. Opening the menu and choosing a top-level entry
- * are the outlines row's steps (`menu_steps.ts`); what is here is the submenu
- * a chat scenario walks into — chat's agent choices, and the outlines
- * submenus (`Mark ›`, `More ›`) a chat scenario happens to need — and the
- * conversation a start leaves behind.
- */
 import assert from "node:assert/strict";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { TESTID } from "@olai/tests/harness/testids.ts";
@@ -26,16 +14,12 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const NODE_MENU_SUB = selector(TESTID.nodeMenuSub);
 
-/** A top-level entry of the open menu, by the words on it — `.first()` for
- *  the reason outlines' own step gives (one word can match two entries). */
 const entry = async (world: OlaiWorld, label: string) => {
   const panel = world.page.locator(NODE_MENU_PANEL);
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first();
 };
 
-/** The submenu the `label` entry opens, keyed by the entry's own `data-action`
- *  (`data-sub` on the submenu names it). */
 const submenuOf = async (world: OlaiWorld, label: string) => {
   const trigger = await entry(world, label);
   await trigger.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -44,9 +28,6 @@ const submenuOf = async (world: OlaiWorld, label: string) => {
   return { trigger, sub: world.page.locator(`${NODE_MENU_SUB}${attr("data-sub", action)}`) };
 };
 
-/** After a start: the conversation the row now folds open, or the menu's said
- *  line when the start was refused. The same wait the plain `Start an agent`
- *  entry has in `menu_steps.ts`, for the submenu's choices. */
 const started = async (world: OlaiWorld): Promise<void> => {
   const node = world.menuNode;
   if (node === null) return;
@@ -69,11 +50,6 @@ When(
   "I open the node menu's {string} agents with the keyboard",
   async function (this: OlaiWorld, label: string) {
     const { trigger, sub } = await submenuOf(this, label);
-    // WALKED TO with the arrows, the way a person reaches it and the way
-    // outlines' own keyboard scenario walks into `More ›`
-    // (`menu_panel.feature`). A caret put on the entry by `focus()` is not one
-    // the menu's own list moved, and after it the agents' submenu did not
-    // hand its first agent the caret.
     const entries = await this.page.locator(NODE_MENU_PANEL).locator(NODE_MENU_ITEM).count();
     for (let step = 0; step <= entries; step++) {
       if (await trigger.evaluate(el => el === document.activeElement)) break;
@@ -82,12 +58,6 @@ When(
     assert.ok(await trigger.evaluate(el => el === document.activeElement), `the arrows never reached ${JSON.stringify(label)}`);
     await this.page.keyboard.press("ArrowRight");
     await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The scenario's next key moves OFF the first agent. That only happens
-    // once the first agent is the caret the menu itself is tracking: a
-    // highlight with the caret still on the parent, or an autofocus timer
-    // that has not run yet, makes that ArrowDown land on the first agent
-    // again. Kobalte schedules the autofocus with setTimeout(0); let that
-    // timer pass, then require the real caret, before this step returns.
     const first = sub.getByRole("menuitem").first();
     const caret = async () => await first.evaluate((el) =>
       el === document.activeElement && el.hasAttribute("data-highlighted"));
@@ -100,16 +70,10 @@ When(
   },
 );
 
-/** The whole gesture: the entry, then one choice in its submenu. A choice that
- *  asks first (Fresh start) leaves the question up in the menu. */
 When(
   "I pick {string} in the {string} submenu of the node menu",
   async function (this: OlaiWorld, choice: string, label: string) {
     const { trigger, sub } = await submenuOf(this, label);
-    // OPEN IS THE ENTRY'S WORD, not the submenu's visibility: a question
-    // cancelled redraws the list, and the submenu it hung off is still on
-    // screen on its way out while the new entry is shut. So wait for the two
-    // to agree, and open it from the entry when it is shut.
     const expanded = async () => (await trigger.getAttribute("data-expanded")) !== null;
     await this.waitUntil(async () => await expanded() || (await sub.count()) === 0,
       `the ${JSON.stringify(label)} submenu to be settled open or shut`);
@@ -119,9 +83,8 @@ When(
     }
     const starting = await trigger.getAttribute("data-action") === "chat:start-agent";
     const item = sub.getByRole("menuitem", { name: choice, exact: true });
-    // Hit-test and release in one turn. A Playwright click samples the box,
-    // then the portalled row moves, and the click lands on the page — which
-    // shuts the menu.
+    // A Playwright click samples the box, then the portalled row moves, and the
+    // click lands on the page — which shuts the menu.
     await this.waitUntil(async () => item.evaluate((el) => {
       const box = el.getBoundingClientRect();
       const x = box.left + box.width / 2;
@@ -148,10 +111,6 @@ Then(
   },
 );
 
-/** WAITED FOR, not read once: the entry's shape follows chat's engine table,
- *  which the serve republishes on its own after a plugin switch — the panel's
- *  switch flipping is not a receipt that it has. The open menu redraws the
- *  entry live when the table lands, so wait for that. */
 const shaped = async (world: OlaiWorld, label: string, opens: boolean, said: string): Promise<void> => {
   const { trigger } = await submenuOf(world, label);
   await world.waitUntil(async () => ((await trigger.getAttribute("data-opens")) !== null) === opens, said);
@@ -172,8 +131,6 @@ Then(
   },
 );
 
-/** Enter on a submenu row the arrows have reached — what a person reaching it
- *  from the keyboard presses. */
 When(
   "I press Enter on {string} in the node menu's agents",
   async function (this: OlaiWorld, agent: string) {

@@ -1,10 +1,4 @@
 import { useShown } from "olai-plugin-navigation/routing"
-/** Loaded on the first engine-choice press, with a portal owned by that menu.
- *
- * ONLY WHAT WORKS: an engine this machine cannot start is not a row here. Its
- * sentence (what to install, where) lives on the plugins panel under **Needs
- * you**, which is where a person goes to fix it. With nothing to start, the
- * menu is one quiet line and — while the inspector is up — its door. */
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createEffect, createMemo, For, onCleanup, Show } from "solid-js"
 import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
@@ -15,18 +9,13 @@ import { TESTID } from "../../testids.ts"
 import { pluginsDoor } from "../plugins-door.ts"
 
 export default function EngineMenu(props: {
-  /** A sidebar menu must clear its chrome; row menus keep their row layer. */
   readonly layer?: typeof LAYER.row | typeof LAYER.over
   readonly anchor: HTMLElement
-  /** The standing table, in the caller's order. Only `here` rows are drawn;
-   *  the first `not-here` one is the row the plugins door opens on. Fresh start
-   *  puts the node's current engine first; other callers keep bundle order. */
   readonly engines: ReadonlyArray<AgentChoice>
   readonly pick: (engine: string) => void
   readonly close: () => void
 }) {
   const shown = useShown()
-  // Kobalte restores focus after the enclosing Show has withdrawn the menu.
   const layer = createMemo(() => props.layer ?? LAYER.row)
   const anchor = createMemo(() => props.anchor)
   const portal = document.createElement("div")
@@ -35,8 +24,6 @@ export default function EngineMenu(props: {
   onCleanup(() => portal.remove())
   const topmost = topmostWhileOpen(shown)
   const here = () => props.engines.filter(engine => engine.standing === "here")
-  /** Which row of the plugins panel explains the absence: the first engine
-   *  this serve mounted and cannot start, or chat's own row when none is. */
   const explains = () => props.engines.find(engine => engine.standing === "not-here")?.id ?? "chat"
   return <DropdownMenu open={shown()} modal={false} placement="bottom-start" gutter={2}
     getAnchorRect={() => anchor().getBoundingClientRect()}

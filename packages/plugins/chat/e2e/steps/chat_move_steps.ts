@@ -1,20 +1,3 @@
-/**
- * THE ONE-TIME MOVE — what becomes of PR #700's link-titled chat rows the
- * first time a serve that knows about notes reads the vault.
- *
- * A row whose TITLE was an address naming a held `.md` was standing in for
- * that note; the note itself now carries the tie, so the move writes it there
- * and takes the property off the row. Everything else — a row for an outline,
- * a row for a picture, an ordinary chat row, a note that already had a
- * different tie — is left exactly as it was, with its agent, its children and
- * its title.
- *
- * These steps read the DISK, because that is where the claim is: the move is a
- * rewrite of the vault, and what a person (or a `git pull`) sees afterwards is
- * the file. The chat server's own unit tests hold the rule
- * (`../../src/server/move.ts`); what is held here is that it ran, once, under
- * the real binding permit, and that a restart adds nothing.
- */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -24,7 +7,6 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const INBOX = "_olai/Inbox.olai";
 
-/** The top-level keys of a note's leading `---` block, read off the bytes. */
 const matterOf = (world: OlaiWorld, note: string): Record<string, string> => {
   const text = fs.readFileSync(path.join(world.scratch(), note), "utf8");
   if (!text.startsWith("---\n")) return {};
@@ -60,9 +42,6 @@ Then("the note {string} carries the tie {string} and nothing else", function (th
   assert.equal(matter["chat-opens"], undefined, `${note} was given a chat-opens it never had`);
 });
 
-/** The row the move untied: still there, still titled, still holding what was
- *  under it — a move is not a deletion, and the rows under a chat row are the
- *  memory somebody wrote. */
 Then("the chat row {string} is still titled {string} with {int} children and no agent", async function (this: OlaiWorld, id: string, title: string, children: number) {
   await this.waitUntil(async () => agentOf(rowOf(this, id)) === undefined,
     `the row ${id} to be untied`, HYDRATION_TIMEOUT);

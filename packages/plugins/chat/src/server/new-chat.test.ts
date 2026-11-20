@@ -10,8 +10,6 @@ const NOTE = "notes/plan.md"
 const fixture = () => {
   const texts: Record<string, string> = { "house.olai": '{"id":"kitchen","title":"kitchen remodel","ord":"a0"}\n' }
   const documents: Record<string, string> = { [NOTE]: "# Plan\n" }
-  /** What the vault says is tied, by ITEM KEY — the roster the refusals are
-   *  asked over, moved by a start exactly as a binding write would move it. */
   const ties = new Map<string, { engine: string; session: string | null; title: string }>()
   const events: string[] = []
   let refuse: "start" | undefined
@@ -22,8 +20,6 @@ const fixture = () => {
     start: (item, engine) => Effect.gen(function*() {
       events.push(`start:${engine}`)
       if (refuse === "start") {
-        // A refused start still writes the engine, which is what makes the
-        // retry land on this same item rather than on a second one.
         ties.set(item, { engine, session: null, title: item })
         return yield* new UsageFailure({ reason: "start refused" })
       }
@@ -39,8 +35,6 @@ const fixture = () => {
   }
   return { owner, texts, documents, events, ties, refuse: (value: typeof refuse) => { refuse = value } }
 }
-
-// ── the chat of a node or a note that exists ───────────────────────────
 
 test("a node's own chat is started on the node, and nothing is minted", async () => {
   const it = fixture()
@@ -108,24 +102,12 @@ test("the start is seated against the reading the refusal was asked over", async
   expect(seen).toBe(true)
 })
 
-/**
- * THE FIRST MESSAGE OF A NEW CHAT CARRIES WHAT IT IS ABOUT (`seated`).
- *
- * What the agent is taught is read off the ROSTER, by the conversation it is
- * having — so the roster has to carry the tie the start just wrote by the time
- * the start returns, which is when both callers send their first message. The
- * claim below is the ORDER and not a delay: the reading the gate answers with
- * after the start already has the tie, and the roster is levelled with it
- * before anything is said.
- */
 test("the roster carries the tie the start wrote by the time the start returns", async () => {
   const documents: Record<string, string> = { [NOTE]: "# Plan\n" }
   const reading = () => readingOf(setOf({}, Object.entries(documents).map(([path, text]) => [path, text] as const)))
   const rows = roster()
   const to = { agent: "claude", session: "sess-1" }
   const committed = reading()
-  // The seat: the tie is written into the note's own front matter, which is
-  // what the next reading of the gate holds.
   const start = Effect.sync(() => {
     documents[NOTE] = `---\nchat-agent-session: ${to.agent}:${to.session}\n---\n# Plan\n`
     return to
@@ -137,13 +119,8 @@ test("the roster carries the tie the start wrote by the time the start returns",
     start,
   }))
   expect(seat).toEqual(to)
-  // WHAT THE TEACHING ASKS, in the middle of the send that follows: whose
-  // agent this conversation is. A roster still level with the pre-tie reading
-  // answers `null`, and the first message goes out with no contract at all.
   expect(rows.agentAt(to)?.id).toBe(`/${NOTE}`)
 })
-
-// ── which node or note a new chat can be about ─────────────────────────
 
 const vault = () => readingOf(setOf({
   "work.olai": Array.from({ length: 100 }, (_, index) => JSON.stringify({ id: `n${index}`, title: `Work ${index}`, ord: `a${index}` })).join("\n"),
@@ -163,7 +140,6 @@ test("a typed search answers nodes and notes, each kind capped, machinery exclud
   expect(few.filter(one => one.kind === "note").map(one => one.key)).toEqual(["/notes/work.md"])
   expect(itemLocations(reading, { ...query, limit: 1000 }).items.filter(one => one.kind === "node")).toHaveLength(20)
   expect(itemLocations(reading, { ...query, filter: "" }).items).toEqual([])
-  // `_olai` is olai's own machinery, node and note alike.
   expect(few.some(one => one.file.startsWith("_olai/"))).toBe(false)
 })
 
@@ -178,10 +154,6 @@ test("keys are answered whatever is typed, and an item that is not there is simp
   expect(found.items.map(one => one.key)).toEqual(["n99", "/notes/other.md"])
 })
 
-/** THE ROWS THE ONE-TIME MOVE LEAVES BEHIND (`./move.ts` refuses them: an
- *  outline, a picture, a plugin's page), whose titles are markdown links. The
- *  roster, the chat page and the outline all draw `house`; so does this list,
- *  and so does every ancestor it names a trail with. */
 test("a row titled as one markdown link is listed by its label, ancestors included", () => {
   const reading = readingOf(setOf({
     "house.olai": [
@@ -192,8 +164,6 @@ test("a row titled as one markdown link is listed by its label, ancestors includ
   const found = itemLocations(reading, { filter: "", limit: 20, keys: ["whole", "handle"] }).items
   expect(found.map(one => [one.title, one.path]))
     .toEqual([["house", []], ["handle", ["house"]]])
-  // ...and the raw record text is not what is searched either: a person types
-  // what the list drew.
   expect(itemLocations(reading, { filter: "art/handle.png", limit: 20, keys: [] }).items).toEqual([])
   expect(itemLocations(reading, { filter: "handle", limit: 20, keys: [] }).items.map(one => one.title))
     .toEqual(["handle"])

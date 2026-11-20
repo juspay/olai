@@ -33,11 +33,6 @@ export function Standing(props: { readonly node: string; readonly record?: strin
       else saying.say({ tone: "alarm", text: result.failure.message, kind: result.failure._tag })
     } finally { setStarting(false) }
   }
-  // A STANDING IS INFORMATION and is drawn on every device, whatever the
-  // engines: a row whose agent is working, or waiting on you, says so. The
-  // START is an OFFER, and only one that works: none without an engine to
-  // start, and on a phone none until this row is the one tapped
-  // (`OFFER_REVEAL`) — the `•••` menu and a long press carry it as well.
   return <>
     <Show when={roster.at(props.node)} fallback={
       <Show when={roster.engines().length > 0}>
@@ -45,8 +40,6 @@ export function Standing(props: { readonly node: string; readonly record?: strin
           data-testid={TESTID.agentStart} data-agent={props.node} disabled={starting()}
           onClick={event => {
             event.stopPropagation()
-            // Availability decides the gesture, not how many engine plugins
-            // shipped: one engine starts at once, several ask which.
             const only = roster.only()
             if (only !== null) void start(only.id)
             else setMenu(event.currentTarget)
@@ -59,18 +52,6 @@ export function Standing(props: { readonly node: string; readonly record?: strin
   </>
 }
 
-/**
- * THE WORDS A STANDING IS MADE OF — the engine's mark, the tone's dot, the
- * one-word label, the time a busy agent has been out or an asleep one has
- * been quiet, and the sentence that says what the word means.
- *
- * A FRAGMENT AND NOT A CONTROL, so the same reading can be a button (a row's
- * fold, below) or a readout inside somebody else's button — the line at the
- * top of a note, whose press opens the conversation beside the page rather
- * than unfolding it here (`./NoteLine.tsx`). A button inside a button is not
- * a thing a browser will draw, and two spellings of *Asleep · 4m* would
- * drift the first time one of them learned a new standing.
- */
 export function StandingWords(props: { readonly row: Row }) {
   const busy = () => props.row.standing === "working" || props.row.standing === "waking"
   const now = createNow(busy)
@@ -81,17 +62,10 @@ export function StandingWords(props: { readonly row: Row }) {
     {look().label}
     <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>
     <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="tabular-nums"> · {agoOf(said().at, age())}</span>}</Show>
-    {/* WHAT THE STANDING MEANS, which the one-word label does not say —
-        "Waiting" against "the agent asked you something". It was the
-        `title`'s alone, so it rides the control's own name after the words
-        a person reads. */}
     <span class="sr-only"> — {look().detail}</span>
   </>
 }
 
-/** How a chat stands, as one press that folds and unfolds it. `fold` is the
- *  fold it opens: the drawn row's own beside a row (not the chat row's id when
- *  a chat row elsewhere stands for this one). */
 export function AgentStanding(props: { readonly row: Row; readonly fold: string }) {
   const look = () => LOOK[props.row.standing]
   return <Tip text={look().detail}>

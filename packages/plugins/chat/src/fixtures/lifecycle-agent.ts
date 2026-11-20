@@ -1,17 +1,4 @@
 #!/usr/bin/env bun
-/**
- * A tiny ACP agent for the chat lifecycle log tests: initialize, session/new,
- * session/prompt. Stderr is the load-bearing half — a distinctive line at
- * start, and another when a turn is refused, which is what production
- * opencode dumps its JSON-RPC errors as.
- *
- * Prompt text:
- *   fail       — JSON-RPC error, after writing to stderr
- *   pad        — 33KB of stderr then end_turn (the cap is 32KB)
- *   crash      — exit 7 after the session is open
- *   queue-wait — end_turn after 250ms, so a second prompt can queue
- *   anything else — end_turn immediately
- */
 
 import { listen, respond, unknownMethod, update, write } from "./jsonrpc.testlib.ts"
 

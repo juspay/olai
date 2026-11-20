@@ -1,31 +1,3 @@
-/**
- * The three arms a plugin's sentence can take into a conversation, driven
- * through the real thing.
- *
- * `turns.test.ts` and `transcript.test.ts` are pure value tests because their
- * rules are values. These are not: which arm a body takes is decided under two
- * semaphores, against a live subprocess, at a turn boundary — so the assertions
- * here run a real agent over a fixture script the way `lifecycle.test.ts` does,
- * and read the rows the panel would draw.
- *
- * ## THE ONE THAT MATTERS MOST
- *
- * "a doorbell does not spend the interruption a person has not spent", below.
- * `begin` withdraws steering from a conversation FOREVER the first time a
- * prompt goes out alongside a running turn — the pinned adapter hangs a steered
- * turn in any session that has once queued one — and `chat.ts` states the cost
- * verbatim: after one message queued, this conversation has no interruption for
- * the rest of its life. A machine spending that on somebody's behalf, silently
- * and permanently, is the defect this whole shape exists to make unreachable,
- * and it is unreachable BY CONSTRUCTION rather than by care: the `turns.busy`
- * re-read sits inside the same permit `turns.open` is only ever called under.
- * The test is what says the construction is still there.
- *
- * Its twin lives in `lifecycle.test.ts` — a person's own mid-turn message DOES
- * withdraw it — because an assertion that a bit stayed `true` is worth only as
- * much as the proof that something can turn it `false`.
- */
-
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import type { UserEntry } from "olai-plugin-chat/wire"
 import { Effect } from "effect"
@@ -42,24 +14,10 @@ import { volatile } from "./memory.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { MemoryFailure } from "@kolu/acp-client"
 
-/** Every plugin can be told, which is the ordinary serve — the arm where one
- *  cannot is `a tenant this serve did not compose` below. */
 const TELLABLE = (): boolean => true
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
 
-/**
- * A LEG THAT HOLDS A BUSY PROMPT, with STEERING ADVERTISED and nothing else
- * changed.
- *
- * The latch this pick is mostly about is only readable through
- * `Talking.steers`, which is `advertises.steers && !queuedHere` — so an agent
- * that offers no interruption makes the assertion vacuous whichever way the
- * latch goes. Nothing here ever steers (`send`'s flag is `false` and a doorbell
- * has no gesture behind it), so the method below is never called: what the leg
- * supplies is the ADVERTISEMENT, which is the input the panel draws its control
- * from.
- */
 const STEERS: Leg = {
   ...QUEUES,
   steering: {
@@ -79,7 +37,6 @@ const ROW: Installed = {
   prompt: { kind: "first-turn" },
 }
 
-/** A body the fixture answers immediately — anything that is not `wait:<ms>`. */
 const RANG = "olai · kolu · one terminal waiting · 14:32"
 const KOLU = "kolu"
 
@@ -99,9 +56,6 @@ afterEach(() => {
 
 const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(effect)
 
-/** Poll until it is true, or give up loudly — the shape `lifecycle.test.ts`
- *  waits for a log line with, which is the only honest way to wait on a
- *  subprocess that answers when it answers. */
 const until = async (what: string, ready: () => boolean, ms = 8_000): Promise<void> => {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -111,14 +65,10 @@ const until = async (what: string, ready: () => boolean, ms = 8_000): Promise<vo
   throw new Error(`waited ${ms}ms for ${what} and it never happened`)
 }
 
-/** A scope table that is only ever read — what the strip's count is projected
- *  over. Writing one is `scopes.test.ts`'s subject. */
 const scoping = (rows: ReadonlyArray<Scoped>): Scopes => ({
   recipient: ({ agent, session, pick }) => ({ agent, session, pick, current: () => true }),
   rows: () => rows,
   set: () => Effect.succeed([]),
-  /** Nothing ever breaks in a read-only table: the fault member's own cases
-   *  are below, over a table that moves. */
 
 })
 
@@ -129,14 +79,11 @@ const SCOPED = scoping([{
   pick: "Fleet.olai",
 }])
 
-/** The machine-marked rows, in the order the transcript holds them. */
 const rung = (chat: Panel): ReadonlyArray<UserEntry> =>
   [...chat.entries().values()].flatMap((entry) =>
     entry.kind === "user" && entry.rang !== undefined ? [entry] : []
   )
 
-/** Open a panel over the fixture. `start: false` leaves it with no conversation
- *  at all, which is the third arm's whole premise. */
 const panel = async (
   options: { readonly scoping?: Scopes; readonly start?: boolean } = {},
 ): Promise<Panel> => {
@@ -156,17 +103,8 @@ const panel = async (
   return chat
 }
 
-/** WHICH conversation the panel is in, as a delivery is addressed. */
 const open = (chat: Panel) => ({ agent: "opencode", session: chat.state().session?.id ?? "" })
 
-/** Send something the fixture holds, and WAIT UNTIL THE TURN IS RUNNING.
- *
- *  The wait is the point, not politeness: `send` returns once the prompt is on
- *  the wire, and `begin` forks the fiber that flips `turns.busy`. A delivery
- *  made in that gap finds an idle agent and is handed over as a turn of its
- *  OWN — which is correct behaviour and the wrong precondition for every test
- *  below, each of which is about what happens to a body that arrives while a
- *  turn is already running. */
 const holding = async (chat: Panel): Promise<void> => {
   await run(chat.send("wait:900", [], []))
   await until("the turn to be running", () => chat.state().status === "thinking")
@@ -189,11 +127,7 @@ describe("an idle agent", () => {
       await until("the machine's row", () => rung(chat).length === 1)
       const row = rung(chat)[0]
       expect(row?.text).toBe(RANG)
-      // The MARK is the plugin's name and core stamped it — a plugin never
-      // supplies its own, or it could sign another's.
       expect(row?.rang).toBe(KOLU)
-      // ... and it is not waiting behind anything, which is the visible half of
-      // "a doorbell never arrives alongside a running turn".
       expect(row?.queued).toBeUndefined()
     })
   }, 20_000)
@@ -205,12 +139,7 @@ describe("an agent mid-turn", () => {
     await closing(chat, async () => {
       await holding(chat)
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
-      // Nothing is in the conversation, which is the whole difference from a
-      // mid-turn hand-off: the words are not at the agent and the transcript
-      // does not pretend they are.
       expect(rung(chat)).toEqual([])
-      // ... and the strip says one is waiting, because the alternative to
-      // holding words out of sight is not dropping them, it is showing them.
       expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Fleet.olai", waiting: 1 }])
       await until("the turn boundary to let it in", () => rung(chat).length === 1)
       expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Fleet.olai", waiting: 0 }])
@@ -218,23 +147,15 @@ describe("an agent mid-turn", () => {
   }, 20_000)
 
   test("... and a plugin that is going away takes its own back", async () => {
-    // THE OTHER END OF THE SAME RULE (`olai-plugin-chat`'s `Chat.withdraw`): a
-    // caller that handed a body over and is now stopping — a fiber whose scope
-    // is closing — leaves words nobody owns, and the boundary that would have
-    // let them in lets in nothing. What a cleared pick does from the panel's
-    // end (`dropped`), this does from the caller's.
     const chat = await panel({ scoping: SCOPED })
     await closing(chat, async () => {
       await holding(chat)
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Fleet.olai", waiting: 1 }])
       await run(chat.doorFor(KOLU).withdraw(open(chat)))
-      // THE COUNT GOES WITH THEM, which is the strip's half of the same
-      // withdrawal — the republish a cleared doorbell does.
       await until("the strip to let the count go", () =>
         chat.state().wake.every((row) => row.waiting === 0))
       expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Fleet.olai", waiting: 0 }])
-      // ...AND THE BOUNDARY THIS TURN ENDS AT LETS IN NOTHING.
       await until("the turn to end", () => chat.state().status !== "thinking")
       expect(rung(chat)).toEqual([])
     })
@@ -248,8 +169,6 @@ describe("an agent mid-turn", () => {
       await run(chat.doorFor(KOLU).deliver(open(chat), () => "second"))
       await run(chat.doorFor(KOLU).deliver(open(chat), () => "third"))
       await until("the turn boundary", () => rung(chat).length === 1)
-      // Whole plugin-authored paragraphs, joined and nothing else: core adds no
-      // lead-in, no count and no word of its own.
       expect(rung(chat)[0]?.text).toBe("first\n\nsecond\n\nthird")
     })
   }, 20_000)
@@ -262,8 +181,6 @@ describe("an agent mid-turn", () => {
       await run(chat.doorFor(KOLU).deliver(open(chat), () => "a wake"))
       await run(chat.doorFor(KOLU).deliver(open(chat), () => "digest v2", { coalesce: "digest" }))
       await until("the turn boundary", () => rung(chat).length === 1)
-      // v2 lands where v1 was rather than at the back — which is what makes a
-      // plugin's own order survive its own coalescing.
       expect(rung(chat)[0]?.text).toBe("digest v2\n\na wake")
     })
   }, 20_000)
@@ -297,19 +214,11 @@ describe("an agent mid-turn", () => {
 
 describe("a cancel", () => {
   test("does not swallow what was held: the boundary it produces still flushes", async () => {
-    // A cancel does not touch held slots and never has to: the flush fires at
-    // the turn boundary a cancel produces, like any other. A person who wants
-    // the doorbell to stop clears the pick.
     const chat = await panel()
     await closing(chat, async () => {
       await run(chat.send("wait:8000", [], []))
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       expect(rung(chat)).toEqual([])
-      // `send` answers when the turn is OWNED, not when the prompt is on the
-      // wire — `begin` forks and `agent.prompt` is the first line inside the
-      // fork — so a cancel written straight after it can overtake its own
-      // prompt at the fixture. A person cannot press a button that fast; a test
-      // can, so it waits for the prompt to have gone.
       await Effect.runPromise(Effect.sleep("300 millis"))
       await run(chat.cancel)
       await until("the cancelled turn's boundary", () => rung(chat).length === 1)
@@ -322,9 +231,6 @@ describe("a conversation nobody is in", () => {
   test("holds the words until somebody opens it, and they arrive as its first message", async () => {
     const chat = await panel({ start: false })
     await closing(chat, async () => {
-      // The panel has no agent bound and no conversation open. The fixture
-      // mints `sess-1` for the first `session/new`, which is what the boot
-      // below asks for.
       await run(chat.doorFor(KOLU).deliver({ agent: "opencode", session: "sess-1" }, () => RANG))
       expect(rung(chat)).toEqual([])
       await run(chat.start)
@@ -338,8 +244,6 @@ describe("a conversation nobody is in", () => {
     const chat = await panel()
     await closing(chat, async () => {
       expect(chat.state().session?.id).toBe("sess-1")
-      // Addressed to a conversation that does not exist yet: this panel's
-      // agent, and the session its NEXT `+ new` will mint.
       await run(chat.doorFor(KOLU).deliver({ agent: "opencode", session: "sess-2" }, () => RANG))
       expect(rung(chat)).toEqual([])
       await run(chat.newSession("opencode"))
@@ -352,8 +256,6 @@ describe("a conversation nobody is in", () => {
   test("a body for another AGENT's conversation is never let in here", async () => {
     const chat = await panel()
     await closing(chat, async () => {
-      // Same session id, wrong agent — which means nothing at all, and is why
-      // a conversation is the pair.
       await run(chat.doorFor(KOLU).deliver({ agent: "claude", session: "sess-1" }, () => RANG))
       await Effect.runPromise(Effect.sleep("300 millis"))
       expect(rung(chat)).toEqual([])
@@ -364,18 +266,6 @@ describe("a conversation nobody is in", () => {
 describe("a body that waited", () => {
 
   test("a HELD offer never asks for the words, so nothing can count a delivery that did not land", async () => {
-    // THE BUG CLASS THIS PINS, which is worth stating because it is the one
-    // that lies in the direction of "all is well". `flush` used to ask each
-    // body's thunk BEFORE `offer` decided whether it could be handed over. A
-    // body composed for a conversation whose turn was running came back
-    // "held" and was thrown away — but the plugin had already been asked, and a
-    // plugin that counts its own deliveries (kolu's heartbeat keeps exactly
-    // such a ledger) had counted one that never reached anybody. A window of
-    // real silence was then reported as a window with news in it.
-    //
-    // COUNTED, not merely observed: the claim is that the thunk is asked ONCE
-    // and only where the words go in, and a count is the only assertion that
-    // can tell "asked once" from "asked twice and discarded once".
     const chat = await panel()
     await closing(chat, async () => {
       await holding(chat)
@@ -384,19 +274,15 @@ describe("a body that waited", () => {
         asked++
         return "the words"
       }))
-      // Held behind the running turn: nothing on screen, and NOBODY ASKED.
       expect(rung(chat)).toEqual([])
       expect(asked).toBe(0)
       await until("the turn boundary to let it in", () => rung(chat).length === 1)
-      // ... and asked exactly once, at the boundary, where the row was written.
       expect(asked).toBe(1)
       expect(rung(chat)[0]?.text).toBe("the words")
     })
   }, 20_000)
 
   test("... and a conversation nobody is in is not asked either, until somebody opens it", async () => {
-    // The same claim on the third arm: a body waiting for a session cannot be
-    // composed against a world nobody has looked at yet.
     const chat = await panel({ start: false })
     await closing(chat, async () => {
       let asked = 0
@@ -416,10 +302,8 @@ describe("a body that waited", () => {
       await holding(chat)
       let world = "two terminals are waiting"
       await run(chat.doorFor(KOLU).deliver(open(chat), () => world))
-      // The world moves while the message queues behind the running turn.
       world = "one terminal is waiting"
       await until("the turn boundary to let it in", () => rung(chat).length === 1)
-      // What the agent reads is true when it is READ, not when it was drafted.
       expect(rung(chat)[0]?.text).toBe("one terminal is waiting")
     })
   }, 20_000)
@@ -431,8 +315,6 @@ describe("a body that waited", () => {
       let gone = false
       await run(chat.doorFor(KOLU).deliver(open(chat), () => gone ? null : "still true"))
       expect(chat.state().wake).toEqual([])
-      // Both named terminals killed and the lane merged-and-done while it
-      // queued: not a shorter message, no message.
       gone = true
       await run(chat.send("say:done", [], []))
       await until("the second turn to finish", () => chat.state().status === "idle")
@@ -454,10 +336,6 @@ describe("a body that waited", () => {
   }, 20_000)
 
   test("a settled batch does not strand the NEXT plugin's behind it", async () => {
-    // pi's finding, and the reason it is worth fixing while it is cheap: a batch
-    // that has entirely settled writes no row, no row is no turn, and no turn is
-    // no next boundary. The second plugin's words would sit held until something
-    // unrelated produced one — which on a quiet conversation is never.
     const chat = await panel()
     await closing(chat, async () => {
       await holding(chat)
@@ -472,17 +350,6 @@ describe("a body that waited", () => {
   }, 20_000)
 })
 
-/**
- * A scope table that really MOVES, which is what a clear needs and what a fault
- * needs: the read-only {@link scoping} above cannot stop answering, and both of
- * the arms below are about what happens when it does.
- *
- * `faults` here is the real record's rule in miniature — mark on the false→true
- * edge, unmark when the pick is back, answer with only what just broke — and it
- * is a stand-in for the WRITE and never for the rule: `scopes.test.ts` drives
- * the same rule through the disk, which is where "a restart says nothing" can
- * be asked at all.
- */
 const movable = (): Scopes => {
   let rows: ReadonlyArray<Scoped> = [{
     agent: "opencode",
@@ -501,9 +368,6 @@ const movable = (): Scopes => {
         rows = pick === null
           ? without
           : [...without, { ...to, plugin, pick }]
-        // The rows this write removed and did not put back — the real store
-        // answers with these so a caller can take back what their doorbells
-        // were holding.
         return without.filter((row) => !rows.includes(row))
       }),
 
@@ -517,17 +381,10 @@ describe("a doorbell somebody turned off", () => {
       await holding(chat)
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Fleet.olai", waiting: 1 }])
-      // The gesture, made on seeing that count — the clear and the count are
-      // drawn on one line, so this is the ordinary way to press it and not a
-      // contrived race.
       await run(chat.scope(open(chat), KOLU, null))
       expect(chat.state().wake).toEqual([])
-      // The turn ends, which is the boundary that would have let it in.
       await run(chat.send("say:done", [], []))
       await until("the second turn to finish", () => chat.state().status === "idle")
-      // ... and nothing arrived. A strip that says `off` while a sentence it
-      // disowns is still on its way in would be words held where a person
-      // cannot see them, which is the one thing this panel refuses.
       expect(rung(chat)).toEqual([])
     })
   }, 20_000)
@@ -550,10 +407,6 @@ describe("a doorbell somebody turned off", () => {
     await closing(chat, async () => {
       await holding(chat)
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
-      // The same gesture as a clear, one option along in the picker. The body
-      // names the pick it was derived from, so it would land under a control
-      // saying it watches a different one — and the plugin does not re-derive
-      // it, because the terminals it named need not be claimed in the new pick.
       await run(chat.scope(open(chat), KOLU, "Other.olai"))
       expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Other.olai", waiting: 0 }])
       await run(chat.send("say:done", [], []))
@@ -563,10 +416,6 @@ describe("a doorbell somebody turned off", () => {
   }, 20_000)
 
   test("a refused write leaves the pick where the person was told it stayed", async () => {
-    // The record is the authority: a write that fails is a pick that did not
-    // stick, and the MIRROR is what the plugin reads — so a mirror that moved
-    // under a refused write would be a doorbell ringing for a row the strip
-    // never said was on.
     let rows: ReadonlyArray<Scoped> = []
     const refusing: Scopes = {
       recipient: ({ agent, session, pick }) => ({ agent, session, pick, current: () => true }),
@@ -592,54 +441,18 @@ describe("the interruption a person has not spent", () => {
         const who = chat.state().talking
         return who !== null && who.kind === "agent" ? who : null
       }
-      // The control is on offer: this agent advertises the gesture and nothing
-      // has queued in this conversation.
       await until("the handshake", () => talking()?.steers === true)
 
       await run(chat.send("wait:1200", [], []))
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
 
-      // BOTH HALVES, and they are one fact seen twice. The words are not in the
-      // conversation — so they did not go out alongside the running turn — and
-      // the interruption is still on offer, which is what going out alongside
-      // it would have taken away for the rest of this conversation's life.
       expect(rung(chat)).toEqual([])
       expect(talking()?.steers).toBe(true)
 
       await until("the turn boundary", () => rung(chat).length === 1)
-      // ... and it is still on offer after the words have landed, because what
-      // let them in was a turn that had ended.
       expect(talking()?.steers).toBe(true)
       expect(rung(chat)[0]?.queued).toBeUndefined()
     })
   }, 25_000)
 })
 
-/**
- * THE DOORBELL WHOSE FILE STOPPED BEING SERVED — the one arm where silence
- * would otherwise be the whole story.
- *
- * A person scopes a conversation to a pick; somebody renames it. The plugin
- * derives per revision over a pick that is not there, so it derives nothing,
- * forever — and the conversation is quiet in exactly the way a conversation
- * with nothing to report is quiet. This PR retires the hand-run fleet watch
- * that was the second opinion, so after it lands SILENCE is all supervision
- * has: quiet-and-fine and quiet-because-broken must not look alike.
- *
- * WHAT IS UNDER TEST HERE is the chat's half of that — the once-ness, the
- * strip, and the door going empty. The DISK's half (a restart with the flag
- * already written says nothing) is `scopes.test.ts`', driven through the real
- * record rather than through a stand-in, and the composition — who detects,
- * whose words go in — is `@olai/server`'s.
- *
- * The judgement below is a plain function over a plugin and a path, which is
- * the shape the member takes and the reason it takes it: the caller holds a
- * revision and the kinds each doorbell declared, and building the list of what
- * broke would mean walking a directory per revision.
- *
- * THE SECOND CAUSE rides the same arm: a pick that is served and is not a kind
- * that doorbell reads — a `.md` under a wake that derives from nodes, which the
- * picker used to offer. It is one signal, one row off the door and one sentence
- * (a different one), and the only thing that differs is which sentence the
- * caller reaches for.
- */

@@ -1,5 +1,3 @@
-/** What a chat page says when its note is renamed, deleted, or stops naming
- *  the conversation that is open on it (`./lost.ts`). */
 import { describe, expect, test } from "bun:test"
 import type { AgentItem } from "@olai/format"
 

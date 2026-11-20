@@ -1,19 +1,3 @@
-/**
- * What every installed agent has stored, over values.
- *
- * Everything asserted here is a statement about COST or about TIME, and both
- * are unreachable through the real thing at anything like a sane price: proving
- * that opening the list does not start three subprocesses means counting
- * subprocesses, and proving an answer goes stale means starting one, waiting
- * out a clock and starting it again. What they cost when they are wrong is the
- * bug this module is the fix for, one layer along — a conversation that is
- * there and not in the list.
- *
- * WHAT IS FAKED is the one thing handed in: how to reach an agent. Which agent
- * is running and how to start one are the caller's ({@link ./chat.ts}), so a
- * test says both in two lines and counts what it was asked for.
- */
-
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
@@ -23,8 +7,6 @@ import { clock } from "./clock.testlib.ts"
 import type { Stored } from "@kolu/acp-client"
 import { KEEP_FOR_MS, type Listings, make, type Where } from "./listings.ts"
 
-/** A roster row. Only the id is ever read here — how to spawn one is the
- *  caller's business, and this module never looks. */
 const rowFor = (id: string): Installed =>
   ({ id, name: id, adapter: { command: id, args: [] }, leg: {} } as unknown as Installed)
 
@@ -43,7 +25,6 @@ const stored = (
   supersededBy: said.supersededBy ?? null,
 })
 
-/** What each agent answers, and how many times it was actually asked. */
 interface Answers {
   readonly [agent: string]: ReadonlyArray<Stored> | AgentGone
 }
@@ -59,17 +40,11 @@ const asking = (
       const said = where.answers[row.id] ?? []
       return said instanceof AgentGone ? Effect.fail(said) : Effect.succeed(said)
     })
-  // FROM A BARE NUMBER, because what this file is about is two instants a
-  // known distance apart rather than a moment anybody reads back.
   const time = clock(1_000)
   const built: Where = {
     roster: where.roster ?? (() => [ONE, OTHER]),
     running: where.running ?? (() => null),
     aside: where.aside ?? ((row) => {
-      // The whole round trip, so a test can say whether the process was still
-      // up when the next question came. `keep: true` is the ordinary probe —
-      // the caller only says otherwise for the agent it turns out to be
-      // talking to.
       running.push(row.id)
       return Effect.map(
         Effect.ensuring(answer(row), Effect.sync(() => running.pop())),
@@ -93,7 +68,6 @@ describe("asking every installed agent", () => {
     })
     const listings = await Effect.runPromise(make(where))
     const listed = await listOf(listings)
-    // Newest first, across agents — one history rather than two piles.
     expect(listed.sessions.map((row) => [row.id, row.agent])).toEqual([
       ["oc", "other"],
       ["cc", "one"],
@@ -102,8 +76,6 @@ describe("asking every installed agent", () => {
   })
 
   test("what the adapter said ABOUT a conversation rides its row", async () => {
-    // The count and the link are the picker's material for the row's second
-    // half — the projection must drop neither.
     const { where } = asking({
       answers: {
         one: [
@@ -121,8 +93,6 @@ describe("asking every installed agent", () => {
   })
 
   test("an UNDATED row sorts last, never first", async () => {
-    // An agent that gave no timestamp has said nothing about when. Reading that
-    // as "just now" would put it over every conversation that did say.
     const { where } = asking({
       answers: {
         one: [stored("undated", null)],
@@ -134,8 +104,6 @@ describe("asking every installed agent", () => {
   })
 
   test("the agent ALREADY RUNNING is asked where it is running, never started", async () => {
-    // Asking it costs one round trip, and its list is the one most likely to
-    // have just changed — this conversation is in it.
     const { where, running } = asking({
       answers: { other: [stored("oc", null)] },
       running: (row) =>
@@ -156,15 +124,10 @@ describe("what an answer is worth", () => {
     expect(asked.filter((id) => id === "one")).toHaveLength(1)
     time.pass(KEEP_FOR_MS)
     await listOf(listings)
-    // The list's whole warrant is that the agent's answer is the only one that
-    // is right — a terminal session opened in this directory changes it.
     expect(asked.filter((id) => id === "one")).toHaveLength(2)
   })
 
   test("AN EMPTY ANSWER IS AN ANSWER", async () => {
-    // An agent with no stored conversation has answered as definitely as one
-    // with ten. Read as "nothing kept", every open of the picker would pay a
-    // handshake to be told the same nothing.
     const { where, asked } = asking({ answers: { one: [], other: [] } })
     const listings = await Effect.runPromise(make(where))
     await listOf(listings)
@@ -173,8 +136,6 @@ describe("what an answer is worth", () => {
   })
 
   test("the agent BEING TALKED TO is asked every time", async () => {
-    // It is already running, so there is nothing to save — and it is the one
-    // whose list this panel is actively changing.
     const { where, asked } = asking({
       answers: {},
       roster: () => [ONE],
@@ -187,9 +148,6 @@ describe("what an answer is worth", () => {
   })
 
   test("and what this panel has just changed is dropped", async () => {
-    // A cache is only ever wrong in one direction that matters: a list that
-    // does not name the conversation you were just in reads as a lost one,
-    // which is the complaint this module exists to answer.
     const { where, asked } = asking({ answers: { one: [stored("cc", null)] } })
     const listings = await Effect.runPromise(make(where))
     await listOf(listings)
@@ -204,17 +162,12 @@ describe("what an answer is worth", () => {
     await listOf(listings)
     listings.forget("one")
     await listOf(listings)
-    // the other was asked once and kept; only the first was asked twice.
     expect(asked.filter((id) => id === "other")).toHaveLength(1)
   })
 })
 
 describe("an answer the caller says not to keep", () => {
   test("is used and NOT remembered", async () => {
-    // The one way `running` goes stale: the row became the agent this panel is
-    // talking to while the question queued. The caller notices and says so,
-    // and caching that answer would be caching the list this panel is busy
-    // changing — the very thing the bound agent is never cached for.
     const { where, asked } = asking({
       answers: { one: [stored("cc", null)] },
       roster: () => [ONE],
@@ -236,8 +189,6 @@ describe("an answer the caller says not to keep", () => {
 
 describe("an agent that could not be asked", () => {
   test("is NAMED, in its own words", async () => {
-    // `no stored conversations` is a claim about somebody's disk. Standing in
-    // for "we never reached them" is the picker's oldest bug.
     const { where } = asking({
       answers: {
         one: new AgentGone({ gone: "unreachable", why: "the conversation store is unreadable" }),
@@ -251,8 +202,6 @@ describe("an agent that could not be asked", () => {
   })
 
   test("... and does not take the other one's conversations with it", async () => {
-    // The shape of the bug this whole module is the fix for, one agent along:
-    // a list that vanishes because something else broke.
     const { where } = asking({
       answers: {
         one: new AgentGone({ gone: "unreachable", why: "not running" }),
@@ -264,8 +213,6 @@ describe("an agent that could not be asked", () => {
   })
 
   test("is asked AGAIN next time, because a refusal is not kept", async () => {
-    // An agent held broken for fifteen seconds is one that stays broken on
-    // screen after it has been mended.
     const { where, asked } = asking({
       answers: { one: new AgentGone({ gone: "unreachable", why: "not running" }) },
     })
@@ -276,8 +223,6 @@ describe("an agent that could not be asked", () => {
   })
 
   test("and the one being talked to is named the same way", async () => {
-    // The panel's own agent refusing is the case that used to fail the whole
-    // call. It is the same sentence about the same subject.
     const { where } = asking({
       answers: {},
       roster: () => [ONE],
@@ -291,8 +236,6 @@ describe("an agent that could not be asked", () => {
 
 describe("what opening the list costs", () => {
   test("ONE agent started at a time, however many are installed", async () => {
-    // Three handshakes racing each other is the cost a person pays for a click,
-    // and the reason this holds a permit at all.
     let live = 0
     let most = 0
     const { where } = asking({
@@ -300,7 +243,6 @@ describe("what opening the list costs", () => {
       aside: () =>
         Effect.gen(function*() {
           most = Math.max(most, ++live)
-          // A beat with the probe UP, so a second start would overlap it.
           yield* Effect.sleep("5 millis")
           live--
           return { stored: [], keep: true }

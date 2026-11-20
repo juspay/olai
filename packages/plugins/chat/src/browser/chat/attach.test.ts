@@ -1,13 +1,3 @@
-/**
- * The chunk loop, without a browser.
- *
- * Two properties, and both of them are the kind that look fine until the file
- * is big: the calls are SEQUENTIAL (the server appends to one growing file, so
- * two in flight interleave their bytes), and every call after the first hands
- * back the path it was given. A fake `attach` reassembles what it is sent, so
- * the assertion is the picture rather than the call count.
- */
-
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 import { FRAME_CHUNK_BASE64_CHARS, FRAME_PAYLOAD_BUDGET } from "@kolu/surface/frame-chunking"
@@ -20,13 +10,6 @@ const picture = (name: string, bytes: Uint8Array, type = "image/png") =>
 
 const body = new Uint8Array(Array.from({ length: 300 }, (_, at) => (at * 17) % 256))
 
-/**
- * A server that keeps what it is told, in the order it was told — and RENAMES
- * what it stores, because the real one does: a name is sanitized and a
- * collision suffixed, so `shot.png` sent twice is `shot.png` and `shot-1.png`.
- * A fake that echoed the name back would be a fake that agrees with a client
- * keeping the name it sent, which is exactly the bug.
- */
 const spy = () => {
   const files = new Map<string, Buffer>()
   const calls: Array<{ name: string; appendTo?: string | undefined }> = []
@@ -53,17 +36,11 @@ test("a picture arrives whole, one chunk at a time", async () => {
   expect(Result.isSuccess(outcome)).toBe(true)
   if (!Result.isSuccess(outcome)) return
   expect(server.calls.length).toBeGreaterThan(1)
-  // The first call CREATES — no continuation — and every later one continues
-  // the path it was answered with.
   expect(server.calls[0]?.appendTo).toBeUndefined()
   expect(server.calls.slice(1).every((call) => call.appendTo === outcome.success.path)).toBe(
     true,
   )
   expect(server.files.get(outcome.success.path)?.equals(Buffer.from(body))).toBe(true)
-  // What it is CALLED is the server's answer, not the name that was sent. The
-  // name is what the transcript row carries and what this tab's thumbnail is
-  // keyed by, so a client that kept its own would draw one picture on another
-  // picture's message the first time two pastes collided.
   expect(outcome.success.name).toBe("stored-shot.png")
 })
 
@@ -74,8 +51,6 @@ test("what the server will not take is refused before a byte is encoded", async 
   )
 
   expect(Result.isFailure(outcome)).toBe(true)
-  // Nothing was sent: the pre-flight gate is the same function the server
-  // refuses with, so there is no reason to spend the upload finding out.
   expect(server.calls).toEqual([])
 })
 
@@ -85,9 +60,6 @@ test("a document goes up the same way a picture does", async () => {
     Effect.result(attaching(picture("notes.txt", body, "text/plain"), server.attach, { chunkChars: 8 })),
   )
 
-  // The chunk loop has never cared what kind of file it is carrying, and this
-  // is the test that says so out loud now that it carries more than pictures:
-  // same sequence, same continuation, same bytes at the end of it.
   expect(Result.isSuccess(outcome)).toBe(true)
   if (!Result.isSuccess(outcome)) return
   expect(server.calls.length).toBeGreaterThan(1)
@@ -102,14 +74,10 @@ test("a picture the clipboard did not name is named after its type", async () =>
 
   expect(Result.isSuccess(outcome)).toBe(true)
   if (!Result.isSuccess(outcome)) return
-  // ... and the server still has the last word on what it is called.
   expect(outcome.success.name).toBe("stored-pasted.webp")
 })
 
 test("a file the clipboard did not name is not called a picture unless it is one", async () => {
-  // It used to be: every unnamed file became `pasted.png`, so an unnamed zip
-  // passed the gate as a picture. Now it meets the gate under the
-  // name it came with, and is refused before a byte is sent.
   for (const [name, type] of [["", "application/zip"], ["archive", "application/zip"]] as const) {
     const server = spy()
     const file = picture(name, body, type)

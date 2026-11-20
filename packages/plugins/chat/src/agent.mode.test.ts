@@ -1,9 +1,3 @@
-/**
- * PERMISSION MODES, AS THE PANEL DRAWS THEM: what a refused mode leaves on
- * screen. What the client itself does with a mode on every open, and with a
- * refusal of it, is tested where the client lives: `@kolu/acp-client`'s
- * `agent.mode.test.ts`, over the same `mode-agent.ts`.
- */
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
@@ -19,8 +13,6 @@ import { seated } from "./agents/roster.testlib.ts"
 import { fixtureAgent, SAYS_NOTHING } from "@kolu/acp-client/testlib"
 
 const run = Effect.runPromise
-// A real panel consumes the agent's events: checking only a rejection cannot
-// prove that replayed history and the model header were withdrawn.
 for (const stored of [false, true]) {
   for (const required of [false, true]) {
     test(`${stored ? "loaded" : "new"} panel after ${required ? "required" : "optional"} mode refusal`, async () => {

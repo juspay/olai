@@ -1,16 +1,3 @@
-/**
- * What a node in context LOOKS LIKE to the agent.
- *
- * One line per node, under what was typed — the sibling of the attachment
- * line, tested the same way and for the same reason: it is the whole of what
- * the agent is told, and the e2e suite's scripted agent reads it back with a
- * regular expression. So the shape is a contract between three files
- * (`./chat.ts` writes it, `packages/tests/agent/scripted-acp.ts` parses it,
- * `packages/web/src/client/chat/refs.ts` makes the same spelling pressable),
- * and a change to it that nothing noticed would be a change no agent could
- * follow.
- */
-
 import type { NodeContext } from "olai-plugin-chat/wire"
 import { describe, expect, test } from "bun:test"
 
@@ -51,10 +38,6 @@ describe("the line a node arrives on", () => {
     )
   })
 
-  // A node in an archive can be NAMED — the composer's `@` list completes one
-  // for a query that says `is:trashed`, and a Trash row's `•••` arms one like
-  // any other. What it must not do is arrive reading like live work: no tool
-  // refuses a write into an archive, so the line says which it is.
   test("a node that was put away says so, after where it sits", () => {
     expect(lineFor({ ...ORDER, file: "_olai/Trash.olai", trashed: true, line: 1 }))
       .toBe(
@@ -63,8 +46,6 @@ describe("the line a node arrives on", () => {
   })
 
   test("...and every other node says nothing at all about it", () => {
-    // The server judged the file against its reading; the prompt carries
-    // that result without consulting a different claims snapshot.
     expect(lineFor(ORDER)).not.toContain("trashed")
     expect(lineFor({ ...ORDER, file: "_olai/Trash.olai", trashed: true })).toContain("; trashed")
   })
@@ -88,8 +69,6 @@ describe("what the agent is prompted with", () => {
   })
 
   test("a node with no words is the lines alone — 'look at this' is a message", () => {
-    // The rule an attachment already sets: a screenshot pasted with nothing
-    // typed is a message, so a node armed with nothing typed is one too.
     expect(promptWith("", [ORDER])).toBe(lineFor(ORDER))
   })
 })

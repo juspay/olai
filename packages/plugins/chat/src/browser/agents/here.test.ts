@@ -1,5 +1,3 @@
-/** Which chat a page is about, and what the sidebar's lit row and a tab's dot
- *  follow from it. */
 import { describe, expect, test } from "bun:test"
 import type { AgentItem } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
@@ -34,9 +32,6 @@ describe("which chat a page is about", () => {
     expect(noteHere(TEST_CLAIMS, at("/house.olai"))).toBeNull()
   })
 
-  // A PAGE READ BEFORE THE DIRECTORY HAS SAID WHAT IT SERVES is no item: the
-  // claim table is what says a file is a note, and a node is a node without
-  // it.
   test("with no claim table yet, a file is nothing and a node is still a node", () => {
     expect(itemHere(undefined, at("/notes/plan.md"))).toBeNull()
     expect(itemHere(undefined, at("/zoom/#order"))).toEqual({ kind: "node", id: "order" })
@@ -72,8 +67,6 @@ describe("the dot on a tab and the lit Chats row", () => {
     expect(isCurrent(TEST_CLAIMS, at("/notes/plan.md"), node, true)).toBe(false)
   })
 
-  // THE CHAT'S OWN PAGE IS THE CHAT, which is the one a press on a Chats row
-  // now opens: the row is lit there, and on nobody else's page.
   test("a chat page lights its own row and no other", () => {
     const onNote = chatPage.to({ kind: "note", path: "notes/plan.md" })
     const onNode = chatPage.to({ kind: "node", id: "install" })

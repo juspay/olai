@@ -1,36 +1,14 @@
-/**
- * WHICH NODE OR NOTE A NEW CHAT IS FOR — the shortlist the palette's item
- * level draws, as a pure function of what the server answered and what is
- * typed. The level (`./new-chat-level.ts`) owns the query and the rows'
- * lifetime; nothing here knows about either, so the rules can change without
- * touching them.
- *
- * A CHAT IS ABOUT SOMETHING, and these are the things: the item in front of
- * the reader, the items they have been talking to, and — once something is
- * typed — any node and any note in the vault. Nothing is minted for a chat to
- * live in, so there is no list of places, only a list of things.
- */
-
 import { type ItemLocation, matchesTyped } from "olai-plugin-chat/wire"
 
 export type ItemSection = "Here" | "Recent" | "Nodes" | "Notes"
-/** One offered item, under the heading that found it. */
 export interface ItemRow { readonly section: ItemSection; readonly item: ItemLocation }
 
 export const RECENT_LIMIT = 5
 export const ITEMS_LIMIT = 20
 
-/** Here first (so plain Enter takes the thing a person is looking at), then
- *  Recent and — once something is typed — Nodes and Notes; an item is listed
- *  once, typing filters every section, and an empty section is simply
- *  absent. */
 export const itemRows = (input: {
-  /** The item key of the focused pane's page, if it can have a chat. */
   readonly here: string | null
-  /** The items of the chats heard from most recently, in that order. */
   readonly recent: readonly string[]
-  /** Everything the server answered: here, the recent items and the typed
-   *  matches. */
   readonly items: readonly ItemLocation[]
   readonly typed: string
 }): ItemRow[] => {

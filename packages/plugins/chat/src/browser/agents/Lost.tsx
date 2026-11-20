@@ -1,27 +1,3 @@
-/**
- * WHAT A CHAT PAGE SAYS WHEN ITS NOTE HAS GONE, or has stopped naming the
- * conversation that is open on it — the two faces of `./lost.ts`, drawn where
- * the door would be.
- *
- * Both of them replace the *Ask about <name>…* box, and that is the whole
- * point: a door is an offer to START something, and neither of these pages is
- * one. A note that is not there cannot be chatted about, and a note whose
- * conversation is still running does not want a second one.
- *
- * THE CONVERSATION IS NEVER SAID TO HAVE ENDED, because it has not. A serve
- * holds a conversation by its own id and not by the tie — a revision only
- * re-reads which item names which — so the answer in flight goes on arriving
- * and the session is still there. What is lost is the NAME, and the untied
- * face is the one press that gives it back (`conversation.retie`).
- *
- * WHAT IS NOT DRAWN HERE is the conversation itself. A chat is drawn where
- * its item names it; a page drawing a transcript the vault no longer ties to
- * anything would be a fourth place a conversation can live, reachable only by
- * having been open at the moment the tie went. So the page says what
- * happened, in the place the transcript was, and offers the way back where
- * there is one.
- */
-
 import { Result } from "effect"
 import { createSignal, Show } from "solid-js"
 import { itemKey } from "@olai/format"
@@ -41,10 +17,6 @@ export function LostNote(props: { readonly lost: Lost; readonly name: string }) 
   )
 }
 
-/** THE NOTE IS NOT THERE — renamed or deleted on disk. No start is offered:
- *  there is nothing to write a chat onto. A RENAME keeps the note's own front
- *  matter, so that conversation is alive at the new path's page; this address
- *  is the old one, and says so. */
 function Gone(props: { readonly name: string }) {
   return (
     <section class={SAID} data-testid={TESTID.chatPageGone} role="status">
@@ -56,10 +28,6 @@ function Gone(props: { readonly name: string }) {
   )
 }
 
-/** THE NOTE IS THERE AND HAS STOPPED NAMING THIS CONVERSATION — its front
- *  matter lost the tie while the page was open, which is a thing a tool
- *  outside olai can do and no fence of ours can prevent. One press writes it
- *  back. */
 function Untied(props: { readonly at: Extract<Lost, { kind: "untied" }>; readonly name: string }) {
   const [problem, setProblem] = createSignal<string>()
   const [pressing, setPressing] = createSignal(false)

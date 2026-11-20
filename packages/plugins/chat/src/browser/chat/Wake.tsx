@@ -1,14 +1,3 @@
-/**
- * WHAT MAY RING THIS CONVERSATION, as items on the standing line — one per running
- * plugin that declares a doorbell, in that plugin’s own words.
- *
- * THE LINE OWNS THE ROWS AND THE QUEUE COUNTS; each hung face owns its control
- * ({@link ./Standing.tsx} draws the bar). What this component owns is that the
- * faces are ITEMS of one line rather than a strip each: `data-testid` names the
- * group so a scenario can still say “the wake part of the line”, a `·` separates
- * one face from the next, and the face’s own markup — a label, a rule, a switch —
- * is drawn as it was.
- */
 import { Effect, Schema } from "effect"
 import { createMemo, For, Show } from "solid-js"
 import { addressOf, sameAddress } from "./address.ts"

@@ -24,19 +24,6 @@ import type { Locator } from "@olai/tests/harness/playwright.ts";
 const fold = (world: OlaiWorld, node: string) => world.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}:visible`);
 const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
 
-/**
- * A CONVERSATION HAS TWO FACES, and a scenario that opened its agent from a
- * Chats row, the palette or a permalink is looking at the second one: the
- * chat's own page (`/chat/<item>`), which IS the conversation. The fold lives
- * on the node's row in its outline.
- *
- * A fold VERB therefore comes back to the outline first, through the sidebar's
- * own row for the file the page says the node is written in — in the same tab,
- * so drafts and folds survive. Reading readiness never navigates.
- *
- * The node's OWN page (`/zoom/#id`) is a conversation face too: it draws the
- * same page head, and a scenario that zoomed into a node is on it.
- */
 const chatPageOf = (world: OlaiWorld, node: string) =>
   world.frontLane().locator(`${selector(PLUGIN_TESTID.chatPage)}${attr("data-item", world.nodeId(node))}`);
 
@@ -44,14 +31,9 @@ export const onConversationPage = async (world: OlaiWorld, node: string) =>
   (await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`).count()) > 0
   || (await chatPageOf(world, node).count()) > 0;
 
-/** The file the page in front says it is about: the pane's own drawn file on a
- *  node's zoom page, and the chat page's mono line — the outline the node is
- *  written in — on a chat page, which draws no breadcrumb at all. */
 const fileBehind = async (world: OlaiWorld, node: string): Promise<string | null> => {
   const page = chatPageOf(world, node);
   if (await page.count() > 0) return (await page.locator(selector(PLUGIN_TESTID.chatPageWhere)).innerText()).trim();
-  // The file the PANE says it is drawing, not the crumb in slot #0: the first
-  // crumb is navigation's layout, and a leading one would move it.
   return await world.frontLane().locator(`${PANE}[data-pane-focused="true"]`).first().getAttribute("data-drawn-file");
 };
 
@@ -59,10 +41,6 @@ export const returnToOutline = async (world: OlaiWorld, node: string) => {
   if (!(await onConversationPage(world, node))) return;
   const file = await fileBehind(world, node);
   assert.ok(file, `the page in front says nothing about where ${node} is`);
-  // THE SIDEBAR'S OWN ROW for that file, rather than a crumb: a chat page has
-  // no breadcrumb — it belongs to one item, and the trail above a file it is
-  // not drawing would be a trail to somewhere else. The press is in-app, so
-  // this tab keeps its folds and its drafts.
   if (await world.crumbs().getByText(file, { exact: true }).count() > 0) {
     await world.crumbs().getByText(file, { exact: true }).first().click();
   } else {
@@ -72,10 +50,6 @@ export const returnToOutline = async (world: OlaiWorld, node: string) => {
     await link.click();
   }
   await world.waitForFrame();
-  // THE DOOR PROMISES THE OUTLINE, not just an address: a step that presses
-  // the row's history a frame later used to meet a tree (and a fold) still
-  // being built. Wait for the row to be drawn, and — when the row says its
-  // fold is open — for that fold's box to hold still across a frame.
   const control = standing(world, node);
   await control.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
   if (await control.getAttribute("aria-expanded") === "true") {
@@ -92,10 +66,6 @@ export const returnToOutline = async (world: OlaiWorld, node: string) => {
   }
 };
 
-/** Press a row that opens a conversation, then come back to its outline row so
- *  a fold verb has something to press. The page's own HEAD, not its
- *  conversation: an unbound agent has no conversation face, and this door
- *  still gets back. */
 export const openRowInOutline = async (world: OlaiWorld, row: Locator, node: string) => {
   await world.showSidebar();
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -110,8 +80,6 @@ export const openAgentRowInOutline = (world: OlaiWorld, node: string) =>
 
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
-  // A newly opened browser can draw the outline before its agent property
-  // face arrives. Use the sidebar only when the target row is absent.
   if (!(await world.node(node).isVisible())) await openAgentRowInOutline(world, node);
   const control = standing(world, node);
   await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -127,31 +95,20 @@ Given("I open the {string} agent on node {string}", async function(this: OlaiWor
     return;
   }
   const pill = this.node(node).locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", this.nodeId(node))}`);
-  // The pill is an OFFER: on a phone it is in the row but not drawn until the
-  // row is tapped, so a phone takes the row menu (a long press) instead.
   if (await pill.count() && await pill.isVisible()) {
     await this.press(pill);
     const menu = this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu));
     await this.waitUntil(async () => await menu.isVisible() || await fold(this, node).isVisible(), "a choice or the new conversation", HYDRATION_TIMEOUT);
     if (await menu.isVisible()) {
-      // Scenarios name an engine by id or by its full display name. Neither
-      // may substring-match another engine's absence sentence.
       await menu.locator(attr("data-engine", engine))
         .or(menu.getByRole("menuitem", { name: engine, exact: true })).click();
     }
   } else {
     const trigger = this.within(node, NODE_MENU);
     if (await trigger.isVisible()) await trigger.click({ force: true });
-    // A phone draws no `•••`: a finger held on the row's OWN line opens its
-    // menu — the gutter, as outlines' "I hold a finger on the node" does. The
-    // node's whole box is the wrong target: with children, its middle is a
-    // child's row, and the menu that opens is the child's.
     else await this.hold(this.within(node, NODE_GUTTER));
     const menu = this.page.locator(NODE_MENU_PANEL);
     await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // One entry, however many agents: the verb itself with one, a submenu of
-    // the agents with several (`data-action` is the bare `chat:start-agent`).
-    // Read BEFORE the press: the one-agent entry shuts the menu it is in.
     const start = menu.locator(`${NODE_MENU_ITEM}${attr("data-action", "chat:start-agent", "^=")}`);
     await start.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const opens = await start.getAttribute("data-action") === "chat:start-agent";
@@ -174,8 +131,6 @@ When("I use the fold on node {string}", async function(this: OlaiWorld, node: st
   await fold(this, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   this.activeAgent = node;
 });
-/** The face switch itself, named: fold verbs already say it; a scenario that
- *  needs a row (a menu, a sibling, a property) says it here. */
 When("I return to the conversation's outline", async function(this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a named node agent first");
   await returnToOutline(this, this.activeAgent);

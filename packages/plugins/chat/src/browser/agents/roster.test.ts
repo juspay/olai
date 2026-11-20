@@ -1,4 +1,3 @@
-/** The browser owns only the presentation of server-authored standings. */
 import { expect, test } from "bun:test"
 
 import type { AgentStanding } from "olai-plugin-chat/wire"

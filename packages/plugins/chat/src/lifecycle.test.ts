@@ -1,9 +1,3 @@
-/**
- * The chat's lifecycle lines: spawn, open, prompt, turn end/fail, exit — at
- * the right level, with agent + session, never the prompt's text. The agent's
- * stderr is DEBUG until a turn fails, when the same lines land at WARN.
- */
-
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Clock, Effect, References } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
@@ -44,16 +38,6 @@ afterEach(() => {
 
 type Run = <A, E>(effect: Effect.Effect<A, E>) => Promise<A>
 
-/** NO PROBES, said by omitting them (`@kolu/acp-client`'s `agent.ts`'s `Options.probes`).
- *  These tests are about the journal, and an agent with an empty list asks this
- *  machine nothing on the way into a session. It used to be said by emptying
- *  `PATH` and unsetting a daemon's socket variable in a `beforeEach` — a test
- *  reaching into the process to silence a dependency it could not name. */
-
-/** One turn of plain words, in the BLOCKS a prompt is made of
- *  (`@kolu/acp-client`'s `Agent.prompt`) — every case here sends text and
- *  nothing else, and spelling the block at each of them would be the same
- *  wrapper fifteen times. */
 const words = (text: string) => [{ type: "text" as const, text }]
 const options = () => ({
   id: "opencode" as const,
@@ -66,7 +50,6 @@ const options = () => ({
   onEvent: () => {},
 })
 
-/** Run `body` against one agent, with a collecting logger at `minimum`. */
 const withAgent = async (
   minimum: "Debug" | "Info",
   body: (
@@ -88,8 +71,6 @@ const withAgent = async (
     await body(agent, run, said)
   } finally {
     await run(agent.stop)
-    // The emitter forks; exit lands on another fiber. Under the full suite
-    // a fixed sleep was losing the race, so wait for the line itself.
     const deadline = Date.now() + 2_000
     while (Date.now() < deadline && findSaid(said, "chat agent exited") === undefined) {
       await Effect.runPromise(Effect.sleep("20 millis"))
@@ -177,7 +158,6 @@ describe("chat lifecycle lines", () => {
     expect(stderr?.level).toBe("Warn")
     expect(stderr?.annotations.agent).toBe("opencode")
     expect(stderr?.annotations.session).toBe("sess-1")
-    // Spawn-time stderr stays DEBUG, so it is off at info.
     expect(findSaid(said, "lifecycle-agent: started")).toBeUndefined()
   }, 15_000)
 
@@ -210,7 +190,6 @@ describe("chat lifecycle lines", () => {
     const said = await withAgent("Info", async (agent, run, lines) => {
       await run(agent.boot)
       await run(Effect.result(agent.prompt(words("crash"))))
-      // Wait HERE, before stop() nulls the session the exit handler reads.
       const deadline = Date.now() + 2_000
       while (Date.now() < deadline && findSaid(lines, "chat agent exited") === undefined) {
         await Effect.runPromise(Effect.sleep("20 millis"))
@@ -227,11 +206,6 @@ describe("chat lifecycle lines", () => {
 })
 
 describe("a message that queues behind a running turn", () => {
-  // THE ROW rather than the LOG, which is where this claim went with the
-  // turns: the conversation (`@kolu/acp-harness`) is what sends a prompt
-  // alongside a running turn and what writes the line about it, and what this
-  // package is still the authority on is the half a PERSON reads — the row
-  // saying the agent has these words and has not started on them.
   test("marks the row the agent has not started on", async () => {
     const { layer, said } = collector()
     const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>
@@ -260,9 +234,6 @@ describe("a message that queues behind a running turn", () => {
       }),
     )
     let queued: ReadonlyArray<string> = []
-    /** Whether the SECOND of the two rows is the marked one — the claim the
-     *  texts cannot make here, since both prompts are the one word the fixture
-     *  holds open. */
     let behind = false
     try {
       await run(chat.start)
@@ -274,13 +245,6 @@ describe("a message that queues behind a running turn", () => {
 
       await run(chat.send("queue-wait", [], []))
       await run(chat.send("queue-wait", [], []))
-      // READ INSIDE THE WINDOW, which is what the mark is about: the fixture
-      // answers each prompt 250ms after it arrives, so this is while the first
-      // turn is still running and nothing has started on the second. A mark
-      // read after that turn ENDED would be a row going on claiming to be next
-      // — the half the conversation now takes off again
-      // (`@kolu/acp-harness`) — so a turn held open is the only way to see the
-      // half it puts on.
       await Effect.runPromise(Effect.sleep("100 millis"))
       const mine = [...chat.entries().values()].filter((entry) => entry.kind === "user")
       behind = mine.length === 2 && mine[1]?.queued === true
@@ -296,25 +260,7 @@ describe("a message that queues behind a running turn", () => {
     expect(behind).toBe(true)
   }, 15_000)
 
-  /**
-   * ... AND IT TAKES THE INTERRUPTION WITH IT, for the rest of this
-   * conversation's life.
-   *
-   * The pinned adapter leaves a steered turn unanswered forever in any session
-   * that has once held a queued prompt, so `chat.ts` withdraws the gesture the
-   * first time a message goes out alongside a running turn — and says out loud
-   * that the cost is not small.
-   *
-   * This is the TWIN of `deliveries.test.ts`'s "a doorbell does not spend the
-   * interruption a person has not spent", and it is here so that the assertion
-   * over there means something: a bit that stayed `true` is worth exactly as
-   * much as the proof that something can turn it `false`. A PERSON's mid-turn
-   * message can. A machine's must not.
-   */
   test("... and the interruption goes with it, which is what a doorbell must not do", async () => {
-    // The leg matters and nothing else about it does: `Talking.steers` is
-    // `advertises.steers && !queuedHere`, so an agent that offers no
-    // interruption cannot show one being withdrawn. Nothing here ever steers.
     const leg: Leg = {
       ...QUEUES,
       steering: {
@@ -340,7 +286,6 @@ describe("a message that queues behind a running turn", () => {
       onState: () => {},
       onTranscript: () => {},
     }))
-    /** The agent's own row on the cell, or `null` while the panel is asking. */
     const talking = () => {
       const who = chat.state().talking
       return who !== null && who.kind === "agent" ? who : null
@@ -355,8 +300,6 @@ describe("a message that queues behind a running turn", () => {
 
       await Effect.runPromise(chat.send("queue-wait", [], []))
       await Effect.runPromise(chat.send("hi", [], []))
-      // Gone, and gone for good: `queuedHere` is cleared only by the session
-      // ending, because it is the SESSION the adapter poisons.
       expect(talking()?.steers).toBe(false)
     } finally {
       await Effect.runPromise(chat.stop)
@@ -400,7 +343,7 @@ test("startup durations measure separate operations and include tool probes in o
   }))
   try {
     await run(agent.boot)
-    advance(10_000) // Idle time between opens must not enter the next duration.
+    advance(10_000)
     await run(agent.loadSession("stored-session"))
     const ready = said.filter(line => line.message.includes("chat agent ready"))
     expect(ready).toHaveLength(1)
@@ -441,15 +384,12 @@ test("actual MCP reports update the roster and warn once, fenced to this session
     while (!findSaid(said, "MCP server connection problem") && Date.now() < deadline) {
       await run(Effect.sleep("10 millis"))
     }
-    expect(reportsRead).toBe(2) // The other session never reaches the leg.
-    expect(rosters).toHaveLength(2) // Handed, then failed; duplicate report changes nothing.
+    expect(reportsRead).toBe(2)
+    expect(rosters).toHaveLength(2)
     expect(rosters[1]).toEqual([{ name: "optional", where: "/optional",
       standing: "unattached", said: "connection refused" }])
     const warnings = said.filter((line) => line.message.includes("MCP server connection problem"))
     expect(warnings).toHaveLength(1)
-    // THE AGENT'S OWN WORD, carried whole and unwrapped
-    // (`@kolu/acp/wire`'s `Server`). The sentence a person reads around it is
-    // the panel's (`browser/chat/Missing.tsx`'s `reasonOf`), not the client's.
     expect(warnings[0]).toMatchObject({ level: "Warn", annotations: {
       agent: "opencode", session: "sess-1", server: "optional",
       reason: "connection refused",
@@ -470,12 +410,6 @@ test("an absent catalogue leaves raw titles and files no reply on the row", asyn
     const frames = events.filter(event => event._tag === "tool")
     expect(frames.length).toBe(2)
     expect(frames[0]?.title).toBe("engine_tool")
-    // THE ROW is what an absent catalogue decides: no owner, and no reply
-    // filed under it. The leg is asked for the call's ANSWER whether olai
-    // advertises the tool or not — that is the event's own field now
-    // (`@kolu/acp-client`'s `tool` event's `answer`) — and what the leg says
-    // reaches that field and NOTHING THE PANEL DRAWS: a call no catalogue
-    // claims is not olai's to put a face on.
     expect(frames.every(frame => frame.row === undefined && frame.reply === undefined)).toBe(true)
     expect(frames.at(-1)?.answer).toEqual({ answered: "and filed nowhere" })
   } finally { await Effect.runPromise(agent.stop) }
@@ -503,29 +437,11 @@ test.each([false, true])("completion uses remembered identity with late catalogu
   } finally { await Effect.runPromise(agent.stop) }
 })
 
-/**
- * THE CALL AN AGENT'S OWN FORM TOOL MAKES, as the panel writes it down.
- *
- * The agent's built-in *ask the human* tool announces a tool call and then
- * elicits, so the conversation gets a card and the question it is about, one
- * above the other, saying the same thing twice — once in the adapter's own
- * spelling. Which tool that is, is the engine's own leg's answer
- * (`@kolu/acp`'s `Leg.asksThroughForm`); it reaches the frame through
- * `@kolu/acp-client` and the row through this panel's own reading, and the
- * browser draws the row nowhere (`browser/chat/lanes.ts`'s `asksInAForm`).
- *
- * It is a PANEL case because the carrying is the panel's: the flag lands on a
- * call olai does not own, which is the arm of the reading that mints nothing
- * else at all.
- */
 test.each([true, false])("a call that asks through a form says so on the row, asking=%s", async (asks) => {
   const row: Installed = {
     id: "opencode",
     name: "opencode",
     adapter: { command: process.execPath, args: [FIXTURE] },
-    // THE CALL ID IS THE NAME for this leg, which is the shape of the engines
-    // that put it there (`@kolu/acp`'s `Leg.toolNameOf`) and all this fixture's
-    // frame carries that a leg may read.
     leg: {
       ...QUEUES,
       toolNameOf: (id: string) => id,
@@ -545,8 +461,6 @@ test.each([true, false])("a call that asks through a form says so on the row, as
     [...chat.entries().values()].filter((entry) => entry.kind === "tool")
   try {
     await Effect.runPromise(chat.start)
-    // A SEND DOES NOT WAIT FOR THE TURN — the row arrives on a frame the agent
-    // sends afterwards, which is what every case here that reads one waits for.
     await Effect.runPromise(chat.send("display-tool", [], []))
     const deadline = Date.now() + 8_000
     while (Date.now() < deadline && calls().length === 0) {

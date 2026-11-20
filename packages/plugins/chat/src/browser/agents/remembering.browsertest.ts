@@ -1,16 +1,3 @@
-/**
- * WHAT A CHAT PAGE REMEMBERS, AND WHEN IT FORGETS (`./remembering.ts`).
- *
- * A REACTIVE claim, so it is asked under the browser condition: the rule is an
- * effect over the roster and over this reader's own closes, and a run where an
- * effect never fires would report a page remembering nothing having run none of
- * the code that remembers.
- *
- * The case that matters is the QUIET one — a page whose chat list does not move
- * again after the page is drawn. A page that remembered only on the NEXT frame
- * to arrive would show the box that starts a second chat when the tie goes, and
- * the way back to the conversation would be gone.
- */
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 
@@ -23,9 +10,6 @@ const OTHER = "/notes/yard.md"
 const WAS: WasTied = { agent: "claude", session: "sess-1" }
 const LATER: WasTied = { agent: "claude", session: "sess-2" }
 
-/** A page drawn on an item, with this reader's closes held the way the
- *  activation holds them. Driven from OUTSIDE the root: an effect does not run
- *  inside the body that created it. */
 const page = (start: WasTied | null, key = KEY) =>
   createRoot(dispose => {
     const closes = createCloses()
@@ -38,9 +22,7 @@ const page = (start: WasTied | null, key = KEY) =>
 test("a quiet page remembers the conversation it was drawn on", () => {
   const open = page(WAS)
   try {
-    // NOTHING HAS ARRIVED SINCE THE PAGE OPENED, which is the whole case.
     expect(open.was()).toEqual(WAS)
-    // ...and the tie going from outside leaves the way back in hand.
     open.setTied(null)
     expect(open.was()).toEqual(WAS)
   } finally { open.dispose() }
@@ -58,7 +40,6 @@ test("a close this reader made forgets what the page was reading", () => {
   try {
     open.closes.closed(KEY)
     expect(open.was()).toBeNull()
-    // The roster loses the row with the tie; nothing brings the memory back.
     open.setTied(null)
     expect(open.was()).toBeNull()
   } finally { open.dispose() }

@@ -1,28 +1,4 @@
 import { Index } from "solid-js"
-/**
- * SIGN IN, as a row in the panel.
- *
- * Drawn from `ChatState.signIn` rather than from the transcript, and the case
- * that decides it is the one with no transcript at all: an agent that refuses to
- * OPEN a conversation because nobody is signed in has no session, so there is
- * no conversation for a row to live in. `../agents/Fold.tsx` draws this above
- * whichever face the body picks, which is the only place true of both.
- *
- * THREE ARMS, and each is a different thing a person does:
- *
- *   - **choosing** — one button per method the agent advertised, taken from
- *     `talking.methods` (the handshake) rather than from this row, because the
- *     methods are a fact about the agent and this is a fact about a gesture.
- *   - **terminal** — a process this panel runs: what it has printed (with its
- *     URLs clickable), one line to type the code into, and a way out. Exit 0 is
- *     the end and the row goes by itself; anything else leaves the output on
- *     screen AS the failure.
- *   - **agent** — a page and a wait: the card, and nothing to type.
- *
- * NOTHING HERE IS OPTIMISTIC. A press calls a verb; the row is drawn from what
- * the server says, so two tabs showing one sign-in cannot disagree — which is
- * the whole reason the attempt is the agent's and not this component's.
- */
 
 import type { AuthMethod, SignIn as Attempt, SignInLink } from "@kolu/acp/wire"
 import { agentIn } from "olai-plugin-chat/wire"
@@ -35,14 +11,8 @@ import { LinkCard } from "./LinkCard.tsx"
 import { linkify } from "./links.ts"
 import type { Chat } from "./state.ts"
 
-/** The one arm drawn as a process's own words — named because the renderer
- *  below takes it as its argument, and `Extract` at the call site would be the
- *  same sentence spelled where nobody looks for it. */
 type Terminal = Extract<Attempt, { kind: "terminal" }>
 
-/** Whether the attempt in front of a reader is still going — asked of the arm,
- *  because the three of them say it in three ways. A chooser waits for nobody:
- *  it is a question, not an attempt. */
 const running = (attempt: Attempt): boolean => {
   switch (attempt.kind) {
     case "choosing":
@@ -54,8 +24,6 @@ const running = (attempt: Attempt): boolean => {
   }
 }
 
-/** What the attempt is doing, in its own words — the state a person stares at
- *  while they wait for something they cannot see. */
 const doing = (attempt: Attempt): string => {
   switch (attempt.kind) {
     case "choosing":
@@ -72,26 +40,16 @@ const doing = (attempt: Attempt): string => {
 export function SignIn(props: { readonly chat: Chat }) {
   const state = () => props.chat.state()
   const attempt = () => state().signIn
-  /** What the agent offers. The chooser draws this and nothing else reads it. */
   const methods = (): ReadonlyArray<AuthMethod> => agentIn(state())?.methods ?? []
   const [line, setLine] = createSignal("")
 
-  /** The agent's own name, for the chooser's question. */
   const agentName = () => agentIn(state())?.name ?? "this agent"
 
-  /** WHY AN ATTEMPT ENDED, when it did — the agent's own sentence about an exec
-   *  failure or a refusal. `null` for a chooser (which ended nothing) and for
-   *  an attempt that is still going. */
   const why = (held: Attempt): string | null => held.kind === "choosing" ? null : held.why
 
-  /** The method an attempt is running, or `null` — what "try again" is pressed
-   *  with, and the reason it is not offered on a chooser. */
   const methodOf = (held: Attempt): string | null =>
     held.kind === "choosing" ? null : held.method
 
-  /** WHAT TO CALL THE ROW: the agent's own name for the method when one is
-   *  running, and the agent's own name for ITSELF when the question is which
-   *  method to pick. */
   const title = (held: Attempt): string =>
     held.kind === "choosing" ? `Sign in to ${agentName()}` : held.label
 
@@ -102,10 +60,6 @@ export function SignIn(props: { readonly chat: Chat }) {
     props.chat.signInInput(typed)
   }
 
-  /** THE PROCESS'S OWN WORDS, streamed as they arrive. Quoted rather than
-   *  rendered, and its URLs clickable — the URL IS why most of this text is
-   *  here (a `claude auth login` prints the page and nothing else worth
-   *  reading). */
   const Output = (body: { readonly attempt: Terminal }): JSX.Element => (
     <>
       <pre
@@ -129,21 +83,11 @@ export function SignIn(props: { readonly chat: Chat }) {
           )}
         </Index>
       </pre>
-      {/* ONE LINE, and only while there is a process to write to: the code a
-          sign-in asks for is the whole of what a person types here, and a box
-          over a finished process would be one whose contents go nowhere. */}
       <Show when={body.attempt.running}>
         <input
           class="mt-2 w-full rounded-control border border-rule bg-paper px-2 py-1 font-mono text-label"
           data-testid={TESTID.chatSignInInput}
           placeholder="Paste the code here"
-          // Enter writes the line to the process that is waiting for it
-          // (`send`, below), so the return key says Send. A verification code
-          // is the identifier case par excellence — it is pasted or copied
-          // character for character, and a capital the keyboard added or a
-          // word autocorrect "fixed" is a code that will be refused by
-          // whatever is reading it. No `inputmode`: these codes are
-          // alphanumeric, so a numeric pad would be the wrong keyboard.
           enterkeyhint="send"
           autocorrect="off"
           autocapitalize="none"
@@ -160,8 +104,6 @@ export function SignIn(props: { readonly chat: Chat }) {
     </>
   )
 
-  /** THE PAGE an agent method sent somebody to, which is the whole of what
-   *  there is to do about that arm until the agent says it is done. */
   const Card = (body: { readonly link: SignInLink }): JSX.Element => (
     <div class="mt-2">
       <LinkCard message={body.link.message} url={body.link.url} host={body.link.host} done={body.link.done} />
@@ -170,16 +112,6 @@ export function SignIn(props: { readonly chat: Chat }) {
 
   const Body = (body: { readonly attempt: Attempt }) => <Switch>
     <Match when={body.attempt.kind === "choosing"}>
-      {/* WHO IS SIGNED IN NOW, above the buttons — the one fact a person
-          switching between two accounts needs before pressing one, and the
-          reason the chooser is reachable from the agent line's chip as well as
-          from `/login`. THE FACT ONLY, with no "choose another" clause: this
-          arm cannot tell a chooser somebody asked for from one an auth
-          refusal produced, and in the second case the agent may still report
-          an account whose token has expired — so the buttons are the
-          imperative and this is the state. Absent for an agent that reports
-          nothing, and for the known logged-out state: there is nobody to
-          name, and the buttons are the whole answer. */}
       <Show when={state().identity}>
         {identity => (
           <Show when={identity().kind !== "none"}>
@@ -190,9 +122,6 @@ export function SignIn(props: { readonly chat: Chat }) {
         )}
       </Show>
       <div class="mt-2 flex flex-wrap items-center gap-2">
-        {/* WHAT THE METHOD IS. The agent's own description was the `title`'s
-            alone; it is in the button's name now, after the method's visible
-            name, and under the pointer as this app's own tip. */}
         <For each={methods().filter((method) => method.runs !== "hand")}>{method =>
           <Tip text={method.description ?? ""} disabled={!method.description}><button type="button"
             class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent"
@@ -203,11 +132,6 @@ export function SignIn(props: { readonly chat: Chat }) {
           </button></Tip>
         }</For>
       </div>
-      {/* A METHOD NOBODY HERE CAN RUN: a label and the command line, never a
-          button. The agent's sign-in is an interactive wizard that refuses a
-          pipe, so a button would be one that could not finish what it looks
-          like it starts — and the command names an absolute path because the
-          engine may be one olai found on a search path of its own. */}
       <For each={methods().filter((method) => method.runs === "hand")}>{method => (
         <div class="mt-2" data-testid={TESTID.chatSignInByHand} data-method={method.id}>
           <p class="m-0 text-label text-muted">{method.name} — run this in a terminal on the server:</p>
@@ -217,12 +141,6 @@ export function SignIn(props: { readonly chat: Chat }) {
           >
             {method.command}
           </pre>
-          {/* ... AND THEN THE AGENT HAS TO BE A NEW PROCESS. An engine that
-              reads its credentials once, at start, does not see one connected
-              while it is running — not even in a new conversation. `Put to
-              sleep` is the one gesture that ends the process and keeps the
-              chat ({@link ../../scoped.ts}'s `sleep`), so it is the one named
-              here rather than a restart of olai. */}
           <p class="m-0 mt-1 text-label text-muted">
             Then <strong>Put to sleep</strong> and open the chat again: the agent reads its account when it
             starts, so the one already running will not see it.
@@ -258,18 +176,11 @@ export function SignIn(props: { readonly chat: Chat }) {
 
           <Body attempt={held()} />
 
-          {/* THE AGENT'S OWN SENTENCE about why an attempt ended — an exec
-              failure, or a refusal. On its own line, because it is the one
-              thing a person acts on next. */}
           <Show when={why(held())}>
             {(said) => <p class="m-0 mt-1 break-words text-label text-alarm">{said()}</p>}
           </Show>
 
           <div class="mt-2 flex items-center gap-2">
-            {/* TRY AGAIN is offered exactly where it is honest: an attempt that
-                has STOPPED, and stopped by failing rather than by somebody
-                pressing cancel (which takes the row away with it). A running
-                one has nothing to try. */}
             <Show when={running(held()) ? null : methodOf(held())}>
               {(method) => (
                 <button

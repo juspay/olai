@@ -42,34 +42,21 @@ When("I press the Needs you row {string}", async function(this: OlaiWorld, id: s
   await this.press(this.page.locator(`${needs} ${need}${attr("data-agent", this.nodeId(id))}`));
 });
 
-/** THE ROOT OF THE PAGE, by the conversation's id — the assertion the report
- *  needs, because "the row is selected in the file the reader was on" was the
- *  bug: a page rooted at that file can also mark a chat row. */
 Then("the conversation {string} is the root of the page", async function(this: OlaiWorld, id: string) {
   const node = this.nodeId(id);
   await this.waitUntil(async () => await this.page.locator(ZOOM_TITLE).getAttribute("data-node-id") === node, `the page to be rooted at ${node}`);
 });
 
-/** An unbound node's page draws the plain composer and no conversation at all:
- *  a palette row that opened someone else's chat would fail this. */
 Then("the node page offers no conversation", async function(this: OlaiWorld) {
   await this.page.locator(selector(PLUGIN_TESTID.agentPlainComposer)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await this.chat(CHAT_PANEL).count(), 0, "an unbound node's page drew a conversation");
 });
-
-// ── the `•••` on a Chats row ──────────────────────────────────────────────
-//
-// The verbs about a chat, where a person is LOOKING at what is awake. Same
-// objects the outline row's menu hangs (`browser/verbs.tsx`'s `chatVerbs`), so
-// a scenario that drives one of them is driving both catalogs.
 
 const menu = selector(PLUGIN_TESTID.chatRowMenu);
 const panel = selector(PLUGIN_TESTID.chatRowMenuPanel);
 const item = selector(PLUGIN_TESTID.chatRowMenuItem);
 const menuSaid = selector(PLUGIN_TESTID.chatRowMenuSaid);
 
-/** The row is hovered first, for the beside door's reason: the `•••` is revealed
- *  on hover, so the press lands on a control a person could have seen. */
 When("I open the Chats menu of {string}", async function (this: OlaiWorld, id: string) {
   await this.showSidebar();
   const seat = this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`);
@@ -82,16 +69,8 @@ When("I open the Chats menu of {string}", async function (this: OlaiWorld, id: s
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/**
- * THE SAME DOTS, ON A SCREEN WITH NO HOVER TO REVEAL THEM.
- *
- * The step above hovers the row first because that is how a pointer finds the
- * `•••`. A tablet cannot, and the column is drawn there in full: the button is
- * `hidden` below md for want of ROOM and opaque above it for want of a hover
- * (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). Opacity is what is asked,
- * because that is the contract — Playwright counts a transparent button as
- * visible, and so would a step that only waited for one.
- */
+/** Opacity is what is asked: Playwright counts a transparent button as
+ *  visible, and so would a step that only waited for one. */
 Then("the Chats ••• of {string} is drawn without a hover", async function (this: OlaiWorld, id: string) {
   await this.showSidebar();
   const dots = this.page.locator(`${menu}${attr("data-agent", this.nodeId(id))}`);
@@ -124,11 +103,6 @@ Then("the Chats menu offers {string}", async function (this: OlaiWorld, labels: 
   );
 });
 
-/** What a verb pressed from that menu had to say, ON THE ROW IT WAS PRESSED
- *  FROM. The line is drawn inside the row's own `<li>` (unlike the outline
- *  menu's, which is portalled and single), so the id in the step is a claim
- *  rather than decoration: scoped to the list item holding that agent's row,
- *  a sentence that landed on the neighbour fails here. */
 Then("the Chats menu of {string} says {string}", async function (this: OlaiWorld, id: string, text: string) {
   const seat = this.page.locator(`${recent} li`)
     .filter({ has: this.page.locator(`${row}${attr("data-agent", this.nodeId(id))}`) });

@@ -1,13 +1,3 @@
-/**
- * How the two halves of the `@` list share eight rows — `./naming.ts`'s budget,
- * which is the only thing in this feature that is neither matcher's.
- *
- * The vault below is deliberately lopsided: nine files whose names all start
- * with the query, and nine nodes whose titles do. Nothing else can produce the
- * reserve's failure — a list where one kind fills every row and the other is
- * not on screen at all.
- */
-
 import { expect, test } from "bun:test"
 
 import type { NodeHit } from "@olai/format"
@@ -16,10 +6,6 @@ import { offers } from "./naming.ts"
 
 const FILES = Array.from({ length: 9 }, (_, at) => `notes/note-${at}.md`)
 
-/** What the server would answer for a word — nine nodes whose titles start with
- *  it, situated under one parent, capped at the eight this list asks for
- *  (`../search/nodes.ts`). Handed in rather than matched here: which nodes a
- *  word means is the matcher's, and this file is about the BUDGET. */
 const hits = (query: string): ReadonlyArray<NodeHit> =>
   Array.from({ length: 9 }, (_, at) => ({
     at: { kind: "node" as const, id: `note-${at}` as never },
@@ -47,14 +33,9 @@ test("both kinds are offered, files first, four rows each", () => {
 })
 
 test("a kind with nothing to offer gives its rows away", () => {
-  // An id cannot hold a `/`, so `notes/` is a folder and nothing else — the
-  // files take the whole list. This is the case a cap computed per half before
-  // either had answered would have got wrong, since the file half stops walking
-  // once its share is full and could not have grown back.
   const folders = kinds("notes/")
   expect(folders.length).toBe(8)
   expect(folders.every((row) => row.startsWith("file:"))).toBe(true)
-  // ...and the other way round: nothing in the directory is called `about`.
   const titled = kinds("about")
   expect(titled.length).toBe(8)
   expect(titled.every((row) => row.startsWith("node:"))).toBe(true)
@@ -62,7 +43,6 @@ test("a kind with nothing to offer gives its rows away", () => {
 
 test("a kind that answers short is not padded, and the other one grows", () => {
   const list = kinds("note-1")
-  // One file (`notes/note-1.md`) and one node (`note about 1`, by its id).
   expect(list).toEqual(["file:notes/note-1.md", "node:note-1"])
 })
 
@@ -77,12 +57,7 @@ test("the node rows say what they write, then where they are", () => {
     section: "nodes",
     value: "note-3",
     label: "note about 3",
-    // The label is a title and renders as one — the outline it is written in
-    // rides the row so the menu can draw it (`CompletionMenu`'s `RowLabel`).
     from: "house.olai",
-    // The `·` is the PLACE's and nothing else's: the id and the place are two
-    // facts, and one glyph doing both jobs on one line leaves a reader working
-    // out which dots are boundaries and which are ancestry.
     hint: "@note-3",
     place: { file: "house.olai", crumbs: [{ title: "notes" }] },
   })
@@ -99,9 +74,6 @@ test("the file rows are what they always were: the name, then its folder", () =>
 })
 
 test("the file half answers before the node half has arrived", () => {
-  // The nodes are a debounce and a round trip away since `search-server-side`,
-  // and the files are here: an `@` typed into a panel that is already open
-  // offers what this tab can answer at once rather than waiting for the wire.
   expect(offers(FILES, [], "note-2").map((offer) => offer.value))
     .toEqual(["notes/note-2.md"])
 })

@@ -1,4 +1,3 @@
-/** The grammar of a chat's own address, and the name it is labelled by. */
 import { describe, expect, test } from "bun:test"
 import type { AgentItem } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
@@ -14,8 +13,6 @@ describe("what a chat address names", () => {
     ["a note at the root", "/chat/finishes.md", { kind: "note", path: "finishes.md" }],
     ["a node", "/chat/order", { kind: "node", id: "order" }],
     ["a node whose id has the marks ids are written with", "/chat/c-plan_2", { kind: "node", id: "c-plan_2" }],
-    // A NON-NOTE PATH IS NOT THIS PAGE: nothing but a node and a note has a
-    // chat, so the address falls through to whatever else claims it.
     ["a file olai only shows", "/chat/data/costs.csv", null],
     ["a picture", "/chat/photos/kitchen.png", null],
     ["an outline", "/chat/house.olai", null],
@@ -29,9 +26,6 @@ describe("what a chat address names", () => {
     test(said, () => expect(itemAt(TEST_CLAIMS, at)).toEqual(item))
   }
 
-  // BEFORE THE CLAIM TABLE ARRIVES a path is admitted, so a reloaded tab draws
-  // its own address rather than losing it; a node is a node without the table,
-  // because nothing but its shape says so.
   test("with no claim table yet a path is a note and a node is still a node", () => {
     expect(itemAt(undefined, "/chat/notes/plan.md")).toEqual({ kind: "note", path: "notes/plan.md" })
     expect(itemAt(undefined, "/chat/data/costs.csv")).toEqual({ kind: "note", path: "data/costs.csv" })
@@ -82,8 +76,6 @@ describe("what a chat page is called", () => {
     expect(nameOfItem({ kind: "note", path: "notes/plan.md" }, undefined, titled)).toBe("plan.md")
   })
 
-  // THE COLUMN SAYS IT IS THE CHAT, because a note and its chat beside each
-  // other are otherwise two tabs with one word on them.
   test("the label is the name and the word chat", () => {
     expect(labelOfChat({ kind: "note", path: "notes/plan.md" }, TEST_CLAIMS, titled)).toBe("plan · chat")
     expect(labelOfChat({ kind: "node", id: "install" }, TEST_CLAIMS, titled)).toBe("install the cabinets · chat")

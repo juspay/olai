@@ -1,22 +1,3 @@
-/**
- * WHAT OLAI OVERHEARD A CONVERSATION DO, across a restart.
- *
- * `scopes.test.ts`'s shape one record over, and now for its reasons all the way
- * down: it comes back, it belongs to ONE directory, a file that will not read is
- * an empty mirror rather than a throw, and it is CAPPED with the front of the
- * array evicted — because nobody hand-writes this one. The binding it used to
- * hold beside these two facts is a property in the vault since the human's
- * ruling of 2026-09-02 (`@olai/format`'s `agents.ts`), which is what left this
- * record keyed on the conversation and one shape simpler.
- *
- * It is still read LENIENTLY, field by field: an older olai's file is read by a
- * newer one, and a row that will not parse is a session taught once more rather
- * than a serve that will not start.
- *
- * `XDG_STATE_HOME` is pointed at a temp directory per test, which is also the
- * assertion that the variable is honoured at all.
- */
-
 import { beforeEach, describe, expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 
@@ -41,12 +22,9 @@ const ELSEWHERE = "/tmp/olai-heard-elsewhere"
 
 const IN = { agent: "claude", session: "sess-1" }
 
-/** One instant, spelled once: what `said` and `seen` are compared as. */
 const AT = "2026-09-01T16:41:00Z"
-/** ... and one the next turn lands on, which is what makes a row unread again. */
 const LATER = "2026-09-01T16:44:00Z"
 
-/** A section already handed through the door, in an older shape. */
 const already = (cwd: string, heard: unknown): void => {
   local.write(cwd, "heard", { heard })
 }
@@ -58,7 +36,6 @@ describe("what a record says", () => {
     const heard = await run(forDirectory(HERE))
     expect(heard.rows()).toEqual([])
     expect(heard.at(IN)).toBeUndefined()
-    // ... and nothing was written to find that out.
     expect(files()).toEqual([])
   })
 
@@ -93,17 +70,12 @@ describe("what it does with a file it cannot make sense of", () => {
   })
 
   test("a mark this olai no longer keeps is read past rather than refused", async () => {
-    // An older machine's file carries `assigned` — the mark a chat filed onto
-    // a node used to leave. Nothing asks for it now, so the row comes back
-    // whole and without it, rather than the file reading as unreadable.
     already(HERE, [{ agent: "claude", session: "sess-1", assigned: true, taught: true }])
     const row = (await run(forDirectory(HERE))).at(IN)
     expect(row).toEqual({ ...IN, taught: true })
   })
 
   test("`taken` is only a positive whole number; anything else is a session that has taken nothing", async () => {
-    // The safe direction for the count: a reminder a little late, never a
-    // count nobody made up.
     for (const taken of ["3", -1, 0, 1.5, null]) {
       already(HERE, [{ agent: "claude", session: "sess-1", taught: true, taken }])
       const row = (await run(forDirectory(HERE))).at(IN)
@@ -125,9 +97,6 @@ describe("what it does with a file it cannot make sense of", () => {
   })
 
   test("a `seen` that will not read is a conversation nobody has acknowledged", async () => {
-    // Which is the safe direction: the other reading — an instant nothing can
-    // parse taken as an acknowledgement — would mark a line read that nobody
-    // has looked at.
     already(HERE, [{ agent: "claude", session: "sess-1", said: { text: "hello", at: AT }, seen: 1750000000 }])
     const row = (await run(forDirectory(HERE))).at(IN)
     expect(row?.said?.at).toBe(AT)
@@ -135,9 +104,6 @@ describe("what it does with a file it cannot make sense of", () => {
   })
 
   test("an older olai's file has no `seen` at all, and every line in it is unread", async () => {
-    // The field arrived later than `said`, so a row written before it existed
-    // has a line and no acknowledgement — which is exactly what a person
-    // coming back to a conversation they have not opened since would see.
     already(HERE, [{ agent: "claude", session: "sess-1", said: { text: "still working", at: AT } }])
     expect((await run(forDirectory(HERE))).at(IN)?.seen).toBeUndefined()
   })
@@ -148,8 +114,6 @@ describe("what olai writes back", () => {
     const heard = await run(forDirectory(HERE))
     await run(heard.took(IN, true))
     expect(heard.at(IN)?.taught).toBe(true)
-    // A SECOND store over the same directory: the point is the disk, since the
-    // next boot is a different process and must not teach the session again.
     expect((await run(forDirectory(HERE))).at(IN)?.taught).toBe(true)
   })
 
@@ -162,9 +126,6 @@ describe("what olai writes back", () => {
   })
 
   test("the count survives a restart and goes on from where it was — neither reset nor counted twice", async () => {
-    // What paces the reminder: a serve that came back counting from zero
-    // would push every reminder out by however much the conversation had
-    // already said, and one that re-counted would bring it early.
     const heard = await run(forDirectory(HERE))
     await run(heard.took(IN, true))
     await run(heard.took(IN, false))
@@ -194,8 +155,6 @@ describe("what olai writes back", () => {
   })
 
   test("a session olai has overheard nothing from is a row this makes", async () => {
-    // The shape change the ruling brought: there is no pointer here to find
-    // first, so the first thing overheard is what brings a row into being.
     const heard = await run(forDirectory(HERE))
     await run(heard.said(IN, { text: "on it", at: "2026-09-02T09:00:00Z" }))
     expect(heard.rows()).toEqual([{ ...IN, said: { text: "on it", at: "2026-09-02T09:00:00Z" } }])
@@ -215,26 +174,17 @@ describe("what olai writes back", () => {
   })
 
   test("a fresh start that kept the engine away writes the successor pair down", async () => {
-    // THE cross-engine arm of the write: the node was claude, the successor
-    // runs codex, and the row left behind names the CODEC pair — because the
-    // chain is walked across engines, and an id with no engine could not say
-    // whose.
     const heard = await run(forDirectory(HERE))
     await run(heard.supersede(IN, { agent: "codex", session: "codex-fresh" }))
     expect((await run(forDirectory(HERE))).at(IN)?.superseded).toEqual({ agent: "codex", session: "codex-fresh" })
   })
 
   test("an older olai's bare-id link is read as this row's own engine", async () => {
-    // The LEGACY arm: a file written before the successor carried its engine
-    // spells the link as a bare id, which can only be a same-engine link — the
-    // engine was pinned to the row in the old shape.
     already(HERE, [{ agent: "claude", session: "sess-1", superseded: "sess-2" }])
     expect((await run(forDirectory(HERE))).at(IN)?.superseded).toEqual({ agent: "claude", session: "sess-2" })
   })
 
   test("the marks sit beside each other on one row rather than replacing it", async () => {
-    // A chat taught and later given a fresh session is one conversation with
-    // two things overheard about it.
     const heard = await run(forDirectory(HERE))
     await run(heard.took(IN, true))
     await run(heard.supersede(IN, { agent: "claude", session: "sess-2" }))
@@ -250,8 +200,6 @@ describe("what olai writes back", () => {
     const heard = await run(forDirectory(HERE))
     await run(heard.said(IN, { text: "on it", at: AT }))
     await run(heard.seen(IN, AT))
-    // ... and the pair is what the whole word is: the same instant said and
-    // seen, which is the comparison `unreadOf` makes (`./attention.ts`).
     const row = (await run(forDirectory(HERE))).at(IN)
     expect(row?.seen).toBe(AT)
     expect(row?.said?.at).toBe(AT)
@@ -259,8 +207,6 @@ describe("what olai writes back", () => {
   })
 
   test("acknowledging one line twice writes nothing at all", async () => {
-    // A conversation kept on screen is acknowledged on every roster frame, so
-    // the no-op is what keeps a person's attention off the disk.
     const heard = await run(forDirectory(HERE))
     await run(heard.said(IN, { text: "on it", at: AT }))
     await run(heard.seen(IN, AT))
@@ -270,8 +216,6 @@ describe("what olai writes back", () => {
   })
 
   test("a line said AFTER the acknowledgement is unread again, which is the point", async () => {
-    // The comparison is on the two instants and not on a flag, so a turn that
-    // lands later is unread without anything having to clear a mark.
     const heard = await run(forDirectory(HERE))
     await run(heard.said(IN, { text: "on it", at: AT }))
     await run(heard.seen(IN, AT))
@@ -281,10 +225,6 @@ describe("what olai writes back", () => {
   })
 
   test("an acknowledgement that arrives LATE does not move the mark backwards", async () => {
-    // Two tabs of one olai a frame apart: the second one is still holding the
-    // roster from before the agent's newest line, so what it hands back is the
-    // instant BEFORE it. Taking that would un-read a line somebody has already
-    // read — the one direction this may never move.
     const heard = await run(forDirectory(HERE))
     await run(heard.said(IN, { text: "on it", at: AT }))
     await run(heard.said(IN, { text: "and done", at: LATER }))
@@ -296,9 +236,6 @@ describe("what olai writes back", () => {
   })
 
   test("acknowledging a conversation olai has heard nothing from makes the row rather than refusing", async () => {
-    // The row is the pair plus whatever is known about it, and a `seen` write
-    // is one of the writers that can bring it into being — the same shape the
-    // first `said` has.
     const heard = await run(forDirectory(HERE))
     await run(heard.seen(IN, AT))
     expect(heard.rows()).toEqual([{ ...IN, seen: AT }])
@@ -340,9 +277,6 @@ describe("what olai writes back", () => {
   })
 
   test("the same WORDS with a fresher instant write nothing — a resume must not age them forward", async () => {
-    // A replay re-mints the rows it replays, so a resumed conversation offers
-    // its old prose with a new instant beside it. Writing on that would move
-    // the door's *7m ago* forward over words that are days old.
     const heard = await run(forDirectory(HERE))
     await run(heard.said(IN, { text: "still working", at: "2026-09-01T16:41:00Z" }))
     const after = written(HERE)
@@ -362,7 +296,6 @@ describe("the cap, which this record gained when olai became its only writer", (
     expect(kept.length).toBe(ROWS)
     expect(kept.some((row) => row.session === "sess-0")).toBe(false)
     expect(kept.some((row) => row.session === `sess-${ROWS}`)).toBe(true)
-    // ... and the disk agrees, which is the half a restart reads.
     expect((await run(forDirectory(HERE))).rows().length).toBe(ROWS)
   })
 
@@ -372,8 +305,6 @@ describe("the cap, which this record gained when olai became its only writer", (
     for (let n = 0; n < ROWS - 1; n++) {
       await run(heard.took({ agent: "claude", session: `sess-other-${n}` }, true))
     }
-    // The row that would fall out next, touched — so the row after it goes
-    // instead and this one survives one more arrival.
     await run(heard.said(IN, { text: "still here", at: "2026-09-02T09:00:00Z" }))
     await run(heard.took({ agent: "claude", session: "sess-newest" }, true))
     expect(heard.at(IN)?.said?.text).toBe("still here")

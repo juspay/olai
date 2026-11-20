@@ -1,10 +1,3 @@
-/** THE `+` ON THE CHATS HEADING — the sidebar's way to a new conversation.
- *  With an engine that can start, it opens the palette already at New chat's
- *  where level (`./new-chat-level.ts`) through navigation's declared palette
- *  service; without one, it opens the engine menu (`./EngineMenu.tsx`) under
- *  itself — one quiet line and the plugins panel's door. A real button: Tab
- *  reaches it, Enter and Space press it, and the menu hands focus back to it
- *  on Escape. */
 import { LAYER } from "@olai/web/client/layer.ts"
 import { TESTID } from "../../testids.ts"
 import { createSignal, lazy, Show } from "solid-js"
@@ -21,8 +14,6 @@ export function NewChat() {
   const agents = useAgents()
   const creation = agentReadings()?.newChat
   const [menu, setMenu] = createSignal<HTMLElement | null>(null)
-  // A press on the `+` while its menu is up is the menu's outside-press: it
-  // has shut by the time the click lands, and must not open again.
   let shutting = false
   return <>
     <Tip text="New chat">
@@ -31,10 +22,6 @@ export function NewChat() {
       aria-expanded={menu() !== null} aria-busy={creation?.pending()}
       onPointerDown={() => { shutting = menu() !== null }}
       onClick={event => {
-        // Deliberately LET the click bubble: the sidebar body puts the phone
-        // drawer away, which is what a new chat wants — the palette opens over
-        // the page the drawer was covering. The engine menu is portalled and
-        // anchored to this button's last box, so it stays.
         if (shutting) { shutting = false; setMenu(null); return }
         if (agents.engines().length === 0) { setMenu(event.currentTarget); return }
         const control = palette()
@@ -52,7 +39,6 @@ export function NewChat() {
   </>
 }
 
-/** What the `+` could not do, said under the heading it sits on. */
 export function NewChatSaid() {
   const creation = agentReadings()?.newChat
   return <Show when={creation?.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="px-2.5 text-label" />}</Show>

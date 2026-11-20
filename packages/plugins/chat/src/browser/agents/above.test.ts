@@ -1,6 +1,3 @@
-/** The join's one decision: the CLIENTS nearest bound ancestor, not the
- *  outermost. `./above.ts` walks the page readings for the trail; this file
- *  hands it trails and holds the choice down. */
 import { expect, test } from "bun:test"
 import type { Roster } from "./answered.tsx"
 import type { Row } from "./roster.ts"
@@ -28,10 +25,7 @@ const roster = (known: ReadonlyArray<string>): Roster => {
 }
 
 test("the nearest bound ancestor wins, however many are bound", () => {
-  // kitchen › install › hinges: the crumb order is outermost first, so the
-  // answer is the LAST one the roster knows.
   expect(agentAbove(["kitchen", "install"], roster(["kitchen", "install"]))?.id).toBe("install")
-  // ...and an ancestor nothing knows is skipped rather than stopping the walk.
   expect(agentAbove(["kitchen", "install"], roster(["kitchen"]))?.id).toBe("kitchen")
 })
 

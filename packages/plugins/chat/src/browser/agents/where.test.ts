@@ -13,9 +13,6 @@ test("Here leads, then Recent; the searched sections only once something is type
   expect(rows.map(row => [row.section, row.item.key])).toEqual([["Here", "here"], ["Recent", "agent"]])
 })
 
-// NOTHING IS OFFERED BY DEFAULT: a chat is about a thing the person picked,
-// and with nothing typed, nowhere to stand and no chats behind them there is
-// no row to press.
 test("with nowhere to stand and nothing typed there is no row at all", () => {
   expect(itemRows({ ...base, items: [node("home")] })).toEqual([])
 })

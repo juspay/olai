@@ -1,20 +1,7 @@
-/**
- * WHAT A QUOTED SENTENCE HAS IN IT — the split, without a browser.
- *
- * The claim under test is a promise about somebody else's words: exactly the
- * runs between backticks become chips, everything else is the author's sentence
- * verbatim, and a body that never meant markup is never read as any. Nothing
- * here asserts a tag or a class — {@link ./quoted.ts} answers in runs, and what
- * a run is DRAWN as is {@link ./Quoted.tsx}'s.
- */
-
 import { describe, expect, test } from "bun:test"
 
 import { quotedRuns } from "./quoted.ts"
 
-/** The whole sentence back, as the reader would read it off the page with the
- *  chips' own backticks gone. What every case below is measured against, so a
- *  split that lost or invented a character is caught wherever it happens. */
 const readBack = (text: string): string =>
   quotedRuns(text).map((run) => run.text).join("")
 
@@ -82,8 +69,6 @@ describe("what is left alone", () => {
   })
 
   test("... including one that would otherwise reach into the next paragraph", () => {
-    // The refusal that matters most: a stray tick must not swallow the three
-    // lines under it and draw somebody's whole account as a chip.
     const said = "a stray ` here\n\nand the account under it\n"
     expect(quotedRuns(said)).toEqual([{ code: false, text: said }])
   })

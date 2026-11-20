@@ -1,8 +1,5 @@
 import { createRoot, onCleanup } from "solid-js"
 
-/** Two page slots lease one owner. A pane identity and node together distinguish
- * a page from another pane drawing that same node. The activation is the final
- * backstop; ordinary navigation releases the last lease first. */
 export const createPageOwners = <A>() => {
   const pages = new Map<object, Map<string, { value: A; stop: () => void; leases: number }>>()
   onCleanup(() => {

@@ -1,25 +1,5 @@
 import { Grip, textCarry } from "./Grip.tsx"
 import { servedDirectory } from "../vault.ts"
-/**
- * An outline the agent rewrote with its own tools — drawn as nodes, never as
- * lines.
- *
- * The sibling of {@link ./Diff.tsx} and the reason it has one: a `.olai` is one
- * line per node, so a text diff of it is a single enormous line with everything
- * on it changing at once. That is the Commit panel's oldest rule, and until this
- * drew, it held for olai's own writes and not for a file — an agent's `Edit`
- * aimed at an outline arrived as an ordinary diff block and was rendered as
- * ordinary lines.
- *
- * The rows are the Commit panel's rows: the same glyph, the same phrase, from
- * the same table ({@link ../changes.ts}). A person watching an agent edit an
- * outline by hand and a person reading what is waiting to be committed are
- * looking at one event, and it says the same thing in both places.
- *
- * The trim is the same idiom as the text diff's and shares its fold key, so a
- * reader who opened one file's change opened that file's change whichever shape
- * it took.
- */
 
 import type { FileDiff } from "@kolu/acp/wire"
 import { createMemo, For, Show } from "solid-js"
@@ -32,17 +12,9 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 import { useConversationUI } from "./ui.tsx"
 import { createOutlineDiff } from "./outline.ts"
 
-/** How many node rows a trimmed outline change shows. The text diff's number,
- *  because it is the same promise about the same panel. */
 const TRIMMED = 6
 
 export function OutlineDiff(props: {
-  /** This block of change, by the name its call gave it ({@link
-   *  ./folds.ts}'s `diffKey`) — what its expansion is remembered under, and
-   *  the same string the list drawing it is keyed by. Handed in rather than
-   *  built here, for {@link ./Diff.tsx}'s reason: one call reports several
-   *  blocks about one file, so the name needs the block's place in that
-   *  report, which only the list has. */
   readonly id: string
   readonly diff: FileDiff
 }) {
@@ -52,7 +24,6 @@ export function OutlineDiff(props: {
     const answer = read()
     return answer?._tag === "Changes" ? answer.changes : []
   })
-  /** Which side would not parse, or `null` when both did. */
   const unreadable = createMemo(() => {
     const answer = read()
     return answer?._tag === "Unreadable" ? answer.side : null
@@ -74,8 +45,6 @@ export function OutlineDiff(props: {
     >
       <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
         <Grip has={changes().length > 0} carry={carry} />
-        {/* The whole path under the pointer; the line truncates it and the
-            span's own text is already the whole of it. */}
         <Tip text={props.diff.path}>
           <span class="ml-4 min-w-0 flex-1 truncate text-muted">
             {props.diff.path}
@@ -94,9 +63,6 @@ export function OutlineDiff(props: {
       <Show
         when={unreadable() === null}
         fallback={
-          /* Never a text diff, not even when the nodes cannot be read: what a
-             reader is owed is which side stopped parsing, which is exactly the
-             thing an agent hand-editing an outline does wrong. */
           <p class="px-2 py-1 text-label text-alarm" data-testid={TESTID.chatOutlineUnreadable}>
             {unreadable() === "after"
               ? "Can't show changes: the new outline doesn't parse"
@@ -125,21 +91,10 @@ export function OutlineDiff(props: {
                     <span class="w-3 shrink-0 text-muted" aria-hidden="true">
                       {GLYPH[change.sort]}
                     </span>
-                    {/* A TITLE, drawn the way a title is drawn anywhere: its
-                        `#tags` are pills in their own hues through the same
-                        pipeline the tree's rows read (`../markdown/title.ts`),
-                        not two characters of grey. The pipeline, not
-                        `../NodeTitle.tsx`: this panel is no page, and a title
-                        that names an address is spelled as written here, the
-                        same contract a search row keeps (`../search/row.ts`). */}
                     <span class="min-w-0 truncate text-ink">
                       <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                     </span>
                     <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
-                    {/* WHICH FIELDS MOVED — the one fact `⊕ Pick the hinges
-                        changed` does not carry, and the `title`'s alone until
-                        now. Inside the row, at its end, because a `<span>`
-                        between two `<li>`s is not a thing a list may hold. */}
                     <span class="sr-only">{change.fields.join(", ")}</span>
                   </li>
                 </Tip>

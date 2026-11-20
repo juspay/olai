@@ -35,8 +35,6 @@ Feature: Agent session controls and progress
 
   Scenario: Agent notifications refresh session controls
     When I ask the agent "settings update"
-    # Settings close while a turn is busy. Wait for this turn's response,
-    # rather than opening against the idle frame that preceded its acceptance.
     Then the agent's answer mentions "reasoning=high, mode=plan, fast=true"
     When I open the session settings
     Then session setting "Reasoning" is "high"

@@ -1,5 +1,3 @@
-/** Which pane a conversation is already drawn in — the whole of the
- *  drawn-once rule (`./beside.ts`). */
 import { describe, expect, test } from "bun:test"
 import type { AgentItem } from "@olai/format"
 import { atFile, zoomNode, type Route } from "olai-plugin-navigation/routes"
@@ -26,24 +24,15 @@ describe("the pane a chat is drawn in", () => {
     expect(besideIn([zoomNode("install"), atFile("house.olai")], "install", 1)).toBeNull()
   })
 
-  // THE PANE THAT DRAWS IS NOT "BESIDE" ITSELF: the leftmost pane holding the
-  // chat page draws the conversation, and a page that counted itself would
-  // draw a sentence about its own column instead.
   test("the pane that draws is never its own answer", () => {
     expect(besideIn([chat(NOTE)], "/notes/plan.md", 0)).toBeNull()
   })
 
-  // TWO PANES ON ONE CHAT settle on the SAME pane: pane 0 draws, pane 1 says
-  // so. Each answering "the other one" is how both panes end up drawing a
-  // sentence and the conversation nowhere.
   test("with two panes on one chat the leftmost draws and the other points at it", () => {
     expect(besideIn([chat(NOTE), chat(NOTE)], "/notes/plan.md", 0)).toBeNull()
     expect(besideIn([chat(NOTE), chat(NOTE)], "/notes/plan.md", 1)).toBe(0)
   })
 
-  // WHAT A PRESS ASKS — where the chat already is, including the pane
-  // pressing, so *Open beside* from the chat page itself goes nowhere new
-  // rather than opening a second column with the same route.
   test("a press is told the pane holding it, its own included", () => {
     expect(drawnIn([chat(NOTE)], "/notes/plan.md")).toBe(0)
     expect(drawnIn([chat(NOTE), chat(NOTE)], "/notes/plan.md")).toBe(0)

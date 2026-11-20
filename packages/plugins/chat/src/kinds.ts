@@ -1,130 +1,20 @@
-/**
- * WHAT CHAT TEACHES THE VAULT'S VOCABULARY — one word, and what a value of it
- * has to be.
- *
- * An `agent-session` value is what makes a node a NODE AGENT: it names the
- * ENGINE that node's agent runs on and, after a colon, WHICH conversation it is
- * having. `claude` is a node agent with no session yet; `claude:0f3c8d21-…` is
- * one that is bound. The presence of a value is the binding, the subtree is
- * that agent's memory, and every reading of both is `./server/agents.ts`'s.
- *
- * ## Why this is a KIND now, and it was a bare key
- *
- * It was `AGENT_PROP` — the string `"agent-session"` — spelled once in
- * `@olai/format` and read by four packages, because when chat was core there was
- * nobody else it could belong to. A key's SPELLING is not a licence, and this
- * key carries the sharpest one in the tree: a value here decides which node a
- * session is seated on — its home, its history, its doorbells — and which
- * conversation it is having. A vault that happens to call a column
- * `agent-session` and means something else by it was, until this lane, a vault
- * whose columns olai read as bindings.
- *
- * ## TWO LAYERS, AND THE VAULT IS THE OUTER ONE
- *
- * The composition is `@olai/plugin-api`'s `kindWordOf` — this plugin's own name,
- * then the bare word — so what a declaration writes is {@link SESSION_TYPE},
- * `chat-agent-session`. A vault that has said nothing about that key gets the
- * claim; a vault that declares it something else has said what it means, and
- * nothing here ever writes anybody's vault.
- *
- * THE BARE WORD CARRIES A HYPHEN OF ITS OWN, which is the one thing about this
- * kind that is not like the tenants': `kindWordOf` splits at the FIRST hyphen,
- * so `chat-agent-session` decomposes to `chat` and `agent-session` and the
- * composition stays injective. `@olai/plugin-api`'s `contract.ts` argues that
- * where the rule is, and its `kinds.test.ts` holds this file's second spelling
- * equal to the registry's.
- *
- * ## A VAULT MAY KEEP THIS KIND ON A COLUMN OF ITS OWN NAME
- *
- * One row in `_olai/Properties.olai` puts the kind on any key a board likes:
- *
- *     {"title":"agent-session","custom":{"type":"chat-agent-session"}}
- *
- * olai never writes that row for anybody — a tool that edited somebody's
- * declarations file to keep its own feature working would be the vault's
- * judgement being overruled by a release. The reading takes whatever the
- * declarations say ({@link ./server/agents.ts}'s `keys`), and
- * `website/docs/plugins/chat.md` carries it in words.
- *
- * THIS REPOSITORY HAS NO BOARD OF ITS OWN — the orchestrator's vault lives
- * elsewhere — so what exercises that is the two vaults the repo DOES carry, and
- * they are fixtures: `.saatchi/fixtures/_olai/Properties.olai`, whose lanes are
- * photographed, and `packages/tests/fixtures/lanes/`, which the suite serves.
- * Both declare the kind on the bare key `agent-session`, which makes them the
- * standing rehearsal for a board that keeps its bindings under a word of its
- * own.
- *
- * ## The shape is the FORMAT'S reading, read backwards
- *
- * `sessionIn` is total over any string and answers `null` for a value that
- * names no engine — an empty value, or one whose engine half is empty
- * (`:sess-1`). That IS the admission rule, so it is spent here rather than
- * spelled a second time: a value this kind admitted and that reading rejected
- * would be two answers about one string.
- */
-
 import { canonicalDate, OPENS_ALONE, OPENS_BESIDE, sessionIn } from "@olai/format"
 
-/** Internal words; other plugins ask chat.seating for the reading. */
 export { OPENS_KIND, OPENS_TYPE, SESSION_KIND, SESSION_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE } from "./binding.ts"
 import { OPENS_KIND, OPENS_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 
-/**
- * The contribution, as `@olai/plugin-api`'s registry reads it — spent by the
- * validator, by the write planner, and by the fold that decides what a key is
- * declared as.
- *
- * `claims` IS NOT SPELT HERE and cannot be: `kinds.register` sets it equal to
- * the word it just composed out of the registering fiber's own name
- * (`@olai/plugin-api`'s `services.ts`), which is what makes a built-in
- * declaration safe — enabling chat can only ever declare `chat-agent-session`,
- * so a column somebody else calls `agent-session` is untouchable by a flag on
- * the machine. The same holds twice over for the memo below.
- *
- * `SESSION_KIND` — the BARE word, the second half of the composition — is
- * emphatically not a second claim: a bare `agent-session` is a word any vault
- * might be using for something of its own, so olai declares it for nobody. A
- * board that wants its bindings under that column declares it there itself.
- */
 const SESSION = {
   kind: SESSION_KIND,
   takes: `\`${SESSION_TYPE}\` (an engine, optionally \`:\` and a session id)`,
   admits: (value: string) => sessionIn(value) !== null,
 } as const
 
-/**
- * WHEN A NODE AGENT LAST TIDIED ITS SUBTREE, as a kind — the second word this
- * plugin contributes, and a DATE: the value is the instant the pass finished,
- * written the way every other instant olai stores is written
- * (`@olai/format`'s `stampOf`).
- *
- * IT REUSES THE FORMAT'S OWN DATE RULE rather than spelling a second one
- * ({@link @olai/format}'s `canonicalDate`, which is the one stored spelling and
- * the same reading the built-in `date` kind is held to). Two readings of "is
- * this a date" is the bug family `@olai/format`'s `meaning.ts` exists to close,
- * and a memo every serve reads is the last place to open it again.
- *
- * WHY A KIND RATHER THAN A PINNED KEY is `./binding.ts`'s argument for the
- * binding, one field over: a key's spelling is not a licence, so a vault that
- * keeps its memos under a column of its own name declares that column this kind
- * and olai reads and writes there.
- */
 const SLEPT = {
   kind: SLEPT_KIND,
   takes: `\`${SLEPT_TYPE}\` (an ISO day or instant)`,
   admits: (value: string) => canonicalDate(value.trim(), null) === value.trim(),
 } as const
 
-/**
- * WHETHER THIS NODE AGENT IS TIDIED ON ITS OWN CLOCK, as a kind — the third
- * word this plugin contributes, and the only one a PERSON writes.
- *
- * TWO WORDS RATHER THAN A BOOLEAN, because this is a declaration a vault can
- * spell by hand and a property drawer shows: `on` and `off` read as what they
- * mean, and the key being ABSENT is the same as `off` ({@link ./server/agents.ts}
- * asks it). The admission is spent here rather than at each reader, so a value
- * this kind took and the reading rejected would be two answers about one string.
- */
 const SLEEPING = {
   kind: SLEEPING_KIND,
   takes: `\`${SLEEPING_TYPE}\` (\`on\` or \`off\`)`,
@@ -134,16 +24,6 @@ const SLEEPING = {
   },
 } as const
 
-/**
- * WHERE A NOTE'S CHAT OPENS, as a kind — the fourth word this plugin
- * contributes, and the second one a PERSON writes.
- *
- * A NOTE'S FRONT MATTER IS WHERE IT LIVES, which is the one thing that makes it
- * unlike the three above: the tie on a note is two keys in its YAML block, and
- * this is the other one. {@link SLEEPING}'s two-word argument holds word for
- * word — a value somebody types by hand reads as what it means, and the key
- * being ABSENT is the same answer as `alone` (`./server/agents.ts` asks it).
- */
 const OPENS = {
   kind: OPENS_KIND,
   takes: `\`${OPENS_TYPE}\` (\`${OPENS_ALONE}\` or \`${OPENS_BESIDE}\`)`,
@@ -155,24 +35,6 @@ const OPENS = {
 
 export const kinds = [SESSION, SLEPT, SLEEPING, OPENS] as const
 
-/**
- * THIS PLUGIN'S OWN VOCABULARY, as `@olai/format` takes one — for the readings
- * in this package, which ask the vault's declarations and must see the claims
- * above folded in exactly as every other reader does.
- *
- * It is `olai-plugin-kolu`'s `ownKinds` and `olai-plugin-odu`'s, word for word,
- * and for their reason: BOTH HALVES ARE THE SAME TABLE, which is honest rather
- * than a shortcut — a reading in this package runs only on a serve that composed
- * this plugin, so its own kinds are enabled by construction. What it must NOT do
- * is spell the precedence itself; it hands this to the shared fold
- * (`@olai/format`'s `withClaims`) and gets back one map, like every consumer in
- * the tree, so a vault's own row wins here exactly as it does everywhere else.
- *
- * THE MAP IS KEYED BY THE COMPOSED WORD and each row carries it as its `kind`
- * and its `claims`, which is what the registry does off the registering fiber.
- * The rows ride along unchanged, so the reading a bench drives and the reading a
- * serve drives fold the claim the same way.
- */
 const OWN = new Map([
   [SESSION_TYPE, { ...SESSION, kind: SESSION_TYPE, claims: SESSION_TYPE }],
   [SLEPT_TYPE, { ...SLEPT, kind: SLEPT_TYPE, claims: SLEPT_TYPE }],

@@ -1,13 +1,3 @@
-/** A conversation's three wire members share one reading and one cadence.
- * RcMap ties that resource to its subscribers and the chat server's scope.
- *
- * THE TRANSCRIPT HERE IS THE WHOLE CONVERSATION, and the window is a fact about
- * one DELIVERY of it: `transcript.source` ships the newest
- * {@link TRANSCRIPT_WINDOW} rows, and `page` (below) answers the older ones a
- * reader pulls by hand. The reading itself keeps everything — the page is read
- * off the same map — because what a tab is handed and what the server knows are
- * two different questions, and a window that bounded the READING would make
- * history unfetchable. */
 import { Data, Effect, Exit, Queue, RcMap, Scope, Stream } from "effect"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import type { OpFailure } from "@olai/format"
@@ -18,9 +8,6 @@ import type { PanelAddress } from "../wire/session.ts"
 import { CHAT_OFF, type ChatEntry, type ChatState, TRANSCRIPT_WINDOW } from "../wire.ts"
 import type { Saying } from "@kolu/acp/wire"
 
-/** `current` is part of the key: a pair asked for as a node's current chat and
- *  the same pair visited are two readings, because only the first may be
- *  answered with nothing. */
 class Key extends Data.Class<{ readonly node: string | null; readonly agent: string | null; readonly session: string | null; readonly current: boolean }> {}
 
 type Sink<A> = (value: A) => void
@@ -34,26 +21,17 @@ interface Reading {
   readonly pieces: Set<Sink<Deltas<Saying>>>
 }
 
-/** Which reading a `PanelAddress` names — the RcMap key, spelled once so the
- *  subscribe path and the page path cannot key one conversation two ways. */
 const keyOf = (to: PanelAddress): Key =>
   new Key("node" in to
     ? { node: to.node, agent: null, session: null, current: false }
     : { node: null, agent: to.agent, session: to.session, current: to.current === true })
 
-/** The newest {@link TRANSCRIPT_WINDOW} rows, in conversation order — what one
- *  subscribe ships. Sorted by `seq` rather than trusted to the map's insertion
- *  order, because the window's meaning is "the recent end of the CONVERSATION"
- *  and a map's order is a delivery detail. */
 const rowsBySeq = (entries: ReadonlyMap<string, ChatEntry>): Array<ChatEntry> =>
   [...entries.values()].sort((one, other) => one.seq - other.seq)
 
 const newest = (entries: ReadonlyMap<string, ChatEntry>): Array<[string, ChatEntry]> =>
   rowsBySeq(entries).slice(-TRANSCRIPT_WINDOW).map((entry) => [entry.id, entry])
 
-/** The newest page of rows strictly below `before`, in conversation order. The
- *  newest `limit` of them, so a reader walking backwards never has to name an
- *  upper bound it has already seen. */
 const pageOf = (
   entries: ReadonlyMap<string, ChatEntry>,
   before: number,
@@ -61,9 +39,6 @@ const pageOf = (
 ): ReadonlyArray<ChatEntry> =>
   rowsBySeq(entries).filter((entry) => entry.seq < before).slice(-limit)
 
-/** What a caller reads off a held reading without subscribing — the last member,
- *  the `conversation.earlier` verb's answer. It is not a stream: it is one reply
- *  to one request, and the reader that asked is the only one who wants it. */
 export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) => Effect.gen(function*() {
   const held = yield* RcMap.make({
     lookup: (key: Key) => Effect.gen(function*() {
@@ -85,55 +60,11 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
         (clock) => Effect.sync(clock.stop),
       )
       const chat = yield* ready
-      /**
-       * A SEAT, WAITED FOR — one announcement, held until somebody takes it.
-       *
-       * The scheduler fans an announcement out to whoever is registered at
-       * that instant and keeps no record of it ({@link Chat.seats}), so this
-       * side has to do both of the things that makes safe. The registration
-       * is the READING's, acquired beside the cadence above and released with
-       * the scope that owns both: a listener that existed only while a fiber
-       * was parked would miss every close that landed between one attempt
-       * coming back and the next park — and two readings racing for two seats
-       * is enough to lose one, with no *Try again* on that face to get out
-       * with. And the announcement is REMEMBERED, which is what a queue of one
-       * is: an offer with nobody taking stays until the next take, and a
-       * second offer behind it slides the first out rather than queueing a
-       * backlog, because "a seat freed since I last looked" is one bit and two
-       * closes are not two seats for this reading to take.
-       */
       const freed = yield* Queue.sliding<void>(1)
       yield* Effect.acquireRelease(
         Effect.sync(() => chat.seats(() => { Queue.offerUnsafe(freed, undefined) })),
         (off) => Effect.sync(off),
       )
-      /**
-       * THE ATTEMPT, KEPT — because this is the one refusal that mends itself.
-       *
-       * Every other reason an open fails is a thing a person has to do
-       * something about, and the face says so and offers the retry. "All eight
-       * agents are awake" is not: it stops being true the moment one of them
-       * is put to sleep, and nothing about THIS conversation has to change for
-       * it to open. So the attempt stays here, waiting on the scheduler's own
-       * announcement, and the panel opens by itself.
-       *
-       * ONE OBSERVER ACROSS EVERY ATTEMPT, which is why it is a `const` and
-       * not a literal in the call: a reader is held by IDENTITY (`scoped.ts`'s
-       * `nodeReaders`), and a retry that handed over a fresh object would
-       * leave the refused attempt's one behind — a reader nobody can release,
-       * which is a slot the idle timer may never reap.
-       *
-       * EACH ATTEMPT GETS A SCOPE OF ITS OWN, closed when it fails. `reading`
-       * registers its reader before it asks for a seat (`scoped.ts`), so a
-       * refused attempt leaves a finalizer behind; on the reading's own scope
-       * that is one more per retry, for the life of a tab. The SUCCESSFUL
-       * attempt's scope is the one that must outlive the loop, so it is handed
-       * to the reading's scope as a finalizer and released with it.
-       *
-       * THE LOOP IS OWNED BY THE READING, forked into its scope: a reader that
-       * closes the tab takes the wait with it, and a serve shutting down
-       * interrupts it where it stands.
-       */
       const observer: ReadingObserver = {
         state: (value) => { state = value; for (const send of states) send(value) },
         transcript: clock.publish,
@@ -141,16 +72,6 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       yield* Effect.forkScoped(Effect.gen(function*() {
         while (true) {
           const attempt = Scope.makeUnsafe()
-          // THE HAND-OFF IS THE EXIT ITSELF, so there is no instant where the
-          // child belongs to nobody: an open that SUCCEEDED gives its scope to
-          // the reading's, and every other ending — refused, or the loop
-          // interrupted mid-open — closes it where it stands.
-          //
-          // A SUCCESS WITH NO PANEL is a pair asked for as a node's current
-          // chat that is not one any more (`../scoped.ts`'s `Chat.reading`).
-          // It is not a refusal: the reader stays as it was built, at
-          // `CHAT_OFF`, with nothing drawn and nothing to wait for, and the
-          // registration it holds goes with the reading like an open one's.
           const opened = yield* Effect.result(
             Effect.provideService(chat.reading(to, observer), Scope.Scope, attempt).pipe(
               Effect.onExit(exit =>
@@ -205,11 +126,6 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       return value.pieces
     }) },
     page: (to: PanelAddress, before: number, limit: number) =>
-      // SCOPED because an `RcMap.get` ACQUIRES a reference: the scope releases
-      // it when the page is read, so a request does not pin the reading alive
-      // behind the tabs that already hold it. A tab that has the conversation
-      // open holds its own reference through its subscriptions, so the reading
-      // it reads is the same one.
       Effect.scoped(
         Effect.map(RcMap.get(held, keyOf(to)), (value) => pageOf(value.entries, before, limit)),
       ),

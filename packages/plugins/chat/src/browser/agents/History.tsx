@@ -12,15 +12,9 @@ import { pastOf, successorIn } from "../../lineage.ts"
 import { isPast as onEarlierChat } from "./past.ts"
 import { TESTID } from "../../testids.ts"
 
-/** The conversation's fold line owns its picker; selecting a past pair changes
- * the reader, never the node's current binding. */
 export function History(props: { readonly chat: Chat; readonly node: string }) {
   const agents = useAgents()
   const agent = () => agents.at(props.node)
-  // THE LIST IS THE PANE'S, not this frame's: the seat is chat's activation
-  // (`./history.ts`), so a panel rebuilt by a roster answer — a restart's
-  // refusal moves the panel's address from the session to the node — comes
-  // back with the list the reader opened still up.
   const picker = createInlinePicker<true>(
     { opening: () => { agents.askChats(); return true } },
     historySeat(props.node),
@@ -49,15 +43,6 @@ export function History(props: { readonly chat: Chat; readonly node: string }) {
         onClick={() => { picker.shut(); const row = agent(); if (row?.session) props.chat.loadSession(row.engine, row.session) }}>Back to current chat ↩</button>
     }</Show>
     <Show when={picker.open()}>
-      {/* A PAGE LAYER AND NOT A `WITHIN` ONE, because what this list hangs
-          over is not only its own box: the pinned composer is a `sticky`
-          wrapper at {@link LAYER.row} (`./Fold.tsx`, `./Page.tsx`), which is
-          a stacking context of its own in the page's band — so a list in the
-          single-digit band painted UNDER it, and with a short transcript the
-          two overlap and the textarea took the presses meant for the list's
-          top rows. The rule layer.ts states, read straight: anything hanging
-          off a row over the page takes a page layer. `page` is the rung: over
-          the composer, still under the strip, the drawers and the app bar. */}
       <ul ref={picker.setList} class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-x-hidden overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`} data-testid={TESTID.chatSessionList}>
         <li class="px-2 py-1 text-label text-muted" data-testid={TESTID.chatPastSessions} data-count={past().length}>Earlier chats ({past().length})</li>
         <Key each={past()} by={one => `${one.agent}\0${one.id}`}>{session => <li><Conversation session={session()}

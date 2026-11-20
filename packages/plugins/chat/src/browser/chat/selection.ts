@@ -1,6 +1,3 @@
-/** Keyboard selection belongs to this menu mount. Queries reset the cursor;
- *  live rows can invalidate a choice without silently selecting a replacement.
- *  DOM events, rendering, and spending a search result stay with the menu. */
 import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 import { type Completing, requiresSelection, tokenOf } from "./completion.ts"
@@ -28,7 +25,6 @@ export const createCompletionSelection = (
   }))
 
   return {
-    // Tab can complete the suggested row without first selecting it for Enter.
     suggested: cursor.at,
     selected,
     step: (by: 1 | -1) => {

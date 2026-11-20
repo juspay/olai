@@ -13,18 +13,12 @@ Feature: A long chat leaves the note beside it alone
     Given the vault holds a note long enough to scroll "notes/plan.md"
     And I open the document "notes/plan.md"
     Then the note line is about the note "notes/plan.md"
-    # The chat opens in the pane beside the note, which is what gives the two
-    # of them a scroll each to be a claim about.
     When I ask about this page "what is left to decide"
     Then the note "notes/plan.md" carries a chat as "plan-chat"
     And the chat page is about the note "notes/plan.md" named "plan"
     And the chat page conversation is ready
-    # SOMEBODY IS READING, part way down the note and nowhere near either end:
-    # the position a chat that moved the page would cost them.
     When I scroll the note beside the chat down
     And I remember where the note stands
-    # ...AND THE CHAT FLOODS: forty lines into one growing answer, which is
-    # more than its column holds, so it scrolls the whole time it arrives.
     When I ask the agent "flood"
     Then the chat eventually shows "line 39"
     And the chat beside it has scrolled to its newest line

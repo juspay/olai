@@ -12,10 +12,6 @@ import type { Roster } from "./answered.tsx"
 import { createPageOwners } from "./page-owners.ts"
 import type { PageSession } from "./Page.tsx"
 
-/** WHO UNSENT WORDS ARE FOR: a chat (its page's plain composer, and the chat
- *  a door's start left waiting at sign-in), or one door's box on an item —
- *  the line at the top of a note and a chat page's are two boxes
- *  (`./Door.tsx`), each keyed by the item it is about. */
 export type Unsent =
   | { readonly kind: "row"; readonly node: string }
   | { readonly kind: "door"; readonly where: "line" | "page"; readonly item: string }
@@ -27,23 +23,11 @@ export const createAgentReadings = (agents: Roster) => {
   const reveals = new Set<string>()
   type View = { node: () => string; chat: () => Chat | null; shown: () => boolean }
   const [views, setViews] = createSignal<readonly View[]>([])
-  /** UNSENT WORDS THAT HAVE NO CONVERSATION YET, owned by the activation and
-   *  kept by who they are for ({@link Unsent}). A page or a line is drawn and
-   *  taken down for reasons that have nothing to do with the person; the words
-   *  outlive every one of them, and go into the conversation's own composer
-   *  once it opens (`./Page.tsx`). */
   const [unsent, setUnsent] = createStore<Record<string, string | undefined>>({})
   const unsentKey = (owner: Unsent) => owner.kind === "row"
     ? JSON.stringify(["row", owner.node])
     : JSON.stringify(["door", owner.where, owner.item])
   const isShown = (chat: Chat) => views().some(view => view.chat() === chat && view.shown())
-  /** THE CONVERSATION OF A NODE AGENT THAT THE PAGE IS SHOWING, if any: the
-   *  node's bound session, and a reading of it that is on screen.
-   *
-   *  ONE QUESTION WITH ONE ANSWER. The attention circuit asks it to know whether
-   *  a question is being watched, and the palette asks it to name the node a
-   *  *Tidy memory* row would act on; both used to assemble it from the same four
-   *  terms, in two files, which is the disagreement this exists to end. */
   const shownChat = (node: string): Chat | undefined => {
     const current = agents.at(node)
     if (current?.session == null) return undefined
@@ -89,7 +73,6 @@ export const createAgentReadings = (agents: Roster) => {
     if ("node" in to) return agents.at(to.node) !== undefined
     if (agents.rows().some(row => row.engine === to.agent && row.session === to.session)) return true
     const listed = agents.chats()
-    // A missing or refused listing is not evidence that the session is gone.
     return listed === null || listed.unreachable.some(row => row.agent === to.agent)
       || listed.sessions.some(row => row.agent === to.agent && row.id === to.session)
   }
@@ -98,13 +81,9 @@ export const createAgentReadings = (agents: Roster) => {
     const count = (joined.get(value) ?? 1) - 1
     if (count > 0) { joined.set(value, count); return }
     joined.delete(value)
-    // An address handover acquires its replacement within the same update.
-    // Give that owner a chance to lease the same UI before considering eviction.
     queueMicrotask(() => {
     if (!alive || joined.has(value) || awaitingEmpty.has(value)) return
     if (emptyUI(value) || !belongs(value)) { evictUI(value); return }
-    // A dispatched upload/send can finish after its last page leaves. Its UI
-    // stays until that work clears, then releases without needing another visit.
     runWithOwner(owner, () => createRoot(dispose => {
       awaitingEmpty.set(value, dispose)
       onCleanup(() => awaitingEmpty.delete(value))
@@ -139,9 +118,6 @@ export const createAgentReadings = (agents: Roster) => {
   return {
     agents, ui, page, newChat, retainUI,
     conversation: (to: PanelAddress, expected: Conversing | null) => {
-      // FOLLOWED AND VISITED ARE TWO READINGS of one pair, since the server
-      // answers them differently; the `ui` below stays keyed by the pair, so
-      // a draft stays with the conversation whichever way it is read.
       const key = JSON.stringify("session" in to ? [to.agent, to.session, to.current === true] : ["node", to.node])
       let entry = conversations.get(key)
       if (entry === undefined) {
@@ -161,7 +137,6 @@ export const createAgentReadings = (agents: Roster) => {
       })
       return held.value
     },
-    /** The unsent words for `owner`, and the setter that replaces them. */
     unsent: (owner: Unsent) => unsent[unsentKey(owner)] ?? "",
     setUnsent: (owner: Unsent, text: string) => setUnsent(unsentKey(owner), text === "" ? undefined : text),
     needsSurface: (element: HTMLElement, shown: () => boolean) => {
@@ -183,8 +158,6 @@ export const createAgentReadings = (agents: Roster) => {
     isShown,
     shownChat,
     join: (node: () => string, chat: () => Chat | null, visible: () => boolean) => {
-      // The view registers once at mount. Its changing conversation is a
-      // derivation, not a memo publishing into another store.
       const view = { node, chat, shown: visible }
       setViews(all => [...all, view])
       onCleanup(() => setViews(all => all.filter(one => one !== view)))

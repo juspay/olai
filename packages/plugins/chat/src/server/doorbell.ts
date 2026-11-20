@@ -1,4 +1,3 @@
-/** Browser-only picks are accepted only for a registered wake owner. */
 import { Effect } from "effect"
 import type { Wake } from "@olai/plugin-api/services"
 import type { Json } from "../json.ts"

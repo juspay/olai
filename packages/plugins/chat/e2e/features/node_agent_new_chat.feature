@@ -18,10 +18,6 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     And the palette crumbs read "New chat"
     And the palette placeholder is "Which node or note? Find one…"
     And the palette hint says "Type to find any node or note"
-    # NOTHING IS OFFERED UNTIL A PERSON SAYS WHAT THE CHAT IS FOR: standing on
-    # an outline's root there is no Here, nothing has been typed, and no chat
-    # has been had here before — so the level is empty rather than offering
-    # something olai picked.
     And the new chat items are ""
     When I type "pick the hinges" into the palette
     Then the new chat items are "hinges"
@@ -61,18 +57,13 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     When I press new chat in Chats
     And I type "pick the hinges" into the palette
     Then the new chat items are "hinges"
-    # PLAIN ENTER TAKES THE FIRST ROW, which is the row a person is looking at.
     When I press "Enter"
     And I type new chat draft "done hinges"
     And I press "Enter"
     Then the command palette is closed
     And the new conversation is unfolded as "hinges" with engine "claude"
     And the chat page conversation is ready
-    # THE CHAT IS THE ROW'S OWN: nothing was written under it.
     And the node "hinges" has no children
-    # ONCE: the server delivers the first message, and a second delivery would
-    # draw a second identical row. The words are the harness agent's own verb,
-    # so what it did with them is the other half of "sent once".
     And the chat shows my message "done hinges" exactly once
     And the agent is idle
     And "house.olai" holds a node marked done titled "pick the hinges"
@@ -116,8 +107,6 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     When I press new chat in Chats
     And I type "pick the hinges" into the palette
     Then the new chat item "hinges" says it has a chat
-    # NO SECOND CHAT AND NO MESSAGE ASKED FOR: the press opens the conversation
-    # that is already there.
     When I choose the new chat item "hinges"
     Then the command palette is closed
     And the chat page is about the node "hinges" named "pick the hinges" in "house.olai"
@@ -193,8 +182,6 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     And the palette sections are "Nodes"
     When I type "settings" into the palette
     Then the new chat items name nothing in "_olai/Settings.olai"
-    # ...NOR WHAT IS IN THE BIN: a trashed node is machinery too, and a chat
-    # about one would be a conversation nobody ever finds again.
     When I type "tiles" into the palette
     Then the new chat items are ""
     When I type "plan" into the palette
@@ -288,8 +275,6 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     And I choose new chat engine "Codex"
     And I type new chat draft "retry on its own item"
     And I send the new chat draft
-    # THE WORDS STAY WHERE THEY WERE TYPED, with the sentence beside them, so
-    # one more Send starts THAT item rather than a second chat anywhere.
     Then the new chat draft is "retry on its own item"
     And the palette path is "new-chat, new-chat-at-hinges"
     When the agent will new a conversation again
@@ -340,8 +325,6 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     When I press the palette scrim
     And the agent is released
     Then new chat in Chats is not starting
-    # THE SERVER DELIVERS THE FIRST MESSAGE, so leaving the palette does not
-    # lose the words — and nothing navigated, because nobody is looking.
     And the item "hinges" carries a chat on "claude"
     And the agent has answered "keep this first message" exactly once
     And there should be no page errors
@@ -376,12 +359,6 @@ Feature: A new chat asks which node or note, then what to say, inside the palett
     And nothing in the vault has a chat
     And there should be no page errors
 
-  # THE LEVEL'S QUESTION ACROSS A RECOMPOSE. A plugin switched on or off makes
-  # this tab dial a new wire, and a question asked across that moment is
-  # interrupted rather than answered. The level stands down while the tab is
-  # composing and asks again when it has settled — the event itself, not a
-  # clock — so a plugin arriving leaves the list where it was, and a question
-  # typed in the same breath is still answered.
   Scenario: A plugin switched while the level is open leaves it answering
     Given the vault defines a non-UI host management controller
     And I open the outline "house.olai"

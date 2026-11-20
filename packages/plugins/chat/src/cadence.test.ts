@@ -1,13 +1,3 @@
-/**
- * The cadence, over values — no server, no socket, and a clock that is turned
- * by hand.
- *
- * What is under test is the whole of what {@link ./cadence.ts} decides: which
- * pieces are merged with which, what a window costs in frames, and what a row
- * does to the pieces of itself. Every one of those is a claim about frames, so
- * every test here reads the frames.
- */
-
 import { sayingKey } from "olai-plugin-chat/wire"
 import { describe, expect, test } from "bun:test"
 
@@ -15,8 +5,6 @@ import { type After, cadence, type Frame } from "./cadence.ts"
 import type { Change } from "@kolu/acp-harness"
 import type { ChatEntry } from "olai-plugin-chat/wire"
 
-/** A clock somebody turns. `run()` fires the open window; `open` says whether
- *  there is one, which is how a test asserts that nothing is waiting. */
 const byHand = (): { readonly after: After; readonly turn: () => void; readonly open: () => boolean } => {
   let pending: (() => void) | null = null
   return {
@@ -47,8 +35,6 @@ const row = (key: string, text: string): Change<ChatEntry> => ({
   appends: [],
 })
 
-/** The frames a run produced, and the two readings every test here takes off
- *  them: what went onto the pieces member, and what came off it. */
 const driven = () => {
   const frames: Array<Frame> = []
   const clock = byHand()
@@ -57,7 +43,6 @@ const driven = () => {
     wire,
     clock,
     frames: () => frames,
-    /** Every piece published, as `<key>:<text>` — the wire's own units. */
     pieces: () =>
       frames.flatMap((frame) => frame.pieces.upserts.map(([key, piece]) => `${key}:${piece.text}`)),
     removed: () => frames.flatMap((frame) => [...frame.pieces.removes]),
@@ -70,8 +55,6 @@ describe("a window", () => {
     for (let chunk = 0; chunk < 100; chunk++) {
       run.wire.publish(appending("agent:1", chunk, "x"))
     }
-    // Nothing yet: the window is trailing, so a hundred chunks inside one are
-    // a hundred nothings.
     expect(run.frames()).toHaveLength(0)
     run.clock.turn()
 
@@ -87,17 +70,11 @@ describe("a window", () => {
     run.clock.turn()
 
     expect(run.pieces()).toEqual(["agent:1#0:one ", "agent:1#4:two"])
-    // Contiguous, which is what lets a reader join them without a protocol:
-    // every character of the row is in exactly one piece.
     expect(run.frames().flatMap((frame) => frame.pieces.upserts.map(([, piece]) => piece.text))
       .join("")).toBe("one two")
   })
 
   test("a piece that is not contiguous does not swallow the one before it", () => {
-    // One writer, ordered, so this cannot arise from the transcript — but a
-    // merge that assumed contiguity rather than checking it would silently
-    // publish a piece under a key that says the wrong offset, which is a hole
-    // in somebody's paragraph rather than an error anybody sees.
     const run = driven()
     run.wire.publish(appending("agent:1", 0, "one"))
     run.wire.publish(appending("agent:1", 99, "far"))
@@ -135,8 +112,6 @@ describe("a row supersedes its pieces", () => {
 
     run.wire.publish(row("agent:1", "half an answer"))
     const last = run.frames().at(-1)
-    // The row and the removal are one frame, and the row is in it whole — so a
-    // reader never holds a paragraph that got shorter.
     expect(last?.rows.upserts.map(([, entry]) => entry.text)).toEqual(["half an answer"])
     expect(last?.pieces.removes).toEqual(["agent:1#0"])
     expect(run.wire.onWire().size).toBe(0)
@@ -154,8 +129,6 @@ describe("a row supersedes its pieces", () => {
   })
 
   test("a row that is REMOVED takes its pieces with it", () => {
-    // A new conversation empties the transcript; the pieces of whatever was
-    // being said belong to a row that is not there any more.
     const run = driven()
     run.wire.publish(appending("agent:1", 0, "gone"))
     run.clock.turn()

@@ -11,10 +11,6 @@ import { LOOK } from "./agents/roster.ts"
 import { itemKey } from "@olai/format"
 import { chatPage } from "./agents/route.ts"
 
-/** WHOSE CONVERSATION A LINK IS ABOUT: a chat's own page (`/chat/<item>`,
- *  which is where every door that opens a chat goes), or a node's page, which
- *  draws that node's chat at its foot. The answer is the ITEM KEY, which is
- *  what the wire and the roster are both keyed by. */
 export const previewNode = (route: Route) => {
   const chat = chatPage.value(route)
   if (chat !== null) return itemKey(chat)
@@ -22,11 +18,7 @@ export const previewNode = (route: Route) => {
     ? route.address.id : undefined
 }
 
-/** A read-only wire lease: no conversation UI, wake, visit or composer is
- * acquired by hovering. The roster is already owned by chat's activation. */
 export function ChatLinkPreview(props: { readonly route: Route; readonly roster: Roster }) {
-  // LinkPreview.Preview guarantees one immutable route per mount. A node's
-  // chat is the node's own, so the row the preview reads is the node itself.
   const node = previewNode(props.route)!
   const transcript = chatWire().streams.transcript.useCollection({ node }, transcriptRows)
   const tail = createTail(chatWire().streams.saying.useCollection({ node }, sayingRows).fold)
@@ -36,7 +28,6 @@ export function ChatLinkPreview(props: { readonly route: Route; readonly roster:
       const row = transcript.byKey(key)?.()
       return row?.kind === "user" || row?.kind === "agent"
     })
-    // Two turns, including all assistant paragraphs belonging to each prompt.
     let turns = 0
     for (let at = messages.length - 1; at >= 0; at--) {
       if (transcript.byKey(messages[at]!)?.()?.kind === "user" && ++turns === 2) return messages.slice(at)

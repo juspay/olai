@@ -1,4 +1,3 @@
-/** Fold state is local to this browser plugin activation, never persisted. */
 import { createStore } from "solid-js/store"
 import { heldService } from "@olai/ui-primitives/held.ts"
 

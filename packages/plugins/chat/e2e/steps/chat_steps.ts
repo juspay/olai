@@ -1,17 +1,3 @@
-/**
- * A conversation, driven through the browser.
- *
- * Every assertion here is about the PAGE — what a person would see — because
- * everything below it already has unit tests: the ops layer has its own, the
- * write gate has its own, the MCP surface has its own. What only an e2e can
- * say is that a sentence typed into a box reaches an outline on disk and comes
- * back as a checkbox, without a reload.
- *
- * Waits use the world's `waitUntil` rather than a locator wherever the claim is
- * "this CHANGED" — a transcript row's text growing, a status attribute moving —
- * which is most of what a streaming panel does.
- */
-
 import { ATTACHMENT_ACCEPT } from "@olai/surface";
 import { onConversationPage, openFold, returnToOutline } from "./node_agent_folds_steps.ts";
 import * as assert from "node:assert";
@@ -21,17 +7,7 @@ import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
 
 import { selector } from "@olai/web/testlib";
-// ...and the ids this file spends, off the PLUGIN's half of the table. The
-// panel is `olai-plugin-chat`'s face since chat became a row, so its names left
-// `@olai/web`'s table with it and reach this suite through the registry's merge
-// — the same route the padi pill's ids take, and `support/world.ts` argues it
-// where that import sits.
 import { PLUGIN_TESTID, type PluginTestId } from "@olai/tests/harness/testids.ts";
-// THE PANEL'S OWN TWO, off the panel's own door: the transcript's follow
-// distance and the composer's armed trigger are `olai-plugin-chat`'s since it
-// became a row, and a curated list in a general package that re-exported them
-// would be core naming a plugin (`@olai/bundle`'s `fence.test.ts` records this
-// import the way it records kolu's fake padi).
 import { completingIn, NEAR } from "../../src/testlib.ts";
 
 import { retypedAndTaken } from "@olai/tests/harness/atonce.ts";
@@ -159,13 +135,8 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/** The panel is drawn and past `booting` — the answer to "which conversation",
- *  even when that answer is `off` (a refused open after a restart). */
 Then("the conversation panel has answered", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a named node agent first");
-  // The fold is the panel's seat: open it first (a reload folds every
-  // conversation), then wait for an answer — `off` counts, because a refused
-  // open after a restart has one.
   if (!(await onConversationPage(this, this.activeAgent))) await openFold(this, this.activeAgent);
   await this.waitUntil(async () => {
     const panel = this.chat(CHAT_PANEL);
@@ -174,9 +145,6 @@ Then("the conversation panel has answered", async function (this: OlaiWorld) {
 });
 Given("the node agent's fold is ready", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a named node agent first");
-  // A CONVERSATION'S FACE IS WHICHEVER ONE THE ROUTE DREW: the page when the
-  // reader came from a Chats row or a permalink, the folder below when they
-  // are in the outline. Readiness is the same claim on either.
   if (!(await onConversationPage(this, this.activeAgent))) await openFold(this, this.activeAgent);
   await this.waitUntil(async () => {
     const status = await this.chat(CHAT_PANEL).getAttribute("data-status");
@@ -184,10 +152,6 @@ Given("the node agent's fold is ready", async function (this: OlaiWorld) {
   }, "the node agent's fold to settle", HYDRATION_TIMEOUT);
 });
 
-// ── talking ────────────────────────────────────────────────────────────
-
-/** The box, waited for — one spelling of "how long a scenario gives the
- *  composer to appear", shared by every step that types into it. */
 const chatBox = async (world: OlaiWorld) => {
   const input = world.chat(CHAT_INPUT);
   await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -203,15 +167,6 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
   await this.chat(CHAT_SEND).click();
 });
 
-/**
- * The same message, sent WITH THE RETURN KEY — the gesture the composer's
- * `enterkeyhint="send"` is a label for.
- *
- * Its own step beside `I ask the agent` rather than a flag on it, because the
- * two are different presses: one is the button under the box, and this is the
- * key a phone draws a Send cap on. A scenario that asserts the cap has to be
- * able to press the key, or the attribute is decoration nobody checked.
- */
 When("I type {string} into the chat and send it with the return key", async function (this: OlaiWorld, text: string) {
   const box = await chatBox(this);
   await box.fill(text);
@@ -219,41 +174,18 @@ When("I type {string} into the chat and send it with the return key", async func
   await keysSettled(this);
 });
 
-/** WHAT THE ON-SCREEN KEYBOARD IS TOLD this box's return key does. Read off
- *  the element, because that is the only place a phone reads it from — and
- *  asserted beside a send in the same scenario, so a hint that stopped being
- *  true would be a red step rather than a stale string nobody looks at. */
 Then("the chat composer's return key is labelled {string}", async function (this: OlaiWorld, hint: string) {
   const box = await chatBox(this);
   assert.strictEqual(await box.getAttribute("enterkeyhint"), hint, "the composer's enterkeyhint");
-  // ...and a message is PROSE: the corrections a phone makes to a sentence are
-  // wanted here, so the composer must NOT have been swept up with the boxes
-  // that hold names (the address bar, the path boxes, the query boxes).
   assert.strictEqual(await box.getAttribute("autocapitalize"), null, "the composer's autocapitalize");
   assert.strictEqual(await box.getAttribute("autocorrect"), null, "the composer's autocorrect");
 });
 
-/**
- * ... and the OTHER send: put these words into the turn the agent is running.
- *
- * Its own step rather than a flag on the one above, because it is a different
- * gesture a person makes on purpose — which is the whole of what
- * `compact-lost-to-steer` changed. A scenario that meant to interrupt says so,
- * and every scenario that does not says nothing and gets the ordinary send.
- *
- * THE BUTTON, which is the door a phone has. The chord is the same gesture
- * through the other door and has a step of its own, so a scenario can pin
- * either — and one scenario pins that they do the same thing.
- */
 When("I interrupt the agent with {string}", async function (this: OlaiWorld, text: string) {
   await typeInto(this, text);
   await this.press(this.chat(CHAT_INTERRUPT));
 });
 
-/** The same gesture through the keyboard. Alt+Enter and not a second control:
- *  a chord nobody can see is a feature only its author knows about, and a
- *  control that did something the keyboard could not is the other half of the
- *  same complaint. */
 When(
   "I interrupt the agent with {string} by keyboard",
   async function (this: OlaiWorld, text: string) {
@@ -263,9 +195,6 @@ When(
   },
 );
 
-/** Nothing to interrupt WITH: the agent never said it takes one, or there is no
- *  turn in flight. Absence is the claim — a control drawn for an extension
- *  nobody advertised is a control that refuses when pressed. */
 Then("the composer offers no interruption", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_INTERRUPT).count()) === 0,
@@ -274,14 +203,11 @@ Then("the composer offers no interruption", async function (this: OlaiWorld) {
   );
 });
 
-/** ... and that it DOES, which is what an agent advertising steering buys a
- *  person while a turn is running. */
 Then("the composer offers an interruption", async function (this: OlaiWorld) {
   await this.chat(CHAT_INTERRUPT)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** The window `../support/atonce.ts` opens, at this door. */
 When(
   "I retype the chat as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {
@@ -293,16 +219,6 @@ When("I type {string} into the chat", async function (this: OlaiWorld, text: str
   await typeInto(this, text);
 });
 
-/**
- * …and the same words as KEYSTROKES, one `input` event per letter.
- *
- * `fill` above sets the whole value in one event, which is the right gesture
- * for a scenario that is about what is in the box. It is the wrong one for a
- * scenario about what TYPING costs: a client that re-asks the server on every
- * keystroke and one that asks once are indistinguishable under a single event,
- * and the difference is the whole of `reactivity-equals-guards`' composer
- * finding. So this is `pressSequentially` — a real key per letter.
- */
 When(
   "I type {string} into the chat a letter at a time",
   async function (this: OlaiWorld, text: string) {
@@ -311,16 +227,6 @@ When(
   },
 );
 
-/**
- * How many times this tab asked the set what the armed nodes are CALLED, since
- * the mark — the chip strip's one question (`client/chat/chips.ts`).
- *
- * The tag is `<member>/<verb>`, kolu's addressing for a surface member
- * (`surfaceTag`), matched as a substring of the whole tag the composed surface
- * serves it at. It is counted on the wire because nothing on screen says it:
- * the chip draws the same title whether the title was asked for once or once
- * per letter.
- */
 Then(
   "the tab has asked what the armed nodes are called {int} time(s)",
   function (this: OlaiWorld, times: number) {
@@ -332,17 +238,6 @@ Then(
   },
 );
 
-/**
- * How many times this tab has TOLD THE SERVE IT HAS READ a conversation, since
- * the mark — the one wire call in this whole app that nobody made, and the only
- * observable of it that is not a race.
- *
- * WHY THE WIRE rather than the row: the row's mark clears when the write lands,
- * and a row that was never marked and a row whose mark was cleared look the
- * same from the DOM. The CALL is what says which of the two happened, and it
- * happens exactly when a tab that is looking at a conversation sees that
- * conversation has something new — which is the whole of the rule.
- */
 Then("the tab has marked the conversation as read", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => this.socketAskedSince("conversation/seen") >= 1,
@@ -350,8 +245,6 @@ Then("the tab has marked the conversation as read", async function (this: OlaiWo
   );
 });
 
-/** ... and the negative half, which is a rule rather than an absence: a
- *  conversation nobody is looking at is never acknowledged by anybody. */
 Then("the tab has not marked the conversation as read", function (this: OlaiWorld) {
   assert.strictEqual(
     this.socketAskedSince("conversation/seen"),
@@ -360,48 +253,26 @@ Then("the tab has not marked the conversation as read", function (this: OlaiWorl
   );
 });
 
-/** Send WHAT IS IN THE BOX, rather than typing a message and sending it in one
- *  gesture (`I ask the agent`). A scenario that got the words there some other
- *  way — a completion taken, a draft put back — has to be able to press the
- *  button without retyping over what it is asserting about. */
 When("I send the chat message", async function (this: OlaiWorld) {
   await this.chat(CHAT_SEND).click();
 });
 
-/** Let a held turn go on. The fake agent waits for this file rather than for a
- *  clock, so "mid-turn" is a state the scenario ENDS rather than one it races.
- *  A dot-file: the store's walk prunes those, so this is not an edit. */
 When("the agent is released", async function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.release), "");
 });
 
-/** Ask the next `session/load` of `an older conversation` to hold a last
- *  line until `the agent is released`. The open-jump can then be observed
- *  before that growth, which is the claim the late-line scenario makes. */
 When("I arm late growth on the next stored conversation", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), ".agent-want-late"), "");
 });
 
-/** Ask the next `session/load` of `an older conversation` to replay a line at a
- *  time, so its history reaches the panel over many frames while it opens. */
 When("I arm a slow replay on the next stored conversation", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.slowReplay), "");
 });
 
-/** Ask the next `session/load` of `an older conversation` to replay a
- *  conversation LONG ENOUGH THAT ONE FRAME CANNOT CARRY IT — a hundred
- *  distinct rows, past the window a subscribe ships (`olai-plugin-chat`'s
- *  `TRANSCRIPT_WINDOW`). Every other replay of that conversation is short by
- *  construction, which is what "scrolled to the newest line" needs and what a
- *  window scenario must NOT be. */
 When("I arm a long history on the next stored conversation", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.longHistory), "");
 });
 
-/** THE WINDOW'S OTHER HALF IS THE DOOR: a reconnect ships the recent rows and
- *  leaves the older ones behind a press. This waits for it to be drawn and for
- *  its own count to be nonzero — the number is the server's answer, so a door
- *  drawn over a conversation that fits would fail here. */
 Then("the earlier messages door is drawn", async function (this: OlaiWorld) {
   const door = this.chat(CHAT_EARLIER);
   await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -412,10 +283,6 @@ Then("the earlier messages door is drawn", async function (this: OlaiWorld) {
   );
 });
 
-/** ... and THE OTHER SIDE OF IT: a reconnect that kept every row leaves nothing
- *  for the door to offer, so it must not be drawn at all. Asserted as an
- *  ABSENCE with a positive control — the transcript's own rows are read first,
- *  so a page that had not painted yet cannot pass this by having no door. */
 Then("there are no earlier messages to load", async function (this: OlaiWorld) {
   await this.waitUntil(async () => {
     const door = this.chat(CHAT_EARLIER)
@@ -425,8 +292,6 @@ Then("there are no earlier messages to load", async function (this: OlaiWorld) {
   }, "the earlier messages door to go", HYDRATION_TIMEOUT)
 });
 
-/** ... and THE PRESS: the page lands and the door's count moves down (or the
- *  door goes, once the start of the conversation has been reached). */
 When("I load earlier messages", async function (this: OlaiWorld) {
   const door = this.chat(CHAT_EARLIER);
   await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -438,9 +303,6 @@ When("I load earlier messages", async function (this: OlaiWorld) {
   }, "the earlier page to land", POLL_TIMEOUT);
 });
 
-/** HOW MUCH OF THE CONVERSATION IS ON SCREEN, as a number — the window is a
- *  ROW COUNT (`TRANSCRIPT_WINDOW`), so "a reconnect shipped the window and not
- *  the conversation" is exactly a count of the rows drawn. */
 const transcriptRows = (world: OlaiWorld): Promise<number> => world.chat(CHAT_ENTRY).count();
 
 Then("the transcript holds more than {int} rows", async function (this: OlaiWorld, least: number) {
@@ -459,55 +321,25 @@ Then("the transcript holds at most {int} rows", async function (this: OlaiWorld,
   );
 });
 
-/**
- * SLOW THE LINK DOWN — the socket itself, at 16 KiB/s, the way a cellular tether
- * or library wifi is.
- *
- * WHY NOT CDP's `Network.emulateNetworkConditions`: it was measured on this
- * scenario and it does NOT throttle WebSocket frames. With the window reverted
- * to the whole conversation the throttled scenario still passed — the frame it
- * was supposed to starve rode straight through — so the emulation would have
- * been a green light over a test that could not fail. What is slowed here is the
- * one link the defect is about: server→client frames are held for their own
- * bytes at the rate, while client→server traffic (the keepalive's ping) goes out
- * at once. A frame bigger than the fatal silence therefore queues the pong
- * behind it exactly as the real link did.
- *
- * Registered HERE, after the conversation is open, so it wraps the REDIAL the
- * scenario is about rather than the first connection (which is already made).
- */
 const SLOW_BYTES_PER_SECOND = 16 * 1024;
 
 When("I throttle the network", async function (this: OlaiWorld) {
   await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", (client) => {
     const server = client.connectToServer();
-    // The client's own traffic — the keepalive's ping — is not delayed: the
-    // point is that its ANSWER queues behind a frame that is still arriving.
     client.onMessage((message) => server.send(message));
-    // A BANDWIDTH PIPE, not an accumulating debt: each frame is released at
-    // `bytes / rate` after the pipe is free, and IDLE TIME IS FREE — otherwise
-    // a scenario that pauses between two snapshots would pay for both at once
-    // and starve the pong over a link that was never busy.
     let freeAt = 0;
     server.onMessage((message) => {
       const body = typeof message === "string" ? message : message.toString("utf8");
       const now = Date.now();
       const start = Math.max(now, freeAt);
       freeAt = start + (Buffer.byteLength(body) / SLOW_BYTES_PER_SECOND) * 1000;
-      // A TIMER THAT OUTLIVES THE SOCKET: the connection closes while frames are
-      // still owed, and a send into the closed route is dropped rather than
-      // thrown at the runner.
       setTimeout(() => {
-        try { client.send(message) } catch { /* the socket closed while frames were owed */ }
+        try { client.send(message) } catch { }
       }, freeAt - now);
     });
   });
 });
 
-/** Start writing down every position the transcript scrolls to, with what the
- *  panel said it was doing at that moment. On the document and in the capture
- *  phase, because a `scroll` does not bubble and the pane is whichever one is
- *  drawn when the event fires. */
 When("I record where the transcript scrolls", async function (this: OlaiWorld) {
   await this.chat(CHAT_TRANSCRIPT).evaluate((pane, [transcript, panel]) => {
     const tape: Array<{ top: number; status: string | null }> = [];
@@ -520,15 +352,8 @@ When("I record where the transcript scrolls", async function (this: OlaiWorld) {
   }, [CHAT_TRANSCRIPT, CHAT_PANEL] as const);
 });
 
-/** How many places the pane may stop at while a replay is opening: the jump
- *  that lands the conversation, and the correction when its rendered text
- *  settles the height. A pane that was handed the replay as it came stops at
- *  nearly every one of its forty lines. */
 const REPLAY_STOPS = 2;
 
-/** An open is a PLACE, not a motion: while the conversation was still being
- *  replayed into the pane, the pane jumped to where it was going and did not
- *  travel through the history on the way. */
 Then(
   "the transcript did not scroll through the conversation while it was replayed",
   async function (this: OlaiWorld) {
@@ -545,10 +370,6 @@ Then(
   },
 );
 
-/** Take a stored conversation out of the agent's store, the way a deleted
- *  session or a cleaned-out store would. The next boot's `session/list` no
- *  longer offers it, so a panel that remembers being in it has to fall back.
- *  The same dot-file idiom the release above uses, and not an edit either. */
 When(
   "the conversation {string} is gone from the agent",
   function (this: OlaiWorld, id: string) {
@@ -556,19 +377,10 @@ When(
   },
 );
 
-/** ARM the fake agent's listing counter by making the file: it appends one
- *  line per `session/list` only where the file exists — existence is the
- *  arming, one write and no second file, the refuse/forget idiom — so the
- *  count rides in exactly the scenario that asks for it and never into
- *  another's commit pill. */
 Given("the listing counter is armed", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), ".agent-list-asks"), "");
 });
 
-/** How many times the agents have been ASKED FOR THEIR LISTING so far, off
- *  the line the fake appends on every one (`packages/tests/agent/scripted-acp.ts`
- *  — an absent file is an agent never asked, which is zero). The count is the
- *  pin's currency: what asking costs is the asking, whatever it answered. */
 const listAsks = (scratch: string): number => {
   try {
     return fs
@@ -582,17 +394,10 @@ const listAsks = (scratch: string): number => {
   }
 };
 
-/** NOTE the count, for `the list-asks have not grown` to say it never moved:
- *  the shape of "the answer already names this conversation, so settling
- *  another turn in it pays for no probe." */
 When("the list-asks so far are counted", function (this: OlaiWorld) {
   this.notedListAsks = listAsks(this.scratch());
 });
 
-/** THE SESSIONS THE AGENT HAS BEEN ASKED TO LOAD, off the file the fake
- *  appends one id per `session/load` to (`packages/tests/agent/scripted-acp.ts`).
- *  An absent file is an agent never asked — the same arming idiom as the
- *  listing counter above. */
 const loadedSessions = (scratch: string): ReadonlyArray<string> => {
   try {
     return fs
@@ -606,13 +411,10 @@ const loadedSessions = (scratch: string): ReadonlyArray<string> => {
   }
 };
 
-/** ARM the counter and empty it, so what follows is the restart's own ask. */
 Given("the agent notes every conversation it loads", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.loads), "");
 });
 
-/** The node's CURRENT binding, as the fake will see it: the property is
- *  `engine:session`, and the agent is asked for the session half. */
 const boundSession = (world: OlaiWorld, node: string, file: string): string => {
   const id = world.nodeId(node);
   const row = world.servedNodes(file).find((one) => one.id === id);
@@ -647,11 +449,6 @@ Then(
   },
 );
 
-/** ...AND THE TRASH, WHILE THE SERVER IS DOWN. A person trashing a row in
- *  another tab and then restarting is the shape; a scenario cannot keep the
- *  page alive across `the server stops`, so the file is edited the way the
- *  store would find it. The record and the node's own property are the two
- *  halves the boot has to reconcile. */
 When(
   "I move node {string} in {string} to the trash on disk",
   function (this: OlaiWorld, node: string, file: string) {
@@ -668,9 +465,6 @@ When(
   },
 );
 
-/** ONE PLUGIN'S SWITCH, WRITTEN WHERE THE SERVER READS IT — for a scenario that
- *  changes the engine table while no server is running. `on` is the word the
- *  settings row carries, and a `.olai` row is a record like any other. */
 When("I set the plugin {string} {word} on disk", function (this: OlaiWorld, plugin: string, state: string) {
   const file = path.join(this.scratch(), "_olai/Settings.olai");
   const rows: Array<Record<string, unknown>> = fs.existsSync(file)
@@ -694,10 +488,6 @@ Then("the list-asks have not grown", function (this: OlaiWorld) {
   assert.equal(listAsks(this.scratch()), this.notedListAsks);
 });
 
-/** Make the agent REFUSE to open a conversation — one verb or the other, and
- *  it stays alive and answering either way. Read at the moment of the request,
- *  so a scenario can arm it and then press something, or arm it and restart the
- *  server to reach the boot's own open. The same dot-file idiom as the rest. */
 When(
   "the agent refuses to {word} a conversation",
   function (this: OlaiWorld, verb: string) {
@@ -705,32 +495,18 @@ When(
   },
 );
 
-/** Make the next handshake ADVERTISE NOTHING — no queue, no interruption. The
- *  same dot-file idiom as the refusals above and for the same reason: what an
- *  agent says about itself is heard exactly once, before the client has said
- *  anything, so a scenario arms it and restarts to reach it. What it buys is
- *  the panel's honest face for an agent it has been told nothing about. */
 When("the agent advertises nothing about itself", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.saysNothing), "");
 });
 
-/** Make the next `session/load` sit on the wire until `the agent is released`.
- *  That stretch is the one in which the panel is between conversations, which
- *  is the only window a second open can be started in. */
 When("the next conversation load will hang", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.holdLoad), "");
 });
 
-/** ... and the same for the FIRST open of a freshly picked agent, which is the
- *  longer window and the one a person actually meets: choosing an agent starts
- *  a subprocess, hand-shakes it and opens a conversation before there is
- *  anything to type into. On a laptop that is a second or two and nobody can
- *  aim at it; here it lasts until the scenario says when. */
 When("the next agent boot will hang", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.holdOpen), "");
 });
 
-/** ...and it stops refusing, so `try again` has something to succeed at. */
 When(
   "the agent will {word} a conversation again",
   function (this: OlaiWorld, verb: string) {
@@ -738,10 +514,6 @@ When(
   },
 );
 
-/** Move the model the agent PINS — its `settings.json`, in effect, which is
- *  the thing a redeploy edits. Read at every session open, so a scenario arms
- *  it between two boots and the next one comes up on it. The same dot-file
- *  idiom as the two above, and not an edit either. */
 When(
   "the agent's pinned model becomes {string}",
   function (this: OlaiWorld, model: string) {
@@ -755,11 +527,6 @@ When("I cancel the turn", async function (this: OlaiWorld) {
   await cancel.click();
 });
 
-// ── what the panel says ────────────────────────────────────────────────
-
-/** The whole transcript as one line. Read as text rather than row by row
- *  because most claims here are "the conversation eventually says this", and
- *  which ROW it landed in is the panel's business. */
 const transcriptText = async (world: OlaiWorld): Promise<string> => {
   const pane = world.chat(CHAT_TRANSCRIPT);
   if ((await pane.count()) === 0) return "";
@@ -777,10 +544,6 @@ Then(
   },
 );
 
-/** A read, not a wait: the question is what a no-op gesture left STANDING.
- *  If it touched what it should never reach, the line is gone for good —
- *  nothing restores it — so there is no arrival to wait for, and waiting
- *  would only blur the answer. */
 Then("the chat still shows {string}", async function (this: OlaiWorld, text: string) {
   const said = await transcriptText(this);
   assert.ok(
@@ -790,9 +553,6 @@ Then("the chat still shows {string}", async function (this: OlaiWorld, text: str
   );
 });
 
-/** A read, not a wait: the step before it has already waited for something
- *  that arrives BEFORE the late growth this is about, so if the late line
- *  were already here the open-jump would have nothing left to follow. */
 Then(
   "the chat does not yet show {string}",
   async function (this: OlaiWorld, text: string) {
@@ -815,14 +575,6 @@ Then(
   },
 );
 
-/** A link the agent WROTE, found by the words it is written under.
- *
- *  By its text and not by an attribute, because there is no attribute to find:
- *  an anchor in rendered markdown is markup the pipeline produced and belongs
- *  to no component, which is the whole reason a click on one had to be caught
- *  by a listener on the panel rather than by a handler on the element. Scoped
- *  to the ANSWER so a scenario cannot accidentally press a link somewhere else
- *  in the transcript. */
 const answerLink = (world: OlaiWorld, text: string): Locator =>
   world.chat(`${CHAT_SAID} a`).filter({ hasText: text }).first();
 
@@ -840,9 +592,6 @@ When(
   },
 );
 
-/** A bubble of my own, by what it says. Two steps ask for one — "the chat
- *  shows my message X" and "… as not sent" — and which element counts as mine
- *  is one answer, not two. */
 const myMessage = (world: OlaiWorld, text: string): Locator =>
   world.chat(CHAT_MINE).filter({ hasText: text });
 
@@ -856,9 +605,6 @@ Then(
 Then(
   "the chat does not show my message {string}",
   async function (this: OlaiWorld, text: string) {
-    // A task-notification is not a person speaking. The report it carries
-    // may still be on screen — in the spawn's fold — so this is the human
-    // bubble alone (`chatMine`), not "the page does not contain these words".
     assert.strictEqual(
       await myMessage(this, text).count(),
       0,
@@ -867,9 +613,6 @@ Then(
   },
 );
 
-/** EXACTLY ONE of mine says that. The claim a send during a boot is about is
- *  a count, not a presence: a message delivered twice draws two identical rows
- *  and the "is it there" assertion passes on both. */
 Then(
   "the chat shows my message {string} exactly once",
   async function (this: OlaiWorld, text: string) {
@@ -885,15 +628,11 @@ Then(
   },
 );
 
-/** ... and the agent answered it once, which is the half that says the DELIVERY
- *  doubled rather than the drawing. Counted over the agent's own rows. */
 Then(
   "the agent has answered {string} exactly once",
   async function (this: OlaiWorld, text: string) {
     const said = this.chat(CHAT_SAID).filter({ hasText: text });
     await said.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // A beat, so a second answer that was merely on its way fails this rather
-    // than arriving after it.
     await this.page.waitForTimeout(700);
     assert.strictEqual(
       await said.count(),
@@ -904,10 +643,6 @@ Then(
 );
 
 Then("my message sits to the right of the agent's", async function (this: OlaiWorld) {
-  // Alignment is a property no attribute can carry: `data-kind="user"` already
-  // says who spoke, and a class is a styling decision a refactor may change.
-  // The claim is that a glance can tell the two speakers apart, which is
-  // where they sit — so this is the same exception `world.box` exists for.
   const mine = await this.box(
     this.chat(CHAT_MINE).first(),
     "my message",
@@ -924,9 +659,6 @@ Then("my message sits to the right of the agent's", async function (this: OlaiWo
     mine.x > said.x,
     `my message starts at ${mine.x}, the agent's at ${said.x} — they should not share a left edge`,
   );
-  // Right-aligned means more empty pane on the left of the bubble than on
-  // its right. Comparing right edges would not say that: the agent's prose
-  // is a full-width block, so both boxes end at the same padding.
   const left = mine.x - pane.x;
   const right = pane.x + pane.width - (mine.x + mine.width);
   assert.ok(
@@ -943,10 +675,6 @@ Then("the agent is working", async function (this: OlaiWorld) {
   );
 });
 
-/** The strip between the transcript and the box, by what it SAYS. The words
- *  are the assertion rather than the element's presence: "working", "starting"
- *  and "waiting on your answer" are three different things to be told, and a
- *  strip that said the wrong one would pass a test about a strip. */
 Then(
   "the panel says it is busy, with {string}",
   async function (this: OlaiWorld, what: string) {
@@ -959,8 +687,6 @@ Then(
   },
 );
 
-/** ... and that it is GONE, which is the other half of a cue being a cue: one
- *  left up over a finished turn is the same lie the other way round. */
 Then("the panel does not say it is busy", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_BUSY).count()) === 0,
@@ -970,9 +696,6 @@ Then("the panel does not say it is busy", async function (this: OlaiWorld) {
 });
 
 Then("the agent is idle", async function (this: OlaiWorld) {
-  // A send click returns before its acknowledgement. The previous idle frame
-  // is not evidence that the new turn has finished; require both facts from
-  // the same rendered panel. Sends intentionally remain nonblocking above.
   await this.expectAttribute(
     this.chatSelector(`${CHAT_PANEL}${attr("data-pending-sends", "0")}`),
     "data-status",
@@ -981,13 +704,6 @@ Then("the agent is idle", async function (this: OlaiWorld) {
     HYDRATION_TIMEOUT,
   );
 });
-
-// ── the three places a running turn shows ──────────────────────────────
-//
-// One cue is not enough, and the reason is that a person is not always looking
-// at the one place it is. The composer says it where the words go, the header
-// says it beside the model, and the shut drawer says it because a turn behind
-// a closed panel used to be invisible — including when it ended.
 
 Then("the chat input takes typing", async function (this: OlaiWorld) {
   const input = this.chat(CHAT_INPUT);
@@ -1011,39 +727,16 @@ Then("the chat input still has the caret", async function (this: OlaiWorld) {
   );
 });
 
-// ── words that did not land ────────────────────────────────────────────
-//
-// The row is the copy. There is no queue behind the panel any more, so a
-// message the agent did not take has exactly one place to be, and it is on
-// screen where it was typed — which is what these steps are about.
-//
-// WHICH way it did not land is the other half, and the two faces are asserted
-// through the same step with the word the panel itself carries
-// (`data-delivery`): a refusal is certain and offers a retry, a silence is not
-// and must not.
-
-/** MY MESSAGE'S OWN ROW — the entry whose bubble carries those words.
- *
- *  Every claim below is made THROUGH this rather than against the panel at
- *  large, which is the difference between "that message is marked unanswered"
- *  and "something on this page is". One undelivered row is all today's
- *  scenarios ever have, so the loose reading does not currently lie — and a
- *  claim that is only true while the fixture stays small is a claim that stops
- *  being checked the day somebody grows it. */
 const myRow = (world: OlaiWorld, text: string): Locator =>
   world.chat(CHAT_ENTRY)
     .filter({ has: world.page.locator(CHAT_MINE, { hasText: text }) });
 
-/** The strip under THAT message, by what became of it. */
 const deliverySaid = (world: OlaiWorld, text: string, fate: string): Locator =>
   myRow(world, text).locator(attr("data-delivery", fate));
 
 Then(
   "the chat shows my message {string} as {string}",
   async function (this: OlaiWorld, text: string, fate: string) {
-    // The BUBBLE has to still say it. A row that reported the failure and lost
-    // the words would pass a check for the mark alone, and losing the words is
-    // the whole thing this feature exists to stop.
     await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
       async () => (await deliverySaid(this, text, fate).count()) > 0,
@@ -1053,11 +746,6 @@ Then(
   },
 );
 
-/** The same claim, waiting out the client's own steer deadline — the ONE way
- *  the `unanswered` face can be reached, since nothing but that deadline ends
- *  a steer nobody answers. Its own step (and its own envelope) rather than a
- *  wider budget on the one above, so exactly one scenario in the suite pays
- *  for it. */
 Then(
   "the chat eventually shows my message {string} as {string}",
   { timeout: STEER_DEADLINE_STEP_TIMEOUT },
@@ -1071,14 +759,6 @@ Then(
   },
 );
 
-/** WHAT THE STRIP SAYS, in the words a person reads.
- *
- *  The step above is about the panel's own vocabulary (`data-delivery`), which
- *  is what the server decided; this is about the sentence drawn out of it. Both
- *  reviewers found the same hole: with only the attribute asserted, swapping
- *  the two faces' SENTENCES left the suite green, and a person reading "not
- *  sent" over a message that may well have arrived is exactly the confusion
- *  this PR exists to end. */
 Then(
   "the strip under my message {string} reads {string}",
   async function (this: OlaiWorld, text: string, said: string) {
@@ -1091,22 +771,9 @@ Then(
   },
 );
 
-/**
- * THE ROW SAYS IT IS WAITING — the message went out while a turn was running,
- * and the agent has not started on it.
- *
- * Read on the row rather than off the composer, and that is the difference the
- * two steps are about: the composer's line is a promise made before anybody
- * presses anything, and this is the state of ONE message somebody sent. A panel
- * that said the first and not the second leaves a person watching their own
- * words with nothing to tell them anything is happening about them.
- */
 Then(
   "the chat shows my message {string} as waiting",
   async function (this: OlaiWorld, text: string) {
-    // The BUBBLE has to still say it, exactly as the delivery steps insist: a
-    // row that reported the state and lost the words would pass on the mark
-    // alone.
     await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
       async () => (await myRow(this, text).locator(CHAT_QUEUED).count()) > 0,
@@ -1116,9 +783,6 @@ Then(
   },
 );
 
-/** ... and that it has stopped: the turns in front of it ended, so the agent
- *  has taken it up. The half that makes the mark worth having — a hint that
- *  never came off would be a row permanently claiming to be next. */
 Then(
   "my message {string} is no longer waiting",
   async function (this: OlaiWorld, text: string) {
@@ -1131,16 +795,9 @@ Then(
 );
 
 When("I send the undelivered message again", async function (this: OlaiWorld) {
-  // `press` rather than a hand-rolled wait-then-click: it also waits out the
-  // frame the click schedules, and the very next step reads the row this
-  // press is about.
   await this.press(this.chat(CHAT_RESEND).first());
 });
 
-/** The claim that costs nothing to state and is the whole point of telling the
- *  two faces apart: where a retry would be a guess, there is no button to make
- *  it with. Read off the SETTLED page — the step before it waited for the mark
- *  — so it is an assertion rather than a race. */
 Then("the chat offers no way to send it again", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.chat(CHAT_RESEND).count(),
@@ -1192,10 +849,6 @@ Then("the chat says the turn was cancelled", async function (this: OlaiWorld) {
   );
 });
 
-/** ... and says it ONCE, which is a claim about a press rather than about a
- *  turn. A cancel stops everything in flight, so each turn answers `cancelled`
- *  — one press, one decision, one line. Counted over the notice rows rather
- *  than over the transcript's text, since a message could contain the word. */
 Then("the chat says it once", async function (this: OlaiWorld) {
   const cancelled = this.chat(CHAT_ENTRY)
     .filter({ hasText: "cancelled" })
@@ -1207,12 +860,6 @@ Then("the chat says it once", async function (this: OlaiWorld) {
   );
 });
 
-// ── following the newest line ──────────────────────────────────────────
-
-/** How far the pane is from the bottom, and how far it could be. Both, because
- *  "at the bottom" is only a claim worth making about a pane that HAS a
- *  bottom to be away from — a transcript shorter than its own window is at the
- *  bottom by construction and would pass every assertion here saying nothing. */
 const scrollOf = (world: OlaiWorld) =>
   world.chat(CHAT_TRANSCRIPT).evaluate((pane) => ({
     fromBottom: pane.scrollHeight - pane.scrollTop - pane.clientHeight,
@@ -1257,8 +904,6 @@ Then(
   },
 );
 
-// ── refusals ───────────────────────────────────────────────────────────
-
 Then("the chat shows a refusal", async function (this: OlaiWorld) {
   await this.chat(CHAT_REFUSAL)
     .first()
@@ -1275,15 +920,12 @@ Then("the chat refusal says {string}", async function (this: OlaiWorld, said: st
   );
 });
 
-// Read once the refusal is known to be up — the step above has waited for it.
 Then("the chat refusal does not say {string}", async function (this: OlaiWorld, unsaid: string) {
   const text = await this.chat(CHAT_REFUSAL).first().innerText();
   assert.ok(!text.includes(unsaid), `the chat refusal says ${JSON.stringify(unsaid)}: ${JSON.stringify(text)}`);
 });
 
 Then("the chat shows no refusal", async function (this: OlaiWorld) {
-  // The scenario establishes completion before checking the transcript.
-  // That receipt need not be a successful write: web refusals stay local too.
   const refusals = await this.chat(CHAT_REFUSAL).allInnerTexts();
   assert.deepStrictEqual(
     refusals,
@@ -1291,11 +933,6 @@ Then("the chat shows no refusal", async function (this: OlaiWorld) {
     `expected no chat refusals; found: ${JSON.stringify(refusals)}`,
   );
 });
-
-// ── questions the agent asked ──────────────────────────────────────────
-//
-// Every step here drives the FIRST question on screen: a scenario that asks one
-// is watching the one it just asked, and a later turn's would arrive below it.
 
 const question = (world: OlaiWorld) => world.chat(CHAT_ASK).first();
 
@@ -1309,8 +946,6 @@ Then("the chat shows a question", async function (this: OlaiWorld) {
 });
 
 Then("the chat shows no question", async function (this: OlaiWorld) {
-  // The turn has already been asserted to have landed by the step before this
-  // one, so a form — if there were one — would be on screen by now.
   assert.strictEqual(
     await this.chat(CHAT_ASK).count(),
     0,
@@ -1327,9 +962,6 @@ Then(
   },
 );
 
-/** By its LABEL, which is what a person reads and presses. `data-value` is the
- *  string that travels back, and the two part company exactly where it
- *  matters — `auto` is spelled `Yes, and use "auto" mode` on screen. */
 When("I choose {string}", async function (this: OlaiWorld, label: string) {
   await question(this)
     .locator(CHAT_ASK_CHOICE, { hasText: label })
@@ -1403,8 +1035,6 @@ Then("the question says I dismissed it", async function (this: OlaiWorld) {
 Then(
   "the question shows {string} as what I chose",
   async function (this: OlaiWorld, value: string) {
-    // Off the ROW rather than off this tab's memory of the click: a reloaded
-    // page has no memory of the click, which is the point of asking.
     await this.expectAttribute(
       `${CHAT_ASK} ${CHAT_ASK_CHOICE}${attr("data-value", value)}`,
       "aria-pressed",
@@ -1418,8 +1048,6 @@ Then(
 Then(
   "the question can no longer be answered",
   async function (this: OlaiWorld) {
-    // The form STAYS — it is the record of what was asked and chosen — so what
-    // has to be true is that it cannot be answered twice.
     assert.strictEqual(
       await question(this).locator(CHAT_ASK_SUBMIT).count(),
       0,
@@ -1459,8 +1087,6 @@ Then(
 Then(
   "the composer says the agent is waiting on me",
   async function (this: OlaiWorld) {
-    // Nothing times out a blocked turn: a form scrolled off the top of a long
-    // transcript is otherwise indistinguishable from an agent that is thinking.
     await this.chat(CHAT_WAITING)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
@@ -1476,8 +1102,6 @@ Then(
     );
   },
 );
-
-// ── tool frames ────────────────────────────────────────────────────────
 
 Then("the chat shows a completed tool call", async function (this: OlaiWorld) {
   await this.expectAttribute(this.chatSelector(CHAT_TOOL),
@@ -1497,10 +1121,6 @@ Then("the chat shows a failed tool call", async function (this: OlaiWorld) {
   );
 });
 
-/** The fold's detail block carries the call's arguments and result verbatim
- *  (`detailOf`), which is the one place a FOREIGN call's own words land — a
- *  server olai does not advertise gets no `reply` half, so what it said is
- *  asserted here rather than against a rendered story. */
 Then(
   "the tool call's detail mentions {string}",
   async function (this: OlaiWorld, said: string) {
@@ -1513,13 +1133,6 @@ Then(
   },
 );
 
-/**
- * ... and what the frame must say NOWHERE — line, fold, terminal pane and all.
- * A negative claim, and it has to be: a client that did not ask the Claude
- * adapter for terminals is sent the shell result fenced into a markdown
- * ```` ```console ```` block, and WHERE those backticks land depends on which
- * half of the bug is present.
- */
 Then(
   "the tool call says nothing of {string}",
   async function (this: OlaiWorld, said: string) {
@@ -1533,18 +1146,12 @@ Then(
   },
 );
 
-/** A fold whose arguments are one long unbroken line: a `<pre>` that does not
- *  wrap puts the end of that line somewhere a reader has to drag to, inside a
- *  conversation that scrolls the other way ({@link panned}). */
 Then("the tool call does not scroll sideways", async function (this: OlaiWorld) {
   await heldTool(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.deepStrictEqual(await panned(this, [CHAT_TOOL]), [],
     "these boxes in the call have a horizontal scrollbar");
 });
 
-/** How many calls the conversation drew, which is the one thing a claim about
- *  a REPEATED report turns on: a frame that arrives twice must produce the row
- *  the first one produced and no second one. */
 Then(
   "the chat shows {int} tool call(s)",
   async function (this: OlaiWorld, many: number) {
@@ -1557,10 +1164,6 @@ Then(
   },
 );
 
-/** ...and how many of them ENDED BADLY, which is a different claim from how
- *  many there are: a row that failed and a row that completed look alike
- *  until the strip beside it is read, and an agent whose calls all report
- *  `completed` is the shape a panel is wrong about silently. */
 Then(
   "the chat shows {int} failed tool call(s)",
   async function (this: OlaiWorld, many: number) {
@@ -1573,12 +1176,6 @@ Then(
   },
 );
 
-/** ...and what one of them is CALLED, which the panel picks once and never
- *  moves: a title is a display string an agent may rewrite mid-call, and a row
- *  that renamed itself under a reader would be the panel changing its mind
- *  about what happened. Read off the frame's own line, where a person reads it,
- *  and through `../support/said.ts` — which exists so that "this line does not
- *  say that" reads the same wherever this suite asks it. */
 Then(
   "the chat shows a tool call named {string}",
   async function (this: OlaiWorld, named: string) {
@@ -1596,18 +1193,12 @@ Then("the chat shows a running tool call", async function (this: OlaiWorld) {
 });
 
 Then("the chat is streaming an answer", async function (this: OlaiWorld) {
-  // `streaming` is DERIVED by the transcript from the one entry it is writing
-  // into, so this asserts the state a person sees as a caret — an answer that
-  // is still arriving — rather than any text in particular.
   await this.chat(CHAT_ENTRY_STREAMING)
     .first()
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("the chat is not streaming", async function (this: OlaiWorld) {
-  // The other half of the claim above, and the one a panel gets wrong: an
-  // answer that never stops growing is an answer with a caret blinking after
-  // it forever, and a turn that looks like it is still running.
   await this.waitUntil(
     async () => (await this.chat(CHAT_ENTRY_STREAMING).count()) === 0,
     "the answer to stop growing",
@@ -1615,8 +1206,6 @@ Then("the chat is not streaming", async function (this: OlaiWorld) {
   );
 });
 
-/** The FIRST tool frame. Every scenario that reads one is watching the one it
- *  just started; a later turn's calls arrive below it. */
 const heldTool = (world: OlaiWorld) => world.chat(CHAT_TOOL).first();
 
 When("I unfold the tool call", async function (this: OlaiWorld) {
@@ -1670,10 +1259,6 @@ Then("the tool call's detail is shown", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** What the RESULT said, as the reader gets it. The reply block carries
- *  the answer once, separate from the input, so this is the one
- *  assertion that follows a field of an op's reply all the way from the ops
- *  layer to a person's screen. */
 Then(
   "the tool call's reply says {string}",
   async function (this: OlaiWorld, said: string) {
@@ -1687,13 +1272,6 @@ Then(
   },
 );
 
-/**
- * An expando on the element itself, which is the only thing that can tell a
- * PATCHED row from a rebuilt one: every attribute a new row is drawn with is
- * one the old row had too, so nothing about how it LOOKS distinguishes them.
- * A property set from outside the framework survives a re-render and does not
- * survive a remount, which is exactly the difference being asserted.
- */
 const MARK = "__olaiSameElement";
 
 const mark = (locator: Locator): Promise<void> =>
@@ -1707,7 +1285,6 @@ const marked = (locator: Locator): Promise<boolean> =>
     MARK,
   );
 
-/** The answer currently growing. */
 const streamingAnswer = (world: OlaiWorld) =>
   world.chat(CHAT_ENTRY_STREAMING).first();
 
@@ -1751,31 +1328,16 @@ Then("the tool call is the element I marked", async function (this: OlaiWorld) {
   );
 });
 
-// ── what a call changed ────────────────────────────────────────────────
-
-/** The FIRST diff drawn, which is the one the turn just produced. */
 const shownDiff = (world: OlaiWorld) => world.chat(CHAT_DIFF).first();
 
 Then(
   "the chat shows a diff of {string}",
   async function (this: OlaiWorld, file: string) {
-    // By PATH, root-relative: the protocol sends an absolute one, and a reader
-    // of this directory should see it spelled the way every `file:line` here
-    // is.
     await this.chat(`${CHAT_DIFF}${attr("data-path", file)}`)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
 );
 
-/**
- * How many boxes one file's change is drawn in — the count, because the shape
- * this exists for is one file arriving as SEVERAL blocks.
- *
- * A polling `expect` rather than a bare `count()`: the two hunks arrive on the
- * report AFTER the one that drew the first, so a count read the moment the
- * first box appears is a count of one, every time, whether or not the second
- * ever lands.
- */
 Then(
   "the chat shows {int} diffs of {string}",
   async function (this: OlaiWorld, many: number, file: string) {
@@ -1830,12 +1392,6 @@ Then("the diff is expanded", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * Every box under these roots that actually grew a horizontal scrollbar, named
- * so a failure says which one. Asked only of boxes that WOULD scroll
- * (`overflow-x: auto` / `scroll`): a truncated path is wider than its box by
- * design and draws an ellipsis, not a bar.
- */
 const panned = (world: OlaiWorld, selectors: ReadonlyArray<string>) =>
   world.page.evaluate((sels: string[]) => {
     const over = (node: Element): boolean => {
@@ -1858,26 +1414,17 @@ const panned = (world: OlaiWorld, selectors: ReadonlyArray<string>) =>
     return out;
   }, [...selectors]);
 
-/** Neither the diff nor the panel holding it may grow one. */
 Then("the diff does not scroll sideways", async function (this: OlaiWorld) {
   await shownDiff(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.deepStrictEqual(await panned(this, [CHAT_DIFF, CHAT_PANEL]), [],
     "these boxes have a horizontal scrollbar");
 });
 
-/**
- * Every wrapping row — addition, removal, and unchanged context — keeps its
- * continuation in the content column. The fixture pairs a long token of each
- * kind so a gutter that only holds for `add` cannot hide.
- */
 Then("a wrapped diff line keeps its gutter", async function (this: OlaiWorld) {
   const box = shownDiff(this);
   await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const geometry = await box.evaluate(
     (root, ids) => {
-      // Built here rather than through the world's `attr`, which is not
-      // reachable inside an `evaluate` callback — and does not need to be:
-      // `kind` is one of this function's own three literals.
       const of = (kind: string): ReadonlyArray<Element> =>
         [...root.querySelectorAll(`${ids.line}[data-kind="${kind}"]`)];
 
@@ -1890,9 +1437,6 @@ Then("a wrapped diff line keeps its gutter", async function (this: OlaiWorld) {
         }
         const gutterBox = gutter.getBoundingClientRect();
         const markBox = mark.getBoundingClientRect();
-        // The text is a grid cell (a block box), so the element's own
-        // `getClientRects()` is one rectangle — the cell. The fragments of a
-        // wrapped line live on a Range over its contents.
         const range = document.createRange();
         range.selectNodeContents(text);
         const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
@@ -1935,9 +1479,6 @@ Then("a wrapped diff line keeps its gutter", async function (this: OlaiWorld) {
         return { ok: true };
       };
 
-      // Add, remove, and unchanged context — not only the arriving line. A
-      // gutter that holds for `+` and slides under `-` or a context wrap is
-      // still a broken gutter.
       for (const kind of ["add", "remove", "same"] as const) {
         const wrapping = of(kind).filter((row) => {
           const text = row.querySelector(ids.text);
@@ -1972,9 +1513,6 @@ Then("a wrapped diff line keeps its gutter", async function (this: OlaiWorld) {
 Then(
   "the diff shows the line {string} as added",
   async function (this: OlaiWorld, text: string) {
-    // The KIND is asserted rather than the colour: what tone an added line
-    // wears is the whole subject here, and so the last thing to assert on —
-    // every palette paints it its own way and all of them mean `add`.
     const added = shownDiff(this).locator(`${CHAT_DIFF_LINE}[data-kind="add"]`);
     await this.waitUntil(
       async () => {
@@ -1990,8 +1528,6 @@ Then(
 Then(
   "the chat says the write {string}",
   async function (this: OlaiWorld, said: string) {
-    // The commit panel's own words for the same event, which is the parity
-    // this is really about: one classification, two places it is read.
     const wrote = this.chat(OUTLINES_STORY).first();
     await wrote.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const shown = oneLine(await wrote.innerText());
@@ -2013,9 +1549,6 @@ Then(
 Then(
   "the outline change says {string}",
   async function (this: OlaiWorld, said: string) {
-    // The Commit panel's own phrase for the same event — which is the parity
-    // that makes this a second reading of one vocabulary rather than a second
-    // vocabulary.
     const row = this.chat(CHAT_OUTLINE_CHANGE).first();
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const shown = oneLine(await row.innerText());
@@ -2027,8 +1560,6 @@ Then(
 );
 
 Then("the diff says it was rewritten whole", async function (this: OlaiWorld) {
-  // The half of a bound that matters on screen: a reader who is not told is
-  // reading the top of the old file as though it were a hunk.
   await this.chat(CHAT_DIFF_WHOLESALE)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
@@ -2036,9 +1567,6 @@ Then("the diff says it was rewritten whole", async function (this: OlaiWorld) {
 Then(
   "the write's nudge says {string}",
   async function (this: OlaiWorld, said: string) {
-    // What the rollup noticed about a write that LANDED — advice, never a
-    // reason anything failed. A person who asked an agent for something is
-    // owed the aside a person who pressed a key already gets.
     const nudge = this.chat(OUTLINES_NUDGE).first();
     await nudge.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const shown = oneLine(await nudge.innerText());
@@ -2058,40 +1586,14 @@ Then("the tool call's detail is folded away", async function (this: OlaiWorld) {
   );
 });
 
-// ── subagent lanes ─────────────────────────────────────────────────────
-
-/** One row of the conversation, as a selector. Spelled once, the way a node
- *  and a day already are (`world.ts`): three literals of one scheme in one
- *  file is two of them being missed the day the scheme moves. */
 const entrySelector = (id: string): string => `${CHAT_ENTRY}${attr("data-entry-id", id)}`;
 
-/**
- * What hangs off a spawn has to be drawn BELOW it and INSET from it.
- *
- * The geometry half of every lane claim, asserted once for both things that
- * make one: a call a subagent made, and the live rail under a spawn nobody has
- * reported on yet. They are the same picture — the whole design is that the
- * two segments meet as one line — so two copies of this measurement would be
- * two chances to assert a different picture.
- *
- * Measured rather than read off a class, for the reason the bubble on your own
- * message is measured: a class is a styling decision a refactor may change, and
- * where a thing SITS is the claim. It is also the half a `data-` attribute
- * cannot make — strip the rail and the indent from the panel and every other
- * assertion in this section still passes.
- *
- * @param spawner the transcript key of the frame it should hang off
- * @param hanging what should be hanging off it
- * @param what a name for it, for the failure to read as a sentence
- */
 const insetBelow = async (
   world: OlaiWorld,
   spawner: string,
   hanging: Locator,
   what: string,
 ): Promise<void> => {
-  // The frame it names has to BE there: a lane pointing at a row the panel
-  // never drew would look right and say nothing.
   const frame = world.chat(entrySelector(spawner));
   await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const above = await frame.boundingBox();
@@ -2113,20 +1615,6 @@ const insetBelow = async (
   );
 };
 
-/**
- * A LANE IS BOTH HALVES, asserted together: it NAMES an agent (`data-lane`,
- * pointing at a row the panel actually drew) and it is drawn INSET under that
- * row. Either alone passes a build that lost the other — an indent that
- * attributes nothing, or an attribution nobody can see — which is why
- * {@link insetBelow} was extracted, and this is the four lines around it,
- * now that a third caller asks the same question about a different kind of
- * row.
- *
- * @param lane the lane's own box
- * @param inner what inside it should be inset — the row, or the form
- * @param what a name for it, for the failure to read as a sentence
- * @param anonymous what to say when the lane names nobody at all
- */
 const drawnInALane = async (
   world: OlaiWorld,
   lane: Locator,
@@ -2143,14 +1631,6 @@ const drawnInALane = async (
 Then(
   "the call that spawned it is in no lane of its own",
   async function (this: OlaiWorld) {
-    // The other half of the claim, and the one that catches a panel that filed
-    // the WRONG row away: the `Agent` call is the MAIN agent's own work, so it
-    // stays in the conversation's own column with the door hanging off it —
-    // which is the whole reason the record is still reachable an hour later.
-    //
-    // Asked of the DOOR rather than of a lane, because a lane is what this
-    // change removed from the column: a subagent's calls are not drawn there
-    // any more, so there is no longer a lane to read the spawn's key off.
     const parent = await this.chat(CHAT_LANE_DOOR).first().getAttribute("data-lane");
     assert.ok(parent !== null && parent !== "", "a door that names no agent opens onto nothing");
     const nested = await this.chat(`${CHAT_LANE} ${entrySelector(parent ?? "")}`)
@@ -2167,9 +1647,6 @@ Then(
 Then(
   "the chat says an agent is working, of the kind {string}",
   async function (this: OlaiWorld, kind: string) {
-    // THE LIVE HALF, and the whole of what this scenario is about: it has to
-    // be on screen while the agent has reported nothing, so it is found by
-    // waiting for it rather than by looking after the fact.
     const working = this.chat(CHAT_SPAWN_WORKING).first();
     await working.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const spawner = await working.getAttribute("data-lane");
@@ -2177,9 +1654,6 @@ Then(
       spawner !== null && spawner !== "",
       "a rail that names no agent is an indent, not an attribution",
     );
-    // WHO, off the frame the rail hangs from — the attribute rather than the
-    // words, so the claim stays about the kind of agent the call named and not
-    // about how the row spells it.
     const frame = this.chat(entrySelector(spawner ?? ""));
     await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(
@@ -2187,10 +1661,6 @@ Then(
       kind,
       `the call that spawned an agent does not say it started a "${kind}"`,
     );
-    // ... and the same geometry a lane owes, for the same reason: the rail is
-    // the claim that this is somebody ELSE's work, and one drawn level with
-    // the conversation says the main agent is doing it. The same measurement a
-    // subagent's own row is held to, because it is meant to be the same line.
     await insetBelow(this, spawner ?? "", working, "the agent that was sent out");
   },
 );
@@ -2198,11 +1668,6 @@ Then(
 Then(
   "the chat still shows a call that sent out an {string}",
   async function (this: OlaiWorld, kind: string) {
-    // The half that must NOT come off with the live one: who was sent is a
-    // fact about what happened, and the row is the record of it. A panel that
-    // took the whole face off when the agent died would leave a bare pending
-    // dot where a spawn was — which is the bug this feature exists for,
-    // arriving at the end of the turn instead of the start.
     await this.chat(`${CHAT_SPAWN}${attr("data-spawn-kind", kind)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -2212,11 +1677,6 @@ Then(
 Then(
   "the chat says a background task is watching {string}",
   async function (this: OlaiWorld, watching: string) {
-    // WHAT WAS ARMED, on the line of the call that armed it. The description
-    // rather than the title, because the title of the call is `Bash` or
-    // `Monitor` and the description is the sentence a person recognises their
-    // own watch by — which is the whole of what "how do you know you are
-    // babysitting right now?" was asking for.
     const armed = this.chat(CHAT_ARMED).first();
     await armed.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
@@ -2224,8 +1684,6 @@ Then(
       true,
       `the armed call does not say it is watching "${watching}"`,
     );
-    // ... and the harness's own id for the task travels with it, which is what
-    // makes every later frame about the task land on THIS row.
     const task = await armed.getAttribute("data-task");
     assert.ok(
       task !== null && task !== "",
@@ -2235,10 +1693,6 @@ Then(
 );
 
 Then("the chat says that task is still running", async function (this: OlaiWorld) {
-  // THE LIVE HALF, and the one this scenario keeps asking about across two
-  // turns: a task is out there and nothing has said it stopped. The same rail
-  // a spawned agent hangs, because an agent in flight and a task in flight are
-  // one kind of fact to a reader.
   const still = this.chat(CHAT_ARMED_STILL).first();
   await still.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const armed = await still.getAttribute("data-lane");
@@ -2246,19 +1700,12 @@ Then("the chat says that task is still running", async function (this: OlaiWorld
     armed !== null && armed !== "",
     "a rail that names no call is an indent, not an attribution",
   );
-  // The same geometry a lane owes: the rail is the claim that something else
-  // is going on under this row, and one drawn level with the conversation says
-  // the agent is doing it.
   await insetBelow(this, armed ?? "", still, "the task that was armed");
 });
 
 Then(
   "the chat says that task ended {string}",
   async function (this: OlaiWorld, ended: string) {
-    // THE DEATH, which is the fact this whole feature exists for — and in the
-    // HARNESS's word, off the attribute rather than the sentence, because ACP
-    // has four statuses and `failed`, `killed` and `stopped` all reach the row
-    // as one of them.
     await this.chat(`${CHAT_ARMED_ENDED}${attr("data-ended", ended)}`)
       .first()
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -2268,11 +1715,6 @@ Then(
 Then(
   "the chat shows the harness saying {string}",
   async function (this: OlaiWorld, said: string) {
-    // ... and what it SAID about the ending, drawn without unfolding anything.
-    // A task's row is one line for as long as the task runs and then one
-    // sentence, and that sentence is where a background shell's exit code is:
-    // behind the fold it would be the one thing the row was ever going to say,
-    // hidden behind the same click as the arguments.
     await this.waitUntil(
       async () => {
         const shown = await this.chat(CHAT_TOOL_PROGRESS).allTextContents();
@@ -2288,22 +1730,15 @@ Then(
 Then(
   "the strip says {string} is running",
   async function (this: OlaiWorld, name: string) {
-    // ABOVE THE SCROLL, which is the whole claim: the strip is outside the
-    // transcript pane, so it answers "is my watch still up?" from wherever the
-    // reader is — including, in this scenario, from the bottom of a
-    // conversation whose arming row is long gone off the top.
     const task = this.chat(`${CHAT_WATCHING} ${CHAT_WATCHING_TASK}`)
       .filter({ hasText: name })
       .first();
     await task.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // ... naming the ROW it belongs to, so the strip and the record are one
-    // task named twice rather than two facts free to disagree.
     const row = await task.getAttribute("data-row");
     assert.ok(
       row !== null && row !== "",
       "a strip that names no row is a second copy of the task, not the same one",
     );
-    // ... and how long it has been out, in the same words the row uses.
     const said = await task.locator(CHAT_WATCHING_FOR).first().textContent();
     assert.ok(
       secondsSaid(said ?? "") !== null,
@@ -2313,11 +1748,6 @@ Then(
 );
 
 Then("the call that armed the task is out of sight", async function (this: OlaiWorld) {
-  // The condition the whole strip exists for, made true in a scenario rather
-  // than asserted about a screenshot: the arming row is off the top of the
-  // pane, which is where a monitor armed at the start of a session lives for
-  // the rest of it. Measured against the PANE rather than the window, because
-  // the row is clipped by the pane's own scroll.
   const gone = await this.chat(CHAT_TRANSCRIPT)
     .evaluate((pane, selector) => {
       const row = pane.querySelector(selector);
@@ -2332,10 +1762,6 @@ Then("the call that armed the task is out of sight", async function (this: OlaiW
 });
 
 Then("the newest line says {string}", async function (this: OlaiWorld, said: string) {
-  // WHERE THE READER IS, which is the ruling: a death edited into a row an
-  // hour up the scroll is a death nobody meets. The LAST row, not "somewhere
-  // in the transcript" — that weaker claim passes on the arming row's own
-  // ending and would have passed before any of this existed.
   await this.waitUntil(
     async () => {
       const rows = this.chat(CHAT_ENTRY);
@@ -2350,9 +1776,6 @@ Then("the newest line says {string}", async function (this: OlaiWorld, said: str
 });
 
 Then("the chat says nothing is running in the background", async function (this: OlaiWorld) {
-  // The strip goes with the task. A standing fact that outlives the thing it
-  // stands for is worse than none: it is the one place a person looks to find
-  // out whether their watch is up.
   await this.waitUntil(
     async () => (await this.chat(CHAT_WATCHING).count()) === 0,
     "the background-task strip to clear",
@@ -2360,9 +1783,6 @@ Then("the chat says nothing is running in the background", async function (this:
   );
 });
 Then("the chat says no background task is still running", async function (this: OlaiWorld) {
-  // A live face that outlives the thing it is about is worse than none: this
-  // rail says a watch is still out, and a watch that has died is exactly what
-  // a person must not be told is running.
   await this.waitUntil(
     async () => (await this.chat(CHAT_ARMED_STILL).count()) === 0,
     "the panel to stop saying a background task is still running",
@@ -2371,8 +1791,6 @@ Then("the chat says no background task is still running", async function (this: 
 });
 
 Then("the chat says no agent is still working", async function (this: OlaiWorld) {
-  // A face that outlives the agent is worse than none: it says a fan-out is
-  // running when the turn is over.
   await this.waitUntil(
     async () => (await this.chat(CHAT_SPAWN_WORKING).count()) === 0,
     "the panel to stop saying an agent is working",
@@ -2380,18 +1798,7 @@ Then("the chat says no agent is still working", async function (this: OlaiWorld)
   );
 });
 
-/**
- * The readout's duration, in seconds, read back out of the words on the row.
- *
- * The panel says `47s`, `1m 12s`, `1h 20m` — coarser as it goes up — so the
- * three shapes are parsed rather than one, and a string that is none of them
- * comes back `null` so the step can say the panel drew something that is not a
- * duration instead of quietly comparing `NaN`.
- */
 const secondsSaid = (said: string): number | null => {
-  // `(?=.)` is what makes the requirement the PATTERN's: every group after it is
-  // optional, so without it the empty string matches and comes back as a
-  // confident `0` for a row that said nothing at all.
   const parts = /^(?=.)(?:(\d+)h )?(?:(\d+)m ?)?(?:(\d+)s)?$/.exec(said.trim());
   if (parts === null) return null;
   const [, hours, minutes, seconds] = parts;
@@ -2401,9 +1808,6 @@ const secondsSaid = (said: string): number | null => {
 Then(
   "the chat says how long a running call has been going",
   async function (this: OlaiWorld) {
-    // THE LIVE HALF, like the spawn rail above: it is only true while the call
-    // is still out, so it is found by waiting for it rather than by looking
-    // after the fact.
     const elapsed = this.chat(CHAT_TOOL_ELAPSED).first();
     await elapsed.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const said = (await elapsed.textContent()) ?? "";
@@ -2411,12 +1815,6 @@ Then(
       secondsSaid(said) !== null,
       `the elapsed readout says "${said}", which is not a duration`,
     );
-    // ... and it is on a call the WIRE still calls running. This is the claim
-    // that keeps the readout agent-agnostic and honest at once: no tool name is
-    // recognised anywhere, so the status is the whole of what earns a number.
-    // ONE selection, and the count is asserted rather than `.first()` taken, so
-    // "the timed call" cannot silently mean a different row from the readout
-    // above.
     const timed = this.chat(CHAT_TOOL)
       .filter({ has: this.page.locator(CHAT_TOOL_ELAPSED) });
     assert.strictEqual(
@@ -2437,13 +1835,6 @@ Then(
 Then(
   "the chat still shows a call the wire calls {string}",
   async function (this: OlaiWorld, status: string) {
-    // The half that must NOT come off. A status is the agent's own word and the
-    // row is the record of what it said, so a call its turn walked away from
-    // goes on saying `in_progress` for as long as the panel is open — that is
-    // the honest account of a call that was announced and never reported on.
-    // What stops is the live FACE, and this is what makes the assertion beside
-    // it mean something: the row that is not being timed is still there, still
-    // saying the wire's own word.
     await this.chat(`${CHAT_TOOL}${attr("data-tool-status", status)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -2451,10 +1842,6 @@ Then(
 );
 
 Then("that elapsed time is ticking", async function (this: OlaiWorld) {
-  // A number that appeared once and froze would pass every assertion above and
-  // be the thing this feature exists against: a reader watching a long call
-  // wants to know it is still going, and a stopped clock says the opposite of
-  // that while looking identical.
   const elapsed = this.chat(CHAT_TOOL_ELAPSED).first();
   const first = secondsSaid((await elapsed.textContent()) ?? "") ?? 0;
   await this.waitUntil(
@@ -2465,10 +1852,6 @@ Then("that elapsed time is ticking", async function (this: OlaiWorld) {
 });
 
 Then("the chat times no call", async function (this: OlaiWorld) {
-  // The half that has to come OFF, and the reason it is asked of the whole
-  // panel rather than of one row: a clock still counting is a claim that
-  // something is still running, and it is a claim that gets louder every second
-  // it is wrong.
   await this.waitUntil(
     async () => (await this.chat(CHAT_TOOL_ELAPSED).count()) === 0,
     "the panel to stop timing any call",
@@ -2479,9 +1862,6 @@ Then("the chat times no call", async function (this: OlaiWorld) {
 Then(
   "exactly one lane names itself, as {string}",
   async function (this: OlaiWorld, named: string) {
-    // ONE, and this is the count that matters: the label is drawn where a
-    // stretch of one agent's work OPENS, so a panel that put it on every row
-    // would say the agent's name three times down a 26rem drawer.
     const labels = this.chat(CHAT_LANE_LABEL);
     await labels.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
@@ -2498,19 +1878,12 @@ Then(
   },
 );
 
-/** The lane a QUESTION is drawn in. `:has()` rather than a walk up the tree,
- *  because what is being claimed is containment: the form is INSIDE the lane's
- *  own box, which is what makes the rail run past it and the indent apply to
- *  it. A form drawn beside a lane would satisfy neither. */
 const askLane = (world: OlaiWorld) =>
   world.chat(`${CHAT_LANE}:has(${CHAT_ASK})`).first();
 
 Then(
   "the question is drawn in the lane of the agent that asked it",
   async function (this: OlaiWorld) {
-    // The same two halves a subagent's tool call owes, of the same lane, so
-    // "the form is in the lane" is one claim rather than a second spelling of
-    // one — see `drawnInALane`.
     const lane = askLane(this);
     await drawnInALane(
       this,
@@ -2527,10 +1900,6 @@ Then(
 Then(
   "the question's lane names itself, as {string}",
   async function (this: OlaiWorld, named: string) {
-    // WHICH LANE the name belongs to, which is the half the count-and-text
-    // step above ("exactly one lane names itself") cannot say: it is the
-    // FORM's lane that has to carry it, because that is the row a reader
-    // arrives at from the composer or the header with nothing above it read.
     const label = askLane(this).locator(CHAT_LANE_LABEL).first();
     await label.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const said = oneLine(await label.innerText());
@@ -2544,10 +1913,6 @@ Then(
 Then(
   "no lane introduces itself under the question",
   async function (this: OlaiWorld) {
-    // THE VISIBLE HALF of the same bug, and a PLACE rather than a count — the
-    // count is the existing step's, run beside this one. A form in no lane
-    // ends the stretch, so the lane opened again and introduced itself UNDER
-    // the form: one name on screen either way, on the wrong row.
     const form = await askLane(this).locator(CHAT_ASK).boundingBox();
     const named = await this.chat(CHAT_LANE_LABEL).first().boundingBox();
     assert.ok(form !== null && named !== null, "the form or its lane's name is not drawn");
@@ -2560,18 +1925,6 @@ Then(
   },
 );
 
-// ── the completion over the box ────────────────────────────────────────
-//
-// ONE set of steps for both lists — the agent's commands under a `/` and what
-// the served directory holds under an `@` — because they are one box in the
-// client (`web/src/client/chat/CompletionMenu.tsx`) and a second spelling here
-// would be two scenarios' worth of drift about what "the completion offers"
-// means. A row is named by its `data-value`, which is what taking it writes:
-// the command's name, the file's path, or the node's id.
-
-/** WHICH list, off `data-kind` — `command` or `name`. Named rather than
- *  guessed from the rows, because the whole design claim is that one scan of
- *  the line decides which character the caret is inside. */
 Then(
   "the {word} completion is open",
   async function (this: OlaiWorld, kind: string) {
@@ -2581,9 +1934,6 @@ Then(
   },
 );
 
-/** Nothing armed, or nothing matched — which are the same thing on screen and
- *  deliberately so: a trigger with nothing to offer draws no box, so an `@`
- *  that is somebody's address types straight through. */
 Then("no completion is open", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_COMPLETION).count()) === 0,
@@ -2602,13 +1952,6 @@ Then(
 Then(
   "the completion does not offer {string}",
   async function (this: OlaiWorld, value: string) {
-    // Wait for THIS query's node half, then HOLD the absence. The
-    // attribute lives on the box (always there) as well as the list
-    // (only while there are rows): a word that named nothing draws no
-    // list, and waiting for the list is a wait the empty answer never
-    // satisfies. `completingIn` is the composer's own read of the
-    // armed query, so the wait and the box cannot disagree about which
-    // word has been answered.
     const text = await (await chatBox(this)).inputValue();
     const armed = completingIn(text, text.length);
     if (armed !== null && armed.kind === "name") {
@@ -2626,10 +1969,6 @@ Then(
   },
 );
 
-/** What a row READS, which is not what it writes: the file's own name, with
- *  where it sits beside it. Asked once, for the one row whose folder is part
- *  of the answer — a column of `2026-08-16.md` in a `Daily/` vault is the
- *  reason the path is not the label. */
 Then(
   "the completion row {string} reads {string} in {string}",
   async function (this: OlaiWorld, value: string, label: string, hint: string) {
@@ -2639,15 +1978,6 @@ Then(
   },
 );
 
-/**
- * WHICH BLOCK IS ABOVE WHICH, when the `@` list holds both of the things the
- * directory can be named by.
- *
- * The labels in the order they are drawn, which is the only way to assert this:
- * "files first" is a claim about the LIST rather than about any row of it, and
- * two `offers` steps in the order somebody wrote them would pass whatever the
- * list did.
- */
 Then(
   "the completion block {string} comes before the block {string}",
   async function (this: OlaiWorld, first: string, second: string) {
@@ -2666,7 +1996,6 @@ When("I accept the completion", async function (this: OlaiWorld) {
   await keysSettled(this);
 });
 
-/** The pointer's door onto the same row, for the hand that is already there. */
 When(
   "I click the completion {string}",
   async function (this: OlaiWorld, value: string) {
@@ -2675,17 +2004,6 @@ When(
   },
 );
 
-/**
- * WHERE IN THE TEXT the caret sits, read off the element rather than reasoned
- * about.
- *
- * The completion sets the field's value and then its selection, and what keeps
- * the second from being undone by the framework's own binding is a claim about
- * Solid and about the platform that no comment can settle
- * (`client/chat/Composer.tsx`'s `rewrite`). A real browser can, so it does:
- * completing mid-sentence has to leave the caret after the path it wrote, not
- * at the end of the line.
- */
 Then(
   "the caret in the chat box is at {int}",
   async function (this: OlaiWorld, at: number) {
@@ -2698,9 +2016,6 @@ Then(
   },
 );
 
-/** WHERE THE CARET IS after a row was taken with the pointer: the press moved
- *  focus to a button that is gone a moment later, so a completion that did not
- *  hand it back would cost a click instead of saving one. */
 Then("the caret is in the chat box", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () =>
@@ -2710,14 +2025,6 @@ Then("the caret is in the chat box", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * The caret moved INTO the sentence, the way a click into the middle of one
- * moves it — `editing_steps.ts`'s gesture, one box over.
- *
- * `setSelectionRange` fires the element's own `select` event, which is what
- * the composer listens for: the caret is the element's answer there, never a
- * signal this suite could set (`client/chat/Composer.tsx`).
- */
 When(
   "I put the caret after {string} in the chat",
   async function (this: OlaiWorld, prefix: string) {
@@ -2735,8 +2042,6 @@ When(
       }
       const caret = at + wanted.length;
       if (field.selectionStart === caret && field.selectionEnd === caret) return;
-      // Native select is queued. A second move before it arrives can hide the
-      // first position from the composer (and skip clearing its dismissal).
       await new Promise<void>(resolve => {
         field.addEventListener("select", () => resolve(), { once: true });
         field.setSelectionRange(caret, caret);
@@ -2745,8 +2050,6 @@ When(
   },
 );
 
-/** A key aimed at the BOX rather than at the page — which is the whole of what
- *  the list asks before answering one (`within`, in CompletionMenu.tsx). */
 When(
   "I press {string} in the chat",
   async function (this: OlaiWorld, key: string) {
@@ -2764,8 +2067,6 @@ Then(
     );
   },
 );
-
-// ── sessions ───────────────────────────────────────────────────────────
 
 Then(
   "the opened conversation carries the title {string}",
@@ -2785,9 +2086,6 @@ When("I start a new conversation", async function (this: OlaiWorld) {
 });
 
 Then("the chat is empty", async function (this: OlaiWorld) {
-  // A new conversation EMPTIES the panel. The agent's context is gone, so
-  // nothing above could be followed up — a transcript you cannot refer to is
-  // history the panel would be keeping for its own sake.
   await this.waitUntil(
     async () => (await this.chat(CHAT_ENTRY).count()) === 0,
     "the transcript to empty",
@@ -2795,29 +2093,11 @@ Then("the chat is empty", async function (this: OlaiWorld) {
   );
 });
 
-/** The header's SESSIONS pill pressed — a node agent's own conversations, and
- *  the fresh session that ends the current one. It is drawn only where the
- *  panel's conversation belongs to a node agent; every OTHER stored
- *  conversation is the sidebar's now ("I open the unassigned chats").
- *
- *  OPEN, which is not the same as PRESS: a press toggles, and the list is the
- *  pane's, so it outlives a frame that redraws the panel (`history.ts`) — a
- *  second press would shut the very list this step promises to open, which is
- *  what a scenario that looked at the history, switched tabs and looked again
- *  found.
- */
 When("I open the fold history", async function (this: OlaiWorld) {
   const pill = this.chat(CHAT_SESSIONS);
   await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   if (await pill.getAttribute("aria-expanded") !== "true") await pill.click();
 });
-/** No `trouble` on screen — what went wrong where nobody was waiting, and the
- *  claim that nothing did. No wait of its own: the step before it has already
- *  waited for something the panel could only have drawn after the moment this
- *  is about, so a `trouble` that was coming would be here. */
-/** The BANNER, which is a different claim from a notice in the transcript:
- *  a notice scrolls away with the conversation and this does not, and the one
- *  ending that leaves it up deliberately is a turn that produced nothing. */
 Then("the panel says something went wrong", async function (this: OlaiWorld) {
   await this.chat(CHAT_TROUBLE)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -2827,11 +2107,6 @@ Then("the chat says nothing went wrong", async function (this: OlaiWorld) {
   assert.strictEqual(await this.chat(CHAT_TROUBLE).count(), 0);
 });
 
-/** ONE AGENT of the several installed could not be asked — a different claim
- *  from the one above, and the whole reason it has a locator of its own: this
- *  one leaves every other agent's conversations on the screen, and the list
- *  itself did not refuse. Named by the agent, so a list with two broken agents in it
- *  is two assertions rather than one ambiguous locator. */
 Then(
   "the list says {string} could not be asked, with {string}",
   async function (this: OlaiWorld, agent: string, reason: string) {
@@ -2846,8 +2121,6 @@ Then(
   },
 );
 
-/** The other half of the claim: a refusal draws no rows, so the two answers
- *  cannot be confused by a reader who sees an empty list under an error. */
 Then("the unassigned list is empty", async function (this: OlaiWorld) {
   assert.strictEqual(await this.chat(CHAT_SESSION).count(), 0);
 });
@@ -2865,9 +2138,6 @@ When(
   },
 );
 
-/** A conversation in the list, said to be one AGENT's — which is the whole of
- *  the fan-out's claim: the list is not the agent this panel happens to be
- *  talking to. By the roster's id rather than by the brand name beside it. */
 Then(
   "the unassigned list shows {string} under the agent {string}",
   async function (this: OlaiWorld, title: string, agent: string) {
@@ -2877,10 +2147,6 @@ Then(
   },
 );
 
-/** The HEADING over that agent's rows. Its own step because grouping and
- *  belonging are two claims: a flat list of correctly-tagged rows would pass
- *  the one above and be the interleaved list this arrangement exists to
- *  replace. */
 Then(
   "the unassigned list is grouped under the agent {string}",
   async function (this: OlaiWorld, agent: string) {
@@ -2889,22 +2155,13 @@ Then(
   },
 );
 
-/** ... and that it is NOT grouped, which is the one-agent case: a heading over
- *  the whole list says what the panel's own header already says. */
 Then("the unassigned list has no headings", async function (this: OlaiWorld) {
   assert.strictEqual(await this.chat(CHAT_SESSION_AGENT).count(), 0);
 });
 
-/** One row of the list, by its title — the hand every row-level claim shares,
- *  because the title is what a person means by the conversation. */
 const rowOf = (world: OlaiWorld, title: string): Locator =>
   world.chat(selector(PLUGIN_TESTID.chatPastSession), { hasText: title }).first();
 
-/** HOW BIG a conversation it says — the adapter's own count, read off the row
- *  the way a person's eye takes it: the words, not the element carrying them.
- *  The plural pattern; one message is checked by its own, because the drawn
- *  word changes to "message" — and the singular, not the number, is what the
- *  review noted the step below could otherwise never observe. */
 Then(
   "the row for {string} says it has {int} messages",
   async function (this: OlaiWorld, title: string, count: number) {
@@ -2930,9 +2187,6 @@ Then(
   },
 );
 
-/** ... and the other answer, for the agent whose `session/list` carries no
- *  corner to read a count out of: nothing there — never a zero standing in
- *  for nobody having asked. */
 Then(
   "the row for {string} shows no message count",
   async function (this: OlaiWorld, title: string) {
@@ -2945,9 +2199,6 @@ Then(
   },
 );
 
-/** WHICH conversation replaced this one, read off the row — the list's own
- *  answer to "which of these two do I want" before anybody opens the wrong
- *  half of a `/clear` pair. */
 Then(
   "the row for {string} was superseded by {string}",
   async function (this: OlaiWorld, title: string, successor: string) {
@@ -2964,20 +2215,12 @@ Then(
 Then(
   "the row for {string} was not superseded",
   async function (this: OlaiWorld, title: string) {
-    // The absence of the line, not of the word: a title could supersede in
-    // name only, and a superseded row carries the one element with the fact.
     const row = rowOf(this, title);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => await row.locator(CHAT_SESSION_SUPERSEDED).count() === 0, "the refreshed listing to omit the missing successor");
   },
 );
 
-// ── what the OUTLINE did about it ──────────────────────────────────────
-
-/** The other half of the step below, and it is a claim about a WRITE THAT DID
- *  NOT HAPPEN — so it is checked against the settled page rather than waited
- *  for. Its caller has already waited for something else to be true (the row
- *  marked unsent), which is what makes this a read rather than a race. */
 Then("node {string} is not done", async function (this: OlaiWorld, id: string) {
   const status = await this.node(id).getAttribute("data-status");
   assert.notStrictEqual(
@@ -2988,11 +2231,6 @@ Then("node {string} is not done", async function (this: OlaiWorld, id: string) {
 });
 
 Then("node {string} is done", async function (this: OlaiWorld, id: string) {
-  // The HYDRATION budget, not the interaction one: getting here is a prompt, a
-  // turn, a tool call, a write and a fresh snapshot down the wire — not a
-  // render away. Everything else about the assertion is the world's own
-  // node-status step (`outline_tree_steps.ts`), reached through the same
-  // `nodeSelector` so a renamed `data-testid` stays a type error.
   await this.expectAttribute(
     nodeSelector(id),
     "data-status",
@@ -3021,9 +2259,6 @@ Then(
 Then(
   "the panel header names the model {string}",
   async function (this: OlaiWorld, model: string) {
-    // The model arrives on the session's config options and is LABELLED from
-    // the picker the agent offers — so asserting the label rather than the raw
-    // id is what says the labelling happened at all.
     await this.waitUntil(
       async () => {
         const header = this.chat(CHAT_MODEL);
@@ -3035,13 +2270,6 @@ Then(
     );
   },
 );
-
-// ── a conversation the agent would not open ────────────────────────────
-//
-// The panel's third body, and the one that is about a LIVE agent: it answered,
-// and what it answered was no. The claims are what tells that apart from a dead
-// one — the header still names the model, the reason is the agent's own words,
-// and there is something to press.
 
 Then("the panel says the conversation could not be opened", async function (this: OlaiWorld) {
   await this.chat(CHAT_UNOPENED)
@@ -3063,16 +2291,6 @@ Then(
   },
 );
 
-/**
- * THE ONE REFUSAL WITH NOTHING TO PRESS, asserted as all three of its halves.
- *
- * A full pool is not a fault and not a thing to retry: the server is holding
- * this attempt and opens the panel itself when a seat frees. So the body says
- * the sentence, carries the cause that made it quiet rather than alarming, and
- * — the half that would otherwise be easy to regress — draws no *Try again*,
- * because a button whose only honest answer is "still full" is worse than no
- * button.
- */
 Then(
   "the panel is waiting for a seat, saying {string}",
   async function (this: OlaiWorld, said: string) {
@@ -3088,16 +2306,6 @@ Then(
   },
 );
 
-/**
- * THE OTHER REFUSAL WITH A FACE OF ITS OWN — the chat that is not on this
- * machine, asserted as the three things that make it different from the
- * ordinary no.
- *
- * It is CLASSIFIED (`data-cause`, read off ACP's `-32002` rather than off the
- * sentence), it is CALM — the engine's words stay, as a detail line in the
- * body's own colour rather than in alarm — and it SAYS WHAT HAPPENED in words
- * a person can act on, which is what the old body did not.
- */
 Then(
   "the panel says this chat is not on this machine",
   async function (this: OlaiWorld) {
@@ -3122,18 +2330,12 @@ Then(
   },
 );
 
-/** ...AND THAT IT IS NOT AN ALARM. Asserted as a comparison rather than as a
- *  class name: the engine's sentence is drawn in the same colour as the prose
- *  around it, which is what "a muted detail line" means and what a regression
- *  back to the red line would break. */
 Then("the engine's own words are not alarmed", async function (this: OlaiWorld) {
   const why = await this.chat(CHAT_UNOPENED_WHY).evaluate((element) => getComputedStyle(element).color);
   const body = await this.chat(CHAT_UNOPENED).evaluate((element) => getComputedStyle(element).color);
   assert.strictEqual(why, body, "the engine's sentence to be drawn as quietly as the body around it");
 });
 
-/** THE ONE PRESS THAT MOVES — and it is one press: this body has nothing to
- *  displace, so there is no confirmation between the click and the new chat. */
 When("I start a fresh chat from the refusal", async function (this: OlaiWorld) {
   const fresh = this.chat(CHAT_UNOPENED_FRESH);
   await fresh.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -3144,9 +2346,6 @@ Then("the refusal offers a fresh chat", async function (this: OlaiWorld) {
   await this.chat(CHAT_UNOPENED_FRESH).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
-/** ...AND DOES NOT, where the refused chat is not the one the node is bound to.
- *  A fresh start re-points `agent-session`; offering it while somebody reads an
- *  EARLIER chat would re-point a binding they are not looking at. */
 Then("the refusal offers no fresh chat", async function (this: OlaiWorld) {
   const body = this.chat(CHAT_UNOPENED);
   await body.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -3157,9 +2356,6 @@ Then("the refusal offers no fresh chat", async function (this: OlaiWorld) {
   );
 });
 
-/** ...AND *Try again* IS STILL THERE on both of them: a store that was merely
- *  away for a moment is the same refusal from an engine that will find the chat
- *  on the next press. */
 Then("the refusal still offers a retry", async function (this: OlaiWorld) {
   await this.chat(CHAT_REOPEN).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
@@ -3170,9 +2366,6 @@ When("I try to open it again", async function (this: OlaiWorld) {
   await again.click();
 });
 
-/** What a CLICK was told, wherever the panel says it. The refused-conversation
- *  body draws the same line the transcript does — there is no transcript in it
- *  to put one in, and the button it sits under is the only control there is. */
 Then(
   "the chat says the click was refused, with {string}",
   async function (this: OlaiWorld, said: string) {
@@ -3180,17 +2373,6 @@ Then(
   },
 );
 
-/** ...AND WHERE THE SERVER HAS TWO HONEST ANSWERS, both of them.
- *
- *  A second press of *Try again* finds nothing waiting and is told so — unless
- *  the first press has already replaced the conversation under this body, in
- *  which case the press was made in a panel that MOVED and the server says
- *  that instead. Which of the two it is depends on whether the first press's
- *  change has landed by the frame of the second, so a scenario that reads one
- *  sentence is a scenario that goes red on a loaded box for the wrong reason.
- *  What is pinned is what the error rule asks: the one control in this body
- *  cannot be pressed silently, and it says WHY it did nothing.
- */
 Then(
   "the chat says the click was refused, with {string} or {string}",
   async function (this: OlaiWorld, one: string, other: string) {
@@ -3215,26 +2397,6 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
   );
 });
 
-// ── which servers this conversation has ────────────────────────────────
-//
-// The claim is about the PANEL, which is the whole of `mcp-roster-visible`:
-// what the session was handed is already asserted through the agent's own
-// `servers` answer (`a_failed_mcp_server.feature`), and it was asserted there
-// while a person looking at the app could only ever see the failures.
-//
-// THE STANDING IS READ AS DATA, never as a mark. Which glyph says "connected"
-// is a decision about pixels and belongs to whoever is drawing it next; that
-// the panel says the agent attached a named server is the behaviour, and it is
-// what these assert — tests assert behaviour, not styling.
-
-/** One roster row's standing, waited for. The four steps below differ in one
- *  word, so the selector shape, the attribute name, the failure label and the
- *  timeout are chosen once: a fifth standing (the union is designed to grow) is
- *  then one more registration rather than a fifth copy of this call.
- *
- *  HYDRATION_TIMEOUT because the roster cannot exist until the probe has
- *  answered and the session has been asked for, which is a boot rather than a
- *  render. */
 const standingIs = (
   world: OlaiWorld,
   name: string,
@@ -3260,11 +2422,6 @@ Then(
   },
 );
 
-/** ... and the layer above it: the agent itself said it attached. Its own step
- *  because the two are two facts with two sources — olai knows what it handed
- *  over, and only the agent knows what it did with it — and a panel that drew
- *  the second on the strength of the first would be making the claim the model
- *  made wrongly. */
 Then(
   "the panel says the agent attached {string}",
   async function (this: OlaiWorld, name: string) {
@@ -3272,10 +2429,6 @@ Then(
   },
 );
 
-/** ... and the honest silence where nobody has said so. `handed` is what a
- *  conversation looks like before its agent has spoken and on an agent that
- *  never speaks per server, and it is the state a panel must not quietly
- *  promote — a tick nobody asserted is exactly what this feature is against. */
 Then(
   "the panel does not claim the agent attached {string}",
   async function (this: OlaiWorld, name: string) {
@@ -3286,10 +2439,6 @@ Then(
 Then(
   "the panel says the list is not the whole of it",
   async function (this: OlaiWorld) {
-    // The apostrophe is normalised because the panel sets a TYPOGRAPHIC one and
-    // this claim is about the sentence rather than about the glyph — a step
-    // that spelled `’` would be one more place to edit the day somebody
-    // reworded the line, and would fail for a reason no reader would guess.
     const said = oneLine(await this.chat(CHAT_ROSTER_OWN).innerText())
       .replace(/[‘’]/g, "'");
     assert.ok(
@@ -3301,9 +2450,6 @@ Then(
   },
 );
 
-/** The other side of every claim above: the strip is there at all. Asserted on
- *  its own where a scenario's point is that a conversation HAS a roster rather
- *  than which servers are on it. */
 Then("the panel says nothing about this conversation's servers", async function (
   this: OlaiWorld,
 ) {
@@ -3316,17 +2462,9 @@ Then("the panel says nothing about this conversation's servers", async function 
   );
 });
 
-// ── a server that did not attach ───────────────────────────────────────
-//
-// #140's half, unchanged: the SENTENCE, for a server this conversation does not
-// have. It is the half that never helped anybody when it was only a debug log
-// line, and it is why a roster of names alone would not have been enough.
-
 Then(
   "the panel says {string} is missing from this conversation",
   async function (this: OlaiWorld, name: string) {
-    // HYDRATION_TIMEOUT: the strip cannot exist until the probe has answered
-    // and the session has been asked for, which is a boot rather than a render.
     await this.expectAttribute(this.chatSelector(CHAT_MISSING_SERVER),
       "data-server",
       name,
@@ -3350,12 +2488,6 @@ Then(
   },
 );
 
-/** The OTHER way a conversation ends up short of a server, and the one olai
- *  could not report at all until `mcp-roster-visible`: olai handed it over and
- *  the AGENT could not attach it. Its own step because the two are different
- *  facts with different fixes — nothing olai's probe can see is wrong with this
- *  one — and because the panel says it in the agent's own word rather than in a
- *  category of ours. */
 Then(
   "the panel says the agent could not attach {string}",
   async function (this: OlaiWorld, name: string) {
@@ -3369,10 +2501,6 @@ Then(
   },
 );
 
-/** Which file was probed. The incident this comes from was exactly this
- *  question — a `kolu` on PATH is not necessarily the host's kolu — so the
- *  path is asserted as a path rather than as a string the scenario spells: it
- *  is a temporary directory's, and only the running server knows it. */
 Then("it names the configured executable", async function (this: OlaiWorld) {
   const said = oneLine(
     await this.chat(`${CHAT_MISSING_SERVER}${attr("data-server", "kolu")}`).innerText(),
@@ -3384,10 +2512,6 @@ Then("it names the configured executable", async function (this: OlaiWorld) {
   );
 });
 
-/** ... and the other side of it: a healthy conversation looks exactly as it did
- *  before this feature existed. No wait of its own — the step before it has
- *  waited on something the panel could only have drawn after the session was
- *  opened, so a strip that was coming would be here. */
 Then(
   "the panel says nothing about a missing server",
   async function (this: OlaiWorld) {
@@ -3401,47 +2525,18 @@ Then(
   },
 );
 
-// ── pictures ───────────────────────────────────────────────────────────
-//
-// A paste is DISPATCHED rather than performed: Playwright cannot put an image
-// on the system clipboard portably, and what the panel actually listens to is
-// the `paste` event's `clipboardData.files`. So the step builds the event the
-// browser would have built — a real `File`, in a real `DataTransfer`, on a real
-// `ClipboardEvent` — and lets the composer take it from there. Everything after
-// that line is the app: the chunk loop, the procedure, the tmp directory, the
-// prompt the agent is handed.
-
-/** A 1×1 PNG, 70 bytes — small enough to inline and real enough that nothing
- *  downstream has to pretend. The scenario asserts that size, which is how it
- *  knows the agent read the file rather than the name of it. */
 const ONE_PIXEL_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-/** ... and something the clipboard calls a picture that this app does not: an
- *  SVG is a document that can script, so it is in neither list the gate
- *  keeps. */
 const TINY_SVG = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=";
 
-/** A real PDF, 69 bytes — a catalog and a trailer, which is the smallest thing
- *  that is honestly one. The scenario asserts that size, which is how it knows
- *  the agent opened the file rather than read its name. */
 const TINY_PDF =
   "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK";
 
-/** Five bytes of text: `notes`. */
 const TINY_TEXT = "bm90ZXM=";
 
-/** An MP4's opening box, 24 bytes — `ftyp`, `mp42`, which is what every file
- *  a screen recorder writes begins with. Nothing here plays it; the agent is
- *  asserted to have read that many bytes off the disk. */
 const TINY_MP4 = "AAAAGGZ0eXBtcDQyAAAAAG1wNDJpc29t";
 
-/** What a named file is made of. The extension decides, because the extension
- *  is what the app's own gate judges — so a scenario names `shot.png` or
- *  `Type 04-C.pdf` and gets a file the panel will treat exactly as it would
- *  treat a real one. A `.zip` is here to be REFUSED: the gate takes pictures,
- *  PDFs, text and videos, and a suite that had nothing left to be turned away
- *  by it would have stopped testing the gate at all. */
 const fileSpec = (name: string): { name: string; data: string; type: string } => {
   if (name.endsWith(".svg")) return { name, data: TINY_SVG, type: "image/svg+xml" };
   if (name.endsWith(".pdf")) return { name, data: TINY_PDF, type: "application/pdf" };
@@ -3452,28 +2547,14 @@ const fileSpec = (name: string): { name: string; data: string; type: string } =>
   return { name, data: ONE_PIXEL_PNG, type: "image/png" };
 };
 
-/** "shot.png, notes.txt" — one drop carrying several files, written the way a
- *  sentence would say it. */
 const named = (names: string): ReadonlyArray<string> =>
   names.split(",").map((name) => name.trim()).filter((name) => name !== "");
 
 /**
- * Put files into the page the way the browser would have, and let the panel
- * take it from there.
- *
- * DISPATCHED rather than performed, and there is no way around it: Playwright
- * cannot put an image on the system clipboard portably and cannot make the
- * desktop drag a real file into a headless browser. So the step builds what
- * the browser would have built — real `File`s in a real `DataTransfer`, on the
- * real event — and everything after that line is the app: the target that
- * catches it, the gate that sorts it, the chunk loop, the tmp directory, the
- * prompt the agent is handed.
- *
- * One function for both gestures because the FILES are the same construction
- * either way, and what differs is one constructor and where it is aimed. A
- * drop is aimed at the transcript, which is the part of the panel furthest
- * from the composer: a drop that only worked over the box would pass a test
- * aimed at the box and fail the person aiming at the panel.
+ * Dispatched rather than performed: Playwright cannot put an image on the
+ * system clipboard portably and cannot make the desktop drag a real file into
+ * a headless browser, so the step builds the event the browser would have
+ * built — real `File`s in a real `DataTransfer`, on the real event.
  */
 const deliver = async (
   world: OlaiWorld,
@@ -3491,8 +2572,6 @@ const deliver = async (
         const bytes = Uint8Array.from(atob(spec.data), (char) => char.charCodeAt(0));
         transfer.items.add(new File([bytes], spec.name, { type: spec.type }));
       }
-      // Inside an `evaluate`: the world's `attr` cannot be called here, and `at`
-      // is a `PluginTestId` — a kebab-case literal from a closed table.
       const target = document.querySelector(at);
       for (const kind of kinds) {
         target?.dispatchEvent(
@@ -3532,8 +2611,6 @@ When(
 When(
   "I drop {string} on the chat panel",
   async function (this: OlaiWorld, names: string) {
-    // The whole gesture, in the order a browser fires it — the drop only
-    // happens at all because `dragover` said it could.
     await deliver(this, PLUGIN_TESTID.chatTranscript, named(names), [
       "dragenter",
       "dragover",
@@ -3543,23 +2620,12 @@ When(
 );
 
 When("the drag moves onto the composer", async function (this: OlaiWorld) {
-  // What a browser fires when a drag crosses from one element of a target to
-  // another INSIDE it: the new element enters before the old one leaves. Fired
-  // with no files (the drag is already in flight) but the same `Files` kind,
-  // which is all a listener may read before the drop.
   await deliver(this, PLUGIN_TESTID.chatInput, ["shot.png"], ["dragenter"]);
   await deliver(this, PLUGIN_TESTID.chatTranscript, ["shot.png"], ["dragleave"]);
 });
 
-/** A drag event carrying NOTHING — no files, no kinds. Two of the three ways a
- *  drag ends look like this from inside the page: a browser that hands an
- *  empty store on `dragleave` (it is allowed to; the drag data is protected
- *  until the drop), and a drag cancelled with Escape. Both must put the panel
- *  back, because the alternative is "drop to attach" left lit over a
- *  conversation with nothing over it. */
 const emptyDragAt = (world: OlaiWorld, at: PluginTestId, kind: string): Promise<void> =>
   world.page.evaluate(({ at, kind }) => {
-    // `attr` is unreachable inside an `evaluate`, and `at` is a `PluginTestId`.
     const target = document.querySelector(at)
     target?.dispatchEvent(
       new DragEvent(kind, {
@@ -3574,14 +2640,7 @@ When(
   "I pick {string} with the attach button",
   async function (this: OlaiWorld, name: string) {
     const spec = fileSpec(name);
-    // What a real file dialog FILTERS by, asserted before the file is handed
-    // over: `setFiles` ignores `accept`, so a picker that had gone on saying
-    // `image/*` would take this PDF here and grey it out for the person. The
-    // one half-truth met with no refusal to explain it.
     const accept = await this
-      // `[multiple]`: the ROLL input, not the camera's — on a phone there are
-      // three file inputs in the panel and the unscoped selector below is a
-      // strict-mode violation rather than a reading.
       .chat(`${CHAT_PANEL} input[type=file][multiple]`)
       .getAttribute("accept");
     assert.strictEqual(accept, ATTACHMENT_ACCEPT);
@@ -3608,13 +2667,6 @@ When(
   "I take a photo called {string} with the camera",
   async function (this: OlaiWorld, name: string) {
     const spec = fileSpec(name);
-    // The DOM fact the whole door hangs on, asserted before the photo is
-    // handed over: what makes a phone's browser open the CAMERA rather than
-    // a picker for this input is `capture="environment"`. No browser this
-    // suite can drive opens a real camera, so the attribute is what the
-    // claim is asserted on — the same arrangement as the pick step beside
-    // it, which asserts `accept` because the dialog itself cannot be
-    // photographed either.
     const hole = this.chat(`${CHAT_PANEL} input[type=file][accept="image/*"][capture]`);
     assert.strictEqual(
       await hole.getAttribute("capture"),
@@ -3636,12 +2688,6 @@ When(
       mimeType: spec.type,
       buffer: Buffer.from(spec.data, "base64"),
     });
-    // The mechanism the identical-second-shot case rides on, asserted AT the
-    // mechanism: this harness INJECTS files and fires `change`
-    // unconditionally, so two identical shots can never see whether the input
-    // was cleared between them — and the clear is the only way a real second
-    // identical shot fires at all. What the chips prove is the server's `-1`
-    // answer and the strip's order; what this proves is the clear.
     assert.strictEqual(
       await hole.inputValue(),
       "",
@@ -3688,10 +2734,6 @@ When("I paste a video called {string} into the chat", async function (this: Olai
 });
 
 When("I dismiss the camera", async function (this: OlaiWorld) {
-  // The empty answer: backing out of a shutter hands the input no files and
-  // (on the browsers that fire for it) a `change` — the same shape a
-  // cancelled picker takes. The box must then be exactly as it was, which is
-  // what the next step is for.
   const [chooser] = await Promise.all([
     this.page.waitForEvent("filechooser"),
     this.chat(CHAT_CAMERA_BUTTON).click(),
@@ -3715,8 +2757,6 @@ When("the drag leaves the panel without dropping", async function (this: OlaiWor
 });
 
 When("the drag is cancelled", async function (this: OlaiWorld) {
-  // What a drag that STARTED in the page ends with when it is abandoned — one
-  // of the panel's own attachment thumbnails, dragged and let go of nowhere.
   await emptyDragAt(this, PLUGIN_TESTID.chatTranscript, "dragend");
 });
 
@@ -3724,7 +2764,6 @@ When("I drag some selected text over the chat panel", async function (this: Olai
   await this.page.evaluate(({ at }) => {
     const transfer = new DataTransfer();
     transfer.setData("text/plain", "a sentence being dragged");
-    // Same as above: browser-side code, and a `PluginTestId` for a value.
     const pane = document.querySelector(at);
     for (const kind of ["dragenter", "dragover"]) {
       pane?.dispatchEvent(
@@ -3746,8 +2785,6 @@ Then("the panel is not offering to take a drop", async function (this: OlaiWorld
   );
 });
 
-/** Waiting, not asserting: the chip appears when the upload has answered, and
- *  how many round trips that took is the chunker's business. */
 Then(
   "the composer is holding the picture {string}",
   async function (this: OlaiWorld, name: string) {
@@ -3766,9 +2803,6 @@ Then(
       async () => (await this.chat(PENDING_ATTACHMENTS).count()) === wanted.length,
       `the composer to hold ${wanted.length} pictures`,
     );
-    // ORDER, and it is the claim the scenario is about: the chips are in the
-    // order the files were dropped, which is the order they will ride the next
-    // message in — and therefore the order the agent reads them in.
     assert.deepStrictEqual(
       await this.chat(PENDING_ATTACHMENTS).evaluateAll((chips) =>
         chips.map((chip) => chip.getAttribute("data-name"))
@@ -3790,8 +2824,6 @@ Then(
       },
       `the agent to read ${wanted.length} pictures`,
     );
-    // Where each one appears in the answer, in the order the agent was handed
-    // them: the prompt carries the paths, and the paths are the chips.
     const said = await transcriptText(this);
     const at = wanted.map((line) => said.indexOf(line));
     assert.deepStrictEqual(
@@ -3810,9 +2842,6 @@ Then(
       `the composer to hold "${name}"`,
     );
     const chip = this.chat(pendingChip(name));
-    // A PDF has no thumbnail worth drawing, and an <img> pointed at one is a
-    // broken-image icon — a component lying about a file that uploaded
-    // perfectly. What it says instead is the fact a name does not carry.
     assert.strictEqual(
       await chip.locator(CHAT_ATTACHMENT_PREVIEW).count(),
       0,
@@ -3828,8 +2857,6 @@ Then(
 );
 
 Then("the composer is holding nothing", async function (this: OlaiWorld) {
-  // Sent attachments remain in the transcript; only removable chips are
-  // pending in the composer. Wait for the send or session change to land.
   await this.waitUntil(async () => await this.chat(PENDING_ATTACHMENTS).count() === 0,
     "the composer to have no pending attachments");
 });
@@ -3842,9 +2869,6 @@ Then(
         (await this.chat(`${CHAT_TRANSCRIPT} ${pictureChip(name)}`).count()) > 0,
       `the transcript to show "${name}"`,
     );
-    // The tab that pasted it has the Blob, so its own row is a THUMBNAIL and
-    // not just a name. Every other tab, and this one after a reload, has the
-    // name — which is why the chip is what the row is built on.
     const preview = this.chat(
       `${CHAT_TRANSCRIPT} ${pictureChip(name)} ${CHAT_ATTACHMENT_PREVIEW}`,
     );
@@ -3861,9 +2885,6 @@ const pictureChip = (name: string): string => `${CHAT_ATTACHMENT}${attr("data-na
 const PENDING_ATTACHMENTS = `${CHAT_ATTACHMENT}:has(${selector(PLUGIN_TESTID.chatAttachmentRemove)})`;
 const pendingChip = (name: string): string => `${PENDING_ATTACHMENTS}${attr("data-name", name)}`;
 
-/** How full the context is, as the header draws it. The whole string — `22k/1M`
- *  rather than a substring — because the two halves are the claim: a scenario
- *  matching only the numerator would pass on a build that lost the window. */
 Then(
   "the panel header says the context is {string}",
   async function (this: OlaiWorld, usage: string) {
@@ -3878,8 +2899,6 @@ Then(
   },
 );
 
-/** ... and that it says nothing about it at all, which is a conversation the
- *  agent has not reported on rather than one that has spent nothing. */
 Then(
   "the panel header says nothing about the context",
   async function (this: OlaiWorld) {
@@ -3891,18 +2910,6 @@ Then(
   },
 );
 
-/**
- * WHAT THE NUMBER IS CALLED, and it is this parcel's own half of the tooltip
- * migration rather than the rail's.
- *
- * `22k/200k` names nothing. The words that said what it counted were a
- * `title` and nothing else — hover-only, so a reader with a keyboard met a
- * number with no noun — and this readout is not a control, so there is no
- * accessible name to put them in: an `aria-label` on a role-less `<span>` is
- * ignored. They ride a visually hidden companion BESIDE the chip instead, in
- * the same line, which is why the step below reads the line and the one above
- * still reads the chip's own `22k/200k` exactly.
- */
 When("I hover the panel's context readout", async function (this: OlaiWorld) {
   const line = this.chat(CHAT_USAGE);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -3921,9 +2928,6 @@ Then(
   },
 );
 
-/** The half that would otherwise pass silently: a readout that kept its
- *  `title` draws the platform's tooltip over this app's, and both say the
- *  same true thing. The ABSENCE is the migration. */
 Then("the context readout carries no native tooltip", async function (this: OlaiWorld) {
   assert.equal(
     await this.chat(CHAT_USAGE).getAttribute("title"),
@@ -3932,23 +2936,11 @@ Then("the context readout carries no native tooltip", async function (this: Olai
   );
 });
 
-// ── which agent ────────────────────────────────────────────────────────
-//
-// A conversation is bound to one agent, chosen when it is created. The claims
-// here are about the PANEL — that it asks, that it stops asking once answered,
-// and that the header says who — because everything under them has unit tests
-// of its own: the roster's rules, the fail-safe rule per leg, and which body a
-// state asks for are all functions over values.
-
 Then("the panel asks which agent", async function (this: OlaiWorld) {
   await this.chat(CHAT_CHOOSE)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
-/** ... and that it does not, which is a different claim from "a conversation is
- *  open" and is asserted separately for the reason the panel's other faces are:
- *  a question drawn where a conversation belongs is a face outliving its
- *  cause. */
 Then("the panel does not ask which agent", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => {
@@ -3966,17 +2958,8 @@ Then("the panel does not ask which agent", async function (this: OlaiWorld) {
 Then(
   "the picker offers the agent {string}",
   async function (this: OlaiWorld, id: string) {
-    // BY ID rather than by the name on the row: what a scenario is about is
-    // that this machine's opencode is offered, and the words beside it are a
-    // brand's to change.
     const row = this.chat(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // ...AND IT SAYS SOMETHING, which is the half an id alone cannot see. The
-    // words are the ENGINE PLUGIN's own — its `Registering.name`, which the
-    // server puts on the chat cell per installed agent — so a roster row that
-    // arrived without one would leave a pressable row with a mark and nothing
-    // to read. Not the exact words, for the reason above: what is asserted is
-    // that a person has something to press ON.
     assert.ok(
       oneLine(await row.innerText()).length > 0,
       `the picker's row for "${id}" is empty — the engine's own face did not draw`,
@@ -3988,8 +2971,6 @@ When("I choose the agent {string}", async function (this: OlaiWorld, id: string)
   const row = this.chat(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`);
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await row.click();
-  // The answer starts a subprocess and opens a conversation, so the panel goes
-  // through `booting` on its way back to a body a scenario can act on.
   await this.waitUntil(
     async () => {
       const status = await this.chat(CHAT_PANEL).getAttribute("data-status");
@@ -4000,10 +2981,6 @@ When("I choose the agent {string}", async function (this: OlaiWorld, id: string)
   );
 });
 
-/** Choose, and come straight back — the panel is left mid-boot on purpose,
- *  because the window this is for is the one BEFORE it settles. Its sibling
- *  above waits, which is right for every scenario that is about what happens
- *  after. */
 When(
   "I choose the agent {string} without waiting for it",
   async function (this: OlaiWorld, id: string) {
@@ -4024,10 +3001,6 @@ Then(
   },
 );
 
-/** The ICON half of the ruling, which an assertion about the name passes
- *  without. `data-mark` is what was DRAWN — the agent's own shape, or the
- *  generic one an agent olai has no mark for gets — so this fails on a build
- *  where every agent fell back to the same glyph. */
 Then("the header draws that agent's own mark", async function (this: OlaiWorld) {
   const id = await this.chat(CHAT_AGENT).getAttribute("data-agent");
   assert.ok(id !== null, "the header names no agent, so there is no mark to check");
@@ -4044,9 +3017,6 @@ Then("the composer says a message would queue", async function (this: OlaiWorld)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** ... and that it says nothing when there is nothing to say: an idle agent
- *  takes what you type at once whichever agent it is, so a line about queueing
- *  outside a running turn would be a claim about nothing. */
 Then("the composer says nothing about queueing", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_QUEUES).count()) === 0,
@@ -4055,17 +3025,10 @@ Then("the composer says nothing about queueing", async function (this: OlaiWorld
   );
 });
 
-/** The way out of the picker that `+ new` raised. It exists only for THAT
- *  door: the panel's own question has no conversation behind it to keep. */
 When("I keep the conversation I am in", async function (this: OlaiWorld) {
   await this.chat(CHAT_CHOOSE_CANCEL).click();
 });
 
-/** ... and that it has NOT — the half a queued message needs, because "the
- *  words went out at once" and "the agent has not reached them yet" are two
- *  facts and only the second one is about the queue. Checked twice with a beat
- *  between, so an answer that was merely a moment away fails this rather than
- *  passing it. */
 Then(
   "the chat has not answered {string}",
   async function (this: OlaiWorld, text: string) {
@@ -4077,23 +3040,10 @@ Then(
   },
 );
 
-/** This machine stops having opencode, for the next start of its server. A
- *  property of the MACHINE rather than of anything the client says — the same
- *  thing the `@opencode` tag decides, moved mid-scenario, which is what
- *  uninstalling an agent between two serves looks like from here. */
 When("opencode is no longer installed", function (this: OlaiWorld) {
   this.fakes = this.fakes.filter((word) => word !== "opencode");
 });
 
-/**
- * WHAT A SUBAGENT LEFT BEHIND IN THE CONVERSATION, which is meant to be
- * nothing but the call that sent it.
- *
- * A lane in the column is not by itself a failure — a QUESTION is deliberately
- * still drawn in one, because a form behind a click is a turn that hangs
- * forever. What may not be there is a subagent's WORK, so the claim is spelled
- * over lanes that contain a tool call rather than over lanes.
- */
 const laneCalls = (world: OlaiWorld) =>
   world.chat(`${CHAT_LANE}:has(${CHAT_TOOL})`);
 
@@ -4118,33 +3068,19 @@ Then(
       said.includes(String(many)),
       `the door says "${said}" rather than naming ${many} calls behind it`,
     );
-    // ... AND WHICH AGENT, which is the half a count cannot carry. The adapter
-    // titles every `Agent` call `Task`, so a fan-out is a column of identical
-    // rows and the door is where the difference has to be said. The fake agent
-    // titles its spawns the same way for exactly this reason, so a door that
-    // read the row's title instead of the description fails here.
     assert.ok(
       said.includes(named),
       `the door says "${said}" rather than naming "${named}" — the row above it ` +
         "is titled with the tool's name, so this is the only thing on it that " +
         "says which agent is behind the door",
     );
-    // WHICH agent it opens, off the attribute rather than off the words: the
-    // door and the record are one thing named twice, and a control that named
-    // nothing would be an indent rather than a way in.
     const opens = await door.getAttribute("data-lane");
     assert.ok(opens !== null && opens !== "", "a door that names no agent opens onto nothing");
-    // ... and the same geometry a lane owes, because it is the same rail: a
-    // door drawn level with the conversation says the main agent did this.
     await insetBelow(this, opens ?? "", door, "the door onto a subagent's work");
   },
 );
 
 Then("the call that spawned it offers no door yet", async function (this: OlaiWorld) {
-  // The other half of the stretch this scenario is about: the agent has made
-  // no calls, so there is nothing behind a door — and a control that opened an
-  // empty box at the one moment somebody is watching hardest is worse than the
-  // rail above it, which is already saying the true thing.
   assert.strictEqual(
     await this.chat(CHAT_LANE_DOOR).count(),
     0,
@@ -4157,8 +3093,6 @@ When("I open the agent's work from the transcript", async function (this: OlaiWo
 });
 
 When("I open {string} from the strip", async function (this: OlaiWorld, named: string) {
-  // BY NAME, because the strip is the tab bar of a fan-out and the whole point
-  // of pressing one entry rather than another is which agent you get.
   const entry = this.chat(`${CHAT_WATCHING_TASK}[data-kind="agent"]`, { hasText: named })
     .first();
   await entry.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -4166,11 +3100,6 @@ When("I open {string} from the strip", async function (this: OlaiWorld, named: s
 });
 
 Then("I can close the agent's work", async function (this: OlaiWorld) {
-  // THROUGH THE DOOR IT WAS OPENED BY, which is the only way there is now: the
-  // shelf's own × was retired (the human, 2026-08-28), because a control on a
-  // box about an agent reads as a control over the AGENT — and one reader had
-  // already read it that way. Pressing the door again is what "put it away"
-  // means at both doors, and this scenario opened the shelf from the row's.
   await this.chat(CHAT_LANE_DOOR).first().click();
   await this.waitUntil(
     async () => (await this.chat(CHAT_PREVIEW).count()) === 0,
@@ -4207,12 +3136,6 @@ Then(
 Then(
   "the agent's work says a question is waiting",
   async function (this: OlaiWorld) {
-    // THE PROMISE THIS KEEPS is `website/docs/chat.md`'s: with the conversation in front
-    // of you, a form arriving is the whole of it — it lands where you are
-    // already looking and nothing rings, because a notification about something
-    // on your screen is nagging. A shelf is the one surface that takes a
-    // reader's eye off the transcript while the panel counts as open, so it
-    // owes them the sentence the transcript would have given them.
     await this.chat(CHAT_PREVIEW_ASKED)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
@@ -4234,9 +3157,6 @@ Then("no agent's work is open", async function (this: OlaiWorld) {
 });
 
 Then("the agent's work shows nothing yet", async function (this: OlaiWorld) {
-  // AN HONEST SENTENCE rather than an empty box: an agent's first act is to
-  // read its instructions, which produces no frame, and a shelf that drew
-  // nothing at all would read as one that had failed to load.
   await this.chat(CHAT_PREVIEW_NOTHING)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
@@ -4244,12 +3164,6 @@ Then("the agent's work shows nothing yet", async function (this: OlaiWorld) {
 Then(
   "the agent's work is above the conversation and clear of the box",
   async function (this: OlaiWorld) {
-    // THE THREE THINGS THE PLACEMENT WAS CHOSEN FOR, measured rather than
-    // asserted in a docstring. It is a real browser claim and it earns a
-    // scenario: a shelf that overlapped the transcript would hide a question a
-    // subagent asked — which is the one row this whole design keeps in the
-    // conversation on purpose — and one that overlapped the box would take the
-    // reply away from somebody in the middle of typing it.
     const shelf = await this.chat(CHAT_PREVIEW).boundingBox();
     const pane = await this.chat(CHAT_TRANSCRIPT).boundingBox();
     const box = await this.chat(CHAT_INPUT).boundingBox();
@@ -4295,11 +3209,6 @@ Then("the strip lists no agent still out", async function (this: OlaiWorld) {
   );
 });
 
-/** ... and its opposite, which is a claim in its own right rather than the
- *  absence of one: the panel has three bodies with no composer in them — no
- *  agent, a dead one, and a conversation the agent would not open — so "there
- *  is somewhere to type" is how a scenario says the panel is IN a conversation
- *  without naming which. */
 Then("there is somewhere to type into", async function (this: OlaiWorld) {
   await this.chat(CHAT_INPUT)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -4354,8 +3263,6 @@ When("I attach a text file named {string} containing {string}", async function (
   const choosing = this.page.waitForEvent("filechooser");
   await this.chat(CHAT_ATTACH_BUTTON).click();
   await (await choosing).setFiles({ name, mimeType: "text/plain", buffer: Buffer.from(text) });
-  // The chooser dispatches input before the asynchronous upload finishes.
-  // Sending immediately can legitimately send only the typed message.
   await this.chat(pendingChip(name)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
@@ -4380,8 +3287,6 @@ When("I choose the chat model {string}", async function (this: OlaiWorld, name: 
     .getByRole("button", { name, exact: true }).click();
 });
 
-// ── the filter in the open model menu ──────────────────────────────────
-
 When("I filter the chat models by {string}", async function (this: OlaiWorld, query: string) {
   await this.chat(CHAT_MODEL_FILTER).pressSequentially(query);
 });
@@ -4391,11 +3296,6 @@ When("I press {string} in the model filter", async function (this: OlaiWorld, ke
 });
 
 Then("the model picker offers only {string}", async function (this: OlaiWorld, names: string) {
-  // The MODEL buttons and nothing else: the filter box is a searchbox, the
-  // settings rows are selects and checkboxes, and the "no match" row is
-  // neither — so a role of button inside the list is exactly what the picker
-  // would take. The list itself is inside the agent line, not the whole
-  // panel, because the menu hangs off the model name.
   const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
   await this.waitUntil(
     async () => {
@@ -4409,8 +3309,6 @@ Then("the model picker offers only {string}", async function (this: OlaiWorld, n
 
 Then("the model picker offers nothing for {string}", async function (this: OlaiWorld, query: string) {
   await this.chat(CHAT_MODEL_NONE).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  // The empty row names the QUERY and takes nothing: no button rows to land
-  // a verdict on, which is what makes its Enter a dead key.
   assert.strictEqual(await this.chat(CHAT_MODEL_NONE).innerText(), `No model matches "${query}"`);
   assert.strictEqual(
     await this.chatLine().getByRole("list", { name: "Models", exact: true }).getByRole("button").count(),
@@ -4468,18 +3366,9 @@ Then("the model list is back at the top", async function (this: OlaiWorld) {
   const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
   await this.waitUntil(
     async () => {
-      // "Top" is NOT a bare scrollTop number: the filter is a STICKY child an
-      // arrow-walked row must end up BELOW, and Chromium's nearest-scroll makes
-      // exactly that land scrollTop at zero (a sticky-naive mount instead stops
-      // at the row's own top and leaves it painted over by the filter). What is
-      // pinned here is the thing a pair of eyes would check: the FIRST model
-      // row is the one under the cursor, and it is fully on view below the
-      // filter with the list wound back to its first rows.
+      // The filter is a sticky child an arrow-walked row must end up below, and
+      // Chromium's nearest-scroll makes exactly that land scrollTop at zero.
       const read = await list.evaluate((ul) => {
-        // `aria-selected` rides the BUTTON inside the row's `li`: its rect is
-        // a hair inside the row's own, so the rect taken is the LI's. "First"
-        // is also asked geometrically — flush under the filter — because an
-        // index among children would be the layout re-derived, not checked.
         const active = ul.querySelector('[aria-selected="true"]')?.closest("li");
         const filter = ul.children[0];
         if (active === undefined || active === null || filter === undefined) return null;
@@ -4502,8 +3391,6 @@ Given("the agent refuses model changes", async function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModel), "");
 });
 
-// The marker names the picker VALUE the account may not use; the scripted agent
-// refuses exactly that row and switches every other.
 Given("the signed-in account may not use the model {string}", async function (this: OlaiWorld, value: string) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModelByAccount), value);
 });
@@ -4578,12 +3465,6 @@ When("I open {string} from the open agent's work", async function (this: OlaiWor
   await this.chat(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`, { hasText: named }).click();
 });
 
-/** ... and the same press where the door has no NAME on it to aim at, which is
- *  a door drawn correctly rather than a gap: a door says the description its
- *  agent was sent with only when that differs from the row's own title, and on
- *  a wire whose child session is already titled with that description the two
- *  are the same string (`doorOf`). So the press is by PLACE — there is one
- *  door in this shelf — and WHICH agent it opened is the assertion after it. */
 When("I open the nested agent's work", async function (this: OlaiWorld) {
   const doors = this.chat(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`);
   await doors.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -4599,8 +3480,6 @@ When("I return to the parent agent {string}", async function (this: OlaiWorld, n
   await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
 });
 
-/** Every agent process the server has started so far, read off its own log:
- *  the one way these steps count. */
 const agentStarts = (world: OlaiWorld): number => world.serverLog.text.split("chat agent ready").length - 1;
 When("the agent starts so far are counted", function (this: OlaiWorld) {
   this.notedAgentStarts = agentStarts(this);
@@ -4635,11 +3514,6 @@ Then("the tool call says which outline it touched", async function (this: OlaiWo
 Then("the tool call is called {string} underneath", async function (this: OlaiWorld, called: string) {
   const tool = heldTool(this);
   assert.equal(await tool.locator(CHAT_TOOL_CALLED).innerText(), called);
-  // THE REAL CALL IS IN THE LINE'S OWN NAME now, not on a `title`: the row
-  // draws a tidier word and the sentence that says what actually ran rides an
-  // sr-only companion inside the fold button (`ToolFrame.tsx`). The absence of
-  // the attribute is half the claim — a control wearing both draws the
-  // platform's tooltip over this app's.
   assert.ok(
     oneLine(await tool.locator(CHAT_TOOL_FOLD).innerText()).includes(called),
     `the tool call's line does not say ${JSON.stringify(called)}`,

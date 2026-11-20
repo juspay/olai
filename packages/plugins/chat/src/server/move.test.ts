@@ -1,14 +1,3 @@
-/**
- * THE ONE-TIME MOVE, as a rule — what it says about a reading, and the two
- * promises a migration has to keep: NOTHING IS LOST, and the SECOND RUN DOES
- * NOTHING.
- *
- * Both are asserted over a model of the application rather than over a serve:
- * the moves are applied to the reading's own text here — the tie written into
- * the note's front matter, the row's property taken off — and the reading is
- * built again from the result, so a second pass is asked about the vault the
- * first one actually produced.
- */
 import { expect, test } from "bun:test"
 
 import { Effect } from "effect"
@@ -18,8 +7,6 @@ import { readingOf, setOf, TEST_CLAIMS } from "@olai/format/testlib"
 import { OPENS_TYPE, ownKinds, SESSION_TYPE } from "../kinds.ts"
 import { applyMoves, movesIn } from "./move.ts"
 
-/** One board: a row titled for a note, the note, and whatever else a case
- *  needs. `documents` are `[path, text]` pairs the set serves. */
 const reading = (
   rows: ReadonlyArray<Record<string, unknown>>,
   documents: ReadonlyArray<readonly [string, string]> = [],
@@ -112,10 +99,6 @@ test("a heading address counts as its document, which is what a chat about a pla
   expect(moves(at).map((move) => move.path)).toEqual(["notes/plan.md"])
 })
 
-// ── the two promises ───────────────────────────────────────────────────
-
-/** THE APPLICATION, MODELLED: the note's front matter rewritten exactly as the
- *  applier writes it, and the row's tie removed. */
 const applied = (
   rows: ReadonlyArray<Record<string, unknown>>,
   documents: ReadonlyArray<readonly [string, string]>,
@@ -151,12 +134,8 @@ test("nothing is lost: every row and every conversation id is still there afterw
     { id: "plain", ord: "a2", title: "hinges" },
   ]
   const after = applied(rows, [["notes/plan.md", "# Plan\n\nthe kitchen\n"]])
-  // EVERY ROW IS STILL A ROW, with the title it was written with: the move
-  // never retitles, moves or deletes one.
   expect(after.rows.map((row) => [row["id"], row["title"]]))
     .toEqual(rows.map((row) => [row["id"], row["title"]]))
-  // ...AND EVERY CONVERSATION IS STILL NAMED SOMEWHERE — by the row that had
-  // it, or by the note it moved to.
   const before = rows.flatMap((row) => Object.values((row["custom"] ?? {}) as Record<string, string>))
   const now = [
     ...after.rows.flatMap((row) => Object.values((row["custom"] ?? {}) as Record<string, string>)),
@@ -166,7 +145,6 @@ test("nothing is lost: every row and every conversation id is still there afterw
     }),
   ]
   expect([...now].sort()).toEqual([...before].sort())
-  // The prose is byte-for-byte what it was, under the block that was added.
   expect(after.documents[0]?.[1]).toContain("# Plan\n\nthe kitchen\n")
   expect(frontmatterIn(after.documents[0]?.[1] ?? "")[OPENS_TYPE]).toBe("alone")
 })
@@ -182,8 +160,6 @@ test("a second run over the vault the first one made asks for nothing", () => {
 })
 
 test("...and so does a second run after a half-done one, which untied nothing", () => {
-  // The note was written and the serve stopped before the row was untied: the
-  // first run here is the UNTIE, and the one after it has nothing to do.
   const half = applied(
     [{ id: "chat-plan", ord: "a0", title: "[plan](/notes/plan.md)", custom: { "chat-agent-session": "claude:sess-1" } }],
     [["notes/plan.md", "---\nchat-agent-session: claude:sess-1\n---\n\n# Plan\n"]],
@@ -192,16 +168,8 @@ test("...and so does a second run after a half-done one, which untied nothing", 
   expect(moves(reading(half.rows, half.documents))).toEqual([])
 })
 
-// ── and the reading that is not the directory yet ──────────────────────
-
-/** A serve coming up: the store has opened on the built-in vocabulary, so the
- *  only kind it claims is the outline and no `.md` is served at all. Taken off
- *  the test table rather than spelled, since a suffix is its row's to spell. */
 const BOOTSTRAP = claims([...TEST_CLAIMS.byKind.values()].filter((claim) => claim.holds === "nodes"))
 
-/** The applier, over a reading, recording what it would have written — and
- *  how many times it asked for the directory at all, which is the claim the
- *  gate below is about. */
 const applier = (at: Reading & { readonly outlineRow: string }, served = true) => {
   const docs: Array<string> = []
   const removed: Array<string> = []
@@ -221,10 +189,6 @@ const applier = (at: Reading & { readonly outlineRow: string }, served = true) =
 }
 
 test("a build that serves no notes never reads the directory", () => {
-  // THE OTHER HALF OF THE REGRESSION BELOW. With the markdown row switched
-  // off nothing can ever be moved onto a note, and no reading can ever say so
-  // — so a migration that found out by READING walked the whole vault on
-  // every revision for the life of the process. The registry is asked first.
   const whole = readingOf(setOf(
     { "lanes.olai": JSON.stringify(CHAT_ROW) },
     [["notes/plan.md", "# Plan\n"]],
@@ -237,11 +201,6 @@ test("a build that serves no notes never reads the directory", () => {
 })
 
 test("a reading that cannot name a note is NOT a vault with nothing to move", () => {
-  // THE REGRESSION. On a serve's first readings the markdown kind has not been
-  // taught yet: `demo.md` is not served, its address names nothing, and every
-  // candidate looks like a row titled for nowhere. A one-shot that ran there
-  // would be spent against a directory it had not been shown, and the
-  // link-titled rows would stay rows for good.
   const early = readingOf(
     setOf({ "lanes.olai": JSON.stringify(CHAT_ROW) }),
     BOOTSTRAP,
@@ -251,8 +210,6 @@ test("a reading that cannot name a note is NOT a vault with nothing to move", ()
   expect(first.docs).toEqual([])
   expect(first.removed).toEqual([])
   expect(first.said).toEqual([])
-  // ...and the very next reading, with the directory whole, does the move and
-  // says so — which is what the caller re-arms for.
   const whole = readingOf(setOf(
     { "lanes.olai": JSON.stringify(CHAT_ROW) },
     [["notes/plan.md", "# Plan\n"]],

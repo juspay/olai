@@ -31,11 +31,6 @@ Feature: The pages that have no chat
     And the page has no chat line
     And there should be no page errors
 
-  # THE PICTURE AND THE PDF ARE OPENED, not named. A page that offers no chat
-  # is a claim about a page a person is looking at, and the two file kinds
-  # this feature's own first paragraph promises are the two it used to make
-  # that claim about without ever drawing: a scenario that only said the
-  # words would pass just as well on an address that drew nothing at all.
   Scenario: A table, a picture and the pages that are not files have no line either
     Given the vault holds "data/sales.csv" saying "month,sold\nJan,12\nFeb,15"
     And the vault holds the fixture file "art/handle.png"
@@ -46,12 +41,6 @@ Feature: The pages that have no chat
     When I press the palette shortcut
     Then the palette offers no chat about this page
     When I press "Escape"
-    # A PICTURE: its page is drawn — the bytes decoded, so this is the picture
-    # and not an empty box where one failed to arrive — and it has no line.
-    # REACHED BY ITS ROW rather than by its address: a `.pdf` page hands the
-    # file to a viewer the suite's browser does not have, so a RELOAD onto one
-    # waits on a `load` event that may never come. The sidebar's own press is
-    # how a person gets there anyway.
     And I expand the folder "art"
     And I click the "image" row "art/handle.png"
     Then the picture drawn is "art/handle.png"
@@ -60,7 +49,6 @@ Feature: The pages that have no chat
     When I press the palette shortcut
     Then the palette offers no chat about this page
     When I press "Escape"
-    # ...AND A PDF, whose page hands the file to the browser's own viewer.
     And I expand the folder "reports"
     And I click the "pdf" row "reports/q3.pdf"
     Then the pdf drawn is "reports/q3.pdf"
@@ -84,8 +72,6 @@ Feature: The pages that have no chat
     Then the palette offers no chat about this page
     And there should be no page errors
 
-  # THE FRONT PAGE IS AN OUTLINE, whichever one it turned out to be, and a row
-  # landing inside one is still that outline: neither can hold a chat.
   Scenario: The home address and a row landing are outlines, so neither has a line
     Given I open the address "/"
     Then the page has no chat line

@@ -16,10 +16,6 @@ test("the banner names the conversation and the first line of the question", () 
 })
 
 test("a conversation the agent has not named yet says the app's own word", () => {
-  // Since the deployment names itself after its box (`app.get`), THAT is the
-  // word an unanswered conversation goes by — the one the OS is already
-  // labelling an installed banner with — and bare "olai" is the fallback
-  // before the server has said it.
   const waiting = { ...conversation(null), asking: 1 }
   expect(noticeOf(waiting, undefined, "olai [desk]").title).toBe("olai [desk]")
 })
@@ -30,9 +26,6 @@ test("...and says the bare word until the deployment has said its own", () => {
 })
 
 test("with the panel shut and no question in hand, it says the plain fact", () => {
-  // The panel keeps no transcript subscription while minimized (`../last.ts`),
-  // so there are no words to quote — and a question remembered from the last
-  // time it was open would be a banner about something else.
   const notice = noticeOf({ ...conversation("kitchen remodel"), asking: 1 }, undefined)
   expect(notice.body).toBe("Waiting on your answer")
 })
@@ -55,9 +48,6 @@ test("the tag is the conversation's, so two tabs raise one banner", () => {
 })
 
 test("a press asks for the conversation, not a row that may be gone by then", () => {
-  // What is waiting is something the PANEL knows when the press lands. A row
-  // id from the moment the banner went up can be answered in another tab, and
-  // a banner raised over a shut panel never named one at all.
   const named = noticeOf({ ...conversation("kitchen"), asking: 1 }, {
     id: "ask:3",
     text: "Which timber?",
@@ -66,8 +56,6 @@ test("a press asks for the conversation, not a row that may be gone by then", ()
   expect(named.data).toEqual({ kind: "ask" })
   expect(blind.data).toEqual(named.data)
 })
-
-// ── the first line ──────────────────────────────────────────────────────
 
 test("blank lines above the question are skipped", () => {
   expect(openingLine("\n   \nWhich timber?\nOak or birch.")).toBe("Which timber?")

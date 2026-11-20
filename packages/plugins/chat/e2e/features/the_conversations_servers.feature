@@ -41,9 +41,6 @@ Feature: The panel says which MCP servers a conversation has
   Scenario: The servers this conversation was handed are named
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # The whole point, on a host where nothing is wrong. There was no strip at
-    # all in this state before — a person wondering what the agent could reach
-    # had the model to ask and nothing else.
     Then the panel says this conversation has "olai"
     And the panel says this conversation has "kolu"
     And the panel says the list is not the whole of it
@@ -52,11 +49,6 @@ Feature: The panel says which MCP servers a conversation has
   Scenario: Handing a server over is not the same as the agent having it
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # The layering, as the two states a person can actually see. A conversation
-    # nobody has spoken in yet has been HANDED its servers and nothing more:
-    # the agent's `init` arrives as a turn starts, so until then a tick would be
-    # olai asserting a fact it does not have — which is the mistake the model
-    # made.
     Then the panel does not claim the agent attached "olai"
     And the panel does not claim the agent attached "kolu"
     When I ask the agent "hello"
@@ -68,31 +60,18 @@ Feature: The panel says which MCP servers a conversation has
   Scenario: A server the agent could not attach says so, in the agent's words
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # The fact olai could not report AT ALL before this: its own probe answered,
-    # the server was handed over, and the AGENT is the only thing that knows
-    # what became of it. `needs-auth` and `failed` want different things done
-    # about them, so the agent's own word is what the panel repeats.
-    #
-    # Two turns, because the adapter's `init` is emitted as a turn STARTS: the
-    # turn that changes the answer has already announced the old one. That is
-    # the real wire's shape, and the same beat a `/model` is heard on.
     When I ask the agent "attach kolu needs-auth"
     Then the agent is idle
     When I ask the agent "hello"
     Then the agent is idle
     And the panel says the agent could not attach "kolu"
     And the reason it gives for "kolu" is "needs-auth"
-    # ... and the conversation is not otherwise diminished: olai's own server is
-    # still there and still attached, which is the difference between "one
-    # server did not arrive" and "something is broken".
     And the panel says the agent attached "olai"
 
   @scratch:chat
   Scenario: An installed command is handed over without probing daemon health
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # The default fake kolu cannot read daemon identity. Discovery must still
-    # hand it over and must not claim its actual connection has succeeded.
     Then the panel says this conversation has "olai"
     And the panel says this conversation has "kolu"
     And the panel does not claim the agent attached "kolu"
@@ -102,36 +81,18 @@ Feature: The panel says which MCP servers a conversation has
   Scenario: The roster belongs to the conversation, not to the boot
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # Probed again for every conversation — a padi started after olai is picked
-    # up by the next one — so the answer is re-established rather than
-    # remembered. A panel that only ever heard this at boot would draw the first
-    # conversation's servers over every conversation after it.
     When I ask the agent "hello"
     Then the agent is idle
     When I start a fresh session
     Then the chat is empty
     And the panel says this conversation has "olai"
     And the panel says this conversation has "kolu"
-    # The TICK is gone with the conversation it was about. Nobody has spoken in
-    # this one yet, and the agent's word about the last one is not a fact about
-    # this one.
     And the panel does not claim the agent attached "kolu"
 
   @scratch:chat @kolu
   Scenario: A refused fresh session keeps the current conversation and its roster
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE OTHER no-conversation face, and the one that is easy to miss: the
-    # roster is composed and announced BEFORE `session/new` is asked, because
-    # it IS the list that call is handed. So an open that comes back a NO
-    # leaves a strip that was drawn on the way to a conversation which then
-    # never existed — answering "which servers does this conversation have?"
-    # about nothing at all, over a body that is busy saying there is no
-    # conversation.
-    #
-    # The first line is load-bearing: without it "the panel says nothing" would
-    # also pass for a roster that had never been drawn, and what is asserted
-    # here is that it is DROPPED.
     Then the panel says this conversation has "olai"
     When the agent refuses to new a conversation
     And I start a fresh session
@@ -141,15 +102,6 @@ Feature: The panel says which MCP servers a conversation has
 
   @no-agent @scratch:chat @kolu
   Scenario: No conversation, no roster
-    # EMPTY MEANS "THERE IS NO CONVERSATION", not "everything arrived" — which
-    # is the one thing this member changed about #140's, where an empty list was
-    # a healthy session. Servers are handed at session open, so a panel that was
-    # never able to open one has been handed nothing, and there is nothing to
-    # list. A strip drawn here would be answering "which servers does this
-    # conversation have?" about no conversation.
-    #
-    # `@kolu` is deliberate: this host IS running kolu, so the absence is about
-    # there being no session rather than about there being nothing to say.
     Then no agent fold is open
     And the agent start pill on "kitchen" is absent
 
@@ -157,11 +109,6 @@ Feature: The panel says which MCP servers a conversation has
   Scenario: An agent that reports nothing per server still gets its servers named
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The other leg, and the honest floor of this feature. Opencode forwards no
-    # messages of its own, so there is no source for the middle layer at all —
-    # every row stays at "handed over, and nobody has said what became of it".
-    # That is a real answer to the question this feature exists for, and it is
-    # the one the panel gives rather than inventing a tick or drawing nothing.
     And I ask the agent "hello"
     Then the chat eventually shows "opencode says: hello"
     And the panel says this conversation has "olai"
@@ -173,15 +120,6 @@ Feature: The panel says which MCP servers a conversation has
   Scenario: An agent that reports nothing per server still gets its servers named
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The same floor on the third leg, and one step further down: omp reports
-    # nothing per server over ACP EITHER, and it does not even come up half
-    # connected — a session whose handed server will not connect fails
-    # `session/new` outright rather than arriving with one row marked broken
-    # (`packages/plugins/omp/docs.md`). So there is never a tick to withdraw and
-    # never a failure to report, and the whole of what this panel can honestly
-    # say is the roster olai composed plus the sentence saying the list is not
-    # all of it. Drawing nothing would leave a person asking the agent a
-    # question the agent is the worst thing in the room to ask.
     And I ask the agent "hello"
     Then the chat eventually shows "omp says: hello"
     And the panel says this conversation has "olai"

@@ -1,15 +1,3 @@
-/**
- * THE CHATS THUMB — the phone's one-tap door to the conversations
- * (`olai-plugin-layout`'s `layout.thumbs`).
- *
- * A phone shows one pane at a time, so its conversations are reached through
- * the drawer's Chats and Needs you sections. This thumb opens that drawer and
- * puts the caret on Needs you, so an agent waiting on a person is one tap and
- * a glance away rather than a burger, a scroll and a search. The badge is the
- * count of conversations that need somebody — the same rows the Needs you
- * section lists — and nothing else: a count of every chat would be a number
- * nobody acts on.
- */
 import { Show } from "solid-js"
 
 import { Thumb } from "olai-plugin-layout/thumb"
@@ -30,7 +18,6 @@ export function ChatsThumb(props: { readonly reveal: () => void }) {
       badge={<Show when={waiting() > 0}>{waiting()}</Show>}
       onClick={() => {
         props.reveal()
-        // The drawer is drawn on the next frame; the caret follows it there.
         requestAnimationFrame(() => agentReadings()?.focusNeeds())
       }}
     >

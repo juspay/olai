@@ -1,24 +1,3 @@
-/**
- * WHICH ANCESTOR HAS AN AGENT, as a client join over readings this tab already
- * holds.
- *
- * A node's ancestry is a FORMAT/OUTLINES fact — no server map of node → nearest
- * agent exists, and none should: the answer moves whenever any ancestor's
- * binding or conversation moves, and the page readings already carry every fact
- * needed to join it here. A zoomed reading carries `zoomed.trail`; a day or the
- * agenda carries each entry's `trail`; a file's rows carry `shows.node.parent`
- * and nothing else needed for the walk. This module turns whichever page is
- * open into `node → its ancestors, outermost first`, and `./AgentAbove.tsx`
- * turns that into a roster row.
- *
- * ## Where the reading comes from
- *
- * `pageReadings()` is split per pane (`../pages.ts`), so the order is the panes'
- * own: the page the node is on answers, and a second pane's page is asked only
- * when the first did not hold it. That is what lets a row's `•••`, a palette
- * row and a split's two pages all share one answer without any of them naming
- * a pane.
- */
 import type { Row as TreeRow, Shown } from "@olai/format"
 
 import { navigation } from "../navigation.ts"
@@ -26,28 +5,13 @@ import { pageReadings } from "../pages.ts"
 import type { Roster } from "./answered.tsx"
 import type { Row } from "./roster.ts"
 
-/** The crumbs a trail-shaped reading carries (`zoomed.trail`, `dated.trail`). */
 type Trail = ReadonlyArray<{ readonly node: { readonly id: string; readonly parent?: string | undefined } }>
 
-/**
- * One page as a parent graph plus the trails it states outright.
- *
- * `trails` is the direct answer a page already computed (a zoomed subject's
- * ancestry, a day entry's) and `parents` is every node the page draws with its
- * own `parent`, so a node under a zoomed subject or inside a file's tree is
- * walked rather than looked up. A mirror is keyed by the record it SHOWS, which
- * is the same node its crumbs are about.
- */
 interface Graph {
   readonly parents: Map<string, string | undefined>
   readonly trails: Map<string, ReadonlyArray<string>>
 }
 
-/** One graph per page reading. `Shown` is an immutable snapshot, so a `WeakMap`
- *  is enough: a new reading is a new object, and a page nobody holds is
- *  collectable. This matters because every agent line (a page, each fold, a
- *  chat page) asks in its own memo; without it each one rebuilt every open page's
- *  whole tree on every roster or page frame. */
 const graphs = new WeakMap<Shown, Graph>()
 
 const graphOf = (shows: Shown): Graph => {
@@ -92,7 +56,6 @@ const graphOf = (shows: Shown): Graph => {
   return graph
 }
 
-/** One page's answer for a node, or `undefined` when the page does not hold it. */
 const ancestryOn = (shows: Shown, node: string): ReadonlyArray<string> | undefined => {
   const graph = graphOf(shows)
   const stated = graph.trails.get(node)
@@ -101,13 +64,7 @@ const ancestryOn = (shows: Shown, node: string): ReadonlyArray<string> | undefin
   const out: Array<string> = []
   const seen = new Set([node])
   let parent = graph.parents.get(node)
-  // A walk and not a recursion: a set the validator would condemn has loops,
-  // and a crumb trail that never ends is worse than a short one.
   while (parent !== undefined && !seen.has(parent)) {
-    // A page that STATES an ancestor's trail has already walked above it (a
-    // zoomed subject, a day entry). The parent graph stops at that node, so
-    // splice the stated trail in front and stop: every crumb above the stated
-    // node is in it, already outermost first.
     const stated = graph.trails.get(parent)
     if (stated !== undefined) {
       out.unshift(...stated, parent)
@@ -120,7 +77,6 @@ const ancestryOn = (shows: Shown, node: string): ReadonlyArray<string> | undefin
   return out
 }
 
-/** Every open pane's page, in the panes' order. */
 const pages = (): ReadonlyArray<Shown> => {
   const nav = navigation()
   const readings = pageReadings()
@@ -131,9 +87,6 @@ const pages = (): ReadonlyArray<Shown> => {
   })
 }
 
-/** The ancestors of `node`, outermost first, from the first open page that
- *  holds it. Reading this inside a memo tracks the roster AND the pages, so a
- *  moved page or a started/stopped agent retargets it. */
 export const trailOf = (node: string): ReadonlyArray<string> => {
   for (const shows of pages()) {
     const found = ancestryOn(shows, node)
@@ -142,10 +95,7 @@ export const trailOf = (node: string): ReadonlyArray<string> => {
   return []
 }
 
-/** The nearest of these ancestors the live roster knows, or `undefined`. */
 export const agentAbove = (trail: ReadonlyArray<string>, roster: Roster): Row | undefined => {
-  // Reversed: the CLOSEST ancestor is the last crumb, and the pill names only
-  // that one even where several ancestors have agents.
   for (let at = trail.length - 1; at >= 0; at--) {
     const row = roster.at(trail[at]!)
     if (row !== undefined) return row
@@ -153,6 +103,5 @@ export const agentAbove = (trail: ReadonlyArray<string>, roster: Roster): Row | 
   return undefined
 }
 
-/** ...and the same answer for a node, resolved against the pages now open. */
 export const agentAboveOf = (node: string, roster: Roster): Row | undefined =>
   agentAbove(trailOf(node), roster)

@@ -1,6 +1,3 @@
-/** Confirmed model choices, keyed by engine and session. The store is owned
- * by chat's activation and uses its declared local-state door. Nothing here
- * selects or opens a conversation. Initialization is deferred until an open. */
 import type { MemoryFailure, Models } from "@kolu/acp-client"
 import { Effect, Semaphore } from "effect"
 import type { Conversing } from "./sessions.ts"
@@ -38,8 +35,6 @@ export const forLocalState = (local: ChatLocalState): Models => {
       yield* initialize
       const found = rows!.find(row => same(row, to))
       if (found === undefined) return null
-      // Opening touches an existing choice; an unpinned conversation writes
-      // no row, so the cap counts choices rather than every session visited.
       yield* save([...rows!.filter(row => !same(row, to)), found])
       return found.model
     })),

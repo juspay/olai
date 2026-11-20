@@ -15,15 +15,10 @@ import { isPast as movedOn } from "./past.ts"
 import { TESTID } from "../../testids.ts"
 import type { Conversing } from "../../sessions.ts"
 
-/** The engine menu, loaded on the first press that needs it — the same lazy
- *  door the other two engine pickers use. */
 const EngineMenu = lazy(() => import("./EngineMenu.tsx"))
 
-/** The node's fresh-start gesture is independent of which of its sessions the
- *  reader has open. The pending owner guards physical repeat presses. */
 export function FreshStart(props: {
   readonly agent: Row
-  /** Whether the press sits on a zoomed page (over layer) rather than a row. */
   readonly page?: boolean
 }) {
   const saying = createSaying()
@@ -43,9 +38,6 @@ export function FreshStart(props: {
     trigger?.focus()
   }
 
-  /** The fresh start itself, on whichever engine the press named — the shared
-   *  gesture ({@link ./fresh-start.ts}), with this face's question in front of
-   *  it and this face's said-line under it. */
   const fresh = (engine: string): void => {
     if (starting() || confirm.where() !== "asking") return
     confirm.begin()
@@ -55,13 +47,9 @@ export function FreshStart(props: {
       : { agent: props.agent.engine, session: props.agent.session }
     saying.say(undefined)
     void (async () => {
-      // The node still bound to what it was bound to when this was pressed is
-      // the only node a refusal may send the reader back to — asked of the one
-      // predicate that knows a conversation is a PAIR ({@link ./past.ts}).
       const failure = await startFreshChat(node, engine, () =>
         previous !== null && !movedOn(previous, props.agent) ? previous : null)
       confirm.done()
-      // The completed history revision refreshes this tab and its siblings.
       if (failure !== null) saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
     })()
   }
@@ -69,16 +57,12 @@ export function FreshStart(props: {
   const pressed = (event: MouseEvent): void => {
     if (starting() || confirm.where() === "asking") return
     if (agents.only() !== null || agents.engines().length === 0) {
-      // Preserve the node's engine. A withdrawal must refuse this request,
-      // never silently move its conversation onto a surviving engine.
       ask(props.agent.engine)
       return
     }
     setMenu(event.currentTarget as HTMLElement)
   }
 
-  /** Current engine first; all other standings retain bundle order. Opening
-   * the menu is not consent to move the node to whichever engine sorts first. */
   const ordered = (): ReadonlyArray<AgentChoice> => {
     const engines = agents.standings()
     const current = engines.find(engine => engine.id === props.agent.engine)
@@ -87,12 +71,6 @@ export function FreshStart(props: {
       : [current, ...engines.filter(engine => engine.id !== current.id)]
   }
 
-  /** WHAT SURVIVES A FRESH START, named by whatever keeps it. A node's memory
-   *  is the rows under it and is counted; a NOTE'S memory is the note itself,
-   *  which the old sentence counted as "0 rows" — wrong, and the opposite of
-   *  the reassurance this sentence exists to give. A node with nothing under
-   *  it yet is counted no better: "keeping memory in 0 rows" is arithmetic
-   *  where a person wants a plain fact, so it says the plain fact. */
   const keeping = (): string => props.agent.kind === "note"
     ? `keeping the note ${agents.named(props.agent).name} as its memory`
     : props.agent.memory === 0
@@ -100,10 +78,6 @@ export function FreshStart(props: {
       : `keeping memory in ${memoryOf(props.agent)}`
 
   return <span class="relative">
-    {/* WHERE THE MEMORY GOES. "Fresh start" does not say that the memory
-        survives the new chat, and that is the whole reason a person presses
-        it rather than closing the chat — so the sentence is in the button's
-        own name, after the visible words, as well as under the pointer. */}
     <Tip text={`Start over, ${keeping()}`}>
       <button ref={trigger} type="button" class={LINE_VERB} data-testid={TESTID.chatFreshSession}
         data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}

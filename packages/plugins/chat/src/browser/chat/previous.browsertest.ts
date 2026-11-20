@@ -1,24 +1,8 @@
-/**
- * WHICH ROW IS ABOVE WHICH, and how many rows asking it costs when one arrives.
- *
- * The answers are the easy half. The claim `./previous.ts` exists for is a
- * count: a turn adds its rows a few at a time, and a row arriving must wake the
- * row next to it rather than every row already drawn — which, over a long
- * conversation, is the difference between linear and quadratic.
- *
- * UNDER THE BROWSER CONDITION, for `../settled.browsertest.ts`'s reason: the
- * server build never re-runs a memo, so a suite about which memos re-run would
- * pass having re-run nothing.
- */
-
 import { expect, test } from "bun:test"
 import { type Accessor, createMemo, createRoot, createSignal, type Owner, getOwner, runWithOwner } from "solid-js"
 
 import { createPrevious } from "./previous.ts"
 
-/** An order, a row per key asking what is above it the way `./Transcript.tsx`
- *  asks — in the row's own scope — and a count of how often each row's memo
- *  re-ran. */
 const rows = (initial: ReadonlyArray<string>) => {
   const [order, setOrder] = createSignal<ReadonlyArray<string>>(initial)
   const runs = new Map<string, number>()
@@ -44,8 +28,6 @@ const rows = (initial: ReadonlyArray<string>) => {
       }))
   }
   for (const key of initial) draw(key)
-  /** Set the order, drawing the keys that are new and releasing the ones that
-   *  left — `<For>`'s half of the arrangement. */
   const set = (next: ReadonlyArray<string>) => {
     for (const key of next) if (!scopes.has(key)) draw(key)
     setOrder(next)
@@ -57,9 +39,6 @@ const rows = (initial: ReadonlyArray<string>) => {
     }
     for (const memo of above.values()) memo()
   }
-  /** The rows STILL DRAWN whose memo re-ran — a row on its way out may be told
-   *  once that it has no neighbour before its scope goes, which costs nothing
-   *  that stays on screen. */
   const woken = (fn: () => void): ReadonlyArray<string> => {
     const before = new Map(runs)
     fn()
@@ -80,8 +59,6 @@ test("each row is told the row above it, and the first is told nothing", () => {
 })
 
 test("a row arriving at the foot wakes only that row", () => {
-  // A TURN is rows appended one tick after another, and every row already
-  // drawn used to re-decide its neighbour on each of them.
   const keys = Array.from({ length: 50 }, (_, at) => `r${at}`)
   const list = rows(keys)
   const woken = list.woken(() => list.set([...keys, "new"]))
@@ -109,7 +86,6 @@ test("a row leaving wakes the row that closes the gap", () => {
 })
 
 test("a row replaced in place wakes the row under it", () => {
-  // Same index, different neighbour: the case an index signal would miss.
   const list = rows(["a", "b", "c"])
   const woken = list.woken(() => list.set(["a", "x", "c"]))
   expect(woken).toEqual(["c", "x"])
@@ -124,8 +100,6 @@ test("an order that moved nothing wakes nobody", () => {
 })
 
 test("a row drawn again after it left is told its new neighbour", () => {
-  // Its first slot was released with its first scope; the walk must reach the
-  // second one and nothing the first one left behind.
   const list = rows(["a", "b", "c"])
   list.set(["a", "c"])
   list.set(["c", "a", "b"])

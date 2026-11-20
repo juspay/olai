@@ -1,28 +1,5 @@
 import { newChat, itemLocations, type LocationQuery, type NewChatInput, seated } from "./server/new-chat.ts"
 /**
- * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
- * end, and the fourteen verbs, as a row.
- *
- * ## What this module is, in one sentence
- *
- * `@olai/server`'s `serve.ts` held a fifty-line `Chat.make({…})` and its
- * `runtime.ts` held two cells, two collections, fourteen procedures, a cadence,
- * a doorbell fault walk and three publishers — six hundred lines of one
- * feature's judgement inside the two files every other feature also passes
- * through. It is here now, whole, and what core does instead is mount a row.
- *
- * ## Chat PROVIDES four doors, and that is the shape of the phase
- *
- * `Agents`, `Deliveries`, `Watching` and `SessionStart` left `openPlugins` and
- * are offered here ({@link @olai/plugin-api}'s `Offers`). Every plugin that
- * names one is held `waiting` until this row mounts and unloads when it leaves;
- * that is the paper's rule and the ruling accepts its cost. Under
- * a policy selecting only kolu alone, kolu sits `waiting`, and the plugins panel says on
- * whose account — the fiber's `PENDING` reading names the missing key. The
- * engines are `waiting` without chat too, which is correct: an engine plugin's
- * whole registration is an offer to seat a conversation, and there is nobody to
- * seat one.
- *
  * ## THE ORDER, and why the chat is built on a forked fiber
  *
  * Three things have to happen in an order this file cannot get by writing them
@@ -37,35 +14,6 @@ import { newChat, itemLocations, type LocationQuery, type NewChatInput, seated }
  *      the offer, and full a moment later.
  *   3. **The listener binds.** Only then is there an MCP address to hand a
  *      session, which is the whole of what {@link Tools} answers.
- *
- * So the roster is read and the chat is built on a fiber that AWAITS
- * `tools.server`, which settles after `listen` — by which time every row has
- * mounted and the engines registry is whatever this build has. That is the
- * composition root's hand-kept "the chat is built, the surface is bound, and
- * only then is the agent started" turned into a dependency a reader can see,
- * which is what {@link Tools}'s own header says it is for.
- *
- * What a browser sees in the gap is `CHAT_OFF`, which is the value a tab that
- * has not heard yet holds anyway — and the first frame after the build fills it.
- *
- * ## ...AND THE ORDER IS NO LONGER THE WHOLE STORY
- *
- * That sequence is about the BUILD, and it still holds exactly as written. What
- * it used to also settle — WHICH ENGINES THERE ARE — it does not, because an
- * engine is a plugin and a plugin can be turned off at the panel while this
- * process runs. So the engines table is READ WHEN ASKED rather than captured at
- * (3), and `enginesMoved` beside the offer is what tells the panel to look
- * again. The order above is what makes the FIRST reading complete; the live
- * reading is what keeps every one after it true.
- *
- * ## THE FENCE, and what this half may reach
- *
- * `./wire.ts` is what every listener statically pulls in and may carry no UI
- * runtime and no ACP transport. `./browser.tsx` is where this plugin's faces
- * hang and is SolidJS. This is everything that runs in a server process, and it
- * is reached BY NAME: `@olai/bundle`'s `olai.yml` carries the row
- * `olai-plugin-chat/server` and the loader mounts this module's DEFAULT export
- * as a fiber.
  */
 
 import { deliveryProvision } from "./server/deliveries.ts"
@@ -131,10 +79,6 @@ import { rosterIn, seatingIn } from "./seating.ts"
 import { Config, SLEEP_OFF, sleepingPolicy } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
-// WHY A SESSION MAY NOT WRITE THE KEY IT IS SEATED ON — the clause the ticket
-// below carries, and the one the STANDING reservation on that key spends
-// (`./policy.ts`, enforced at every agent face whether or not this row is
-// composed). One word, one answer.
 import { OPENS, SEATS } from "./policy.ts"
 import { roster as agentsRoster, type RosterReading } from "./server/agents.ts"
 import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, retie, setOpens, setSleeping, startAgentSession } from "./server/binding.ts"
@@ -147,25 +91,12 @@ import { faces, name, surface } from "./wire.ts"
 import { CHARTER } from "./charter.ts"
 import { SLEEP_WORD } from "./sleep.ts"
 
-/** The kinds this plugin teaches a vault — see {@link ./kinds.ts} for the word
- *  and the migration row an existing vault needs. */
 export { kinds } from "./kinds.ts"
 
-/** The wire half, re-exported so a composition root reads ONE entry per plugin
- *  — and so the sibling key the surface is composed under and the key its deps
- *  are filed under are the same word by construction. */
 export { faces, name, surface } from "./wire.ts"
 
-/** This surface's own write face, which is what the runtime hands back under
- *  this plugin's key. Named here because it is this package's spec that decides
- *  what is on it — core carries the value as `unknown` and could not spell
- *  `cells.state` if it wanted to, which is the point. */
 type Ctx = SurfaceCtx<typeof surface.spec>
 
-/** ONE REVISION OF THE VAULT, as much of it as this half reads — the narrowing
- *  {@link Vault.revision} leaves to the plugin, in the plugin's own signature.
- *  The SET is what a scoped file is looked for among, and the DERIVED reading is
- *  what the node-agent roster and the nearest-ancestor walk are taken off. */
 interface VaultRevision {
   readonly value: {
     readonly set: Parameters<typeof documentAt>[0]
@@ -174,36 +105,11 @@ interface VaultRevision {
   }
 }
 
-/** A refusal off the write door, as the vault's own union — the one narrowing
- *  this half makes across the plugin boundary, said once here rather than at
- *  each of the two call sites. {@link Refusal} carries the `_tag` Effect's
- *  matching is structural on; what it cannot carry is the union, because
- *  `@olai/plugin-api` does not depend on `@olai/format` and must not. */
 const asFailure = (refusal: Refusal): OpFailure => refusal as OpFailure
 
-/**
- * ...AND WHY IT MAY NOT WRITE THE MEMO OF ITS OWN SLEEP, which is the second
- * key a seated session is refused.
- *
- * The memo is olai's record of when the LAST pass finished, and the pass is
- * what writes it — an agent that stamped its own would be the tidy-up pass
- * deciding it had tidied, and the next pass would skip a subtree nothing had
- * touched. The agent is told which of the two keys it is about through this
- * clause, exactly as {@link SEATS} tells it the other.
- */
 const MEMO =
   "olai writes it when it tidies this node agent's knowledge base, so a session that stamped it would be claiming a pass nobody ran"
 
-/**
- * ...AND WHY IT MAY NOT TURN ITS OWN SLEEPING ON OR OFF, which is the third.
- *
- * The mark is a PERSON's answer about whether olai may tidy this chat at all
- * (`./agents.ts`'s `sleeps`), and the whole point of it being opt-in is that the
- * agent does not get to give itself permission: a session that wrote `on` would
- * be the tidy-up pass authorising its own wake-up, and one that wrote `off`
- * would be a chat that quietly stopped being tidied. Neither is a machine's
- * decision, and the row-menu verb is where it is made.
- */
 const SLEEPING_MARK =
   "it is whether olai may tidy this chat on its own, which is a person's choice at the chat's own controls"
 
@@ -215,19 +121,13 @@ export default definePlugin({
   needs: [Bundle, Env, FileKinds, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
   config: Config,
   apply: (settings) => Effect.gen(function*() {
-    // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
-    // `needs` carries, in the same order, so a reader checks the two against
-    // each other by looking at one screen.
+    // Every service this plugin named, yielded once — the same list
+    // `needs` carries, in the same order.
     const bundle = yield* Bundle
     const env = yield* Env
     const nodeIdle = settings["idle-ms"]
-    // ...AND WHETHER THE PASS RUNS AT ALL, with its spans decoded once here
-    // rather than per tick (`./settings.ts` holds the words and the rule).
     const sleeping = settings.sleep === "on"
     const spans = sleepingPolicy(settings)
-    // WHICH KINDS OF FILE THIS BUILD SERVES — read for one question: whether a
-    // note's kind is claimed at all, which is what arms the one-time move
-    // below (`notesServed`).
     const fileKinds = yield* FileKinds
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
@@ -241,60 +141,10 @@ export default definePlugin({
 
     for (const kind of kinds) yield* kindsDoor.register(kind)
 
-    // ── the four doors this row stands behind ────────────────────────────
-
-    /**
-     * THE ENGINE TABLE, keyed by the offering plugin's own word.
-     *
-     * It was `openPlugins`' `registry`; it is chat's, because the id an engine
-     * is offered under is the fiber's name and what READS the table is the
-     * roster this file builds. Two plugins cannot claim one id — the loader
-     * will not mount two rows under one word — so the reachable case is a plugin
-     * registering twice, which dies out of `register` and lands that fiber
-     * `failed` with its siblings untouched.
-     */
     const engines = new Map<string, Engine>()
     let engineChange: Deferred.Deferred<void> | null = null
-    /**
-     * THE MACHINE'S ANSWERS, one detector for the life of the row — built here
-     * rather than inside the build fiber below, because the unregister
-     * finalizer needs it: forgetting a toggled id's cached answer is what makes
-     * off-then-on a re-probe, and the finalizer runs wherever the row's scope
-     * unwinds, not wherever the chat happened to be built
-     * (`./agents/roster.ts`'s `detecting` argues the halves and `forget`).
-     */
     const detect = detecting(env.vars, vault.served)
     const mounted = () => inBundleOrder(engines.values(), (one) => one.id, bundle.rank)
-    /**
-     * ...AND WHO IS TOLD WHEN IT MOVES, which is the half that was missing.
-     *
-     * The table was always live — the release below has always deleted the row —
-     * but what READ it was a boot snapshot taken once, when the serve came up,
-     * and handed to the panel as two arrays. So switching the claude row off
-     * removed claude from this map and changed nothing a person could see: the
-     * picker went on offering it, and picking it went on WORKING, because the id
-     * was resolved against the same frozen list.
-     *
-     * The reading is live now ({@link ../chat.ts}'s `PanelOptions.roster`), and
-     * a live reading nobody re-reads is a snapshot with extra steps — the picker
-     * is a published value, so something has to say when to publish it again.
-     * This is that something, and it is HERE because the acquire and the release
-     * are already the two moments it is true at; a second place that noticed
-     * would be a second place to keep in step.
-     *
-     * THROUGH THE DETACHED SEAM, because `enginesMoved` is an Effect (it stops a
-     * subprocess) and this runs inside a fiber's teardown, which is not one. A
-     * failure there is contained and named with this plugin's word, like every
-     * other detached edge in this row.
-     *
-     * The engine table is not a conversation frame. Publish before fan-out
-     * stops a subprocess; a child frame must not put its old roster back while
-     * that stop is in flight.
-     *
-     * NOTHING BEFORE THE CHAT IS BUILT: `chat` is null until the serve is up,
-     * and an engine that registered before then is simply in the table the build
-     * reads. There is no lost signal to catch up on.
-     */
     const enginesMoved = (): void => {
       if (chat !== null) ring(
         Effect.sync(() => mine?.cells.engines.set(detect.read(mounted()).map(choiceOf)))
@@ -318,32 +168,14 @@ export default definePlugin({
           () =>
             Effect.sync(() => {
               engines.delete(who)
-              // A TOGGLE IS A PERSON ASKING. The finalizer drops this id's
-              // cached probe answer BEFORE ringing the table's bell, so a row
-              // switched off and on again is RE-READ on the way back — the
-              // person who flipped it is the one "look again" the frozen
-              // machine half answers to (`./agents/roster.ts`'s `forget`
-              // argues both). Every other id keeps its cached answer.
               detect.forget(who)
               enginesMoved()
             }),
         ).pipe(Effect.asVoid),
     }))
 
-    /**
-     * WHERE A DOORBELL MAY DELIVER — the chat's own door, per calling plugin.
-     *
-     * `null` until the chat is built, which is every moment before the listener
-     * bound, and the arms are the honest ones rather than a wait: `scopes()` is
-     * the empty list, `ringing` is nothing, and `deliver` is a no-op. A doorbell
-     * that rang in that window rang about a conversation that does not exist
-     * yet, and holding the ring would deliver yesterday's news into today's
-     * first turn.
-     */
     yield* offers.offer(Deliveries, deliveryProvision(() => chat, wakes.current))
 
-    /** WHAT A PLUGIN THAT MIRRORS A CONVERSATION IS TOLD — a bus this row owns,
-     *  contained per handler with the subscribing plugin's word on the line. */
     const watchers: Array<{
       readonly who: string
       readonly handler: (event: ConversationSeen) => Effect.Effect<void>
@@ -378,14 +210,6 @@ export default definePlugin({
         { discard: true },
       )
 
-    /**
-     * WHAT TO ASK THIS HOST WHEN A CONVERSATION OPENS, keyed by the plugin that
-     * registered it — the door that replaced `probe()`.
-     *
-     * A ROSTER rather than a table: a plugin may legitimately register more than
-     * one probe, and there is no key here to collide on — the stamp is on the
-     * answer, not on the address.
-     */
     const asking: Array<{ readonly who: string; readonly ask: Effect.Effect<Probed> }> = []
     yield* offers.offer(SessionStart, (who) => ({
       ask: (probe) =>
@@ -403,66 +227,20 @@ export default definePlugin({
         ).pipe(Effect.asVoid),
     }))
 
-    // ── what this row holds while it is up ───────────────────────────────
-
-    /** The chat, once the listener has bound and an enabled engine is installed.
-     *  Until then the build waits for engine registrations on this plugin's scope. */
     let chat: Chat.Chat | null = null
     const ready = yield* Deferred.make<Chat.Chat>()
     const streams = yield* readings(Deferred.await(ready))
-    /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
-    /**
-     * THE PASS, once this row has wired it — `null` before that and after the
-     * scope closes, which is what makes a request that arrives in either window
-     * a sentence rather than a call into something that is not there
-     * ({@link conversation.tidyMemory}).
-     */
     let sleeper: {
       readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope>
-      /** WHAT THIS NODE'S SLEEP IS DOING — read by the roster join below, which
-       *  is synchronous and runs long after this block (`./server/sleep.ts`). */
       readonly forecast: (node: string) => Forecast | null
     } | null = null
-    /**
-     * THE SCOPE THE PASS IS FORKED INTO, captured here rather than read when a
-     * request arrives: a procedure runs long after this effect has finished, and
-     * a pass a person asked for must be owned by THIS row — the same owner the
-     * loop's fiber has, so a settings flip or a serve shutting down stops its
-     * turn rather than leaving it writing with nobody watching.
-     */
     const owned = yield* Effect.scope
     let sessionsRevision = 0
 
-    /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
-     *  and which note carries a tie, what it is called, how big its memory is. */
     const nodeAgents = agentsRoster()
-    /** THE ROSTER, LEVELLED WITH A REVISION — the records and the documents
-     *  both, because half the roster is read off a note's front matter
-     *  (`./server/agents.ts`'s `RosterReading`). */
     const levelWith = (reading: RosterReading | null) => nodeAgents.seen(reading)
 
-    /**
-     * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned into
-     * frames on a clock ({@link ./cadence.ts}, which argues the whole thing).
-     *
-     * HERE rather than beside the panel, for the reason it was in the
-     * composition root before: what it decides is a DELIVERY question — which
-     * member a fact lands on, in what order, and what a new subscriber is seeded
-     * with — and the panel knows only that it published a change.
-     */
-
-    /**
-     * THE ROSTER, ASSEMBLED AND PUBLISHED — the one place the two halves are put
-     * together, called from both of the clocks that move either.
-     *
-     * A published revision moves the vault's half; a chat frame moves the
-     * machine's half. Two assemblers over one carrier would be two answers to
-     * what the roster is, and the one that disagreed would be the one nobody was
-     * looking at. The cell's `equals` is what makes hanging this off every chat
-     * frame affordable: nearly none of them says anything new about a roster of
-     * three rows.
-     */
     const republishAgents = (): void => {
       const cell = mine?.cells.agents
       if (cell === undefined) return
@@ -470,8 +248,6 @@ export default definePlugin({
         nodeAgents.rowsWith(
           chat === null ? [] : chat.overheard(),
           chat === null ? new Map() : chat.live(),
-          // THE FORECAST RIDES THE ROW, from the one judgement the loop picks
-          // with — `null` while there is no sleeper, which is `sleep: off` here.
           (node) => sleeper?.forecast(node) ?? null,
         ),
       )
@@ -484,25 +260,9 @@ export default definePlugin({
     const turns = new Map<string, { status: ChatState["status"]; sequence: number }>()
     const deliveredIds = new Set<string>()
 
-    /**
-     * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
-     *
-     * Three things drive this plugin from outside an Effect: the panel's own
-     * `onState` and `onTranscript` callbacks, and the vault's revision handler,
-     * which is synchronous. Everything below that starts work from one of those
-     * goes through here, which forks it under THIS plugin's services — so a line
-     * carries the level the operator asked for — and onto THIS plugin's scope, so
-     * work still in flight when the row unloads is interrupted with it.
-     *
-     * AND FORGET IS NOT SILENT: a defect is caught by the seam and said with this
-     * plugin's own word on it, where a bare `Effect.runPromise` would have
-     * dropped it with nothing anywhere saying so.
-     */
     const ring = yield* detached
 
     const publishState = (state: ChatState, entries: ReadonlyMap<string, ChatEntry>): void => {
-      // Node bindings move behind conversation frames: a session opening,
-      // a contract taught, or a line written down at the end of a turn.
       republishAgents()
       const who = whoOf(state)
       if (who !== null) {
@@ -538,9 +298,6 @@ export default definePlugin({
     }
 
     const publishTranscript = (state: ChatState, change: Change<ChatEntry>): void => {
-      // Through the CADENCE, never straight onto the collection: a row that
-      // grows reaches the wire as pieces on a clock rather than as itself once
-      // per token.
       const who = whoOf(state)
       if (who === null) return
       for (const entry of change.upserts) {
@@ -553,11 +310,6 @@ export default definePlugin({
       }
     }
 
-    // ── the verbs ────────────────────────────────────────────────────────
-
-    /** A chat verb, when there may be no chat. The cell already reads `off`, so
-     *  a caller can branch on it — which is why this is a refusal in words
-     *  rather than a defect. */
     const withChat = <A>(
       use: (chat: Chat.Chat) => Effect.Effect<A, OpFailure>,
     ): Effect.Effect<A, OpFailure> =>
@@ -569,15 +321,6 @@ export default definePlugin({
         )
         : use(chat)
 
-    /** WHAT THE BINDING GESTURES REACH — the roster's reading of an item, the
-     *  one property write a row's tie takes and the two document doors a
-     *  note's takes, with the vault's own refusal on the way back out.
-     *
-     *  THE KEYS ARE THE ROSTER'S ANSWER, asked per gesture rather than
-     *  captured: which column this board keeps its ties in is a DECLARATION
-     *  ({@link ./kinds.ts}), so it moves with a revision, and the first key that
-     *  carrier names is the one a writer should prefer — a vault's own migration
-     *  row over the word this kind claims. */
     const bindingPermit = yield* Semaphore.make(1)
     const creationPermit = yield* Semaphore.make(1)
     const gate = ops.gate as WriteGate
@@ -593,9 +336,6 @@ export default definePlugin({
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value: "" }), asFailure),
       mark: (node, value) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.sleepKey(), value }), asFailure),
-      // THE TEXT AS THE GATE HOLDS IT, read afresh per gesture rather than off
-      // the roster's revision: a note the person has just saved is a note this
-      // write must not compose its edit from an older copy of.
       text: (path) =>
         Effect.map(gate.read, (reading) => {
           const document = documentAt(reading.set, path)
@@ -604,37 +344,11 @@ export default definePlugin({
       doc: (path, text, was) => Effect.asVoid(gate.run({ op: "doc", file: path, text, was }, "web")),
     }
 
-    /**
-     * WHAT EVERY GESTURE THAT MOVED A TIE DOES AFTERWARDS — bump the
-     * revision every tab's roster is drawn off.
-     *
-     * One `const` because it is one sentence said in five places, and because
-     * the SECOND caller of it is not a person: the start below is reached both
-     * by a press on the surface and by a row that named core's `conversations`
-     * key (`@olai/plugin-api`'s {@link Conversations}, which this row stands
-     * behind), and a machine-opened conversation that did not
-     * republish would be an agent nobody's sidebar had heard of.
-     */
     const published = Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision))
 
-    /**
-     * THE START, ONCE — the one a person's *New chat* runs, the one a door on
-     * a page runs, and the one another row's `open` runs.
-     *
-     * It was written inside the surface procedure, which was right while the
-     * only caller was a keystroke. A second caller arriving (core's
-     * {@link Conversations}) would have had to say the same thunks again,
-     * and the two copies would have been where "that item already has a chat"
-     * quietly got two answers. The permit, the reading the seat is written
-     * against and the refusal sentences are all `./server/new-chat.ts`'s;
-     * what is here is this row's doors into the vault.
-     */
     const mintConversation = (open: Chat.Chat, input: NewChatInput) =>
       creationPermit.withPermit(newChat({
         read: gate.read,
-        // THE SEAT, WITH THE ROSTER LEVEL AT BOTH ENDS — the order is
-        // `./server/new-chat.ts`'s `seated`, which argues it and is where the
-        // claim is tested; what is here is this row's doors into the vault.
         start: (node, agent, committed) =>
           seated({
             committed,
@@ -642,31 +356,12 @@ export default definePlugin({
             read: gate.read,
             start: startAgentSession(open, binding, { node, agent }),
           }),
-        // THE ROSTER OF THE READING THE REFUSAL IS ASKED OVER, by the pure
-        // reading (`./seating.ts`'s `rosterIn`) — never by moving the carrier,
-        // which is the revision handler's alone.
         chats: (reading) => rosterIn(reading),
       }, input))
 
-    /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
-     *
-     *  The declarations are `Wakes`' and every ringing plugin writes its own; what
-     *  this row has is the PICKS, so it is the end that judges them — the member
-     *  that writes a scope refuses a plugin that declared no wake, and the fault
-     *  walk indexes the sentence a broken one says. Two readers, one table, and no
-     *  second list for them to disagree across.
-     *
-     *  AN EFFECT AND NOT A SNAPSHOT, which is the reactive half doing its job: a
-     *  plugin that unloaded between one revision and the next declared nothing by
-     *  the time either reader asks. */
     const rings = wakes.declared
 
     const conversation = {
-      // The ids the composer was armed with become NODES here, over the same
-      // reading a keystroke's write is resolved against — so what the agent is
-      // told is the set's answer rather than the tab's, and an id nothing
-      // declares refuses the send instead of quietly sending a message with no
-      // subject.
       send: ({ input }: { input: { conv: PanelAddress; scope: string | null; text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) =>
           Effect.flatMap(ops.reading, (at) => {
@@ -676,9 +371,6 @@ export default definePlugin({
               input.text,
               input.attachments ?? [],
               context.success,
-              // Straight through: whether this send interrupts the turn in
-              // flight is a gesture a person made, and this end has no second
-              // opinion about what they meant by it.
               input.steer ?? false,
             )
           })
@@ -688,16 +380,6 @@ export default definePlugin({
       resend: ({ input }: { input: { conv: PanelAddress; scope: string | null; id: string } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.resend(input.id))),
       cancel: ({ input }: { input: { conv: PanelAddress; scope: string | null } }) => withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.cancel)),
-      // THE SIGN-IN TRIO, routed like every other conversation verb — through
-      // `inConversation`, which is what makes a stale tab's press land on the
-      // conversation it was drawn for rather than on whichever one is in front.
-      //
-      // THE ONE THING THAT MAKES THE MATCHING WORK HERE: an agent that refused
-      // to open a conversation for want of a signature still has a row on
-      // screen, and `inConversation` matches a panel with no session by the
-      // conversation it FAILED to open (`../chat.ts`'s `refusedOpen` writes
-      // it). So the buttons on that face address the panel they belong to,
-      // which is the same courtesy `reopen` already gets.
       signIn: ({ input }: { input: { conv: PanelAddress; scope: string | null; method: string | null } }) =>
         withChat((open) =>
           open.inConversation(input.conv, input.scope, (panel) => panel.signIn(input.method))
@@ -712,72 +394,36 @@ export default definePlugin({
         withChat((open) => open.inConversation(input, undefined, panel => panel.setSetting(input.agent, input.session, input.config, input.value))),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
         withChat((open) => open.inConversation(input, undefined, panel => panel.setModel(input.agent, input.session, input.value))),
-      // THE ONE VERB NOBODY PRESSED, routed through the pair exactly like the
-      // gestures above it — and through the `Chat` verb that will NOT open a
-      // conversation to apply it (`scoped.ts`'s `Chat.seen` argues why: this
-      // call is older than the roster frame it came from, so the conversation
-      // may be gone, and booting an agent to acknowledge a dead one is not
-      // reading).
-      //
-      // THEN THE ROSTER, because that is where this fact is DRAWN: the write is
-      // on disk and in the record's mirror (`../sessions.ts`), while every tab's
-      // mark is read off the cell this republishes. A frame that moved nothing
-      // is free — the cell's `equals` is the schema's own equivalence.
       seen: ({ input }: { input: { agent: string; session: string; at: string } }) =>
         withChat((open) => open.seen(input, input.at))
           .pipe(Effect.tap(() => Effect.sync(republishAgents))),
       locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => itemLocations(reading as Reading, input)),
-      // THE CHAT OF AN ITEM (`item`) carries its first message (`say`) and
-      // is handed it HERE, once, the way another row's `open` is: the door on
-      // a page stays on that page, so there is nowhere else for the words to
-      // wait. A refused send is the answer's `refusal`.
       newChat: ({ input }: { input: NewChatInput }) =>
         withChat(open => Effect.gen(function*() {
           const made = yield* mintConversation(open, input)
           const say = input.say
           if (made.to === null || say === undefined || say.trim() === "") return made
-          // The roster is level with the tie the start wrote, so these words
-          // carry the contract (`mintConversation`'s `start`).
           const said = yield* Effect.result(open.inConversation(made.to, undefined, panel => panel.send(say, [], [], false, [])))
           return said._tag === "Failure" ? { ...made, refusal: said.failure.message } : made
         })).pipe(Effect.tap(() => published)),
-      // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
-      // {@link ./server/binding.ts} argues both orders and the refusal.
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
         withChat((open) => startAgentSession(open, binding, input)).pipe(
-          // Publish after both the tie and its history link are written.
           Effect.tap(() => published),
         ),
       setSleeping: ({ input }: { input: { node: string; on: boolean } }) =>
-        // SLEEP OFF IS THE SETTINGS' ANSWER, and it comes before the write: a
-        // mark written while the pass cannot run at all would be a promise the
-        // row's own label does not keep (`./settings.ts`'s `SLEEP_OFF`). The
-        // other refusal — a NOTE, which is never tidied — is the gesture's own
-        // (`./server/binding.ts`).
         sleeping
           ? bindingPermit.withPermit(setSleeping(binding, input)).pipe(
             Effect.tap(() => published),
           )
           : Effect.fail(new UsageFailure({ reason: SLEEP_OFF })),
-      // WHERE A NOTE'S CHAT OPENS — the same permit the tie's writes take,
-      // because it is the same block of the same file: a switch flipped while
-      // a start is writing the tie would otherwise race it through the gate
-      // and lose one of the two keys (`./server/binding.ts`).
       setOpens: ({ input }: { input: { path: string; beside: boolean } }) =>
         bindingPermit.withPermit(setOpens(binding, input)).pipe(
           Effect.tap(() => published),
         ),
       closeAgent: ({ input }: { input: { node: string } }) =>
         bindingPermit.withPermit(closeAgent(binding, input)).pipe(
-          // Publish after the tie is gone: the seat closes and the roster
-          // repaints without the released agent.
           Effect.tap(() => published),
         ),
-      // ...AND THE WAY BACK FROM A TIE SOMETHING OUTSIDE OLAI TOOK OFF. The
-      // same permit the other tie writes take, for the same reason: it is the
-      // same block of the same file. The roster is what answers both of its
-      // refusals, so the readings are handed in here rather than reached for
-      // inside the gesture (`./server/binding.ts`).
       retie: ({ input }: { input: { node: string; agent: string; session: string } }) =>
         bindingPermit.withPermit(retie(binding, {
           seatable: (item) => nodeAgents.seatableAt(item),
@@ -785,28 +431,7 @@ export default definePlugin({
         }, input)).pipe(
           Effect.tap(() => published),
         ),
-      /**
-       * PUT ONE ITEM'S AGENT TO SLEEP — the seat, handed back by hand.
-       *
-       * NO BINDING PERMIT, which is the whole difference from `closeAgent`
-       * above: nothing is written to the vault here. The tie naming the
-       * conversation stays exactly where it is, so there is nothing to
-       * serialise against — what moves is the SCOPE, and the roster is
-       * republished by the scheduler's own `onLive` the moment it closes.
-       * A NOTE'S AGENT IS PUT TO SLEEP LIKE A NODE'S: this frees a seat out of
-       * the eight, which is about the process and not about memory — only the
-       * two tidying verbs below refuse a note.
-       */
       sleep: ({ input }: { input: { node: string } }) => withChat((open) => open.sleep(input.node)),
-      /**
-       * THE PASS, ASKED FOR BY HAND — the row verb's half, and the only way into
-       * the pass that is not the loop's own clock.
-       *
-       * THE SCOPE IS THE ROW'S, not the request's: the pass outlives the press by
-       * minutes, and the same owner the loop's fiber has is what makes a settings
-       * flip or a serve shutting down stop its turn rather than leave it writing
-       * with nobody watching (`./server/sleep.ts`'s `now` argues the door).
-       */
       tidyMemory: ({ input }: { input: { node: string } }) =>
         Effect.gen(function*() {
           if (itemOf(input.node).kind === "note") {
@@ -819,10 +444,6 @@ export default definePlugin({
           if (asked === "unknown") {
             return { _tag: "Refused" as const, said: "that node is not a node agent with a conversation" }
           }
-          // WHO IT IS ALREADY TIDYING, off the live reading: `sleep` is olai's own
-          // mark on a turn, so the node it is true for is the one a person is
-          // waiting for. A pass in the moment before its delivery marks nothing
-          // yet, and the node they asked about stands in.
           const live = chat?.live() ?? new Map<string, Chat.LiveSession>()
           const at = [...live].find(([, one]) => one.sleep === true)?.[0] ?? input.node
           const title = nodeAgents.nodes().find((one) => one.id === at)?.title ?? at
@@ -835,8 +456,6 @@ export default definePlugin({
         withChat((open) => open.inConversation(input.conv, input.scope, panel => panel.answer(input.id, input.answers))),
       decline: ({ input }: { input: { conv: PanelAddress; scope?: string | null; id: string } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, panel => panel.answer(input.id, null))),
-      // WHOSE doorbell a conversation may be pointed at — the gate, and the
-      // sentence a refusal reaches a person in ({@link ./server/doorbell.ts}).
       scope: (
         { input }: {
           input: {
@@ -849,42 +468,15 @@ export default definePlugin({
       ) =>
         withChat((open) =>
           Effect.flatMap(rings, (declared) =>
-            // THE GATE ANSWERS ITS OWN SENTENCE, and the vault's refusal union
-            // is what a wire member fails with — a `UsageFailure` is what a
-            // refusal a person reads has always been on this surface.
             Effect.mapError(
               scopeThrough(open, declared, input),
               (said) => new UsageFailure(said),
             ))
         ),
-      /**
-       * THE PAGE BEHIND "earlier messages" — the rows below the window a tab
-       * holds, which is what makes a bounded snapshot whole rather than lossy.
-       *
-       * THROUGH `streams.page` AND NOT `withChat`'s panel, because the reading is
-       * where the WHOLE conversation lives: the panel's transcript is the same
-       * rows, but the `earlier` COUNT a tab reads comes off that reading, so the
-       * page and the count are answered from one place. `withChat` still guards
-       * the call — with no chat there is no reading to have built a trigger for
-       * one — and the conversation is deliberately NOT re-checked: `conv` names
-       * the reading, and an earlier page of a conversation somebody left is
-       * still that conversation's rows.
-       */
       earlier: ({ input }: { input: { conv: PanelAddress; before: number; limit: number } }) =>
         withChat(() => streams.page(input.conv, input.before, input.limit)),
     }
 
-    // ── the fifth door, and the one a row that is not chat reaches a chat by ──
-
-    /** THE ROSTER ROWS OF THESE ITEMS, in the vault as it stands now, keyed by
-     *  item key and holding only the ones a chat is on — the server's half of
-     *  what another row asks about an item.
-     *
-     *  Read off the reading in hand with the pure roster reading
-     *  (`./seating.ts`'s `rosterIn`), built ONCE for the whole question, so
-     *  every item is answered about one revision and a question from another
-     *  row never moves chat's own carrier under it; no reading yet is no chat
-     *  anywhere. */
     const chatRowsAt = (
       abouts: ReadonlyArray<AgentItem>,
     ): Effect.Effect<ReadonlyMap<string, { readonly engine: string; readonly session: string | null }>> =>
@@ -900,56 +492,10 @@ export default definePlugin({
         }
         return found
       })
-    /**
-     * `conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND WHAT
-     * CAN BE STARTED, for a row that is not chat.
-     *
-     * CORE'S KEY, like the four above, and it was briefly chat's own: offered
-     * under this plugin's word, it made every consumer's component sit
-     * `waiting` on a serve with chat switched off, and a row's report folds
-     * its components — so a page with nothing to do with chat went down with
-     * it. `@olai/plugin-api`'s {@link Conversations} argues that at length,
-     * and {@link ConversationsWatch} is the broker core puts over it so that
-     * absence reaches a consumer as a value rather than as a wait. What is
-     * here is one row standing behind the key while it is up.
-     *
-     * HERE, below the verbs, because what it stands on is what they stand on:
-     * the same mint, the same `withChat` refusal, the same roster reading and
-     * the same scheduler door a doorbell delivers through. The provision
-     * itself is `./server/conversations.ts`, which owns the per-consumer
-     * policy — the asking plugin's name on every message, and that activation
-     * still being here before a word lands under it.
-     *
-     * `chat` IS READ WHEN ASKED and never captured: the scheduler is built on
-     * a forked fiber long after this line, so every thunk below asks the `let`
-     * rather than holding what it was at offer time. A consumer that resolves
-     * this key before the serve is up gets a door that refuses in words and
-     * starts working when the chat does, which is the same bargain the surface
-     * procedures make.
-     */
     yield* offers.offer(Conversations, conversationsProvision({
       mint: (input) => withChat(open => mintConversation(open, input)).pipe(Effect.tap(() => published)),
-      // THE FIRST MESSAGE, through `inConversation` exactly as a keystroke's
-      // send is: the conversation it was opened for is named, so a session
-      // that moved under this call lands the words nowhere rather than in
-      // somebody else's chat. No attachments and no armed nodes — a row that
-      // wants a node looked at says so in its words.
-      //
-      // THE SCOPE IS `undefined` AND NOT `null`, which is the difference
-      // between *I am not claiming one* and *I claim the panel has none*. A
-      // browser's send carries the upload scope its composer is holding and is
-      // refused when the panel has moved to another; a server-side first
-      // message has no composer and no uploads, so naming `null` asserted
-      // something about a panel it knows nothing about — and every mint came
-      // back saying the conversation had changed while the words landed
-      // nowhere.
       send: (to, text, preamble) =>
         withChat(open => open.inConversation(to, undefined, panel => panel.send(text, [], [], false, preamble))),
-      // THE CHAT OF AN ITEM, read off the vault as it stands now rather
-      // than off whichever revision last reached this row — a caller following
-      // a revision of its own is answered about that one or a later one. One
-      // item or a list of them, both over the one reading and the one roster
-      // {@link chatRowsAt} builds per call.
       seatAt: (about) =>
         Effect.map(chatRowsAt([about]), (rows) => {
           const row = rows.get(itemKey(about))
@@ -959,34 +505,16 @@ export default definePlugin({
       deliver: (who, to, text, current) =>
         chat === null
           ? Effect.succeed(false)
-          // THE SAME VERB A DOORBELL SPENDS, with the caller's own name on it
-          // and its activation riding the body: a delivery held for a turn
-          // boundary that arrives after the consumer left is dropped rather
-          // than said in its name (`./server/deliveries.ts` keeps the same
-          // gate for the same reason).
           : Effect.as(chat.doorFor(who).deliver({ ...to, current }, () => text), true),
-      // THE MACHINE'S HALF OF THE ROSTER, folded to what is startable and read
-      // when asked — an engine row switched off at the panel leaves this list
-      // between two calls, which is exactly what a caller about to open a
-      // conversation needs to know (`./agents/roster.ts`'s `here`).
       engines: () => here(detect.read(mounted())).map(row => ({ id: row.id, name: row.name })),
     }))
-
-    // ── the sibling ──────────────────────────────────────────────────────
 
     yield* surfaces.register({
       surface,
       faces,
-      // THIS ROW'S PARAGRAPH FOR AN AGENT, on the same entry as its members so
-      // it leaves with the row (`./charter.ts` argues each sentence).
       charter: CHARTER,
       deps: {
         cells: {
-          // NO CHAT IS A STATE WITH A REASON, and the reason rides the same cell
-          // rather than a second one: the panel draws this face out of one value
-          // it already subscribes to, and a tab that has not heard yet holds
-          // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than any
-          // of the two reasons for having no agent.
           engines: { store: inMemoryStore<ChatState["roster"]>([]) },
           sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },
@@ -996,75 +524,20 @@ export default definePlugin({
       } satisfies ImplementSurfaceDeps<typeof surface.spec>,
       published: (bound) => {
         mine = bound as Ctx
-        // A vault revision can land before this surface is bound. `seen`
-        // still records the seats, and `republishAgents` no-ops until `mine`
-        // exists. With no engine running, nothing else republishes, so the
-        // roster cell would stay empty and a row's standing would never draw.
         republishAgents()
       },
     })
 
-    // ── the world, as it moves ───────────────────────────────────────────
-
-    /**
-     * A VAULT REVISION LANDED — re-derive the node-agent roster, re-read which
-     * node the open conversation belongs to, and mark the scopes whose doorbell
-     * can no longer watch what they were pointed at.
-     *
-     * THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
-     * the whole published snapshot and {@link VaultRevision} names the parts
-     * chat touches.
-     */
-    /**
-     * THE ONE-TIME MOVE, ARMED ON A POSITIVE SIGNAL — once per activation,
-     * under the binding permit, before any gesture can write a tie (every one
-     * of them takes the same permit, and every one of them needs a chat this
-     * fires ahead of).
-     *
-     * THE SIGNAL IS THE CLAIM, which is the fact the migration is actually
-     * waiting for: a chat moves onto a NOTE, and whether this build serves
-     * notes at all is what the file-kind registry says (`@olai/format`'s
-     * `notesClaimed`, asked of `FileKinds`). It is not at the build and not on
-     * every revision, and each of those was wrong in its own direction:
-     *
-     *   - AT THE BUILD, the snapshot the write gate holds can still be the
-     *     directory as it was read before the file rows registered their kinds
-     *     — outlines only, with no note in the set. A move judged there finds
-     *     nothing to move onto and a one-shot that ran would be spent: after a
-     *     boot that logged nothing, the directory's link-titled chat rows
-     *     would stay rows for good.
-     *   - ON EVERY REVISION, a serve with the markdown row switched OFF never
-     *     reaches "nothing to do": the reading can never name a note, so the
-     *     migration re-read the whole directory on every change for the life
-     *     of the process. Nobody serving notes pays for a migration about
-     *     notes.
-     *
-     * So the applier asks {@link notesServed} BEFORE it asks for a reading,
-     * and what fires it is both doors: the registry's own change — a row may
-     * claim its kind when no further revision is owed — and every published
-     * revision after it, since the first published revision is the first
-     * reading that is the whole directory and the window between the two is
-     * the one `namesNotes` closes (`./server/move.ts`). With no note's kind
-     * claimed, the directory is never read.
-     */
     const notesServed = (): boolean => notesClaimed(fileKinds.current().values())
-    /** Whether the move has run, and whether a run is in flight: the applier
-     *  answers `false` for a reading that has not caught up with the claim
-     *  yet, and the revisions that arrive while one attempt is still going
-     *  must not start a second (`./server/move.ts`'s `namesNotes`). */
     let moved = false
     let moving = false
     const moveOnce = (): void => {
       if (moved || moving) return
       moving = true
       ring(bindingPermit.withPermit(applyMoves({
-        // THE ONE FACT THAT IS ASKED BEFORE THE DIRECTORY IS READ — see the
-        // paragraph above, and `./server/move.ts`'s `Mover.served`.
         served: notesServed,
         read: gate.read,
         text: binding.text,
-        // Its writes are signed `move` rather than `web`: nobody pressed
-        // anything, and the commit is the one a person may want to revert.
         doc: (path, text, was) => Effect.asVoid(gate.run({ op: "doc", file: path, text, was }, "move")),
         remove: (node) => Effect.asVoid(gate.run({ op: "prop", id: node, key: nodeAgents.key(), value: "" }, "move")),
         key: nodeAgents.key,
@@ -1072,31 +545,17 @@ export default definePlugin({
         log: (line) => Effect.logInfo(line),
       })).pipe(
         Effect.tap((ran) => Effect.sync(() => { moved = ran })),
-        // A RUN THAT FAILED IS A RUN THAT IS OVER: the flag is released
-        // whichever way the attempt ended, so a refused write does not leave
-        // the migration permanently in flight.
         Effect.ensuring(Effect.sync(() => { moving = false })),
-        // WHAT CAN STILL FAIL HERE is the READING — a directory that will not
-        // load at all — and it is said rather than thrown: `moved` stays
-        // false, so the next revision arms the migration again.
         Effect.catchCause((cause) => Effect.logWarning(`chat: the one-time move could not read the directory: ${cause}`)),
         Effect.asVoid,
       ))
     }
-    // ...AND THE REGISTRATION ITSELF ARMS IT, not only the revisions after it:
-    // a file row that claims its kind late — a dynamic plugin, a row that came
-    // back — may do it when no further revision is owed, and the migration
-    // would then wait for an edit somebody made for another reason. Both
-    // doors are the same `moveOnce`, which runs the walk once.
     moveOnce()
     yield* Effect.forkScoped(Stream.runForEach(fileKinds.changes, () => Effect.sync(moveOnce)))
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         levelWith(revision.value)
         moveOnce()
-        // WHICH NODE AGENT THE OPEN CONVERSATION BELONGS TO is a PROPERTY, so a
-        // revision can change it. Without this the panel would go on saying it
-        // belonged to nobody until the next time a session opened.
         chat?.reread()
         republishAgents()
       })
@@ -1106,59 +565,19 @@ export default definePlugin({
       republishAgents()
     }))
 
-    /** A SCOPE ITS DOORBELL CANNOT WATCH — the walk, over this revision.
-     *  {@link ./server/doorbell.ts} argues every clause of it; what is here is
-     *  the two readings it does not take for itself. */
-
-    /** Agent refusals belong in the transcript. Web gestures receive the
-     *  same failure at their own surface and must not add a chat row. */
     yield* ops.refused((refusal) =>
       chat === null || refusal.writer === "web"
         ? Effect.void
         : chat.recordRefusal(refusal.op, asFailure(refusal.failure))
     )
 
-    // ── the build, once the serve is up ──────────────────────────────────
-
     yield* Effect.forkScoped(Effect.gen(function*() {
-      // THE ONE SIGNAL THAT THE SERVE IS UP, and the reason the roster is read
-      // here rather than at the top of `apply` — see the header.
       const address = yield* tools.server
-      // The listener can settle before the first revision reaches this
-      // subscriber. Seed routing from the current reading used by writes so a
-      // remembered node session starts with its final MCP credential.
       const initialReading = (yield* ops.reading) as Reading | null
       if (initialReading !== null) levelWith(initialReading)
-      /**
-       * THE ENGINES MOUNTED RIGHT NOW, in the build's order — asked, not
-       * captured.
-       *
-       * `inBundleOrder` because registration order is the order two dynamic
-       * imports came back in, which is a fact about the filesystem on the day;
-       * a person reads this list, and one that reshuffles between boots is a
-       * list nobody can read twice. The sort is cheap and this is asked when the
-       * table moves rather than per frame.
-       *
-       * ...AND HOW THIS MACHINE ANSWERS FOR EACH, over the same moving list —
-       * the detector hoisted to `apply`'s scope, so the unregister finalizer
-       * and the build read ONE table ({@link ./agents/roster.ts}'s `detecting`
-       * argues the halves and the `forget` the finalizer spends).
-       */
       let [discoveryDuration, table] = yield* Effect.timed(Effect.sync(() => detect.read(mounted())))
-      // THE `off` GUARD, over the fold rather than the shape: the build waits
-      // for the first `here` row exactly as it waited for a nonempty array,
-      // because a table of only `not-here` rows is a panel with install
-      // sentences and no agent to talk to — same face, same wait.
-      //
-      // ONE FOLD PER READING, HELD. The condition and the sentence logged under
-      // it are the same question about the same table: folding twice per pass
-      // left a `because !== null` branch inside a loop whose own condition had
-      // just said it was not, which is a guard a reader has to prove dead.
       let because = offBecause(table)
       while (because !== null) {
-        // Arm before publishing or yielding, so an arriving engine cannot be
-        // lost between the empty reading and the wait. This fiber is scoped:
-        // turning chat off also cancels a build waiting for its first engine.
         engineChange = yield* Deferred.make<void>()
         mine?.cells.engines.set(table.map(choiceOf))
         yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(because)), {
@@ -1173,17 +592,6 @@ export default definePlugin({
       engineChange = null
       const installed = here(table)
 
-      // ...AND THE LOG NAMES BOTH HALVES of the reading, which is the point of
-      // publishing the whole table: `agents` was already there, and the
-      // absences are what the journal never had — the sentence for every engine
-      // a person enabled and could not start, in the engine's own words.
-      //
-      // AUTHORED ONCE AND SPREAD CONDITIONALLY, for two reasons that are one
-      // reason. Both lines below say this about the same table, so one `const`
-      // is one sentence; and a fully installed serve logged `missing=""` — a
-      // field that reads as a fact about an engine and is only a join over
-      // nothing. A serve with every engine here now says nothing about
-      // absences, which is what is true of it.
       const absent = table.flatMap((row) => row.standing === "not-here" ? [`${row.id}: ${row.missing.why}`] : [])
       const missing = absent.length === 0 ? {} : { missing: absent.join("; ") }
       yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
@@ -1202,26 +610,9 @@ export default definePlugin({
             if (agent === who.agent && session === who.session) deliveredIds.delete(key)
           }
         },
-        // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the
-        // WHOLE reading — `here` rows and `not-here` rows both — so a row
-        // switched off at the panel leaves the picker, one switched on enters
-        // it, and an engine this machine has not got is GREYED with its own
-        // sentence rather than dropped. See `../chat.ts`'s `PanelOptions.roster`
-        // for the folds, and `enginesMoved` above for what tells the panel to
-        // look again.
-        //
-        // THE EMPTY ANSWER IS LEGAL HERE and was not: the guard above is what
-        // refuses to BUILD a panel that never had an agent, and it still does.
-        // What is new is that a panel which had one can watch its last engine
-        // leave, and the state machine has the face for it.
         roster: () => detect.read(mounted()),
         cwd: vault.served,
         tools: () => address,
-        // WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation — the
-        // registrations, read afresh per opening so a plugin that unloaded
-        // between conversations contributes nothing to the next one. The ORDER
-        // is the build's, imposed here, because registration order is the order
-        // two dynamic imports came back in and a person reads these lists.
         advertised: tools.advertised,
         probes: () =>
           Effect.sync(() =>
@@ -1236,32 +627,13 @@ export default definePlugin({
         overheard: yield* sessionsIn(localState),
         live: liveIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
-        // THE PERIOD AS DECODED, from the settings this row was applied with —
-        // a change re-applies the row, so the panel never holds a stale one.
         remindEvery: settings["remind-every"],
         nodeAt: (node) => nodeAgents.nodeAt(node),
         seatableAt: (node) => nodeAgents.seatableAt(node),
         nodes: () => nodeAgents.nodes(),
         nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
-        // EVERY KEY THIS VAULT DECLARES THE BINDING KIND ON, not the one a write
-        // would land on: a board mid-migration has two, this plugin's roster
-        // reads a binding off either, and a door that forbade only the writing
-        // key would leave the other as a way a seated agent could re-seat
-        // itself. A THUNK, so the answer follows the revision — a
-        // migration row landing mid-conversation moves what the ticket forbids.
         ticket: (node) =>
           tools.ticket(
-            // ...AND THE SENTENCE IS THIS PLUGIN'S, beside the keys it is
-            // about. It used to be composed inside `@olai/ops`' refusal, which
-            // was a general package writing prose about a word only this
-            // package owns — invisible while there was one forbidden key and
-            // untrue of half its subjects the moment there were two.
-            //
-            // FOUR KINDS, FOUR CLAUSES: the binding, the sleep memo, the
-            // sleep mark and the note's *opens* switch are forbidden for
-            // different reasons, and a table (a MAP on the rule) rather than
-            // a set is what lets each carry the reason it is one
-            // (`@olai/ops`' `door.ts` argues the shape).
             () => [
               ...nodeAgents.keys().map((key) => ({ key, says: SEATS })),
               ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
@@ -1269,26 +641,10 @@ export default definePlugin({
               ...nodeAgents.opensKeys().map((key) => ({ key, says: OPENS })),
             ],
             "chat-agent",
-            // ...AND WHERE IT MAY WRITE WHILE A PASS IS TIDYING THIS NODE. The
-            // pass's turn is the one moment this session's writes are not its
-            // own to choose: an injected row can talk an unattended turn with
-            // suppressed alerts into rewriting or trashing anything in the
-            // directory, and those writes land OUTSIDE the pass's commit — under
-            // `auto` when the hold releases, or waiting — so reverting the sleep
-            // would not undo them. The fence is up exactly while the mark is
-            // (`@olai/ops`' `Confinement` is where it is enforced), and it is a
-            // THUNK because the ticket outlives the turn.
             () => chat?.live().get(node)?.sleep === true
               ? {
                 under: node,
-                // THE TEACHING'S WORD, since the agent reads this refusal: the
-                // subtree is a knowledge base (`./teaching.ts`).
                 says: "olai is tidying this node's knowledge base, and a turn nobody is watching writes only inside it",
-                // ...AND THE FENCE STOPS WHERE THE SUBTREE DOES: another node
-                // agent's own subtree is not this one's, and the pass's commit
-                // cannot name its files, so a write inside one would land
-                // outside the undo (`@olai/format`'s `othersOf` is the one
-                // definition; the pass's own walks are handed the same set).
                 stop: othersOf(nodeAgents.nodes(), node),
               }
               : null,
@@ -1299,8 +655,7 @@ export default definePlugin({
         onTranscript: () => {},
         onConversationTranscript: publishTranscript,
         onLive: republishAgents,
-        // THE SEAM'S OTHER SHAPE, for the one thing the scheduler interrupts
-        // by name. Taken from the same `detached` as `ring`, and taken BEFORE
+        // Taken BEFORE
         // the finalizer below is registered, so LIFO unwinding stops the
         // conversations first and interrupts whatever is still in flight
         // second.
@@ -1310,54 +665,17 @@ export default definePlugin({
       yield* Deferred.succeed(ready, chat)
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start
-      // ... AND THE PASS THAT TIDIES A NODE AGENT'S MEMORY, in this fork's own
-      // scope: it is chat's own server half, it holds chat's own doors, and it
-      // stops when that scope closes — which is what cancels a turn that is
-      // still running
-      // (`./server/sleep.ts` states the order).
-      //
-      // `serving` rather than `chat`, because these closures are called long
-      // after this block: what the pass is handed is the scheduler it was built
-      // beside, not a variable something may empty.
       const serving = chat
       if (sleeping) {
-        // THE HANDLE IS KEPT, unlike the loop's: a request that arrives after
-        // this scope closes has to be refused in words rather than run against
-        // a sleeper that is gone. The
-        // finalizer is what makes the window between the two unobservable —
-        // null BEFORE the pass exists and null AFTER it is gone, both of which
-        // are "no pass to ask for" (`conversation.tidyMemory`).
         sleeper = yield* makeSleeper({
-          // NODES ONLY, which is the whole of how the pass learns about notes:
-          // a note IS its chat's memory, so there is nothing under it to
-          // consolidate and no memo to stamp. Filtered where the pass is wired
-          // rather than inside it, so the pass goes on being a thing that
-          // tidies subtrees and knows nothing about files.
           nodes: () => nodeAgents.nodes().filter((one) => one.kind === "node"),
-          // THE READING THE STRIP'S FORECAST IS JUDGED OVER: the set the rows
-          // were just built from, not whatever the loop last read a tick ago.
           reading: () => nodeAgents.reading(),
           sleptAt: (node) => nodeAgents.sleptAt(node),
           sleptKey: () => nodeAgents.sleptKey(),
           sleeps: (node) => nodeAgents.sleeps(node),
-          // ...AND WHEN IT MOVES: a pass starting, ending or failing is neither a
-          // vault revision nor a chat frame, so the sleeper says so itself.
           changed: Effect.sync(() => republishAgents()),
           live: () => serving.live(),
-          // THE SAME ROUTE A DOORBELL TAKES, with this feature's own word: the
-          // scheduler wakes the node, the panel writes the machine row, and the
-          // turn boundary is what the pass then watches.
-          // ...WITH THE TURN MARKED AS OLAI'S OWN, explicitly and not by the
-          // word the door was opened under: a plugin that happened to be called
-          // `sleep` must not become a machine turn whose questions nobody is
-          // told about (`@olai/plugin-api`'s `Deliveries.deliver`).
           deliver: (to, say) => serving.doorFor(SLEEP_WORD).deliver(to, say, { sleep: true }),
-          // THE NARROWING IS THE WIRING'S, and it is where the panel's own
-          // contract meets the pass's: what the pass may do to the conversation
-          // it watches is stop its turn (`./server/sleep.ts`'s `Stoppable`).
-          // The pass names the conversation itself and never asks for a node's
-          // current chat, so `null` is not an answer it can meet; it is
-          // refused rather than assumed away.
           watch: (to, observer) =>
             Effect.flatMap(serving.reading(to, observer), (panel) => panel === null
               ? Effect.fail(new UsageFailure({ reason: "the conversation changed; nothing to watch" }))
@@ -1367,21 +685,11 @@ export default definePlugin({
           write: (request) => gate.run(request, "sleep"),
           waiting: gate.waiting,
           commit: (message, paths) => Effect.map(gate.commit({ message, paths }, "sleep"), (result) => {
-            // EXHAUSTIVE over the ledger's own answer, so an arm added there is
-            // a decision here rather than a silent "it worked".
             switch (result._tag) {
               case "Committed":
                 return null
-              // ...AND WHICH KIND OF "NO" IT WAS, because two of these are
-              // ordinary and one is not: `Failed` is git refusing, which is the
-              // pass's writes never being recorded and the one thing here an
-              // operator has to be able to find (`./server/sleep.ts` warns on
-              // it).
               case "Blocked":
                 return { said: "olai is not committing here, so the memo is on disk and waiting", failed: false }
-              // The subtree's own files had nothing waiting — which after a
-              // memo write means the memo was already in the history, and is
-              // said rather than reported as a commit that happened.
               case "NothingToCommit":
                 return { said: "nothing of the subtree's was waiting to be recorded", failed: false }
               case "Failed":
@@ -1403,8 +711,6 @@ export default definePlugin({
       }
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
-        // ...AND THE MISSING, at the debug level the commands line lives at:
-        // same table, other arm, the annotation authored above.
         ...missing,
         mcp: address.url,
       })

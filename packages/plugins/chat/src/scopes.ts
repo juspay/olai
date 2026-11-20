@@ -1,6 +1,3 @@
-/** Browser-owned opaque picks, persisted before publication and capped at 32.
- * Each replacement revokes the old recipient, including a same-value repick. */
-
 import { Effect, Schema, Semaphore } from "effect"
 
 import { type ChatLocalState, word } from "./local.ts"

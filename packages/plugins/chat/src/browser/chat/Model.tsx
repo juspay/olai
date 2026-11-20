@@ -1,4 +1,3 @@
-/** Model selection uses ACP configuration, including on adapters with no /model command. */
 import { createEffect, createMemo, createSignal, createSelector, onCleanup, For, Show } from "solid-js"
 import { agentIn } from "olai-plugin-chat/wire"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
@@ -24,17 +23,6 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
     }
   })
 
-  // THE FILTER IS THE OPENING'S OWN: created inside the `<Show>` that draws
-  // the list, so shutting throws it away with the DOM and the next opening
-  // starts empty — a query that outlived its list would narrow a menu the
-  // person can no longer see it in (see `@olai/web`'s `inlinePicker.ts`). It
-  // is NOT the open-arm payload the way `./Wake.tsx`'s is: the arm here is
-  // the pick's address (`{agent, session}`), the rows are the agent's own
-  // static config, and the query is a thing SAID to the box while it is up —
-  // presentational, nothing to recompute — so a local signal that dies with
-  // the list is the load-bearing lifetime, exactly the invariant the wake
-  // strip's `opening: () => ""` encodes in its shape.
-  /** What the open list is narrowed BY, and the cursor over what it offers. */
   const ModelFilter = () => {
     const [query, setQuery] = createSignal("")
     const visible = createMemo(() => visibleModels(state().models, query()))
@@ -53,11 +41,6 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
           cursor.step(-1)
           return
         case "take":
-          // CLAIMED whenever there is something to take — the shortlist's own
-          // rule (`olai-plugin-search`'s `Shortlist.tsx`): a list on screen
-          // owns its Enter, and an empty one has nothing to claim. ESCAPE is
-          // the picker's, not the box's: `./dismissOn` answers it and puts
-          // the caret back on the trigger.
           if (visible().length > 0) {
             event.preventDefault()
             pick(visible()[cursor.at()], { back: true })
@@ -68,14 +51,6 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
       }
     }
 
-    /** TAKE a row — the one thing a click and Enter both do, in one function
-     *  so the two cannot drift: same guard, same shut, same send.
-     *
-     *  `back` is the GESTURE's, not the row's: the caret goes back to the
-     *  trigger only for the key it can reach, by the dismissal's own rule
-     *  (`@olai/web`'s `dismiss.ts`). It goes at CONFIRMATION rather than at
-     *  the press: while the send is in flight the trigger is `disabled()` and
-     *  a focus placed then would be thrown off it again at once. */
     const pick = (model: Offered | undefined, opts?: { back?: boolean }): void => {
       if (model === undefined) return
       const at = picker.showing()
@@ -94,27 +69,14 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
           <input type="search" aria-label="Filter models" data-testid={TESTID.chatModelFilter}
             class="block w-full rounded-control bg-transparent px-2 py-1 text-label text-ink outline-none placeholder:text-muted"
             placeholder="Filter"
-            // Enter TAKES the model under the cursor and shuts the list
-            // (`key`'s `"take"` arm, above), which is a choice being made
-            // rather than a search being run — so `done`, not `search`. A
-            // model name is an identifier (`claude-sonnet-4-5`), so the
-            // phone's capital and its autocorrect go off with the spell
-            // checker: all three would be rewriting what is being matched.
             enterkeyhint="done"
             autocorrect="off"
             autocapitalize="none"
             spellcheck={false}
-            // The caret goes here as the list attaches — it was opened to be
-            // typed in. `queueMicrotask` for the reason every panel in this
-            // client uses one: the element is not in the document when the
-            // ref runs.
             ref={(box) => queueMicrotask(() => box.focus())}
             value={query()}
             onInput={(event) => {
               setQuery(event.currentTarget.value)
-              // A keystroke is a NEW question, so the answer to the last one
-              // is not where anybody's eye is (`@olai/ui-primitives`'s
-              // `cursor.ts`).
               cursor.top()
             }}
             onKeyDown={key} />
@@ -165,14 +127,6 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
           <Show when={state().models.length > 0}>
             <ModelFilter />
           </Show>
-          {/* EVERY CONTROL EXCEPT THE MODEL'S, which the filter above already
-              is. The agent advertises its model picker as a setting like any
-              other and the client marks it `kind: "model"` and puts it first
-              (`@kolu/acp-client`'s `settingsIn`), so the row has to be taken
-              out here rather than simply drawn: a conversation would otherwise
-              offer its model twice, once as a filtered list and once as a
-              select, and a person pressing either would have no way to know
-              they are the same control. */}
           <For each={state().settings.filter((setting) => setting.kind !== "model")}>
             {(setting) => (
               <li class="border-t border-rule/60 px-2 py-2">
@@ -186,26 +140,13 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
                     {(select) => <select aria-label={select().name} value={select().value ?? ""}
                       disabled={disabled()} class="max-w-40 rounded-control border border-rule bg-panel px-1 py-1"
                       onChange={(event) => { const value = event.currentTarget.value; event.currentTarget.value = select().value ?? ""; choose(setting, value) }}>
-                      {/* THE ONE `title` THIS APP KEEPS, and it is kept
-                          because an `<option>` can hold nothing else. A
-                          `<select>`'s content model admits `<option>`,
-                          `<optgroup>` and `<hr>` and nothing more, so the
-                          `<span>` `Tip` wraps a control in may not stand here;
-                          `Tip` measures `firstElementChild`'s rectangle, and a
-                          closed select's options have no box at all, which is
-                          the all-zeros read its own comment calls the tip in
-                          the corner of the window; and the opened list is
-                          drawn by the platform, over the page, where no node
-                          of ours can be. Folding the description into the
-                          option's words is the other candidate and it costs
-                          more than it buys: the closed box is `max-w-40` and
-                          shows the SELECTED option, so every model would read
-                          as a truncated sentence instead of its name.
-                          `title` on an `option` is mapped to the accessible
-                          DESCRIPTION (HTML-AAM), so unlike a bare `<span>`
-                          this element really does hand the words to a reader —
-                          which is the whole reason the attribute is wrong
-                          everywhere else and right here. */}
+                      {/* `title` on an `<option>`, which is the one place this
+                          app keeps the attribute: a `<select>`'s content model
+                          admits only `<option>`, `<optgroup>` and `<hr>`, so
+                          the `<span>` `Tip` wraps a control in may not stand
+                          here, and the opened list is drawn by the platform
+                          where no node of ours can be. HTML-AAM maps an
+                          option's `title` to its accessible description. */}
                       <For each={select().choices}>{(choice) =>
                         <option value={choice.value} title={choice.hint ?? undefined}>{choice.label}</option>
                       }</For>

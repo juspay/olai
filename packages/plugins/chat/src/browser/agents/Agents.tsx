@@ -24,12 +24,6 @@ import { unfolded } from "./folding.ts"
 import { useChatBeside } from "./ChatBeside.tsx"
 import { itemOf } from "@olai/format"
 
-/** THE DOOR A ROW IS, read for the pane this column is drawn in: the address
- *  a press opens (`./focus.ts` decides which, off the row's own switch) and
- *  what opening it marks. A hook rather than a value, because the router is
- *  the thing it closes over — and the href of a *beside* row is composed
- *  against the LAYOUT that is open, so pressing one keeps the panes a reader
- *  has arranged instead of replacing them. */
 const createFocus = () => {
   const router = useRouter()
   return {
@@ -66,15 +60,7 @@ export function Chats() {
   const focus = createFocus()
   const router = useRouter()
   const now = createNow()
-  /** THE CAP COMES AFTER THE ORDER, which is what makes it safe: the awake
-   *  rows are already at the top (`./activity-order.ts`), so ten sleeping
-   *  chats can never hide the agent that is waiting on an answer. */
   const rows = () => byActivity(agents.rows()).slice(0, 10)
-  /** WHICH ROWS ARE CURRENT, decided once per navigation for the whole list and
-   *  handed to each row through a selector: a route read inside every row put
-   *  all ten on the router's clock, re-running them all to move one wash. The
-   *  set is compared by membership, so a navigation that changes nothing here
-   *  wakes nothing here either. */
   const currentIds = createMemo(() => {
     const route = router.route()
     return new Set(agents.rows().filter((row) => isCurrent(servedDirectory()?.claims(), route, row, unfolded(row.id))).map((row) => row.id))
@@ -87,24 +73,12 @@ export function Chats() {
     </div>
     <NewChatSaid />
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li class="group/chat relative">
-      {/* THE WHOLE TITLE under the pointer, because the row truncates it. It
-          is a convenience and nothing more: the same words are the anchor's
-          own text, so a reader who never hovers already has them. */}
       <Tip text={agents.named(row()).name}>
       <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row().id) ? "page" : undefined}
         data-unread={row().unread ? "true" : undefined}
         on:olai-navigated={() => focus.visit(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span>
-        {/* THE DOT SAYS WHETHER THIS CHAT IS AWAKE, and nothing finer: the
-            four awake standings wear their own colour from the one table
-            (`./roster.ts`), and an asleep, unbound or stopped row wears
-            nothing — a list of chats is a list of what is there, and only the
-            live ones are holding a seat. It is the answer to the question the
-            column could not answer before: a ninth agent is refused for want
-            of a seat, and WHICH EIGHT have one is now visible from here. Named
-            for a reader who cannot see the colour; the exact standing is still
-            `data-standing` on the row. */}
         <Show when={awake(row().standing)}>
           <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} />
         </Show>
@@ -113,15 +87,6 @@ export function Chats() {
         <Show when={row().said?.at ?? row().changed}>{at => <span class="shrink-0 tabular-nums text-caption text-muted">{agoOf(at(), now())}</span>}</Show>
       </a>
       </Tip>
-      {/* THE CONTROLS, beside the row rather than inside it: a control inside
-          an anchor is a control whose activation is also a navigation (the
-          pins' rule). Revealed on hover or focus, over the row's right edge on
-          the column's own ground — and on a screen with no hover to offer,
-          simply drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). The
-          `•••` is always there — every row has verbs — and the beside door
-          only above `md`, where there are panes side by side to put a
-          conversation in; below it the panes are a strip of tabs, one at a
-          time, and "beside" names nothing a reader would see. */}
       <div class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
         <BesideDoor id={row().id} name={agents.named(row()).name} />
         <ChatRowMenu row={row()} />
@@ -130,10 +95,6 @@ export function Chats() {
   </section>
 }
 
-/** THE TWO-COLUMN BUTTON on a Chats row: this chat's page in the pane to the
- *  right of the focused one, or — while a pane already has it — that pane
- *  focused, which is the drawn-once rule every *Open beside* obeys
- *  (`./ChatBeside.tsx`). */
 function BesideDoor(props: { readonly id: string; readonly name: string }) {
   const { beside, press } = useChatBeside(() => itemOf(props.id))
   return (

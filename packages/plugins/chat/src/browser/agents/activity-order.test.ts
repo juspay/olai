@@ -9,15 +9,7 @@ test("what is awake leads, in standing order, and everything else follows by rec
     row("sleep", { changed: "2026-02-01" }), row("idle", { standing: "idle", said: { text: "old", at: "2026-01-01" } }),
     row("working", { standing: "working", said: { text: "new", at: "2026-01-02" } }),
     row("waiting", { standing: "needs-you" }), row("gone", { standing: "gone" })]
-  // THE QUESTION THE COLUMN HAS TO ANSWER is which agents are awake, because
-  // only eight may be at once. So the four awake standings lead in the order a
-  // person cares about them — wants you, busy, starting, ready — and the
-  // newest-speech rule they used to share with everything else now decides
-  // only the order WITHIN a band. `idle` leads `unbound` here despite being
-  // the older row, which under the old sort it did not.
   expect(byActivity(rows).map(one => one.id)).toEqual(["waiting", "working", "idle", "unbound", "sleep", "gone"])
-  // SORTING NEVER FILTERS, and the cap is the sidebar's (`./Agents.tsx`): an
-  // awake row older than ten sleeping ones still comes back, at the top.
   const crowded = [...Array.from({ length: 12 }, (_, i) => row(`sleep-${i}`, { changed: `2026-04-${String(i + 1).padStart(2, "0")}` })),
     row("old-but-awake", { standing: "idle", changed: "2020-01-01" })]
   expect(byActivity(crowded).length).toBe(13)

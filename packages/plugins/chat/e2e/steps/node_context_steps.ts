@@ -1,20 +1,3 @@
-/**
- * The two directions between a row and the conversation.
- *
- * Its own file for the reason `menu_steps.ts` is one: the subject is a SEAM
- * rather than a panel. Half of these steps read the composer and half read the
- * outline, and what makes them one thing is that they are the two ends of one
- * gesture — a row handing the agent a node, and the agent handing the reader a
- * row back.
- *
- * Everything here asks about what a person would see: which chips are on the
- * composer, whether an id in the answer became pressable, which row the page
- * says is the one being pointed at. What the AGENT received is asserted by the
- * agent itself (the scripted agent's `context` verb — `@olai/tests/agent/scripted-acp.ts` — which reads the id
- * out of its own prompt and calls `outlines_read` with it) — the one claim a
- * browser cannot make on its own.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -34,10 +17,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/** The chips that are still ARMED, which is the ones that can still be taken
- *  off: the × is drawn on a chip in the composer and never on one that has
- *  gone with a message. Told apart by that rather than by where they sit,
- *  because "it can still be removed" is exactly what "not sent yet" means. */
 const armed = (world: OlaiWorld, id?: string) =>
   world.chat(
       id === undefined
@@ -70,21 +49,12 @@ When(
 Then(
   "the message was about {string}",
   async function (this: OlaiWorld, id: string) {
-    // On the MESSAGE, which is the server's own record of what was sent —
-    // never the composer's strip, which is empty by now.
     await this.chat(`${CHAT_ENTRY}[data-kind="user"] ${CHAT_CONTEXT_CHIP}${attr("data-node", id)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 
-// ── the other direction ────────────────────────────────────────────────
-
-/** WHERE a reference is, because the three shapes are three different claims:
- *  the node an olai write was about (the panel's own row), an id the agent
- *  wrote in its prose (rendered markdown, marked because the set declares it),
- *  and a chip on the message. A step that took any of them would pass on a
- *  build where only one worked. */
 const WHERE: Readonly<Record<string, string>> = {
   write: OUTLINES_STORY,
   answer: CHAT_SAID,
@@ -104,8 +74,7 @@ const referenceIn = (world: OlaiWorld, where: string, id: string) => {
 
 When(
   // `{word}` and not an alternation: Cucumber's `a/b/c` matches any of the
-  // three and captures none of them, so the step would have to guess which
-  // place it was asked about.
+  // three and captures none of them.
   "I press the node {string} in the {word}",
   async function (this: OlaiWorld, id: string, where: string) {
     const reference = referenceIn(this, where, id);
@@ -127,15 +96,6 @@ Then(
 Then(
   "the agent's answer does not make {string} a reference",
   async function (this: OlaiWorld, text: string) {
-    // The whole of the convention: a backtick is not a reference, a DECLARED
-    // id is. An agent writes them around file names, flags and words, and
-    // those stay what they are.
-    //
-    // The SPAN is waited for first, and that is the difference between this
-    // and a count of zero: until the markdown pipeline lands, the answer is
-    // its own escaped text with no `<code>` in it at all, and an absence
-    // asserted then is an absence about a paragraph — the same shape of
-    // nothing this suite has already been caught believing once.
     await this.chat(`${CHAT_SAID} code`)
       .filter({ hasText: text })
       .first()
@@ -150,14 +110,6 @@ Then(
   },
 );
 
-/** What the AGENT said, and only that.
- *
- *  Scoped to the answer rather than read off the whole transcript, which is a
- *  distinction a sabotage run had to teach: the chips on the message carry the
- *  node's title too, so a scenario matching the title anywhere in the panel
- *  passed on a build where the node never reached the prompt. What proves
- *  receipt is a sentence only the agent can produce — it read the id out of
- *  its prompt and called `outlines_read` with it. */
 Then(
   "the agent's answer says {string}",
   async function (this: OlaiWorld, said: string) {
@@ -170,12 +122,9 @@ Then(
 
 Then("the node {string} is focused", async function (this: OlaiWorld, id: string) {
   await this.expectNodeAttribute(id, "data-focused", "true");
-  // ...and it is IN THE VIEWPORT, which is the other half of what a reference
-  // does and the half the attribute cannot say. Playwright's `isVisible()` is
-  // "has a box and is not hidden" — true for a row a mile below the fold — so
-  // the box is intersected with the window instead. Polled, because the scroll
-  // is smooth: it is a rule about where the page ENDS UP, not about the frame
-  // the press happened in.
+  // Playwright's `isVisible()` is "has a box and is not hidden" — true for a
+  // row a mile below the fold — so the box is intersected with the window
+  // instead.
   const row = this.page.locator(nodeSelector(id)).first();
   await this.waitUntil(
     async () => {

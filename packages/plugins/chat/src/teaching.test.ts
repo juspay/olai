@@ -1,12 +1,3 @@
-/**
- * WHAT AN AGENT-ASSOCIATED SESSION IS TOLD.
- *
- * The words themselves are asserted rather than merely their shape, because the
- * words ARE the feature: the whole of node agents rests on the agent writing a
- * durable fact into its subtree and nothing else, and a line that stopped
- * saying so would break nothing anywhere else in this repo.
- */
-
 import { expect, test } from "bun:test"
 
 import { annotated } from "./prompt.ts"
@@ -58,9 +49,6 @@ test("one row is `1 row`", () => {
 })
 
 test("\"memory\" is said only where it means the engine's own — never as the subtree's job", () => {
-  // The word the old contract leaned on five times, and the reason an agent
-  // filed a node per message: told its subtree was its memory, it remembered
-  // everything.
   const saying = teachingFor(SPACES).filter((line) => /memory/i.test(line))
   expect(saying).toEqual([`[olai] ${HARNESS_MEMORY_OFF}`])
   expect(REMINDER).not.toMatch(/memory/i)
@@ -73,15 +61,11 @@ test("every line is an `[olai] ` line, and the contract ends on the engine's mem
 })
 
 test("the LAW is the same lines word for word under every node", () => {
-  // Two spellings of the law is two contracts, between two agents a reader
-  // compares.
   const opened = teachingFor(SPACES)
   const other = teachingFor({ id: "odu", kind: "node", beside: false, title: "Odu", file: "ci.olai", engine: "opus", session: null, memory: 14 })
   expect(other[0]).not.toBe(opened[0])
   expect(other.slice(1)).toEqual(opened.slice(1))
 })
-
-// ── the reminder ──────────────────────────────────────────────────────
 
 test("the reminder is ONE sentence, carrying the trigger and the shape", () => {
   expect(REMINDER.includes("\n")).toBe(false)
@@ -92,20 +76,14 @@ test("the reminder is ONE sentence, carrying the trigger and the shape", () => {
 
 test("... and it rides as ONE `[olai] ` line, the shape every teaching line has", () => {
   expect(REMINDING).toEqual([`[olai] ${REMINDER}`])
-  // The same builder, so the same prefix: what the line is made of is the
-  // sentence, exactly as the contract's last line is `HARNESS_MEMORY_OFF`.
   expect(teachingFor(SPACES).at(-1)).toBe(`[olai] ${HARNESS_MEMORY_OFF}`)
 })
 
 test("under a message it rides the seam every other annotation rides", () => {
-  // A blank line between what a person wrote and what olai added, which is
-  // `./prompt.ts`'s one rule — so the message stays the message.
   const said = annotated("what is blocking the connector?", teachingFor(SPACES))
   expect(said.startsWith("what is blocking the connector?\n\n[olai] ")).toBe(true)
   expect(annotated("and now?", REMINDING)).toBe(`and now?\n\n[olai] ${REMINDER}`)
 })
-
-// ── and a note's contract, which is the other one ──────────────────────
 
 const PLAN = {
   kind: "note" as const,

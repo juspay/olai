@@ -32,23 +32,12 @@ import { ElapsedProvider } from "../chat/elapsing.tsx"
 import { Unopened } from "../chat/Unopened.tsx"
 import { SignIn } from "../chat/SignIn.tsx"
 
-/** THE FOLD DOES NOT CLIP. A card wants its corners, and `overflow-hidden`
- *  is the cheap way to get them — but an overflow-hidden box is a scroll
- *  container to `scrollIntoView`, and the model list hangs off the agent line
- *  OVER the rows below it, taller than the fold: a walk down that list
- *  scrolled the fold itself, and the line slid up under the resting pointer,
- *  whose `pointerenter` then took the cursor back. The line rounds its own
- *  top corners instead (`./AgentLine.tsx`). */
 export function Fold(props: { readonly node: string; readonly record?: string }) {
   const agents = useAgents()
   const parentShown = useShown()
   const open = createMemo(() => unfolded(props.record ?? props.node))
   const started = createMemo((was: boolean) => was || open(), false)
-  /** THE CHAT AT THIS ROW — a node's chat is its own row's. */
   const chatRow = createMemo(() => agents.at(props.node)?.id)
-  /** ...and the pane that is already drawing it, which is where this fold's
-   *  conversation went (`./beside.ts`). The lease goes with it: a fold that
-   *  draws one line reads nothing. */
   const beside = useBeside(() => chatRow() ?? "")
   const shown = () => parentShown() && open() && beside() === null
   return <ShownProvider shown={shown}>
@@ -71,9 +60,6 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   }}</Show></ShownProvider>
 }
 
-/** `page` is the node page's face: the pane is the scroll, so the transcript is
- * uncapped, the composer pins to the bottom, and the standing strips are drawn
- * in the page's pinned head instead of here. */
 export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
   let insert: ((text: Insertion) => void) | undefined
@@ -100,17 +86,8 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
     data-drawn={props.page === true ? "page" : "fold"}
     data-session-id={props.chat.state().session?.id} data-session-title={props.chat.state().session?.title ?? undefined} data-status={props.chat.state().status} data-pending-sends={props.chat.pendingSends()}>
     <ElapsedProvider live={live()}>
-      {/* A page's strips are in its pinned head, where its scroll cannot
-          carry them off (`../chat/Strips.tsx`). */}
       <Show when={!props.page}><Strips chat={props.chat} /></Show>
       <History chat={props.chat} node={props.node} />
-      {/* A SIGN-IN IS THE PANEL'S, not the conversation's, and it is drawn HERE
-          for exactly that reason: an agent that refused to OPEN a conversation
-          because nobody is signed in has no session, so the body below is the
-          face that says the open failed and there is no transcript to put a row
-          in. Above the branch, it is on screen either way — and above the
-          scroll rather than under it, because a control a person has to press
-          may not be something they have to find (`../chat/SignIn.tsx`). */}
       <SignIn chat={props.chat} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} />

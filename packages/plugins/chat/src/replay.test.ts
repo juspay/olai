@@ -1,14 +1,3 @@
-/**
- * A REPLAY REACHES A READER ONCE, WHEN IT HAS ARRIVED.
- *
- * `session/load` re-sends a whole conversation before it answers. Published
- * as it came, every tab drew that history a few rows a frame and followed it
- * down the screen — seconds, for a long chat. `./chat.ts` holds the replayed
- * rows and hands them over in one change at `replayEnded`; this drives a real
- * agent over a fixture that replays across several ticks, and reads what a
- * subscriber was told.
- */
-
 import { afterEach, beforeEach, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
@@ -83,11 +72,8 @@ test("a loaded conversation is published as one change, after the one that clear
     await until("the stored conversation to open", () => chat.state().session?.id === "stored")
     const during = told.slice(from)
 
-    // The conversation being left goes at once, and says nothing else.
     expect(during[0]?.removes.toSorted()).toEqual(left.toSorted())
     expect(during[0]?.upserts).toEqual([])
-    // ... and the history arrives in ONE change: every row it ended with,
-    // whole, with no pieces of it on the wire before.
     const rows = during.slice(1).filter((change) => change.upserts.length > 0)
     expect(rows).toHaveLength(1)
     expect(during.slice(1).flatMap((change) => change.appends)).toEqual([])

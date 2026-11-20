@@ -17,12 +17,6 @@ Feature: Agent activity is reachable from Chats and the palette
     Then the agent has answered "palette reached the oldest agent" exactly once
     And the Chats row "recent-0" is current
     And the agent "recent-0" stands "idle"
-    # THE OLDEST ROW IN THE DIRECTORY IS NOW THE FIRST ONE, which is the whole
-    # of what the order is for: `recent-0` carries the oldest vault edit of the
-    # eleven, and under a sort by recency alone the ten sleeping chats above it
-    # pushed it off the end of a ten-row column — the one agent that is awake,
-    # invisible. It leads them now, with the dot that says so, and the row that
-    # fell off the bottom is the second-oldest rather than the live one.
     And Chats lists "recent-0 recent-10 recent-9 recent-8 recent-7 recent-6 recent-5 recent-4 recent-3 recent-2"
     And the Chats row "recent-0" wears the "Idle" dot
     And the Chats row "recent-10" wears no dot
@@ -56,27 +50,14 @@ Feature: Agent activity is reachable from Chats and the palette
     And the Needs you row "install" has waiting questions
     And the Needs you row "order" says "Not running"
     And Chats lists "install order"
-    # ...AND EACH ROW'S STANDING IS DATA, in the order Chats puts them. The
-    # order IS the claim here: `order` spoke last and `install` is the one
-    # waiting on an answer, and a column sorted by speech alone put the stopped
-    # agent first. What is awake leads now, in standing order, so the row that
-    # wants something is the row at the top — and it wears the dot that says so
-    # while a stopped agent's row wears none.
     And the agent "install" stands "needs-you"
     And the agent "order" stands "gone"
     And the Chats row "install" wears the "Needs you" dot
     And the Chats row "order" wears no dot
-    # ...AND THE STOPPED ROW IS STILL HOLDING A SEAT, which is the thing its
-    # missing dot does NOT say: the server only reads `gone` for a node the
-    # scheduler still has a scope for, and a dead process is never quiet
-    # enough to be reaped. So it is offered the verb — the one row where
-    # handing the seat back costs nothing at all — and taking it works.
     When I open the Chats menu of "order"
     Then the Chats menu offers "Put to sleep, Tidy memory, Close the chat"
     When I choose "Put to sleep" from the Chats menu
     Then the agent "order" stands "asleep"
-    # A NEEDS YOU ROW IS THE SAME DESTINATION as a Chats row: the
-    # conversation's own page, not the file it lives in.
     When I press the Needs you row "install"
     Then the address is "/chat/install"
     And the chat page is about the node "install" named "install the cabinets" in "house.olai"
@@ -105,10 +86,6 @@ Feature: Agent activity is reachable from Chats and the palette
     Then the agents roster holds 10 agents
     And there should be no page errors
 
-  # THE REPORT (this scenario is its regression): a conversation whose row
-  # lives in another file opened THAT FILE with the chat's row merely selected.
-  # The row must lead to the conversation itself — its own page, named by the
-  # row that holds it — and not to the file the reader happened to be on.
   Scenario: A chat's row opens its own page, not the file the reader is on
     Given I open the outline "house.olai"
     When I press new chat in Chats
@@ -125,11 +102,6 @@ Feature: Agent activity is reachable from Chats and the palette
 
   @phone
   Scenario: A wide touch screen draws a Chats row's ••• and a thumb opens it
-    # The dots are not drawn below md at all — a 390pt row spends its width on
-    # the title — so the screen that lost them was the one wide enough to draw
-    # them and with no hover to find them with: a tablet got a transparent
-    # square at the end of every row, in the way of the row's own press. The
-    # column here is the same column; only the pointer is different.
     Given I open the outline "house.olai"
     When I widen the window to a desk
     And I open the "claude" agent on node "install"

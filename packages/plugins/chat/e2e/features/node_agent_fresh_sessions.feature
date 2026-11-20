@@ -49,9 +49,6 @@ Feature: Fresh node sessions have distinct identities and durable history
     And I open the fold history
     And I open the past session "cabinet first session"
     Then the panel is in the remembered conversation "first"
-    # The visit has its own agent by now. From here on nothing new is asked
-    # for: the press replaces the chat in the node's own seat, and a page
-    # still holding the chat it just replaced must not start one for it.
     When the agent starts so far are counted
     And I start a fresh session
     Then the panel has a different conversation from "first"

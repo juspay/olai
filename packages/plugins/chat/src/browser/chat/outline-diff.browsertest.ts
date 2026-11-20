@@ -29,7 +29,6 @@ test("a disposed browser diff cancels its request and an absent vault never thro
   expect(cancelled).toBe(1)
   createRoot(dispose => {
     const absent = createOutlineDiff(() => undefined, () => ({ path: "a.olai", oldText: null, newText: "" }))
-    // Effects settle as the root returns, so read on the following microtask.
     queueMicrotask(() => { expect(absent.line()).toContain("Can't read the outline"); dispose() })
   })
   await turn()

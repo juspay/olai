@@ -1,46 +1,3 @@
-/**
- * A CONVERSATION, AS A PAGE — `/chat/<item>`, the one place a chat is drawn
- * whole (`./route.ts` argues the address).
- *
- * ## What is on it, and in what order
- *
- * The ITEM first, on ONE PINNED LINE: its mark, its name as the page's own
- * title, how the chat STANDS at the right of it (read-only — the page IS the
- * conversation, so there is nothing here for a press to unfold), and the door
- * back to the item, *Open <name> beside ›* (`./OpenBeside.tsx`). That line is
- * the whole of what this page pins, at every width: it is the way back, and
- * nothing else on the page is.
- *
- * UNDER IT, SCROLLING WITH THE CONVERSATION: the path of the note or the
- * outline the node is written in, in the small mono a place is written in
- * everywhere else; the agent line the node page draws (`./Page.tsx`'s
- * `PageHead`) with its tool row and wake switches; for a note, the switch
- * saying where this chat opens (`./Opens.tsx`); then the conversation itself,
- * through the same `PageFoot` a node's page uses, so this page and that one
- * share one per-pane session, one set of testids and one answer to what a
- * transcript does when the pane scrolls.
- *
- * NO BREADCRUMB. A chat is not inside anything — it belongs to one item, the
- * item is the title, and the trail above a note would be a trail to a file
- * this page is not showing. Where the item IS is the page's second line and
- * the button on the line above it.
- *
- * NO MEMORY AND NO SLEEP ON A NOTE, which is not a thing this page leaves
- * out: a note IS the memory of its chat, so there are no rows to fold and no
- * pass to tidy them (`../chat/sleeping.ts` is the one gate, read wherever
- * that conversation is drawn). A node's sleep line is on it exactly as it is
- * on the node's own page, because it is the same strip.
- *
- * ## An item with no chat yet
- *
- * The page is still the item's: the same head, and the door in place of the
- * conversation — *Ask about <name>…*, with the engine picker, which starts
- * the chat on THIS item and leaves the conversation where the box was
- * (`./Door.tsx`). So an address somebody was handed opens something whatever
- * the vault says, which is the whole reason the page is addressed by the item
- * rather than by a conversation.
- */
-
 import { LAYER } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
@@ -66,45 +23,10 @@ import { PageFoot, PageHead } from "./Page.tsx"
 import { createRemembered } from "./remembering.ts"
 import { LOOK, type Row, talking } from "./roster.ts"
 
-/**
- * THE CONVERSATION'S OWN NAME, at the size the screen has room for.
- *
- * `PAGE_TITLE`'s display size on a desktop, where the head is one band above
- * a wide column — and a SECTION heading on a phone, where the page is the
- * conversation and a display title would push the first thing the agent said
- * off the screen. The mockups drew it that way for that reason
- * (`.waterfall/mockup/7-chats-press-split-phone.png`): on a phone the
- * conversation leads and the name labels it.
- *
- * ...AND A PHONE ON ITS SIDE IS A PHONE (`short`, `../all.css`). Turned
- * sideways a handset is 844 wide and 390 tall: `md` says desktop, and the
- * display size it brings with it is 50 pinned pixels of a 390-pixel screen,
- * taken from the conversation. The same section heading answers there,
- * because the reason is the same reason — there is no room above the words.
- *
- * SPELLED WHOLE rather than appended to `PAGE_TITLE`, which is that
- * constant's own rule (`@olai/web/client/look.ts`): a page wanting a smaller
- * heading is a page wanting a different thing, not one hoping its override
- * was emitted later.
- */
 const CHAT_TITLE = "m-0 font-sans text-title font-semibold tracking-tight md:text-display short:md:text-title"
 
-/**
- * A LINK PRESSED ON THIS PAGE OPENS IN THE OTHER PANE — the pane to the left
- * when there is one, else one opened to the right. Navigation's rule, asked
- * for by the one attribute it reads (`olai-plugin-navigation/elsewhere`,
- * which argues it).
- *
- * A conversation is the one page here a press may not replace: a half-typed
- * message and the place somebody is reading are not written down anywhere,
- * and an agent's answer is MADE of links to the things it is talking about.
- * The pane is the conversation's; what it points at is the pane next to it.
- */
 const LINKS_ASIDE = { [LINKS_ELSEWHERE]: "" }
 
-/** How the chat stands, said once at the right of the head — the same table
- *  every other face reads it off (`./roster.ts`'s `LOOK`), with no press on
- *  it. */
 function Standing(props: { readonly row: Row }) {
   const look = () => LOOK[props.row.standing]
   return (
@@ -116,8 +38,6 @@ function Standing(props: { readonly row: Row }) {
     >
       <AgentMark id={props.row.engine} />
       <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
-      {/* What the standing MEANS, for a reader who never hovers — the same
-          sentence the pressable standing carries. */}
       <span class="sr-only"> — {look().detail}</span>
     </span>
   )
@@ -127,12 +47,6 @@ export function ChatPage(props: { readonly item: AgentItem }) {
   const agents = useAgents()
   const key = createMemo(() => itemKey(props.item))
   const row = () => agents.chatOf(props.item)
-  // THE OUTLINE'S OWN NAMING, for the one case the roster cannot answer: a
-  // node with no chat yet has no row, and this page is where its name is the
-  // heading. Asked here because this is where there is an owner to ask with
-  // (`../references.ts`) — and LENT BACK to `./called.ts` while the page is
-  // drawn, so the pane's header, the phone's tab and the rail say the same
-  // word this heading does instead of falling back to the id.
   const declared = createDeclared()
   createEffect(() => {
     const item = props.item
@@ -144,16 +58,7 @@ export function ChatPage(props: { readonly item: AgentItem }) {
   const home = createHome(() => props.item.kind === "node" ? props.item.id : null)
   const where = () => props.item.kind === "note" ? props.item.path : row()?.file ?? home()
   const mark = () => props.item.kind === "note" ? fileMark(props.item.path) : undefined
-  /** A door is offered until there is a conversation, not until there is a
-   *  tie: a start the agent refused leaves the item its own door. */
   const open = () => talking(row())
-  /**
-   * WHAT THIS PANE IS READING, REMEMBERED from the frame this page opens on
-   * and forgotten by a close this reader made — the rule, with the item and
-   * the roster's answer about it handed in (`./remembering.ts`). It is what
-   * the *tie it again* press hands back (`./Lost.tsx`), so it is kept where
-   * that press is drawn and nowhere else.
-   */
   const was = createRemembered({
     key,
     tied: () => {
@@ -161,7 +66,6 @@ export function ChatPage(props: { readonly item: AgentItem }) {
       return held?.session != null ? { agent: held.engine, session: held.session } : null
     },
   })
-  /** The directory's own two answers about this page's note (`./lost.ts`). */
   const lost = createMemo(() => lostOf({
     item: props.item,
     standing: servedDirectory()?.standing(),
@@ -177,27 +81,6 @@ export function ChatPage(props: { readonly item: AgentItem }) {
       data-kind={props.item.kind}
       {...LINKS_ASIDE}
     >
-      {/* PINNED: THE LINE WITH THE ITEM'S NAME AND ITS DOOR, and nothing
-          else. The page is the scroll, so a head that scrolled away would
-          take the name of the thing being talked about — and the way back to
-          it — with it. `--height-chrome` is the bar on a phone, with the tab
-          strip added while the lane has one, and zero inside a desktop
-          column, which is its own scrollport (`olai-plugin-layout`'s
-          `Panes.tsx`).
-
-          ONE LINE AT EVERY WIDTH, and that is the whole rule. Pinning the
-          head WHOLE — the agent line, the tool row, the wake switches, the
-          *Opens* switch — cost 450 of a portrait handset's 844 pixels and
-          310 of a landscape one's 390, which is a conversation nobody can
-          read in a box nobody can type into. Everything under this line is
-          about the conversation rather than the way out of it, so it scrolls
-          with the conversation; what a reader needs from anywhere in a long
-          chat is which item this is and how to get to it.
-
-          THE DOOR IS ON IT WHETHER OR NOT THERE IS A CONVERSATION. It used
-          to ride the agent line once a chat was open — and the agent line
-          scrolls now. Not for a note that is GONE: there is no page to put
-          beside this one. */}
       <div
         class={`sticky top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6 short:pt-2`}
         data-testid={TESTID.chatPageHead}
@@ -221,9 +104,6 @@ export function ChatPage(props: { readonly item: AgentItem }) {
           </Show>
         </Show>
       </header>
-      {/* THE NOTE'S OWN TWO LOSSES COME FIRST, before the door: a page whose
-          note is gone, or whose note has stopped naming the conversation
-          being read, is not a page to start a chat on (`./lost.ts`). */}
       <Show when={lost()} fallback={
         <Show when={open()} fallback={<AboutBox where="page" item={() => props.item} name={name} />}>
           <PageFoot node={key()} />

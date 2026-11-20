@@ -1,22 +1,3 @@
-/**
- * SIGNING IN — the panel's own row, driven through the browser.
- *
- * The two things a scenario does here that no other vocabulary does:
- *
- *   - **it arms the agent**, with a dot-file ({@link MARKER.needsAuth}), so
- *     that the next open and the next turn are refused with ACP's
- *     `authRequired` — the protocol's only way of asking for a signature, and
- *     the whole of what puts the row on screen.
- *   - **it says the person finished at a vendor's page**
- *     ({@link MARKER.atThePage}), because a device-code or OAuth elicitation
- *     waits for exactly that and this suite cannot visit one.
- *
- * The rest is reading what a person would: which methods are on offer, what a
- * process has printed, where a card sends them, and whether the row is gone.
- * Every one of those is an assertion about the PAGE — the row's state, its
- * data attributes — never about the panel's own bookkeeping.
- */
-
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -46,15 +27,11 @@ import {
   CHAT_SIGN_IN_STATUS,
 } from "../selectors.ts";
 
-/** Write one of the markers the scripted agent reads. Empty, which is the
- *  idiom: the file's EXISTENCE is the claim, and a dot-file is not an edit. */
 const mark = (world: OlaiWorld, marker: string): void => {
   fs.writeFileSync(path.join(world.scratch(), marker), "");
 };
 
 Given("the agent needs a sign-in", function (this: OlaiWorld) {
-  // BEFORE ANYTHING IS OPENED, so the refusal a scenario is about is the one it
-  // meets: the marker is read at the moment of each request, not at boot.
   mark(this, MARKER.needsAuth);
 });
 
@@ -62,15 +39,6 @@ When("the person finishes signing in", function (this: OlaiWorld) {
   mark(this, MARKER.atThePage);
 });
 
-/**
- * REWRITE THE ACCOUNT THE AGENT REPORTS, the way a sign-in in another terminal
- * does — the raw `AuthStatus` the agent's own probe would have read.
- *
- * Written as JSON rather than as a canned name because the two states a
- * scenario needs are not both accounts: `{"kind":"none","label":"Not logged
- * in"}` is a REPORT of nobody being signed in, and a step that could only spell
- * an email would leave that case unreachable.
- */
 When("the agent reports it is signed in as:", function (this: OlaiWorld, identity: string) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.identity), identity);
 });
@@ -87,8 +55,6 @@ Then("the agent line says who is signed in as {string}", async function (this: O
   );
 });
 
-/** THE KNOWN LOGGED-OUT STATE, which is a chip and not an absence — the whole
- *  distinction the protocol draws between `kind: "none"` and silence. */
 Then("the agent line says nobody is signed in", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => {
@@ -101,8 +67,6 @@ Then("the agent line says nobody is signed in", async function (this: OlaiWorld)
   );
 });
 
-/** ... AND THE OTHER HALF: an engine that never reports draws nothing, which a
- *  scenario asserts by the chip's absence rather than by its words. */
 Then("the agent line names no account", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_IDENTITY).count()) === 0,
@@ -111,17 +75,10 @@ Then("the agent line names no account", async function (this: OlaiWorld) {
   );
 });
 
-/** AN AGENT THAT REPORTS WHO IT IS BUT OFFERS NO WAY IN — a gateway or a
- *  third-party backend. The chip is the same text and a different face: a
- *  label, not a button. Armed before the handshake, like the other
- *  advertisement markers. */
 Given("the agent offers no way in but still reports its account", function (this: OlaiWorld) {
   mark(this, MARKER.identityOnly);
 });
 
-/** WHICH FACE the chip drew. `data-pressable` is the attribute because a
- *  `<span>` and a `<button>` carry the same text, and the difference is the
- *  thing under test. */
 Then("the account in the agent line is a button", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_IDENTITY).getAttribute("data-pressable")) === "true",
@@ -138,7 +95,6 @@ Then("the account in the agent line is not a button", async function (this: Olai
   );
 });
 
-/** THE CHIP IS A DOOR: pressing it asks for the same chooser `/login` does. */
 When("I press the account in the agent line", async function (this: OlaiWorld) {
   const chip = this.chat(CHAT_IDENTITY);
   await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -157,8 +113,6 @@ Then("the sign-in names the current account {string}", async function (this: Ola
   );
 });
 
-/** THE KNOWN LOGGED-OUT CASE: a chooser a refusal produced has nobody to name,
- *  so the line is absent rather than saying "Signed in as Not signed in". */
 Then("the sign-in names no current account", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_SIGN_IN_CURRENT).count()) === 0,
@@ -167,15 +121,9 @@ Then("the sign-in names no current account", async function (this: OlaiWorld) {
   );
 });
 
-/** One method's button, by the id it is pressed with — so a scenario names a
- *  method the agent advertised rather than a translation of its name. The
- *  attribute goes through the suite's `attr`, which is the only place a value a
- *  reader typed is escaped into a selector (`../selectors.test.ts`). */
 const methodButton = (world: OlaiWorld, method: string): Locator =>
   world.chat(`${CHAT_SIGN_IN_METHOD}${attr("data-method", method)}`);
 
-/** ... and the OTHER face a method can have: a label and the command line to
- *  run in a terminal on the server, for a sign-in nothing here can finish. */
 const byHand = (world: OlaiWorld, method: string): Locator =>
   world.chat(`${CHAT_SIGN_IN_BY_HAND}${attr("data-method", method)}`);
 
@@ -212,16 +160,6 @@ Then("the panel offers a sign-in", async function (this: OlaiWorld) {
   );
 });
 
-/** WAITED FOR, and the wait is not a licence: a sign-in that SUCCEEDED is a
- *  process exiting and a frame coming back, so the row is on screen for a beat
- *  after the last thing a person did. What is claimed is the end state — that
- *  it goes and does not come back on its own — and a row a press already took
- *  away satisfies this on the first look.
- *
- *  IT IS ALSO WHAT A FAILURE LOOKS LIKE FROM HERE, deliberately: a row that
- *  stays (because the sign-in failed, or because a cancelled attempt's own
- *  refusal put it back) is a timeout at this line rather than a green run with
- *  a stale control on screen. */
 Then("the panel offers no sign-in", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_SIGN_IN).count()) === 0,
@@ -281,8 +219,6 @@ Then("the sign-in has stopped", async function (this: OlaiWorld) {
     "the sign-in to stop",
     HYDRATION_TIMEOUT,
   );
-  // ... and it is offered again, which is the difference between a failure a
-  // person can act on and a row that merely stopped.
   await this.waitUntil(
     async () => (await this.chat(CHAT_SIGN_IN_RETRY).count()) > 0,
     "a way to try the sign-in again",
@@ -298,17 +234,11 @@ Then("the card sends them to {string}", async function (this: OlaiWorld, host: s
   );
 });
 
-/** A link drawn out of a PROCESS'S output, which is the whole reason the
- *  output is not a `<pre>` of text: the URL a login prints is the thing a person
- *  has to open, and a client that only quoted it would leave them copying. */
 Then(
   "the sign-in makes a link of {string}",
   async function (this: OlaiWorld, url: string) {
     await this.waitUntil(
       async () =>
-        // `attr` and not an interpolated selector: the URL is a value from
-        // outside this file, and `../selectors.test.ts` is the fence that says
-        // so (`@olai/tests/harness/selectors.ts` is where the escaping lives).
         (await this.chat(CHAT_SIGN_IN_OUTPUT).locator(`a${attr("href", url)}`).count()) > 0,
       `the sign-in to link ${url}`,
       HYDRATION_TIMEOUT,
@@ -337,21 +267,13 @@ Then("the login command was stopped", async function (this: OlaiWorld) {
       HYDRATION_TIMEOUT,
     );
   } catch {
-    // SAID WITH THE EVIDENCE, because the two ways this can be wrong want
-    // different fixes and a bare timeout cannot tell them apart: nothing was
-    // ever written down, or something is still there — and if something is,
-    // WHAT it is decides whether the command survived or its number was reused
-    // by a later process.
     assert.fail(`the login command was not stopped — ${stillRunning(written)} (${written})`);
   }
 });
 
-/** Whether the command is still there — `null` once it is not, which is also
- *  what a pid nobody is using answers.
- *
- * `kill(pid, 0)` asks the kernel and signals nothing; it answers "there is
- * SOMETHING with this number", so the command line is asked too and a process
- * that is not this script is somebody else's number, arriving late. */
+/** `kill(pid, 0)` asks the kernel and signals nothing: it answers "there is
+ *  SOMETHING with this number", so the command line is asked too and a pid
+ *  reused by a later process does not read as this script. */
 const stillRunning = (written: string): string | null => {
   if (!fs.existsSync(written)) return "no pid was written";
   const pid = Number.parseInt(fs.readFileSync(written, "utf8").trim(), 10);
@@ -365,9 +287,8 @@ const stillRunning = (written: string): string | null => {
   return line !== null && !line.includes("fake-login") ? null : line ?? `pid ${pid} is running`;
 };
 
-/** The command line a pid is running, or `null` where the platform does not say
- *  (no `/proc`), which is the pessimistic direction: an unanswered question
- *  reads as "still here". */
+/** `null` where the platform does not say (no `/proc`), which reads as
+ *  "still here". */
 const commandLineOf = (pid: number): string | null => {
   try {
     return fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ").trim();
@@ -385,8 +306,6 @@ Then("the card is done with", async function (this: OlaiWorld) {
 });
 
 Then("the card links to {string}", async function (this: OlaiWorld, url: string) {
-  // WHAT THE ANCHOR ACTUALLY GOES TO — the host is drawn as its text, and the
-  // whole URL is the one thing that has to survive to the `href`.
   await this.waitUntil(
     async () => (await this.chat(CHAT_LINK_OPEN).getAttribute("href")) === url,
     `the card to link to ${url}`,
@@ -394,13 +313,6 @@ Then("the card links to {string}", async function (this: OlaiWorld, url: string)
   );
 });
 
-/** Every outline this serve holds, as paths `servedNodes` takes: new chat
- *  mints its row under the parent the person chose, so which FILE it landed in
- *  is their business rather than this step's.
- *
- *  BY WHAT IS IN A FILE and not by its suffix — which suffix names which kind
- *  is the claiming row's to say (`packages/tests/kinds.test.ts`) — so an
- *  outline here is a file whose every line is a record. */
 const outlinesHeld = (world: OlaiWorld): ReadonlyArray<string> => {
   const root = world.scratch();
   const found: Array<string> = [];
@@ -417,10 +329,6 @@ const outlinesHeld = (world: OlaiWorld): ReadonlyArray<string> => {
   return found;
 };
 
-/** THE ROW A REFUSED NEW CHAT LEFT, wherever the person put it. An engine and
- *  NO session is the refused state: the chat was never opened, and the row is
- *  still the way back to it. Nothing is filed under the Inbox any more, so the
- *  row is found by the tie it carries rather than by the file it is in. */
 Then("the pending conversation is unfolded as {string} with engine {string}", async function(this: OlaiWorld, name: string, engine: string) {
   let id: string | undefined;
   await this.waitUntil(async () => {
@@ -443,11 +351,6 @@ Then("the open conversation has session id {string}", async function(this: OlaiW
     `the intended session ${session} to be opened`, HYDRATION_TIMEOUT);
 });
 
-/** A method drawn as WORDS rather than as a button, which is a claim about
- *  both halves: the label is there, and the thing a person could press is not.
- *  The second half is what the whole arm exists for — a button that cannot
- *  finish what it looks like it starts is the one thing this panel must not
- *  draw. */
 Then("the sign-in shows {string} as a command to run by hand", async function (this: OlaiWorld, method: string) {
   await this.waitUntil(
     async () => (await byHand(this, method).count()) > 0,
@@ -468,10 +371,6 @@ Then("the command to run by hand includes {string}", async function (this: OlaiW
   assert.ok(said.includes(text), `the command reads "${said}", which does not include "${text}"`);
 });
 
-/** NOTHING WAS SPAWNED, said by the agent itself: the fake writes this file the
- *  moment anybody runs it with `--login`, so its ABSENCE is the claim that no
- *  process was started — a stronger thing than "the card looks right", and the
- *  one the previous round got wrong. */
 Then("no sign-in process was started", function (this: OlaiWorld) {
   const ran = path.join(this.scratch(), ".opencode-login-ran");
   assert.ok(!fs.existsSync(ran), `a sign-in process ran: ${ran} exists`);

@@ -1,13 +1,3 @@
-/**
- * THE PASS, over a real chat scheduler and a real ACP subprocess.
- *
- * What is exercised is the pass's own judgement — who is a candidate, what a
- * finished turn writes, and what happens to a turn nobody is watching — and the
- * seam is the doors it is handed (`./sleep.ts`'s `Sleeping`). The write and the
- * commit are recorded rather than performed: what a commit LOOKS like is
- * `olai-plugin-git`'s business and is asserted where it lives, in that row's
- * own window tests and in `node_agent_sleeps.feature`.
- */
 import type { WaitingOutline } from "@olai/plugin-api/services"
 import type { NodeAgent, NodeAgents, OpFailure, WriteRequest } from "@olai/format"
 import { UsageFailure } from "@olai/format"
@@ -38,7 +28,6 @@ const installed = (id: string): Installed => ({
   prompt: { kind: "first-turn" },
 })
 
-/** One node agent, bound to a session this fixture answers `session/load` for. */
 const agent = (id: string, session: string | null, over: Partial<NodeAgent> = {}): NodeAgent => ({
   kind: "node",
   beside: false,
@@ -51,10 +40,6 @@ const agent = (id: string, session: string | null, over: Partial<NodeAgent> = {}
   ...over,
 })
 
-/** The vault the pass reads: a stamped row under each node, so every node agent
- *  in these fixtures has memory that has moved and something to sleep over —
- *  and one child in ANOTHER file, so a subtree that spans files is the ordinary
- *  case rather than a special one. */
 const VAULT = {
   "Work.olai": [
     `{"id":"health","ord":"a0","title":"Health"}`,
@@ -62,21 +47,9 @@ const VAULT = {
     `{"id":"shipping","ord":"a1","title":"Shipping"}`,
     `{"id":"ship-note","parent":"shipping","ord":"a0","title":"late again","changed":"2026-10-01T09:00:00+00:00"}`,
   ].join("\n") + "\n",
-  // A CHILD OF `health` IN ANOTHER FILE, because a subtree is matched by id
-  // across the corpus and can span files: the pass's commit must name every
-  // file its memory lives in, not just the node's own.
   "Archive.olai": `{"id":"old-note","parent":"health","ord":"a0","title":"the old rows","changed":"2026-10-01T09:00:00+00:00"}\n`,
 }
 
-/**
- * WHAT THE LEDGER WOULD SAY IS WAITING — in the two names each file has, and
- * deliberately in a SERVED SUBDIRECTORY: the pass knows files by their served
- * names and a commit request takes them as git does, so a test that made the two
- * spellings equal would prove nothing about the mapping.
- *
- * `Notes.olai` is a person's own file, waiting and NOT part of the memory — the
- * one that must not end up in the commit.
- */
 const WAITING = [
   { file: "Work.olai", path: "docs/Work.olai" },
   { file: "Archive.olai", path: "docs/Archive.olai" },
@@ -85,28 +58,16 @@ const WAITING = [
 
 const reading = (vault: Record<string, string> = VAULT) => Effect.succeed(readingOf(setOf(vault)))
 
-/** WHICH NODES THE PASS WROTE TO, asked of the door's own union rather than
- *  asserted into one: `prop` is the only arm this pass ever uses. */
 const passedThrough = (writes: ReadonlyArray<WriteRequest>): ReadonlyArray<string> =>
   writes.flatMap((one) => one.op === "prop" ? [one.id] : [])
 
 interface Bench {
   readonly chat: Chat
   readonly nodes: () => NodeAgents
-  /** Every `prop` the pass asked for, in order. */
-  /** Every `prop` the pass asked for, in order — the door's own union, so a
-   *  reader is told which arm each one is. */
   readonly writes: ReadonlyArray<WriteRequest>
-  /** Every commit the pass asked for, in order: the message and the paths it
-   *  named. */
   readonly commits: ReadonlyArray<{ readonly message: string; readonly paths: ReadonlyArray<string> }>
-  /** Every line the pass said at the operator's level. */
   readonly warnings: Array<string>
-  /** WHAT THE PASS DID, IN ORDER — the seam's own account of itself, which is
-   *  what the ordering claims are about: the hold spans the turn and the commit,
-   *  and the delivery is withdrawn when the pass stops being there. */
   readonly events: Array<string>
-  /** One pass of the loop, as the case under test drives it. */
   readonly tick: Effect.Effect<boolean>
   readonly marker: (name: string) => void
   readonly marked: (name: string) => boolean
@@ -126,8 +87,6 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true })
 })
 
-/** Wait for a marker the fixture writes, or fail loudly — the pass's own
- *  progress is asynchronous, so every assertion about it is a wait. */
 const until = async (what: string, ready: () => boolean, ms = 10_000): Promise<void> => {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -142,25 +101,12 @@ const withBench = async (
     readonly nodes?: NodeAgents
     readonly sleptAt?: (node: string) => string | null
     readonly live?: () => ReadonlyMap<string, LiveSession>
-    /** Milliseconds — the point of the overwrite is a test that cannot wait. */
     readonly after?: number
-    /** The write door, for the case where the vault refuses the memo. */
     readonly write?: (request: WriteRequest) => Effect.Effect<unknown, OpFailure>
-    /** The delivery door, for the case where the turn is never handed over at
-     *  all — the one that leaves a body waiting somewhere. */
     readonly deliver?: (to: { readonly agent: string; readonly session: string }) => Effect.Effect<void>
-    /** How long a turn may take to start, in milliseconds, for the test that
-     *  wants that deadline reached. */
     readonly start?: number
-    /** The vault the pass reads, for the case where WHEN the memory moved is
-     *  what is under test. */
     readonly vault?: Record<string, string>
-    /** THE VAULT THE SECOND READ SEES, for the case about what the turn DID to
-     *  the memory: the pass reads again after the turn, and this is that
-     *  reading (`server/sleep.ts`). */
     readonly reread?: Record<string, string>
-    /** What the ledger says is waiting, for the case about WHICH of those files
-     *  the commit may name. */
     readonly waiting?: ReadonlyArray<WaitingOutline>
   },
   body: (bench: Bench) => Promise<void>,
@@ -172,7 +118,6 @@ const withBench = async (
   const events: Array<string> = []
   let reads = 0
   const chat = await run(make({
-    // THE BENCH'S OWN RUNTIME, said out loud: `Options.fork` has no default.
     fork: (work) => Effect.runFork(work),
     roster: () => [seated(installed("claude"))],
     cwd,
@@ -195,13 +140,8 @@ const withBench = async (
       nodes: () => nodes,
       sleptAt: over.sleptAt ?? (() => null),
       sleptKey: () => "chat-agent-slept",
-      // THE BENCH'S NODES HAVE ALL ASKED: what the mark's absence means is a
-      // case of its own (`sleep.clock.test.ts`).
       sleeps: () => true,
       live: over.live ?? (() => chat.live()),
-      // THE PASS'S OWN DELIVERY, exactly as the wiring makes it — including the
-      // option that marks the turn as olai's own (`@olai/plugin-api`'s
-      // `Deliveries.deliver`).
       deliver: (to, say) => over.deliver === undefined
         ? Effect.tap(
           chat.doorFor("sleep").deliver(to, say, { sleep: true }),
@@ -209,20 +149,14 @@ const withBench = async (
         )
         : over.deliver(to),
       withdraw: () => Effect.sync(() => void events.push("withdrawn")),
-      // THE PASS'S OWN CONTRACT, narrowed here as the wiring narrows it: what it
-      // may do to the conversation it watches is stop its turn.
       watch: (to, observer) =>
         Effect.flatMap(chat.reading(to, observer), (panel) => panel === null
           ? Effect.fail(new UsageFailure({ reason: "the conversation changed; nothing to watch" }))
           : Effect.succeed({ cancel: panel.cancel })),
-      // READ EVERY TIME, and answered with the vault of the moment: the second
-      // read is a real second reading rather than the first one replayed.
       read: Effect.suspend(() => {
         reads += 1
         return reading(reads === 1 ? over.vault : (over.reread ?? over.vault))
       }),
-      // THE SET A STRIP'S FORECAST IS JUDGED OVER, which is the roster's own
-      // reading and not the loop's: the same vault this bench serves, derived.
       reading: () => readingOf(setOf(over.vault ?? VAULT)).derived,
       write: over.write ?? ((request) => Effect.sync(() => {
         writes.push(request)
@@ -234,25 +168,15 @@ const withBench = async (
         commits.push({ message, paths })
         return null
       }),
-      // THE HOLD, AS AN ACQUISITION — so the order it is taken and released in
-      // is a thing this bench can assert rather than a thing it assumes.
       hold: Effect.acquireRelease(
         Effect.sync(() => void events.push("hold")),
         () => Effect.sync(() => void events.push("released")),
       ),
       after: Duration.millis(over.after ?? 0),
-      // THE PRESSURE SETTINGS AT THEIR LOWEST: these cases are about what a pass
-      // DOES, and every one of them has moved a row, so a floor above one would
-      // be a rule under test rather than a setup (`sleep.clock.test.ts` holds the
-      // floor and the backstop).
       floor: 1,
       latest: Duration.days(7),
-      // THE LOOP ITSELF IS NOT WHAT IS UNDER TEST: every case drives `tick` by
-      // hand, so the fork sleeps for as long as the test could possibly run.
       tick: Duration.minutes(10),
       question: Duration.millis(400),
-      // LONG ENOUGH NOT TO BE WHAT ANY CASE IS ABOUT: the limit is a span of its
-      // own (`sleep-limit`), and every case here drives its own ending.
       limit: Duration.minutes(10),
       start: Duration.millis(over.start ?? 5_000),
       log: () => Effect.void,
@@ -265,8 +189,6 @@ const withBench = async (
       commits,
       warnings,
       events,
-      // THE BENCH'S OWN SCOPE, so a pass driven by hand runs (and is stopped)
-      // with the bench rather than in a scope nobody owns.
       tick: Effect.provideService(sleeper.tick, Scope.Scope, scope),
       marker: (name) => writeFileSync(join(cwd, name), ""),
       marked: (name) => existsSync(join(cwd, name)),
@@ -280,8 +202,6 @@ const withBench = async (
 test("a finished pass writes the memo and then commits it", async () => {
   await withBench({}, async (bench) => {
     expect(await run(bench.tick)).toBe(true)
-    // The subprocess was really prompted, which is what makes the rest of this
-    // an assertion about a turn rather than about a state machine.
     expect(bench.marked(".sleep-asked")).toBe(true)
     expect(bench.writes).toEqual([{
       op: "prop",
@@ -289,30 +209,17 @@ test("a finished pass writes the memo and then commits it", async () => {
       key: "chat-agent-slept",
       value: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/),
     }])
-    // THE COMMIT NAMES THE FILES THAT MEMORY LIVES IN — both of them, in git's
-    // spelling — and leaves the person's own waiting file exactly where it was.
     expect(bench.commits).toEqual([{
       message: "sleep: Health",
       paths: ["docs/Work.olai", "docs/Archive.olai"],
     }])
     expect(bench.warnings).toEqual([])
-    // ... and the pass left the conversation idle rather than holding it open.
     expect(bench.chat.live().get("health")?.status).toBe("idle")
-    // THE HOLD SPANS THE WHOLE PASS: taken before the turn is handed over,
-    // released only after the memo has been committed — which is the one thing
-    // that makes the commit the pass's own rather than the quiet window's. The
-    // withdrawal comes between them because a scope's finalizers run in the
-    // reverse of the order they were registered.
     expect(bench.events).toEqual(["hold", "delivered", "committed", "withdrawn", "released"])
   })
 })
 
 test("the commit names a file the agent moved a record into during the pass", async () => {
-  // THE RE-READ, and why the candidate's set is not enough: an agent that
-  // tidies by moving a record into another file leaves its memory there, and
-  // that file was not in the set taken before the turn — so without the second
-  // read the record it moved stays waiting, which is the direction the header
-  // says cannot happen.
   await withBench(
     {
       vault: {
@@ -321,8 +228,6 @@ test("the commit names a file the agent moved a record into during the pass", as
           `{"id":"note","parent":"health","ord":"a0","title":"sleep was fine","changed":"2026-10-01T09:00:00+00:00"}`,
         ].join("\n") + "\n",
       },
-      // ...WHAT THE TURN DID: the record is in another file by the time the
-      // pass reads again, and the file it left behind is empty of memory.
       reread: {
         "Work.olai": `{"id":"health","ord":"a0","title":"Health"}\n`,
         "Archive.olai": `{"id":"note","parent":"health","ord":"a0","title":"moved out","changed":"2026-10-01T09:00:00+00:00"}\n`,
@@ -330,8 +235,6 @@ test("the commit names a file the agent moved a record into during the pass", as
     },
     async (bench) => {
       expect(await run(bench.tick)).toBe(true)
-      // The first read saw Work.olai alone; the commit names Archive.olai
-      // because the second one did.
       expect(bench.commits).toEqual([{
         message: "sleep: Health",
         paths: ["docs/Work.olai", "docs/Archive.olai"],
@@ -341,11 +244,6 @@ test("the commit names a file the agent moved a record into during the pass", as
 })
 
 test("a nested node agent's own file is not swept into the commit", async () => {
-  // WHERE A MEMORY ENDS IS ONE LINE, and the re-read is the place it was
-  // forgotten: the files the commit may name are the ones `memoryFiles` finds
-  // under the node with the SAME exclusions the node was picked under, so a file
-  // holding only a NESTED agent's records is not this pass's to commit —
-  // reverting a sleep must not take another agent's memory with it.
   await withBench(
     {
       vault: {
@@ -381,9 +279,6 @@ test("an unbound node, a working one and one with a question are left alone", as
   await withBench({ nodes: [agent("health", null)] }, async (bench) => {
     expect(await run(bench.tick)).toBe(false)
   })
-  // A CONVERSATION THAT IS UP IS NOT ASLEEP: working, booting, a question and a
-  // refused open are all somebody's business — and the question is not a
-  // person's to answer only because this pass suppresses the alert.
   for (const standing of [
     { status: "thinking" as const, asking: 0 },
     { status: "idle" as const, asking: 1 },
@@ -400,10 +295,6 @@ test("an unbound node, a working one and one with a question are left alone", as
 })
 
 test("a conversation that DIED is woken rather than left alone", async () => {
-  // `gone` is a process that died, not somebody's business — and a slot left
-  // gone is unsleepable for as long as it sits in the pool, which is the idle
-  // window (48 hours by default). The pass's own reading reopens it, so the
-  // turn goes out exactly as it does for a node with no conversation at all.
   await withBench(
     { live: () => new Map([["health", { status: "gone" as const, asking: 0 }]]) },
     async (bench) => {
@@ -415,9 +306,6 @@ test("a conversation that DIED is woken rather than left alone", async () => {
 })
 
 test("a subtree somebody is editing keeps its node awake", async () => {
-  // THE CASE THE CONVERSATION'S OWN CLOCK CANNOT SEE: the agent has been idle
-  // for two hours, and a person is editing this subtree right now. Tidying under
-  // somebody's cursor is the thing this test is for.
   await withBench(
     {
       vault: {
@@ -440,9 +328,6 @@ test("a subtree somebody is editing keeps its node awake", async () => {
 })
 
 test("a live conversation with no idle instant falls back to the memory", async () => {
-  // `since` is always set by the scheduler, so this arm is unreachable in a
-  // serve — and a rule whose failure mode was "never sleeps again" is worse than
-  // one that falls back to the reading that is always there.
   await withBench(
     { live: () => new Map([["health", { status: "idle" as const, asking: 0 }]]) },
     async (bench) => {
@@ -469,9 +354,6 @@ test("a node that has not been left alone long enough waits", async () => {
 })
 
 test("one pass sleeps one node, and the next waits its turn", async () => {
-  // TWO CANDIDATES AND ONE WRITE is the whole of "one at a time": the loop
-  // takes its pass a tick rather than a node, so a second sleeping agent is
-  // never a second turn in the same breath.
   const slept = new Set<string>()
   await withBench(
     {
@@ -481,7 +363,6 @@ test("one pass sleeps one node, and the next waits its turn", async () => {
     async (bench) => {
       expect(await run(bench.tick)).toBe(true)
       expect(passedThrough(bench.writes)).toEqual(["health"])
-      // ... and once the first has a memo, the pass moves on to the next.
       slept.add("health")
       expect(await run(bench.tick)).toBe(true)
       expect(passedThrough(bench.writes)).toEqual(["health", "shipping"])
@@ -490,29 +371,18 @@ test("one pass sleeps one node, and the next waits its turn", async () => {
 })
 
 test("a turn that sits on a question is cancelled, said out loud, and not retried", async () => {
-  // THE JUDGEMENT IS THE CLOCK SUITE'S (`sleep.clock.test.ts`) and is not what
-  // this case is for: what only this bench can show is the STOP reaching a real
-  // process — the fixture's own `.sleep-cancelled` marker, over the wire —
-  // where the clock suite's cancel is a stub's event.
   await withBench({ nodes: [agent("health", "sess-1")] }, async (bench) => {
     bench.marker(".sleep-ask")
     expect(await run(bench.tick)).toBe(true)
-    // THE CANCEL IS ON THE WIRE BEFORE THE PASS RETURNS, but the agent reads it
-    // in its own process a moment later — so this waits rather than assumes.
     await until("the stop to reach the agent", () => bench.marked(".sleep-cancelled"))
     expect(bench.writes).toEqual([])
     expect(bench.commits).toEqual([])
     expect(bench.warnings.join("\n")).toContain("asked a question nobody is there to answer")
-    // THE RETRY RULE, in memory: a node that failed once is left alone, so the
-    // very next pass is not a second turn.
     expect(await run(bench.tick)).toBe(false)
   })
 })
 
 test("a delivery the pass never saw handed is withdrawn when it stops", async () => {
-  // THE HAZARD THIS CLOSES: a body the scheduler or a panel is still holding
-  // would fire days later as a machine turn with no hold on the quiet window,
-  // nobody observing it, no memo and no commit — work with no owner.
   await withBench(
     { deliver: () => Effect.void, start: 200 },
     async (bench) => {
@@ -521,7 +391,6 @@ test("a delivery the pass never saw handed is withdrawn when it stops", async ()
       expect(bench.writes).toEqual([])
       expect(bench.commits).toEqual([])
       expect(bench.warnings.join("\n")).toContain("the turn never started")
-      // ... and the node is left alone for a day, like every other failure.
       expect(await run(bench.tick)).toBe(false)
     },
   )
@@ -542,9 +411,6 @@ test("a memo that cannot be written is a failed pass, with no commit", async () 
   await withBench(
     { write: () => Effect.fail(new UsageFailure({ reason: "the vault refused the write" })) },
     async (bench) => {
-      // The turn finished and the RECORD of it did not, which is the other half
-      // of "trouble": nothing was committed, so there is nothing to undo, and
-      // the node is retried tomorrow rather than tonight.
       expect(await run(bench.tick)).toBe(true)
       expect(bench.commits).toEqual([])
       expect(bench.warnings.join("\n")).toContain("the memo could not be written")
@@ -556,8 +422,6 @@ test("a memo that cannot be written is a failed pass, with no commit", async () 
 test("a pass that is stopped mid-turn cancels the turn it started", async () => {
   await withBench({}, async (bench) => {
     bench.marker(".sleep-hold")
-    // FORKED INTO A SCOPE OF ITS OWN, so the pass outlives the `run` that
-    // started it — what this test interrupts is the pass, and nothing else.
     const running = await run(Effect.provideService(
       Effect.forkScoped(bench.tick),
       Scope.Scope,
@@ -567,8 +431,6 @@ test("a pass that is stopped mid-turn cancels the turn it started", async () => 
     expect(bench.marked(".sleep-cancelled")).toBe(false)
     await run(Fiber.interrupt(running))
     await until("the stop to reach the agent", () => bench.marked(".sleep-cancelled"))
-    // ... and the memo is NOT written: a pass that was stopped is not a pass
-    // that tidied anything.
     expect(bench.writes).toEqual([])
     expect(bench.commits).toEqual([])
   })

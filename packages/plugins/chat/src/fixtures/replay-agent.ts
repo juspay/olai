@@ -1,13 +1,4 @@
 #!/usr/bin/env bun
-/**
- * An ACP agent whose `session/load` REPLAYS before it answers, the way a real
- * one does: what the person said, a finished tool call, and the agent's answer
- * in chunks — each on its own timer, so the history reaches the panel over
- * several ticks rather than in one read of stdin.
- *
- * `session/new` opens `fresh`; any prompt ends its turn at once, so a test can
- * put a row in the conversation it is about to leave.
- */
 
 import { listen, respond, unknownMethod, update } from "./jsonrpc.testlib.ts"
 

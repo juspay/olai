@@ -1,5 +1,3 @@
-/** Waiting forms register with their own transcript, including hidden copies
- * of the same conversation. A reveal never searches another page's DOM. */
 import { createContext, createSignal, onCleanup, useContext } from "solid-js"
 
 export const createWaitingForms = () => {

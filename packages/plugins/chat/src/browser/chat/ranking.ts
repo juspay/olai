@@ -1,5 +1,3 @@
-/** An indexed maximum heap. Transcript membership owns entries; replacing or
- * removing one entry touches its path to the root, not the entire transcript. */
 export const createRanking = <T>() => {
   type Entry = { key: string; seq: number; position: number; value: T }
   const heap: Entry[] = []

@@ -1,30 +1,3 @@
-/**
- * THE SECOND DOORBELL, through the browser — the control a person points, and
- * the sentence that arrives because they pointed it.
- *
- * Everything about WHAT is claimed, what a wake MEANS, and what the sentence
- * says is a pure function over a parsed vault and has its own unit tests
- * (`olai-plugin-kolu`'s `doorbell.test.ts`); so are the three arms of the
- * delivery itself (`olai-plugin-chat`'s `deliveries.test.ts`). Nothing here re-asserts
- * any of that. What these steps are about is the half that only a real browser
- * and a real server can say: a person picks a file, a watcher on the far end of
- * a real socket fires, and a message nobody typed appears in the transcript
- * wearing a face that is not theirs — with the composer they were typing in
- * untouched.
- *
- * ## THE RING IS A GESTURE, NOT A CLOCK
- *
- * `held-for` is a debounce before a held terminal is reported, and the watcher
- * re-arms a standing hold when the knob MOVES DOWN (`olai-plugin-kolu/appliance`'s
- * `watch.ts`). So the scenario lowers it and the fire is immediate and caused —
- * rather than setting a small interval at boot and waiting one out, which is the
- * shape that goes green on a laptop and red on a loaded box.
- *
- * The DOM is reached through `../support/world.ts`'s named constants only, which
- * are built from the client's own `TESTID` record: a rename over there is a type
- * error here rather than a timeout.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
@@ -53,16 +26,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── the control ────────────────────────────────────────────────────────
-
-/**
- * ONE PLUGIN'S DOORBELL ON THIS CONVERSATION.
- *
- * The strip draws a line per running plugin that declares a wake. Two do, as
- * of odu's doorbell — so a step that counted to one and reached for `.first()`
- * would be asserting about whichever plugin the registry listed first. The
- * picker already stamps `data-plugin`; the step names whose.
- */
 const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => {
   const strip = world.chat(CHAT_WAKE);
   await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -71,9 +34,6 @@ const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => 
   return picker;
 };
 
-/** What that control is pointed at, as data: a path, or the word `off`. The
- *  words around it are the plugin's own sentence, and a scenario asserting
- *  those would be asserting somebody else's vocabulary. */
 const pointedAt = async (
   world: OlaiWorld,
   plugin: string,
@@ -87,8 +47,6 @@ const pointedAt = async (
   );
 };
 
-/** The ruling's own default, drawn rather than hidden: nobody is opted in by a
- *  serve, so a fresh conversation says `off` and offers the way to change it. */
 Then(
   "this conversation's {string} wake is on nothing",
   async function (this: OlaiWorld, plugin: string) {
@@ -97,14 +55,6 @@ Then(
   },
 );
 
-/**
- * PICK A FILE, the way a person does: open the list, narrow it, press the row.
- *
- * Through the FILTER BOX and not by pressing whichever row happens to be drawn
- * — a served directory is thousands of files and the list offers twelve, so a
- * scenario that did not type would be asserting about the matcher's ranking
- * rather than about the pick.
- */
 When(
   "I point this conversation's {string} wake at {string}",
   async function (this: OlaiWorld, plugin: string, file: string) {
@@ -116,9 +66,6 @@ When(
   },
 );
 
-/** ... and that it stuck. The value comes back off the chat cell — the server
- *  wrote it, published it, and this tab redrew from that — so this is the round
- *  trip and not the press's own optimism. */
 Then(
   "this conversation's {string} wake is on {string}",
   async function (this: OlaiWorld, plugin: string, file: string) {
@@ -133,30 +80,10 @@ Then("this conversation offers no {string} wake control", async function (this: 
 });
 
 When("I clear this conversation's {string} wake", async function (this: OlaiWorld, plugin: string) {
-  // The row by what it holds, not by one step up: the trigger wears a tip
-  // whose wrapper is a `display: contents` span (see the warning step below).
   const row = (await thePicker(this, plugin)).locator('xpath=ancestor::*[.//button[normalize-space(.)="Clear"]][1]');
   await this.press(row.getByRole("button", { name: "Clear", exact: true }));
 });
 
-// ── the far end ────────────────────────────────────────────────────────
-
-/**
- * MAKE THE WATCHER SPEAK NOW.
- *
- * `_olai/Settings.olai` is the file that paces the watch, and `held-for` is how long
- * a terminal must sit in a state before it is worth saying anything about. The
- * fixture's fleet already holds one — `review: grok`'s terminal, which padi says
- * is blocked on a person — so lowering the debounce re-arms that standing hold
- * and it fires at once (`olai-plugin-kolu/appliance`'s `watch.ts`: "a LOWERED `held-for`
- * fires at once").
- *
- * `0s` and not `1s`, because a second is a race: the assertion after this step
- * would be waiting on a timer rather than on a consequence, and a step that
- * waits out a clock is the first thing to fail on a box that is busy. padi's own
- * grammar admits `0` here for exactly this reason — the instant report — and the
- * two knobs that would spin at zero are left alone.
- */
 When("the watch is told to report a held terminal at once", function (this: OlaiWorld) {
   this.writeServed(
     "_olai/Settings.olai",
@@ -164,44 +91,14 @@ When("the watch is told to report a held terminal at once", function (this: Olai
   );
 });
 
-// ── what arrives ───────────────────────────────────────────────────────
-
-/** THE MACHINE'S ROW — the `user` entry whose words a plugin put there. */
 const rungRow = (world: OlaiWorld): Locator =>
   world.chat(CHAT_ENTRY).filter({ has: world.page.locator(CHAT_RANG) });
 
 
-/**
- * ONE LINE, AND THE REST BEHIND A PRESS — the fold, asserted without asserting
- * a word the plugin wrote.
- *
- * The body's testid is ABSENT from the page while the row is folded (a `<Show>`
- * and not a `hidden`), which is what makes this a claim about the fold rather
- * than about CSS: a row painted away is one a screen reader still walks, and a
- * step that asked about visibility could not tell the two apart.
- */
 
-
-/**
- * IT IS KOLU'S OWN LOGO, and that is a stronger claim than "kolu contributed a
- * mark" — which is why this asserts a GRADIENT rather than the `data-mark`
- * attribute.
- *
- * `data-mark="kolu"` was already true of the hand-drawn glyph this replaced:
- * two abstract panes in `currentColor`, invented in olai because inventing one
- * was easy. A scenario asserting the attribute would have passed against the
- * very defect the human found by looking. The pinned asset is three rainbow
- * bars built out of `<linearGradient>`s, and a drawn approximation has none —
- * so the gradient is the cheapest thing on the page that can only be there if
- * the bytes really came from kolu's own `favicon.svg` through the pin.
- */
 Then(
   "that sentence wears {string}'s own logo",
   async function (this: OlaiWorld, plugin: string) {
-    // NOT INSIDE THE ROW. A mark sits on the strip that opens a speaker's RUN,
-    // above the first of their messages and beside none of the rest — the
-    // group-level rule the transcript keeps for all three faces. So it is found
-    // by the name it stamps rather than by walking up from the row.
     const mark = this.chat(`${CHAT_PLUGIN_MARK}${attr("data-mark", plugin)}`);
     await this.waitUntil(
       async () => (await mark.locator("linearGradient").count()) >= 1,
@@ -215,17 +112,6 @@ Then(
     );
   },
 );
-/**
- * THE COLLAPSED LINE IS PRESSABLE, which is the half a fold could have taken
- * away.
- *
- * The account behind the fold names every claim with its own reference, and
- * that was where the link lived first — behind the very fold it was the reason
- * to open. Asserted on the HEAD, before anything is pressed, and asserted as
- * "a reference is here" rather than as an id: which node the board claims from
- * is the fixture's business, and a scenario that spelled it would be asserting
- * the plugin's derivation rather than the panel's promise.
- */
 Then(
   "that sentence can be pressed through to the board",
   async function (this: OlaiWorld) {
@@ -273,9 +159,6 @@ Then("the chat shows no sentence no person typed", async function (this: OlaiWor
   )
 });
 
-/** WHOSE doorbell it was, as data. The row carries the name core stamped off
- *  its own registry binding, never a word the plugin asserted about itself —
- *  which is what keeps one plugin from signing another's sentence. */
 Then(
   "that sentence was rung by {string}",
   async function (this: OlaiWorld, plugin: string) {
@@ -287,22 +170,6 @@ Then(
   },
 );
 
-/**
- * ... and WHAT THE SENTENCE SAYS — one step, because every doorbell's proof has
- * the same shape.
- *
- * The words are asserted and never the wording around them: every word of a
- * delivery is the plugin's own and its own bench pins them. What a claim like
- * this is for is the JOIN — some fact the plugin could only have got through the
- * door it named, arriving in a sentence it wrote itself. kolu's is a terminal id
- * on the far end of a real socket, joined against the file a person picked and
- * the un-done step in it; the morning agenda's is an overdue node's title, read
- * through `journal.agenda` out of a reading it never looked inside. Two subjects,
- * one question, and it was two steps with identical bodies for one commit.
- *
- * WAITED FOR: a delivery is composed at the moment it enters the conversation,
- * which is some frames after whatever caused it.
- */
 Then(
   "that sentence names {string}",
   async function (this: OlaiWorld, words: string) {
@@ -313,11 +180,6 @@ Then(
   },
 );
 
-/**
- * ...and the negative, which is a different claim and not the same one read
- * backwards: a row that has not arrived yet names nothing, so this is asked
- * AFTER a positive one on the same row and is a read rather than a wait.
- */
 Then(
   "that sentence does not name {string}",
   async function (this: OlaiWorld, words: string) {
@@ -329,15 +191,6 @@ Then(
   },
 );
 
-/**
- * IT IS NOT DRAWN AS MINE, and that is the whole of the face.
- *
- * A delivered sentence travels down the human's lane because that is the lane a
- * prompt goes out on — so it lands in a `user` row, and the one thing that must
- * not follow is its looking like one. `chatMine` is the human bubble alone: a
- * scenario elsewhere asking "did I say this" must never be handed a plugin's
- * words, and this is the step that keeps that true.
- */
 Then("that sentence is not one of my own messages", async function (this: OlaiWorld) {
   assert.strictEqual(
     await rungRow(this).locator(CHAT_MINE).count(),
@@ -346,14 +199,6 @@ Then("that sentence is not one of my own messages", async function (this: OlaiWo
   );
 });
 
-/**
- * AND IT OFFERS NO WAY TO SEND IT AGAIN.
- *
- * A doorbell body is a derivation of how something STOOD when it rang. Sending
- * it again later re-sends a claim that has stopped being true — and the thing
- * that derived it rings again by itself, so there is nothing a person gains by
- * the button and something they can be misled by.
- */
 Then("that sentence offers no way to send it again", async function (this: OlaiWorld) {
   assert.strictEqual(
     await rungRow(this).locator(CHAT_RESEND).count(),
@@ -363,15 +208,6 @@ Then("that sentence offers no way to send it again", async function (this: OlaiW
   );
 });
 
-/**
- * THE COMPOSER NEVER MOVED.
- *
- * The delivery rides the same wire a send rides and deliberately not the
- * composer path — so a half-typed thought is still exactly a half-typed thought
- * after a plugin has spoken into the same conversation. HELD rather than waited
- * for: the claim is that nothing happened to these words, and a poll that
- * stopped at the first true reading would pass before the delivery landed.
- */
 Then(
   "the chat input still holds {string}",
   async function (this: OlaiWorld, text: string) {
@@ -388,10 +224,6 @@ Then(
 );
 
 Then("this conversation's {string} missing-file warning is queued", async function (this: OlaiWorld, plugin: string) {
-  // The ROW the picker sits in, found by what it holds rather than by counting
-  // steps up the tree: the trigger wears the app's own tip now, whose wrapper
-  // is a `display: contents` span, so a bare `..` lands on the wrapper instead
-  // of the row and the warning beside it is out of reach.
   const row = (await thePicker(this, plugin))
     .locator('xpath=ancestor::*[.//*[@data-testid="chat-wake-fault"]][1]');
   await this.waitUntil(async () =>

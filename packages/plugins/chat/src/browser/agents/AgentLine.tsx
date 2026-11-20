@@ -27,22 +27,12 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>
-    {/* WHO, after the agent's name — and only for an agent that says
-        (`../chat/identityChip.ts` has both rules). Pressable exactly where the
-        handshake offered a way in AND no sign-in row is already on screen:
-        `signIn(null)` replaces that row with a chooser, which would hide a
-        terminal login quietly waiting for its code. `/login` has the same hole
-        and the chip is one click from the row, so the chip does not add one. */}
     <Show when={state().identity}>{identity => <Identity
       chat={props.chat}
       identity={identity}
       pressable={(agentIn(state())?.methods.length ?? 0) > 0 && state().signIn === null}
     />}</Show>
     <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || doing()?.kind === "starting"}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} /></Show>
-    {/* WHAT THE NUMBER IS. The percentage alone names nothing, so the words
-        ride an sr-only companion AFTER the chip — outside it, because a
-        scenario reads the chip's own text — and the tip is the pointer's
-        half of the same sentence. */}
     <Show when={usageOf(state().usage)}>{usage => <Tip text="Context used" say>
       <span data-testid={TESTID.chatUsage}>{usage()}</span>
     </Tip>}</Show>
@@ -51,21 +41,6 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     </Show>
     <span class="flex-1" />
     <AgentAbove node={props.node} />
-    {/* THIS CONVERSATION, BESIDE WHAT IT IS ABOUT — offered on every line
-        drawn where the item itself is (a fold, a node's page, the line at the
-        top of a note), and never on the chat's own page, whose head carries
-        the opposite verb (`./ChatPage.tsx`'s pinned line, which is where the
-        way back has to be: this line scrolls away with the conversation).
-        `own` is how that page says the line is its own.
-
-        DRAWN ONLY WHERE THERE CAN BE A PANE BESIDE THIS ONE. Below `md` the
-        panes are a strip of tabs, one at a time, so "beside" names nothing a
-        reader would see — and this line is drawn inside a fold on the
-        narrowest screen there is, where one more wrapped row of verbs pushes
-        the rows under it off the bottom of the window (a phone is 844 tall,
-        and the row under an open fold sat at 845). The one-line *Shown
-        beside* is NOT gated: wherever a conversation has gone, the way back
-        to it is drawn. */}
     <Show when={!props.own}>
       <ChatBeside item={itemOf(props.node)} class={`hidden md:inline-flex ${LINE_VERB}`} />
     </Show>

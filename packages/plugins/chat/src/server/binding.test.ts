@@ -1,23 +1,4 @@
 import { UsageFailure } from "@olai/format"
-/**
- * THE TWO GESTURES THAT BIND A NODE TO A CONVERSATION — the orders, and the one
- * refusal.
- *
- * ## Where these came from and what changed
- *
- * They were `@olai/server`'s `runtime.test.ts`, driven through a bound surface
- * against a real store: the case pressed `surface/chat/assignSession` and then
- * read the `.olai` file off the disk. Both halves of that were the composition
- * root's while the composition root composed the gesture — and it does not, any
- * more. What survives is every claim, held one layer in: the ORDER, the
- * lineage, and the refusal.
- *
- * The property write is a door now ({@link ../../../plugin-api/src/services.ts}'s
- * `Ops.prop`), so the durable half is a recorded call rather than a file read.
- * That is not a weaker claim about ordering — the cases below assert what was
- * written AND that nothing was written where the gesture refused, which is what
- * the disk read was there to say.
- */
 
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -27,18 +8,8 @@ import { OPENS_TYPE, SESSION_TYPE } from "../kinds.ts"
 import type { Chat } from "../scoped.ts"
 import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, retie, setOpens, setSleeping, startAgentSession } from "./binding.ts"
 
-/** Every member no gesture here reaches. A DEATH rather than a refusal: a case
- *  that called one would be asking about something this module does not own,
- *  and a refusal it could catch would let it. */
 const elsewhere = Effect.die(new Error("this stub chat opens conversations and nothing else"))
 
-/**
- * A CHAT THAT DOES NOTHING BUT OPEN CONVERSATIONS.
- *
- * `opens` is the ids `newSession` and `startAgentSession` walk through, in
- * order — which is how a real agent answers: the verb hands back nothing and the
- * STATE is where every reader learns which conversation appeared.
- */
 const chatOpening = (opens: ReadonlyArray<string>): {
   readonly chat: Chat
   readonly replaced: ReadonlyArray<
@@ -89,9 +60,6 @@ const chatOpening = (opens: ReadonlyArray<string>): {
   return { chat, replaced }
 }
 
-/** The readings a binding reaches, as recorders: what the vault says this item
- *  is tied to, what the WRITE landed, what the REMOVE took off, and — for a
- *  NOTE — the text the gate holds and the documents that were written. */
 const binding = (
   bound: { readonly engine: string; readonly session: string | null; readonly title: string } | null,
   notes: Record<string, string> = {},
@@ -111,9 +79,6 @@ const binding = (
     marked,
     docs,
     boundAt: () => bound,
-    // The key the roster would resolve on a vault that has declared nothing —
-    // the word this kind claims (`../kinds.ts`). It is spent by the refusal
-    // below, by the note writer, and by nothing else.
     key: () => SESSION_TYPE,
     opensKey: () => OPENS_TYPE,
     exclusive: work => work,
@@ -129,16 +94,6 @@ const binding = (
   }
 }
 
-/**
- * A FRESH SESSION records what it replaced, so the conversation it replaced is
- * not orphaned.
- *
- * Nothing else records it: no `/clear` happened, so no adapter has anything to
- * say about this supersession (`../succession.ts`). Without the mark the node
- * agent's own previous conversation comes back as a chat no node claims,
- * offered back to the node that had just left it — which is the one node that
- * would refuse it.
- */
 test("a fresh session on a bound node re-points the property and records what it replaced", async () => {
   const it = chatOpening(["fake-session-2"])
   const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
@@ -149,8 +104,6 @@ test("a fresh session on a bound node re-points the property and records what it
   ])
 })
 
-/** ... and a node that had no session replaced nothing, which is every press of
- *  the `•••` verb this gesture was written for. */
 test("starting a session on an unbound node records no supersession", async () => {
   const it = chatOpening(["fake-session-1"])
   const at = binding({ engine: "claude", session: null, title: "a" })
@@ -159,9 +112,6 @@ test("starting a session on an unbound node records no supersession", async () =
   expect(it.replaced).toEqual([])
 })
 
-/** ... and neither does an agent that answers with the conversation the node was
- *  already in, which is what the scripted agent does on every open: a session
- *  must not be recorded as having superseded itself. */
 test("a fresh session that comes back as the same conversation supersedes nothing", async () => {
   const it = chatOpening(["fake-session-1"])
   const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
@@ -169,10 +119,6 @@ test("a fresh session that comes back as the same conversation supersedes nothin
   expect(it.replaced).toEqual([])
 })
 
-/** THE CROSS-ENGINE GESTURE: fresh start on a claude-bound node, picking
- *  codex. The property re-points to the CODEC session, and the supersession
- *  written down names the CODEC pair — the chain is walked across engines, so
- *  the link has to say whose before it can say which. */
 test("a fresh session on another engine re-points the property and records the codex pair", async () => {
   const it = chatOpening(["fake-session-2"])
   const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
@@ -183,11 +129,6 @@ test("a fresh session on another engine re-points the property and records the c
   ])
 })
 
-/** AN OPEN THAT LANDED ON NO CONVERSATION WRITES NOTHING, which is the arm the
- *  order exists for: the property is written after `newSession` has resolved, so
- *  an agent that failed to start leaves no key naming a session nobody opened —
- *  and nothing at all on an item that had no tie, so the words a person typed
- *  stay in the box they were typed in. */
 test("an open that produced no conversation refuses, and writes no property", async () => {
   const it = chatOpening([])
   const at = binding(null)
@@ -198,12 +139,6 @@ test("an open that produced no conversation refuses, and writes no property", as
   expect(at.wrote).toEqual([])
 })
 
-// ── closing a node agent ───────────────────────────────────────────────
-
-/** CLOSING TAKES THE BINDING PROPERTY OFF AND NOTHING ELSE — no fresh
- *  session, so no supersession, and no write. The conversation the node was
- *  in keeps its transcript in the engine's store, tied to nothing; the seat
- *  closes by the same reading that opened it. */
 test("closing a bound node takes the binding property off and supersedes nothing", async () => {
   const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
   await Effect.runPromise(closeAgent(at, { node: "a" }))
@@ -211,9 +146,6 @@ test("closing a bound node takes the binding property off and supersedes nothing
   expect(at.wrote).toEqual([])
 })
 
-/** ... AND A NODE WITH NO BINDING REFUSES, because the removal of a key that
- *  is not there is the one gesture a close must not invent: nothing is on the
- *  node, so nothing is written and nothing is said to have happened. */
 test("closing an unbound node refuses, and nothing is written", async () => {
   const at = binding(null)
   const said = await Effect.runPromise(Effect.flip(closeAgent(at, { node: "a" })))
@@ -250,11 +182,6 @@ for (const changed of [false, true]) {
   })
 }
 
-/**
- * THE SLEEPING MARK, in the two directions a person presses it: `on` written,
- * and "off" as the key REMOVED — absent and `off` are one answer to the reading,
- * so the drawer keeps one spelling of no.
- */
 test("the sleeping mark is written as `on`, and taken off by removing the key", async () => {
   const at = binding({ engine: "claude", session: "s1", title: "a" })
   await Effect.runPromise(setSleeping(at, { node: "a", on: true }))
@@ -263,16 +190,12 @@ test("the sleeping mark is written as `on`, and taken off by removing the key", 
   expect(at.wrote).toEqual([])
 })
 
-/** ...AND NOTHING IS MARKED WHERE THERE IS NO CHAT TO MARK: a mark on a row with
- *  no conversation would be a promise about something that is not there. */
 test("marking a node that is not an agent refuses, and writes nothing", async () => {
   const at = binding(null)
   const said = await Effect.runPromise(Effect.flip(setSleeping(at, { node: "a", on: true })))
   expect(said.reason).toContain("no node agent")
   expect(at.marked).toEqual([])
 })
-
-// ── a note's tie, which is its front matter ────────────────────────────
 
 test("closing a NOTE's chat takes both of its keys off and leaves the prose alone", async () => {
   const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, {
@@ -283,7 +206,6 @@ test("closing a NOTE's chat takes both of its keys off and leaves the prose alon
   expect(at.docs).toHaveLength(1)
   expect(at.docs[0]?.path).toBe("notes/plan.md")
   expect(at.docs[0]?.text).toBe("---\ntopic: kitchen\n---\n\n# Plan\n")
-  // The write is CONDITIONAL on the text it was derived from.
   expect(at.docs[0]?.was).toContain("chat-agent-session: claude:sess-1")
 })
 
@@ -296,8 +218,6 @@ test("a note the directory no longer holds refuses in words rather than writing"
 
 test("a note whose front matter already says what the write would say is not written at all", async () => {
   const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, { "notes/plan.md": "# Plan\n" })
-  // There is nothing to remove, so composing the text answers the text that
-  // is already there and no document write is made.
   await Effect.runPromise(closeAgent(at, { node: "/notes/plan.md" }))
   expect(at.docs).toEqual([])
 })
@@ -310,8 +230,6 @@ test("sleep is never offered on a note, whatever its tie says", async () => {
   expect(at.docs).toEqual([])
 })
 
-// ── and where that note's chat opens, beside the tie ───────────────────
-
 test("the switch writes `beside` into the front matter and leaves everything else alone", async () => {
   const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, {
     "notes/plan.md": "---\nchat-agent-session: claude:sess-1\ntopic: kitchen\n---\n\n# Plan\n",
@@ -321,8 +239,6 @@ test("the switch writes `beside` into the front matter and leaves everything els
   expect(at.docs[0]?.text).toBe("---\nchat-agent-session: claude:sess-1\ntopic: kitchen\nchat-opens: beside\n---\n\n# Plan\n")
 })
 
-/** ...AND `alone` IS WRITTEN OUT, rather than the key being removed: a reader
- *  of the file can then tell an answer somebody gave from one nobody has. */
 test("the switch back writes `alone` in place", async () => {
   const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, {
     "notes/plan.md": "---\nchat-agent-session: claude:sess-1\nchat-opens: beside\n---\n\n# Plan\n",
@@ -339,8 +255,6 @@ test("a note that already says it is not written again", async () => {
   expect(at.docs).toEqual([])
 })
 
-/** A SWITCH IS ABOUT A CHAT, so a note with none is refused in words and its
- *  file is left exactly as it was. */
 test("a note with no chat on it refuses, and writes nothing", async () => {
   const at = binding(null, { "notes/plan.md": "# Plan\n" })
   const said = await Effect.runPromise(Effect.flip(setOpens(at, { path: "notes/plan.md", beside: true })))
@@ -348,10 +262,6 @@ test("a note with no chat on it refuses, and writes nothing", async () => {
   expect(at.docs).toEqual([])
 })
 
-// ── and the tie, written back onto a note that stopped naming it ───────
-
-/** THE ROSTER'S TWO READINGS, as a gesture is handed them: what can be seated,
- *  and which item already names a conversation. */
 const roster = (seatable: boolean, owner: string | null = null) => ({
   seatable: () => seatable,
   claimedBy: () => owner,
@@ -362,7 +272,6 @@ test("a retie writes the conversation back into the note's front matter", async 
   await Effect.runPromise(retie(at, roster(true), { node: "/notes/plan.md", agent: "claude", session: "sess-1" }))
   expect(at.docs).toHaveLength(1)
   expect(at.docs[0]?.text).toBe("---\ntopic: kitchen\nchat-agent-session: claude:sess-1\n---\n\n# Plan\n")
-  // THE SWITCH IS NOT PART OF IT: restoring a tie restores the tie.
   expect(at.docs[0]?.text).not.toContain("chat-opens")
 })
 

@@ -1,31 +1,5 @@
 import { useWaitingForms } from "./waiting-forms.ts"
 import { Key } from "@solid-primitives/keyed"
-/**
- * A question the agent asked, as a form in the conversation.
- *
- * It is a ROW rather than a modal, and that is the whole design. A modal would
- * take the screen away from the thing the question is about — the outline, the
- * answer being written above it — and would leave nothing behind once it was
- * dismissed. This stays: after it is answered the same form is still there,
- * disabled, with what was chosen marked on it, so a person scrolling back sees
- * what was asked and what they said, and so does the next person to read the
- * conversation.
- *
- * Two things are drawn that the payload does not spell out:
- *
- *   - **an "other" box lives INSIDE the question it belongs to.** The agent
- *     sends it as a field of its own, marked with the question it is paired
- *     with; drawn as a seventh field it would read as a second question. So
- *     fields that name a partner are folded under it, and the partner's own
- *     block is the one place both appear.
- *   - **dismiss is a REAL answer.** It tells the agent a person declined, which
- *     is a thing it is entitled to know and act on. What it must never become
- *     is a fabricated choice — so it is a button of its own, it says what it
- *     does, and the row afterwards says which of the two happened.
- *
- * Nothing here is optimistic. Pressing submit calls a verb; the row changes
- * when the server says it did, exactly like every other entry in this panel.
- */
 
 import type { AskEntry } from "olai-plugin-chat/wire"
 import type { AskField } from "@kolu/acp/wire"
@@ -37,9 +11,6 @@ import { LinkCard } from "./LinkCard.tsx"
 import { useConversationUI } from "./ui.tsx"
 import type { Chat } from "./state.ts"
 
-/** What the row says once it has stopped waiting. Three outcomes, three
- *  sentences — a dismissal and a withdrawal are different things that happened
- *  and a reader coming back to the row deserves to know which. */
 const SAID: Record<string, string> = {
   answered: "Answered",
   declined: "You dismissed this",
@@ -54,40 +25,21 @@ export function AskForm(props: {
   const forms = useWaitingForms()
   const ask = () => props.entry.ask
   const waiting = () => ask().outcome === null
-  /** WHERE THIS QUESTION SENDS THEM, for the one elicitation that asks for no
-   *  fields at all (ACP's URL mode): the row draws a card instead of a form,
-   *  and the only move a person has is to dismiss it. */
   const link = () => ask().link
 
-  /** The fields to draw as blocks: everything that is not somebody else's
-   *  "other" box. */
   const blocks = createMemo<ReadonlyArray<AskField>>(() =>
     ask().fields.filter((field) => field.attachedTo === null)
   )
 
-  /** The free-text companion of a question, if it sent one. */
   const companion = (field: AskField): AskField | undefined =>
     ask().fields.find((each) => each.attachedTo === field.key)
 
-  /**
-   * What a field holds right now: the draft while the question is live, and
-   * what was actually sent once it is not.
-   *
-   * The same accessor for both is what makes one component draw a form and its
-   * own record — and it is why the record is TRUE rather than a repeat of
-   * whatever this tab happened to have typed: after the answer, the row's own
-   * outcome is the only source.
-   */
   const values = (key: string): ReadonlyArray<string> => {
     const outcome = ask().outcome
     if (outcome === null) return draftOf(props.entry.id, key)
     return outcome.answers.find((answer) => answer.key === key)?.values ?? []
   }
 
-  /** A verb is on its way. Two presses of `answer` would send two answers, and
-   *  the second one arrives after the first has settled the question — so it
-   *  comes back as "that is not waiting any more", which is a refusal about
-   *  somebody's double click rather than about anything they did wrong. */
   const [sending, setSending] = createSignal(false)
 
   const settled = () => setSending(false)
@@ -105,20 +57,6 @@ export function AskForm(props: {
     props.chat.decline(props.entry.id, settled)
   }
 
-  /**
-   * The draft is let go when the ROW says the question is over — never when the
-   * button was pressed.
-   *
-   * The server refuses an answer that does not fit the question it was for (a
-   * number field given a word, a required field left empty) and DELIBERATELY
-   * leaves the question waiting, so that nothing is recorded that the agent was
-   * never sent. Forgetting the draft on the click undid exactly that: the
-   * refusal appeared at the foot of the transcript and the form it was about
-   * went blank, so the only way to act on it was to type the whole thing again.
-   *
-   * Reading the row rather than the reply also covers the endings that are
-   * nobody's click — the agent withdrawing it, another tab answering it.
-   */
   createEffect(() => {
     if (ask().outcome != null) forgetDraft(props.entry.id)
   })
@@ -136,26 +74,15 @@ export function AskForm(props: {
         when={link()}
         fallback={
           <>
-            {/* The agent's own words. Quoted rather than rendered, like a user
-                message: a question is a sentence somebody has to read exactly,
-                and a `#` in it is a `#`. */}
             <p class="m-0 whitespace-pre-wrap text-body">{props.entry.text}</p>
           </>
         }
       >
         {(where) => (
           <LinkCard
-            // The MESSAGE is the row's own text, which is where the elicitation
-            // put it — a device-code sign-in carries the code a person has to
-            // type into the page, so it is the one thing here that must be read
-            // exactly.
             message={props.entry.text}
             url={where().url}
             host={where().host}
-            // THE AGENT'S OWN WORD that the page is finished with, which for
-            // one of these is the whole of what anybody is waiting on. A person
-            // pressing dismiss declines it, and the row then says so
-            // ({@link SAID}).
             done={!waiting()}
           />
         )}
@@ -188,10 +115,6 @@ export function AskForm(props: {
                 />
               </div>
 
-              {/* Its own box, under the options it is an alternative to.
-                  The agent reads a typed answer as taking PRECEDENCE over
-                  whichever chip is pressed, so the two live together and
-                  neither is hidden behind the other. */}
               <Show when={companion(field())}>
                 {(other) => (
                   <div class="mt-1.5">
@@ -221,9 +144,6 @@ export function AskForm(props: {
         }
       >
         <div class="mt-2 flex items-center gap-2">
-          {/* NO "ANSWER" ON A QUESTION WITH NO FIELDS: a place to go is
-              finished by the agent, and a button here would be a person
-              claiming they had done something only the other end can see. */}
           <Show when={link() === null}>
             <button
               type="button"
@@ -235,9 +155,6 @@ export function AskForm(props: {
               Answer
             </button>
           </Show>
-          {/* Not `../pill.ts`'s quiet pill: this row's height is set by
-              the accent "answer" beside it, so dismiss keeps h-8/px-3 —
-              the shared px-2/py-1 would shrink it out of the pair. */}
           <button
             type="button"
             class="flex h-8 items-center rounded-control border border-rule px-3 text-label text-muted hover:text-ink disabled:opacity-60"

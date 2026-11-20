@@ -1,88 +1,10 @@
 import { createWaitingForms, WaitingFormsProvider } from "./waiting-forms.ts"
 /**
- * The conversation, drawn.
- *
- * One `<For>` over the row KEYS, with each row's value read lazily inside it —
- * the framework's own shape (`@kolu/surface`'s fleet-top example), and
- * `state.ts` says why it is the one to follow.
- *
- * `<Show>` is deliberately UNKEYED: it re-renders when the value appears or
- * goes away, not when it changes, so the row component stays mounted across
- * every update and only the text inside it moves.
- *
- * THIS COLUMN IS THE MAIN AGENT'S, and that is the one thing about membership
- * this file no longer decides — because it can no longer be decided per row.
- * A tool call a spawned agent made is filed under the agent that made it
- * ({@link ./lanes.ts}'s `filedUnder`) and is drawn where that agent is drawn,
- * which is a shelf above this pane ({@link ./Preview.tsx}). What reaches
- * `props.chat.rows()` is already the column: the fold that puts the
- * conversation in order is where the two lists are cut ({@link ./order.ts}),
- * once, because a `.filter()` here would be a fresh array on every token an
- * agent streams.
- *
- * WHAT IS STILL DRAWN IN A LANE HERE is a QUESTION a subagent asked. It is not
- * that agent's chatter — it is a question to the reader, it blocks the turn,
- * and a form behind a click is a turn that hangs forever — so it stays in the
- * column with the rail and the name that say who is asking. Whether a lane has
- * to NAME itself is still {@link ./lanes.ts}'s rule; this file is still where
- * its only reader lives; and the lane is still a WRAPPER around whatever the
- * row turns out to be ({@link ./Row.tsx}), which is what lets the shelf draw
- * the very same rows behind the very same rail.
- *
- * A LANE ALSO OPENS WITH NOTHING IN IT, and that is the same drawing decided
- * from the other end. Every rail here is hung off the SPAWNING row rather than
- * off work a subagent has already done, so an agent that has been sent out and
- * has not called anything yet still has a rail, a name and a dot — where before
- * it had nothing but a pending row that read as an ordinary tool being slow.
- * The row that SPAWNED an agent carries what is known about it
- * ({@link ./spawn.ts}); under that, once there is anything to read, is that
- * agent's DOOR ({@link ./door.ts}) — which is the half the fan-out change owes,
- * since the record it opens is no longer under the rail where it used to be.
- *
- * WHETHER A TURN IS IN FLIGHT is no longer decided here, and the move is what
- * this feature forced. The shelf draws tool rows too; every tool row asks for
- * the elapsed reading in its own body; and that lookup THROWS outside the
- * provider. So the provider went up, to the panel that mounts the strip, the
- * shelf and this pane ({@link ../agents/Fold.tsx}) — which is also what
- * {@link ./elapsing.tsx} always claimed it was: ONE clock for the panel. Two
- * providers would be two timers and two subscriptions to a chat cell that moves
- * several times a turn.
- *
- * FOLLOWING THE BOTTOM is the other half of this file, and it is two questions
- * that were being answered as one:
- *
- *   - **is the reader following?** A decision they make by scrolling, so it is
- *     recorded when they scroll and at no other time. It used to be re-derived
- *     from the scroll position AFTER new content had already been added — by
- *     which point a paragraph taller than the slack had pushed the bottom out
- *     of reach, the answer came back "not following", and the panel stopped
- *     following at exactly the moment there was something to follow.
- *   - **has anything arrived?** A `ResizeObserver` on the content, because the
- *     thing that grows is not the thing the row list reports. Rows are KEYS,
- *     so the list is unchanged while an answer streams into a row that already
- *     exists — an effect watching it fires once for the paragraph and never
- *     again for the four hundred tokens that fill it.
- *
- * Leaving a reader alone when they have scrolled away is the part worth
- * keeping: being yanked to the newest token while reading what the agent did
- * two turns ago is worse than a panel that never scrolled at all.
- *
- * OPENING A CONVERSATION is not that question. The session id is the
- * conversation's identity; when it changes (or first appears) the reader has
- * just opened this chat, and the newest line is where they start. following is
- * reset so a scroll-away in the previous conversation cannot leave this one
- * stuck at the top. The jump is instant — assigning `scrollTop`, no animation
- * — because an open is a place, not a motion.
- *
- * The jump is not a reader scroll, but the event it schedules cannot be
- * ignored with a flag around the assignment: Chromium (149, and the suite's
- * Playwright) dispatches `scroll` asynchronously, at a rendering update, so
- * a boolean held across the write is already false when the handler runs.
- * What we remember instead is the `scrollTop` we assigned. An event that
- * lands on that value is our jump — or growth that did not move the top —
- * and if a follow is still owed and we are no longer at the bottom, the
- * handler re-jumps rather than stamping following false. An event that
- * lands somewhere else is the reader.
+ * The jump to the bottom is not a reader scroll, but the event it schedules
+ * cannot be ignored with a flag around the assignment: Chromium (149, and the
+ * suite's Playwright) dispatches `scroll` asynchronously, at a rendering
+ * update, so a boolean held across the write is already false when the handler
+ * runs. What is remembered instead is the `scrollTop` that was assigned.
  */
 
 import { agentIn } from "olai-plugin-chat/wire"
@@ -105,10 +27,6 @@ import type { Faced } from "./Speaker.tsx"
 import { sentOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
-/** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
- *  flag still on. The one thing a press of the attention banner is looking
- *  for, spelled off the panel's own declared handles rather than off a class. */
-
 export function Transcript(props: { readonly chat: Chat; readonly page?: boolean }) {
   const [revealing, setRevealing] = props.chat.ui.reveal
   const revealed = () => setRevealing(false)
@@ -120,28 +38,15 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   let content: HTMLDivElement | undefined
   let outer: HTMLElement | undefined
   const scrollPane = () => props.page ? outer : pane
-  /** Should new text pull the view down with it? True until the reader scrolls
-   *  away from the bottom, and true again the moment they come back. */
   let following = true
   let restoringVisibility = true
-  /** The `scrollTop` we last assigned. A later `scroll` event that still sits
-   *  here is our jump, not the reader — the event is dispatched after the
-   *  assignment returns, so a boolean around the write cannot see it. */
   let assignedTop = Number.NaN
-  /** WHERE THE ROWS BEGIN in the host's content, and where its scroll was, as
-   *  of the last scroll we handled or made — so a `scroll` event can be told
-   *  from a hand. The browser's scroll anchoring keeps the row under the
-   *  reader's eye still while something ABOVE it grows or shrinks, and the way
-   *  it does that is by moving `scrollTop` by exactly that much: forward when
-   *  the page's head grew, BACK when it shrank. A follower who is six pixels
-   *  short of the bottom because the head lost six pixels has not scrolled
-   *  away, and reading that move as a reader's released following for the
-   *  rest of the turn (`retained_chat.feature`, a hidden conversation
-   *  resuming). The rows' own start is what moves when the head does — and
-   *  only then: text landing in the rows and the pinned foot growing under
-   *  them leave it where it was — so a scroll that equals its move is
-   *  anchoring, and any other is a hand. A fold's host is the rows' own pane,
-   *  whose start is always nought, so nothing changes there. */
+  /** Where the rows begin in the host's content, and where its scroll was, as
+   *  of the last scroll handled or made. The browser's scroll anchoring keeps
+   *  the row under the reader's eye still while something ABOVE it grows or
+   *  shrinks, by moving `scrollTop` by exactly that much — forward when the
+   *  head grew, back when it shrank — so a scroll that equals the rows' own
+   *  move is anchoring and any other is a hand. */
   let seenStart = Number.NaN
   let seenTop = Number.NaN
   const startOf = (host: HTMLElement): number => {
@@ -185,9 +90,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     const anchored = moved.above !== 0 && Math.abs(moved.top - moved.above) < 2
     if (Number.isFinite(assignedTop) && (Math.abs(host.scrollTop - assignedTop) < 1
       || (following && (host.scrollTop > assignedTop || anchored)))) {
-      // TO THE FOOT EXACTLY, not merely "near enough": a follower left within
-      // `NEAR` of the bottom by an anchoring move has the last line of the
-      // answer under the pinned composer, where a press cannot reach it.
       if (following && host.scrollTop !== assignedTop) jump()
       return
     }
@@ -234,18 +136,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       if (following) jump()
     })
     grown.observe(content)
-    // ... AND THE PANE ITSELF, which is the same fact from the other end and was
-    // missing. Something above the transcript can take room away from it —
-    // a shelf opening onto a subagent's calls ({@link ./Preview.tsx}), the
-    // strip wrapping to a third line as a fan-out grows, the phone's sheet
-    // moving between its snaps — and a SHORTER pane leaves `scrollTop` exactly
-    // where it was while the bottom moves away from it. No scroll event (the
-    // top did not move, and shrinking a scroller only raises its maximum) and
-    // no content event (the content's own box is unchanged), so a reader who
-    // was at the bottom silently is not any more, with their own last message
-    // under the fold. The rule is the one this file already keeps — a follow
-    // that is owed is honoured whenever the geometry moves — and it was only
-    // ever watching half the geometry.
     grown.observe(pane)
     if (props.page) {
       if (outer !== undefined) grown.observe(outer)
@@ -256,10 +146,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     onCleanup(() => grown?.disconnect())
   })
 
-  // Opening a conversation is not "new text arrived while reading". The
-  // session id is the conversation's identity; when it changes, the newest
-  // line is where the reader starts — even if they had scrolled away in the
-  // conversation they just left.
   createEffect(
     on(
       () => props.chat.state().session?.id,
@@ -270,43 +156,10 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     ),
   )
 
-  /**
-   * SOMEBODY PRESSED THE BANNER, and this is the half of that press the
-   * service worker cannot do: it focuses the window and `./attention/reveal.ts`
-   * opens the panel, and what is left is putting the question on screen.
-   *
-   * It cannot be done at the press. The panel was shut, so opening it is what
-   * MOUNTS this component, and the rows land later still on a subscription
-   * that has only just opened — so the request outlives the press and is taken
-   * up here, when there is a conversation to take it up with. The effect reads
-   * the row list, which is what wakes it again as the transcript arrives.
-   *
-   * A conversation with no waiting form in it is an ordinary outcome, not an
-   * error: the question was answered in another tab between the banner and the
-   * press. The foot of the conversation is the answer to that, which is where
-   * an open lands anyway.
-   *
-   * BUT NOT YET IS NOT THE SAME AS THERE IS NONE, and the two look identical
-   * from here: rows are KEYS, and a key is in the list before its value is, so
-   * a form that has not been drawn yet and a form that was answered elsewhere
-   * both querySelect to nothing. Spent on the first, the press becomes a jump
-   * to the foot of a conversation whose question is further up. So the request
-   * only lets go once the form is FOUND or the conversation has arrived whole
-   * ({@link ./attention/reveal.ts}'s `wholeYet`) — and reading the values is
-   * what wakes this again as they land.
-   *
-   * Cleared once one of those two is true, so a request nobody could answer
-   * cannot sit there and hijack a row that lands ten minutes later. Following
-   * is restored either way — a press is a person arriving at the conversation,
-   * like opening it.
-   */
   const waitingForms = createWaitingForms()
   createEffect(() => {
     if (!shown() || !revealing()) return
     const waiting = waitingForms.first() ?? null
-    // Nothing to show and the conversation is still arriving: stay asked. The
-    // `wholeYet` read subscribes this to the first row it is waiting on, so
-    // that row landing is what brings it back.
     if (waiting === null && !wholeYet(props.chat.rows(), (key) => props.chat.entry(key)())) {
       return
     }
@@ -316,78 +169,13 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     revealed()
   })
 
-  /**
-   * What is drawn above what, for the whole list at once.
-   *
-   * A lane needs the row above it and a row cannot see one, so this is the
-   * list answering on its behalf — ONCE, rather than each row reaching back
-   * into the list by position. That is the cheaper shape as well as the
-   * honester one: `<For>` only keeps a signal per row for the index when the
-   * mapper asks for one, and every conversation would pay for that whether or
-   * not an agent was ever spawned. This walks on exactly the ticks the
-   * ORDER moves on — a row arriving or leaving — and on none of the frames
-   * that merely grow a row, which is a fact about {@link ./order.ts}'s fold
-   * rather than a hope about this walk: the list it hands back on a frame that
-   * moved nothing is the very array it handed back last time, so nothing here
-   * wakes.
-   *
-   * And when it does walk, it wakes only the rows whose neighbour moved
-   * ({@link ./previous.ts}) — one per appended row, not every row on screen.
-   */
   const previousOf = createPrevious(() => props.chat.rows())
 
-  /**
-   * What the transcript calls the row under a key — which for the one lane this
-   * column still draws is the AGENT a question came from.
-   *
-   * NOT THE ROW'S TITLE, and this is the correction the live run earned twice.
-   * A tool row's title is the name the call was announced with and it is pinned
-   * at the first frame that carries one — deliberately, so a call cannot rename
-   * itself while somebody is reading it — and under the adapter olai ships with
-   * that name is the TOOL's: four agents dispatched in one message are four
-   * rows reading `Task`. The strip, the shelf's head and the door were taught
-   * to say what the agent was SENT to do; this was not, and it is the surface
-   * where the cost is highest.
-   *
-   * Because this is the label over a FORM. It is the one row in the panel where
-   * being wrong about who is speaking changes what a person presses — and since
-   * that agent's calls are no longer drawn under it, the name is not merely the
-   * best evidence of whose question this is, it is the ONLY evidence. Two
-   * subagents asking at once over different permissions produced two forms
-   * reading *↳ Task*.
-   *
-   * Through {@link ./spawn.ts}'s `sentOf`, which is the one rule
-   * ({@link @olai/surface}'s `sentToDo`) every other surface asks — so the name
-   * on a form, the name on the strip and the name in the shelf's head are one
-   * answer rather than four that happen to agree. It falls back to the row's
-   * own title, which is what a spawn that described itself with nothing has to
-   * be called, and is exactly what a reader sees on that row.
-   *
-   * One function for the whole list rather than one built per row per frame.
-   */
   const titleOf = (key: string): string | undefined => {
     const frame = props.chat.entry(key)()
     return sentOf(frame) ?? frame?.text
   }
 
-  /**
-   * WHICH AGENT this conversation is with — asked ONCE for the list, so that the
-   * faces down it ({@link ./Speaker.tsx}) can be told without every faced row
-   * subscribing to the chat cell for itself.
-   *
-   * That cell moves several times a turn, and the agent bound to a conversation
-   * moves once, at the start of it. A read inside each row's own memo would put
-   * every stretch of the transcript on the cell's clock for an answer that had
-   * not changed — which is the shape {@link ./elapsing.tsx} and the row list's
-   * own folds both exist to refuse.
-   *
-   * ITS OWN EQUALITY, because `agentIn` reads a row out of the roster and a
-   * fresh state is free to hand back a fresh object saying the same thing: a
-   * memo over one stops nothing by default, and what is downstream of this is
-   * an object per faced row and the attributes under it. `null` and `undefined`
-   * are folded into one absence here, since a face has nothing to say about
-   * which of them it is.
-   */
   const agent = createMemo(
     () => agentIn(props.chat.state()) ?? undefined,
     undefined,
@@ -397,15 +185,11 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   return (
     <WaitingFormsProvider value={waitingForms}>
     <div
-      // `min-h-0` is what makes THIS the scroller. `flex-1` with the default
-      // `min-height: auto` will not shrink below the content, so a long turn
-      // grows the pane instead of overflowing it — and the parent
-      // (`./DropTarget.tsx`) becomes the scrollport, carrying the composer
-      // away with the rows. `overscroll-contain` stops a wheel at the end of
-      // this pane from moving the page beside it.
-      // A FOLD caps the window, because a conversation under a row must not
-      // push the rest of the outline off the screen; a chat PAGE is the pane,
-      // so its transcript takes whatever is left under the bar.
+      // `min-h-0` is what makes THIS the scroller: `flex-1` with the default
+      // `min-height: auto` will not shrink below the content, so the parent
+      // (`./DropTarget.tsx`) would become the scrollport instead.
+      // `overscroll-contain` stops a wheel at the end of this pane from moving
+      // the page beside it.
       style={{ "max-height": props.page ? undefined : "24rem" }}
       class="min-w-0 px-3 py-2 text-ink"
       classList={{
@@ -417,16 +201,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       ref={pane}
       onScroll={props.page ? undefined : scrolled}
     >
-      {/* A wrapper with no styling of its own, purely so there is something
-          whose HEIGHT can be observed: the pane's own size never changes, and
-          it is the content inside it that grows. */}
       <div class="min-w-0" ref={content}>
-        {/* THE EARLIER MESSAGES, pulled by hand: the rows below the window this
-            tab was handed on subscribe ({@link ./state.ts}). One press fetches
-            the page immediately above what is on screen, so the conversation
-            grows backwards with no gaps; it is drawn only while the server says
-            something is still older, and it stops being pressable while a page
-            is in flight. Above the rows because that is where older is. */}
         <Show when={props.chat.earlier() > 0}>
           <div class="flex justify-center py-1">
             <button
@@ -446,19 +221,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
         <For each={props.chat.rows()}>
           {(key) => {
             const entry = props.chat.entry(key)
-            /** The row drawn directly ABOVE this one, and the only thing a
-             *  lane needs that a row cannot see for itself — which is the
-             *  whole reason the lane is decided out here rather than inside
-             *  `Entry`.
-             *
-             *  Its own memo rather than folded into the lane below, and that
-             *  is a reactivity decision rather than a stylistic one: what
-             *  comes out is the previous ENTRY. Its upserts replace the leaf,
-             *  so downstream views compare the particular values they use.
-             *  Reading the row list straight into the lane would tie every
-             *  lane to the list instead — and a lane is a fresh object every
-             *  time it is computed, so one row arriving would re-run the
-             *  attribute effects of every row already on screen. */
             const previousKey = previousOf(key)
             const above = createMemo(() => {
               const previous = previousKey()
@@ -467,29 +229,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
                 : props.chat.entry(previous)()
             })
             const lane = createMemo(() => laneOf(entry(), above(), titleOf), undefined, { equals: (a, b) => a?.parent === b?.parent && a?.label === b?.label })
-            /** ... and the live RAIL under this row, whichever of the two it
-             *  is: a spawned agent still out, or a background task still
-             *  running ({@link ./rail.ts}, which owns the precedence and
-             *  carries the words together with the face they belong to).
-             *
-             *  Its own equality, because the answer is an OBJECT now and a
-             *  memo over one stops nothing by default: a row that recomputes
-             *  an identical rail would notify the attributes and the words
-             *  under it on every frame of that row. */
             const working = createMemo(() => railOf(entry()), null, { equals: sameRail })
-            /** WHOSE FACE GOES OVER THIS ROW, or `null` for one inside a run
-             *  ({@link ./speakers.ts}) — the same shape `lane` has, off the
-             *  same two entries, and for the same reason: whether a row is the
-             *  FIRST of its speaker's is a fact about the row above it.
-             *
-             *  Its own memo rather than folded into `lane`, though both read
-             *  `entry()` and `above()`: what comes out here is a fresh object
-             *  whenever it is computed, so joining them would tie the lane's
-             *  attributes to this one's re-runs and the other way about. The
-             *  AGENT is read off the session rather than off the row, which is
-             *  where it lives — through the list's own `agent` memo above, so
-             *  a conversation's faced rows share one subscription to a cell
-             *  that moves several times a turn rather than taking one each. */
             const speaker = createMemo((): Faced | null => {
               const party = facedAt(entry(), above())
               return party === null ? null : { party, agent: agent() }
@@ -528,19 +268,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
           )}
         </Show>
 
-        {/* THE ID LOOKUP'S OWN BAD NEWS, once for the pane. Which of the
-            agent's backticks are nodes is a call now ({@link ./declared.ts}),
-            and a call that did not arrive must not read as prose that named
-            none of them (an error reaches somebody). The words are
-            untouched and every span still says what the agent wrote; what is
-            missing is which of them can be pressed.
-
-            HERE rather than under the message, because the CALL is the pane's:
-            one question carries the ids of every message on screen, so a line
-            per message would put the same sentence under eighty paragraphs of a
-            conversation that had just opened. It is not the refusal row above
-            either — a refused WRITE is something that did not happen, and this
-            is a question about something that did. */}
         <Show when={declaringFailure()}>
           {(why) => (
             <SaidLine

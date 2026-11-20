@@ -26,8 +26,6 @@ Feature: Web action errors stay with the web action
     And I choose "Move to Trash" from the node menu
     Then the node menu of "install" says "`_olai/Trash.olai` has lines that do not parse, so its records are not loaded — writing it would drop that. Fix the file first."
     And "house.olai" holds the node "install"
-    # A subsequent round trip through this same chat lets its prior events
-    # render before the absence check, instead of racing the refusal frame.
     When I ask the agent "after trash"
     Then the agent's answer mentions "you said: after trash"
     And the chat shows no refusal

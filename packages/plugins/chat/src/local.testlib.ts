@@ -1,6 +1,3 @@
-/** A machine-local door with the filesystem taken out: unit tests below the
- *  plugin boundary own section parsing and read-modify-write, while core's
- *  local-state tests own paths, atomic writes and migration. */
 import type { ChatLocalState, LocalSection } from "./local.ts"
 import { Effect } from "effect"
 import { resolve } from "node:path"

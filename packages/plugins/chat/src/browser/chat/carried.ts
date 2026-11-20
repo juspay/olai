@@ -1,6 +1,5 @@
 import type { ChatEntry } from "../../wire.ts"
 import { diffOf } from "./diff.ts"
-/** The row's source words. Streamed terminal output and progress stay out. */
 export const textOf = (entry: ChatEntry): string | null => {
   let text: string
   switch (entry.kind) {
@@ -14,7 +13,6 @@ export const textOf = (entry: ChatEntry): string | null => {
 export const textOfDiff = (path: string, before: string | null, after: string): string =>
   [path, ...diffOf(before, after).lines.filter(line => line.kind === "add" || line.kind === "remove").map(line => `${line.kind === "add" ? "+" : "-"}${line.text}`)].join("\n")
 
-/** Availability is cheap; serialization belongs to the drag gesture. */
 export const hasText = (entry: ChatEntry): boolean => {
   switch (entry.kind) {
     case "agent": return !entry.streaming && entry.text.trim().length > 0

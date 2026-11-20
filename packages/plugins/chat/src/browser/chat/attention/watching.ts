@@ -1,47 +1,18 @@
-/** Scoped attention for the conversations this activation can observe.
- * Cross-tab readership and node standings decide whether a question needs a
- * notification, and THIS document's own readership decides what it may
- * acknowledge as read; withdrawal releases the claims and listeners together. */
-
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
 import { createTicking } from "@olai/web/client/clock.ts"
 import { createElsewhere, WATCHED_BEAT } from "./elsewhere.ts"
 
-/** What the DOCUMENT says: this page is on screen and the window is in front. */
 const documentInFront = (): boolean =>
   document.visibilityState === "visible" && document.hasFocus()
 
-/** The name the tabs of one olai say it under. Origin-scoped by the platform,
- *  which is the whole of how two vaults stay apart ({@link ./elsewhere.ts}). */
 const WATCHED = "olai.chat.watched"
 
-/**
- * ...AND THE TWO ANSWERS THAT COME OUT OF IT, which are deliberately not one.
- *
- * They were one until an acknowledgement was built on them, and the difference
- * is not a nuance: the cross-document half is a BIT THAT DECAYS, a beat and a
- * half long, and it answers *is anybody looking at this* — which is the
- * question a chime asks, because a form on a screen somebody is already reading
- * in another window is delivered. An ACKNOWLEDGEMENT asks *am I the one
- * looking*, and a document that took the wider answer would write down that a
- * line has been read while nothing was showing it: the last beat of a window
- * that has just been closed is still believed for three-quarters of a second,
- * and a line heard in that window is read by nobody.
- */
 export interface Watching {
-  /** Whether ANYBODY is looking — this document, or another one saying so on
-   *  the channel. The alerts' question. */
   readonly watched: Accessor<boolean>
-  /** ...AND WHETHER THIS DOCUMENT IS THE ONE LOOKING: the conversation is on
-   *  screen here and this window is in front. The acknowledgement's question,
-   *  and the only one it may be answered by. */
   readonly here: Accessor<boolean>
 }
 
-/** Whether the conversation is in front of somebody, as a signal that follows
- *  the window, the panel, and the browser's other tabs.
- */
 export const createWatchings = () => {
   const [front, setFront] = createSignal(documentInFront())
   const look = (): void => {
@@ -66,8 +37,6 @@ export const createWatchings = () => {
   channel?.addEventListener("message", heard)
   onCleanup(() => { channel?.close(); listeners.clear() })
   return (reading: Accessor<boolean>, identity: string): Watching => {
-  /** THIS document's answer, which is what it beats out to the others — and the
-   *  whole of {@link Watching.here}. */
   const here = (): boolean => front() && reading()
 
   const takes = new Set<() => void>()
@@ -87,15 +56,6 @@ export const createWatchings = () => {
   })
   onCleanup(elsewhere.close)
 
-  // THE ONE REPEATING TIMER IN THIS CLIENT is `../../clock.ts`'s, and this is a
-  // caller of it rather than a second one: what a beat and a ticking readout
-  // have in common is not the number but the LIFETIME, which is the whole
-  // argument `createTicking` was written for and the claim `@olai/web`'s own `client/claims.test.ts`
-  // holds. Gated on `here`, so it runs only while this tab IS the one being
-  // watched — a browser with olai in every window and nobody at it says
-  // nothing at all — and gated INSIDE the effect as well as through `when`,
-  // because the clock has a value from the moment it is made and a beat on it
-  // would be this tab claiming to be watched before anybody looked.
   const beat = createTicking(WATCHED_BEAT, here)
   createEffect(() => {
     if (!here()) return

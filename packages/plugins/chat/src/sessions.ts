@@ -1,350 +1,45 @@
-/**
- * WHAT OLAI OVERHEARD ONE CONVERSATION DO — that a session has been told its
- * node agent's contract, how many messages it has taken since, and the last
- * line its agent said while olai was watching.
- *
- * The `heard` section of chat's one machine-local document, beside the section
- * that remembers which conversation the panel was in ({@link ./memory.ts}) and
- * the one that remembers which doorbells are on ({@link ./scopes.ts}).
- *
- * ## Why these two are here and the pointer is NOT
- *
- * Which node agent a session belongs to is CONFIG, and since the human's ruling
- * of 2026-09-02 all config lives in `.olai` files or their properties: the
- * `agent-session` property both marks a node as a node agent and carries its
- * session pointer (`@olai/format`'s `agents.ts`, which argues the value shape
- * and what a second machine sees). This file used to hold that pointer and no
- * longer does — what is left is the half that was never config:
- *
- *   - {@link Overheard.taught} — that this SESSION has already been told its
- *     contract ({@link ./teaching.ts}). "Exactly once, and not again after a
- *     restart" is a fact about a message that was sent, which is
- *     {@link ./scopes.ts}'s `fault` argument word for word: nothing can
- *     re-derive it, and a serve that forgot would re-teach on every boot. It is
- *     written against the session it was said in, so a fresh session is untaught
- *     — which is the point, since the transcript is exactly what does not carry
- *     the contract.
- *   - {@link Overheard.taken} — how many of a person's messages this session
- *     TOOK while a node claimed it, the teaching's own message included. It
- *     paces the reminder ({@link ./teaching.ts}'s `REMINDER`, every Nth
- *     message), and it is `taught`'s kind of fact exactly: a message that was
- *     sent, which nothing can re-derive — a serve that forgot would restart
- *     the count on every boot, and one that counted from the transcript would
- *     count words the agent never took. Written in the SAME write as `taught`,
- *     so the two cannot disagree about the message that carried the contract.
- *
- *   - {@link Overheard.superseded} — the conversation that replaced this one,
- *     as the FULL PAIR `{agent, session}`, WHERE OLAI ITSELF DID THE
- *     REPLACING. The adapter reports a `/clear` in its own corner of
- *     `session/list` (`@kolu/acp-client`'s `events.ts`'s `Stored`) and says nothing about
- *     a re-pointing olai made, so without this a node agent's own previous
- *     session would come back as a conversation nobody claims
- *     ({@link ./succession.ts}). It names the pair because fresh start may
- *     hand the node to another engine: the conversation on the other engine
- *     is the one that took this one's place, and an id with no engine could
- *     not say whose.
- *   - {@link Overheard.said} — the last thing this agent said WHILE OLAI WAS
- *     WATCHING. The panel runs one conversation at a time, so an agent that is
- *     not the open one has no transcript here to read a line off; without this,
- *     the door on its row could say what it is and never what it was doing. The
- *     honesty is in the words rather than in a guess: this is a line olai heard
- *     and wrote down, in the same sense the model note is a switch olai saw
- *     ({@link ./memory.ts}), and a conversation somebody drove from a terminal
- *     moves it not at all.
- *   - {@link Overheard.seen} — the last of those lines a PERSON SAW. It is the
- *     other half of `said` and the whole of "unread": a conversation is unread
- *     while its agent has said something since the instant written here
- *     ({@link ./attention.ts}'s `unreadOf`). Bookkeeping for `said`'s reason
- *     exactly, and NOT config: nothing in the vault can re-derive it, the
- *     gesture that moves it is a conversation being on screen in a focused
- *     window, and writing it to the board would be a commit per glance. What
- *     makes it the record's business rather than a browser's is that it is
- *     PER CONVERSATION and PER MACHINE — one person reads a conversation once
- *     wherever they are sitting, and the tab that did the looking is usually
- *     not the one that draws the mark.
- *
- * None of them could be put in the vault without writing to the board on every
- * turn, which is a commit on every turn — so the ruling's line is kept where it
- * is drawn: config in the vault, bookkeeping on the machine. WHICH node a
- * session belongs to is the config half and is the property; what replaced a
- * conversation is a thing that HAPPENED here. `seen` is the
- * same argument in its sharpest form: it is the one field here nobody could
- * hand-write even if they wanted to, because "I have read this" is not a
- * statement about the conversation at all — it is a statement about the PERSON,
- * and a person is not in the vault.
- *
- * ## KEYED ON THE CONVERSATION, which is the whole shape change
- *
- * The rows are keyed on the `(agent, session)` PAIR and know nothing about
- * nodes. That is not a smaller version of the old table; it is the table the
- * two remaining facts always wanted, and it is why re-pointing a node at
- * another conversation needs nothing here: both facts were always ABOUT the
- * session, and the node was a key they were reached through. A node agent given
- * a fresh session is untaught and has said nothing, because that session has
- * not been taught and has not said anything — no row has to be cleared for that
- * to be true.
- *
- * ## Written only by olai, and therefore CAPPED
- *
- * Nobody hand-writes this file — the gesture that binds a node writes a
- * property now, and these rows appear behind turns a person is having and
- * behind the gestures that move a binding. So it grows one row per session
- * that is ever taught, replaced or overheard, and it is capped the way
- * {@link ./scopes.ts} is and for the same reason: {@link ROWS} rows,
- * least-recently-touched evicted, because a count cap costs no probe and cannot
- * be wrong about a conversation it has never asked about. What an eviction
- * costs is one re-teaching in a conversation somebody comes back to after
- * thirty-odd others, which is a sentence at the top of a transcript rather than
- * anything lost — and that session's reminder count starting over from the
- * re-teaching.
- *
- * ## What it costs: ONE WRITE PER NODE AGENT MESSAGE
- *
- * A node agent's conversation used to cost one write in its life — the
- * teaching mark — plus the turn-boundary `said`. Counting ({@link
- * Overheard.taken}) made it one write for EVERY message a person sends one:
- * the `heard` section, saved whole through chat's local document and awaited
- * before the send returns (`./chat.ts`'s `contracted`, which is how the next
- * send reads the count in the mirror). The section is capped at {@link ROWS}
- * small rows, so the write is small beside the turn it rides; a conversation
- * no node claims writes nothing.
- *
- * AND EVERY ONE OF THOSE WRITES IS A TOUCH: the row is dropped and re-appended
- * ({@link Overheard}'s order), so a node agent somebody is talking to stays at
- * the back of the eviction queue on every message, not only on the turn
- * boundary's `said`. That is the right direction — the conversation in use is
- * the last one to forget — but it is a change in WHICH rows the cap evicts: a
- * busy node agent now outlasts conversations that were only overheard once.
- *
- * It is still read LENIENTLY, field by field — an older olai's file is read by
- * a newer one, and a row that will not parse is a session that gets taught
- * again rather than a serve that will not start.
- *
- * ## Behind ONE permit, for {@link ./scopes.ts}'s reason exactly
- *
- * Every writer here is a read-modify-write over one in-memory mirror: read
- * `rows`, replace one, assign back. Two of those interleaved lose a write, and
- * no staging name at the leaf has anything to say about it — the hazard is over
- * MEMORY. Every writer is on one permit, and the record goes to disk before
- * the mirror moves, so a failure a caller is handed means nothing stuck
- * anywhere.
- *
- * ## What it does with a failure
- *
- * A read at boot that fails is an EMPTY MIRROR and one warning, never a refusal
- * to serve — the discipline this package's other two records already keep. A
- * WRITE that fails is different in the other direction from theirs: nobody made
- * a gesture, so there is nobody to tell, and every writer here is bookkeeping
- * behind something a person is watching for its own sake. They FAIL, with a
- * reason, and the caller logs it and carries on ({@link ./chat.ts}) — the cost
- * of a lost write is a contract or a reminder the next message carries
- * instead, a door line one turn stale, or a conversation drawn as unread once
- * more, and none of those is worth taking a turn away from somebody over.
- * The teaching's caller goes one further and HOLDS THE NOTICE BACK on a failed
- * write: a notice is the report of the mark, and a pane must never read a
- * contract the record cannot keep.
- *
- * ## Not a second failure vocabulary
- *
- * {@link ./memory.ts}'s `MemoryFailure` is this package's word for "a kept
- * record would not read or write", and this is a third kept record rather than
- * a third kind of problem.
- */
-
 import { Effect, Semaphore } from "effect"
 
 import { type ChatLocalState, word } from "./local.ts"
 import { MemoryFailure } from "@kolu/acp-client"
 import { ROWS } from "./scopes.ts"
 
-/** This state machine's section in chat's one machine-local document. */
 const HEARD = "heard"
 
-/** The pair that identifies a conversation everywhere in this package: a
- *  session id means nothing to the wrong agent, so neither half stands alone
- *  ({@link ./memory.ts}, `@olai/surface`'s `SessionInfo`). */
 export interface Conversing {
   readonly agent: string
   readonly session: string
 }
 
-/** The last thing an agent said while olai was watching — see the header for
- *  what that qualification is doing there. */
 export interface Said {
-  /** ONE LINE, already cut to one by whoever heard it: what the door draws is
-   *  a line, and a record holding a screenful so that a component could take
-   *  the first line of it would be storing the rest for nobody. */
   readonly text: string
-  /** ISO 8601, so a door can say how long ago without a second clock. */
   readonly at: string
 }
 
-/**
- * ONE CONVERSATION, and what olai overheard it do.
- *
- * ## THE ARRAY IS THE ORDER, exactly as {@link ./scopes.ts}'s is
- *
- * The rows are held touched-oldest-first and there is no second copy of that:
- * no stamp, no counter. A writer drops the row it is about to replace and
- * re-appends it, which is the touch, and {@link capped} takes from the front.
- * A stamp beside it would be the position spelled twice and kept in step by
- * hand.
- */
 export interface Overheard extends Conversing {
-  /** This SESSION has already been told its contract. Absent is untaught,
-   *  which is what every conversation starts as. */
   readonly taught?: boolean
-  /**
-   * HOW MANY MESSAGES THIS SESSION HAS TAKEN as a node agent's — counted only
-   * where the message was delivered, the teaching's own included. Absent is
-   * none, which is every conversation until a node claims it and somebody
-   * says something; a row taught before olai counted starts from none too,
-   * which costs one reminder later than it would have come.
-   */
   readonly taken?: number
-  /** The conversation that REPLACED this one, as the PAIR `{agent, session}`,
-   *  where olai made the replacement — fresh start may hand the node to
-   *  another engine, and the successor is whoever the node runs now. Absent
-   *  for every conversation nothing has replaced, and for a `/clear` the
-   *  adapter already reports. */
   readonly superseded?: Conversing
-  /** The last line olai heard from it. Absent until olai has heard one. */
   readonly said?: Said
-  /**
-   * THE INSTANT OF {@link said} THAT A PERSON HAS SEEN — the ISO `said.at` that
-   * was acknowledged, so the MARK is a comparison rather than a second clock:
-   * a conversation is unread while `said.at` is newer than this.
-   *
-   * A STAMP AND NOT A FLAG, and that is what makes the comparison total rather
-   * than a guess about ordering. Two turns may finish between one look and the
-   * next, and a row that only said "seen as of some moment I did not write
-   * down" could not tell whether the line it holds now is the line that was
-   * acknowledged — this record would have to compare Clocks to answer, on the
-   * one feature whose whole claim is that nothing is inferred.
-   *
-   * ABSENT IS NEVER SEEN, which is every conversation until somebody looks at
-   * it and the honest reading of a row that has just been discovered: a door
-   * with a line on it that nobody has read is unread.
-   */
   readonly seen?: string
 }
 
-/**
- * The table, and what anybody does with it: the rows, one lookup, and the five
- * writers.
- *
- * A MIRROR plus a write, for {@link ./scopes.ts}'s reason: the roster is
- * assembled SYNCHRONOUSLY, per revision and per chat frame, by a composition
- * root with no Effect around it — so the in-memory copy is what answers and the
- * disk copy follows.
- */
 export interface Sessions {
-  /** Every row, touched-oldest-first. */
   readonly rows: () => ReadonlyArray<Overheard>
-  /** What olai overheard this conversation do, or `undefined` for one it has
-   *  overheard nothing from — which is every conversation until it is taught
-   *  or says something. */
   readonly at: (to: Conversing) => Overheard | undefined
-  /**
-   * Count one message this conversation's agent TOOK as a node agent's — and,
-   * where `taught` is set, mark that the message carried the contract.
-   *
-   * ONE WRITE FOR BOTH, because they are one event: the message that taught
-   * is the first one counted, and two writes could land one without the
-   * other — a session marked taught with no message counted, or the reverse.
-   * The count is incremented HERE, under the permit, off the row as it stands
-   * rather than a number a caller read earlier, so two writers cannot both
-   * write the same next value.
-   */
   readonly took: (to: Conversing, taught: boolean) => Effect.Effect<void, MemoryFailure>
-  /**
-   * ... and write down that OLAI replaced this conversation with another —
-   * said by the gesture that re-points a bound node at a fresh session.
-   *
-   * ON THE ROW OF THE SESSION LEFT BEHIND, which is the direction a listing
-   * reads it in: `supersededBy` is a fact about the conversation that was
-   * replaced ({@link ./succession.ts}), and a record shaped the other way would
-   * have to be inverted at every read.
-   *
-   * A no-op where the row already names that successor; where it names a
-   * DIFFERENT one, the newer wins, because a session replaced twice was
-   * replaced last by the one that is bound now.
-   */
   readonly supersede: (to: Conversing, by: Conversing) => Effect.Effect<void, MemoryFailure>
-  /**
-   * ... and write down the last line this conversation's agent said.
-   *
-   * A no-op for a line whose WORDS are already the ones written down —
-   * whatever instant comes with them.
-   *
-   * ON THE TEXT ALONE, and the stamp deliberately does not get a vote. This is
-   * offered at every turn boundary, and a turn that adds no prose of its own
-   * re-offers the line before it; a resumed conversation re-offers it with a
-   * fresh instant besides, because a replay re-mints the rows it replays
-   * ({@link ./heard.ts}). Writing on either would move the door's *7m ago*
-   * forward over words that are days old — which is the one thing a feature
-   * called "what olai heard" must not do.
-   *
-   * WHAT IT COSTS is an agent that repeats itself word for word in a later
-   * turn: the door goes on showing the earlier instant. That is the safe
-   * direction — understating how fresh a line is, never overstating it — and
-   * the alternative cannot be told apart from the resume case by anything this
-   * end holds.
-   */
   readonly said: (
     to: Conversing,
     said: Said,
   ) => Effect.Effect<void, MemoryFailure>
-  /**
-   * ... and write down that a PERSON HAS SEEN the line this conversation's
-   * agent last said — the ISO `said.at` that was on screen, handed back
-   * verbatim.
-   *
-   * THE INSTANT AND NEVER THE CLOCK. A caller that wrote `now` would be
-   * claiming somebody had seen whatever arrived until that moment, including
-   * a line that landed between the frame it was drawn from and the write —
-   * which is exactly the line nobody has read. An instant handed back is
-   * exact, is idempotent (two tabs looking at one conversation write the same
-   * value), and needs no agreement about whose clock is right.
-   *
-   * A no-op for one already acknowledged, so a conversation kept on screen
-   * costs one write in its life rather than one per frame.
-   *
-   * AND THE LATER OF TWO ACKNOWLEDGEMENTS IS THE ONE THAT STANDS. Two tabs of
-   * one olai can both be looking, and the one whose roster frame is older names
-   * the instant BEFORE the line the other has already read — so a write that
-   * simply took what it was handed would move the mark BACKWARDS and leave the
-   * row saying it is unread again until something healed it. "How much of this
-   * has a person seen" only ever grows.
-   */
   readonly seen: (to: Conversing, at: string) => Effect.Effect<void, MemoryFailure>
 }
 
-/** What one of these files looks like written. */
 interface Written {
   readonly heard?: unknown
 }
 
-/**
- * The rows a file holds, read field by field.
- *
- * BOTH NAMES ARE LOAD-BEARING and a row missing either is dropped: a row that
- * does not say which agent and which session names no conversation, and there
- * is nothing to guess. Everything else is read leniently and a strange value
- * reads as absent — the same rule {@link ./local.ts}'s `word` is. A `taught`
- * that is not `true` is untaught, which costs one extra teaching; a `said` that
- * will not parse is a door with no line on it, which is what every door starts
- * as; a `seen` that will not parse is a conversation nothing has been
- * acknowledged in, which costs one unread mark that a look at the conversation
- * clears — and it is the right way round, since the other reading would be a
- * conversation marked read that nobody has looked at.
- *
- * A FIELD THIS OLAI NO LONGER KEEPS IS SIMPLY NOT READ, which is what makes an
- * older machine's file a file this one can read: every row is rebuilt field by
- * field from the names below, so a key nothing here asks for (the `assigned`
- * mark an older olai wrote when a chat was filed onto a node) is dropped
- * silently rather than refused.
- */
 const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
   const written = (held as Written).heard
   if (!Array.isArray(written)) return []
@@ -370,9 +65,6 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
   return rows
 }
 
-/** The last-said line of a row, or nothing at all — both fields required,
- *  because a line with no instant cannot be drawn beside one and an instant
- *  with no line has nothing to say. */
 const saidIn = (value: unknown): { readonly said?: Said } => {
   if (typeof value !== "object" || value === null) return {}
   const one = value as Record<string, unknown>
@@ -381,12 +73,6 @@ const saidIn = (value: unknown): { readonly said?: Said } => {
   return text === null || at === null ? {} : { said: { text, at } }
 }
 
-/** The successor a row names, or nothing at all. A freshly written row spells
- *  it as the pair `{agent, session}`; an OLDER olai's file spells the
- *  successor as a bare id, which can only be a same-engine link — the engine
- *  was pinned to the row in the old shape — so that arm reads it as the row's
- *  own agent. Either way the same `word` answers, so an empty string names no
- *  conversation and is absent rather than a link to nowhere. */
 const supersededIn = (value: unknown, agent: string): { readonly superseded?: Conversing } => {
   if (typeof value === "string") {
     const by = word(value)
@@ -399,47 +85,21 @@ const supersededIn = (value: unknown, agent: string): { readonly superseded?: Co
   return byAgent === null || bySession === null ? {} : { superseded: { agent: byAgent, session: bySession } }
 }
 
-/** The same conversation — the PAIR, never the session alone. */
 const sameChat = (row: Conversing, to: Conversing): boolean =>
   row.agent === to.agent && row.session === to.session
 
-/** See the header: the front of the array is the least recently touched. */
 const capped = (rows: ReadonlyArray<Overheard>): ReadonlyArray<Overheard> =>
   rows.length <= ROWS ? rows : rows.slice(rows.length - ROWS)
 
 export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
   Effect.gen(function*() {
-    /** See the header: every writer here is a read-modify-write over `rows`. */
     const writing = yield* Semaphore.make(1)
 
-    // AN EMPTY MIRROR AND ONE WARNING. Nobody is standing at the screen when a
-    // boot reads this, and a directory whose overhearings cannot be read is a
-    // directory where every node agent gets taught once more and every door
-    // starts with no line on it — the honest face of exactly this failure, and
-    // of a machine that has never served this vault before.
     const held = local.load(HEARD)
     let rows: ReadonlyArray<Overheard> = []
     if (held !== null) rows = read(held)
 
-    /**
-     * One row replaced or ADDED, written down, and the mirror moved only if it
-     * landed.
-     *
-     * THE RECORD FIRST, for {@link ./scopes.ts}'s reason: the two are one fact
-     * in two places, and a mirror that moved under a failed write would have a
-     * conversation marked taught in memory and untaught on disk — so the next
-     * restart teaches it again, having told the caller nothing went wrong.
-     *
-     * `change` is handed what olai already overheard, or `undefined` for a
-     * conversation it has overheard nothing from, and answers with the row it
-     * wants written — or `undefined` for NOTHING TO DO, which is what keeps a
-     * repeated line and a second teaching off the disk entirely.
-     *
-     * DROPPED AND RE-APPENDED rather than written where it stood, which is the
-     * touch {@link Overheard} describes: unlike `./scopes.ts`'s picks these
-     * positions are nobody's file, and the row olai just overheard something
-     * from is the last one it should evict.
-     */
+    /** THE RECORD FIRST: the mirror moves only once the write has landed. */
     const write = (
       to: Conversing,
       change: (row: Overheard | undefined) => Overheard | undefined,
@@ -478,18 +138,7 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
         write(to, (row) => (row?.said?.text === said.text ? undefined : { ...row, ...to, said })),
       seen: (to, at) =>
         write(to, (row) =>
-          // THE LATER MARK WINS, and the comparison is on the STRINGS because
-          // the stamps are one shape: every one of them is minted by
-          // `Date#toISOString` (`@kolu/acp-harness`'s `transcript.ts`'s
-          // `stamp`), fixed-width UTC, so `>=` on the words is the order of the
-          // instants they spell.
-          //
-          // WHY IT MATTERS: two tabs a frame apart both acknowledge, and the
-          // one still holding the roster before the agent's newest line names
-          // the instant BEFORE it. A write that took that one would move the
-          // mark backwards — the row would say it is unread again until the
-          // next frame happened to heal it — which is the one direction an
-          // acknowledgement must never move.
+          // THE LATER MARK WINS: an acknowledgement must never move backwards.
           row?.seen !== undefined && row.seen >= at ? undefined : { ...row, ...to, seen: at }),
     }
   })

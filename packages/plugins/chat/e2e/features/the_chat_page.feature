@@ -21,16 +21,11 @@ Feature: A chat is a page of its own
     And the chat page shows no breadcrumb
     And the Chats row "plan-chat" is current
     And the chat page conversation is ready
-    # A NOTE IS THE MEMORY OF ITS CHAT: nothing here offers to tidy it or to
-    # put it to sleep on a clock.
     And the chat page never offers sleep or tidying
     When I ask the agent "and the hinges"
     Then the agent has answered "and the hinges" exactly once
     And there should be no page errors
 
-  # A NODE'S CHAT IS THE SAME PAGE, named by the row's live title and showing
-  # the outline it is written in — and its sleep line, which is the one thing
-  # a note's chat has not got.
   Scenario: A node's chat is a page named by its row, with its sleep line on it
     Given I open the outline "house.olai"
     When I open the "claude" agent on node "install"
@@ -55,24 +50,15 @@ Feature: A chat is a page of its own
     And pane 0 is showing "/notes/plan.md"
     And pane 1 is showing "/chat/notes/plan.md"
     And pane 1 is focused
-    # THE PANES ARE HEADED BY THE NAME: a column headed `/notes/plan.md` or a
-    # row id is a column nobody can tell from the one beside it — and the
-    # chat's column says it is the chat, or these two would read the same word.
     And pane 0's header reads "plan", and its close button is called "Close plan"
     And pane 1's header reads "plan · chat", and its close button is called "Close plan · chat"
-    # ...and the conversation came with it: the chat moved, it did not reopen.
     And the chat page conversation is ready
-    # ONCE THE ITEM IS BESIDE IT the button says so and opens nothing: a second
-    # press would quietly grow a third pane.
     And the chat page says the item is shown beside
     When I press Open beside on the chat page
     Then there are 2 panes
     And pane 0 is focused
     And there should be no page errors
 
-  # ONE PRESS, ONE ENTRY. *Open beside* is two acts — this pane becomes the
-  # note, the chat opens to its right — and a Back that undid only half of it
-  # left the reader somewhere they had never been.
   Scenario: Open beside is one step of history, so Back returns to the chat alone
     Given the vault holds "notes/plan.md" saying "# Plan"
     And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
@@ -89,9 +75,6 @@ Feature: A chat is a page of its own
     And the chat page conversation is ready
     And there should be no page errors
 
-  # A NOTE CAN GO WHILE ITS CHAT IS OPEN — renamed in a terminal, pulled away
-  # by a `git pull`. The page says so and offers no start: a door onto a file
-  # that is not there is a chat nothing could be written to.
   Scenario: A chat page whose note is renamed on disk says the note is gone
     Given the vault holds "notes/plan.md" saying "# Plan"
     And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
@@ -103,18 +86,11 @@ Feature: A chat is a page of its own
     And the file "notes/plan.md" is renamed to "notes/kitchen-plan.md"
     Then the chat page says the note is gone
     And the chat page offers no chat box
-    # ...AND THE CHAT WENT WITH THE FILE: the tie is front matter, so the
-    # conversation is at the new note's own address.
     When I open the address "/chat/notes/kitchen-plan.md"
     Then the chat page is about the note "notes/kitchen-plan.md" named "kitchen-plan"
     And the chat page conversation is ready
     And there should be no page errors
 
-  # ...AND A NOTE CAN STOP NAMING ITS CHAT while the conversation is open: a
-  # plugin's builder rewriting its own `README.md` with its file tools takes
-  # the front matter with it, and olai's write fence does not reach a tool
-  # outside olai. The page says what happened — never that the conversation
-  # ended, because it has not — and one press ties it again.
   Scenario: A note rewritten without its front matter is tied again in one press
     Given the vault holds "plugins/swatch/README.md" saying "# Swatch"
     And another writer ties a chat to the note "plugins/swatch/README.md" as "swatch-chat"
@@ -130,8 +106,6 @@ Feature: A chat is a page of its own
     And the chat page conversation is ready
     And there should be no page errors
 
-  # THE SWITCH IS THE NOTE'S OWN ANSWER, written where a person can read it
-  # and a `git pull` can carry it.
   Scenario: The switch says where a note's chat opens, both ways, and the note keeps the answer
     Given the vault holds "notes/plan.md" saying "# Plan"
     And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
@@ -141,7 +115,6 @@ Feature: A chat is a page of its own
     When I press the opens switch
     Then the note "notes/plan.md" says it opens "beside"
     And the chat page says it opens "with plan beside"
-    # A RELOAD IS THE TEST OF A WRITTEN ANSWER: nothing here is kept in the tab.
     When I reload the page
     Then the chat page says it opens "with plan beside"
     When I press the opens switch
@@ -149,8 +122,6 @@ Feature: A chat is a page of its own
     And the chat page says it opens "alone"
     And there should be no page errors
 
-  # AN ADDRESS SOMEBODY WAS HANDED OPENS SOMETHING whatever the vault says: a
-  # note with no chat is still its own page, with the door on it.
   Scenario: A chat page for a note with no chat offers one, and sending ties it
     Given the vault holds "notes/plan.md" saying "# Plan"
     When I open the address "/chat/notes/plan.md"
@@ -163,8 +134,6 @@ Feature: A chat is a page of its own
     And the agent has answered "what is left to decide" exactly once
     And there should be no page errors
 
-  # THE PALETTE'S AGENT ROWS GO TO THE SAME PAGE, which is the whole of "every
-  # door that opens a chat opens the chat".
   Scenario: The palette's agent row opens the chat page
     Given I open the outline "house.olai"
     When I open the "claude" agent on node "install"
@@ -176,19 +145,12 @@ Feature: A chat is a page of its own
     And the chat page is about the node "install" named "install the cabinets" in "house.olai"
     And there should be no page errors
 
-  # A ROW WITH NO CHAT IS NAMED BY THE SAME RULE as a row with one: a title
-  # written as one markdown link is called by its LABEL. The row the one-time
-  # move leaves behind is exactly such a row — `[plan](/notes/plan.md)`, with
-  # its chat now on the note — and its own page, its column and the box that
-  # would start a chat on it all used to read that raw text back.
   Scenario: A row titled as a link with no chat is called by its label
     Given the vault holds "notes/plan.md" saying "# Plan"
     And the vault holds the row "link-row" titled "[plan](/notes/plan.md)" with no chat
     When I open the address "/chat/link-row"
     Then the chat page is about the node "link-row" named "plan" in "link-row.olai"
-    # THE BOX THAT WOULD START ONE says the same word.
     And the chat page offers to chat about "plan"
-    # ...AND SO DOES THE COLUMN, which is read outside the page altogether.
     When I press Open beside on the chat page
     Then there are 2 panes
     And pane 1's header reads "plan · chat", and its close button is called "Close plan · chat"
