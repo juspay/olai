@@ -1,13 +1,3 @@
-/**
- * WHERE A DRAGGED PIN LANDS — the arithmetic, without a pointer.
- *
- * The one subtlety worth a suite: the gap the pointer is over is counted
- * against the shelf AS DRAWN, with the carried row still in it, and the
- * neighbour a `place` names has to be read off the shelf WITHOUT it. Getting
- * that wrong puts a row after itself, which is a write the ops layer would
- * take and a reader would not recognise.
- */
-
 import { expect, test } from "bun:test"
 
 import type { Pin } from "olai-plugin-pins/values"
@@ -24,7 +14,6 @@ const pin = (id: string): Pin => ({
 })
 const SHELF = ["a", "b", "c", "d"].map(pin)
 
-/** Four rows, 20px tall, starting at 100 — midpoints at 110, 130, 150, 170. */
 const MIDDLES = [110, 130, 150, 170]
 
 test("above every row is gap 0, below every row is gap n", () => {
@@ -62,17 +51,11 @@ test("carrying the last row to the front names no neighbour at all", () => {
 })
 
 test("the neighbour is read off the shelf the row has LEFT", () => {
-  // `c` into gap 1 sits between `a` and `b` — after `a`. Read off the
-  // undisturbed list, gap 1's neighbour would still be `a`, which happens to
-  // agree; `b` into gap 3 is the case that does not: the row above it there is
-  // `c` once `b` has gone, not `b` itself.
   expect(placing(SHELF, 2, 1)).toMatchObject({ id: "c", after: "a" })
   expect(placing(SHELF, 1, 3)).toMatchObject({ id: "b", after: "c" })
 })
 
 test("a drag that came back where it started writes nothing", () => {
-  // Both gaps either side of a carried row are that row's own place, which is
-  // what a pointer that travelled and returned is over.
   expect(placing(SHELF, 1, 1)).toBeUndefined()
   expect(placing(SHELF, 1, 2)).toBeUndefined()
 })

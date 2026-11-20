@@ -1,5 +1,4 @@
 import { isLone } from "olai-plugin-navigation/workspace"
-/** Shelf commands use the pins activation's history and subscriptions. */
 import { definePlugin } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
 import { layoutName,nameOf } from "olai-plugin-navigation/address/address.ts"
@@ -16,10 +15,7 @@ import { layoutItem,pinItem } from "./palette.ts"
 import { pinnedAt,pinnedLayout } from "./pins.ts"
 export const paletteIntegration=definePlugin({name:"palette",needs:[navigation,rendererSlots,pinnedShelf,paletteControl],apply:Effect.gen(function*(){
  const nav=yield* navigation
- // THE APP'S URL GRAMMAR, taken off the router this component declared and
- // handed to every pure helper below (`./pins.ts`'s `pinsOf`).
  const routes=nav.routes
- // The box this row asks a name in, held for this activation (`./box.ts`).
  const box=yield* paletteControl
  yield* Effect.acquireRelease(Effect.sync(()=>holdPalette(box)),stop=>Effect.sync(stop))
  const pins=usePins(), undo=usePinUndo()

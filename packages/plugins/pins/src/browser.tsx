@@ -22,10 +22,6 @@ import { pinnedShelf } from "./contract.ts"
 export default definePlugin({name:"pins", needs:[Wired, Offers, Edits], apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
-  // `Edits` rather than pushed into a module-scope map in a general package
-  // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
-  // beside it is how this row's faces spend the same table (`./browser/writes.ts`).
   const edits = yield* Edits
   yield* edits.register(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
@@ -36,8 +32,6 @@ export default definePlugin({name:"pins", needs:[Wired, Offers, Edits], apply:Ef
   const stopHistory=holdPinUndo(createUndo(edit=>runAsync(writeEdit(edit))))
   return ()=>{dispose();stop();stopHistory()}
  })),stop=>Effect.sync(stop))
- // THE SHELF, on the service that names it — rather than a signal in a
- // declared door the outline read across the wall (`./contract.ts`).
  yield* (yield* Offers).own("state",()=>({ shelf: usePins() }))
 })})
 export const components={palette:paletteIntegration,

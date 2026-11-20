@@ -1,17 +1,3 @@
-/**
- * THE PINNED SHELF: the column's own short list, and the file underneath it.
- *
- * The steps come in two kinds and the split is the feature's whole point. Some
- * ask what the SIDEBAR draws — which doors, in what order, under what names —
- * and some write or read `_olai/Pins.olai` DIRECTLY, because a shelf stored in the
- * directory is one an agent can write and one whose order is a fact about a
- * file rather than about a browser.
- *
- * The addresses are the app's own spelling (`web/src/client/routes.ts`), and
- * they travel through these steps VERBATIM: what a scenario writes into
- * `_olai/Pins.olai` is what the shelf reads back, and a step that normalised one
- * would be a step that could pass over a shelf drawing something else.
- */
 import { TESTID } from "@olai/tests/harness/testids.ts"
 import assert from "node:assert/strict";
 
@@ -33,29 +19,16 @@ Then("no pin drop line is shown", async function (this: OlaiWorld) {
   await this.page.locator(selector(TESTID.pinDropLine)).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-/** The file the shelf IS. Named once here, in the fixture's outline format, so
- *  a scenario naming it and a step reading it cannot disagree. */
 const PINS_FILE = "_olai/Pins.olai";
 
-/** One row of the shelf, by the address it opens — which is the fact the row
- *  publishes (`data-at`) and the only one that identifies it, since two pins
- *  may draw the same words and none of them draws its own id. */
 const pinAt = (world: OlaiWorld, address: string) =>
-  // Through `attr` rather than built here: an address arrives as a Gherkin
-  // argument, and the suite's one escaper is what keeps a value with a quote
-  // in it from becoming a selector that means something else
-  // (`selectors.test.ts` sweeps for the hand-built shape).
   world.page.locator(`${PIN}${attr("data-at", address)}`);
 
-/** Every address on the shelf, in the order it is drawn. */
 const shelved = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
   await world.page
     .locator(PIN)
     .evaluateAll((rows) => rows.map((one) => one.getAttribute("data-at") ?? ""));
 
-/** The shelf, made out of nothing but addresses — the write an AGENT makes,
- *  and the shape the ordering scenarios start from. `_olai/Pins.olai` is an ordinary
- *  outline, so this is `outlines_add` five times spelled as the file it produces. */
 Given(
   "the directory has the pins:",
   async function (this: OlaiWorld, table: DataTable) {
@@ -72,8 +45,6 @@ Given(
   },
 );
 
-/** One more pin, appended as another writer would leave it — the scenario
- *  about a shelf that grows under a page nobody reloaded. */
 When(
   "the directory grows a pin to {string}",
   async function (this: OlaiWorld, address: string) {
@@ -85,9 +56,6 @@ When(
     this.appendServed(PINS_FILE, { id: "pn", ord: "z0", title: address });
   },
 );
-/** A record RETITLED where it lives — an agent's `outlines_title`, spelled as the
- *  file it produces. The shelf is not touched, and that is the claim: it holds
- *  no copy of the name to update. */
 When(
   "the file {string} renames {string} to {string}",
   async function (this: OlaiWorld, file: string, id: string, title: string) {
@@ -100,13 +68,10 @@ When(
   },
 );
 
-/** The palette command toggles the focused page. */
 const choosePin = async (world: OlaiWorld, kind: "page" | "layout") => {
   if (!await world.page.locator(PALETTE_INPUT).isVisible()) await pressed(world, "ControlOrMeta+k");
   await world.page.locator(PALETTE_INPUT).fill("pin");
   await world.page.locator(PALETTE_ITEM).filter({ hasText: new RegExp(`(?:Pin|Unpin) this ${kind}`) }).first().click();
-  // A pointer command is complete when the panel answers, not merely when
-  // keyboard work is quiet. Navigating sooner can withdraw its pending write.
   await world.waitUntil(async () =>
     await world.page.locator(PALETTE).count() === 0
     || await world.page.locator(PALETTE_SAID).count() > 0
@@ -128,9 +93,8 @@ When("I follow the pin {string}", async function (this: OlaiWorld, address: stri
   await pinAt(this, address).locator(PIN_LINK).click();
 });
 
-/** The `×` on the row — the shelf's own way off it. It is revealed on hover,
- *  so `force` for the same reason the `•••` needs it: opacity is not something
- *  Playwright's actionability check sees through. */
+/** Revealed on hover, so `force`: opacity is not something Playwright's
+ *  actionability check sees through. */
 When("I unpin {string}", async function (this: OlaiWorld, address: string) {
   await this.showSidebar();
   await pinAt(this, address).hover();
@@ -138,9 +102,6 @@ When("I unpin {string}", async function (this: OlaiWorld, address: string) {
   await this.waitForFrame();
 });
 
-/** The `✎` beside it — the shelf's door onto the palette's naming question
- *  (`client/pins/naming.ts`). Revealed on hover like the `×`, and `force` for
- *  the same reason. */
 When("I rename the pin {string}", async function (this: OlaiWorld, address: string) {
   await this.showSidebar();
   await pinAt(this, address).hover();
@@ -152,31 +113,16 @@ When("I rename the pin {string}", async function (this: OlaiWorld, address: stri
 });
 
 /**
- * THE SAME TWO CONTROLS, WITH A THUMB — and the reason this is a second pair
- * of steps rather than a `hasTouch` branch inside the two above.
- *
- * The hovering steps `force` their click because a pointer's shelf keeps the
- * strip at `opacity: 0` until a hand is on the row, and opacity is not
- * something Playwright's actionability check sees through. A touch screen has
- * no hand to put on a row, so the strip is drawn
+ * On a touch screen the strip is drawn without a hover
  * (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`) — which means the press here
- * must be unforced and must not hover first. Those two absences ARE the claim:
- * forcing one would pass just as well over a control nobody can see.
+ * must be unforced and must not hover first.
  */
 Then(
   "the pin {string} shows its controls without a hover",
   async function (this: OlaiWorld, address: string) {
     await this.showSidebar();
-    // The OUTERMOST span holding the remove button, not every span that does:
-    // the button wears the app's own tip now, and the tip's wrapper is a
-    // `display: contents` span inside the strip — a second match, with no box
-    // and no opacity of its own. `.first()` is the strip, which is the element
-    // the reveal rule is on.
     const strip = pinAt(this, address).locator(`span:has(${PIN_REMOVE})`).first();
     await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The opacity is the contract, and it is on the STRIP: the buttons inside
-    // it are opaque in their own right and would answer "1" to this question
-    // on a shelf nobody could see.
     assert.equal(
       await strip.evaluate((el) => getComputedStyle(el).opacity),
       "1",
@@ -194,15 +140,6 @@ When("I tap the unpin of {string}", async function (this: OlaiWorld, address: st
   await this.press(pinAt(this, address).locator(PIN_REMOVE), "tap");
 });
 
-/**
- * The NAME, typed into the palette's own box and sent.
- *
- * The box is the palette's rather than a field of the question's own, which is
- * the design being asserted here as much as anywhere: the caret is already in
- * it, and Enter sends exactly what a reader can read. An EMPTY string is a
- * step, not a no-op — "Enter with nothing" is the bare pin, and it is the
- * keystroke that keeps the chord one press away from what it always did.
- */
 When("I name the pin {string}", async function (this: OlaiWorld, name: string) {
   const box = this.page.locator(PALETTE_INPUT);
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -211,15 +148,6 @@ When("I name the pin {string}", async function (this: OlaiWorld, name: string) {
   await keysSettled(this);
 });
 
-/**
- * A pin picked up and dropped ABOVE another — the reorder, as a pointer makes
- * it.
- *
- * The travel is what makes it a drag rather than a click (`client/pointer.ts`'s
- * `TRAVEL_PX`), and the landing is the TOP HALF of the target row, which is
- * the gap above it (`client/pins/reorder.ts`). Moved in steps so the
- * intermediate `pointermove`s the gesture is built on actually arrive.
- */
 When(
   "I drag the pin {string} above {string} with the secondary mouse button",
   async function (this: OlaiWorld, address: string, target: string) {
@@ -264,12 +192,6 @@ When(
   },
 );
 
-/**
- * A write's REPLY held back while everything else on the socket passes — so
- * the revision that redraws the shelf arrives and the answer that carries the
- * drop's inverse does not, which is the gap a fast ⌘Z can land in. Installed
- * before the page opens its socket, held only once asked.
- */
 const replies = new WeakMap<OlaiWorld, { held: boolean; pending: Array<() => void> }>();
 
 Given("pin write replies can be held", async function (this: OlaiWorld) {
@@ -307,20 +229,6 @@ When("I release the held pin write reply", async function (this: OlaiWorld) {
   for (const send of state.pending.splice(0)) send();
 });
 
-/**
- * The same drag, with the DOCUMENT SCROLLING under it mid-gesture — which is
- * the one shape that tells the two coordinate spaces apart.
- *
- * The shelf sits in a sticky column, so its rows do not move when the page
- * does. A gesture answered in document coordinates freezes its midpoints at
- * the scroll position of the LIFT and then reads a pointer against a newer
- * one, so the gap it writes is off by however far the page went — which in the
- * app is what the window-edge autoscroll does for you, and here is done
- * outright so the scenario is deterministic (review, 2026-08-18).
- *
- * The pointer is put back at the SAME VIEWPORT POSITION after the scroll,
- * because that is where the row it is aiming at still is.
- */
 When(
   "I drag the pin {string} above {string} while the page scrolls",
   async function (this: OlaiWorld, address: string, target: string) {
@@ -329,7 +237,6 @@ When(
     assert.ok(from !== null, "the carried pin has to be laid out to drag it");
     await this.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
     await this.page.mouse.down();
-    // Past the travel threshold, so the gesture lifts and MEASURES.
     await this.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 12, {
       steps: 4,
     });
@@ -347,39 +254,17 @@ When(
   },
 );
 
-/**
- * What an outline ROW draws for its title — the maintainer's own gesture
- * (2026-08-18): pin something, then open `_olai/Pins.olai` as the ordinary outline
- * it is. The shelf resolved its rows and the file's page drew the raw address,
- * which is one title with two answers.
- *
- * Read as TEXT rather than as the resolved face's testid, deliberately: the
- * claim is what a reader SEES on that row, and a step that asked for the face
- * would pass over a row drawing both.
- */
 Then(
   "the node {string} reads {string}",
   async function (this: OlaiWorld, id: string, expected: string) {
     const title = this.nodeTitle(id);
     await this.waitUntil(
-      // Whitespace COLLAPSED: a resolved title is a row of parts — the mark,
-      // the name, the query chip — and `innerText` puts a newline between
-      // them. What a reader sees is the words in order, which is what a
-      // scenario should be able to say.
       async () => (await title.innerText()).replace(/\s+/g, " ").trim() === expected,
       `the row ${JSON.stringify(id)} to read ${JSON.stringify(expected)}`,
     );
   },
 );
 
-/**
- * What the ROW EDITOR holds — the other half of the resolved face.
- *
- * A title is drawn as the page it names and EDITED as what it is, which is the
- * trade every markdown title in this app already makes. A face nobody could
- * edit back into an address would be a row this file's own docs promise you
- * can change by hand.
- */
 Then(
   "the editor holds {string}",
   async function (this: OlaiWorld, text: string) {
@@ -389,8 +274,6 @@ Then(
   },
 );
 
-/** The query a pinned page carries, drawn beside its name — the half of a
- *  named pin that is about the DESTINATION rather than about the name. */
 Then(
   "the pin {string} carries the query {string}",
   async function (this: OlaiWorld, address: string, query: string) {
@@ -401,8 +284,6 @@ Then(
   },
 );
 
-/** The NAME of a resolved title, pressed — which for a title written as a link
- *  is the link somebody wrote, and is the press the ruling is about. */
 When(
   "I press the name of {string}",
   async function (this: OlaiWorld, id: string) {
@@ -410,7 +291,6 @@ When(
   },
 );
 
-/** …and no part of it became a tag. */
 Then("the node {string} draws no tag", async function (this: OlaiWorld, id: string) {
   assert.strictEqual(await this.within(id, selector(TESTID.tag)).count(), 0);
 });
@@ -428,8 +308,6 @@ Then(
   },
 );
 
-/** The whole shelf, in order — which is the half presence cannot answer, and
- *  the half a reorder is entirely about. */
 Then(
   "the pinned shelf reads {string}",
   async function (this: OlaiWorld, expected: string) {
@@ -444,16 +322,10 @@ Then(
   },
 );
 
-/** What a door is CALLED — read off the set on the frame it is drawn, which is
- *  why this waits rather than reads once: the claim is usually that a name
- *  CHANGED. */
 Then(
   "the pin {string} is named {string}",
   async function (this: OlaiWorld, address: string, name: string) {
     await this.showSidebar();
-    // The NAME element rather than the whole row: a pin that carries a query
-    // draws a chip beside its name, and reading the row would ask this step to
-    // know about that too.
     const row = pinAt(this, address).locator(selector(TESTID.addressName));
     await this.waitUntil(
       async () => (await row.innerText()).trim() === name,
@@ -490,17 +362,6 @@ Then("the layout panes have equal widths", async function (this: OlaiWorld) {
 
 
 
-/**
- * WHERE A LAYOUT PIN GOES, and who can learn it.
- *
- * The address used to be the row's `title`: the platform's tooltip, placed by
- * the browser and answered to a pointer and nothing else. It is this app's own
- * tip now (`@olai/web`'s `client/Tip.tsx`) — and because a tip is drawn
- * `role="presentation"`, it exposes nothing at all to a reader who never
- * hovers. So the address is ALSO in the row's own accessible name, after the
- * name somebody gave the pin, and these two steps are the two halves: what the
- * pointer gets, and what everybody else gets.
- */
 Then("the pin {string} says its address {string}", async function (this: OlaiWorld, address: string, bare: string) {
   await this.showSidebar();
   const link = pinAt(this, address).locator(PIN_LINK);
@@ -508,8 +369,6 @@ Then("the pin {string} says its address {string}", async function (this: OlaiWor
     async () => ((await link.getAttribute("aria-label")) ?? "").includes(bare),
     `the pin at ${JSON.stringify(address)} to carry its address ${JSON.stringify(bare)} in its own name`,
   );
-  // Without this the assertion above passes over a row wearing both, which is
-  // one sentence written twice and two tooltips on one control.
   const title = await link.getAttribute("title");
   assert.strictEqual(
     title,

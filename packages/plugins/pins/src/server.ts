@@ -1,7 +1,4 @@
 import { legacyPins } from "./migrate.ts"
-/** pins owns these legacy wire members for its activation. The vault
- * remains the write authority. All readings and subscriptions are acquired on
- * this provider's scope; UI and layout are not dependencies of this half. */
 import { definePlugin, Directory, Ops, Surfaces, Vault, LocalState } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Effect, Stream, SubscriptionRef } from "effect"
@@ -63,9 +60,6 @@ export default definePlugin({
 
 export { dispatch } from "./surface.ts"
 
-/** Static sibling metadata matches the browser-owned client. Agent grants
- * belong to the standalone aliases registered by this activation, so copying
- * them here would advertise a second set of namespaced agent tools. */
 import { faces as standaloneFaces } from "./surface.ts"
 const siblingFaces = { browser: standaloneFaces.browser }
 export { siblingFaces as faces }
