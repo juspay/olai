@@ -6,12 +6,8 @@ import { ToolFailure } from "@kolu/surface-mcp"
 import { Effect, Stream } from "effect"
 import { writerAt, type Bound } from "./authority.ts"
 
-/** The served generation, read afresh per call — never closed over. */
 export type Reading = () => Bound & { readonly expose: FaceExposure }
 
-/** A reserved tag passes through untouched: `system/live`, `system/identity` and
- *  `system/clockNow` exist on EVERY surface and belong to the composition ROOT
- *  here, so scoping one would send a heartbeat to a sibling. */
 export const scopedTo = (
   read: Reading,
   caller: Parameters<typeof writerAt>[1],

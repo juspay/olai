@@ -30,7 +30,6 @@ export const ticketing = (options: {
   readonly ops: Ops
   readonly currentTicket: () => string | null
   readonly token: string
-  /** Read afresh per mint — a ticket outlives a recompose. */
   readonly rows: () => ReadonlyArray<Row>
 }): Tickets => {
   const prefix = "olai-node-"
@@ -43,18 +42,33 @@ export const ticketing = (options: {
   const composed = (rule: SessionRule, writer: Writer): RootedSurfaceClients =>
     clientsFor(options.rows(), reading, { writer, rule })
 
-  // Cache per composed generation, not per request or forever.
-  let reservedGroup: ReturnType<Reading>["group"] | undefined
-  let reservedClients: RootedSurfaceClients | undefined
-  const reserved = (): RootedSurfaceClients => {
-    const group = reading().group
-    if (reservedClients === undefined || reservedGroup !== group) {
-      reservedClients = composed({ _tag: "open", forbidden: new Map(options.reservations.map((one) => [one.key, one.file === undefined ? one.says : { says: one.says, file: one.file }] as const)) }, "mcp")
-      reservedGroup = group
+  const perGeneration = (make: () => RootedSurfaceClients): (() => RootedSurfaceClients) => {
+    let generation: Bound["group"] | undefined
+    let made: RootedSurfaceClients | undefined
+    return () => {
+      const group = reading().group
+      if (made === undefined || generation !== group) {
+        made = make()
+        generation = group
+      }
+      return made
     }
-    return reservedClients
   }
+  const reserved = perGeneration(() =>
+    composed({ _tag: "open", forbidden: new Map(options.reservations.map((one) => [one.key, one.file === undefined ? one.says : { says: one.says, file: one.file }] as const)) }, "mcp"))
   const closed = composed({ _tag: "closed" }, "mcp")
+
+  type Credential =
+    | { readonly _tag: "minted"; readonly door: RootedSurfaceClients }
+    | { readonly _tag: "withdrawn" }
+    | { readonly _tag: "unticketed" }
+
+  const credentialOf = (bearer: string | null): Credential => {
+    if (bearer === null || bearer === options.token) return { _tag: "unticketed" }
+    const door = tickets.get(bearer)
+    if (door !== undefined) return { _tag: "minted", door }
+    return bearer.startsWith(prefix) ? { _tag: "withdrawn" } : { _tag: "unticketed" }
+  }
 
   return {
     mint: (forbidden, writer, confined) => {
@@ -64,8 +78,7 @@ export const ticketing = (options: {
         get _tag(): SessionRule["_tag"] {
           return released ? "closed" : "open"
         },
-        // READ PER CALL, like the table above it: the fence is up exactly while
-        // the caller's own work is, and the ticket outlives that.
+
         get confined(): Confinement | null {
           return released || confined === undefined ? null : confined()
         },
@@ -86,11 +99,10 @@ export const ticketing = (options: {
       }
     },
     doorAt: (held) => {
-      const bearer = options.currentTicket()
-      if (bearer === null || bearer === options.token) return options.reservations.length > 0 ? reserved() : held
-      const at = tickets.get(bearer)
-      if (at !== undefined) return at
-      return bearer.startsWith(prefix) ? closed : options.reservations.length > 0 ? reserved() : held
+      const credential = credentialOf(options.currentTicket())
+      if (credential._tag === "minted") return credential.door
+      if (credential._tag === "withdrawn") return closed
+      return options.reservations.length > 0 ? reserved() : held
     },
   }
 }

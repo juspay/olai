@@ -10,63 +10,56 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
 
-/** Read by the catch-up below and by the no-op guard, which must agree or one
- *  of them re-applies what the other just settled. */
-const signatureOf = (map: Record<string, { readonly tools?: Record<string, unknown> }>): string =>
-  Object.entries(map).map(([key, one]) =>
+type Roster = Record<string, McpSibling<SurfaceSpec>>
+
+const signatureOf = (roster: Roster): string =>
+  Object.entries(roster).map(([key, one]) =>
     `${key}:${Object.keys(one.tools ?? {}).sort().join(",")}`).sort().join("|")
+
+const applyingRoster = (served: Roster, reroster: (next: Roster) => Promise<unknown>) => {
+  let signature = signatureOf(served)
+  let settled: Promise<unknown> = Promise.resolve()
+  return (reading: () => Roster): Promise<unknown> => {
+    const applying = settled.then(() => {
+      const next = reading()
+      const now = signatureOf(next)
+      if (now === signature) return undefined
+      signature = now
+      return reroster(next)
+    })
+    settled = applying.catch(() => undefined)
+    return applying
+  }
+}
 
 export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effect.gen(function*() {
   const transport = mcpTransport()
   const rows = (): ReadonlyArray<Row> => shared.agentRows() as unknown as ReadonlyArray<Row>
-  const bundle = () => siblingsOf(rows(), row =>
+  const bundle = (): Roster => siblingsOf(rows(), row =>
     bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
       ...policy, get root() { return policy.root }, login: currentLogin, doorAt: policy.doorAt,
     }))
   const booted = bundle()
   const served = yield* serveFace({ siblings: booted, client: policy.client, rows, transport })
-  // What the chain buys is the two NOTIFICATIONS, which are awaited:
-  // un-chained, a burst could tell a host the list changed in an order that
-  // does not match the order it changed in.
-  let moving: Promise<unknown> = Promise.resolve()
-  let applied = signatureOf(booted)
+  const applyRoster = applyingRoster(booted, next => served.reroster(next))
   yield* Effect.acquireRelease(
     Effect.sync(() => shared.agentRosterMoved(() => {
-      moving = moving.then(() => {
-        const next = bundle()
-        const now = signatureOf(next)
-        if (now === applied) return undefined
-        applied = now
-        return served.reroster(next)
-      }).catch((thrown: unknown) => {
+      applyRoster(bundle).catch((thrown: unknown) => {
         Effect.runFork(Effect.logWarning(`mcp: the agent face kept its previous roster — ${String(thrown)}`))
       })
     })),
     stop => Effect.sync(stop),
   )
-  yield* Effect.promise(async () => {
-    const now = bundle()
-    const signature = signatureOf(now)
-    if (signature === applied) return
-    applied = signature
-    await served.reroster(now)
-  })
+  yield* Effect.promise(() => applyRoster(bundle))
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })
 
 export const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
 
 /**
- * Served at `initialize`, read per connection: a host ALREADY connected is not
- * told again, because MCP has no `instructions_changed` — only its tool list is
- * re-read, on `list_changed`.
- *
- * The composed whole must stay under 2000 bytes (`@olai/server`'s
- * `profiles.test.ts` holds the boundary): Claude Code truncates server
- * instructions at 2 KB silently, and bills the text on every turn.
- *
- * Codex and Claude Code honour `instructions`; opencode fetches it and drops it
- * (anomalyco/opencode#7373). pi is unverified.
+ * MCP has no `instructions_changed`: a host already connected keeps the text
+ * `initialize` handed it and re-reads only its tool list, on `list_changed`.
+ * opencode fetches `instructions` and drops them (anomalyco/opencode#7373).
  */
 const INSTRUCTIONS =
   "olai serves a directory of outlines and the documents beside them. Everything here " +
@@ -90,8 +83,7 @@ export const instructionsFor = (rows: ReadonlyArray<Row>): string =>
 const AGENT_CORE = { surface: hostSurface, expose: hostFaces.agent } as const
 
 export interface FaceOptions {
-  readonly siblings: Record<string, McpSibling<SurfaceSpec>>
-  /** It must READ the current roster rather than close over one. */
+  readonly siblings: Roster
   readonly client: () => ClientOrConnection | Promise<ClientOrConnection>
   readonly rows: () => ReadonlyArray<Row>
   readonly transport?: Transport

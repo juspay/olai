@@ -4,9 +4,6 @@ export interface TicketMint {
   readonly mint: (
     forbidden: () => readonly { readonly key: string; readonly says: string }[],
     writer: string,
-    /** THE SAME TYPE the mint's own implementation takes (`./tickets.ts`),
-     *  because a structural copy of a shape that grows a field is a copy that
-     *  stops matching it. */
     confined?: () => Confinement | null,
   ) => { readonly bearer: string; readonly release: () => void }
 }

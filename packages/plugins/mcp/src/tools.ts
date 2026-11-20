@@ -20,7 +20,6 @@ import { ownerIn, runnerIn, type Row } from "./bundle.ts"
 
 type Door = Running & Asking & Acting
 
-
 export const bespokeFrom = (
   owner: string,
   tools: ReadonlyArray<Tool>,
@@ -32,22 +31,10 @@ export const bespokeFrom = (
       tool,
     ) => [
       tool.name,
-      // `did` on an answer, and the word a refusal quotes, have to be the
-      // composed name or they name a tool the caller never asked for.
-      verb(tool, (args) => {
-        // READ HERE, synchronously, on the request's own stack — see
-        // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
-        // whichever request happened to be running when the scheduler got to
-        // it, which is a capture attributed to the wrong person.
+      ownVerb(tool, (args) => {
         const door = at.doorAt()
         const said = answer(tool, doorOver(door, rows, at), door, owner, scopedToolName(owner, tool.name), args, at.login())
         if (tool.kind !== "read") return Effect.map(said, (it) => named(it, at.root))
-        // THE AGE IS ESTABLISHED FIRST, and that order is the honest one: the
-        // look happens, then the read runs against a set that is at least as
-        // current as the look proved. The other order would let a publish land
-        // between them and stamp an answer with a vintage newer than the answer
-        // is. This way the vintage can only understate, which is the direction
-        // an agent can act on safely.
         return Effect.flatMap(
           at.vintage,
           (vintage) => Effect.map(said, (it) => named(it, at.root, vintage)),
@@ -69,8 +56,7 @@ export const remoteFrom = (owner: string, tools: ReadonlyArray<Tool>): Record<st
   Object.fromEntries(
     tools.map((tool) => [
       tool.name,
-      verb(tool, (args, client) => {
-        const door = client as unknown as Dialled
+      dialledVerb(tool, (args, door) => {
         const called = scopedToolName(owner, tool.name)
         return Effect.map(
           Effect.tryPromise({
@@ -88,19 +74,24 @@ interface Dialled {
   readonly url: string
 }
 
-const verb = (
-  tool: Tool,
-  run: (args: unknown, client: unknown) => Effect.Effect<unknown, ToolFailure>,
-): BespokeTool => {
+const shaped = (tool: Tool, handler: BespokeTool["handler"]): BespokeTool => {
   const input = argsOf(tool)
   return {
     ...(input === undefined ? {} : { input }),
     title: tool.title,
     description: tool.description,
     mutates: tool.kind === "surface" ? tool.mutates : tool.kind !== "read",
-    handler: (args, client) => run(args, client),
+    handler,
   }
 }
+
+const ownVerb = (tool: Tool, run: (args: unknown) => Effect.Effect<unknown, ToolFailure>): BespokeTool =>
+  shaped(tool, (args) => run(args))
+
+const dialledVerb = (
+  tool: Tool,
+  run: (args: unknown, door: Dialled) => Effect.Effect<unknown, ToolFailure>,
+): BespokeTool => shaped(tool, (args, client) => run(args, client as Dialled))
 
 const named = (said: unknown, root: string, vintage?: Vintage): unknown =>
   isRecord(said)
@@ -149,16 +140,10 @@ const doorOver = (bundle: RootedSurfaceClients, rows: () => ReadonlyArray<Row>, 
 }
 
 /**
- * An empty field set becomes `undefined`, and must. Effect compiles
- * `Schema.Struct({})` to `anyOf: [object, array]` rather than to an object
- * type, so the adapter's "is this an object?" test says no and advertises the
- * input WRAPPED under a single `value` property — after which dispatch unwraps
- * `args.value`, finds nothing, and every call of a no-argument tool is refused
- * with "Expected object | array".
- *
- * Reaching for `.fields` is how a `Schema.Struct` is taken apart in Effect 4;
- * there is no `Schema.omit` at this pin. Field-level annotations ride on the
- * field schemas, so the descriptions an agent reads survive the rebuild.
+ * Effect 4.1.4 compiles `Schema.Struct({})` to `anyOf: [object, array]` rather
+ * than to an object type, so a tool with no fields must advertise no input at
+ * all; and this pin has no `Schema.omit`, so a struct is taken apart through
+ * `.fields`, which keeps each field's own annotations.
  */
 const argsOf = (tool: Tool): ToolInputSchema<unknown> | undefined => {
   const fields = { ...tool.schema.fields }
@@ -228,9 +213,6 @@ const planned = (
     ),
     (written) => written.done,
   )
-
-const asked = <A>(name: string, call: Effect.Effect<A, OpFailure>): Effect.Effect<A, ToolFailure> =>
-  Effect.mapError(call, (failure) => refusal(name, failure))
 
 const refusal = (name: string, failure: OpFailure): ToolFailure =>
   new ToolFailure(

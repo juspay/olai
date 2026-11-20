@@ -17,13 +17,9 @@ export default definePlugin({
     const shared = yield* TransportSurface
     const served = yield* Served
     const policy = bindAgent({ shared, ticket: currentTicket,
-      // PER CALL, both of them: a vault switched off mid-session must refuse
-      // the NEXT tool call rather than the one after the next reconnect.
       directory: () => served.directory() as OpenDirectory | undefined,
       ops: () => served.gate() as Gate | undefined,
     })
-    // Unloading withdraws the mint, catalogue and carrier before any subsequent
-    // activation allocates a new table.
     yield* (yield* Offers).own("ticket-mint", () => policy.tickets)
     const catalogue = { advertised: advertisedFrom(SERVER_INFO.name, () => shared.agentRows()) }
     yield* (yield* Offers).own("catalogue", () => catalogue)

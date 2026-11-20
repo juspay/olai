@@ -30,8 +30,6 @@ const generation = (name: string, keys: ReadonlyArray<string>) => {
       group: runtime.group,
       handlers: runtime.handlers,
       writes: keys.map(at),
-      // `as const` because `Object.fromEntries` widens `"tool"` to `string` and
-      // `ExposeMap` is a union of literals.
       expose: exposeRootedFaces(core, {}, Object.fromEntries(keys.map(key => [key, row])), Object.fromEntries(keys.map(key => [key, { "counter.read": "tool" } as const]))),
     }),
   }

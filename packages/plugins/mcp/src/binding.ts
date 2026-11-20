@@ -31,8 +31,6 @@ export const bindAgent = (options: {
   const tickets = ticketing({ reservations: shared.writeReservations, bound: shared.agent, face: () => shared.agent().expose, ops, token: shared.token, currentTicket: options.ticket, rows })
   return {
     tickets,
-    // Minted per call: one held across a recompose would carry a client for a
-    // row that has left and none for one that arrived.
     client: panel,
     get root() { return options.directory()?.root ?? "" },
     vintage: Effect.suspend(() => {

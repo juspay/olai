@@ -14,8 +14,8 @@ Then("the MCP transport answers with status {int}", async function (this: OlaiWo
   if (status === 200) {
     const reply = await response.json();
     assert.ok(reply.result.tools.some((tool: { name: string }) => tool.name === "outlines_read"));
-    // An HTTP 200 with tool names still fails agent startup if schemas are
-    // missing (#548). Check every tool, including after plugin reactivation.
+    // Codex fails startup on a tool with no `inputSchema`, though `tools/list`
+    // answers 200 with every name (#548).
     for (const tool of reply.result.tools) {
       assert.equal(tool.inputSchema?.type, "object", `${tool.name}: missing MCP inputSchema`);
     }

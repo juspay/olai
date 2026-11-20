@@ -1,13 +1,11 @@
 /**
- * The SDK's Streamable HTTP transport is not used here, having been tried. It
- * offers two modes and neither fits. STATELESS refuses to be reused —
- * "Stateless transport cannot be reused across requests. Create a new transport
- * per request." — and a transport per request means a `Server` per request,
- * because an MCP `Server` binds exactly one. STATEFUL keeps one transport but
- * issues an `Mcp-Session-Id` the client must then echo, and prefers to answer
- * with an SSE stream, which a client that called `response.json()` waits on
- * forever. `serveSurfaceAsMcp` takes a transport as an option, so
- * {@link RouteTransport} is what this route drives instead.
+ * `@modelcontextprotocol/sdk`'s Streamable HTTP transport cannot drive this
+ * route. Stateless: "Stateless transport cannot be reused across requests.
+ * Create a new transport per request.", and a transport per request means an
+ * MCP `Server` per request, because a `Server` binds exactly one. Stateful:
+ * it issues an `mcp-session-id` the client must echo, and answers with
+ * `text/event-stream` unless `enableJsonResponse` is set, which a client that
+ * called `response.json()` waits on forever.
  */
 
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
@@ -47,8 +45,6 @@ class RouteTransport implements Transport {
     waiter(message)
   }
 
-  /** `null` for a notification: a client matching replies to ids must not be
-   *  handed one where there is none. */
   ask(message: unknown): Promise<unknown> {
     const id = (message as Message).id
     if (id === undefined || id === null) {
@@ -69,21 +65,22 @@ class RouteTransport implements Transport {
   }
 }
 
-/** The SDK's `Protocol` reports a non-object to `onerror` and sends nothing,
- *  which through a half-duplex transport means the POST is answered 202 and the
- *  client waits for a frame that is never coming. So the judgement stays here. */
+/** The SDK's `Protocol` hands a non-object to `onerror` and sends nothing, so
+ *  over a half-duplex transport the POST is answered 202 and the client waits
+ *  for a frame that is never coming. */
 const isMessage = (body: unknown): boolean =>
   typeof body === "object" && body !== null && !Array.isArray(body)
 
-const WHOSE = new AsyncLocalStorage<string | null>()
+interface Caller {
+  readonly login: string | null
+  readonly bearer: string | null
+}
 
-export const currentLogin = (): string | null => WHOSE.getStore() ?? null
+const CALLER = new AsyncLocalStorage<Caller>()
 
-/** Kept beside login because both must survive only the request's own async
- *  span. */
-const HANDED = new AsyncLocalStorage<string | null>()
+export const currentLogin = (): string | null => CALLER.getStore()?.login ?? null
 
-export const currentTicket = (): string | null => HANDED.getStore() ?? null
+export const currentTicket = (): string | null => CALLER.getStore()?.bearer ?? null
 
 export const bearerIn = (authorization: string | undefined): string | null =>
   authorization?.startsWith("Bearer ") === true ? authorization.slice("Bearer ".length) : null
@@ -138,11 +135,10 @@ export const mcpRoute = (source: Options | (() => Options | undefined)): Layer.L
           }
 
           const who = options.who(request.headers)
-          const held = bearerIn(request.headers["authorization"])
           const reply = yield* Effect.promise(() =>
-            WHOSE.run(
-              who === null ? null : who.login,
-              () => HANDED.run(held, () => options.transport.ask(body.success)),
+            CALLER.run(
+              { login: who === null ? null : who.login, bearer: bearerIn(request.headers["authorization"]) },
+              () => options.transport.ask(body.success),
             )
           )
           return reply === null

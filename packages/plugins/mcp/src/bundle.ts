@@ -20,14 +20,24 @@ type Spec = {
   readonly procedures?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
 }
 
-const declares = (spec: unknown, member: string, verb: string): boolean => {
+type Member =
+  | { readonly nests: true; readonly verbs: Readonly<Record<string, unknown>> }
+  | { readonly nests: false }
+
+const memberOf = (spec: unknown, member: string): Member | undefined => {
   const it = spec as Spec
-  if (it.procedures?.[member] !== undefined) return it.procedures[member]![verb] !== undefined
-  return it.cells?.[member] !== undefined || it.collections?.[member] !== undefined || it.streams?.[member] !== undefined
+  const verbs = it.procedures?.[member]
+  if (verbs !== undefined) return { nests: true, verbs }
+  const flat = it.cells?.[member] !== undefined || it.collections?.[member] !== undefined ||
+    it.streams?.[member] !== undefined
+  return flat ? { nests: false } : undefined
 }
 
 export const ownerIn = (rows: ReadonlyArray<Row>, member: string, verb: string): string | undefined =>
-  rows.find(row => declares(row.surface.spec, member, verb))?.name
+  rows.find(row => {
+    const declared = memberOf(row.surface.spec, member)
+    return declared !== undefined && (!declared.nests || declared.verbs[verb] !== undefined)
+  })?.name
 
 export const runnerIn = (rows: ReadonlyArray<Row>): ReadonlyMap<string, string> => {
   const owners = new Map<string, string>()
@@ -41,9 +51,6 @@ export const runnerIn = (rows: ReadonlyArray<Row>): ReadonlyMap<string, string> 
   return owners
 }
 
-/** A row's tools keep the names they were AUTHORED with: a tool name is the
- *  vocabulary that appears in agent prompts and in docs, and must not move when
- *  the composition does. */
 export const siblingsOf = (
   rows: ReadonlyArray<Row>,
   verbs: (row: Row) => Record<string, BespokeTool>,
