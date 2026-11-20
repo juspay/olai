@@ -196,6 +196,11 @@ table.cmp thead th:nth-child(2) { color: var(--accent); }
 .use p + p { margin-top: 0.8rem; }
 .use .needs { font-size: 0.86rem; color: var(--muted); margin-top: 0.9rem; }
 
+video.tour {
+  display: block; width: 100%; height: auto; margin-top: 1.8rem;
+  border-radius: 12px; border: 1px solid var(--rule); background: var(--desk);
+}
+
 .shot.small { margin-top: 0; }
 .small h3 {
   font-size: 0.74rem; color: var(--muted); font-weight: 700; letter-spacing: 0.08em;

@@ -155,6 +155,15 @@ const recording = async (): Promise<void> => {
   await page.mouse.click(900, 600)
   await page.waitForTimeout(1500)
 
+  await page.getByText("¶").nth(1).click()
+  await page.waitForTimeout(1000)
+  await page.getByRole("link", { name: "cabinets", exact: true }).first().click()
+  await page.getByText("Corner carousel").first().waitFor()
+  await page.mouse.move(1260, 780)
+  await page.waitForTimeout(3000)
+  await page.goBack()
+  await page.waitForTimeout(2000)
+
   await page.getByRole("button", { name: "Start an agent" }).first().click()
   await page.locator('[data-testid="chat-input"]').waitFor()
   await page.waitForTimeout(2500)
