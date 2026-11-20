@@ -120,7 +120,6 @@ const bench = <A, E>(
     })),
   )
 
-/** The table and the list have to agree, and nothing but this says so. */
 test("this process binds every module the compiler says a server half may name", () => {
   const table = (globalThis as Record<string, unknown>)[REGISTRY] as Record<string, unknown>
   expect(Object.keys(table).sort()).toEqual([...SERVER_MODULES].sort())

@@ -28,7 +28,6 @@ export const surface = defineSurface({
         output: Schema.Struct({}),
         error: OpFailure,
       },
-      /** Three acts in this order: the word is judged first, the README is written next, the builder is started last. */
       mint: {
         input: Schema.Struct({
           sentence: Schema.String,

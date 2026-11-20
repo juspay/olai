@@ -20,6 +20,7 @@ export default function MorePanel(props: {
   readonly close: () => void
 }) {
   const shown = useShown()
+  // Kobalte restores focus after the enclosing Show has withdrawn the menu.
   const anchor = createMemo(() => props.anchor)
   const portal = document.createElement("div")
   createEffect(() => { portal.className = `fixed left-0 top-0 ${LAYER.over}` })

@@ -14,7 +14,6 @@ import { pluginPage } from "./route.ts"
 import { PluginGlyph } from "./glyph.tsx"
 import { definedPlugins, faultSaid, LOOK, MARK_WORD, markOf, stageOf, type Defined } from "./state.ts"
 
-/** The press and the no-palette sentence must say the same thing. */
 const EMPTY_SAID = "Ask for your first plugin…"
 
 const Glyph = PluginGlyph

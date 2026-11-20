@@ -53,13 +53,18 @@ export const components = {
     const management = yield* browserManagement
     yield* Effect.acquireRelease(Effect.sync(() => holdPalette(control)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdRouter(lane)), stop => Effect.sync(stop))
-    const taken = yield* Effect.acquireRelease(
-      Effect.sync(() => createRoot((dispose) => ({ dispose, read: management.roster() }))),
+    const takenWords = yield* Effect.acquireRelease(
+      Effect.sync(() =>
+        createRoot((dispose) => {
+          const roster = management.roster()
+          return { dispose, read: () => roster()?.built.map((plugin) => plugin.name) ?? [] }
+        })
+      ),
       (owner) => Effect.sync(owner.dispose),
     )
     yield* (yield* rendererSlots).contribute(paletteAdapters, {
       items: () => [newPluginRow({
-        taken: () => taken.read()?.built.map((plugin) => plugin.name) ?? [],
+        taken: takenWords.read,
         go: (word) => lane.go(pluginPage.to({ word })),
       })],
     })

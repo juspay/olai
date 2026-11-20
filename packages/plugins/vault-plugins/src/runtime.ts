@@ -53,7 +53,7 @@ export const openDynamic = (
   const warn = (line: string) => { if (!warned.has(line)) { warned.add(line); warnings.push(line) } }
   let seen: ReadonlyArray<Defined> = []
   const approvedSource = new Map<string, { readonly server: string; readonly browser: string | null }>()
-  const checkedBuilds = new Map<string, { readonly version: string; readonly why: string | null }>()
+  const checkedBuilds = new Map<string, Checked>()
 
   let chats: ReadonlySet<string> = new Set()
 
@@ -71,7 +71,7 @@ export const openDynamic = (
       for (const one of defined) {
         if (one.fault !== null || isApproved(one) || one.server.trim() === "") { checkedBuilds.delete(one.name); continue }
         if (checkedBuilds.get(one.name)?.version === one.version) continue
-        checkedBuilds.set(one.name, { version: one.version, why: yield* compiles(one) })
+        checkedBuilds.set(one.name, { version: one.version, compiled: yield* compiles(one) })
       }
       forget(checkedBuilds)
       const door = conversations()
@@ -88,9 +88,10 @@ export const openDynamic = (
         if (next?.version === one.version) {
           if (!one.up && one.options === optionsKey(next)) continue
           if (one.up) {
-            const policy = policyFor(one.declaration, next, warn)
-            if (one.updates === "live" || JSON.stringify(policy.config) === JSON.stringify(one.policy.config)) {
-              started.set(name, { ...one, policy, options: optionsKey(next) })
+            const made = policyFor(one.declaration, next)
+            for (const line of made.warnings) warn(line)
+            if (one.updates === "live" || JSON.stringify(made.row.config) === JSON.stringify(one.policy.config)) {
+              started.set(name, { ...one, policy: made.row, options: optionsKey(next) })
               continue
             }
           }
@@ -102,7 +103,9 @@ export const openDynamic = (
       }
       for (const [name, one] of wanted) {
         if (started.has(name)) continue
-        started.set(name, yield* start(host, one, warn))
+        const attempt = yield* start(host, one)
+        for (const line of attempt.warnings) warn(line)
+        started.set(name, attempt.outcome)
       }
       for (const line of warnings.splice(0)) yield* Effect.logWarning(line)
     })
@@ -128,9 +131,17 @@ export const openDynamic = (
 
   return {
     rows: (report) => {
-      const asking = conversations() !== undefined
+      const canAsk = conversations() !== undefined
       return seen.map((one) =>
-        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(itemKey(readmeItem(one.name))), asking))
+        rowOf({
+          one,
+          started: started.get(one.name),
+          report: report.get(one.name),
+          approvedSource: approvedSource.get(one.name),
+          checked: checkedBuilds.get(one.name),
+          hasChat: chats.has(itemKey(readmeItem(one.name))),
+          canAsk,
+        }))
     },
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),
@@ -227,30 +238,51 @@ const optionsKey = (one: Defined): string => {
   })))
 }
 
-const compiles = (one: Defined): Effect.Effect<string | null> =>
+type Compiled = { readonly ok: true } | { readonly ok: false; readonly why: string }
+
+interface Checked {
+  readonly version: string
+  readonly compiled: Compiled
+}
+
+const compiles = (one: Defined): Effect.Effect<Compiled> =>
   Effect.gen(function*() {
     const server = yield* Effect.promise(() => buildHalf("server", one.server))
-    if (!server.ok) return server.why
-    if (one.browser === null) return null
+    if (!server.ok) return { ok: false, why: server.why }
+    if (one.browser === null) return { ok: true }
     const browser = yield* Effect.promise(() => buildHalf("browser", one.browser ?? ""))
-    return browser.ok ? null : browser.why
+    if (browser.ok) return { ok: true }
+    return { ok: false, why: browser.why }
   })
 
-const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) => void): PolicyRow => {
-  if (schema === undefined) return { config: {}, values: [] }
+interface Policy {
+  readonly row: PolicyRow
+  readonly warnings: ReadonlyArray<string>
+}
+
+const policyFor = (schema: Plugin["config"], one: Defined): Policy => {
+  if (schema === undefined) return { row: { config: {}, values: [] }, warnings: [] }
   if (schema.ast._tag === "Objects") for (const field of schema.ast.propertySignatures) {
     if (RESERVED.includes(String(field.name))) {
       throw new Error(`${String(field.name)} ${RESERVED_SAID}`)
     }
   }
-  return decodePolicy(schema, one.consent.nodes, one.consent.node,
-    (key, value, reason) => warn(`${one.consent.file ?? CONFIGURATION_FILE}: ${one.name}.${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+  const warnings: string[] = []
+  const row = decodePolicy(schema, one.consent.nodes, one.consent.node,
+    (key, value, reason) =>
+      warnings.push(`${one.consent.file ?? CONFIGURATION_FILE}: ${one.name}.${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+  return { row, warnings }
 }
 
-const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): Effect.Effect<Started> =>
+interface Attempt {
+  readonly outcome: Started
+  readonly warnings: ReadonlyArray<string>
+}
+
+const start = (host: OwnedLoader, one: Defined): Effect.Effect<Attempt> =>
   Effect.gen(function*() {
     const options = optionsKey(one)
-    const faulted = (why: string): Started => ({ up: false, version: one.version, options, why })
+    const faulted = (why: string): Attempt => ({ outcome: { up: false, version: one.version, options, why }, warnings: [] })
     const server = yield* Effect.promise(() => buildHalf("server", one.server))
     if (!server.ok) return faulted(server.why)
     const browser = one.browser === null
@@ -266,14 +298,14 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
           + `make the half agree with it, or rename the folder.`,
       )
     }
-    let policy: PolicyRow
-    try { policy = policyFor(plugin.config, one, warn) }
+    let made: Policy
+    try { made = policyFor(plugin.config, one) }
     catch (error) { return faulted(`Invalid Config declaration: ${String(error)}`) }
-    const mounted = yield* host.mount(plugin, policy.config)
-    return {
+    const mounted = yield* host.mount(plugin, made.row.config)
+    const outcome: Started = {
       up: true,
       options,
-      policy,
+      policy: made.row,
       declaration: plugin.config,
       updates: plugin.configUpdates,
       version: one.version,
@@ -281,13 +313,16 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
       chunk: browser === null ? null : browser.text,
       path: browser === null ? null : `${PLUGIN_CHUNK_PREFIX}${one.name}-${one.version}.js`,
     }
+    return { outcome, warnings: made.warnings }
   })
 
+const moduleUrlFromBytes = (text: string): string =>
+  `data:text/javascript;base64,${Buffer.from(text, "utf8").toString("base64")}`
+
 const loaded = async (text: string): Promise<Plugin | string> => {
-  const url = `data:text/javascript;base64,${Buffer.from(text, "utf8").toString("base64")}`
   let module: { readonly default?: unknown }
   try {
-    module = await import(url) as { readonly default?: unknown }
+    module = await import(moduleUrlFromBytes(text)) as { readonly default?: unknown }
   } catch (thrown) {
     return thrown instanceof Error ? thrown.message : String(thrown)
   }
@@ -299,17 +334,19 @@ const loaded = async (text: string): Promise<Plugin | string> => {
   return plugin as Plugin
 }
 
-const rowOf = (
-  one: Defined,
-  started: Started | undefined,
-  report: RowReport | undefined,
-  approvedSource: { readonly server: string; readonly browser: string | null } | undefined,
-  pending: { readonly version: string; readonly why: string | null } | undefined,
-  chat: boolean,
-  asking: boolean,
-): BuiltPlugin => {
+interface RowInput {
+  readonly one: Defined
+  readonly started: Started | undefined
+  readonly report: RowReport | undefined
+  readonly approvedSource: { readonly server: string; readonly browser: string | null } | undefined
+  readonly checked: Checked | undefined
+  readonly hasChat: boolean
+  readonly canAsk: boolean
+}
+
+const rowOf = ({ one, started, report, approvedSource, checked, hasChat, canAsk }: RowInput): BuiltPlugin => {
   const up = started?.up === true ? started : null
-  const was = approvedSource === undefined || isApproved(one) ? undefined : approvedSource
+  const driftedFrom = approvedSource === undefined || isApproved(one) ? undefined : approvedSource
   const source = {
     folder: one.folder,
     title: one.title,
@@ -319,15 +356,17 @@ const rowOf = (
     approved: isApproved(one),
     ...(one.approved === null ? {} : { decided: true }),
     ...(one.approved === ALWAYS ? { trusting: true } : {}),
-    ...(isBuilding(one, chat) ? { building: true } : {}),
+    ...(isBuilding(one, hasChat) ? { building: true } : {}),
     on: isOn(one),
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
-    ...(was === undefined || was.server === one.server ? {} : { approvedServer: was.server }),
-    ...(was === undefined || was.browser === one.browser || was.browser === null ? {} : { approvedBrowser: was.browser }),
+    ...(driftedFrom === undefined || driftedFrom.server === one.server ? {} : { approvedServer: driftedFrom.server }),
+    ...(driftedFrom === undefined || driftedFrom.browser === one.browser || driftedFrom.browser === null
+      ? {}
+      : { approvedBrowser: driftedFrom.browser }),
     ...(one.uses.length === 0 ? {} : { uses: one.uses }),
-    ...(chat ? { chat: true } : {}),
-    ...(asking ? { asking: true } : {}),
+    ...(hasChat ? { chat: true } : {}),
+    ...(canAsk ? { asking: true } : {}),
     ...(up?.path == null ? {} : { chunk: up.path }),
   }
   const at = (state: PluginState, more: Partial<BuiltPlugin> = {}): BuiltPlugin => ({
@@ -345,9 +384,12 @@ const rowOf = (
         : { configurationNode: { file: one.consent.file, id: one.consent.node.node.id } }),
     }),
   })
+  const checkedFault = checked === undefined || checked.version !== one.version || checked.compiled.ok
+    ? undefined
+    : checked.compiled.why
   const said = one.fault
     ?? (started?.up === false ? started.why : undefined)
-    ?? (pending?.version === one.version ? pending.why ?? undefined : undefined)
+    ?? checkedFault
   if (said !== undefined) return at("failed", { fault: said })
   if (!isApproved(one)) return at("pending")
   if (!isOn(one)) return at("switched")

@@ -58,7 +58,6 @@ export const faultSaid = (plugin: Defined): string | undefined => {
   return `It is waiting for ${missing.join(", ")}, which nothing on this serve provides.`
 }
 
-/** It is a CONSTANT because it must never be composed, shortened or made conditional. */
 export const TRUST_SAID = "A plugin runs on this computer with everything olai can reach. There is no sandbox; turning one on is trusting the code."
 
 export type Mark = "working" | "review" | "problem" | "none" | "quiet"
