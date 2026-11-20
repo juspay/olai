@@ -1,17 +1,3 @@
-/**
- * WHAT THIS ENGINE MAKES OF A HOST, over values — and this is the row where
- * that matters most, because it is the PAIR.
- *
- * A pi row is startable only where BOTH halves answer: the pinned adapter,
- * named by OLAI_ACP_PI, and a pi executable for it to wrap. A pi-acp with no
- * pi behind it would fail at every session/new. Either absence therefore
- * stays visible with its distinct reason, but cannot be offered as startable.
- *
- * IT LIVES HERE and not in `olai-plugin-chat` because the row does: each engine's
- * probe is one plugin’s fact, and what is left in core is ordering and
- * the shape of the reading (`olai-plugin-chat`'s `agents/roster.test.ts`).
- */
-
 import { describe, expect, test } from "bun:test"
 
 import { ENGINE, PI_AGENT_ENV } from "./server.ts"
@@ -29,27 +15,16 @@ describe("finding pi on a host", () => {
     ).toEqual({
       command: "/store/bin/pi-acp",
       args: ["--flag"],
-      // The EXACT executable the probe found — otherwise pi-acp resolves the
-      // word `pi` against its child's PATH, which is olai's and no other.
       env: { PI_ACP_PI_COMMAND: "/home/u/.npm-global/bin/pi" },
     })
   })
 
   test("adapter without agent is the agent's own sentence, not the adapter's", () => {
-    // A row that failed at every `session/new` would be offered, which is the
-    // one promise the picker may not make. The absence names the half that
-    // failed — `pi` is the person's to install — so the sentence a machine
-    // without it is owed is the PATH one and not the adapter one.
     expect(ENGINE.at({ env: { [PI_AGENT_ENV]: "/store/bin/pi-acp" }, cwd: CWD, found: nowhere }))
       .toBe(INSTALL)
   })
 
   test("agent without adapter is the ADAPTER's sentence — a different reason", () => {
-    // The variable is the adapter's whole door, the way `KOLU_ACP_AGENT` is the
-    // claude row's: a floating `npx -y pi-acp` is never run, because the wire
-    // facts this leg is written against are one revision's. TWO ABSENCES, TWO
-    // SENTENCES: telling somebody whose pin is unset to go and put `pi` on a
-    // PATH would be a remedy that changes nothing, so the arms are told apart.
     const at = ENGINE.at({ env: {}, cwd: CWD, found: foundPi })
     expect(at).toBe(ADAPTER_GONE)
     expect(at).not.toBe(INSTALL)

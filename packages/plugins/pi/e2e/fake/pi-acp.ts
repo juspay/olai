@@ -1,74 +1,4 @@
 #!/usr/bin/env bun
-/**
- * A `pi-acp` adapter, shaped the way the real one is on the wire.
- *
- * The suite's third scripted agent, and what makes it a WITNESS rather than a
- * mode of one of the others: every frame shape below was captured live against
- * **pi-acp 0.0.33 driving pi 0.84.2** (the spike, 2026-08-28 — the leg file,
- * `packages/plugins/pi/src/leg.ts`, carries the whole table), and none of it
- * is shared with the other engines' fakes:
- *
- *   - **call ids are `<tool>:<n>`** — `bash:0` — and nothing on any frame
- *     names the tool: a bash call's `_meta` corners are its terminal
- *     bookkeeping (`terminal_info`, `terminal_output`, `terminal_exit`), which
- *     a client reads for nothing and must not crash on.
- *   - **a `session/new` DOUBLES a prologue as utterance.** The answer's
- *     `_meta.piAcp.startupInfo` is a banner for an editor, and then the SAME
- *     TEXT arrives as one ordinary `agent_message_chunk` — the client that
- *     draws no editor block is expected to still show it, and olai is
- *     expected to drop it: the response's own field is what makes the match
- *     exact. A `session/load` answers the corner `null`.
- *   - **the handed `mcpServers` reach pi through the pin's bridge** —
- *     pi-acp patched the way packages/plugins/pi/acp/patches/README.md's `pi-mcp-servers` section
- *     describes (the spiked answer of Route A): every session spawns with
- *     `PI_ACP_MCP_SERVERS` in its env and a bridge on its `-e` line that
- *     registers them as pi tools. A fake never RUNS pi — the wire shape
- *     it carries from that world is the CAPABILITY answer
- *     (`mcpCapabilities: {http,sse}: true`) and the round trip's three
- *     frames under an `olai_<tool>` id; the protocol-true mid-cheek is
- *     `packages/plugins/pi/acp/mcp-bridge/roundtrip.test.js` (a real SDK pair).
- *   - **no bypass mode, no steering**: `session/set_mode` answers `-32602`
- *     (the modes are pi's thinking levels) and `_session/steering` `-32601`.
- *     `/steering` in this adapter is a slash command about pi's own message
- *     delivery, not the ACP extension of the same name.
- *   - **a mid-turn `session/prompt` is held, announced, and answered in
- *     order** — for real, one at a time: the queued request says so
- *     ("Queued message (position 1).", and a `session_info_update` carrying
- *     `_meta.piAcp.{queueDepth, running}`) and is answered when its turn
- *     comes. What `session/cancel` does to a queue was not captured; scripted
- *     here the way the other fake scripts it, because a fake is a shape olai
- *     must survive rather than a fact.
- *   - **the model is a `configOptions` select** (`id: "model"`) beside a
- *     thought-level one, the two facts the real answer carries, and a change
- *     comes back in the method RESPONSE.
- *   - **an error inside a turn is silence**: keyed "silent", the turn sends
- *     NOTHING and answers `end_turn` — pi-acp maps a model error to a plain
- *     end of turn and never sends `usage_update`, so olai's silence arm is
- *     the whole of what a person gets. Kept beside a prologue ON PURPOSE:
- *     the banner is the one chunk that could make a silent first turn look
- *     said.
- *
- * `OLAI_FAKE_PI_STORED` works the way the other agents' does: unset means
- * nothing is stored; set means `session/list` answers (scoped EXACTLY to the
- * request's `cwd`, as the real one filters) and `session/load` replays.
- *
- * It lives beside a stub `pi` in a directory of its own because that directory
- * is what a `@pi` scenario puts on a spawned server's `OLAI_AGENT_PATH`: the
- * roster's row is the PAIR — adapter from `OLAI_ACP_PI`, agent from the probe
- * — and whether this machine "has pi" is a property of the scenario, not of
- * the laptop the run is on. The stub is never run: the adapter is handed its
- * path as `PI_ACP_PI_COMMAND` and a scripted adapter spawns nothing.
- *
- * Behaviour is keyed on the prompt text:
- *
- *   hello       one chunk of prose and an `end_turn`
- *   slow        a `bash:0` call with the real one's terminal corners, HELD
- *               until a scenario says when — a turn to look at WHILE it runs,
- *               which is when a mid-turn message is a question anybody has
- *   silent      nothing at all and `end_turn` — the model error as the wire
- *               reports it, which is never
- *   anything    `pi says: <text>`
- */
 
 import { announced, wrapped, type CallToolResult } from "olai-plugin-pi/testlib";
 import { existsSync, realpathSync, rmSync } from "node:fs";
@@ -82,29 +12,20 @@ const { notify, refuse, respond, take } = speaking(emit, "pi");
 
 const cwd = process.cwd();
 
-/** The request names THIS DIRECTORY? `getcwd(2)` answers the PHYSICAL
- *  spelling — `/var/folders/…` is `/private/var/folders/…` on darwin — and a
- *  client may ask in whichever spelling started it ({@link cwd} is this
- *  process's own answer already). One tree, either spelling, the other side
- *  of the wire's string-equality contract read generously. */
 const thisTree = (candidate: unknown): boolean =>
   typeof candidate === "string" &&
   (candidate === cwd || realpathSync(candidate) === cwd);
 
-/** A turn that gave up because somebody pressed cancel. */
 class Cancelled extends Error {}
 
 const STORED = process.env.OLAI_FAKE_PI_STORED ?? "";
 
-/** The one stored conversation, when a scenario asked for one. */
 const STORED_SESSION = "pi_stored_session";
 
 let sessionId = "";
 let mcp: { url: string; headers: Record<string, string>; name: string } | null = null;
 
 let nextCall = 0;
-
-// ── talking to olai's own MCP server ───────────────────────────────────
 
 const callMcp = async (
   method: string,
@@ -125,8 +46,6 @@ const callMcp = async (
   return body.result ?? {};
 };
 
-// ── the frames ─────────────────────────────────────────────────────────
-
 const say = (text: string): void => {
   notify("session/update", {
     sessionId,
@@ -134,19 +53,8 @@ const say = (text: string): void => {
   });
 };
 
-/** The banner, spelled once: the response announces it and one chunk doubles
- *  it, byte for byte — the exactness IS the protocol detail under test.
- *
- *  THE SHAPE IS THE REAL ONE'S — `buildStartupInfo` in the pin's source:
- *  a version header, a rule, then markdown SECTIONS (`## Context`, `##
- *  Skills`, …) for whatever it found, the whole thing trimmed with a
- *  trailing blank line and sent as ONE chunk. A three-line stand-in would
- *  make the witness answer a question nobody asked of it: whether the
- *  filter holds against a banner with lines a person could also type. */
 const BANNER = "pi v0.84.2\n---\n\n## Context\n- /served/AGENTS.md\n\n";
 
-/** Running or not, as the real adapter says it: a `session_info_update` whose
- *  only content is the queue corner. */
 const info = (running: boolean, queueDepth: number): void => {
   notify("session/update", {
     sessionId,
@@ -157,15 +65,10 @@ const info = (running: boolean, queueDepth: number): void => {
   });
 };
 
-// ── turns ──────────────────────────────────────────────────────────────
-
 const turn = async (text: string): Promise<string> => {
   const said = commandLine(text);
 
   if (said === "slow") {
-    // The bash call as the real one announces it: `pending`, a terminal
-    // content block, the terminal corner — and then held, so a mid-turn
-    // message lands on a turn that is visibly running.
     const toolCallId = "bash:0";
     notify("session/update", {
       sessionId,
@@ -205,9 +108,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "silent") {
-    // THE ERROR AS THE WIRE REPORTS IT, which is never: pi's log line says
-    // `stopReason: "error"`, the adapter maps that to a plain end of turn,
-    // and not one frame crosses in between.
     return "end_turn";
   }
 
@@ -235,13 +135,8 @@ const turn = async (text: string): Promise<string> => {
   return "end_turn";
 };
 
-// ── the protocol ───────────────────────────────────────────────────────
-
 let currentModel = "litellm/kimi-k3";
 
-/** The pickers, as the real answer carries them: the model the panel's header
- *  follows, and a THOUGHT-LEVEL select beside it — the two facts a reader of
- *  "the model is the `model` select" has to survive reading past. */
 const configOptions = () => [
   {
     type: "select",
@@ -277,23 +172,11 @@ const modes = () => ({
   ],
 });
 
-/** ONE TURN AT A TIME — the chain is the claim, the same shape the other
- *  fake's is for the same reason. */
 let queue: Promise<unknown> = Promise.resolve();
 
-/** THE TWO FACTS THE ANNOUNCEMENT IS READ OFF, kept apart: the RUNNING turn
- *  is not in the WAITING count, and an arriving prompt's POSITION is one past
- *  how many already wait — `running` is what makes a fresh prompt's position
- *  1 rather than 0. (The first cut held these in one `queued`, the turn
- *  stood it down at turn START, and a prompt arriving mid-turn was told its
- *  position was 0 — an announcement a client could never have been shown.)
- *  The positions are what a client hears; how they compose is the spike's
- *  reading of the real adapter. */
 let running = false;
 let waiting = 0;
 
-/** Somebody pressed cancel: what is running gives up, what is waiting answers
- *  `cancelled`. Reset once the chain drains. */
 let cancelled = false;
 
 const handle = async (message: Record<string, unknown>): Promise<void> => {
@@ -352,18 +235,11 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         modes: modes(),
         _meta: { piAcp: { startupInfo: BANNER } },
       });
-      // The doubling, delivered exactly the way the real one delivers it: the
-      // byte-same string, as ONE chunk, behind the response.
       setTimeout(() => say(BANNER), 0);
       return;
     }
 
     case "session/list":
-      // Scoped to the request's OWN directory — the real one reads pi's own
-      // store and compares the string; this one says it about a DIRECTORY
-      // (see {@link thisTree}), and answers the row in the REQUEST's
-      // spelling, whose spelling the store would carry is something a fake
-      // cannot know.
       respond(id, {
         sessions:
           STORED === "" || !thisTree(params["cwd"])
@@ -381,7 +257,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/load": {
       sessionId = String(params["sessionId"]);
-      // History first, the answer after — which is also the real one's order.
       notify("session/update", {
         sessionId,
         update: {
@@ -409,8 +284,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/set_mode":
-      // The thinking levels and nothing else — which is why olai's pi leg
-      // asks for no permission mode at all.
       refuse(id, -32602, `Unknown modeId: ${String(params["modeId"])}`);
       return;
 
@@ -435,8 +308,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         .map((block) => (block["type"] === "text" ? String(block["text"] ?? "") : ""))
         .join("");
       if (running || waiting > 0) {
-        // HELD, ANNOUNCED, ANSWERED WHEN ITS TURN COMES. The position counts
-        // the running turn's country too: one ahead is one wait.
         waiting += 1;
         say(`Queued message (position ${waiting}).`);
         info(true, waiting);

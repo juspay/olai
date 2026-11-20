@@ -1,35 +1,8 @@
-/**
- * The round trip the pin ships: an MCP server SDK-side of an in-memory
- * pair answers a tool, and the extension's wiring makes it `server_tool`
- * callable — called through pi's OWN registered definition, not by
- * reaching for the client again.
- *
- * The imports follow the extension's own rule (relative URLs into the
- * pin's node_modules — `just install` runs the `npm ci` under acp/ that
- * puts them there), because what this file is for is failing loudly the
- * day the SDK's layout drifts under the loader discipline rather than
- * computing around it.
- *
- * THE PATH IS LONGER THAN IT WAS, and that is the agents phase: this rig
- * moved into `olai-plugin-pi` with the patch it is the other half of,
- * because an engine's adapter work travels with its engine. What did NOT
- * move is the npm SHIM — one lockfile, two adapters, one fixed-output
- * derivation (`acp/README.md` argues it) — so the pinned tree these
- * imports must resolve against is still the repository's own `acp/`.
- *
- * Spelled as a walk to the repository root rather than declared as a
- * dependency of this package, deliberately: what this file crosses has to
- * be THE PIN'S SDK, at the version the derivation will actually load, and
- * a `devDependency` here would resolve the workspace's copy instead — a
- * round trip proved against a different build than the one that ships.
- */
 import { describe, expect, test } from "bun:test";
 
 import { registerServerTools } from "./wire.mjs";
 import { serverToClientPlan } from "./naming.js";
 
-/** One module out of the PIN'S own tree — the pi shim's `node_modules`, one
- *  directory up, which is where `npm ci` in `acp/shim/` puts it. */
 const pinned = (spec) => new URL(`../shim/node_modules/${spec}`, import.meta.url);
 
 const { Client } = await import(pinned("@modelcontextprotocol/sdk/dist/esm/client/index.js").href);
@@ -40,8 +13,6 @@ const { InMemoryTransport } = await import(
 const { Type } = await import(pinned("typebox/build/index.mjs").href);
 const { z } = await import(pinned("zod/index.js").href);
 
-// A pi stands the registered definitions up: registerTool remembers, and
-// calling it is what an LLM's tool call arrives as.
 const fakePi = () => {
   const registered = new Map();
   return {
@@ -77,16 +48,11 @@ describe("the MCP round trip through pi's table", () => {
     const pi = fakePi();
     const names = await registerServerTools(pi, Type, client, plan);
 
-    // the panel's name, not the wire's:
     expect(names).toEqual(["olai_outlines_read"]);
     const def = pi.registered.get("olai_outlines_read");
-    // the shape, not the plain object: the string stays a string, the
-    // one required name stays required.
     expect(def.parameters.properties.node?.type).toBe("string");
     expect(def.parameters.required).toEqual(["node"]);
 
-    // and the call round-trips — the model's call id passes through
-    // untouched and the tool's whole content arrives as the result text:
     const result = await def.execute("tc-1", { node: "install" });
     expect(result.structuredContent).toBeUndefined();
     expect(result.details).toEqual({ title: "install", file: "house.olai" });

@@ -1,14 +1,7 @@
-/**
- * The bridge's vocabulary under test — `bun test acp/mcp-bridge` runs this
- * with no pin in sight, exactly the isolation naming.js was factored for.
- */
 import { describe, expect, test } from "bun:test";
 
 import { parseServers, schemaToTypebox, serverToClientPlan, toolName } from "./naming.js";
 
-// A TypeBox look-alike carrying just enough of the real API to assert the
-// CONVERTER's choices: every Type.X is a constructor that remembers its
-// options. The pi-side import of the real "typebox" is the extension's.
 const Type = {
   Any: (o) => ({ $kind: "any", ...o }),
   String: (o) => ({ $kind: "string", ...o }),

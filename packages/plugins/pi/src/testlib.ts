@@ -1,6 +1,4 @@
-/** Adapter fixtures shared by the leg bench and the executable e2e fake. */
 import type { ToolCall, ToolCallContent } from "@agentclientprotocol/sdk"
-/** Structural CallToolResult subset used by these text-only fixtures. */
 export interface CallToolResult {
   readonly content: { type: "text"; text: string }[]
   readonly structuredContent?: Record<string, unknown>
