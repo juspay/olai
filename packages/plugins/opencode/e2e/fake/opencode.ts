@@ -11,29 +11,20 @@ import { emitter, MARKER_FILE, released, speaking } from "@olai/tests/harness/sc
 const emit = emitter(process.stdout);
 const { notify, refuse, request, respond, take } = speaking(emit, "oc");
 
-/** The directory olai starts this agent in, which is the only one it reads.
- *  opencode 2 has no `--cwd` and answers one with its usage text on stdout,
- *  which is not ACP; this fake does the same, so a spawn that starts passing
- *  the flag again fails here rather than on somebody's machine. */
+/** opencode 2 has no `--cwd` and answers one with its usage text on stdout,
+ *  which is not ACP; this fake does the same. */
 if (process.argv.includes("--cwd")) {
   process.stdout.write("USAGE\n  opencode acp [flags]\n");
   process.exit(0);
 }
 
 /**
- * THE SIGN-IN, WHICH REFUSES A PIPE — the fact the whole of olai's by-hand
- * face is built on, and the one this file got wrong first.
- *
- * opencode's login is an interactive wizard. `acp --login` and `auth login`
+ * opencode's login is an interactive wizard: `acp --login` and `auth login`
  * both answer `Pass an integration ID or name when running without an
  * interactive terminal` and exit 1 when they find no TTY, and
  * `auth login <target> --method key` answers `API key input requires an
- * interactive terminal` (2.2.7, captured). olai spawns a sign-in over pipes,
- * so there is no stdin here that could ever satisfy it.
- *
- * A fake that printed a URL and waited for a code would be a witness of a
- * fiction — it was, for one round. This one refuses the way the real one
- * does, so the scenario beside it can only pass if olai never spawns it.
+ * interactive terminal` (2.2.7). olai spawns a sign-in over pipes, so there
+ * is no stdin here that could ever satisfy it.
  */
 if (process.argv.includes("--login")) {
   try {
@@ -68,11 +59,10 @@ const STORED_SESSION = "ses_opencode_stored";
 
 let sessionId = "";
 
-/** Whether THIS CLIENT asked for child-session updates at `initialize`. The
+/** Whether this client asked for child-session updates at `initialize`. The
  *  real agent sends them only to a client that advertised
  *  `opencode/child-session-updates`, and flattens a child's frames into the
- *  parent's stream otherwise — so a client that stopped asking would render a
- *  fan-out flat. Checked here so that stops being true here first. */
+ *  parent's stream otherwise. */
 let childSessionUpdates = false;
 
 let mcp: { url: string; headers: Record<string, string>; name: string } | null = null;
@@ -164,8 +154,8 @@ const codeMode = async (
   return answered;
 };
 
-/** Opencode's own option list for a permission — ALLOW FIRST, with the ids the
- *  real one mints. */
+/** opencode's own option list for a permission — allow first, with the ids
+ *  the real one mints. */
 const OPTIONS = [
   { optionId: "once", name: "Allow once", kind: "allow_once" },
   { optionId: "always", name: "Always allow", kind: "allow_always" },
@@ -207,9 +197,9 @@ const subagent = async (
   childStatus(child, description, "running", under, depth);
   await work(child);
   childStatus(child, description, ended, under, depth);
-  // THE JOIN ARRIVES ONLY HERE. The in-progress frames carry `rawOutput: null`
-  // on the real wire, so the child session id a completion names is the first
-  // and only thing tying this row to that lane — captured twice against 2.2.7.
+  // The in-progress frames carry `rawOutput: null` on the real wire, so the
+  // child session id a completion names is the only thing tying this row to
+  // that lane (2.2.7).
   announce({
     sessionUpdate: "tool_call_update",
     toolCallId,
@@ -622,12 +612,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           sessionCapabilities: { list: {}, resume: {}, close: {}, delete: {}, fork: {} },
           _meta: { "opencode/child-session-updates": true },
         },
-        // WHAT IT WILL SIGN SOMEBODY IN WITH, in both spellings, because the
-        // real one offers both and the whole bug is which one a client
-        // believes: `type: "terminal"` with `args: ["--login"]` for the agent
-        // binary, and a `_meta` corner naming the bare word `opencode`. Each
-        // half is conditional on the client having advertised for it, exactly
-        // as 2.2.7 is.
+        // Both spellings the real one offers: `type: "terminal"` with
+        // `args: ["--login"]` for the agent binary, and a `_meta` corner
+        // naming the bare word `opencode`. Each half is conditional on the
+        // client having advertised for it, as 2.2.7 is.
         authMethods: [{
           id: "opencode-login",
           name: "Login with opencode",
@@ -652,13 +640,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/list":
-      // THE WHOLE DIRECTORY IN ONE PAGE, with a cursor beside it anyway: the
+      // The whole directory in one page, with a cursor beside it anyway: the
       // real one filters by the request's own `cwd`, ignores a `limit`, and
       // hands a `nextCursor` that answers zero rows when it is followed
-      // (captured against 2.2.7 over three stored conversations). Olai
-      // follows no cursor and its own client-side filter stays either way,
-      // because what that guards is an agent answering more broadly than it
-      // was asked.
+      // (2.2.7, over three stored conversations).
       respond(id, {
         sessions: STORED === "" || params["cwd"] !== cwd
           ? []
@@ -675,10 +660,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       } else if (holdingOpen()) await released(cwd);
       openSession(String(params["sessionId"]), params);
       // A replay: collapsed final frames, and the person's own words as
-      // chunks. NO CHILD-SESSION FRAMES, which is a fact about the wire and
-      // not an omission here: a reopened conversation that had a subagent
-      // replays the `subagent` call and its report and nothing on the
-      // channel, so the lane does not come back (captured against 2.2.7).
+      // chunks, and no child-session frames — a reopened conversation that
+      // had a subagent replays the `subagent` call and its report and
+      // nothing on the channel (2.2.7).
       update({ sessionUpdate: "user_message_chunk", messageId: "msg_replay_1", content: { type: "text", text: "what did we say" } });
       update({ sessionUpdate: "tool_call", toolCallId: "chatcmpl-replay", name: "subagent", title: "subagent", kind: "think", status: "pending", locations: [], rawInput: {} });
       update({
@@ -698,8 +682,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/set_mode":
-      // `build` and `plan`, and nothing else — which is why olai's opencode leg
-      // asks for no permission mode at all.
+      // The modes are `build` and `plan`, and nothing else.
       refuse(id, -32602, `mode not found: ${String(params["modeId"])}`);
       return;
 
@@ -728,8 +711,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/prompt": {
-      // NO QUEUE. A second prompt while a turn runs is refused outright, which
-      // is what opencode 2 does and the opposite of what 1.17.9 did.
+      // A second prompt while a turn runs is refused outright (2.2.7).
       if (running) {
         refuse(id, -32603, `Session already has an active ACP prompt: ${sessionId}`, { service: "session" });
         return;

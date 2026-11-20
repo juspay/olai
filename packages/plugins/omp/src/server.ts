@@ -14,14 +14,9 @@ export const ENGINE: Registering = {
   at: (where): Adapter | NotHere => {
     const bin = where.found("omp")
     if (bin === null) return INSTALL
-    // NOTHING ABOUT THE DIRECTORY ON THE COMMAND LINE: omp reads the directory
-    // it was STARTED in, which is the served directory olai spawns every child
-    // in, and its `session/new` and `session/list` both take an absolute `cwd`
-    // of their own (it asserts on the shape). So there is nothing here the
-    // command line has to say about where this conversation is.
-    //
-    // `--approval-mode yolo` BEFORE the subcommand, because it is a launch
-    // flag omp forwards to `acp` rather than an option `acp` takes.
+    // omp reads the directory it was started in — it takes no `--cwd` — and
+    // `--approval-mode yolo` goes before the subcommand, being a launch flag
+    // omp forwards to `acp` rather than an option `acp` takes.
     return { command: bin, args: ["--approval-mode", "yolo", "acp"] }
   },
   prompt: { kind: "first-turn" },

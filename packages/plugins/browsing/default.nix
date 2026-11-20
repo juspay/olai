@@ -1,6 +1,6 @@
 { pkgs, ... }:
 let
-  # The pinned nixpkgs wrapper sets PLAYWRIGHT_BROWSERS_PATH to its matching
+  # nixpkgs' wrapper sets PLAYWRIGHT_BROWSERS_PATH to its matching
   # playwright-driver.browsers and defaults PLAYWRIGHT_MCP_BROWSER to chromium.
   executable = "${pkgs.playwright-mcp}/bin/playwright-mcp";
 
@@ -21,21 +21,18 @@ in
     kind = "file";
     path = chromium;
   };
-  # WHAT THE GITHUB BUILDERS TAUGHT IT (PR #654):
-  # - ubuntu-latest: no user namespaces in the build, so Chromium's own
-  #   sandbox aborts (SIGABRT, "No usable sandbox!"). The check alone launches
-  #   with WITHOUT_ITS_OWN_SANDBOX (`src/chromium.ts`).
-  # - macos-latest-xlarge: the profile's cookie store waits on the macOS
-  #   Keychain, which a process with no UI cannot answer, and the MCP's first
-  #   browser_navigate never answers. `--use-mock-keychain` in the RUNTIME
-  #   flags fixed it.
+  # Hosted ubuntu runners have no user namespaces in the build, so Chromium's
+  # own sandbox aborts (SIGABRT, "No usable sandbox!"); the check alone
+  # launches with WITHOUT_ITS_OWN_SANDBOX (`src/chromium.ts`). On macOS the
+  # profile's cookie store waits on a Keychain a UI-less process cannot
+  # answer, which `--use-mock-keychain` in the runtime flags settles.
   checks = { tree }: {
     surface = pkgs.runCommand "olai-plugin-browsing-surface"
       {
         nativeBuildInputs = [ pkgs.bun ];
         # Loopback only: the MCP reaches Chromium's DevTools port and the
         # check serves its pages on 127.0.0.1, which a sandboxed darwin
-        # builder refuses without this. It changes nothing on Linux.
+        # builder refuses without this.
         __darwinAllowLocalNetworking = true;
       }
       ''

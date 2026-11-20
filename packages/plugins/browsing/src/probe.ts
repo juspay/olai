@@ -30,10 +30,10 @@ export const whyOf = (verdict: Verdict): string | null => {
 export type Attaching = Effect.Effect<Attach, { readonly says: string }> | null
 
 /**
- * The pinned Nix wrapper exports `PLAYWRIGHT_MCP_ISOLATED=1` whenever
- * `PLAYWRIGHT_MCP_USER_DATA_DIR` is empty, and 0.0.76 honours that flag even
- * over CDP by opening a NEW context — a cookie jar of its own. So the env is
- * set here rather than inherited.
+ * Playwright MCP's packaged wrapper exports `PLAYWRIGHT_MCP_ISOLATED=1`
+ * whenever `PLAYWRIGHT_MCP_USER_DATA_DIR` is empty, and 0.0.76 honours that
+ * flag even over CDP by opening a new context with a cookie jar of its own,
+ * so both are set here rather than inherited.
  */
 export const attachedServer = (command: string, endpoint: string, profile: string, directory: string): StdioServer => ({
   name: "browser",

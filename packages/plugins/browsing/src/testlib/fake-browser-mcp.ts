@@ -2,7 +2,6 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { createInterface } from "node:readline"
 
-// Independent protocol fixture: these names deliberately do not import the probe.
 const names = ["browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_take_screenshot"]
 export const serveFake = (): void => {
   const runtime = process.env["XDG_RUNTIME_DIR"]

@@ -34,9 +34,8 @@ export function Pin(props: {
       data-lifted={props.lifted ? "true" : undefined}
       classList={{ "opacity-40": props.lifted }}
       onPointerDown={(event) => props.onGrab(event)}
-      // The row is a link, and Chromium's own link-drag would claim the gesture
-      // the moment the pointer travelled: the pointermoves stop arriving and
-      // the reorder never happens.
+      // The row is a link, and Chromium's native link-drag claims the gesture
+      // the moment the pointer travels: the pointermoves stop arriving.
       draggable={false}
       onDragStart={(event) => event.preventDefault()}
       on:click={{

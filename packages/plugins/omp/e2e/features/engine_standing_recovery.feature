@@ -5,14 +5,6 @@ Feature: Enabled engines explain what this machine is missing
     And I open the outline "house.olai"
     And I mark the page
 
-  # TWO ENGINES ANSWER, so the agent menu opens: a menu is what a person is
-  # shown when there is a choice to make. It lists only what can start — the
-  # engine this machine has not got is not a row there; its sentence is on the
-  # plugins panel, under Needs attention. With one startable engine the press
-  # starts it and there is no menu to read, which is chat's own scenario.
-  # Opencode comes from a tagged fake's search directory. It must stay
-  # available beside the scenario-owned empty directory: replacing rather
-  # than prepending the composed path would lose it and prevent this menu.
   @opencode @agent-path:empty
   Scenario: Installing an engine and toggling it refreshes the same tab
     When I press the agent start pill on "kitchen"

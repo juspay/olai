@@ -1,11 +1,9 @@
 /**
- * Adapter fixtures, shared by the leg bench and the executable e2e fake.
- *
- * Captured against opencode 2.2.7, whose MCP story is CODE MODE: a tool olai
- * handed over never arrives as a tool call of its own, only as a line of
- * JavaScript inside one `execute`, with the agent's account of what ran in the
- * completion's `rawOutput.metadata.toolCalls` and the script's value as a
- * content block.
+ * Adapter fixtures, shared by the leg bench and the executable e2e fake, in
+ * opencode 2.2.7's shapes: a tool olai handed over never arrives as a tool
+ * call of its own, only as a line of JavaScript inside one `execute`, with
+ * the agent's account of what ran in the completion's
+ * `rawOutput.metadata.toolCalls` and the script's value as a content block.
  */
 import type { ToolCall, ToolCallContent } from "@agentclientprotocol/sdk"
 
@@ -19,8 +17,8 @@ export const script = (server: string, tool: string, args: unknown): string =>
   `return await tools.${server}.${tool}(${JSON.stringify(args)});`
 
 /**
- * opencode leaves `rawInput` EMPTY on the announcing frame and carries the code
- * on the refining one, while the model is still emitting the script.
+ * opencode leaves `rawInput` empty on the announcing frame and carries the
+ * code on the refining one, while the model is still emitting the script.
  */
 export const announced = (code: string | null): Partial<ToolCall> => ({
   name: "execute",
@@ -32,8 +30,7 @@ export const announced = (code: string | null): Partial<ToolCall> => ({
 /**
  * `rawOutput.metadata.toolCalls` is the agent's own record of what the script
  * ran (`<server>.<tool>`, dotted); `error` is set for a run in which anything
- * threw or was refused. There is no `structuredContent` and no `output` on this
- * wire.
+ * threw or was refused. This wire carries no `structuredContent`.
  */
 export const ran = (
   calls: ReadonlyArray<{ tool: string; status?: "completed" | "error"; input?: unknown }>,

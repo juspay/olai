@@ -1,16 +1,15 @@
 import { BROWSER_MODULES, SERVER_MODULES, WRITABLE_MODULES } from "./shared.ts"
 
-/** Which half is being read — the two doors `@olai/plugin-api` has. */
+/** Which half of a plugin is being built. */
 export type Half = "server" | "browser"
 
-/** The host modules a half's built text is bound against — see `./shared.ts`. */
+/** The host modules a half's built text is bound against. */
 export const modulesFor = (half: Half): ReadonlyArray<string> =>
   half === "server" ? SERVER_MODULES : BROWSER_MODULES
 
 /**
- * Why this source will not build, in whole sentences, or `null`. One refusal
- * and not a list: it names the first unresolvable specifier and the three
- * words that do work.
+ * Why this source will not build, in whole sentences, or `null` — one
+ * refusal, naming the first specifier olai will not resolve.
  */
 export const unresolvable = (source: string): string | null => {
   let found: ReadonlyArray<{ readonly kind: string; readonly path: string }>

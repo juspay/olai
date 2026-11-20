@@ -7,8 +7,8 @@ test("an installed app with the API badges its own icon", () => {
 })
 
 test("a plain tab marks its title and favicon, API or not", () => {
-  // `setAppBadge` exists in a Chromium TAB and is ignored there, so the
-  // presence of the API is not the question — where the page is running is.
+  // `navigator.setAppBadge` exists in a plain Chromium tab and is ignored
+  // there, so the API's presence cannot decide the channel.
   expect(channelFor(true, false)).toBe("tab")
   expect(channelFor(false, false)).toBe("tab")
 })

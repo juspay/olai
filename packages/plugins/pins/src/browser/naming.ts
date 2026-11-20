@@ -8,23 +8,22 @@ import type { Route } from "olai-plugin-navigation/routes"
 import type { Routing } from "olai-plugin-navigation/routes"
 import type { Pin } from "./pins.ts"
 
-export type Naming =
-  | {
-    readonly kind: "pin"
-    readonly at: string
-    readonly bare: string
-  }
+export type PinWrite =
+  | { readonly kind: "pin"; readonly at: string; readonly bare: string }
   | { readonly kind: "layout"; readonly at: string; readonly panes: string }
-  | { readonly kind: "rename"; readonly pin: Pin }
+
+export type TitleWrite = { readonly kind: "rename"; readonly pin: Pin }
+
+export type Naming = PinWrite | TitleWrite
 
 export const askingFor = (naming: Naming): Line => ({
   kind: "line",
-  label: naming.kind === "rename" ? "Rename" : "Pin",
+  label: writesTitle(naming) ? "Rename" : "Pin",
   question: isLayout(naming) ? "Name this layout" : naming.kind === "pin"
     ? "Name this pin, or leave it blank"
     : "Rename this pin, or leave it blank",
   placeholder: naming.kind === "layout" ? naming.panes : naming.kind === "pin" ? naming.bare : naming.pin.bare,
-  initial: naming.kind !== "rename" || !naming.pin.written ? "" : naming.pin.name,
+  initial: !writesTitle(naming) || !naming.pin.written ? "" : naming.pin.name,
   resolve: (name) => namedEdit(naming, name),
 })
 
@@ -33,7 +32,7 @@ export const namedEdit = (
   name: string,
 ): Result.Result<Edit, string> => {
   if (isLayout(naming) && name.trim() === "") return Result.fail("A layout needs a name")
-  if (naming.kind !== "rename") {
+  if (!writesTitle(naming)) {
     const named = name.trim()
     return Result.succeed(
       named === ""
@@ -59,5 +58,7 @@ export const namingFor = (
 
 export const askName = (naming: Naming): void => askInPalette(askingFor(naming))
 
+const writesTitle = (naming: Naming): naming is TitleWrite => naming.kind === "rename"
+
 const isLayout = (naming: Naming): boolean => naming.kind === "layout"
-  || (naming.kind === "rename" && naming.pin.target.kind === "layout")
+  || (writesTitle(naming) && naming.pin.target.kind === "layout")

@@ -2,7 +2,7 @@ import type { PermissionOption } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 
 import { childIn, permissionIn, CHILD_SESSIONS } from "./activity.ts"
-import { allowedWithoutAsking, mcpCall, OPENCODE, replyIn } from "./leg.ts"
+import { approvedOnlyIfScriptFullyParsed, mcpCall, OPENCODE, replyIn } from "./leg.ts"
 import { toolsCalledIn } from "./script.ts"
 import { announced, ran, script, wrapped } from "./testlib.ts"
 
@@ -46,8 +46,8 @@ describe("which tools a Code Mode script calls", () => {
 
   test("a server whose name is not an identifier is reached by its literal key", () => {
     // opencode spells a hyphenated server with its hyphen in the table
-    // (captured: `Object.keys(tools)` answers `xyne-spaces`), so the only way
-    // to call one is a bracketed STRING. A bracketed anything else is not.
+    // (`Object.keys(tools)` answers `xyne-spaces`), so the only way to call
+    // one is a bracketed string.
     expect(toolsCalledIn(`return await tools["xyne-spaces"].read({ id: "n1" });`))
       .toEqual([{ server: "xyne-spaces", tool: "read" }])
     expect(toolsCalledIn(`return await tools['xyne-spaces'].read({});`))
@@ -73,7 +73,7 @@ describe("which tools a Code Mode script calls", () => {
       ]
     ) {
       expect(toolsCalledIn(code), code).toBeNull()
-      expect(allowedWithoutAsking("execute", GIVEN, ASKED, asking(code)), code).toBeNull()
+      expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, ASKED, asking(code)), code).toBeNull()
     }
   })
 
@@ -113,16 +113,16 @@ describe("which tools a Code Mode script calls", () => {
 
 describe("which permissions are answered without asking", () => {
   test("a script whose every tool is a server we handed this session is allowed", () => {
-    expect(allowedWithoutAsking("execute", GIVEN, ASKED, asking(script("olai", "outlines_done", { id: "n1" }))))
+    expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, ASKED, asking(script("olai", "outlines_done", { id: "n1" }))))
       .toBe("once")
-    expect(allowedWithoutAsking("execute", GIVEN, ASKED, asking(
+    expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, ASKED, asking(
       `await tools.olai.ping({}); return tools.alpha.terminal_open({});`,
     ))).toBe("once")
   })
 
   test("and NOTHING else is — this is the line that must never widen", () => {
     const only = (code: string | null, name?: string) =>
-      allowedWithoutAsking(name ?? "execute", GIVEN, ASKED, asking(code, name))
+      approvedOnlyIfScriptFullyParsed(name ?? "execute", GIVEN, ASKED, asking(code, name))
     expect(only(script("other", "read", {}))).toBeNull()
     expect(only(script("opencode", "shell", { command: "rm -rf /" }))).toBeNull()
     expect(only(`await tools.olai.ping({}); return tools.opencode.shell({});`)).toBeNull()
@@ -131,19 +131,19 @@ describe("which permissions are answered without asking", () => {
     expect(only("return 1 + 1")).toBeNull()
     expect(only(null, "shell")).toBeNull()
     expect(only(script("olai", "outlines_done", {}), "subagent")).toBeNull()
-    expect(allowedWithoutAsking("olai_outlines_done", GIVEN, ASKED, asking(null, "olai_outlines_done"))).toBeNull()
-    expect(allowedWithoutAsking("mcp__olai__outlines_done", GIVEN, ASKED, asking(null, "mcp__olai__outlines_done")))
+    expect(approvedOnlyIfScriptFullyParsed("olai_outlines_done", GIVEN, ASKED, asking(null, "olai_outlines_done"))).toBeNull()
+    expect(approvedOnlyIfScriptFullyParsed("mcp__olai__outlines_done", GIVEN, ASKED, asking(null, "mcp__olai__outlines_done")))
       .toBeNull()
   })
 
   test("a call nobody named, and a request with no frame at all, are a person's", () => {
-    expect(allowedWithoutAsking(null, GIVEN, ASKED, asking(script("olai", "ping", {})))).toBeNull()
-    expect(allowedWithoutAsking("execute", GIVEN, ASKED)).toBeNull()
-    expect(allowedWithoutAsking("execute", GIVEN, ASKED, { name: "execute", rawInput: { code: 7 } })).toBeNull()
+    expect(approvedOnlyIfScriptFullyParsed(null, GIVEN, ASKED, asking(script("olai", "ping", {})))).toBeNull()
+    expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, ASKED)).toBeNull()
+    expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, ASKED, { name: "execute", rawInput: { code: 7 } })).toBeNull()
   })
 
   test("with no servers handed over, nothing is ours", () => {
-    expect(allowedWithoutAsking("execute", [], ASKED, asking(script("olai", "outlines_done", {})))).toBeNull()
+    expect(approvedOnlyIfScriptFullyParsed("execute", [], ASKED, asking(script("olai", "outlines_done", {})))).toBeNull()
   })
 
   test("the option is chosen by its KIND, not by its place in the list", () => {
@@ -151,7 +151,7 @@ describe("which permissions are answered without asking", () => {
       { optionId: "no", name: "Reject", kind: "reject_once" },
       { optionId: "yes", name: "Allow", kind: "allow_once" },
     ]
-    expect(allowedWithoutAsking("execute", GIVEN, refusalFirst, asking(script("olai", "outlines_add", {}))))
+    expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, refusalFirst, asking(script("olai", "outlines_add", {}))))
       .toBe("yes")
   })
 
@@ -159,9 +159,9 @@ describe("which permissions are answered without asking", () => {
     const refusalsOnly: ReadonlyArray<PermissionOption> = [
       { optionId: "no", name: "Reject", kind: "reject_once" },
     ]
-    expect(allowedWithoutAsking("execute", GIVEN, refusalsOnly, asking(script("olai", "outlines_add", {}))))
+    expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, refusalsOnly, asking(script("olai", "outlines_add", {}))))
       .toBeNull()
-    expect(allowedWithoutAsking("execute", GIVEN, [], asking(script("olai", "outlines_add", {})))).toBeNull()
+    expect(approvedOnlyIfScriptFullyParsed("execute", GIVEN, [], asking(script("olai", "outlines_add", {})))).toBeNull()
   })
 })
 

@@ -15,14 +15,10 @@ export const ENGINE: Registering = {
     const bin = where.found("opencode")
     if (bin === null) return INSTALL
     // No `--cwd`: opencode 2 dropped the flag and answers it with its usage
-    // text on stdout, which is not ACP. The spawn already runs the child in
-    // the served directory (`olai-plugin-chat`'s `agent.ts`), and opencode
-    // reads its directory from there — for where to run AND for which stored
-    // conversations to list. Verified against 2.2.7: `session/list` takes a
-    // `cwd` and answers that directory's sessions alone, with a paging cursor
-    // carrying the directory inside it. Olai's own client-side filter stays
-    // either way, because what it guards is an agent answering more broadly
-    // than it was asked (`agent.ts` and its `storedFor`).
+    // text on stdout, which is not ACP. It reads the directory it was started
+    // in, both for where to run and for which stored conversations to list
+    // (2.2.7: `session/list` takes a `cwd`, answers that directory's sessions
+    // alone, and pages with a cursor carrying the directory inside it).
     return { command: bin, args: ["acp"] }
   },
   prompt: { kind: "first-turn" },

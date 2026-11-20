@@ -108,12 +108,10 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   }
 
   /**
-   * Measured against the pinned Chromium (1228, `--headless=new`):
    * `Target.targetInfoChanged` carries a tab's URL changes, and its title only
    * once, for the foreground tab's first load. A background tab's `<title>`
-   * and every `document.title =` arrive on no event at all, and the protocol
-   * has no other title event — so a tab's info is re-read when its own session
-   * says something happened.
+   * and every `document.title =` arrive on no event at all, and CDP has no
+   * other title event, so a tab's info is re-read on its own session's events.
    */
   const reread = (instance: Instance, targetId: string) => {
     instance.lastRead.set(targetId, Date.now())
@@ -123,7 +121,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     }))
   }
 
-  const glance = (instance: Instance, targetId: string) => {
+  const rereadAtMostEvery = (instance: Instance, targetId: string) => {
     if (instance.soon.has(targetId)) return
     const wait = (instance.lastRead.get(targetId) ?? -Infinity) + titleEveryMs - Date.now()
     if (wait <= 0) return reread(instance, targetId)
@@ -135,21 +133,17 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   }
 
   /**
-   * Measured on the pinned Chromium: resizing the shared headless window
-   * reaches only the tab in front, while `Emulation.setDeviceMetricsOverride`
-   * sizes exactly this tab, front or not. A running screencast sends no frame
-   * for the change, so it is restarted — and the restart's first frame is not
-   * necessarily at the new size, because the override's reply means Chromium
-   * took the instruction, not that its compositor has produced a surface at
-   * that size ({@link ofThisViewport}).
+   * Resizing the shared headless window reaches only the tab in front, while
+   * `Emulation.setDeviceMetricsOverride` sizes exactly this tab, front or
+   * not. A running screencast sends no frame for the change, so it is
+   * restarted; the restart's first frame need not be at the new size, since
+   * the override's reply means Chromium took the instruction and not that its
+   * compositor produced a surface ({@link ofThisViewport}).
    *
    * A cross-process navigation keeps the override for the page's layout but
-   * not for its screencast: a tab whose `innerWidth` answered 361 went on
-   * sending whole-window frames until the override was set again once the new
-   * page was in place. `Page.frameNavigated` comes too early for that — it
-   * arrived before the new page showed about half the time under load — while
-   * the main frame's `Page.domContentEventFired` is said by the new page
-   * itself.
+   * not for its screencast, and `Page.frameNavigated` arrives before the new
+   * page shows, while the main frame's `Page.domContentEventFired` is said by
+   * the new page itself.
    */
   const sizeTab = (instance: Instance, targetId: string, sessionId: string): Effect.Effect<void, CdpFailure> => Effect.gen(function*() {
     const want = instance.sizes.get(targetId)
@@ -204,10 +198,9 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       }
       if (event.method !== "Page.screencastFrame") return
       const params = event.params as { readonly data: string; readonly sessionId: number; readonly metadata: Record<string, number> }
-      // Every frame is acknowledged, whoever is watching: an unacknowledged
-      // screencast stops sending.
+      // An unacknowledged screencast stops sending, whoever is watching.
       own(instance, instance.cdp.send("Page.screencastFrameAck", { sessionId: params.sessionId }, event.sessionId))
-      glance(instance, targetId)
+      rereadAtMostEvery(instance, targetId)
       const cast = instance.casts.get(targetId)
       if (cast === undefined) return
       const meta = params.metadata
@@ -328,13 +321,10 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       const { sessionId } = (yield* instance.cdp.send("Target.attachToTarget", { targetId, flatten: true })) as { readonly sessionId: string }
       instance.targets.set(sessionId, targetId)
       yield* instance.cdp.send("Page.enable", {}, sessionId)
-      // LOAD-BEARING, measured against the pinned Chromium: every tab lives
-      // in one headless window, so only the foreground tab is `visible` and
-      // a background tab paints no screencast frames at all. Focus emulation
-      // keeps each tab visible and focused whatever is in front — so two
-      // panes on two tabs, or the person's tab while an agent works in
-      // another, both paint, with no `activateTarget` tug of war. It is also
-      // what keeps caret and key handling alive on a page nobody focused.
+      // Every tab lives in one headless window, so only the foreground tab is
+      // `visible` and a background tab paints no screencast frames at all.
+      // Focus emulation keeps each tab visible and focused whatever is in
+      // front, and keeps caret and key handling alive on an unfocused page.
       yield* instance.cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true }, sessionId)
       return sessionId
     }).pipe(

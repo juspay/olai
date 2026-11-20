@@ -1,10 +1,4 @@
 {
-  "//mcp": "MCP protocol and executable names, not the olai transport row.",
-  "//tabs": "The browser's own tabs (CDP page targets), not olai's tabs row.",
-  "//image": "The JPEG frame's `data:image/jpeg` MIME type.",
-  "//search": "The palette row's `search` words field.",
-  "//ws": "The `ws://` scheme of Chromium's DevTools socket.",
-  "//sidebar": "The `sidebar.entry` slot key the Browser door is registered under.",
   "image": {
     "src/browser/Page.tsx": 1
   },

@@ -1,5 +1,5 @@
 /**
- * opencode 2.2.7: a `subagent` call starts a child SESSION, narrated on
+ * opencode 2.2.7: a `subagent` call starts a child session, narrated on
  * `opencode/session/child_update` rather than the ordinary stream:
  *
  *     { rootSessionId, childSessionId, parentSessionId, depth, title,
@@ -12,9 +12,9 @@
  * opt-in a child's frames are flattened into the parent's stream with no
  * `created`/`completed` pair anywhere.
  *
- * A `session/request_permission` about a CHILD's call arrives stamped with the
- * ROOT session — opencode asks the connection it has, which is the root's —
- * while the call carries `_meta["opencode/child-session"]`.
+ * A `session/request_permission` about a child's call arrives stamped with
+ * the root session, while the call carries
+ * `_meta["opencode/child-session"]`.
  */
 import type { Heard, NativeActivity } from "@kolu/acp/engine"
 
@@ -27,8 +27,7 @@ const CHILD_UPDATE = "opencode/session/child_update"
 export const CHILD_SESSION_UPDATES = "opencode/child-session-updates"
 
 /** The corner opencode stamps on a child's own frames — `{ id, parentID,
- *  depth, title }` — which is how a permission request about a child's call
- *  names the child it belongs to. */
+ *  depth, title }`. */
 const CHILD_STAMP = "opencode/child-session"
 
 const means = (status: unknown): "created" | "completed" | "failed" | "cancelled" | null =>

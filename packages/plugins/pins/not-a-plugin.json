@@ -1,5 +1,4 @@
 {
-  "//layout": "Saved-layout vocabulary names a workspace target, not the layout plugin.",
   "capture": {
     "src/browser/Pin.tsx": 1
   },

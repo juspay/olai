@@ -17,14 +17,6 @@ type Ctx = SurfaceCtx<typeof surface.spec>
 export const ABSENT_WHY =
   "No browser is configured for olai: OLAI_BROWSER_CHROMIUM is empty, so each conversation's browser tools launch an isolated browser of their own that olai cannot show."
 
-/**
- * Teardown runs in the reverse of the order below, and that order is the
- * point: the session-start registration goes first so no new conversation
- * asks; the probe gate then refuses late callers and joins running probes
- * (one may be waiting on a launch); the surface member goes; the browser is
- * stopped and reaped; and only then is the scratch the handed-over MCPs wrote
- * into removed.
- */
 export default definePlugin({
   name,
   environment: [

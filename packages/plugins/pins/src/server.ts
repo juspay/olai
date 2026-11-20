@@ -22,8 +22,6 @@ export default definePlugin({
     let jobs = saved?.linkMigration as ReturnType<typeof legacyPins> | undefined
     let migrated = saved?.linkVersion === 2 && saved.linkMigration === undefined
     const revisions = yield* SubscriptionRef.make<Snapshot<Reading> | undefined>(undefined)
-    // A scoped subscriber writes outside the synchronous revision callback.
-    // Persist the original jobs before editing so a restart never migrates new links.
     yield* Effect.forkScoped(Stream.runForEach(SubscriptionRef.changes(revisions), snapshot => Effect.gen(function*() {
       if (!snapshot || migrated) return
       const shelf = shelfIn(snapshot.value.derived, conventionRecorded(pinsIn, snapshot.value.derived, snapshot, undefined).file)
@@ -37,7 +35,7 @@ export default definePlugin({
     const value = inMemoryStore(NO_PINS)
     const publish = (next: typeof NO_PINS) => ctx ? ctx.cells.pins.set(next) : value.set(next)
     let file: Convention | undefined
-    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.gen(function*() {
+    yield* vault.revision(snapshot => Effect.gen(function*() {
       file = conventionRecorded(pinsIn, snapshot.value.derived, snapshot, file)
       publish(shelfIn(snapshot.value.derived, file.file))
       yield* SubscriptionRef.set(revisions, snapshot)

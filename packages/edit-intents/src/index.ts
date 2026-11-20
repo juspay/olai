@@ -31,7 +31,7 @@ import { Result } from "effect"
 
 type Resolved = Result.Result<Request, OpFailure>
 
-export const reresolves = (edit: Edit): boolean =>
+export const createsItsFileIfMissing = (edit: Edit): boolean =>
   edit.verb === "capture" || edit.verb === "pin"
 
 export const requestFor = (at: Reading & { readonly outlineRow: string }, edit: Edit): Resolved => {

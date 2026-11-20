@@ -9,9 +9,9 @@ const record = (value: unknown): Record<string, unknown> | undefined =>
 /**
  * opencode 2 carries a tool's programmatic name in `name`, beside `title`, on
  * `tool_call`, `tool_call_update` and a `session/request_permission`'s
- * `toolCall` alike. The TITLE is not it: opencode rewrites a call's title over
- * its life (`shell` while it starts, `sleep 20` once the command is known, a
- * child's prefixed with the child's own).
+ * `toolCall` alike. The title is not it: opencode rewrites a call's title
+ * over its life (`shell` while it starts, `sleep 20` once the command is
+ * known, a child's prefixed with the child's own).
  */
 export const toolNameIn = (_meta: unknown, frame?: unknown): string | null => {
   const named = record(frame)?.["name"]
@@ -19,17 +19,17 @@ export const toolNameIn = (_meta: unknown, frame?: unknown): string | null => {
 }
 
 /** The builtin every MCP tool arrives inside. opencode 2's Code Mode: the
- *  model writes JavaScript, the script calls the tools, and ONE call id covers
- *  however many of them it ran. */
+ *  model writes JavaScript, the script calls the tools, and one call id
+ *  covers however many of them it ran. */
 const EXECUTE = "execute"
 
-/** ... and the builtin a SPAWN arrives as: `name: "subagent"`, kind `think`. */
+/** ... and the builtin a spawn arrives as: `name: "subagent"`, kind `think`. */
 const SUBAGENT = "subagent"
 
-/** ... and every one the COMPLETION reported, which is the agent's own account
- *  of what the script actually ran (`rawOutput.metadata.toolCalls`, entries
- *  `{ tool: "<server>.<tool>", status, input? }`). `null` for a frame carrying
- *  no such list — an announcement, or a call that is not an `execute`. */
+/** ... and every one the completion reported, which is the agent's own
+ *  account of what the script ran (`rawOutput.metadata.toolCalls`, entries
+ *  `{ tool: "<server>.<tool>", status, input? }`). `null` for a frame
+ *  carrying no such list. */
 export const toolsRanIn = (rawOutput: unknown): ReadonlyArray<Called> | null => {
   const ran = record(record(rawOutput)?.["metadata"])?.["toolCalls"]
   if (!Array.isArray(ran)) return null
@@ -70,25 +70,15 @@ export function replyIn(_rawOutput: unknown, content?: unknown): Record<string, 
 }
 
 /**
- * The option a permission request is answered with WITHOUT asking a person, or
- * `null` when it is a person's to answer.
- *
- * opencode 2's request does not say which tool it is about: olai's own tools, a
- * foreign server's, and opencode's builtins under `tools.opencode.*` are all
- * dispatched through one `execute`, so `name` is `execute` for all three and
- * only the SCRIPT tells them apart.
- *
- * One approval covers the whole script: opencode asks once per inner call and
- * sends the same frame each time — three requests from a three-call script were
- * byte-identical but for the JSON-RPC id (2.2.7, 2026-11-11) — so this answers
- * only for a script {@link ./script.ts} parsed in full, calling at least one
- * tool, with every server one we handed this session.
- *
- * opencode's options are allow-first (`once`, `always`, `reject`), where the
- * Claude adapter's list leads with the refusal, so the choice is read off the
- * option's own `kind`.
+ * opencode asks permission once per inner call of a Code Mode script and
+ * sends the same frame each time — three requests from a three-call script
+ * were byte-identical but for the JSON-RPC id (2.2.7, 2026-11-11) — and the
+ * request never says which tool it is about, since olai's tools, a foreign
+ * server's and opencode's own builtins all arrive as one `execute`. So one
+ * approval covers the whole script, and only a script `./script.ts` read in
+ * full may be answered without a person.
  */
-export const allowedWithoutAsking: Leg["allowedWithoutAsking"] = (tool, given, options, asked) => {
+export const approvedOnlyIfScriptFullyParsed: Leg["allowedWithoutAsking"] = (tool, given, options, asked) => {
   if (tool !== EXECUTE || asked === undefined) return null
   const code = record(asked.rawInput)?.["code"]
   if (typeof code !== "string") return null
@@ -100,10 +90,9 @@ export const allowedWithoutAsking: Leg["allowedWithoutAsking"] = (tool, given, o
 
 /**
  * opencode's spawn is a `subagent` call of kind `think` whose `rawInput` is
- * `{ agent, description, prompt }` — `agent` is which of opencode's own agents
- * was sent, `description` the line it was sent to do, which is also the title
- * the child session arrives under. The child's own work arrives on the
- * child-session channel instead ({@link ./activity.ts}).
+ * `{ agent, description, prompt }`: `agent` names one of opencode's own
+ * agents and `description` is the line it was sent to do, which is also the
+ * title the child session arrives under.
  */
 export const spawned: Leg["spawned"] = (_meta, input, named) => {
   if (named !== SUBAGENT) return null
@@ -122,17 +111,17 @@ export const OPENCODE: Leg = {
   mcpCall,
   replyIn,
   nativeActivity: CHILD_SESSIONS,
-  // opencode's sign-in is an interactive wizard: `acp --login` and `auth login`
-  // both answer `Pass an integration ID or name when running without an
-  // interactive terminal` and exit 1 with no TTY, and `auth login <target>
+  // opencode's sign-in is an interactive wizard: `acp --login` and `auth
+  // login` both answer `Pass an integration ID or name when running without
+  // an interactive terminal` and exit 1 with no TTY, and `auth login <target>
   // --method key` answers `API key input requires an interactive terminal`
-  // (2.2.7, captured). `--standalone` is the path proven to reach the store an
-  // `opencode acp` reads (`$XDG_DATA_HOME/opencode/opencode.db`); the default
-  // goes through opencode's per-machine background service.
+  // (2.2.7). `--standalone` reaches the store an `opencode acp` reads
+  // (`$XDG_DATA_HOME/opencode/opencode.db`); the default goes through
+  // opencode's per-machine background service.
   terminalAuth: { byHand: ["auth", "login", "--standalone"] },
   toolNameIn,
   toolNameOf: () => null,
-  allowedWithoutAsking,
+  allowedWithoutAsking: approvedOnlyIfScriptFullyParsed,
   parentToolUse: () => null,
   spawned,
   backgroundTask: () => null,
@@ -152,11 +141,11 @@ export const OPENCODE: Leg = {
     advertised: (initialized) =>
       record(record(record(initialized)?.["_meta"])?.["steering"])?.["supported"] === true,
   },
-  // 2.2.7 REFUSES a second `session/prompt` during a turn — `-32603 "Session
-  // already has an active ACP prompt: <sessionId>"` — where 1.17.9 queued it.
+  // 2.2.7 refuses a second `session/prompt` during a turn: `-32603 "Session
+  // already has an active ACP prompt: <sessionId>"`.
   queues: () => false,
   // opencode forwards no CLI messages: the model is in `configOptions` and a
-  // change comes back in the method RESPONSE rather than as a pushed update.
+  // change comes back in the method response rather than as a pushed update.
   rawMessages: null,
   models: { config: "model", nameIn: namedExactly },
 }

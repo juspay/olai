@@ -1,10 +1,8 @@
 /**
- * Adapter fixtures shared by the leg bench and the executable e2e fake: the
- * `write` call whose `rawInput.path` is the `xd://` door an olai tool was
- * dispatched through, and the completion that nests the tool's own result
- * inside `write`'s.
- *
- * The shapes are omp 18.1.21's, captured live: see `./leg.ts`'s header.
+ * Adapter fixtures shared by the leg bench and the executable e2e fake, in
+ * omp 18.1.21's shapes (see `./leg.ts`'s header): the `write` call whose
+ * `rawInput.path` is the `xd://` door an olai tool was dispatched through,
+ * and the completion that nests the tool's own result inside `write`'s.
  */
 
 import type { ToolCall, ToolCallContent } from "@agentclientprotocol/sdk"
@@ -24,12 +22,6 @@ export const announced = (server: string, tool: string, args: unknown): Partial<
   rawInput: { path: `${XD}${spelling(server)}${tool}`, content: JSON.stringify(args) },
 })
 
-/**
- * `details.xdev.inner.rawContent` is the tool's content blocks, the only part
- * of omp's wrapping anything reads (`./leg.ts`'s `replyIn`). The `xdev` corner
- * also carries the tool's arguments, its tier and its provider; nothing here
- * reads those, so they are left out.
- */
 export const wrapped = (result: CallToolResult): { rawOutput: unknown; content?: ToolCallContent[] } => {
   const content = result.content.map((part) => ({ type: "content" as const, content: part }))
   return {

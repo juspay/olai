@@ -1,8 +1,8 @@
 /**
  * The endpoint comes from Chromium's own announcement on stderr, `DevTools
  * listening on ws://…`, and not from the profile's `DevToolsActivePort`:
- * Chromium announces BEFORE it writes that file, so a reader woken by the
- * announcement races the write and loses.
+ * Chromium announces before it writes that file, so a reader woken by the
+ * announcement races the write.
  */
 import { run, start, type Child } from "@kolu/child"
 import { accessSync, constants, statSync } from "node:fs"
@@ -27,9 +27,9 @@ export interface Launched {
 }
 
 /**
- * THE USER AGENT A HEADED CHROMIUM OF THIS VERSION SENDS, in Chrome's reduced
- * format: headless mode announces itself as `HeadlessChrome/<v>`, and sites
- * refuse it (x.com answers 403).
+ * The user agent a headed Chromium of this version sends, in Chrome's reduced
+ * format: `--headless=new` announces itself as `HeadlessChrome/<v>` instead,
+ * and sites refuse that (x.com answers 403).
  */
 export const headedUserAgent = (major: number, platform: NodeJS.Platform = process.platform): string =>
   `Mozilla/5.0 (${platform === "darwin" ? "Macintosh; Intel Mac OS X 10_15_7" : "X11; Linux x86_64"}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36`
@@ -47,10 +47,9 @@ export const FLAGS = (profile: string, userAgent: string): ReadonlyArray<string>
   `--window-size=${WINDOW.width},${WINDOW.height}`,
   "--no-first-run",
   "--no-default-browser-check",
-  // The profile's cookie key, without the OS secret store: `basic` on Linux,
+  // The profile's cookie key without the OS secret store: `basic` on Linux,
   // the mock keychain on macOS (each flag is ignored by the other). Under a
-  // service with no UI the real Keychain lookup blocks or prompts, and every
-  // page load waits on it.
+  // service with no UI the real Keychain lookup blocks every page load.
   "--password-store=basic",
   "--use-mock-keychain",
   "--disable-background-networking",
@@ -60,28 +59,34 @@ export const FLAGS = (profile: string, userAgent: string): ReadonlyArray<string>
 
 /**
  * Chromium's sandbox needs a setuid helper or unprivileged user namespaces; a
- * Nix build sandbox (GitHub's hosted runners) and a hardened pod (seccomp
- * `RuntimeDefault`, every capability dropped, no privilege escalation) have
- * neither, and Chromium aborts with `No usable sandbox!`. Shared memory and a
- * GPU are missing there too.
+ * Nix build sandbox and a hardened pod have neither, and Chromium aborts with
+ * `No usable sandbox!`. Shared memory and a GPU are missing there too.
  */
 export const WITHOUT_ITS_OWN_SANDBOX: ReadonlyArray<string> = ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
 
 export const SANDBOX_KNOB = "OLAI_BROWSER_CHROMIUM_SANDBOX"
 
-/**
- * NOT on/off, and not yes/no or true/false: all six are YAML 1.1 booleans. A
- * Kubernetes manifest carrying `value: off` reached k3s (and every Go YAML
- * reader) as `false`, the env entry was rejected ("unrecognized type:
- * string") and never reached the pod. Two plain words survive any manifest
- * unquoted.
- */
-export const sandboxFlags = (value: string | undefined): ReadonlyArray<string> | { readonly why: string } => {
+export type SandboxChoice = "chromium" | "container"
+
+const FLAGS_FOR: Readonly<Record<SandboxChoice, ReadonlyArray<string>>> = {
+  chromium: [],
+  container: WITHOUT_ITS_OWN_SANDBOX,
+}
+
+export const sandboxChoice = (value: string | undefined): SandboxChoice | null => {
   const said = value?.trim() ?? ""
-  if (said === "" || said === "chromium") return []
-  if (said === "container") return WITHOUT_ITS_OWN_SANDBOX
+  if (said === "") return "chromium"
+  return said === "chromium" || said === "container" ? said : null
+}
+
+// Not on/off, and not yes/no or true/false: all six are YAML 1.1 booleans, so
+// a manifest carrying `value: off` reaches k3s (and every Go YAML reader) as
+// `false` and the env entry is dropped. Two plain words survive unquoted.
+export const sandboxFlags = (value: string | undefined): ReadonlyArray<string> | { readonly why: string } => {
+  const choice = sandboxChoice(value)
+  if (choice !== null) return FLAGS_FOR[choice]
   return {
-    why: `${SANDBOX_KNOB} is ${JSON.stringify(said)}; it takes chromium (Chromium's own sandbox, the default) or container (the container is the sandbox). Not on/off: YAML reads those, and yes/no and true/false, as booleans, and a manifest then drops the variable.`,
+    why: `${SANDBOX_KNOB} is ${JSON.stringify(value?.trim() ?? "")}; it takes chromium (Chromium's own sandbox, the default) or container (the container is the sandbox). Not on/off: YAML reads those, and yes/no and true/false, as booleans, and a manifest then drops the variable.`,
   }
 }
 

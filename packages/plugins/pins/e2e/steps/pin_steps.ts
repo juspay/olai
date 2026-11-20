@@ -93,8 +93,8 @@ When("I follow the pin {string}", async function (this: OlaiWorld, address: stri
   await pinAt(this, address).locator(PIN_LINK).click();
 });
 
-/** Revealed on hover, so `force`: opacity is not something Playwright's
- *  actionability check sees through. */
+/** The strip is revealed on hover, and Playwright's actionability check does
+ *  not see through `opacity: 0`, hence `force`. */
 When("I unpin {string}", async function (this: OlaiWorld, address: string) {
   await this.showSidebar();
   await pinAt(this, address).hover();
@@ -112,11 +112,6 @@ When("I rename the pin {string}", async function (this: OlaiWorld, address: stri
   });
 });
 
-/**
- * On a touch screen the strip is drawn without a hover
- * (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`) — which means the press here
- * must be unforced and must not hover first.
- */
 Then(
   "the pin {string} shows its controls without a hover",
   async function (this: OlaiWorld, address: string) {

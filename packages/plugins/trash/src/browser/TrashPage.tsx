@@ -33,7 +33,7 @@ export function TrashPage(props: {
           What was put away, kept whole. Put a row back and it returns where it
           came from, everything under it included.
         </p>
-        <EmptyTrash going={props.records} />
+        <EmptyTrash recordsInTrash={props.records} />
       </header>
       <Show
         when={props.groups.length > 0}

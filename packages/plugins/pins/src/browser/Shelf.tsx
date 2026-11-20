@@ -40,11 +40,15 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
   const [gesture, setCarrying] = createSignal<Carrying | undefined>(undefined)
   const carrying = createMemo(() => { const held = gesture(); return held?.order === order() ? held : undefined })
   const isLifted = createSelector(() => carrying()?.from)
-  let travelled = false
+  let travelledSinceGrab = false
   let list: HTMLUListElement | undefined
 
-  const measure = (): Measured => {
-    const top = listTop()
+  const listTopInDocument = (): number => list?.getBoundingClientRect().top ?? 0
+
+  const inList = (clientY: number): number => clientY - listTopInDocument()
+
+  const measureInList = (): Measured => {
+    const top = listTopInDocument()
     const at = [...(list?.querySelectorAll(selector(TESTID.pin)) ?? [])]
       .map((row) => row.getBoundingClientRect())
     return {
@@ -53,23 +57,21 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
     }
   }
 
-  const listTop = (): number => list?.getBoundingClientRect().top ?? 0
-
   const grab = (at: number, event: PointerEvent) => {
     if (event.button !== 0) return
-    travelled = false
+    travelledSinceGrab = false
     const was = order()
     drags.start(event, {
       threshold: TRAVEL_PX,
       onStart: () => {
-        travelled = true
-        setCarrying({ from: at, rows: measure(), gap: at, order: was })
+        travelledSinceGrab = true
+        setCarrying({ from: at, rows: measureInList(), gap: at, order: was })
       },
       onMove: (event) =>
         setCarrying((held) =>
           held === undefined
             ? undefined
-            : { ...held, gap: gapAt(held.rows.middles, event.clientY - listTop()) }
+            : { ...held, gap: gapAt(held.rows.middles, inList(event.clientY)) }
         ),
       onEnd: (ended) => {
         const held = carrying()
@@ -104,7 +106,7 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
                 current={isCurrent(pin())}
                 lifted={isLifted(at())}
                 onGrab={(event) => grab(at(), event)}
-                dragged={() => travelled}
+                dragged={() => travelledSinceGrab}
                 onRemove={() => unpin(pin())}
                 onRename={() => askName({ kind: "rename", pin: pin() })}
               />

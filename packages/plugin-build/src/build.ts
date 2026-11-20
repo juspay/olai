@@ -1,8 +1,7 @@
 import { transformAsync } from "@babel/core"
-// @ts-expect-error — the babel presets ship loose types
 import babelTypeScript from "@babel/preset-typescript"
-// @ts-expect-error — the babel presets ship loose types
 import babelSolid from "babel-preset-solid"
+import "./babel-presets.ts"
 
 import { bind, type Made } from "./bind.ts"
 import { type Half, modulesFor, unresolvable } from "./imports.ts"
@@ -12,9 +11,9 @@ export type { Half } from "./imports.ts"
 export type { Made } from "./bind.ts"
 
 /**
- * Compile one half. The gate runs first, on the author's own text, then the
- * transform, then the bind; a failure at any of the three is one `Made`, and a
- * compiler error is passed through as the author's own sentence.
+ * Compile one half: the gate on the author's own text, then the transform,
+ * then the bind. A failure at any of the three is one `Made`, and a compiler
+ * error is passed through as the author's own sentence.
  */
 export const buildHalf = async (half: Half, source: string): Promise<Made> => {
   const refused = unresolvable(source)

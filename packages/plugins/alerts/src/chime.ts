@@ -20,8 +20,8 @@ const unlock = (): void => {
     noChime("this browser would not open an audio context", cause)
     return
   }
-  // Constructed inside a gesture it should already be `running`; a browser that
-  // hands it back suspended anyway is what `resume` is for.
+  // The Web Audio autoplay policy can hand back a context that is `suspended`
+  // even when it was constructed inside a gesture.
   void audio.resume().catch((cause: unknown) => {
     noChime("this browser would not start the audio context", cause)
   })

@@ -227,6 +227,8 @@ Then("the remembered browser process is {word}", async function (this: OlaiWorld
 
 Then("the browser runs {word} its own sandbox", async function (this: OlaiWorld, how: string) {
   const pid = await pidShown(this)
+  // `/proc/<pid>/cmdline` is NUL-separated, but Chromium rewrites its process
+  // title into one space-joined string, so either separator can show up.
   const argv = readFileSync(`/proc/${pid}/cmdline`, "utf8").split(/[\0 ]/)
   assert.equal(argv.includes("--no-sandbox"), how === "without", `Chromium ${pid} was started with: ${argv.join(" ")}`)
 })

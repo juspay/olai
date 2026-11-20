@@ -11,25 +11,25 @@ import { useTrashUndo as useUndo } from "./history.ts"
 import { emptyQuestion } from "./question.ts"
 
 export function EmptyTrash(props: {
-  readonly going: number
+  readonly recordsInTrash: number
 }) {
   const undo = useUndo()
   const { said, say } = createSaying()
 
-  const going = () => props.going
+  const recordsInTrash = () => props.recordsInTrash
 
-  const confirm = createConfirming(going)
+  const confirm = createConfirming(recordsInTrash)
 
   const empty = async () => {
     confirm.begin()
-    const answer = await applying({ verb: "emptyTrash", was: going() }, undo.record)
+    const answer = await applying({ verb: "emptyTrash", was: recordsInTrash() }, undo.record)
     confirm.done()
     say(answer)
   }
 
   return (
     <>
-      <Show when={going() > 0}>
+      <Show when={recordsInTrash() > 0}>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <Switch>
             <Match when={confirm.where() === "asking"}>
@@ -37,7 +37,7 @@ export function EmptyTrash(props: {
                 class="m-0 flex-1 text-body text-ink"
                 data-testid={TESTID.trashEmptyConfirm}
               >
-                {emptyQuestion(going())}
+                {emptyQuestion(recordsInTrash())}
               </p>
               <button
                 type="button"

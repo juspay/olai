@@ -12,21 +12,10 @@ export interface Gesture {
 
 export const TRAVEL_PX = 4
 
-let selectionHolds = 0
-let selectionBefore = ""
-
 const holdTextSelection = (): (() => void) => {
-  if (selectionHolds === 0) {
-    selectionBefore = document.body.style.userSelect
-    document.body.style.userSelect = "none"
-  }
-  selectionHolds += 1
-  let released = false
+  document.body.style.userSelect = "none"
   return () => {
-    if (released) return
-    released = true
-    selectionHolds -= 1
-    if (selectionHolds === 0) document.body.style.userSelect = selectionBefore
+    document.body.style.userSelect = ""
   }
 }
 

@@ -1,29 +1,30 @@
 import { refusalIn } from "@olai/surface"
 /**
  * What omp means by what it sends — captured live against **omp 18.1.21**
- * running `omp --approval-mode yolo acp` (2026-09-14).
+ * running `omp --approval-mode yolo acp` (2026-09-14). Plain ACP over stdio,
+ * with six readings that are omp's own:
  *
- * It is plain ACP over stdio, with four readings that are omp's own:
- *
- *   - olai's MCP tools are dispatched through omp's own `write` tool. omp mints
+ *   - a call id is `<tool>:<n>` (`write:0`, `bash:3`); the number is the
+ *     call's, not the tool's.
+ *   - olai's MCP tools are dispatched through omp's own `write`. omp mints
  *     them as `mcp__<server>_<tool>` (lowercase, `[^a-z_]` folded to `_`, a
  *     `<server>_` prefix on the tool's own name stripped, capped at 64 with a
- *     hash) and with its default `tools.xdev: true` CALLS them by writing to an
- *     `xd://` pseudo-path: `tool_call { toolCallId: "write:0", title: <intent>,
- *     kind: "execute", rawInput: { path: "xd://mcp__olai_outlines_read",
- *     content: "{\"id\":…}" } }`. With `tools.xdev: false` the bare
- *     `mcp__<server>_<tool>:<n>` call is announced instead, args as `rawInput`,
- *     answering top-level — so both readers take both shapes.
- *   - `_meta` never appears on any frame, so a tool is named from the call id
- *     and whose call it is cannot be answered at all.
+ *     hash) and with its default `tools.xdev: true` calls them by writing to
+ *     an `xd://` pseudo-path, answering under `details.xdev.inner`. With
+ *     `tools.xdev: false` the bare `mcp__<server>_<tool>:<n>` call is
+ *     announced instead and answers top-level, so both readers take both.
+ *   - `_meta` appears on no frame about a call, so a tool is named from the
+ *     call id and whose call it is cannot be answered at all. The one `_meta`
+ *     omp stamps is `{ messageCount, size }` on a `session/list` row.
  *   - `session/set_mode "bypassPermissions"` answers `-32603 "Unsupported ACP
- *     mode"` (the modes are `default` and `plan`), `_session/steering` answers
- *     `-32603 "Unknown ACP ext method"`, and a `session/prompt` during an
- *     autonomous omp turn answers `-32000 session_busy`.
- *   - a busy send CANCELS the turn in flight: omp's `prompt()` begins a cancel
- *     cleanup when `record.session.isStreaming`, and the cancelled turn ends
- *     `stopReason: "cancelled"`. No capability says otherwise, which is what
- *     {@link Leg.queues} answering `false` is for.
+ *     mode"` (the modes are `default` and `plan`), and `_session/steering`
+ *     answers `-32603 "Unknown ACP ext method"`.
+ *   - a send during a streaming turn cancels that turn: omp's `prompt()`
+ *     begins a cancel cleanup when `record.session.isStreaming`, and the
+ *     cancelled turn ends `stopReason: "cancelled"`. An autonomous turn
+ *     refuses the prompt outright with `-32000 session_busy`.
+ *   - a server that fails to connect fails `session/new` outright rather than
+ *     reporting per server, and no agent-private channel is forwarded.
  *
  * omp writes no `_meta.terminal_*` corner, so this leg declares no
  * `terminalOutput`, and nothing on its frames names who spawned what.
@@ -42,33 +43,18 @@ function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 }
 
-/** What separates a tool's name from the rest of a call id. omp mints
- *  `<tool>:<n>` — `write:0`, `bash:3` — and the number is the call's, not the
- *  tool's. */
-const AT = ":"
-
 export const toolNameOf = (toolCallId: string): string | null => {
-  const at = toolCallId.indexOf(AT)
+  const at = toolCallId.indexOf(":")
   if (at <= 0) return null
   return toolCallId.slice(0, at)
 }
 
-/** The pseudo-scheme omp's `write` tool takes as a dispatch door. A path under
- *  it names an INTERNAL tool rather than a file, which is why it is the one
- *  string on this wire that may be believed. */
+/** The pseudo-scheme omp's `write` tool takes as a dispatch door: a path under
+ *  it names an internal tool rather than a file. */
 const XD = "xd://"
 
-/**
- * The programmatic prefix an MCP server's tools carry on this wire:
- * `mcp__<server>_<tool>`, a double underscore after `mcp` and a single one
- * between the server and the tool.
- *
- * omp folds the name it mints — lowercase, anything outside `[a-z_]` to `_`, a
- * `<server>_` prefix on the tool's own name stripped, capped at 64 characters
- * with a hash — which is why this is a prefix on the SERVER rather than derived
- * from the tool's name. The folding is the identity on every server and tool
- * name olai hands over.
- */
+/** The prefix an MCP server's tools carry on this wire — on the SERVER, since
+ *  omp folds the tool's own name (see the header). */
 export const spelling = (server: string) => `mcp__${server}_`
 
 const byName = mcpCallBy(spelling)
@@ -80,22 +66,16 @@ export const mcpCall: Leg["mcpCall"] = (frame, servers) => {
   return dispatched.length > 0 ? dispatched : byName(frame, servers)
 }
 
-/**
- * What one of olai's tools answered, out of the completion frame of the `write`
- * call that dispatched it — or `undefined` for a frame carrying no such thing.
- *
- * omp wraps the result twice, and the reply is the innermost text block:
- * `rawOutput.details.xdev.inner.rawContent[0].text`, with
- * `details.rawContent[0].text` as the `tools.xdev: false` shape, where the call
- * is top-level and there is no `write` around it.
- *
- * The text is parsed as JSON because olai's own MCP server publishes every
- * answer twice: `structuredContent` and that same object serialized beside it.
- */
+const xdevReply = (rawOutput: unknown): unknown =>
+  record(record(record(record(rawOutput)?.["details"])?.["xdev"])?.["inner"])?.["rawContent"]
+
+const topLevelReply = (rawOutput: unknown): unknown =>
+  record(record(rawOutput)?.["details"])?.["rawContent"]
+
+/** What one of olai's tools answered, or `undefined` for a frame carrying no
+ *  such thing. */
 export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined {
-  const details = record(record(rawOutput)?.["details"])
-  const inner = record(record(details?.["xdev"])?.["inner"])
-  const blocks = inner?.["rawContent"] ?? details?.["rawContent"]
+  const blocks = xdevReply(rawOutput) ?? topLevelReply(rawOutput)
   const text = Array.isArray(blocks) ? record(blocks[0])?.["text"] : undefined
   if (typeof text !== "string") return undefined
   try {
@@ -107,12 +87,8 @@ export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined
 
 export const allowedWithoutAsking = allowingOurs(spelling)
 
-/**
- * The two facts a `session/list` entry carries about its conversation: omp
- * stamps `{ messageCount, size }` on the entry's own `_meta` corner, and the
- * count is a real count rather than an inference. A row with no corner answers
- * `null`, which draws nothing rather than a zero.
- */
+/** The facts a `session/list` entry carries about its conversation. A row with
+ *  no `_meta` corner answers `null`, which draws nothing rather than a zero. */
 export const listedIn = (meta: Meta): ListedFacts | null => {
   const corner = record(meta)
   if (corner === undefined) return null
@@ -133,19 +109,9 @@ export const OMP: Leg = {
   taskNotification: () => null,
   listedIn,
   prologueIn: () => null,
-  // `-32603 "Unsupported ACP mode"`: the modes are `default` and `plan`, and
-  // `plan` is offered only where omp's own `plan.enabled` says so. Unattended
-  // approval for omp is the `--approval-mode yolo` on its command line.
   bypassMode: null,
-  // `-32603 "Unknown ACP ext method"`, so there is no interrupting gesture to
-  // offer here.
   steering: null,
-  // A `session/prompt` arriving while a turn streams makes omp cancel that turn
-  // and run the new prompt (`acp-agent.ts`'s `prompt()`), and no capability in
-  // its `initialize` says otherwise.
   queues: () => false,
-  // omp forwards no agent-private channel. A server that fails to connect fails
-  // `session/new` outright rather than reporting per server.
   rawMessages: null,
   models: { config: "model", nameIn: namedExactly },
 }

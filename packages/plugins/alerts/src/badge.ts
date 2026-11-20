@@ -31,7 +31,7 @@ const noBadge = (cause: unknown): void => {
   )
 }
 
-let worn = -1
+let worn: number | null = null
 
 return (count: number): void => {
   if (count === worn) return

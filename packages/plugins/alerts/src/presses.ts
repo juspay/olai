@@ -2,20 +2,20 @@ import type { Channel, NotifyClick } from "./contract.ts"
 
 type Claim = { readonly name: string; readonly deliver: (value: NotifyClick) => void }
 export const createPresses = () => {
-  const claims = new Map<NotifyClick["kind"], Claim>()
-  const pending = new Map<NotifyClick["kind"], NotifyClick>()
+  const claimByKind = new Map<NotifyClick["kind"], Claim>()
+  const pendingByKind = new Map<NotifyClick["kind"], NotifyClick>()
   let active = true
   const onPress: Channel["onPress"] = (kind, press) => {
     if (!active) return () => {}
     const name = press.name || "anonymous handler"
-    const previous = claims.get(kind)
+    const previous = claimByKind.get(kind)
     if (previous) throw new Error(`Notification kind "${kind}" is claimed by ${previous.name}; ${name} cannot claim it`)
     const claim: Claim = { name, deliver: value => press(value as Parameters<typeof press>[0]) }
-    claims.set(kind, claim)
-    const release = () => { if (claims.get(kind) === claim) claims.delete(kind) }
-    const held = pending.get(kind)
+    claimByKind.set(kind, claim)
+    const release = () => { if (claimByKind.get(kind) === claim) claimByKind.delete(kind) }
+    const held = pendingByKind.get(kind)
     if (held) {
-      pending.delete(kind)
+      pendingByKind.delete(kind)
       try { claim.deliver(held) } catch (cause) { release(); throw cause }
     }
     return release
@@ -24,10 +24,10 @@ export const createPresses = () => {
     onPress,
     receive: (value: NotifyClick) => {
       if (!active) return
-      const claim = claims.get(value.kind)
+      const claim = claimByKind.get(value.kind)
       if (claim) claim.deliver(value)
-      else pending.set(value.kind, value)
+      else pendingByKind.set(value.kind, value)
     },
-    dispose: () => { active = false; claims.clear(); pending.clear() },
+    dispose: () => { active = false; claimByKind.clear(); pendingByKind.clear() },
   }
 }

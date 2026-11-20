@@ -8,7 +8,6 @@ import { TESTID } from "olai-plugin-chat/testids"
 import { INSTALL } from "../../src/install.ts"
 import { fake } from "../fake/index.ts"
 
-/** The process this scenario started with: nothing here may restart it. */
 const held = new WeakMap<OlaiWorld, { readonly pid: number }>()
 
 const missing = selector(TESTID.engineMissing)

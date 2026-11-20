@@ -2,17 +2,11 @@
  * Reading a Code Mode script in full, or not at all.
  *
  * opencode 2 hands every MCP tool to the model as JavaScript and asks
- * permission once per inner call, sending the same frame each time — verified
- * against 2.2.7 by byte-comparing the three requests a three-call script
- * produced: identical in every field, differing only in the JSON-RPC request
- * id. Nothing on the wire says which call is being asked about, so one approval
+ * permission once per inner call, sending the same frame each time (2.2.7,
+ * byte-compared across the three requests a three-call script produced).
+ * Nothing on the wire says which call is being asked about, so one approval
  * covers the whole script and only a script read in full may be answered
- * without a person.
- *
- * Hence a closed grammar rather than a scan: a script may only call
- * `tools.<server>.<tool>` with literal arguments, bind those calls to names and
- * return them. Anything else — a `Promise.allSettled`, a ternary, a computed
- * key — answers `null` and reaches a person.
+ * without a person — hence a closed grammar rather than a scan.
  */
 
 const TOOLS = "tools"
@@ -36,12 +30,11 @@ const DIGIT = /[0-9]/
 
 /**
  * The script as tokens, or `null` for a script carrying anything this grammar
- * has no token for — comments included, since a comment naming one of olai's
- * tools is how somebody else's script passes a "names at least one" test.
+ * has no token for.
  *
- * String literals are kept because opencode spells a hyphenated server with its
- * hyphen in the table (captured against 2.2.7), so `tools["xyne-spaces"]` is
- * the only way to reach one.
+ * String literals are kept because opencode spells a hyphenated server with
+ * its hyphen in the table (2.2.7), so `tools["xyne-spaces"]` is the only way
+ * to reach one.
  */
 export const tokensIn = (code: string): ReadonlyArray<Token> | null => {
   const tokens: Token[] = []
