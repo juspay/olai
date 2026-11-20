@@ -27,6 +27,7 @@ const ogAlt =
 // The header link the reader is under: the longest one this address starts
 // with, so Start is lit on its own page and Docs on every other docs page.
 const nav = [
+  { href: "/uses/", label: "Uses" },
   { href: hrefOf("start"), label: "Start" },
   { href: hrefOf("index"), label: "Docs" },
 ]
@@ -92,6 +93,7 @@ const palettes = [
       <div class="wrap">
         <a class="wordmark" href="/">olai</a>
         <span><a href={github}>github.com/juspay/olai</a></span>
+        <span><a href="/uses/">uses</a></span>
         <span><a href={hrefOf("index")}>docs</a></span>
         <span><a href={hrefOf("running")}>how to run it</a></span>
         <span><a href="https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap">roadmap</a></span>

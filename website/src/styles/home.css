@@ -191,6 +191,21 @@ table.cmp thead th:nth-child(2) { color: var(--accent); }
 .fit .no li::marker { color: var(--alarm); }
 .fit .yes li::marker { color: var(--done); }
 
+.teasers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2rem; margin-top: 1.8rem; }
+@media (max-width: 56rem) { .teasers { grid-template-columns: minmax(0, 1fr); } }
+.teasers a { display: block; text-decoration: none; color: var(--ink); }
+.teasers b { display: block; font-family: var(--display); font-style: italic; font-weight: 500; font-size: 1.15rem; margin-top: 0.7rem; }
+.teasers span { color: var(--muted); font-size: 0.92rem; }
+
+.pagehead { padding: 3rem 0 0.5rem; }
+.pagehead h1 { font-family: var(--display); font-style: italic; font-weight: 600; font-size: clamp(2.4rem, 5vw, 3.6rem); letter-spacing: -0.03em; line-height: 1.05; }
+.pagehead p { color: var(--muted); margin-top: 0.9rem; max-width: 40rem; }
+.use { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 2.4rem; align-items: center; margin-top: 2rem; }
+.use.flip > :first-child { order: 2; }
+@media (max-width: 56rem) { .use { grid-template-columns: minmax(0, 1fr); } .use.flip > :first-child { order: 0; } }
+.use p + p { margin-top: 0.8rem; }
+.use .needs { font-size: 0.86rem; color: var(--muted); margin-top: 0.9rem; }
+
 .shot.small { margin-top: 0; }
 .small h3 {
   font-size: 0.74rem; color: var(--muted); font-weight: 700; letter-spacing: 0.08em;
