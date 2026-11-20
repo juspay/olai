@@ -1,5 +1,5 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { agendaOf, derive, owedOf } from "@olai/format"
+import { agendaOf, derive, type Owed, owedOf } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -73,9 +73,10 @@ test("an occurrence on today is not a row this mark counts", () => {
 
 test("a directory nobody has been told about yet claims nothing", () => {
   const mark = markOf(undefined)
+  const owed: Owed = mark.owed
   expect(mark.face).toBe("quiet")
   expect(mark.count).toBe(0)
-  expect(mark.owed).toEqual({ overdue: 0, today: 0 })
+  expect(owed).toEqual({ overdue: 0, today: 0 })
 })
 
 test("a painted chip is never a zero — CountChip hides at zero on this", () => {
@@ -92,7 +93,7 @@ test("a painted chip is never a zero — CountChip hides at zero on this", () =>
   }
 })
 
-test("a mark is a VALUE: the counts are copied, not held by reference", () => {
+test("a mark is a VALUE: the counts are copied into a frozen snapshot", () => {
   const live = { overdue: 3, today: 1 }
   const before = markOf(live)
   live.overdue = 4
@@ -100,6 +101,7 @@ test("a mark is a VALUE: the counts are copied, not held by reference", () => {
   expect(before.owed.overdue).toBe(3)
   expect(before.count).toBe(3)
   expect(after.count).toBe(4)
+  expect(Object.isFrozen(before.owed)).toBe(true)
   expect(unchanged(before, after)).toBe(false)
 })
 

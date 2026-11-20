@@ -162,8 +162,6 @@ Then(
 Then(
   "the agenda does not list {string}",
   async function (this: OlaiWorld, id: string) {
-    // The PAGE first, then its rows: an absence read off a page that has not
-    // drawn its answer yet is an absence of everything.
     await this.page
       .locator(AGENDA_PAGE)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });

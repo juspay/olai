@@ -1,7 +1,7 @@
 import { type Accessor, createMemo } from "solid-js"
 
 import { dailyNoteDays } from "@olai/format"
-import type { OwedReading } from "@olai/format"
+import type { OwedReading, OwedRequest } from "@olai/format"
 
 import { useServed, servedDirectory } from "./vault.ts"
 import { journalWire } from "./wire.ts"
@@ -21,23 +21,13 @@ export const createNoted = (month: Accessor<string>): Accessor<ReadonlySet<strin
 
 const OWED_ROWS = 5
 
-/**
- * The `undefined` is load-bearing and is passed straight through to the mark
- * (`./agenda/owed.ts`, which draws NOTHING rather than a zero).
- *
- * AND `undefined` FOR TODAY IS "DO NOT ASK YET".
- */
+const askFor = (today: string | undefined): OwedRequest | null =>
+  today === undefined ? null : { today, cap: OWED_ROWS }
+
 export const createOwed = (
-  /** A signal or memo, not a fresh value per read: the subscription re-opens
-   *  whenever this NOTIFIES, so a caller handing over an untracked
-   *  recomputation would tear the stream down and reset the badge on frames
-   *  that changed nothing. */
   today: Accessor<string | undefined>,
 ): Accessor<OwedReading | undefined> => {
-  const answer = journalWire().streams.owed.use(() => {
-    const day = today()
-    return day === undefined ? null : { today: day, cap: OWED_ROWS }
-  })
+  const answer = journalWire().streams.owed.use(() => askFor(today()))
   return createMemo(() => {
     const owed = answer()
     return owed === undefined ? undefined : {

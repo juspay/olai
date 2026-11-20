@@ -1,7 +1,4 @@
-// ONE CELL for both dots, so the three sizes cannot come to disagree about
-// where the middle is: move the gutter and the line, the dots and the indent
-// move with it.
-// Literal class names, never computed ones — Tailwind scans this file as text.
+// Tailwind scans this file as text: literal class names only, never computed ones.
 
 export const SPINE_INDENT = "pl-10"
 

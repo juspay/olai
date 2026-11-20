@@ -43,8 +43,8 @@ function DayFace(props: {
     <DayPage
       date={props.page.date}
       groups={drawn()?.groups ?? []}
-      notes={drawn()?.notes ?? []}
-      noted={(only(props.page, "day")?.notes.length ?? 0) > 0}
+      drawnNotes={drawn()?.notes ?? []}
+      hasNote={(only(props.page, "day")?.notes.length ?? 0) > 0}
       today={props.today}
     />
   )
@@ -73,10 +73,10 @@ export default definePlugin({
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))
     const wired = yield* Wired
     yield* holdJournalWire(() => wired.client() as JournalClient)
-    const owed = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-      const today = useToday()
-      return { value: createOwed(() => today() || undefined), dispose }
-    })), state => Effect.sync(state.dispose))
+    const owed = yield* Effect.acquireRelease(
+      Effect.sync(() => createRoot(dispose => ({ value: createOwed(useToday()), dispose }))),
+      state => Effect.sync(state.dispose),
+    )
     yield* Effect.acquireRelease(Effect.sync(() => holdOwed(owed.value)), stop => Effect.sync(stop))
 
 

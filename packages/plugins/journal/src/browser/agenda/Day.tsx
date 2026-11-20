@@ -1,4 +1,4 @@
-import { isOverdue, owedFact, type Standing } from "@olai/format"
+import { type DayEntry, isOverdue, owedFact, type Standing } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
@@ -18,7 +18,7 @@ import {
   SPINE_LINE,
   SPINE_NOW,
 } from "./gutter.ts"
-import { inkOf, lineOf, NOW_RING, type Rung, rowsOn } from "./spine.ts"
+import { inkOf, type Rung, rowsOn, NOW_RING, spaceOf, trackOf } from "./spine.ts"
 import { dayRoute } from "../routes.ts"
 
 interface Face {
@@ -65,6 +65,16 @@ export function Day(props: {
     face().distance === "leads" ? felt().distance : undefined
   const gloss = (): string | undefined =>
     face().distance === "beside" ? felt().distance : undefined
+  const silence = (): { readonly days: number; readonly label: string } | undefined => {
+    const quiet = props.rung.quiet
+    return quiet === undefined || quiet.label === undefined
+      ? undefined
+      : { days: quiet.days, label: quiet.label }
+  }
+  const late = (entry: DayEntry): boolean => {
+    const now = today()
+    return now !== undefined && isOverdue(entry.shows.node, now)
+  }
 
   return (
     // `flow-root`: a row carries its own bottom margin, and the last one in a
@@ -76,17 +86,17 @@ export function Day(props: {
       data-date={props.rung.day.date}
       data-when={felt().standing}
     >
-      <span aria-hidden="true" class={SPINE_LINE} style={{ background: lineOf(props.rung) }} />
+      <span aria-hidden="true" class={SPINE_LINE} style={{ background: trackOf(props.rung) }} />
 
-      <div class="relative" style={{ height: `${props.rung.quiet.space}rem` }}>
-        <Show when={props.rung.quiet.label}>
-          {(label) => (
+      <div class="relative" style={{ height: `${spaceOf(props.rung)}rem` }}>
+        <Show when={silence()}>
+          {(quiet) => (
             <span
               class={`${QUIET_INDENT} text-caption italic text-muted opacity-60`}
               data-testid={TESTID.agendaQuiet}
-              data-days={String(props.rung.quiet.days)}
+              data-days={String(quiet().days)}
             >
-              {label()}
+              {quiet().label}
             </span>
           )}
         </Show>
@@ -149,11 +159,7 @@ export function Day(props: {
                 <DayNode
                   dated={dated()}
                   trail="under"
-                  pill={owedFact(
-                    dated().date,
-                    isOverdue(dated().shows.node, today()),
-                    felt(),
-                  )}
+                  pill={owedFact(dated().date, late(dated()), felt())}
                 />
               )}
             </Key>

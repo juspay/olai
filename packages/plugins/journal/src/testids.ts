@@ -1,5 +1,3 @@
-/** Values stay unchanged across the ownership move so existing scenarios
- * remain the contract. */
 export const TESTID = {
   calendar: "calendar",
   calendarRow: "calendar-row",

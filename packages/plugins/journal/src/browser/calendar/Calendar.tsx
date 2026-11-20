@@ -31,10 +31,6 @@ export function Calendar(props: {
 
   return (
     <section
-      // A reader who keeps it open spends ~220px of a short window on it, and
-      // the file tree has to clear the fold below (`olai-plugin-layout/entry`,
-      // and the scenario it names) — so the heading's size and the day cell's
-      // `md:min-h` are a budget: grow either and re-read that note first.
       class="mb-2 mt-1 md:px-1"
       data-testid={TESTID.calendar}
       data-month={month()}

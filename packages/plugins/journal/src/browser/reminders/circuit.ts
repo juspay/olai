@@ -1,5 +1,3 @@
-/** Nothing replays a skipped sound: the day is recorded before either device
- * is asked. */
 import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 import type { Owed } from "@olai/format"
 import type { Channel } from "olai-plugin-alerts/contract"
@@ -10,7 +8,7 @@ import { remind } from "./rule.ts"
 import { noticeOf } from "./notice.ts"
 
 export const createReminders = (input: {
-  readonly today: Accessor<string>
+  readonly today: Accessor<string | undefined>
   readonly owed: Accessor<Owed | undefined>
   readonly state: RemindersState
   readonly channel: Pick<Channel, "alertsOn" | "notify" | "chime" | "onPress">

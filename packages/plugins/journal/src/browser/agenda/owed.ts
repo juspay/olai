@@ -4,9 +4,19 @@ import { CHIP_ALARM, CHIP_QUIET } from "olai-plugin-layout/chip"
 
 export type Face = "overdue" | "today" | "quiet"
 
+type Painted = Exclude<Face, "quiet">
+
+declare const snapshot: unique symbol
+
+export type Snapshot = Owed & { readonly [snapshot]: true }
+
+declare const positive: unique symbol
+
+type Count = number & { readonly [positive]: true }
+
 export interface Mark {
   readonly face: Face
-  readonly owed: Owed
+  readonly owed: Snapshot
   readonly count: number
   readonly entry: string
   readonly chip: string
@@ -14,7 +24,7 @@ export interface Mark {
   readonly said: string | undefined
 }
 
-const PAINT: Record<Face, { readonly entry: string; readonly chip: string; readonly dot: string }> = {
+const PAINT: Record<Painted, { readonly entry: string; readonly chip: string; readonly dot: string }> = {
   overdue: {
     entry: "font-medium text-alarm",
     chip: CHIP_ALARM,
@@ -25,37 +35,36 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
     chip: CHIP_QUIET,
     dot: "border border-muted bg-transparent",
   },
-  quiet: { entry: "", chip: "", dot: "" },
 }
+
+const QUIET = { face: "quiet", count: 0, entry: "", chip: "", dot: "", said: undefined } as const
 
 export const ROW_DOT: { readonly overdue: string; readonly today: string } = {
   overdue: PAINT.overdue.dot,
   today: PAINT.today.dot,
 }
 
-/**
- * IT COPIES THE TWO NUMBERS because a MARK IS A VALUE about one moment —
- * {@link unchanged} compares one against another, so it cannot be two readings
- * of an object something else is free to move.
- *
- * PAINTED FACE ⟹ COUNT > 0. The quiet face is the only zero and its chip is
- * empty, which is the invariant `../layout/CountChip.tsx` hides at zero on.
- */
+const counting = (count: number): Count | undefined => count > 0 ? count as Count : undefined
+
+const paintOf = (face: Painted, count: Count, owed: Owed) => ({
+  face,
+  count,
+  ...PAINT[face],
+  said: `Agenda — ${phraseOf(owed)}`,
+})
+
+const snapshotOf = (counted: Owed | undefined): Snapshot =>
+  Object.freeze({ overdue: counted?.overdue ?? 0, today: counted?.today ?? 0 }) as Snapshot
+
 export const markOf = (counted: Owed | undefined): Mark => {
-  const owed: Owed = { overdue: counted?.overdue ?? 0, today: counted?.today ?? 0 }
-  const face: Face = owed.overdue > 0 ? "overdue" : owed.today > 0 ? "today" : "quiet"
-  return {
-    face,
-    owed,
-    count: face === "overdue" ? owed.overdue : owed.today,
-    ...PAINT[face],
-    said: face === "quiet" ? undefined : `Agenda — ${phraseOf(owed)}`,
-  }
+  const owed = snapshotOf(counted)
+  const late = counting(owed.overdue)
+  if (late !== undefined) return { owed, ...paintOf("overdue", late, owed) }
+  const due = counting(owed.today)
+  if (due !== undefined) return { owed, ...paintOf("today", due, owed) }
+  return { owed, ...QUIET }
 }
 
-/** WHICH IS ONLY TRUE BECAUSE {@link markOf} COPIED THEM: comparing fields of
- *  a value something else keeps mutating in place would report "nothing
- *  changed" forever. */
 export const unchanged = (before: Mark, after: Mark): boolean =>
   before.owed.overdue === after.owed.overdue && before.owed.today === after.owed.today
 

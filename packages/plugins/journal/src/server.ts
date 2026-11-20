@@ -93,8 +93,6 @@ export default definePlugin({
             isEqual: samePageReading,
           },
         },
-        // A transient vault read must be visible without taking down every
-        // subscriber. The framework requires this for poll-shaped streams.
         onStreamReadError: (error, { stream }) => {
           Effect.runFork(Effect.logWarning(`journal ${stream} read failed: ${String(error)}`))
         },

@@ -6,7 +6,7 @@ import { createReminders } from "./circuit.ts"
 import { agendaRoute } from "../routes.ts"
 
 const stage = (boot?: Owed) => createRoot(dispose => {
-  const [day, setDay] = createSignal("2026-09-11")
+  const [day, setDay] = createSignal<string | undefined>("2026-09-11")
   const [owed, setOwed] = createSignal<Owed | undefined>(boot)
   const [said, setSaid] = createSignal<string | null>(null)
   const [on, setOn] = createSignal(true)
@@ -17,7 +17,7 @@ const stage = (boot?: Owed) => createRoot(dispose => {
   let released = 0
   const channel: Pick<Channel, "alertsOn" | "notify" | "chime" | "onPress"> = {
     alertsOn,
-    notify: async notice => { expect(said()).toBe(day()); calls.push(`notify:${notice.body}`) },
+    notify: async notice => { expect(said()).toBe(day() ?? null); calls.push(`notify:${notice.body}`) },
     chime: () => { calls.push("chime") },
     onPress: (kind, action) => {
       expect(String(kind)).toBe("due")
@@ -59,7 +59,7 @@ test("a day switched off is not spent; the first later frame and the next day ca
 
 test("no clock, no frame and an empty agenda say nothing", () => {
   const s = stage()
-  s.day(""); s.owed({ overdue: 1, today: 0 }); expect(s.calls).toEqual([])
+  s.day(undefined); s.owed({ overdue: 1, today: 0 }); expect(s.calls).toEqual([])
   s.owed({ overdue: 0, today: 0 }); s.day("2026-09-12"); expect(s.calls).toEqual([])
   s.owed({ overdue: 0, today: 1 }); expect(s.calls).toHaveLength(3)
   s.dispose()
@@ -79,12 +79,12 @@ test("the real owed adapter clears yesterday's frame before the reminder reads a
   })
   await Effect.runPromise(Scope.provide(holdJournalWire(() => ({ streams: { owed: { use } } }) as unknown as JournalClient), scope))
   const s = createRoot(dispose => {
-    const [day, setDay] = createSignal("")
+    const [day, setDay] = createSignal<string | undefined>(undefined)
     const [said, say] = createSignal<string | null>(null)
     const calls: string[] = []
-    createReminders({ today: day, owed: createOwed(() => day() || undefined),
+    createReminders({ today: day, owed: createOwed(day),
       state: { on: () => true, setOn: () => {}, said, say }, called: () => undefined, go: () => {},
-      channel: { alertsOn: () => true, notify: async () => { calls.push(day()) }, chime: () => {}, onPress: () => () => {} },
+      channel: { alertsOn: () => true, notify: async () => { calls.push(day() ?? "no clock") }, chime: () => {}, onPress: () => () => {} },
     })
     return { dispose, day: setDay, said, calls }
   })

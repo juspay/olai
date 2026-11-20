@@ -17,18 +17,21 @@ import { shortDay } from "./calendar/month.ts"
 import { owedToday } from "./owed.ts"
 import { agenda, agendaRoute, day, dayRoute, todayRoute } from "./routes.ts"
 
-const createAgendaMark = (today: () => string) => {
-  const owed = owedToday
-  return createMemo(() => markOf(owed()), undefined, { equals: unchanged })
-}
+const agendaMark = () => createMemo(() => markOf(owedToday()), undefined, { equals: unchanged })
 
 export function AgendaEntry() {
   const router = useRouter()
   const today = useToday()
-  const mark = createAgendaMark(today)
-  const reading = owedToday
+  const mark = agendaMark()
   const current = () => agenda.value(router.route()) !== null
   const shown = () => mark().face !== "quiet" && !current()
+  const rows = () => {
+    const now = today()
+    const reading = owedToday()
+    return shown() && !agendaRowsFolded() && now !== undefined && reading !== undefined
+      ? { reading, today: now }
+      : undefined
+  }
   return (
     <div
       class="mb-1"
@@ -53,35 +56,39 @@ export function AgendaEntry() {
           <AgendaFold />
         </Show>
       </div>
-      <Show when={shown() && !agendaRowsFolded() ? reading() : undefined}>
-        {(owed) => <AgendaRows reading={owed()} today={today()} />}
+      <Show when={rows()}>
+        {(owed) => <AgendaRows reading={owed().reading} today={owed().today} />}
       </Show>
     </div>
   )
 }
 
 export function TodayEntry() {
+  const clock = useToday()
+  return <Show when={clock()}>{(today) => <TodayRow today={today()} />}</Show>
+}
+
+function TodayRow(props: { readonly today: string }) {
   const router = useRouter()
-  const today = useToday()
   const open = createMemo(() => {
     const value = day.value(router.route())
-    return value === null ? undefined : "today" in value ? today() : value.date
+    return value === null ? undefined : "today" in value ? props.today : value.date
   })
   const grid = "journal-month"
   return (
     <div class="mb-1" data-testid={TESTID.calendarRow} data-open={String(calendarOpen())}>
       <div class="flex items-center gap-1">
         <Link
-          route={dayRoute(today())}
+          route={dayRoute(props.today)}
           class={`${ENTRY_SHAPE} min-w-0 flex-1`}
           testid={TESTID.calendarToday}
-          current={open() === today()}
-          tip={today()}
-          label={`Today, ${shortDay(today())}, ${today()}`}
+          current={open() === props.today}
+          tip={props.today}
+          label={`Today, ${shortDay(props.today)}, ${props.today}`}
         >
           Today
           <span class="ml-auto shrink-0 pl-2 text-label tabular-nums text-muted" data-testid={TESTID.calendarTodayDate}>
-            {shortDay(today())}
+            {shortDay(props.today)}
           </span>
         </Link>
         <Tip text={calendarOpen() ? "Hide month" : "Show month"}>
@@ -105,7 +112,7 @@ export function TodayEntry() {
       </div>
       <Show when={calendarOpen()}>
         <div id={grid}>
-          <Calendar today={today()} open={open()} />
+          <Calendar today={props.today} open={open()} />
         </div>
       </Show>
     </div>
@@ -114,8 +121,7 @@ export function TodayEntry() {
 
 export function JournalRail() {
   const router = useRouter()
-  const today = useToday()
-  const mark = createAgendaMark(today)
+  const mark = agendaMark()
   return (
     <>
       <Tip text="Today">

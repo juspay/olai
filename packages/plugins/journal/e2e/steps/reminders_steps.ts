@@ -52,15 +52,11 @@ When("I open a second tab after the reminder", async function (this: OlaiWorld) 
   await this.waitUntil(() => other.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.active != null), "the second tab's worker to activate");
   assert.equal(await other.evaluate(() => localStorage.getItem("olai.reminders.said")), isoDayOf(new Date()));
   assert.deepStrictEqual(await alertsOn(other), { banners: [], notes: 0 });
-  // Keep it alive through the scenario's page-error assertion; the context
-  // owns its cleanup, just as in the other two-tab preference workflows.
 });
 
 When("I open the app from a pressed reminder", async function (this: OlaiWorld) {
   const id = crypto.randomUUID();
   coldPresses.set(this, id);
-  // These are the framework's wire names, deliberately not shared imports:
-  // a change to that handoff must fail here, as PRESS_TYPE does for live clicks.
   const query = new URLSearchParams({ __notify: JSON.stringify({ kind: "due" }), __notify_id: id });
   await this.open(`/?${query}`);
 });

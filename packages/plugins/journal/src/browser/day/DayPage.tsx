@@ -12,8 +12,8 @@ import { DayNote } from "./DayNote.tsx"
 export function DayPage(props: {
   readonly date: string
   readonly groups: ReadonlyArray<DayGroup>
-  readonly notes: ReadonlyArray<string>
-  readonly noted: boolean
+  readonly drawnNotes: ReadonlyArray<string>
+  readonly hasNote: boolean
   readonly today: string
 }) {
   const narrowed = useNarrowed()
@@ -26,16 +26,16 @@ export function DayPage(props: {
             <span class="text-body text-accent">Today</span>
           </Show>
         </div>
-        <Show when={!props.noted}>
+        <Show when={!props.hasNote}>
           <DayMint date={props.date} />
         </Show>
       </header>
 
-      <For each={props.notes}>{(file) => <DayNote file={file} />}</For>
+      <For each={props.drawnNotes}>{(file) => <DayNote file={file} />}</For>
 
       <Show
         when={unfiltered(narrowed) && props.groups.length === 0 &&
-          props.notes.length === 0}
+          props.drawnNotes.length === 0}
       >
         <p class="text-muted" data-testid={TESTID.dayEmpty}>
           {props.date === props.today
