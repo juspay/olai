@@ -1,17 +1,7 @@
-/**
- * ONE ACTIVATION'S LIFETIME, on both sides of the bridge.
- *
- * Cordis owns readiness and reactive reloads; Effect owns resources. This module
- * owns the join between them: revoke provisions, wait for dependent cleanup,
- * then close the resource scope. Plugin configuration and failure presentation
- * do not participate in that ordering and remain in plugin.ts.
- */
 import type { Context as CordisContext, Fiber as CordisFiber } from "cordis"
 import { Context, Duration, Effect, Exit, Fiber, Scope } from "effect"
 import type { Provision, ServiceKey } from "./service.ts"
 
-/** A duplicate is a distinct defect so the API can supply its own sentence
- * without accidentally disguising a cancellation or disposer-ownership defect. */
 export class OfferConflict extends Error {
   constructor(readonly owner: string, readonly key: string, cause: Error, message = cause.message) {
     super(message, { cause })
@@ -19,51 +9,18 @@ export class OfferConflict extends Error {
 }
 
 /**
- * A REGISTRATION THAT MUST STOP ACCEPTING CALLS BEFORE THIS ACTIVATION UNWINDS
- * — the plugin buses' half of the lifetime, and the reason it is here rather
- * than on the scope.
- *
- * A scope orders finalizers by registration, LIFO, and `Listen` puts no
- * constraint on when a plugin registers a handler relative to the resources
- * that handler reads. So a resource acquired after a `listen` was released
- * BEFORE the handler was stopped — reproduced, and the tree really is written
- * that way. What a running handler needs is not a place in that order; it is a
- * stage BEFORE it, which only the activation can offer.
- *
- * THIS DOES NOT REPLACE THE SCOPE'S OWN LIFETIME. A registration made inside a
- * child scope is stopped when that child closes as well, and both owners reach
- * the same `cut`; the second waits for the first rather than finding an empty
- * set. See {@link ../gate.ts}.
+ * A REGISTRATION THAT MUST STOP ACCEPTING CALLS BEFORE THIS ACTIVATION UNWINDS.
  *
  * TWO STEPS, and they are separate because ALL of the first must happen before
  * ANY of the second: a sequential shut-and-cut loop would leave a later
  * registration admitting calls while an earlier one was still being cut.
  */
 export interface Quieting {
-  /** Stop accepting calls. Synchronous, and run for every registration on the
-   *  activation before any of them is cut. */
   readonly shut: () => void
-  /** Cut what is still inside, and answer only when it has finished unwinding.
-   *  Signalling a cancellation is not joining one; a resource may not close
-   *  until this has answered. */
   readonly cut: () => Promise<void>
-  /**
-   * Settled when this registration's own lifetime has ended — its scope closed
-   * and its cut joined. The activation prunes on it.
-   *
-   * A PROMISE THE REGISTRATION KEEPS rather than a withdrawal it is handed,
-   * because a withdrawal is a return value and a return value can be dropped:
-   * the first shape of this was `quiet` answering with a remover, and the very
-   * first thing that wrapped `quiet` — a probe forwarding the call and
-   * intending to leave ownership alone — swallowed it and the records piled up
-   * exactly as before. Nothing about pruning should depend on a caller passing
-   * something back.
-   */
   readonly done: Promise<void>
 }
 
-/** The plugin adapter can bind initialization and close its lifetime, but cannot
- * rearrange revocation or mark cleanup complete without actually doing it. */
 export interface Activation {
   readonly current: () => boolean
   readonly scope: Scope.Closeable
@@ -71,11 +28,6 @@ export interface Activation {
   readonly interrupt: () => void
   readonly close: (exit: Exit.Exit<void>) => Promise<void>
   readonly offer: <Shape>(key: ServiceKey<Shape>, provision: Provision<Shape>) => void
-  /** Enrol a registration's stop in this activation's pre-close stage. The
-   *  record is dropped again when {@link Quieting.done} settles, so a plugin
-   *  that subscribes and unsubscribes in a loop does not accumulate one closed
-   *  record per cycle for the rest of its life — measured at a hundred, still
-   *  retained after a collection. */
   readonly quiet: (quieting: Quieting) => void
 }
 
@@ -86,38 +38,17 @@ interface Live {
   readonly interrupt: () => void
 }
 
-/** Cordis removes fibers from its registry BEFORE asynchronous cleanup ends.
- * Keeping the activation until its scope has closed lets a departing provider
- * and host shutdown join consumers that are no longer discoverable there.
- * This is cleanup bookkeeping, not a second readiness or dependency scheduler:
- * dependencies are the provider identities Cordis committed for this activation.
- * The entry is removed in finally, including failed and interrupted starts.
- */
 const live = new Map<CordisFiber, Live>()
 
 export const Offering = Context.Reference<Activation | undefined>("effect-cordis/Offering", {
   defaultValue: () => undefined,
 })
 
-/** Include activations whose disposal already removed their registry entry. */
 export const hostActivations = (ctx: CordisContext): ReadonlyArray<Live> =>
   [...live.values()].filter((activation) => activation.ctx.root.fiber === ctx.root.fiber)
 
 export const interrupt = (fiber: CordisFiber): void => live.get(fiber)?.interrupt()
 
-/** `ctx.provide`, with its duplicate-provider refusal as an {@link OfferConflict}
- * — the one door both an activation's offer and a host's root provision use.
- *
- * The pinned runtime exposes no typed duplicate error. Recognize its exact
- * sentence here, beside the call it belongs to; callers neither parse Cordis
- * prose nor preflight its exclusive-provider decision.
- *
- * ...AND WHEN THE SENTENCE NEVER ARRIVES, the store says the same thing. The
- * refusal is raised inside `fiber.effect`, whose long-stack splice reads
- * `.stack` as a string and throws its own TypeError when an error has none
- * (seen under Bun), so the refusal is lost. It was thrown before the store was
- * written: another fiber holding the key there IS the refusal, and names its
- * owner without any prose. */
 export const provideExclusive = <Shape>(
   ctx: CordisContext,
   key: ServiceKey<Shape>,
@@ -139,12 +70,6 @@ export const provideExclusive = <Shape>(
   }
 }
 
-/** WHAT A FIBER'S LAST START THREW, as the bridge threw it. Cordis re-throws a
- * failed fiber's error from `await()`, but only after its long-stack splice,
- * which reads `.stack` as a string and throws its own TypeError when an error
- * has none (Bun, `Error.stackTraceLimit` 0). A row's fault is the plugin's
- * words, so the activation that threw them keeps them. Weak, so the record
- * lives exactly as long as the fiber; cleared when the next start begins. */
 const thrown = new WeakMap<CordisFiber, { readonly reason: unknown }>()
 export const startThrew = (fiber: CordisFiber, reason: unknown): void => { thrown.set(fiber, { reason }) }
 export const startBegins = (fiber: CordisFiber): void => { thrown.delete(fiber) }
@@ -155,9 +80,6 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
   const drained = Promise.withResolvers<void>()
   let closing: Promise<void> | undefined
   const revokes: Array<() => Promise<void>> = []
-  /** A SET rather than a list, because entries LEAVE now: a child scope's
-   *  withdrawal removes its own, and deleting from a `Set` while `close` walks
-   *  it is safe in a way that splicing a list is not. */
   const quiets = new Set<Quieting>()
   let running: Fiber.Fiber<void> | undefined
   let interrupted = false
@@ -174,59 +96,24 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
     current: () => closing === undefined && !interrupted && ctx.fiber.uid !== null,
     scope,
     interrupt,
-    // runForkWith may run plugin code before returning its fiber. Remember an
-    // interruption received during that work, then deliver it when bound.
     bind: (fiber) => {
       running = fiber
       if (interrupted || ctx.fiber.uid === null || Object.keys(ctx.fiber.inject).some((key) => ctx.reflect.get(key) === undefined)) interrupt()
     },
     close: (exit) => closing ??= Promise.resolve().then(async () => {
       // STOP ACCEPTING, AND START CUTTING, before the first `await` in this
-      // function — see the two paragraphs below. Both are outside the `try`
-      // because the `finally` has to be able to wait for the cut whatever the
-      // withdrawal did, and a resource may not close before it has.
+      // function. Both are outside the `try` because the `finally` has to be
+      // able to wait for the cut whatever the withdrawal did, and a resource may
+      // not close before it has.
       for (const quiet of quiets) quiet.shut()
       const cutting = joinCuts([...quiets], ctx.fiber.name ?? "a plugin", services)
       try {
-        // WHY THE SHUT IS FIRST: it is the paper's L-Leave, and the one
-        // ordering a scope cannot express. A handler that has not started is
-        // now never started, whatever this plugin registered when — and ALL of
-        // them are shut before ANY is cut, because a sequential loop would
-        // leave a later registration admitting calls while an earlier one was
-        // being cut.
-        //
-        // WHY THE CUT STARTS BEFORE THIS LINE: everything from here on waits
-        // for DEPENDENTS, and a dependent can be waiting for one of these
-        // calls. That is not only about the explicit drain below — the pin's
-        // own provision disposer ends with
-        // `Promise.allSettled(fibers.map(fiber => fiber.await()))`, so `await
-        // revoke()` waits for dependent fibers too. A consumer whose finalizer
-        // joins an in-flight provider handler would therefore hold the revoke,
-        // which would hold the cut, which is the only thing that could finish
-        // the handler — a cycle with no timer in it and no uninterruptible code
-        // anywhere. Reproduced.
-        //
-        // So: START the cut, then withdraw, then join, then AWAIT the cut.
-        // Beginning a withdrawal and waiting for one are different things, and
-        // the distinction is the whole of the repair.
         for (const revoke of revokes.reverse()) await revoke()
         await Promise.all([...live.values()]
           .filter((other) => other.dependencies.has(ctx.fiber))
           .map((other) => other.drained))
       } finally {
         try {
-          // ...AND THE CUT IS AWAITED HERE, before a single resource finalizer
-          // runs, on every path out of the block above. `cut` answers when the
-          // calls it interrupted have finished unwinding, so what follows this
-          // line is running under nothing.
-          //
-          // THERE IS NO GIVING UP. One shared interval for the whole activation
-          // says so if a cut is slow, and then goes on waiting: the version
-          // that released resources under a still-running handler after five
-          // seconds is exactly the defect this stage exists to close, and a
-          // timer that abandoned the wait would be it again. An invocation that
-          // has made itself uninterruptible is waited for; that is what
-          // Effect's interruption means everywhere else in this tree.
           await cutting
           await Effect.runPromiseWith(services)(Scope.close(scope, exit))
         } finally {
@@ -236,29 +123,16 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
       }
     }),
     quiet: (quieting) => {
-      // A registration made while this activation is already closing has missed
-      // the shut above, so it is shut here instead of being enrolled in a
-      // stage that has gone past.
       if (closing !== undefined) {
         quieting.shut()
         return
       }
       quiets.add(quieting)
-      // DROPPED WHEN THE REGISTRATION ITSELF ENDS, which is its own promise and
-      // not a caller's diligence. Safe against the walk in `close`: deleting
-      // from a `Set` mid-iteration skips what has not been reached, and the
-      // stage's own snapshot is taken before any of it.
       void quieting.done.then(() => { quiets.delete(quieting) })
     },
     offer: (key, provision) => {
       if (closing !== undefined) throw new Error("effect-cordis: offer requires an open plugin activation")
       const revoke = provideExclusive(ctx, key, provision)
-      // Pin coupling: ctx.provide installs its own guarded disposer into this
-      // set, whose members Cordis unloads concurrently. An Effect finalizer
-      // calling that wrapper again would return without joining its first call.
-      // Remove it and become the ONLY caller, in close's earlier revoke phase.
-      // Assert the handoff here so pin drift names the cause, not just a later
-      // resource-use failure in a dependent's cleanup.
       if (!ctx.fiber._disposables.delete(revoke)) {
         throw new Error(`effect-cordis: could not take ownership of the disposer for "${key.cordis}"; the Cordis pin's provision ownership changed.`)
       }
@@ -267,22 +141,8 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
   }
 }
 
-/**
- * HOW LONG A SLOW CUT GOES UNMENTIONED — a reporting interval and NOT a bound.
- *
- * Nothing is abandoned when it elapses. What it buys is that an unload which is
- * genuinely stuck inside somebody's handler says so, once, naming the plugin,
- * instead of looking like a hang with no author.
- */
 const SLOW_CUT = Duration.seconds(5)
 
-/** Cut every registration together, and say so if it takes a while — see the
- *  paragraph in `close`. One timer for the activation rather than one per
- *  registration: the stage is one stage.
- *
- *  CALLED FOR ITS START rather than awaited where it is called: `close` needs
- *  the interruptions in flight before it waits for anything, and the promise
- *  back for later. */
 const joinCuts = async (
   quiets: ReadonlyArray<Quieting>,
   plugin: string,
@@ -304,15 +164,9 @@ const joinCuts = async (
   }
 }
 
-/** Enrol a bus registration's stop with the CALLING plugin's activation, where
- *  there is one. A gate opened on a bare scope — a bench, a `standing()`
- *  runtime — has no activation to enrol with and only its own finalizer. */
 export const quieting = (quieting: Quieting): Effect.Effect<void> =>
   Effect.map(Offering, (activation) => { activation?.quiet(quieting) })
 
-/** The offering context is ambient, so authors receive a capability, never the
- * Cordis fiber or a caller-supplied identity. Readiness remains Cordis's: a
- * provision on this context is unavailable until the provider becomes ACTIVE. */
 export const offer = <Shape>(key: ServiceKey<Shape>, provision: Provision<Shape>): Effect.Effect<void> =>
   Effect.flatMap(Offering, (activation) => Effect.sync(() => {
     if (activation === undefined) throw new Error("effect-cordis: offer requires a plugin activation")

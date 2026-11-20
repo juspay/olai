@@ -1,31 +1,8 @@
-/**
- * THE GATE, WITH NO BUS UNDER IT — the properties both dispatch modes rest on,
- * asked of the primitive alone.
- *
- * `./broadcast.test.ts` asks them again through a real bus,
- * `./waterfall.test.ts` through a real chain, and `./lifecycle.test.ts` through
- * real plugins with real resources — which is where the failures were
- * reproduced and where the ORDERING claim can be made at all, since the
- * ordering is the activation's and a bare scope has none.
- *
- * These are here because a gate that stopped cutting, or started cutting
- * without joining, would fail there in several places and be diagnosed in none
- * of them.
- *
- * ONE PROPERTY IS NOT HERE AND CANNOT BE: that a gate's two owners — a child
- * scope closing and the activation's pre-close stage — join the SAME cut rather
- * than the second finding an empty set. A bare scope has one owner, and closing
- * it twice tests `Scope.close`'s own idempotence and not this module's. It is
- * asked in `./lifecycle.test.ts`, where both owners exist.
- */
-
 import { expect, test } from "bun:test"
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
 
 import { gate, type Gate, wasCut } from "./gate.ts"
 
-/** One gate on a BARE scope, which is also the shape a child scope takes. The
- *  activation path is `./lifecycle.test.ts`'s. */
 const opened = async (): Promise<{
   readonly gate: Gate
   readonly close: () => Effect.Effect<void>
@@ -57,10 +34,6 @@ test("a call that arrives after the gate shut is never started", async () => {
 })
 
 test("a call already inside is CUT, and the stop does not answer until it has unwound", async () => {
-  // THE WHOLE OF WHAT REPLACED THE TIMER. The old release waited five seconds
-  // and then let the resources close under a handler that was still running;
-  // this one interrupts the call and does not come back until that call has
-  // finished its own cleanup.
   const { gate: shut, close } = await opened()
   const said: Array<string> = []
   const entered = Deferred.makeUnsafe<void>()
@@ -83,8 +56,7 @@ test("a call already inside is CUT, and the stop does not answer until it has un
   await Effect.runPromise(close())
   said.push("the gate stopped")
   await calling
-  // THE ORDER IS THE CLAIM: unwound first, stopped second. A cut that only
-  // SIGNALLED would put these the other way round.
+  // THE ORDER IS THE CLAIM: unwound first, stopped second.
   expect(said).toEqual(["the call finished unwinding", "the gate stopped"])
   expect(wasCut(await Effect.runPromise(Fiber.await(await Effect.runPromise(Deferred.await(held))))))
     .toBe(true)
@@ -92,12 +64,6 @@ test("a call already inside is CUT, and the stop does not answer until it has un
 
 for (const how of ["cut" , "left of its own accord"] as const) {
   test(`a call is out when its FIBER is, children and all — ${how}`, async () => {
-    // THE BODY'S LAST LINE IS NOT THE FIBER'S EXIT, and for a round this module
-    // confused them: the record was settled by an `ensuring` around the handler
-    // body, which runs BEFORE the fiber interrupts and joins its own children.
-    // A handler that forks an ordinary `Effect.forkChild` with a finalizer of
-    // its own therefore had that finalizer running after the stop had answered
-    // — with nothing detached or unowned anywhere in it.
     const { gate: shut, close } = await opened()
     const said: Array<string> = []
     const entered = Deferred.makeUnsafe<void>()
@@ -121,16 +87,12 @@ for (const how of ["cut" , "left of its own accord"] as const) {
     await Effect.runPromise(close())
     said.push("the gate stopped")
     await calling
-    // THE CHILD FIRST, whichever way the call ended. A stop that answered on
-    // the body alone would put these the other way round.
+    // THE CHILD FIRST, whichever way the call ended.
     expect(said).toEqual(["the child finished", "the gate stopped"])
   })
 }
 
 test("cutting a call does not disturb the fiber that started it", async () => {
-  // The publisher's own fiber is what a handler used to run on, which is why
-  // the first version could not cut anything. It holds the call now instead:
-  // the cut lands on the call's own fiber and the caller walks on.
   const { gate: shut, close } = await opened()
   const entered = Deferred.makeUnsafe<void>()
   const said: Array<string> = []
@@ -150,9 +112,6 @@ test("cutting a call does not disturb the fiber that started it", async () => {
 })
 
 test("a caller that DIES holding a call takes it with it too", async () => {
-  // Not interruption alone: a caller that failed has no more business leaving a
-  // call running than one that was cut, and a `use` that throws while it is
-  // still being BUILT must not get out in front of the frame that would cut it.
   const { gate: shut } = await opened()
   const entered = Deferred.makeUnsafe<void>()
   let released = false
@@ -171,10 +130,6 @@ test("a caller that DIES holding a call takes it with it too", async () => {
 })
 
 test("a caller interrupted first takes its call with it", async () => {
-  // The started fiber is a ROOT and not a child, which is what makes the
-  // shut-check and the start one synchronous block. The hold `through`
-  // installs — inside the same uninterruptible step as the start — is where
-  // that price is paid back.
   const { gate: shut } = await opened()
   const entered = Deferred.makeUnsafe<void>()
   let released = false

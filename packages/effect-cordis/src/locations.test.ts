@@ -95,7 +95,6 @@ test("duplicate declarations and single occupants name both owners even while wa
   await run(scope, slots.forOwner("sidebar").contribute(side, "sidebar", { children: [list] }))
   await expect(run(scope, slots.forOwner("other").contribute(side, "other"))).rejects.toThrow('"other" and "sidebar"')
   await expect(run(scope, slots.forOwner("other").contribute(root, "other", { children: [list] }))).rejects.toThrow('"other" and "sidebar"')
-  // Failed reservation must not occupy root.
   await run(scope, slots.forOwner("shell").contribute(root, "shell", { children: [side] }))
   await run(scope, slots.settled)
   expect(slots.read(side)).toHaveLength(1)

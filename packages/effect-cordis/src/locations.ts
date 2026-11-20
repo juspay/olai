@@ -1,21 +1,3 @@
-/**
- * Locations are scoped capabilities, not a visibility filter. Only root is
- * supplied by the renderer. An entry offers its child locations from its own
- * activation; withdrawing that entry revokes the offers, drains dependent
- * activations, and only then closes its resources. Cordis owns that ordering
- * through the same bridge used by ordinary plugin services.
- *
- * A registration lives in the caller's scope, but its integration runs in a
- * separate activation. Waiting for a shell therefore leaves independent plugin
- * work alone. Returning owners start fresh integrations; unrelated entries keep
- * their identity. Put listeners and subscriptions in `activate`, not beside the
- * registration, when they require that location to exist.
- *
- * Child contracts are declared with the registration, so conflicts and cycles
- * can be rejected even before providers arrive. Reserving a name does not make
- * it available: only the particular active entry which owns it can do that.
- * Cardinality includes waiting entries, preventing ambiguous later activation.
- */
 import { Cause, Effect, Exit, Scope, Stream, Semaphore } from "effect"
 import { hostChanges, mountPlugin, openHost, provide, settled, type Mounted, type RowReport } from "./host.ts"
 import { offer } from "./lifecycle.ts"
@@ -29,8 +11,6 @@ export interface Location<T> {
   readonly keyedBy?: "owner" | "key"
   readonly _value?: (_: T) => T
 }
-/** A name-only contribution never declares cardinality or claims an owner.
- * Its integration waits for the owning entry's actual location contract. */
 export interface LocationReference<T> {
   readonly name: string
   readonly cardinality?: undefined
@@ -56,12 +36,7 @@ export interface Contribution<T> {
   readonly key?: string
 }
 export interface LocationOwner {
-  /** Register one independently activated integration. Child locations belong
-   * to this entry, including when its registration ends before its plugin does.
-   * `activate` acquires location-dependent resources in a fresh scoped lifetime.
-   * It may fail or be interrupted; children are offered only after it succeeds. */
   readonly contribute: <T>(slot: Target<T>, value: T, options?: {
-    /** Optional unique key within this location, reserved even while waiting. */
     readonly key?: string
     readonly children?: ReadonlyArray<Contract>
     readonly activate?: Effect.Effect<void, never, Scope.Scope>
@@ -78,9 +53,7 @@ export interface Locations {
   readonly forOwner: (owner: string) => LocationOwner
   readonly read: <T>(slot: Target<T>) => ReadonlyArray<Contribution<T>>
   readonly inspect: () => ReadonlyArray<LocationReport>
-  /** Join current activations, including asynchronous initialization/cleanup. */
   readonly settled: Effect.Effect<void>
-  /** Retry failed integrations without restarting independent plugin work. */
   readonly retry: Effect.Effect<void>
 }
 interface Declaration {
@@ -100,8 +73,6 @@ interface Registration {
   retry?: Effect.Effect<void>
 }
 
-/** The renderer owns the host and closes it with its own activation. No global
- * scheduler, root, declarations, or integration scopes survive that close. */
 export const locations = (config: {
   readonly changed?: () => void
   readonly reading?: () => void
@@ -126,9 +97,6 @@ export const locations = (config: {
         changed = true
       }
     }
-    // A rendering observer can refuse an entry; entries.hold rolls that
-    // acquisition back. Reporting that failure must remain readable even if
-    // the same observer also throws while being told about the report.
     if (changed) yield* Effect.sync(() => config.changed?.()).pipe(Effect.catchDefect(() => Effect.void))
   })
   yield* Effect.forkScoped(Stream.runForEach(hostChanges(host), () => refresh))
@@ -181,8 +149,6 @@ export const locations = (config: {
           const held = registrations.read().find((entry) => entry.slot.name === slot.name && entry.key === entryKey)
           if (held) return yield* Effect.die(new Error(`Locations: "${owner}" and "${held.owner}" both occupy "${slot.name}" under "${entryKey}"`))
         }
-        // An acquisition scope rolls back all reservations if any child is
-        // invalid. Its finalizer drains the activation before freeing names.
         const scope = yield* Effect.acquireRelease(Scope.make(), (scope, exit) => Scope.close(scope, exit))
         yield* Scope.provide(Effect.gen(function*() {
           for (const child of options.children ?? []) {

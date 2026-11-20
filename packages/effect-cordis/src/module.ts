@@ -1,5 +1,3 @@
-/** A module's independently injected parts share the declaring row's lifetime
- * and authority. The container itself owns no services or feature state. */
 import type { Context, Fiber } from "cordis"
 import type { Plugin } from "./plugin.ts"
 
@@ -31,8 +29,6 @@ export const pluginModule = (value: unknown): unknown => {
           { ...part, name: `${main.name}/${local}` }, local === "main" ? config : undefined,
         ))
       }
-      // Cordis owns child disposal. Its scoped effects join those disposers;
-      // keeping this map through cleanup also lets reports/settle see children.
       return async () => {}
     },
   }

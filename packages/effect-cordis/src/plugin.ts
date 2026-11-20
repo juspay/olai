@@ -1,41 +1,3 @@
-/**
- * A PLUGIN, AS AN EFFECT — the whole of the translation, in one function.
- *
- * ## The two accumulators are one accumulator
- *
- * The paper Cordis is built on calls a plugin a set of REVERTIBLE EFFECTS: a
- * context transformation paired with its inverse, with the runtime holding the
- * inverses and running them LIFO when the plugin unloads. Cordis spells that
- * `ctx.effect(() => disposer)`.
- *
- * Effect's `Scope` is the same accumulator, spelled `Effect.acquireRelease` and
- * `Effect.addFinalizer`, with the same LIFO discipline and a great deal more
- * said about interruption. So {@link definePlugin} opens ONE `Scope` when the
- * fiber activates, runs the plugin's Effect inside it, and hands Cordis a
- * disposer that closes it. Resource registrations are finalizers on that
- * scope; service offers are revoked first, with dependent cleanup joined before
- * the resource scope closes. The plugin author never calls `ctx.effect`, never sees a
- * disposer, and never learns that Cordis is under any of it.
- *
- * ## `inject` and the requirement channel are one declaration
- *
- * `needs` is a list of {@link ./service.ts}'s `ServiceKey`s. The `inject` array
- * Cordis holds the fiber `PENDING` against is `needs.map(key => key.cordis)`;
- * the `R` the compiler holds `apply` against is the union of the same list's
- * identifiers. A plugin that yields a tag it did not list is a type error at its own
- * `definePlugin` call, with the plugin's file in the message — which is the
- * guarantee `as const satisfies` used to buy at a registry, moved to the one
- * place both halves are in hand.
- *
- * ## A FAILURE INSTALLS NOTHING
- *
- * If the Effect dies, the scope is closed with that exit — every finalizer it
- * had already installed runs, in reverse — and the failure is re-thrown into
- * Cordis, which lands the fiber in `FAILED` with its siblings ACTIVE. That is
- * the corollary the whole bundle's boot containment rests on, and it is
- * strictly cheaper to keep here than in every plugin.
- */
-
 import type { Context as CordisContext } from "cordis"
 import { Cause, Context, Effect, Exit, Fiber, FiberSet, Schema, Scope } from "effect"
 
@@ -45,112 +7,15 @@ import { held } from "./host.ts"
 import { Offering, activate, startBegins, startThrew } from "./lifecycle.ts"
 import type { AnyKey } from "./service.ts"
 
-/**
- * THE PLUGIN'S OWN WORD, INSIDE THIS PACKAGE — the name the registry bound this
- * fiber under, read off the fiber once and provided into the Effect.
- *
- * A `Reference` rather than a service, so it is AMBIENT: it never appears in a
- * plugin's `needs`, because there is no arrangement in which a plugin is running
- * and does not have one.
- *
- * ## NOT ON THE DOOR, and that is the point rather than an omission
- *
- * It was exported, and re-exported onto the door plugins open, so a plugin had
- * TWO documented ways to ask who it was. The other is {@link ./service.ts}'s
- * `Provision`, which answers the same question WITHOUT the plugin being able to
- * spell it — and that inability is the whole design: a keyed service has no
- * parameter for "who", so one plugin cannot sign another's registration. A
- * second channel where the word IS spellable weakens the first for a use no
- * plugin has (the three in this tree spell their own `name` import, which they
- * already hold from `./wire.ts`).
- *
- * What it is FOR is HERE: {@link detached} needs the word to say whose detached
- * work failed, and it is inside the facade rather than on the plugin's side of
- * it. In-package, so this package's own bench can assert the stamp through it.
- *
- * The default is `"root"`, which is the word Cordis's own root fiber answers
- * with; nothing mounted through this package ever reads it.
- */
 export const PluginName = Context.Reference<string>("effect-cordis/PluginName", {
   defaultValue: () => "root",
 })
 
-/**
- * RUN AN EFFECT FROM CODE THAT IS NOT ONE — the one seam across the boundary,
- * named once so it is not re-invented per plugin.
- *
- * ## Why it exists at all
- *
- * A plugin's `apply` is an Effect and everything it registers is a finalizer,
- * but what DRIVES a plugin at runtime is frequently not Effect: an appliance's
- * watcher fires a callback, a timer beats, a socket says something. Those
- * libraries are not olai's and are not wrapped (that is a standing ruling about
- * `@kolu/surface` and every appliance beside it), so somewhere at that edge an
- * Effect has to be started from a plain function.
- *
- * This is that somewhere, and there is exactly one of it. What it gives back
- * runs the work under the plugin's OWN services — so a line the work logs
- * carries the level the operator asked for and the annotations the serve set,
- * which a bare `Effect.runFork` would silently drop — and forks it into a set
- * held by the calling scope, so work still in flight when the plugin unloads is
- * interrupted with it rather than outliving the fiber that started it.
- *
- * FIRE AND FORGET, because every caller is a sink with nowhere to put a
- * failure. The work's error channel is `never` for the same reason: a callback
- * from somebody else's timer is not a place to decide what a failure means.
- *
- * ## ...AND FORGET IS NOT SILENT
- *
- * It was. The fiber this forks is discarded, a failing one only settles a
- * `Deferred` nobody joins, and effect's error reporting is opt-in — so a defect
- * in detached work vanished: no log, no fault, no row. That is the one seam
- * every plugin drives its real work through (a doorbell walk, a snapshot the
- * mirror persists, a heartbeat), and it was the only one of the three
- * fire-and-forget edges in this package that said nothing, where a bus and a
- * waterfall both name the plugin and carry the cause.
- *
- * So the work is wrapped in the same {@link ./broadcast.ts}'s `contained` the
- * other two use, with this plugin's own word on the line — read off
- * {@link PluginName}, which is provided into every `apply` before it runs.
- *
- * ## ONE FIBER PER CALL, so two calls are not ordered
- *
- * Each call forks. Two of them from one callback are two fibers, and nothing
- * sequences them: the lines they write may reach the sink in either order, and
- * a second call is not a continuation of the first. That is what a seam out of
- * somebody else's callback can be, not a shortcoming of this one — the caller
- * has no fiber to be a continuation OF.
- *
- * It is why the appliances spend this on CHATTER, where each line stands alone
- * and a swapped pair costs a reader nothing. Where an order is load-bearing,
- * the answer is one Effect that does both things rather than two calls: inside
- * an Effect the sequencing is Effect's, which is the whole reason a plugin's
- * real work is `apply` and its registrations are finalizers rather than a pile
- * of forks.
- */
 export interface Detach {
   (work: Effect.Effect<void>): void
-  /**
-   * THE SAME FORK WITH THE FIBER LEFT ON — one seam, two shapes, and the
-   * second is not a widening of what it PROMISES.
-   *
-   * Everything above holds: the plugin's own services, the plugin's own scope,
-   * the plugin's word on a contained failure. What changes is only that the
-   * caller is handed the handle instead of it being dropped, because some
-   * background work is a thing its owner interrupts or waits for BY NAME — an
-   * idle timer a scheduler arms, re-arms and cancels; a boot a shutdown has to
-   * join before it reads the table the boot writes into.
-   *
-   * It exists because the alternative is what was there: a caller that needs
-   * the handle reaching for a bare `Effect.runFork`, which is a fiber on the
-   * default runtime with no owner and none of the operator's logging settings
-   * — a second, unnamed seam in a plugin, which is the exact thing having one
-   * named seam is for.
-   */
   readonly held: (work: Effect.Effect<void>) => Fiber.Fiber<void>
 }
 
-/** The seam, for the scope that yields it. */
 export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(function*() {
   const who = yield* PluginName
   const run = yield* FiberSet.makeRuntime<never, void, never>()
@@ -163,20 +28,6 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
   return detach
 })
 
-/**
- * WHAT CORDIS MOUNTS — a plain object with the fields the registry reads.
- *
- * Deliberately structural and deliberately not exported as a class: this is the
- * value a bundle row's module hands the loader (as its `default`), and the
- * loader's own contract is "a function, or an object with an `apply`". Nothing
- * about it is this package's to make ceremonious.
- *
- * Config decoding belongs to the bridge activation, before user apply.
- * Native Cordis constructor validation bypasses that lifetime: the pinned
- * loader can leave a constructor failure pending and reject an unobserved
- * promise. Running the schema here gives invalid config the same failed-row
- * reporting and cleanup as every other initialization failure.
- */
 export interface EnvironmentDeclaration {
   readonly key: string
   readonly secret: boolean
@@ -186,10 +37,7 @@ export interface EnvironmentDeclaration {
 export interface Plugin {
   readonly name: string
   readonly environment?: ReadonlyArray<EnvironmentDeclaration>
-  /** Static declaration; decoded inside activation, never a live service. */
   readonly config?: Schema.ConstraintDecoder<unknown, never>
-  /** Reapply by default. Live followers own a declared revision subscription;
-   * the root still patches enablement, but leaves activation config alone. */
   readonly configUpdates?: "reapply" | "live"
   readonly inject: ReadonlyArray<string>
   readonly apply: (ctx: CordisContext, config?: unknown) => Promise<() => Promise<void>>
@@ -199,17 +47,6 @@ type NeedsOf<Keys extends ReadonlyArray<AnyKey>> =
   | Scope.Scope
   | Context.Service.Identifier<Keys[number]>
 
-/**
- * DEFINE ONE.
- *
- * `name` is the word the fiber is bound under — for a bundle row, the row's
- * `id`, which is also the sibling key, the docs slug and the stamp every keyed
- * service reads.
- *
- * `config` is decoded inside the activation before user `apply`. Defaults
- * live on the fields; an invalid value fails the row with a sentence through
- * the same contained failure path as initialization.
- */
 export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = unknown>(
   spec: {
     readonly name: string
@@ -228,21 +65,11 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
   ...(spec.configUpdates === undefined ? {} : { configUpdates: spec.configUpdates }),
   inject: spec.needs.map((key) => key.cordis),
   apply: async (ctx: CordisContext, config?: unknown) => {
-    // WHAT THIS START THREW is kept beside Cordis's copy ({@link startThrew}):
-    // the row's fault cannot be read back from Cordis alone. Cleared first, so a
-    // fiber that starts again reports only this start. A `try` in this body
-    // rather than a wrapper around it, because a wrapper's extra await moves
-    // when a provider's dependents see it ACTIVE.
     startBegins(ctx.fiber)
     try {
       const opened = held(ctx)
-      // Disposal can win before Cordis reaches its deferred apply call.
       if (ctx.fiber.uid === null) return async () => {}
-      // THE STAMP, READ ONCE, off the registry binding — never off anything the
-      // plugin supplied. Every keyed service below is minted from it.
       const who = moduleOwner(ctx)
-      // Runtime string lookup is the one point where the key's shape is erased.
-      // Resolve it here; lifetime ownership has no opinion about service shapes.
       let services = Context.merge(opened, Context.make(PluginName, who)) as Context.Context<never>
       const activation = activate(ctx, opened)
       try {
@@ -267,9 +94,6 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
       }
       services = Context.add(Context.add(services, Offering, activation), Scope.Scope, activation.scope) as Context.Context<never>
       const work = Effect.suspend(() => {
-        // The schema has no external services (the same restriction as the old
-        // Standard Schema adapter). A decode failure is a defect inside this
-        // activation, so the row fails before its apply acquires any resources.
         const value = spec.config === undefined ? (config ?? {}) as Config : Schema.decodeUnknownSync(spec.config)(config ?? {})
         return Effect.isEffect(spec.apply) ? spec.apply : spec.apply(value)
       })
@@ -277,19 +101,6 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
       activation.bind(running)
       const exit = await Effect.runPromise(Fiber.await(running))
       if (Exit.isFailure(exit)) {
-        // EVERY FINALIZER IT HAD ALREADY INSTALLED, before the throw goes out —
-        // which is what "lands FAILED having installed nothing" means when the
-        // plugin got halfway. Closing with the failing exit is also what tells a
-        // finalizer it is unwinding rather than shutting down.
-        //
-        // AND THE UNWIND MAY FAIL TOO, which is why this is `Exit` rather than a
-        // bare await. `Scope.close` is typed `Effect<void>` and is not infallible:
-        // it collects every finalizer's exit and ends on their combination, so one
-        // dying finalizer made this promise REJECT — and the `throw` below never
-        // ran, so what Cordis recorded as the row's fault, and what an operator
-        // then read on the preferences row, was the CLEANUP's defect rather than
-        // the plugin's. The plugin's failure is the subject of this whole arm; it
-        // wins, and a finalizer that died on the way out is said beside it.
         const unwound = await Effect.runPromiseExit(Effect.promise(() => activation.close(exit)))
         if (Exit.isFailure(unwound)) {
           await Effect.runPromiseWith(opened)(
