@@ -1,4 +1,3 @@
-/** Outlines owns this activation's undo stack. The serial replay algorithm is static. */
 import { createContext, useContext } from "solid-js"
 import type { Undo } from "@olai/edit-history/undoing.ts"
 export { createUndo, type Undo, type Apply } from "@olai/edit-history/undoing.ts"

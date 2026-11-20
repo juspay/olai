@@ -29,17 +29,10 @@ Feature: A dated node that comes back
 
   Background:
     Given I open the outline "house.olai"
-    # These scenarios tick rows off and keep reading them, so finished work
-    # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
     And I mark the page
 
-  # ── choosing a rule ────────────────────────────────────────────────
-
   Scenario: Only a dated row is offered a rule, and the menu is the way in
-    # Not the menu's policy: the format refuses a rule with no date to repeat
-    # FROM, so the entry over an undated row would be an affordance whose only
-    # outcome is that refusal — with `Set date…` sitting directly above it.
     When I open the node menu of "install"
     Then the node menu does not offer "Set repeat…"
     When I press "Escape"
@@ -49,15 +42,10 @@ Feature: A dated node that comes back
     When I choose "Set repeat…" from the node menu
     Then the repeat picker is open
     And the repeat picker holds ""
-    # …and the menu says NOTHING: an entry answers with what it has to say, and
-    # opening a picker has nothing.
     And the node menu of "order" says nothing
     And there should be no page errors
 
   Scenario: The list a person chooses from IS the format's grammar
-    # Ten rules and no eleventh. A hand-written option list would compile,
-    # draw, and be refused on send — so the picker reads the vocabulary off
-    # the format itself.
     When I open the node menu of "order"
     And I choose "Set repeat…" from the node menu
     Then the repeat picker offers the rules "every day, every week on monday, every week on tuesday, every week on wednesday, every week on thursday, every week on friday, every week on saturday, every week on sunday, every month, every year"
@@ -79,7 +67,6 @@ Feature: A dated node that comes back
     And I pick the repeat rule "every month"
     When I open the repeat picker on "order"
     Then the repeat picker holds "every month"
-    # Choosing what is already there would ask the directory for nothing.
     And the repeat picker's button is dead
     When I empty the repeat picker
     Then the repeat picker offers to "Stop repeating"
@@ -111,8 +98,6 @@ Feature: A dated node that comes back
     And the node "order" shows the repeat rule "every month"
     And there should be no page errors
 
-  # ── completing one ─────────────────────────────────────────────────
-
   Scenario: Completing a repeating row makes the next occurrence
     Given I open the date picker on "order"
     And I pick the date "2019-03-04"
@@ -122,18 +107,13 @@ Feature: A dated node that comes back
     When I click the title of "order"
     And I press "Control+Enter"
     Then the node "order" has status "done"
-    # The completed record keeps its own day, so the day it was finished on
-    # still shows it — and the rule has moved on with the occurrence.
     And "house.olai" holds the node "order" dated "2019-03-04"
     And "house.olai" holds the node "order" with no repeat rule
-    # STRICTLY after: the next Monday, never the same one back again.
     And "house.olai" holds a node titled "order the new cabinets" dated "2019-03-11" repeating "every week on monday"
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: Un-doing leaves the occurrence, and re-doing makes no second one
-    # The churn edge, and it is structural rather than policed: the rule
-    # travelled, so the node that was completed has none left to spawn from.
     Given I open the date picker on "order"
     And I pick the date "2019-03-04"
     And I open the node menu of "order"
@@ -157,13 +137,7 @@ Feature: A dated node that comes back
     And "house.olai" holds exactly 1 node titled "order the new cabinets"
     And there should be no page errors
 
-  # ── where it is drawn ──────────────────────────────────────────────
-
   Scenario: The agenda shows the occurrence like any other dated node
-    # Nothing on that page knows about recurrence: the occurrence is a dated
-    # `todo` on a day that has gone, so it is owed exactly as the row before it
-    # was. Its pill says something rather than doing something, because the
-    # agenda is a query over the whole set drawn read-only.
     Given I open the date picker on "order"
     And I pick the date "2019-03-04"
     And I open the node menu of "order"
@@ -174,17 +148,10 @@ Feature: A dated node that comes back
     And I open the agenda
     Then the "late" days show a node titled "order the new cabinets" on "2019-03-11"
     And the "late" days show a node repeating "every week on monday"
-    # …and the node that was finished is on none of it: what happened is a day
-    # page's answer, not this one's.
     And the agenda does not list "order"
     And there should be no page errors
 
-  # ── finding one ────────────────────────────────────────────────────
-
   Scenario: `has:repeat` narrows the page to the rows that come back
-    # WHAT IT SELECTS is the grammar's (`format/filter.test.ts`); what is
-    # driven here is the page, and this one is the mix the facet needs — one
-    # row that comes back, nine that are dated once or not at all.
     Given I open the node menu of "order"
     And I choose "Set repeat…" from the node menu
     And I pick the repeat rule "every week on monday"
@@ -193,9 +160,6 @@ Feature: A dated node that comes back
     And the node "kitchen" is context
     And the node "install" is not shown
     And the filter found "1 of 10"
-    # ...and negated with the dash every other token in this grammar takes —
-    # there is no second spelling for a facet. `order` is still drawn, because
-    # a matching row keeps its whole subtree, and it is drawn as CONTEXT.
     When I filter the page by "-has:repeat"
     Then the node "install" is a match
     And the node "order" is context

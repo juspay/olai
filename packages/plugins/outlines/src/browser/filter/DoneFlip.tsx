@@ -1,28 +1,3 @@
-/**
- * The page's own say in whether finished work is drawn here: one box,
- * `finished`, beside the filter.
- *
- * TWO DOORS, ONE PICK, and the doors are different on purpose: the panel's
- * Done row (`../PreferenceRows.tsx`) is the claim about the READER — the
- * default every page stands under — while this box is the claim about the
- * PAGE, the ask that outlives where the default moves. It sits beside the
- * FILTER, not beside the tree: "what about here?" is the question it answers.
- * It stands on pages that HAVE the question — an outline's tree
- * (`../settings/done.ts`'s pageFileOf) — and the owner (`../PageView.tsx`)
- * is the one that decides.
- *
- * THREE STATES, TWO GESTURES. Ticked is shown, unticked is hidden, and either
- * press is the page's own word (`setDoneFor`) — even one that lands where the
- * default stands, because the ask outlives where the default stands today.
- * Whether the page is FOLLOWING the default or holding its own word is the
- * third state, and it is the `reset` beside the box: drawn exactly while the
- * page holds its own word, and pressing it hands the pick back to the panel
- * (`letDoneFollow`). The box never has to mean "follow", so a press on it
- * can never quietly give the page's word back.
- *
- * The ⌘O chord (`../palette/adapter.tsx`) writes the same override through the
- * same module, so the box moves with it.
- */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { Show } from "solid-js"
 
@@ -48,12 +23,6 @@ export function DoneFlip(props: { readonly file: string }) {
       : `Finished items ${word(shown())}, as your default.`
 
   return (
-    // The GROUP is named "Finished items" and nothing more — a role and a name
-    // cannot hold a sentence about which way the box is set and what the
-    // reader's own default is. That sentence was the platform's tooltip, so it
-    // is the tip for a pointer and an `sr-only` companion AFTER the group for
-    // everybody else: after rather than inside, because what is inside is a
-    // checkbox and a button whose own names are the controls.
     <Tip text={said()}>
       <span
         role="group"
@@ -79,8 +48,6 @@ export function DoneFlip(props: { readonly file: string }) {
           <Tip text="Use my default">
             <button
               type="button"
-              // The 44px target is a PHONE's rule (`@olai/ui-primitives`'
-              // touch.ts), reset at the desktop breakpoint like the clear cross.
               class={`${TARGET_BOX} inline-flex items-center justify-center text-label text-muted underline decoration-rule underline-offset-2 hover:text-ink md:min-h-0 md:min-w-0`}
               data-testid={TESTID.doneRelease}
               aria-label="Use my default"

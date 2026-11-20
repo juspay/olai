@@ -9,7 +9,6 @@ import { createUndo, holdUndo } from "../edit/undoing.ts"
 import type { Row } from "@olai/format"
 
 test("createDragging aims at a receiver before the page gap at the same point", () => {
-  // A deterministic layout drives the real pointer listeners and drag controller.
   const globals = ["window", "document", "cancelAnimationFrame"] as const
   const saved = globals.map(key => Object.getOwnPropertyDescriptor(globalThis, key))
   const win = Object.assign(new EventTarget(), { scrollX: 0, scrollY: 0 })

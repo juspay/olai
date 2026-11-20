@@ -1,39 +1,3 @@
-/**
- * The multi-selection: which rows are picked, the gestures that pick them, and
- * the bulk verbs they answer to.
- *
- * ONE PAGE'S, like the caret it sits beside (`../edit/Editable.tsx` creates
- * both): a selection names places in the tree that is drawn, and carrying one
- * to another outline would be a set of keys about rows nobody is looking at.
- *
- * **A selection is not a caret, and the two are exclusive.** There is one draft
- * in this tab because there is one caret; picking rows puts the caret away, and
- * clicking into a row's title puts the selection away. That is Workflowy's own
- * model, and it is what lets the bulk keys be the row keys: `Tab` with rows
- * picked indents them, `Tab` with a caret in one indents that one, and nothing
- * has to decide which was meant.
- *
- * **Nothing here is a new op.** A bulk verb is the edit the single-row key
- * already sends, once per row, in the order that produces the shape asked for
- * (`./bulk.ts`) — which is exactly what an agent does when it is told to indent
- * three things. The consistency rule is kept by construction: a
- * gesture this face has that MCP does not would have needed a verb on the wire,
- * and there is none.
- *
- * **A refusal stops the run.** Half of an indent is a shape nobody asked for,
- * so the first write that comes back refused is the last one sent, and its
- * sentence — the ops layer's own — is what the bar says
- * ({@link ./SelectionBar.tsx}). The rows that did land stay landed, exactly as
- * they would have if a person had pressed the key once per row.
- *
- * **The keys follow the rows.** A place is a chain of ids, so a row that
- * indents is drawn at a different key the moment the file says so — and a
- * selection that held the old ones would go out on the frame that answered it.
- * A selected place that stops being drawn is looked up again by the record it
- * named, which is the rule the caret already follows (`../edit/editing.tsx`'s
- * `follow`).
- */
-
 import type { Row } from "@olai/format"
 import {
   type Accessor,
@@ -52,51 +16,25 @@ import { type Bulk, bulkEdits } from "./bulk.ts"
 import { alongside, recordOf, spanning, topmost } from "./range.ts"
 
 export interface Selection {
-  /** The places picked, as `Row.key`s. Read by a row to tone itself; every
-   *  other question is answered by a method here. */
   readonly has: (key: string) => boolean
   readonly keys: Accessor<ReadonlySet<string>>
-  /** What a verb is asked of: the picked rows nothing else picked contains, in
-   *  drawn order (`./range.ts`). Empty means nothing is selected. */
   readonly rows: Accessor<ReadonlyArray<Row>>
-  /** Pick exactly this row, and make it the end every later extension is
-   *  measured from. */
   readonly start: (key: string) => void
-  /** Modifier-click: add this row, or take it back out. */
   readonly toggle: (key: string) => void
-  /** Shift-click: everything between the anchor and this row. */
   readonly extend: (key: string) => void
-  /** Drag-across: exactly this run, with the two ends the sweep gave it — where
-   *  the pull began is the anchor a later shift-click measures from, and where
-   *  it ended is the focus an arrow moves (`../drag/sweeping.ts`). It takes the
-   *  KEYS rather than the two ends alone because the sweep has already walked
-   *  the rows it crossed, and asking `spanning` for them again would be that
-   *  walk a second time, per frame. */
   readonly across: (keys: Iterable<string>, from: string, to: string) => void
-  /** Shift+arrow: one row further, in the direction pressed. */
   readonly grow: (by: 1 | -1) => void
-  /** The ⌘A ladder: this row's siblings first, then every row on the page.
-   *  `from` seeds it when there is nothing picked yet (the caret's row). */
   readonly widen: (from?: string) => void
   readonly clear: () => void
-  /** Send a bulk verb. One edit per row, one at a time, stopping at the first
-   *  refusal. */
   readonly run: (verb: Bulk) => void
-  /** What the last run had to say — the ops layer's refusal, or a nudge from a
-   *  write that landed. */
   readonly said: Accessor<Said | null>
   readonly say: (said: Said | null) => void
 }
 
-/** What nothing picked answers with — one array, so a page nobody has picked on
- *  hands the bar and the key listener the same reference every frame. */
 const NOTHING_PICKED: ReadonlyArray<Row> = []
 
 const SelectionContext = createContext<Selection>()
 
-/** The page's selection. A throw outside the provider, for the reason
- *  `useEditor` throws: a row drawn outside an editable page has no selection to
- *  join, rather than an empty one. */
 export const useSelection = (): Selection => {
   const selection = useContext(SelectionContext)
   if (selection === undefined) throw new Error("a selection consumer outside <Editable>")
@@ -114,17 +52,9 @@ export const createSelection = (
 ): Selection => {
   const [picked, setKeys] = memory.keys
   const [said, setSaid] = memory.said
-  /** The two ends of the range gestures: where the selection was started, and
-   *  which end an arrow or a shift-click moves. Held apart from `keys` because
-   *  a modifier-click can leave a set no span describes, and the next
-   *  shift-click still has to know where to measure from. */
   const [pickedAnchor, setAnchor] = memory.anchor
   const [pickedFocus, setFocus] = memory.focus
   const undo = useUndo()
-  /** One bulk run at a time, and one edit at a time inside it — the editor's
-   *  own queue, for the editor's own reason: each edit is judged against what
-   *  the one before it did, and two in flight are two writes derived from a
-   *  state neither can see. */
   const enqueue = memory.enqueue
 
   const drawn = (): ReadonlyArray<Row> => flatten(page.rows(), page.collapsed())
@@ -137,16 +67,6 @@ export const createSelection = (
     setSaid(null)
   })
 
-  /**
-   * The picked places, found again wherever their records are drawn now.
-   *
-   * The caret's rule at set size (`../edit/order.ts`'s `refound`): a bulk
-   * indent redraws every row it moved under a new chain of ids, and a pick
-   * still holding the old chain would go dark on the frame that proved it
-   * worked.
-   */
-  // Each source pick starts a new selection. Subsequent frames relocate its
-  // surviving records; a removed record stays removed even if it returns.
   type Located = { pick: ReadonlySet<string>; keys: ReadonlySet<string>; anchor: string | null; focus: string | null; rows: ReadonlyArray<Row> }
   const located = createMemo<Located>((previous) => {
     const pick = picked()
@@ -173,16 +93,6 @@ export const createSelection = (
 
 
 
-  /** A MEMO, because three readers ask for it and one of them is a window key
-   *  listener: the bar draws it, the verbs are asked of it, and every keystroke
-   *  on the page asks whether anything is picked at all. Recomputed only when
-   *  the pick or the rows move.
-   *
-   *  EMPTY IS ANSWERED BEFORE THE WALK, for the relocation memo's reason and one
-   *  more of its own: `topmost` over no keys is empty whatever the page holds,
-   *  so flattening the tree to arrive there was a walk per frame on every page
-   *  in the app — and it handed back a FRESH empty array each time, which woke
-   *  the bar and the key listener for nothing. */
   const rows = createMemo<ReadonlyArray<Row>>(() =>
     keys().size === 0 ? NOTHING_PICKED : topmost(located().rows, keys())
   )
@@ -209,15 +119,10 @@ export const createSelection = (
       const at = anchor() ?? key
       pick(spanning(drawn(), at, key), at, key)
     },
-    // The private verb, handed out: a sweep names the run and both its ends,
-    // which is exactly what a pick IS — where the other gestures have to derive
-    // one or both of those from the rows on screen first.
     across: pick,
     grow: (by) => {
       const end = focus() ?? anchor()
       if (end === null) return
-      // ONE WALK for the two questions a grow asks of the page — which row is
-      // next, and what lies between the anchor and it.
       const rows = drawn()
       const next = neighbour(rows, end, by)
       if (next === undefined) return

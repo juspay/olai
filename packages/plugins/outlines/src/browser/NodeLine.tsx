@@ -1,61 +1,3 @@
-/**
- * A node, on one line: its title, the one fact allowed beside it, and the date
- * it carries.
- *
- * The same promises wherever a node is drawn — a row in a tree, an entry on a
- * day: the title span is what carries `TESTID.nodeTitle`, it is what the mark
- * tones, and whatever rides after it does so in the dim voice and in that
- * order. Two copies of that were two chances for one of them to start toning a
- * wrapper instead, or to move the testid, while both still compiled and only one
- * browser test noticed.
- *
- * ## The line, left to right
- *
- *   title (wrapping) · the note's pilcrow · the aside · the date · the repeat rule · ⏱ AT THE FAR HAND
- *
- * THE TITLE WRAPS rather than ellipsizing (human, reversing the earlier ruling
- * that a row is one line): an ellipsis hid most of a long title, and a hover or
- * a click into the editor to read your own words was worse than a row that runs
- * to a second line. The row that holds this aligns on BASELINES
- * (`./Tree.tsx`, `./DatedRow.tsx`), so the glyph and the fold triangle sit
- * against the title's FIRST line, not the middle of the block.
- *
- * BELOW md THE FACTS WRAP TOO, under the title. That is where the hover-only
- * facts are always drawn (`HOVER_REVEAL` in `@olai/ui-primitives/touch.ts`),
- * and on a phone they took so much of the line that a title got a word or
- * nothing at all. Above md the line does NOT wrap: a hover-only fact still takes
- * its space while invisible, and wrapping it would leave an empty line under
- * some rows.
- *
- * EVERYTHING AFTER IT SITS AGAINST IT, and nothing floats to the far right.
- * They are `shrink-0` and they follow the words immediately, which is what makes
- * them read as a byline rather than as a value column — the ruling that there is
- * nothing table-shaped in this view (human). The DATE was the last thing still
- * floating, and it stopped being tolerable when the column lost its measure and
- * took the whole pane. What absorbs the rest of the line is a filler after them
- * all, and it is not decoration: it is the click target that puts the caret in
- * the title from anywhere along the row, which the title's own `flex-1` used to
- * be before anything needed to sit next to the words.
- *
- * What a node cannot START yet is NOT on this line: it is answered in the glyph
- * column (./Glyph.tsx), because it is the same kind of fact as whether the work
- * has begun and a reader sorting rows is already looking there.
- *
- * A title is EDITABLE where a caller says so (`onEdit`), and the line itself is
- * what a click lands on. What the caret replaces is the TITLE CELL and nothing
- * else (`titleEditor`, ./edit/RowEditor.tsx): a row being typed in keeps its
- * pilcrow, its aside and its chips exactly where they were, because they are
- * about the title rather than about whether it is being written. This component
- * draws the place and knows nothing about the editor; whoever holds the caret
- * hands over what to draw in it.
- *
- * The note itself is NOT on this line. It hangs under the title in the open
- * state (./NodeBody.tsx), and the pilcrow here is the door to it.
- *
- * A FRAGMENT, not a box. The row it sits in belongs to whoever draws it — a tree
- * row also holds a fold toggle, and where that sits relative to the glyph is the
- * tree's business — so this contributes siblings to a flex row it does not own.
- */
 import { TESTID } from "olai-plugin-outlines/testids"
 import type { Occasion, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
@@ -68,106 +10,32 @@ import { RepeatBadge } from "./RepeatBadge.tsx"
 import { toneOf } from "./tone.ts"
 import { ROW_TITLE, SECTION_TITLE } from "@olai/ui-primitives/touch.ts"
 
-/** The first of the open state's three layers: the TITLE LINE says the row is
- *  open. What it does is brighten the `#tags` inside it (`./styles.css` — a tag
- *  is HTML from `./markdown/tags.ts` and wears no utility of ours), and it is
- *  keyed on the title SPAN rather than on the row's `<li>` because rows nest: a
- *  rule off the item would light up every tag in an opened parent's subtree. */
 export const TITLE_OPEN = "olai-title-open"
 
 export function NodeLine(props: {
   readonly node: string
   readonly record?: string
   readonly title: string
-  /** Outline the title is written in — handed to {@link NodeTitle} for the
-   *  markdown pipeline's relative-picture resolution. */
   readonly from: string
-  /** Absent for a plain bullet, which is toned like the text it is. */
   readonly status: Status | undefined
-  /** The words a filter found this node by — lit inside the title, so a row on
-   *  a narrowed page says WHICH part of it the query landed on
-   *  (`./filter/lit.ts`). Absent wherever there is no query, and on the rows a
-   *  query kept as the ancestry leading to one. */
   readonly needles?: ReadonlyArray<string>
-  /** This row is a section heading — a top-level node of the view. Heavier
-   *  name; everything else about a section is the tree's. */
   readonly section?: boolean
-  /** This row is OPEN, which is a fact the title line draws: its tags brighten
-   *  ({@link TITLE_OPEN}). The pilcrow beside them says the same thing in its
-   *  own ink, and the two are one layer. */
   readonly open?: boolean
-  /** The one fact allowed beside the title, already built (./Aside.tsx). */
   readonly aside?: JSX.Element
-  /** The ⏱ chip, already built (./live/duration/): how long the work took, or
-   *  how long it has been going. It is the line's CLOSING figure, drawn after
-   *  the filler at the far hand — not one of the facts hugging the words —
-   *  so it is handed over whole, exactly as the two left of the words are. */
   readonly took?: JSX.Element
-  /** The door to the note, when the node has one (./note/Mark.tsx). */
   readonly mark?: JSX.Element
-  /** What the date pill beside the title SAYS, and whether there is one at
-   *  all: absent draws none. The stored date wherever a row draws its own; on
-   *  the agenda, the one fact the day it is under has not already given
-   *  ({@link ./DateBadge.tsx}, whose word this is). */
   readonly says?: string
-  /** Which of the node's dates the pill is about, for the one surface that
-   *  collects more than one of them — a day page. Absent everywhere else,
-   *  where the date drawn is the `date` field and says so by being there. */
   readonly occasion?: Occasion
-  /** Whether the node is late on that date (`@olai/format`'s `isOverdue`) —
-   *  read at the row, where the node is, and drawn on the badge, which is the
-   *  part of the line that stopped being true. Required for the reason the
-   *  badge's is: not saying is not the same answer as "no". */
   readonly overdue: boolean
-  /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
-  /** Clicking the title starts editing it. Absent wherever a node is drawn
-   *  READ-ONLY — a day page lists nodes from all over the set, and a keyboard
-   *  loop that started in one of them would be typing into a page whose rows
-   *  are a query rather than a tree.
-   *
-   *  The EVENT is handed over because what a click means depends on what is
-   *  held: a plain one is about this row's text, a modified one is about the
-   *  row as a thing to pick (`./Tree.tsx`, where that split is made). This file
-   *  draws a line and decides none of it. */
   readonly onEdit?: (event: MouseEvent) => void
-  /** How the node COMES BACK, in the format's own words — drawn beside the
-   *  date, because a rule with no date is a record the format refuses. Absent
-   *  on nearly every node. */
   readonly repeat?: string
-  /** Clicking the DATE opens the picker on it — the same split as `onEdit`,
-   *  one field along, and absent in the same places for the same reason. */
   readonly onPickDate?: () => void
-  /** Clicking the REPEAT pill opens that picker — `onPickDate` one field
-   *  along, absent in the same places for the same reason. */
   readonly onPickRepeat?: () => void
-  /**
-   * How to draw the title while it is being TYPED, or absent for the read face
-   * (`./edit/RowEditor.tsx`'s `TitleEditor`, handed over by who owns the
-   * caret).
-   *
-   * A TITLE CELL, not a line: the editor is drawn where `<NodeTitle>` would be
-   * and NOTHING else about the line changes — the pilcrow, the aside, the
-   * plugin's own face, the date and the ⏱ after them all stay exactly where
-   * they are. Replacing the whole line instead (which is what a `<Switch>` one
-   * level up did) unmounted every one of them: a row with a note and a chip
-   * blinked its furniture in and out on every click between its title and its
-   * note.
-   *
-   * A THUNK, and that is not decoration: a component prop is read as a getter,
-   * so an element handed over directly would be MADE AGAIN every time anything
-   * around it re-read it — and the `<input>` a person is typing in made again
-   * is the caret they were typing with. The `<Show>` below is where "once per
-   * editing session" is decided, and it is the only reader. */
   readonly titleEditor?: () => JSX.Element
 }) {
   return (
     <>
-      {/* `items-baseline`, as the row is: the aside and the pilcrow are TEXT
-          beside text, and centring two different type sizes against each
-          other is what makes a fraction look pasted on. Against a wrapped
-          title, a baseline is also the first line's, which is where a fact
-          about the title belongs. */}
       <span
         class="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 md:flex-nowrap"
         classList={{ "cursor-text": props.onEdit !== undefined }}
@@ -187,27 +55,11 @@ export function NodeLine(props: {
               <NodeTitle title={props.title} from={props.from} needles={props.needles} />
             }
           >
-            {/* The editor is MADE here and nowhere else: reading the thunk is
-                what creates the component, and this child runs once per editing
-                session (`<Show>`'s own contract — its condition compares
-                truthiness, so a keystroke does not re-run it), which is what
-                keeps the `<input>` — and the caret in it — across every
-                character typed. The double call is that: the accessor, then the
-                thunk behind it. */}
             {(draw) => draw()()}
           </Show>
         </span>
-        {/* The pilcrow hugs the TITLE, because it is about the title — "there
-            is more of this" — and the facts follow it. */}
         {props.mark}
         {props.aside}
-        {/* THE DATE RIDES HERE TOO, and it did not always: it was a sibling
-            outside this cell, which with a `flex-1` title meant the right edge
-            of the pane. That was tolerable while the column stopped at a
-            measure and is not now the tree takes the full width (`./touch.ts`)
-            — a badge a hand's width from the row it is about reads as a value
-            in a column, which is the shape this view has none of. Same rule as
-            the aside beside it: shrink-0, dim, straight after the words. */}
         <Show when={props.says}>
           {(says) => (
             <DateBadge
@@ -218,29 +70,11 @@ export function NodeLine(props: {
             />
           )}
         </Show>
-        {/* And the RULE after it, in that order because that is the sentence:
-            the day it is on, then how often it comes back. Same rules as the
-            badge before it — shrink-0, dim, straight after the words. */}
         <Show when={props.repeat}>
           {(repeat) => <RepeatBadge repeat={repeat()} onPick={props.onPickRepeat} />}
         </Show>
-        {/* A PLUGIN'S FACE comes AFTER the row's own controls, because some of
-            it is an OFFER: on a phone an offer is drawn only on the active row
-            (`OFFER_REVEAL`), and pressing the date or repeat pill is what makes
-            the row active — it takes the focus. Drawn before the pills, the
-            offer appeared between the press and the release and pushed the pill
-            out from under the finger, so the release landed on the line and
-            opened the title editor instead of the picker. After them, it can
-            appear without moving anything a person is pressing. */}
         <PluginAsides node={props.node} record={props.record} />
-        {/* The rest of the line, and it belongs to the title: a click anywhere
-            along a row opens its editor, exactly as it did when the title span
-            itself was the thing that stretched. */}
         <span class="min-w-0 flex-1" aria-hidden="true" />
-        {/* …and what sits at its far hand, past the filler: the ⏱ chip. It is
-            a readout, never a control — so it stops no click: like the
-            READ-ONLY date pill beside the words, one on it bubbles to the
-            line's editor (./DateBadge.tsx and ./Pill.tsx make the same rule). */}
         {props.took}
       </span>
     </>

@@ -1,38 +1,9 @@
-/**
- * The repeat rule a node carries, as a badge beside its date.
- *
- * Printed VERBATIM, because the format stores it verbatim: the grammar is
- * spelled in the file, so `every week on monday` on screen and `every week on
- * monday` on disk are the same eight words, and there is no rendering step for
- * a reader to have to invert. That is the whole reason the grammar is English
- * rather than a cron field — a badge over `0 0 * * 1` would need a translation
- * this component would then own.
- *
- * ONE COMPONENT, so a row and that row's own page carry the same badge — and
- * the BOX it sits in is {@link ./Pill.tsx}, shared with the date badge beside
- * it: the element that becomes a `<button>` wherever a caller offers `onPick`
- * and a `<span>` where none does, with `data-picks` carrying which. What is
- * this file's is the words and the tone, and the tone is that there ISN'T one.
- * A date pill turns amber for being late; a rule is not a claim about time, it
- * is a claim about what happens next, and nothing about it can go wrong on a
- * day.
- *
- * WHY IT IS A SECOND PILL rather than a word inside the date's. The date is
- * what the agenda, the calendar and the day pages read; the rule is read by
- * nothing but the completion that spawns the next occurrence. Folding them
- * would put a fact nothing queries inside the element every date assertion is
- * about — and it would make the two unclickable apart, where they are two
- * writes at the gate and want two pickers.
- */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { Pill } from "@olai/web/client/Pill.tsx"
 
 
 export function RepeatBadge(props: {
   readonly repeat: string
-  /** Open the repeat picker on this node. Absent wherever the row is drawn
-   *  read-only — a day page and the agenda are a query over the set — and then
-   *  the pill is a `<span>` again ({@link ./Pill.tsx}). */
   readonly onPick?: () => void
 }) {
   return (
@@ -42,13 +13,6 @@ export function RepeatBadge(props: {
       onPick={props.onPick}
       tip={props.onPick === undefined ? undefined : "Change repeat"}
     >
-      {/* The glyph says RECURRENCE without a word of chrome, and the words say
-          which one. `role="img"` rather than `aria-hidden`, and that is where
-          the word "Repeats" lives now: a read-only badge is a `<span>` that
-          states nothing, so a reader who never hovers used to get `every week`
-          with nothing saying what every week WAS. The arrow's own name says
-          it, once, in the order the line is read — and a pill that PICKS gets
-          the same word in front of the rule its button is named by. */}
       <span class="mr-1 opacity-70" role="img" aria-label="Repeats">↻</span>
       {props.repeat}
     </Pill>

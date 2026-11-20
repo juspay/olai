@@ -1,12 +1,3 @@
-/**
- * The tree: what one outline looks like once everything derived has been
- * derived.
- *
- * The gutter is here too — hover-reveal, the halo, whether a phone lays a
- * `•••` out at all — because those are facts about a ROW. What the menu that
- * hangs off it offers, asks and says is `./menu_steps.ts`.
- */
-
 import * as assert from "node:assert";
 import { TESTID as LAYOUT_TESTID } from "olai-plugin-layout/testids";
 import { TESTID as HARNESS_TESTID } from "@olai/tests/harness/testids.ts";
@@ -66,13 +57,6 @@ Then("the node {string} is shown", async function (this: OlaiWorld, id: string) 
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** Not on screen at all — the world's own reading of a row that has GONE
- *  (`support/world.ts`), because hiding what is done and narrowing a page both
- *  re-render and reading the count once races the frame that drops it. */
-// The same two assertions, about ONE pane of a split workspace: `this.node`
-// cannot see pane boundaries at all, and the per-page done pick is exactly
-// what can put the same node on one pane and not the other
-// (`preferences.feature`'s split-pane fence).
 Then(
   "the node {string} is shown in pane {int}",
   async function (this: OlaiWorld, id: string, index: number) {
@@ -86,7 +70,6 @@ Then(
 Then(
   "the node {string} is not shown in pane {int}",
   async function (this: OlaiWorld, id: string, index: number) {
-    // `expectGone` is page-scoped; the argument against the row is the pane's.
     await this.pane(index)
       .locator(nodeSelector(id))
       .first()
@@ -111,11 +94,6 @@ Then(
   },
 );
 
-/** Both halves are `support/nesting.ts`'s, taking the whole page as the scope
- *  — the same question a split asks of one pane (`./drag_across_panes_steps.ts`
- *  passes `world.pane(i)`), and the reason the wait semantics live in one
- *  place: the negative is a different question rather than a negated one, and
- *  getting that subtly wrong twice is how a suite stops asking it properly. */
 Then(
   "the node {string} is a child of {string}",
   async function (this: OlaiWorld, child: string, parent: string) {
@@ -135,11 +113,6 @@ Then(
   async function (this: OlaiWorld, id: string, expected: string) {
     const title = this.nodeTitle(id);
     await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // POLLED, not read once. A title can change under a live page — a file is
-    // saved, the store publishes, the node re-renders in place — and reading
-    // the instant the node appears would compare against whatever the previous
-    // snapshot said. The re-assert on timeout is what turns "waited 15s" into
-    // "expected X, found Y".
     await this.waitUntil(
       async () => readable(await title.innerText()) === readable(expected),
       `the node "${id}" reads ${JSON.stringify(expected)}`,
@@ -156,8 +129,6 @@ Then(
   },
 );
 
-/** A title's box, in the units a claim about its LINES is made in: how tall
- *  one line is, and whether anything was clipped off its end. */
 const titleBox = async (world: OlaiWorld, id: string) => {
   const title = world.nodeTitle(id);
   await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -209,9 +180,6 @@ Then(
 Then(
   "the bullet of {string} sits beside the first line of its title",
   async function (this: OlaiWorld, id: string) {
-    // The bullet's MIDDLE inside the first line's box. Centring the row would
-    // put it beside the middle of a wrapped title, which is the paragraph's
-    // middle rather than where the words start.
     const bullet = this.within(id, ZOOM);
     await bullet.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const at = await bullet.boundingBox();
@@ -243,21 +211,10 @@ Then(
 Then(
   "the node {string} has no status",
   async function (this: OlaiWorld, id: string) {
-    // ABSENT, not a word for "none": the row of a bullet says nothing about
-    // status at all, which is what "not a task" is spelled as everywhere else.
-    // The same waiting machinery `has status` uses, from the other side.
     await this.expectAttributeAbsent(nodeSelector(id), "data-status", `node "${id}"`);
   },
 );
 
-/** The four faces of the status box beside the bullet. Asserted as
- *  `data-face` + `data-status` rather than a Unicode glyph: the faces are CSS
- *  squares now (Workflowy), and a restyle is entitled to redraw the pixels
- *  without breaking the contract. `empty` is `todo`, never the absence of a
- *  mark, which is a box that is not drawn at all (see "shows no checkbox"), and
- *  `crossed` is the fourth mark — a cross in the box where `done` has a check,
- *  which is the ONE place the two settling marks are told apart on a row
- *  (`web/src/client/tone.ts`: they share the strike). */
 const CHECKBOX_FACE: Record<string, { readonly status: string; readonly face: string }> = {
   checked: { status: "done", face: "checked" },
   crossed: { status: "cancelled", face: "crossed" },
@@ -275,8 +232,6 @@ Then(
     );
     const box = this.node(id).locator(CHECKBOX).first();
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // VISIBLE, not merely present: a box that is opacity-0 on desktop until
-    // hover would still be in the DOM, and a mark nobody can see is not a mark.
     await this.waitUntil(
       async () => {
         const status = await box.getAttribute("data-status");
@@ -291,22 +246,6 @@ Then(
   },
 );
 
-/**
- * IS THE TITLE STRUCK THROUGH?
- *
- * The one assertion in this file that reads a COMPUTED STYLE rather than a
- * `data-` fact, and it earns the exception: the strike is not a styling
- * decision about a promise made elsewhere — it IS the promise. The human asked
- * for a struck-through row for the fourth mark (2026-08-25), a reader is
- * looking at exactly this pixel, and asserting the class name instead would
- * pass on a page where a later rule had turned the decoration off.
- *
- * It is read off the TITLE SPAN, which is the one element the mark tones
- * (`web/src/client/tone.ts`, `NodeLine.tsx`), wherever a node is drawn — a
- * tree row, a day's entry, a page heading. Both settling marks wear it, which
- * is the point: what the strike says is "nobody is waiting on this line", and
- * the CHECKBOX is where `done` and `cancelled` are told apart.
- */
 Then(
   "the title of {string} is struck through",
   async function (this: OlaiWorld, id: string) {
@@ -339,10 +278,6 @@ Then(
   },
 );
 
-/** "This row draws no such thing" — asked of the node's own LINE, because rows
- *  nest and a descendant's badge or box is that node's business rather than
- *  this one's. One helper, so the next thing that can be absent from a row does
- *  not arrive with a third copy of the wait. */
 const drawsNothing = async (
   world: OlaiWorld,
   id: string,
@@ -362,8 +297,6 @@ const drawsNothing = async (
 Then(
   "the node {string} shows no checkbox",
   async function (this: OlaiWorld, id: string) {
-    // A bullet draws no box — not an empty one. The blank holding the column
-    // open carries no testid, so counting the boxes is the whole assertion.
     await drawsNothing(this, id, CHECKBOX, "checkbox");
   },
 );
@@ -371,9 +304,6 @@ Then(
 Then(
   "the node {string} shows the progress {string}",
   async function (this: OlaiWorld, id: string, progress: string) {
-    // The badge publishes the value as an attribute, so this asks for it the
-    // way every other row assertion does — and hears what the badge carries
-    // instead when it disagrees.
     await this.expectAttribute(
       `${nodeSelector(id)} ${PROGRESS}`,
       "data-progress",
@@ -383,46 +313,21 @@ Then(
   },
 );
 
-// ── how long the work took, or is taking ────────────────────────────────
-//
-// The two states the chip can be in, asked the way the row reports them
-// (web/src/client/TookChip.tsx): the SETTLED one is a value the set derived
-// and the wire carried, so it is read off the chip's attributes like the
-// rollup beside it; the RUNNING one ticks locally off the stored instant,
-// so "live" is asked as the one thing a wire cannot answer — the words moved.
-
 Then(
   "the node {string} shows a settled took chip",
   async function (this: OlaiWorld, id: string) {
     const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
     await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The span is the attr: whole seconds, derived with the set. Which of the
-    // two settling marks closed it is data-status.
     await this.waitUntil(
       async () => /^\d+$/.test((await chip.getAttribute("data-took")) ?? ""),
       `the node "${id}" wears a settled took chip (data-took of whole seconds)`,
     );
-    // And the HOVER, which is the app's own tip now (the platform's `title`
-    // ran off the window's right edge — web/src/client/Tip.tsx says why the
-    // move). Every scenario here settles one round inside the minute, so the
-    // tip's one line is the figure off the same attr plus the window the
-    // record carried: `took 7s — the one round: <started> → <settled>`.
     const seconds = parseInt((await chip.getAttribute("data-took")) ?? "-1", 10);
     assert.ok(seconds >= 0 && seconds < 60, `"${id}"'s took attr is ${seconds}s`);
     await this.waitUntil(
       async () => {
-        // The hover is RE-ASKED on every try, not trusted from before the
-        // wait: a scroll — a fragment's reveal, an agent landing under the
-        // pointer — retracts an opened tip by design (Tip.tsx: the pane
-        // scrolling IS the leave), and no event says so. And the pointer
-        // is moved AWAY first: a tip opens on `mouseenter` alone, and a
-        // hover() over the point the pointer already rests fires none —
-        // without the away the retry asks nothing and can never recover.
         await this.page.mouse.move(40, 40);
         await chip.hover();
-        // EXACTLY one tip, and the story in it — the doubled-tooltip catch
-        // navigation_steps.ts keeps: every TEXT assertion passed while two
-        // copies of one sentence were on screen.
         const said = await this.page
           .locator(TIP)
           .allInnerTexts()
@@ -459,10 +364,6 @@ Then(
       this.clockedStart !== undefined,
       `"wears a fresh start, not that one" has nothing to compare with — say "wears a start" first`,
     );
-    // The rule it asserts is the planner's: EVERY start stamps anew, because
-    // the round before this one is banked — so this is the one assertion a
-    // first-start-keeping planner fails (the chip reads the wire, the wire
-    // reads the record).
     const asked = this.clockedStart;
     const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
     await this.waitUntil(
@@ -479,10 +380,6 @@ Then(
 Then(
   "{string} holds a node titled {string} with the rounds banked",
   async function (this: OlaiWorld, file: string, title: string) {
-    // The BANK ON THE RECORD, asked where the chip can never be asked: on
-    // disk. `worked` is a number the settle wrote — honestly zero when the
-    // round closed inside one second, which is why the claim is presence
-    // and never a figure.
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
@@ -493,10 +390,6 @@ Then(
   },
 );
 
-// Stamps are SECONDS-precise, so a pause the rule exists to exclude cannot
-// be told from no pause at all inside one of them: the scenario dwells here
-// to make two rounds' instants different strings — the thing "not that one"
-// above is measured against.
 When(
   "I let {int} seconds go by",
   async function (this: OlaiWorld, seconds: number) {
@@ -512,10 +405,6 @@ Then(
       async () => (await chip.getAttribute("data-status")) === "doing",
       `the node "${id}" wears the running chip`,
     );
-    // The words MOVED, and that is the whole assertion: the rule is that the
-    // instant crosses once and the tick is local (web/src/client/took.ts, the
-    // uptime chip's own seam) — a chip that shows the same reading twice has
-    // a dead clock or a carried duration.
     const said = await chip.innerText();
     await this.waitUntil(
       async () => (await chip.innerText()) !== said,
@@ -527,34 +416,15 @@ Then(
 Then(
   "the node {string} shows no took chip",
   async function (this: OlaiWorld, id: string) {
-    // The jump-to-done, the bullet, and the row settled before spans existed:
-    // no chip drawn is how the rule says there is nothing to tell.
     await drawsNothing(this, id, TOOK, "took chip");
   },
 );
 
-/**
- * WAITS, and that is the whole of what changed here. The badge is redrawn from
- * the snapshot, and every scenario that asks this has just made a write — so
- * the date on screen is a value on its way to its final one, and reading it
- * once is the first mistake `../README.md` lists.
- *
- * It bit under load: `⌘Z takes a picked date back` failed in 27ms, saying the
- * badge still read the date the chord had just taken back. The FILE already
- * said otherwise (the step before this one polls it) — which is the same
- * asymmetry the pointer's writes have, one step further along: the server
- * writes and publishes before the tab is redrawn, so the disk is always the
- * earlier reading.
- */
 Then(
   "the node {string} shows the date {string}",
   async function (this: OlaiWorld, id: string, date: string) {
     const badge = this.node(id).locator(DATE).first();
     await badge.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The badge may PRINT the date any way it likes (`10 Aug`, `Monday`), so
-    // the ISO value is looked for in the places a formatted badge keeps it as
-    // well as in the text. What is being asserted is that the badge is about
-    // THIS date — not how it chooses to say so.
     const shownOn = async (): Promise<string> =>
       await badge.evaluate((node) =>
         [
@@ -566,8 +436,6 @@ Then(
           .filter((value): value is string => typeof value === "string")
           .join(" | "),
       );
-    // The re-assert on timeout is `has the title`'s rule, for its reason: it
-    // turns "waited 15s" into "says X, which does not mention Y".
     await this.waitUntil(
       async () => (await shownOn()).includes(date),
       `the date badge on "${id}" to be about ${date}`,
@@ -594,8 +462,6 @@ Then(
 Then(
   "the description of {string} renders bold text {string}",
   async function (this: OlaiWorld, id: string, text: string) {
-    // The preview is also `DESC` and is already visible; "visible" is not
-    // "expanded". Wait for the markdown the expand is supposed to draw.
     const desc = this.node(id).locator(DESC).first();
     await this.waitUntil(async () => {
       const bold = await desc.locator("strong, b").allInnerTexts();
@@ -619,8 +485,6 @@ Then(
     const desc = this.node(id).locator(DESC).first();
     await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const text = await desc.innerText();
-    // `**` surviving into the rendered text means the desc was printed rather
-    // than rendered — the one failure this assertion exists to catch.
     assert.ok(
       !text.includes("**"),
       `the description of "${id}" still contains markdown source: ${JSON.stringify(text)}`,
@@ -628,8 +492,6 @@ Then(
   },
 );
 
-/** One dim clamped plain-text line under the title — the only closed shape.
- *  Asserted as words, not as source: the preview strips markdown marks. */
 Then(
   "the description of {string} is a preview of {string}",
   async function (this: OlaiWorld, id: string, expected: string) {
@@ -654,7 +516,6 @@ Then(
   },
 );
 
-/** No list, no bold — the closed preview is plain text, not half-rendered. */
 Then(
   "the description of {string} does not render as markdown blocks",
   async function (this: OlaiWorld, id: string) {
@@ -668,7 +529,6 @@ Then(
   },
 );
 
-/** Workflowy-style: the note is its own line under the title, not beside it. */
 Then(
   "the description of {string} is under its title",
   async function (this: OlaiWorld, id: string) {
@@ -688,7 +548,6 @@ Then(
   },
 );
 
-/** Clamped: one line of layout height, not a multi-line block. */
 Then(
   "the description of {string} is clamped to one line",
   async function (this: OlaiWorld, id: string) {
@@ -696,8 +555,6 @@ Then(
     await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const box = await desc.boundingBox();
     assert.ok(box !== null, `the description of "${id}" has no box`);
-    // A single line of ~0.875rem text is well under 2rem; a multi-line note
-    // (the open body) is not. The clamp is CSS `truncate`, which is height.
     assert.ok(
       box.height <= 32,
       `the description of "${id}" is ${Math.round(box.height)}px tall — ` +
@@ -706,24 +563,12 @@ Then(
   },
 );
 
-// ── the pilcrow: the door to a row's open state ────────────────────────
-//
-// A row is its title, so opening one is a press on the MARK beside that title
-// rather than on a note that is not drawn (`client/note/Mark.tsx`). At `Cozy`
-// the clamped line is a second door to the same state and the steps below still
-// reach the mark, because "open this row" is one act and a scenario about
-// something else should not have to know which density it is running under.
-
 const noteMark = (world: OlaiWorld, id: string) =>
   world.within(id, NOTE_MARK);
 
-/** The note ITSELF, which is a different control from the mark: the clamped
- *  line at `Cozy`, and the rendered body once the row is open. */
 const noteControl = (world: OlaiWorld, id: string) =>
   world.node(id).locator(DESC).first();
 
-/** Press the pilcrow, whichever way the row is currently folded, and wait for
- *  the row to say it moved. */
 const pressMark = async (
   world: OlaiWorld,
   id: string,
@@ -772,8 +617,6 @@ When(
   },
 );
 
-/** The keyboard's half of the same door: a `<button>` answers Space when it
- *  holds the caret, which is the only row-level focus this app has. */
 When(
   "I press Space on the pilcrow of {string}",
   async function (this: OlaiWorld, id: string) {
@@ -809,14 +652,10 @@ Then(
 Then(
   "the node {string} shows no pilcrow",
   async function (this: OlaiWorld, id: string) {
-    // Asked of the row's own LINE, because rows nest and a child's mark is
-    // that child's business.
     await drawsNothing(this, id, NOTE_MARK, "pilcrow");
   },
 );
 
-/** The whole of what a folded row draws under its title, which at `Compact` is
- *  nothing at all: no clamped line, no properties, no references. */
 Then(
   "the node {string} draws nothing under its title",
   async function (this: OlaiWorld, id: string) {
@@ -847,10 +686,6 @@ Then(
   },
 );
 
-/** Press the note, and let the render settle. What the press DOES depends on
- *  the state it is in — a clamped line expands, an expanded note takes the
- *  caret (`packages/web/src/client/NodeBody.tsx`) — so this does not wait for
- *  one particular outcome; the scenario says which it expected. */
 const pressNote = async (
   world: OlaiWorld,
   id: string,
@@ -869,10 +704,6 @@ When(
   },
 );
 
-/** One door, one measured end of it: what the clamp's "at the word the finger
- *  name" comes down to in a pointer. `position` is the press's own answer to
- *  "where IN the element" — the title's "near its start" holds the same
- *  arithmetic. */
 When(
   "I click the note of {string} near its start",
   async function (this: OlaiWorld, id: string) {
@@ -904,8 +735,6 @@ When(
 When(
   "I click away from the note of {string}",
   async function (this: OlaiWorld, id: string) {
-    // `clickAway` is the suite's one press on somewhere-else (support/world);
-    // what this step adds on top is the note having actually folded.
     await this.clickAway();
     await this.waitUntil(
       async () =>
@@ -934,9 +763,6 @@ Then(
   },
 );
 
-/** ...and the titles where a `#…` is written and is NOT a tag: inside code,
- *  and inside a link (a URL fragment). A pill there would be pressable, and
- *  would filter the page by a word nobody tagged anything with. */
 Then(
   "the title of {string} styles no tags",
   async function (this: OlaiWorld, id: string) {
@@ -949,8 +775,6 @@ Then(
   },
 );
 
-/** Inline markdown in a title — the same promise a note's open body makes,
- *  scoped to the title span so a bold word in the note cannot answer for it. */
 Then(
   "the title of {string} renders bold text {string}",
   async function (this: OlaiWorld, id: string, text: string) {
@@ -966,9 +790,6 @@ Then(
   },
 );
 
-/** The other emphasis, and it earns its own step for the reason the bug did:
- *  a title's loss check used to read `**b *c* d**` with regexes, so the ONE
- *  shape nobody could assert was an italic run inside a bold one. */
 Then(
   "the title of {string} renders italic text {string}",
   async function (this: OlaiWorld, id: string, text: string) {
@@ -984,10 +805,6 @@ Then(
   },
 );
 
-/** A link in a title, read by where it POINTS — the half of it a highlight
- *  must never reach, since a mark inside an attribute is a broken link rather
- *  than a loud one. Through `expectAttribute`, so a failure says the href it
- *  found and not only the one it wanted. */
 Then(
   "the title of {string} links to {string}",
   async function (this: OlaiWorld, id: string, href: string) {
@@ -1028,8 +845,6 @@ Then(
   },
 );
 
-/** No block elements in a title — the inline-only discipline. A heading, a
- *  list or a fence that leaked through would break the row's baseline layout. */
 Then(
   "the title of {string} does not render as markdown blocks",
   async function (this: OlaiWorld, id: string) {
@@ -1043,16 +858,9 @@ Then(
   },
 );
 
-// ── collapse and expand ────────────────────────────────────────────────
-
 const clickToggle = (world: OlaiWorld, id: string): Promise<void> =>
   world.clickWithin(id, TOGGLE);
 
-/** Serves both keywords: as a `Given` it ESTABLISHES the state (clicking if
- *  the node happens to start collapsed), as a `Then` it asserts it. Cucumber
- *  matches on the text alone, so this has to be one definition — and making it
- *  idempotent is what lets the same sentence be a precondition and a
- *  conclusion without lying in either role. */
 Given(
   "the node {string} is expanded",
   async function (this: OlaiWorld, id: string) {
@@ -1070,11 +878,6 @@ Then(
   },
 );
 
-/** One toggle, two sentences. The control is the same button either way — it
- *  is the node's CURRENT state that decides which word the scenario reads
- *  naturally — so the alternation keeps both readings without registering the
- *  same body twice. A `Given … is expanded` above establishes the state each
- *  reading assumes. */
 When(
   "I collapse/expand the node {string}",
   async function (this: OlaiWorld, id: string) {
@@ -1086,9 +889,6 @@ Then(
   "the children of {string} are hidden",
   async function (this: OlaiWorld, id: string) {
     const children = this.visibleChildNodes(id);
-    // Poll on VISIBILITY, not presence: hiding the children and dropping them
-    // are both legitimate implementations of a collapse, and this step means
-    // the same thing to the person reading the screen either way.
     await this.page
       .waitForFunction(
         (selector) =>
@@ -1122,12 +922,6 @@ Then(
   },
 );
 
-// ── mirrors ────────────────────────────────────────────────────────────
-
-/** `data-kind` is the row's whole classification — "node" | "mirror" |
- *  "cycle" | "dangling" — so asserting on it says more than a boolean did:
- *  a row that degraded into a cycle stub or a dangling marker now fails here
- *  naming what it became, rather than reading as a plain "not a mirror". */
 Then(
   "the node {string} is marked as a mirror",
   async function (this: OlaiWorld, id: string) {
@@ -1135,22 +929,9 @@ Then(
   },
 );
 
-// ── what cannot start yet ──────────────────────────────────────────────
-//
-// Blockedness is DERIVED — `a after b` holds `a` up while `b` is a task that
-// is not done — so what these steps are really asking is whether the page
-// agrees with the edges and the marks in the fixture. WHETHER a node is
-// blocked, and by what, is `data-blocked` on the node itself: a fact, in the
-// promised order, and never the dim it is drawn with. The affordance beside
-// it — the mark column's waiting glyph on a row, the named list on a page —
-// carries `TESTID.blocked`, and both are asserted, because a fact nothing
-// draws is a fact nobody can read.
-
 Then(
   "the node {string} is blocked by {string}",
   async function (this: OlaiWorld, id: string, blocker: string) {
-    // `~=` is a space-separated token match: the attribute lists every blocker,
-    // and this step is about one of them being among them.
     await this.page
       .locator(`${nodeSelector(id)}${attr("data-blocked", blocker, "~=")}`)
       .first()
@@ -1162,19 +943,6 @@ Then(
   },
 );
 
-/**
- * The WHOLE derived list, ids and count, in the order `Derived.blocked`
- * promises — and the drawn row counted against it.
- *
- * Its own step beside the membership one above rather than a stricter version
- * of it, because they answer different questions and both are asked: `~=` is
- * right for "this blocker is among them", and blind to a list naming one
- * blocker twice — which is exactly the shape that took a page down (a repeated
- * `after` target, or one edge spelled both ways round). So this one compares
- * the attribute WHOLE, and then counts the links the `blocked by` row draws:
- * the fact and the affordance come off one list, and a step that asked only
- * the attribute would pass over a row that drew it twice.
- */
 Then(
   "the node {string} is blocked by exactly {string}",
   async function (this: OlaiWorld, id: string, blockers: string) {
@@ -1192,8 +960,6 @@ Then(
 Then(
   "the node {string} is not blocked",
   async function (this: OlaiWorld, id: string) {
-    // The ABSENCE of the attribute, which is how the row says "nothing is in
-    // my way" — an empty one would be a second spelling of nothing.
     await this.expectAttributeAbsent(
       nodeSelector(id),
       "data-blocked",
@@ -1207,8 +973,6 @@ Then(
   async function (this: OlaiWorld, id: string) {
     const mark = this.within(id, BLOCKED);
     await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // Face, not a Unicode glyph: the hourglass is drawn CSS/SVG now, and the
-    // contract is `data-face="waiting"` on the mark column's waiting control.
     const face = await mark.locator("[data-face]").first().getAttribute("data-face");
     assert.strictEqual(
       face,
@@ -1218,20 +982,6 @@ Then(
   },
 );
 
-/**
- * WHAT THE MARK COLUMN SAYS, to a reader who is not pointing at it.
- *
- * Every face in that column is a shape and a tone, and every one of them is
- * `aria-hidden` — so "Done", "Doing" and what a waiting row waits on were
- * carried by the platform's `title` and then, once this app drew its own tip,
- * by a hover and nothing else. They are the cell's own NAME now
- * (`client/Glyph.tsx`), which is the one channel a keyboard and a screen
- * reader get in every mode.
- *
- * Asserted as a NAME rather than as an attribute: `and()` pins the match to
- * the gutter's zoom cell, and `getByRole` is what computes the name the
- * platform would actually announce.
- */
 Then(
   "the mark column of {string} is named {string}",
   async function (this: OlaiWorld, id: string, name: string) {
@@ -1247,12 +997,6 @@ Then(
   },
 );
 
-// ── Workflowy gutter: hover-reveal, halo, menu ─────────────────────────
-
-/** Force the row's hover gutter visible for assertions that would otherwise
- *  depend on a real pointer hover (opacity-0 until group-hover on desktop).
- *  Hovers the LINE, not the whole <li>: the group/row lives on the gutter,
- *  and an expanded parent li's centre is over nested children. */
 export const revealGutter = async (
   world: OlaiWorld,
   id: string,
@@ -1297,7 +1041,6 @@ When(
   },
 );
 
-/** Opacity of a control — the reveal contract is opacity, not presence. */
 const controlOpacity = async (
   world: OlaiWorld,
   id: string,
@@ -1308,7 +1051,6 @@ const controlOpacity = async (
   return el.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity));
 };
 
-/** Move the pointer off every outline row so group-hover is clear. */
 const clearHover = async (world: OlaiWorld): Promise<void> => {
   await world.page.locator("body").hover({ position: { x: 2, y: 2 } });
   await world.waitForFrame();
@@ -1317,8 +1059,6 @@ const clearHover = async (world: OlaiWorld): Promise<void> => {
 Then(
   "the node menu of {string} is revealed",
   async function (this: OlaiWorld, id: string) {
-    // Does NOT hover for you: a scenario that only checks the post-hover
-    // state without first asserting hidden would survive deleting HOVER_REVEAL.
     await this.waitUntil(
       async () => (await controlOpacity(this, id, NODE_MENU)) > 0.5,
       `the node menu of "${id}" is visible (opacity > 0.5)`,
@@ -1340,8 +1080,6 @@ Then(
 Then(
   "the node menu of {string} is not on the row",
   async function (this: OlaiWorld, id: string) {
-    // Phone: the menu is display:none (or detached from layout), not merely
-    // opacity-0 — a 390px title has no room for an always-on •••.
     const menu = this.within(id, NODE_MENU);
     await this.waitUntil(async () => {
       const count = await menu.count();
@@ -1376,31 +1114,12 @@ Then(
 When(
   "I focus the collapse control of {string}",
   async function (this: OlaiWorld, id: string) {
-    // Opacity-0 still receives programmatic focus; that is what fires
-    // group-focus-within without a pointer hover, and `focusWithin` is where
-    // that reasoning lives (support/world) — the `•••` is focused the same way.
     await this.focusWithin(id, TOGGLE);
   },
 );
 
-// ── a section holds its place ──────────────────────────────────────────
-//
-// A TOP-LEVEL row is a section heading, and it is `position: sticky` inside its
-// own `<li>` — so it stays under the app bar for exactly as long as its own
-// branch is on screen and lets go when the next section arrives
-// (`client/Tree.tsx`). It is the third member of the family
-// `the_header_sticks` and `the_sidebar_sticks` opened, and it fails the same
-// way both of those did before they were pinned: silently, as a heading that
-// scrolled off with a page a reader is still reading the middle of.
-//
-// The tolerance is the sidebar's, and for its reason: the seam is two boxes
-// meeting, and sub-pixel layout puts them within a pixel of each other rather
-// than exactly on it.
 const SEAM_EDGE = 2;
 
-/** Where the main-column chrome's bottom edge is — what "pinned under the main-column chrome" is
- *  measured against, asked of the bar rather than of `--height-header`, because
- *  the token and the bar disagreeing is one of the things this can catch. */
 const headerSeam = async (world: OlaiWorld): Promise<number> => {
   const strip = world.page.locator(selector(LAYOUT_TESTID.mainStrip));
   const header = await world.box(await strip.count() ? strip : world.page.locator(APP_HEADER), "the main-column chrome");
@@ -1423,10 +1142,6 @@ Then(
   },
 );
 
-/** THE END OF THE OUTLINE, as a scroll that does not assume it is the end of
- *  the page: whatever sits under the tree is page chrome rather than part of
- *  the outline. This puts the tree's own last pixel at the bottom of the
- *  window — a reader at the end of the last branch. */
 When("I scroll to the end of the outline", async function (this: OlaiWorld) {
   const tree = this.frontLane().locator(OUTLINE_TREE).first();
   await this.waitUntil(async () => {
@@ -1438,10 +1153,6 @@ When("I scroll to the end of the outline", async function (this: OlaiWorld) {
   }, "the outline's last row to sit at the bottom of the window");
 });
 
-/** The negative half, and it is what makes the claim mean anything: a row that
- *  is not a section does NOT hold the seam. Without it, a client that pinned
- *  every row in the tree — or drew the whole outline inside the viewport —
- *  would pass the assertion above. */
 Then(
   "the row {string} is not pinned under the main-column chrome",
   async function (this: OlaiWorld, id: string) {
@@ -1461,16 +1172,6 @@ Then("the node titled {string} is shown", async function (this: OlaiWorld, title
     `a node titled ${JSON.stringify(title)} to be shown`);
 });
 
-// ── the active row, and what a plugin offers on it ─────────────────────
-//
-// A row that a plugin hangs an OFFER on — chat's `Start an agent` — draws it
-// on a pointer device when a hand is on the row, and on a phone only on the
-// ACTIVE row: the one the caret or the last tap is on, which the row line
-// says with `data-active` (`OFFER_REVEAL`). A STANDING — an agent that is
-// there — is a fact rather than an offer, and is drawn on every row. The
-// ids are chat's, read through the harness's combined table, which is the
-// one door a row's steps may name another row's testid by.
-
 const offerOn = (world: OlaiWorld, id: string) =>
   world.page.locator(`${selector(HARNESS_TESTID.agentStart)}${attr("data-agent", world.nodeId(id))}`);
 const standingOn = (world: OlaiWorld, id: string) =>
@@ -1480,8 +1181,6 @@ When("I tap the title of {string}", async function (this: OlaiWorld, id: string)
   await this.press(this.within(id, NODE_TITLE), "tap");
 });
 
-/** On the row and NOT drawn: attached (so a plugin did offer it here) but
- *  laid out as nothing — the phone's answer for a row nobody tapped. */
 Then("the agent offer on {string} is not drawn", async function (this: OlaiWorld, id: string) {
   const offer = offerOn(this, id);
   await offer.waitFor({ state: "attached", timeout: POLL_TIMEOUT });

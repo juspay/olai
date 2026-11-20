@@ -16,16 +16,9 @@ Feature: Workflowy gutter
 
   Background:
     Given I open the outline "house.olai"
-    # The fold's receipt COUNTS drawn rows, and each page hides its finished
-    # ones by default now: showing them is what gives the folds something
-    # finished to hold back.
     And I show the done nodes
 
   Scenario: The mark and the way into the node are one cell
-    # `order` carries `doing`, so its glyph is the half-filled box — and that
-    # same cell is the link to its page. A row with NO mark draws a bullet
-    # there instead, which is why "shows no checkbox" goes on meaning
-    # something.
     Then the node "order" shows a doing checkbox
     And the node "handles" shows no checkbox
     When I click the bullet of "order"
@@ -37,18 +30,12 @@ Feature: Workflowy gutter
     Then the node "kitchen" is collapsed
     And the node "kitchen" shows a collapsed halo
     And the children of "kitchen" are hidden
-    # ...and it says how much finished work went with them, rather than hiding
-    # it silently: done rows recede far enough that a fold over them has to
-    # leave a receipt. TWO, at every depth of what the fold hid — `demo`
-    # directly under it, and `basil` through the mirror of `herbs`, which is
-    # part of this branch's reading like any other row.
     And the node "kitchen" says it is folding "2" finished rows
 
   Scenario: A fold over nothing finished says nothing
     Given the node "install" is expanded
     When I collapse the node "install"
     Then the node "install" is collapsed
-    # Three children, none of them done: a zero is not drawn.
     And the node "install" says nothing about folded finished rows
 
   Scenario: Expanding clears the halo
@@ -58,8 +45,6 @@ Feature: Workflowy gutter
     Then the node "kitchen" shows no collapsed halo
 
   Scenario: On a pointer device the menu and triangle are hidden until hover
-    # The negative half of hover-reveal: without this, permanently-visible
-    # controls would still pass every "is revealed" scenario.
     Given the node "kitchen" is expanded
     Then the node menu of "kitchen" is hidden
     And the collapse control of "kitchen" is hidden
@@ -74,12 +59,6 @@ Feature: Workflowy gutter
     And the node menu of "kitchen" is revealed
 
   Scenario: The node menu is short, in groups, with Move to Trash last and alone
-    # What each verb DOES is `menu_verbs.feature`'s subject; what belongs here
-    # is the shape: `Zoom in` and the marks first, then when and where, then
-    # the plugins' verbs, the rarely reached under `More ›`, and the verb that
-    # takes a subtree away under a rule of its own. The row's own fold is the
-    # triangle beside the `•••`, so the menu does not repeat it; the two "all"
-    # folds are in `More ›`.
     When I open the node menu of "kitchen"
     Then the node menu reads, in order:
       | Zoom in        |
@@ -126,19 +105,7 @@ Feature: Workflowy gutter
     And the node "install" is expanded
     And the children of "install" are shown
 
-  # ── the fold's receipt, and when it is somebody else's to give ────────
-  #
-  # A collapsed row usually carries the rollup too, and on most branches those
-  # are the same number twice — `3/4` already reports three finished tasks, so
-  # `+3 done` beside it is the second, dumber spelling of one fact. The human
-  # ruled on it after seeing both on one line: where the rollup says it, the
-  # fold says nothing. Both halves are here, because the rule is a COMPARISON
-  # and not "drop the count wherever there is a rollup" — the two numbers count
-  # different things, and the second scenario is the branch where they diverge.
-
   Scenario: Where the rollup already counts it, the fold says nothing
-    # `compost` is two done children and nothing else: its rollup reads 2/2 and
-    # the fold would report the same two.
     Given I open the outline "garden.olai"
     And I show the done nodes
     And the node "compost" is expanded
@@ -148,12 +115,6 @@ Feature: Workflowy gutter
     And the node "compost" says nothing about folded finished rows
 
   Scenario: Where the rollup cannot see it, the fold still says so
-    # `garden`'s rollup is 0/1 — `herbs` is the only child anybody marked — and
-    # five finished rows are hidden under the two unmarked children beside it.
-    # A rollup is one level deep on purpose (`@olai/format`'s `progressOf` says
-    # why: `3/5` beside a title is about the five rows drawn under it), so it is
-    # blind to exactly this, and the count is the only thing left saying that a
-    # branch reading 0/1 is not empty of finished work.
     Given I open the outline "garden.olai"
     And I show the done nodes
     And the node "garden" is expanded

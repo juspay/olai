@@ -7,9 +7,6 @@ const textIn = (value: unknown): string | null => typeof value === "string" && v
 export const fileOf = (reply: unknown): string | null =>
   typeof reply === "object" && reply !== null ? textIn((reply as { file?: unknown }).file) : null
 
-/** Project only the story fields. Engines may trim a write reply; missing IDs
- * stay plain text and unknown classifications say nothing changed. Catalogue
- * ownership has already been checked by chat; reads and refusals have no did. */
 export const writeIn = (reply: unknown) => {
   if (typeof reply !== "object" || reply === null) return undefined
   const value = reply as Record<string, unknown>

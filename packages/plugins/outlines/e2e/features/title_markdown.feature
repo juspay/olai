@@ -11,8 +11,6 @@ Feature: Inline markdown in titles
 
   Background:
     Given I open the outline "house.olai"
-    # The row whose title the markdown claims are about is `demo` — finished
-    # — and the rendering is no good asserted of a row the pick has away.
     And I show the done nodes
 
   Scenario: A title renders inline markdown
@@ -32,8 +30,6 @@ Feature: Inline markdown in titles
     And there should be no page errors
 
   Scenario: A title with block markdown stays phrasing
-    # A heading, a list or a fence in a title must not produce block elements
-    # that break the row's layout. Words stay; boxes do not.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"# not a heading"}
@@ -47,13 +43,6 @@ Feature: Inline markdown in titles
     And there should be no page errors
 
   Scenario: A title nests one emphasis inside the other, and a filter lights inside it
-    # `plain-estimate-nested-emphasis`. The renderer never had this bug — the
-    # CHECK above it did: a title is drawn as its own escaped source when the
-    # pipeline lost words the source still accounts for, and "accounts for"
-    # was measured with regexes that could not read `**b *c* d**`. A perfect
-    # rendering was thrown away, marks and all, and the escaped source lights
-    # nothing — so a row the filter had selected drew no reason for being in
-    # front of anybody. Both halves are here, on one page.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -70,43 +59,26 @@ Feature: Inline markdown in titles
     And there should be no page errors
 
   Scenario: A filter lights its word inside a code span and inside a link
-    # The dark corner of `filter_in_place.feature`'s "every row says why it is
-    # drawn": these rows were already SELECTED — the matcher reads a title as
-    # the text somebody typed, backticks and brackets and all — and they drew
-    # nothing lit, because the highlight rode the walk that deliberately does
-    # not re-read code or a link for `#tags` and turned back at the same door.
-    # The tag rule is a rule about tags; the highlight goes everywhere.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"see the [cabinet spec](https://example.com/spec#home) first"}
       """
-    # 1. INSIDE THE CODE SPAN — and inside it, not merely somewhere in the row.
     When I filter the page by "check"
     Then the node "demo" is a match
     And the node "demo" lights "check"
     And the node "demo" lights "check" inside its code span
-    # 2. INSIDE THE LINK'S TEXT, which stays a link: a highlight is drawn in
-    #    text and never in an attribute.
     When I filter the page by "spec"
     Then the node "order" is a match
     And the node "order" lights "spec"
     And the node "order" lights "spec" inside its link
     And the title of "order" links to "https://example.com/spec#home"
-    # 3. AND THE PROTECTION THE WALK WAS TURNING BACK FOR IS UNTOUCHED: the
-    #    `#home` in that URL fragment is not a tag, the `#home` in the row above
-    #    it is — one page, both readings, which is the whole point of the rule
-    #    being about tags rather than about where the walk may go.
     And the title of "order" styles no tags
     And the title of "kitchen" styles the tag "home"
     And there should be no page errors
 
   Scenario: A filter lights a phrase that spans an autolink
-    # Matching-faithful: "see https" is a substring of the SOURCE, so the row
-    # is selected on the title. HAST still splits the URL into its own text
-    # node; both pieces of the phrase must light. The extra space in the
-    # asserted string is join(" ") plus a piece that already starts with one.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -118,11 +90,6 @@ Feature: Inline markdown in titles
     And there should be no page errors
 
   Scenario: A filter lights a phrase that spans code and bold
-    # Matching is the SOURCE: a quoted "check before" is not in
-    # `run \`just check\` before pushing` (a backtick sits between the words),
-    # so the phrase is also in desc so the row is in front of you. The
-    # highlight is the visible title. The unit test is the renderer pin;
-    # this scenario is the page.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -138,9 +105,6 @@ Feature: Inline markdown in titles
     And there should be no page errors
 
   Scenario: A search row lights a phrase across rendered pieces
-    # The palette draws the same renderTitle a tree row does (links: false,
-    # because the row is a button). Do not locate by visible label: CODE's
-    # rendered text contains the bold title. data-id is hit-#demo / hit-#bold.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -154,14 +118,6 @@ Feature: Inline markdown in titles
     And the palette item for node "bold" lights "check  before"
     And there should be no page errors
 
-  # ── a long title wraps ───────────────────────────────────────────────
-  #
-  # A row's title used to ellipsize: a row was one line, and whatever did not
-  # fit was a hover away. The human reversed that on sight of a list of long
-  # quotations cut to half a sentence each — a title runs onto more lines, and
-  # the bullet stays beside its FIRST line rather than drifting to the middle
-  # of the paragraph. `order` carries a date, so the line has a fact beside the
-  # words too.
   Scenario: A long title wraps onto more lines instead of being cut off
     When I rewrite "house.olai" as:
       """
@@ -176,9 +132,6 @@ Feature: Inline markdown in titles
     And the bullet of "install" sits beside the first line of its title
     And there should be no page errors
 
-  # A phone draws the hover-only facts all the time, and beside the words they
-  # left a title a word or nothing at all. Below md they wrap under the title,
-  # so the words keep the width of the line.
   @phone
   Scenario: A phone gives a long title the width of its line
     When I rewrite "house.olai" as:

@@ -1,5 +1,3 @@
-/** Outline palette commands consume outline state; navigation only dispatches
- * their opaque requests. A missing outline retracts both commands and writes. */
 import type {} from "olai-plugin-layout/slots"
 import { createMemo, createRoot, createEffect, on } from "solid-js"
 import { Effect, Schema } from "effect"

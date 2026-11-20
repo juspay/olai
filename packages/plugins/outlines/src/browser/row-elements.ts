@@ -1,5 +1,3 @@
-/** Elements belong to their mounted rows; the outlines activation owns only
- * the index used by landings and references. Pane ids keep copies separate. */
 import { createEffect, onCleanup } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { usePane } from "olai-plugin-navigation/pane"
@@ -29,8 +27,6 @@ export const createRowElements = () => {
     },
     find: (pane: string | undefined, id: string, by: "record" | "shown") => {
       if (pane === undefined) return undefined
-      // Only copies of this record can force a geometry read, never every row
-      // before it in a large outline.
       for (const element of panes.get(pane)?.[by].get(id) ?? []) {
         if (element.isConnected && element.getClientRects().length > 0) return element
       }

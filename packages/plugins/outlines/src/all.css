@@ -3,30 +3,6 @@
 @import "@olai/markdown-ui/all.css";
 @source "./browser";
 
-/* …and the bar is not the only thing that holds its place. On a page that draws
- * a TREE, a section heading pins under the bar while its branch scrolls past
- * (`browser/Tree.tsx`) — so the top `--height-chrome + section row` of the
- * reading is covered, and a jump that lands a target in that band leaves the
- * reader looking at it through the back of the pinned heading (measured: the
- * row stops at the bar's bottom edge, another ~39px short of clear). The bar's
- * own reserve is the document's `scroll-padding-top` (the layout plugin's
- * `all.css`); the heading's is a `scroll-margin-top` on everything inside the
- * branch it heads, because only a target INSIDE that branch can be under it.
- *
- * THE HEIGHT IS MEASURED, per section, by the row that draws it
- * (`--olai-pinned-band`, `browser/Tree.tsx`). It used to be one constant sized
- * to the taller of the line's two faces (3.5rem, the phone's `h-11` cells plus
- * `py-1`), and that stopped being true when titles began to wrap: a heading is
- * as many lines as its words need, and a jump stopped behind the second one.
- * 3.5rem is still what a branch reads before its first measurement lands.
- *
- * The heading's OWN line is exempt — it is the thing that pins, so it has no
- * band above it to clear. `:where` keeps both rules at zero specificity, so any
- * element that asks for its own scroll margin still gets it.
- *
- * Keyed on classes the tree draws ITSELF, not on a `data-testid`: testids are
- * the suite's hook, and a rename of one must not quietly unmate a product rule.
- * Node pages draw the same `<Tree>`, so both are covered by the one selector. */
 :where(.olai-section *) {
   scroll-margin-top: var(--olai-pinned-band, 3.5rem);
 }
@@ -34,9 +10,6 @@
   scroll-margin-top: 0;
 }
 
-/* The open state on a tree/day row. A short fade when motion is OK; none under
- * prefers-reduced-motion so the reflow is instant for readers who asked for
- * that (no rule at all in that case). */
 @media (prefers-reduced-motion: no-preference) {
   .olai-row-detail {
     animation: olai-row-detail-in 120ms ease-out;

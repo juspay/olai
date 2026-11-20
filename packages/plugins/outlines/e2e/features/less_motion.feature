@@ -21,13 +21,10 @@ Feature: Asking for less motion stills the outline without quieting it
   Scenario: A fold lands instead of travelling, and folds either way
     Given I open the outline "house.olai"
     And the node "kitchen" is expanded
-    # The control: ordinary motion, and the turn is a real transition.
     Then turning the chevron of "kitchen" animates it
     And the node "kitchen" is collapsed
     And the children of "kitchen" are hidden
     When the reader asks for less motion
-    # The same press, the same chevron: nothing travels, nothing is running,
-    # and the row still does what the press was for.
     Then turning the chevron of "kitchen" animates nothing
     And the node "kitchen" is expanded
     And the children of "kitchen" are shown

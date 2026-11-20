@@ -1,18 +1,3 @@
-/**
- * The agent olai did not start.
- *
- * These steps are the only ones in the suite that do not go through the
- * browser, and that is the point: the client of `/mcp` is a coding agent in
- * a terminal, so a scenario about it has to be one. The assertions afterward
- * DO go through the browser, because the claim is not "the write happened" —
- * that has unit tests — but "the page a person is looking at followed a write
- * made by a client it has never heard of".
- *
- * Every tool answer is read from `structuredContent`, never from the prose in
- * `content`: the text is what a model reads, the structure is what a caller
- * acts on, and a test that parsed the prose would be asserting on wording.
- */
-
 import * as assert from "node:assert";
 
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
@@ -21,8 +6,6 @@ import { PROJECTABLE } from "@olai/format";
 import { callTool, connectTerminalAgent, tryTool } from "@olai/tests/harness/mcp.ts";
 import { HYDRATION_TIMEOUT, type OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/** The half of a tool result a CALLER acts on. The prose beside it is what a
- *  model reads, and a test that parsed prose would be asserting on wording. */
 const structuredOf = (world: OlaiWorld): Record<string, unknown> =>
   ((world.toolAnswer ?? {})["structuredContent"] ?? {}) as Record<
     string,
@@ -41,28 +24,14 @@ const agentOf = (world: OlaiWorld) => {
 Given(
   "a terminal agent is connected to the served directory",
   async function (this: OlaiWorld) {
-    // The same `/mcp` the page's server already answers — one store, one
-    // process. `scratch()` is only the guard that this scenario is allowed
-    // to write the directory (the `@scratch:` tag); the client never opens
-    // it itself.
     this.scratch();
     this.terminalAgent = await connectTerminalAgent(`${this.baseUrl}/mcp`);
   },
 );
 
-// ── what it does ───────────────────────────────────────────────────────
-
-/** One step for the three marks rather than three copies of it: which marks
- *  there are is the format's list, and the tool that writes one is named after
- *  it (`outlines_done` / `outlines_doing` / `outlines_todo`). */
 When(
   "the terminal agent marks {string} {word}",
   async function (this: OlaiWorld, id: string, mark: string) {
-    // `outlines_<mark>`, built the way the row builds it: the mark tools are
-    // minted from `MARKS` on outlines' own table (`outlines/src/tools.ts`), so a
-    // mark added to the format is a verb here with nothing typed for it. The
-    // row's word in front is the composition BOTH faces make — it was
-    // `set_${mark}` while a verb's name was the whole of it (#546).
     this.toolAnswer = await callTool(agentOf(this), `outlines_${mark}`, { id });
   },
 );
@@ -74,9 +43,6 @@ When(
   },
 );
 
-/** The subtree the batch-capture scenario writes: four nodes, three levels,
- *  ONE call. The ids are chosen so the assertions can name the rows; a real
- *  agent would let them be minted and read them back out of `captured`. */
 const PANTRY = {
   parent: "kitchen",
   id: "pantry",
@@ -98,14 +64,6 @@ When(
   },
 );
 
-/**
- * The claim the batch op exists for, asserted the only way that distinguishes
- * it from the sequence it replaced: the tree is read ONCE, after the root
- * arrives. One call was one validation, one rename and one snapshot, so a tab
- * that has the root of the capture already has all of it — where a step that
- * waited for each row would pass just as happily on four separate writes
- * trickling in.
- */
 Then(
   "the tree shows the whole captured subtree at once",
   async function (this: OlaiWorld) {
@@ -154,9 +112,6 @@ When(
 When(
   "the terminal agent creates the outline {string} holding a whole tree",
   async function (this: OlaiWorld, file: string) {
-    // The seed is a capture, `children` and all — so the file and everything in
-    // it are one plan, one validation, one rename. Two calls used to be the
-    // only way, and a refused second one left an empty outline behind.
     this.toolAnswer = await callTool(agentOf(this), "files_create", {
       file,
       seed: {
@@ -173,13 +128,6 @@ When(
   },
 );
 
-/**
- * The ledger ops, as a terminal agent calls them.
- *
- * The mirror's own id is CHOSEN here so the assertions can name the row it
- * draws — a real agent would let one be minted and read it back off the
- * answer's `id`, which is the same field `outlines_unmirror` then takes.
- */
 When(
   "the terminal agent mirrors {string} at the top of {string} as {string}",
   async function (this: OlaiWorld, target: string, file: string, id: string) {
@@ -198,12 +146,6 @@ When(
   },
 );
 
-/**
- * THE COPY, as a terminal asks for one — one id, and the op reads the rest off
- * the disk. What comes back is asserted with `duplicate_steps.ts`'s own steps,
- * which read the records: the claim is about ids and fields rather than about
- * a row appearing.
- */
 When(
   "the terminal agent duplicates {string}",
   async function (this: OlaiWorld, id: string) {
@@ -211,8 +153,6 @@ When(
   },
 );
 
-/** The arrow is written from the node that WAITS — `a blocks b` is spelled as
- *  `b after a`, and the ops layer writes it one way. */
 When(
   "the terminal agent makes {string} wait on {string}",
   async function (this: OlaiWorld, id: string, blocker: string) {
@@ -230,8 +170,6 @@ When(
   },
 );
 
-/** The same query, asking for the notes with it — the one field of a record a
- *  hit does not carry unless it is asked for. */
 When(
   "the terminal agent searches for {string} with the notes",
   async function (this: OlaiWorld, text: string) {
@@ -242,15 +180,6 @@ When(
   },
 );
 
-/**
- * A WHOLE OUTLINE, in one call — `outlines_subtree` given a `file` rather than an
- * id.
- *
- * Through {@link tryTool} rather than {@link callTool} because both outcomes
- * are the subject here: a path the set serves is answered whole, and one it
- * does not is REFUSED with the closest that it does. A step that threw on the
- * refusal would need a second spelling of the same call to say so.
- */
 When(
   "the terminal agent reads the whole outline {string}",
   async function (this: OlaiWorld, file: string) {
@@ -258,8 +187,6 @@ When(
   },
 );
 
-/** The lean walk: same outline, no notes. Depth still applies; truncated is
- *  unchanged; `desc` is what leaves. */
 When(
   "the terminal agent reads the whole outline {string} without the notes",
   async function (this: OlaiWorld, file: string) {
@@ -277,12 +204,6 @@ When(
   },
 );
 
-/**
- * A shaped walk: `outlines_subtree` with `fields`, the projection a caller
- * names. Through {@link tryTool} — both outcomes are pinned below: a
- * vocabulary the caller can name is answered, and one it cannot is refused
- * naming the legal one.
- */
 When(
   "the terminal agent walks {string} with only the fields {string}",
   async function (this: OlaiWorld, id: string, fields: string) {
@@ -325,20 +246,10 @@ When(
   },
 );
 
-/**
- * EVERY ROW OF A SHAPED WALK — root and all — proved to be id + the shape +
- * the walk's own structure, and nothing else. The assertion is the
- * subtraction: the rows know the fixture carries notes and situating, so a
- * walk that quietly carried them anyway would pass every "has the field"
- * check and is caught only here.
- */
 const shapedRowsOf = (
   answer: Record<string, unknown>,
 ): ReadonlyArray<Record<string, unknown>> => {
   const rows: Array<Record<string, unknown>> = [];
-  // The face signs the TOP of every answer with its `root` and a `vintage`;
-  // the projection is the rows, so the envelope is lifted before the shape
-  // is judged.
   const { root: _root, vintage: _vintage, ...first } = answer;
   const dig = (row: Record<string, unknown>) => {
     rows.push(row);
@@ -353,17 +264,8 @@ const shapedRowsOf = (
 const claimShape = (
   rows: ReadonlyArray<Record<string, unknown>>,
   fields: ReadonlyArray<string>,
-  // `outlines_read`'s child rows are REFERENCES — no `children` — where a walk's
-  // rows carry the structure, so which rows owe the walk's own keys is said
-  // by the caller.
   structure: "walk" | "references",
 ): void => {
-  // The row's allowed keys: `id`, plus the walk's own keys when this is a
-  // walk (`children` / `truncated` / `placed`), plus exactly the named
-  // fields. A reference row (`outlines_read`'s children) owes none of the
-  // walk's keys. The union across rows must be the whole projection — a
-  // walk that SHAPED but forgot a field is a subtler silence than one that
-  // never shaped at all.
   const structureKeys = structure === "walk"
     ? new Set(["children", "truncated", "placed"])
     : new Set<string>();
@@ -411,10 +313,6 @@ Then(
 Then(
   "the walk's structure is the tree's own",
   function (this: OlaiWorld) {
-    // The structure is the claim `fields` never touches: the shape is STILL
-    // nested, the children are still the tree's children, and a shaped row
-    // is the same row the full walk of this fixture answers with its
-    // situating included.
     const tree = structuredOf(this);
     const of = (
       row: Record<string, unknown>,
@@ -443,8 +341,6 @@ Then(
   "the node arrived whole and its children carry exactly {word}",
   function (this: OlaiWorld, field: string) {
     const answer = structuredOf(this);
-    // "Whole" as facts the shape cannot name back: the place, the ancestry,
-    // and the answer's own id.
     assert.strictEqual(answer["id"], "kitchen");
     assert.strictEqual(answer["file"], "house.olai");
     assert.strictEqual(typeof answer["line"], "number", "a whole node is situated");
@@ -460,10 +356,6 @@ Then(
   "the refusal lists every legal field name",
   function (this: OlaiWorld) {
     const reason = String(structuredOf(this)["reason"] ?? "");
-    // One place the vocabulary is learned: the refusal sentence names the
-    // whole legal set, so an agent correcting from prose can. The list is
-    // the format's own rather than retyped — a hand-spelled one here can
-    // only ever prove the two spellings once agreed.
     for (const legal of PROJECTABLE) {
       assert.ok(
         reason.includes(`\`${legal}\``),
@@ -489,13 +381,6 @@ When(
 When(
   "the terminal agent rewrites {string} expecting {string}, as {string}",
   async function (this: OlaiWorld, file: string, was: string, text: string) {
-    // `\n` in the step's words is a newline: a scenario that puts a whole
-    // file on one line spells it the way every other such step does
-    // (`the vault holds … saying …`).
-    //
-    // THROUGH `tryTool`, because a write this door REFUSES is one of the two
-    // things this step is used to say — the answer is kept for the refusal
-    // steps to read rather than thrown, exactly as the property writer's is.
     this.toolAnswer = await tryTool(agentOf(this), "markdown_write", {
       file,
       text: text.replace(/\\n/g, "\n"),
@@ -523,17 +408,6 @@ Then(
   },
 );
 
-/**
- * Exactly these ADDRESSES, in the order they came back — the shape a scoped or
- * operator query is judged by, because what a narrowing does is take hits AWAY
- * and "contains X" cannot see that happen.
- *
- * By the address rather than by an id, because an answer holds two kinds of
- * thing: `#order` is a record and `notes/cabinets.md` is a document, and the
- * written form is what tells them apart — the same string the app writes into
- * the bar. Reading `hit.id` was fine while every hit was a node and reads back
- * `undefined` for the other half.
- */
 Then(
   "the terminal agent found exactly {string}",
   function (this: OlaiWorld, expected: string) {
@@ -547,15 +421,6 @@ Then(
   },
 );
 
-/**
- * EVERY TOP-LEVEL NODE THE FILE HOLDS, by title and in order — the whole claim
- * of the `file` arm, asserted the only way that tells it from the sequence it
- * replaces: one call, and everything in it.
- *
- * By TITLE rather than by id, because the roots here are what a person put in
- * the outline and one of them was captured a step earlier with an id nobody
- * chose.
- */
 Then(
   "the terminal agent was handed the roots {string}",
   function (this: OlaiWorld, expected: string) {
@@ -594,14 +459,9 @@ Then(
   },
 );
 
-/** The near miss, in the words `markdown_read` refuses a mistyped `.md` in —
- *  one typo, one answer, whichever verb it landed at. */
 Then(
   "the terminal agent was pointed at {string}",
   function (this: OlaiWorld, file: string) {
-    // A substring rather than a pattern: a path is full of dots, and a regexp
-    // built out of one would pass on a sentence naming a file that differs by
-    // exactly those characters.
     const reason = String(structuredOf(this)["reason"] ?? "");
     assert.ok(
       reason.includes(`did you mean \`${file}\``),
@@ -611,8 +471,6 @@ Then(
   },
 );
 
-/** The note a hit carries when the query asked for it — the selection and its
- *  notes in one call, rather than a `outlines_read` per row. */
 Then(
   "the terminal agent was handed the note {string}",
   function (this: OlaiWorld, note: string) {
@@ -623,8 +481,6 @@ Then(
   },
 );
 
-/** The parent id a node read answers — the fact a write takes, which `path`
- *  (titles) does not carry. */
 Then(
   "the terminal agent was handed the parent {string}",
   function (this: OlaiWorld, parent: string) {
@@ -638,10 +494,6 @@ Then(
   },
 );
 
-/**
- * Walk every node in a subtree answer — a single tree or an outline of roots —
- * and assert none of them carried a note. The lean read's whole claim.
- */
 Then(
   "no node in the answer carries a note",
   function (this: OlaiWorld) {
@@ -666,9 +518,6 @@ Then(
   },
 );
 
-// ── what it may READ ───────────────────────────────────────────────────
-
-/** Fetched bodies have no agent read door. */
 When("the terminal agent asks to read the fetched file {string}", async function(this: OlaiWorld, file: string) {
   const answer = await agentOf(this).call("tools/call", { name: "markdown_read", arguments: { file } });
   this.resourceRead = JSON.stringify(answer);
@@ -693,16 +542,6 @@ Then(
   },
 );
 
-/**
- * A batch, and the one property the browser is the right place to prove: the
- * page sees ONE snapshot for the whole run.
- *
- * Three ops that a loop would have sent as three calls at three revisions, so a
- * tab would have drawn the first, then the second, then the third. `apply` is
- * one plan, one validation, one rename and one publication — a page that has
- * any of it has all of it, which is the same claim `outlines_add`'s `children`
- * makes one level down and the reason the assertion reads the tree once.
- */
 When(
   "the terminal agent applies three ops in one call",
   async function (this: OlaiWorld) {
@@ -719,8 +558,6 @@ When(
 When(
   "the terminal agent applies a batch whose last op is refused",
   async function (this: OlaiWorld) {
-    // The first two would land on their own; the third names an id nothing
-    // declares. All-or-nothing means the first two do not.
     this.toolAnswer = await tryTool(agentOf(this), "outlines_apply", {
       ops: [
         { op: "add", parent: "kitchen", id: "never", title: "never written" },

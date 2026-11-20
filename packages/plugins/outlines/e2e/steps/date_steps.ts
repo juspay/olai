@@ -1,17 +1,3 @@
-/**
- * The date picker: opening it, what it holds, what its button says, and what
- * the file says afterwards.
- *
- * Its own file for the reason `menu_steps.ts` is one: the picker is a surface
- * with a state of its own — a box, a button whose LABEL is the verb, and two
- * ways out that write nothing — and the rest of the tree's steps are about
- * rows.
- *
- * What the DIRECTORY says afterwards is not here: the two assertions about a
- * node's `date` field on disk are a pair — dated, and not dated — and they live
- * together with every other disk assertion in `editing_steps.ts`.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -32,10 +18,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── opening it ─────────────────────────────────────────────────────────
-
-/** From the PILL on the row, which is the affordance a dated node has: the
- *  date is already there, so the date is the control. */
 When(
   "I open the date picker on {string}",
   async function (this: OlaiWorld, id: string) {
@@ -44,8 +26,6 @@ When(
   },
 );
 
-/** The panel, the box, and the button — one spelling each, so the steps below
- *  cannot wait on them four slightly different ways. */
 const panel = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER}:visible`);
 
 const box = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER_DAY}:visible`);
@@ -65,10 +45,6 @@ Then("the date picker is closed", async function (this: OlaiWorld) {
   );
 });
 
-// ── what it holds, and what it says ────────────────────────────────────
-
-/** The DAY in the box — `""` for a node with none, and the day of a stored
- *  datetime, which is `@olai/format`'s own reading of one. */
 Then(
   "the date picker holds {string}",
   async function (this: OlaiWorld, day: string) {
@@ -77,17 +53,12 @@ Then(
   },
 );
 
-/** The day AND the time — `""` for an empty time box, which is a bare day. The
- *  time is the face the stored value says, never converted into the browser's
- *  zone. */
 Then(
   "the date picker holds {string} at {string}",
   async function (this: OlaiWorld, day: string, face: string) {
     await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await box(this).inputValue(), day);
     assert.strictEqual(await time(this).inputValue(), face);
-    // An empty VALUE is also what a half-typed box reports, so "empty" is
-    // asserted as nothing on screen either.
     assert.strictEqual(
       await time(this).evaluate((element) => (element as HTMLInputElement).validity.badInput),
       false,
@@ -96,8 +67,6 @@ Then(
   },
 );
 
-/** The button's LABEL, which is the whole of how clearing is spelled here: an
- *  emptied box takes the `•••` menu's own words for the same edit. */
 Then(
   "the date picker offers to {string}",
   async function (this: OlaiWorld, label: string) {
@@ -106,9 +75,6 @@ Then(
   },
 );
 
-/** What it says about a stored value the box cannot hold. VERBATIM, because
- *  the point of the sentence is the value it quotes: the record holds an
- *  instant, a day box shows a day, and picking one replaces the whole of it. */
 Then(
   "the date picker says {string}",
   async function (this: OlaiWorld, notice: string) {
@@ -118,16 +84,12 @@ Then(
   },
 );
 
-/** The ordinary case: a stored value the boxes say whole. Asked after the box
- *  is up, so "no notice yet" cannot pass for "no notice". */
 Then("the date picker says nothing", async function (this: OlaiWorld) {
   await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitForFrame();
   assert.strictEqual(await this.page.locator(DATE_PICKER_NOTICE).count(), 0);
 });
 
-/** Nothing to write is nothing to press — the same rule the menu's catalog
- *  follows for an entry whose only outcome would be "it already says that". */
 Then("the date picker's button is dead", async function (this: OlaiWorld) {
   await button(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(
@@ -148,23 +110,12 @@ Then("the date controls fit the phone width", async function (this: OlaiWorld) {
   for (const bound of bounds) assert.ok(bound.left >= 0 && bound.right <= bound.width, JSON.stringify(bound));
 });
 
-// ── using it ───────────────────────────────────────────────────────────
-
-/** Type a day and send it. `fill` on an `<input type="date">` is the same
- *  `YYYY-MM-DD` a person picking from the browser's own calendar produces —
- *  the control has no other vocabulary, which is half of why it is the
- *  control. */
 When("I pick the date {string}", async function (this: OlaiWorld, day: string) {
   await box(this).fill(day);
   await this.press(button(this));
-  // The write is done when the picker is gone. ⌘Z after this is the app's
-  // undo, not a keystroke into a date input that is still focused.
   await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-/** A day and a time of day, sent together — the time box is what a person
- *  fills after the day, and `fill` is the `HH:MM` the browser's own control
- *  produces. */
 When(
   "I pick the date {string} at {string}",
   async function (this: OlaiWorld, day: string, face: string) {
@@ -184,10 +135,6 @@ When("I draft the time {string}", async function (this: OlaiWorld, face: string)
   await this.waitForFrame();
 });
 
-/** A person reaching the time box from the keyboard: focus lands on its first
- *  segment and one key fills or empties that segment alone. `fill` cannot get
- *  here — it sets a whole value or none — and this is the state the platform
- *  reports as NO value while the box shows half of one. */
 When(
   "I press {string} in the date picker's time box",
   async function (this: OlaiWorld, key: string) {
@@ -197,15 +144,12 @@ When(
   },
 );
 
-/** The panel's own `No time`, which empties the time box and writes nothing —
- *  the button, which then names the gesture, is still what writes. */
 When("I take the time off in the date picker", async function (this: OlaiWorld) {
   await this.press(this.page.locator(DATE_PICKER_NO_TIME));
   await this.page.locator(DATE_PICKER_NO_TIME).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
 When("I submit the date while updates are delayed", async function (this: OlaiWorld) {
-  // Deliberately leave the response pending so the scenario can change panes.
   await button(this).click();
 });
 
@@ -218,12 +162,6 @@ When("I press the date picker's button", async function (this: OlaiWorld) {
   await this.press(button(this));
 });
 
-// ── what the page does not offer ───────────────────────────────────────
-
-/** A pill that says something rather than doing something — the day page and
- *  the agenda, which are a query over the whole set drawn read-only. Asked as
- *  the badge's own `data-picks`, because "the click did nothing" is not
- *  something a scenario can tell from a click. */
 Then(
   "the date on {string} does not open the picker",
   async function (this: OlaiWorld, id: string) {

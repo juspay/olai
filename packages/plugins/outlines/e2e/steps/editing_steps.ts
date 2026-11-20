@@ -1,28 +1,3 @@
-/**
- * The row editor: the caret, the keys, and what the file says afterwards.
- *
- * Two kinds of assertion here and the difference is the point. What the PAGE
- * says is asked of the DOM, like every other feature; what the DIRECTORY says
- * is asked of the disk, because "the write went through the ops layer to a
- * file" is the claim these scenarios exist to make, and a page that agreed
- * with itself would prove nothing about it.
- *
- * WHICH of the two a scenario uses is not arbitrary, and the structural keys
- * are asked of the DOM on purpose: nothing is echoed, so a row that has moved
- * on screen has moved on disk — the page cannot say it until the file said it
- * first. The disk assertions are for the claims the page cannot make, and one
- * of them is a NEGATIVE ("nothing was written"), which has to outlast the
- * commit window rather than be read the instant typing stops.
- *
- * Keys are pressed by NAME (`"Alt+Shift+ArrowUp"`), which is Playwright's own
- * spelling and the same one the client's keyboard map is written against — so
- * a scenario says the chord a person presses rather than a synthetic event.
- *
- * And every key here waits for the CLIENT'S own answer to it before the next
- * gesture is aimed at the page — one wait, whichever key it was, off the count
- * the app shell publishes. What it promises and what it deliberately does not
- * is `support/settling.ts`.
- */
 import { TESTID } from "@olai/tests/harness/testids.ts"
 import * as assert from "node:assert";
 
@@ -32,11 +7,6 @@ import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
 import { isoDayOf, selector } from "@olai/web/testlib"
-// HOW LONG THE OUTLINE WAITS BEFORE IT COMMITS is the outline row's number, and
-// a step that asserts "not yet" has to outwait the one the client actually
-// uses. It was re-exported by `@olai/web/testlib`, which put
-// `olai-plugin-outlines` in a general package's manifest for a deadline that is
-// entirely that row's — the equality `@olai/bundle`'s `fence.test.ts` holds.
 import { IDLE_COMMIT } from "../../src/testlib.ts"
 
 import type { ElementHandle, Locator } from "@olai/tests/harness/playwright.ts";
@@ -64,41 +34,9 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── opening an editor ──────────────────────────────────────────────────
-
-/**
- * CLICK AWAY FIRST WHEN SWITCHING ROWS. The wait below is for ANY title editor
- * (`.first()`), not for THIS row's — so with a draft already open on another
- * row it is satisfied the instant it is called, by the editor that is already
- * there. The click may then not have landed where the step says, and every key
- * the scenario presses afterwards goes to the old row.
- *
- * It fails loudly in the common case — the click is swallowed by the open
- * draft, no editor opens on the named row, and the NEXT step times out — which
- * is how the convention was found rather than reasoned out (`outlines_doing`
- * refuses, 2026-08-15). It would fail QUIETLY if the two rows happened to
- * accept the same keys.
- *
- * So: `I click away from the editor` (or `Escape`) between two `I click the
- * title of` steps. Scenarios that interleave ⌘Z need it anyway — undo is
- * answered from a page with no caret in a row.
- *
- * The fix that would retire the ritual is scoping this wait to the row
- * (`[data-node-id=…] [data-testid=title-editor]`), which is a change to a step
- * ~100 scenarios press and is deliberately not made here (grok, review of
- * a41e74cc: "out of scope unless you are already touching the step").
- */
 When(
   "I click the title of {string}",
   async function (this: OlaiWorld, id: string) {
-    // Open this row for editing at its end. The click enters the editor;
-    // the explicit End below puts the caret where these editing workflows
-    // expect it, without retaining a pixel offset across layout changes.
-    //
-    // A `#tag` at that end is a FILTER, not a caret (`Tree.tsx`'s `onATag`).
-    // `kitchen remodel #home` is the one that taught this: the last pixels
-    // of the title ARE the tag, and the filler past the glyphs is the end
-    // of the LINE (`edit/point.ts`).
     const title = this.nodeTitle(id);
     await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.intoReach(title);
@@ -123,8 +61,6 @@ When(
         },
       });
     } else {
-      // Let Playwright calculate the point after layout settles. A stored
-      // width can put the click beyond the title after fonts or rows update.
       await title.click();
     }
     await this.waitForFrame();
@@ -132,8 +68,6 @@ When(
       .locator(`${TITLE_EDITOR}:visible`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // This general editing step means the end, including truncated titles.
-    // The near-start step separately tests pointer caret placement.
     await this.page.locator(`${TITLE_EDITOR}:visible`).first().press("ControlOrMeta+End");
   },
 );
@@ -162,9 +96,6 @@ When(
 When(
   "I open the empty outline {string}",
   async function (this: OlaiWorld, file: string) {
-    // Not "I open the outline": that step waits for a TREE, and an outline
-    // that holds nothing has no rows to draw one from — what it has instead is
-    // the line this feature is about.
     await this.showSidebar();
     await this.outlineLink(file).click();
     await this.page
@@ -181,8 +112,6 @@ When("I start the first line", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-// ── typing ─────────────────────────────────────────────────────────────
-
 When("I type {string}", async function (this: OlaiWorld, text: string) {
   await typed(this, text);
 });
@@ -190,23 +119,12 @@ When("I type {string}", async function (this: OlaiWorld, text: string) {
 When(
   "I select all and type {string}",
   async function (this: OlaiWorld, text: string) {
-    // Select-all inside the field, which is what a person retyping a title
-    // does. An empty `text` is the whole point of one scenario: the field is
-    // cleared and the write is refused.
-    //
-    // ⌘A is waited for like every other key, and it is the one that most
-    // wanted it: pressed at a row the client has not taken the caret back for,
-    // it selects the PAGE, and what is typed after it lands beside the title
-    // rather than replacing it.
     await pressed(this, "ControlOrMeta+a");
     if (text === "") await pressed(this, "Backspace");
     else await typed(this, text);
   },
 );
 
-/** The window `../support/atonce.ts` opens, at this door — the whole title
- *  retyped rather than a character appended, because what has to move inside
- *  the settle is the trigger's own QUERY. */
 When(
   "I retype the row as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {
@@ -214,16 +132,11 @@ When(
   },
 );
 
-// ── the keys ───────────────────────────────────────────────────────────
-
 When("I press {string}", async function (this: OlaiWorld, key: string) {
   await pressed(this, key);
 });
 
 When("a DOM reorder briefly removes and refocuses the title editor", async function (this: OlaiWorld) {
-  // Force the browser ordering that a keyed row move can produce: blur fires
-  // during removal while isConnected is still true; focus returns before the
-  // DOM update task ends. A synchronous blur handler mistakes this for leaving.
   await this.page.locator(`${TITLE_EDITOR}:visible`).first().evaluate((element) => {
     if (document.activeElement !== element) throw new Error("title editor is not focused");
     const parent = element.parentNode!;
@@ -234,14 +147,6 @@ When("a DOM reorder briefly removes and refocuses the title editor", async funct
   });
 });
 
-/** The same key, with nothing waited for afterwards — which is how a person
- *  types: faster than a round trip. What the scenario then asserts is that the
- *  writes still landed in the order the keys were pressed, which is the write
- *  queue's whole job.
- *
- *  The two steps that say `without waiting` are the two that MEAN the race,
- *  and they are the whole of the exception: everything else in this suite goes
- *  through `../support/settling.ts`. */
 When(
   "I press {string} without waiting",
   async function (this: OlaiWorld, key: string) {
@@ -249,27 +154,6 @@ When(
   },
 );
 
-/**
- * The same key TWICE, both keys out before either can be answered.
- *
- * Two of the step above is not the same thing, and that is the whole reason
- * this exists: each `press` is a round trip to the browser, and the write the
- * first key starts is a round trip to a server on this same machine — so on a
- * loaded box the answer can land in the GAP between the two presses, and the
- * scenario stops being about what it says it is about.
- *
- * `A second Enter on the first capture is not a second write` is where that
- * showed: with the first capture already landed, the palette has re-primed its
- * box to `+ ` (`palette/Palette.tsx`'s `sendCapture`), so the second Enter is a
- * capture of a BLANK line — refused in the ops layer's own words, over the
- * remark the scenario is asserting on. Measured at 2 in 15 loaded runs, and it
- * got MORE likely rather than less when this suite's port bands stopped being
- * shared (they used to be; `freePortIn` walked an exclusive band, and an
- * exclusive band is a faster spawn and so a faster round trip to beat).
- *
- * Issued together, the two keydowns reach the page with no round trip between
- * them, which is the claim `without waiting` was always making.
- */
 When(
   "I press {string} twice without waiting",
   async function (this: OlaiWorld, key: string) {
@@ -280,22 +164,12 @@ When(
   },
 );
 
-// ── where in the line the caret is ─────────────────────────────────────
-
-/** The open title editor, waited for. Two of the keys mean different things
- *  depending on where in it the caret sits, so these steps say that outright
- *  rather than counting `ArrowLeft` presses — what a scenario is about is
- *  "mid-word", not "five characters in". */
 const openEditor = async (world: OlaiWorld): Promise<Locator> => {
   const editor = world.page.locator(`${TITLE_EDITOR}:visible`).first();
   await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return editor;
 };
 
-/** A range over some text the editor holds — collapsed after it (a caret) or
- *  spanning it (a selection). One walk, because "put the caret after X" and
- *  "select X" are the same lookup with the same failure and differ only in
- *  whether the range is shut. */
 const rangeOver = async (
   world: OlaiWorld,
   text: string,
@@ -337,10 +211,6 @@ When(
   },
 );
 
-/** Where the caret ENDED UP, which is the whole promise of both compound keys:
- *  a split leaves it at the head of the half that came off, a merge at the seam
- *  the two were joined at. A person whose caret jumped to the end of the line
- *  has lost their place, and nothing else on screen would say so. */
 Then(
   "the caret is at offset {int}",
   async function (this: OlaiWorld, offset: number) {
@@ -367,17 +237,11 @@ Then("the caret is near the start of the line", async function (this: OlaiWorld)
 });
 
 When("I click the first new row", async function (this: OlaiWorld) {
-  // Parked ghosts are drawn before the live one, so the first new-row is
-  // the oldest blank — the one resume has to re-find after a commit re-aims
-  // it. Pointer writes are not on the key counter; the next step waits for
-  // what the click wrote.
   const row = this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first();
   await this.press(row);
 });
 
 When("I focus the first parked row and type {string} immediately", async function (this: OlaiWorld, text: string) {
-  // One browser task: the previous row's asynchronous save cannot finish
-  // between the focus event and this input. No editor internals are touched.
   await this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first().evaluate((element, value) => {
     const input = element as HTMLInputElement;
     input.focus();
@@ -387,10 +251,6 @@ When("I focus the first parked row and type {string} immediately", async functio
 });
 
 When("I click the page away from the drafts", async function (this: OlaiWorld) {
-  // Not `I click away from the editor`: that wait names the caret by the
-  // first title-editor in the document, and parked ghosts keep one of those
-  // standing, so the place never changes. Focus leaving the live input is
-  // the receipt that the empty drafts were parked rather than closed.
   await this.page.locator("main").click({ position: { x: 4, y: 4 } });
   await this.waitForFrame();
   await this.waitUntil(async () => {
@@ -403,10 +263,6 @@ When("I click the page away from the drafts", async function (this: OlaiWorld) {
 });
 
 When("I click away from the editor", async function (this: OlaiWorld) {
-  // Somewhere in the pane that is not a row: a blur, and nothing else — and
-  // then the caret LEAVES, which is the same receipt the keys wait for and for
-  // the same reason: a blur commits through the same queue, so a draft still
-  // open on that line is this tab still waiting to hear.
   await leavingTheLine(
     this,
     async () => {
@@ -416,8 +272,6 @@ When("I click away from the editor", async function (this: OlaiWorld) {
     "the caret to leave the line the click was away from",
   );
 });
-
-// ── what is on screen ──────────────────────────────────────────────────
 
 Then(
   "the row being typed holds {string}",
@@ -431,9 +285,6 @@ Then(
   },
 );
 
-/** An open editor is not yet a TYPING one: a keys' write can redraw the row
- *  out from under the input it opened, and the browser's answer to a removed
- *  focus is `<body>` — silent unless somebody looks. */
 Then("the row being typed has the focus", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () =>
@@ -449,8 +300,6 @@ When("I return to the row being typed", async function (this: OlaiWorld) {
   await this.press(this.page.locator(`${TITLE_EDITOR}:visible`).first());
 });
 
-/** Where a line's text starts, on screen. What "the same depth" means to a
- *  person reading the outline: two lines whose text begins at the same x. */
 const textLeftOf = async (world: OlaiWorld, locator: Locator): Promise<number> => {
   const box = await world.box(locator, "the line");
   return box.x;
@@ -489,8 +338,6 @@ Then("no other row holds the caret", async function (this: OlaiWorld) {
 Then(
   "the note being typed holds the source of {string}",
   async function (this: OlaiWorld, id: string) {
-    // The SOURCE, not the rendering: a note is markdown, and what an editor
-    // holds is what the record holds.
     const editor = this.within(id, DESC_EDITOR);
     await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const text = await editor.inputValue();
@@ -504,9 +351,6 @@ Then(
 Then(
   "the note's caret is at offset {int}",
   async function (this: OlaiWorld, offset: number) {
-    // The same promise as the title's `the caret is at offset` — the click
-    // measured the place under the finger, and the caret is expected AT it,
-    // not at the end of the source.
     const editor = this.page.locator(DESC_EDITOR).first();
     await this.waitUntil(
       async () =>
@@ -519,9 +363,6 @@ Then(
 );
 
 Then("no row is being edited", async function (this: OlaiWorld) {
-  // The same question `Escape` is waited on with, asked as a promise — one
-  // spelling of "a page with no caret in a row", which is the state ⌘Z is
-  // answered from and the one these two would drift apart about.
   await nothingIsBeingTyped(this);
 });
 
@@ -557,10 +398,6 @@ Then(
   },
 );
 
-/** What the line under the editor says. A refusal and a nudge are the same
- *  assertion about two moods, and so is the line an undo draws over the page —
- *  which is why the ritual itself lives in `support/said.ts` and this file
- *  holds the two steps that name the two locators. */
 Then("the refusal says {string}", async function (this: OlaiWorld, said: string) {
   await saysThat(this, EDIT_REFUSAL, said, "refusal", "alarm");
 });
@@ -569,11 +406,6 @@ Then("the nudge says {string}", async function (this: OlaiWorld, said: string) {
   await saysThat(this, EDIT_NUDGE, said, "nudge", "aside");
 });
 
-/** ...and HOW each of them reaches a screen reader, which is the half of the
- *  two moods that is not on screen at all. Asked apart from the sentence
- *  because it is a different kind of claim — the words are what a reader sees,
- *  and this is whether they are delivered over the top of whatever was being
- *  read. */
 Then("the refusal is announced at once", async function (this: OlaiWorld) {
   await announcedAs(this, EDIT_REFUSAL, "at once", "refusal");
 });
@@ -593,9 +425,6 @@ Then("nothing is being said about the row", async function (this: OlaiWorld) {
 Then(
   "the node {string} comes before {string}",
   async function (this: OlaiWorld, first: string, second: string) {
-    // Sibling order as the page draws it, which is the `ord` the write
-    // produced — read by position rather than by attribute, because "which is
-    // above which" is what a reader is looking at.
     await expectBefore(
       this,
       this.page.locator(`${nodeSelector(first)}, ${nodeSelector(second)}`),
@@ -606,8 +435,6 @@ Then(
   },
 );
 
-/** A row a keystroke minted, by the title it was given — the id is nobody's
- *  to choose, and "comes before" is still the page's sibling order. */
 Then(
   "the node titled {string} comes before {string}",
   async function (this: OlaiWorld, title: string, second: string) {
@@ -639,13 +466,7 @@ Then(
 
 const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> =>
   world.page.locator(NODE).evaluateAll((rows, selectors) => {
-    // Read one DOM snapshot. Between separate count/innerText awaits, an idle
-    // save can land and redraw the row under the locator.
     for (const row of rows) {
-      // The row's OWN cell, and the editor INSIDE it: a row's descendants are
-      // whole child rows, so an editor looked for anywhere under it can answer
-      // with a child's (`../browser/NodeLine.tsx` draws both states in the one
-      // cell for exactly this kind of reason — one place to read a title).
       const cell = row.querySelector(selectors.shown);
       const field = cell?.querySelector(selectors.typing);
       const text = field instanceof HTMLInputElement ? field.value : cell?.textContent;
@@ -653,63 +474,39 @@ const idTitled = async (world: OlaiWorld, title: string): Promise<string | null>
     }
     return null;
   }, { shown: NODE_TITLE, typing: TITLE_EDITOR, title });
-/** WHERE a draft opened at column 0 is drawn — above the title you were in,
- *  not after that row's whole subtree. Asked of boxes on the page: a new row
- *  is not a node (nothing has been written), so document order of `[data-node-id]`
- *  cannot see it. The caret's editor sits in the draft; that draft's top
- *  edge has to meet the title it was opened above. */
 Then(
   "the row being typed is drawn immediately above the title of {string}",
   async function (this: OlaiWorld, id: string) {
     const title = this.nodeTitle(id);
     await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => {
-      // The LIVE ghost — the one with the caret in it. Parked ones are
-      // inputs too, so the unadorned selector finds all of them: picking
-      // `.first()` answered with a PARKED line the day a scenario drew two.
       const editor = this.page.locator(`${NEW_ROW}:focus-within`).first();
       if ((await editor.count()) === 0) return false;
       const above = await editor.boundingBox();
       const of = await title.boundingBox();
       if (above === null || of === null) return false;
-      // Adjacent and above: one row's padding, not a layout assertion. The
-      // teleport this exists to catch is a large negative gap — the draft
-      // sits below the whole subtree.
       const gap = of.y - (above.y + above.height);
       return gap >= -2 && gap < 40;
     }, `the draft to sit immediately above the title of "${id}", not below its subtree`);
   },
 );
 
-/** HOW DEEP on the page the new row sits: measured at its own box against the
- *  row named. The first child of a folded-out branch is drawn indented past
- *  the row it was made against, which is what one precision of the page's
- *  "child" is: any WIDER game about its indent is the rail's own width, which
- *  does not move. */
 Then(
   "the row being typed is drawn at the child depth of {string}",
   async function (this: OlaiWorld, id: string) {
     const row = this.node(id);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => {
-      // The LIVE ghost — parked ones hold inputs too, and `.first()` draws // one of them out of a cluster, not the line being typed.
       const draft = this.page.locator(`${NEW_ROW}:focus-within`).first();
       if ((await draft.count()) === 0) return false;
       const box = await draft.boundingBox();
       const li = await row.boundingBox();
       if (box === null || li === null) return false;
-      // The LI of the row spans the whole branch beneath it; the blank's box
-      // starts INSIDE, past the indent strip beside the branch.
       return box.x > li.x + 4 && box.y > li.y + 4;
     }, `the new row to be drawn at a child depth of "${id}"`);
   },
 );
 
-/** How TALL a line of the outline is, asked of the page. Two consecutive
- *  sibling rows give the outline's own line pitch; the blank that Enter
- *  opened must sit one whole pitch below the row that opened it — the bug
- *  this pins was the blank lacking the row's `my-0.5`/`py-1`, standing 12px
- *  shorter than every neighbour. */
 Then(
   "the row being typed stands the same line below {string} as that row stands below {string}",
   async function (this: OlaiWorld, below: string, above: string) {
@@ -731,11 +528,6 @@ Then(
   },
 );
 
-/** WHERE the row a split made is drawn — asked of the page in document order,
- *  because the node it names has an id nobody chose and a title assertion
- *  cannot say which line it is on. The half that came off has to be the very
- *  next line, or the split has put it somewhere a reader would have to go
- *  looking for it. */
 Then(
   "the row being typed is drawn immediately after {string}",
   async function (this: OlaiWorld, id: string) {
@@ -754,19 +546,6 @@ Then(
   },
 );
 
-// ── what the directory says ────────────────────────────────────────────
-
-/** Every title the file holds, off the disk this scenario is writing to.
- *  Deliberately the RECORDS rather than the page: what these scenarios claim
- *  is that a keystroke reached a file through the ops layer.
- *
- *  Through `servedNodesSoFar`, which is where the reason lives: `_olai/Trash.olai`
- *  is written by the write that archives the first thing, so a step polling for
- *  a node to ARRIVE in it is polling for the file too — and a reader that threw
- *  ENOENT turned that wait into an error on the first attempt. It tolerates a
- *  missing file and NOTHING ELSE, which is the half that matters: a blanket
- *  catch would read a malformed outline as an empty one and pass a step that
- *  should have failed loudly. */
 const titlesIn = (world: OlaiWorld, file: string): ReadonlyArray<string> =>
   world.servedNodesSoFar(file).map((node) => String(node["title"] ?? ""));
 
@@ -780,16 +559,6 @@ Then(
   },
 );
 
-/**
- * HOW MANY of them — the half presence cannot answer either, and the half a
- * race is about.
- *
- * It waits for the count and then HOLDS it, because the failure this exists
- * for arrives late: a second write in flight behind the first lands a moment
- * after the first one has, so a count read once would see the right number on
- * its way to the wrong one. The window is the same fraction of the idle commit
- * the "nothing was written" step uses, for the same reason.
- */
 Then(
   "{string} holds exactly {int} node(s) titled {string}",
   async function (this: OlaiWorld, file: string, many: number, title: string) {
@@ -807,10 +576,6 @@ Then(
   },
 );
 
-/** The same, plus WHERE — the half presence cannot answer, asked by TITLE
- *  because a row a keystroke created carries an id nobody chose. A restore
- *  that put every id back at the top level would satisfy the step above and
- *  fail this one. */
 Then(
   "{string} holds a node titled {string} under {string}",
   async function (this: OlaiWorld, file: string, title: string, parent: string) {
@@ -824,17 +589,8 @@ Then(
   },
 );
 
-/** Nothing was written, and it STAYS unwritten for a while — read once, this
- *  would pass against a client that wrote a moment later, which is exactly the
- *  thing "a draft is not a write" claims did not happen. The window is a
- *  fraction of the idle commit's, because idling is one of the three moments
- *  that DOES write (see the step below it). */
 const HELD = Math.floor(IDLE_COMMIT / 3);
 
-/** The mark is a WORD in the step rather than one step per mark, because the
- *  format has four of them and a menu that can write all four should be asked
- *  about all four the same way. The field IS the mark's name on disk, which is
- *  why no table translates it — and why `cancelled` needed nothing here. */
 Then(
   "{string} holds a node marked {word} titled {string}",
   async function (this: OlaiWorld, file: string, mark: string, title: string) {
@@ -861,10 +617,6 @@ Then(
   },
 );
 
-/** BY ID, which is the half a title cannot answer. Archiving keeps a node's
- *  id — that is what makes it a trash rather than a shredder, since a mirror
- *  or an `after` naming it goes on resolving — and a placement has no title to
- *  be found by at all. */
 Then(
   "{string} holds the node {string}",
   async function (this: OlaiWorld, file: string, id: string) {
@@ -885,15 +637,6 @@ Then(
   },
 );
 
-/**
- * A PLACEMENT the file holds, named by what it shows and where it sits.
- *
- * Not by its own id, which is the whole point: `outlines_mirror` mints one, this
- * surface names no ids (`@olai/surface`'s edit.ts), and a scenario that asked
- * for a chosen id would be asking for a thing the `((` widget cannot send. So
- * the assertion is the record's SHAPE — a `mirror` of that target, under that
- * parent — which is also exactly what the format says a placement is.
- */
 Then(
   "{string} holds a mirror of {string} under {string}",
   async function (this: OlaiWorld, file: string, target: string, parent: string) {
@@ -919,15 +662,6 @@ Then(
   },
 );
 
-/**
- * The `date` field, as the EXACT string on disk — the pair to the step below,
- * and beside it for that reason.
- *
- * Exact is the whole assertion: what a picked day claims is that it reaches
- * the record as the ten characters that were picked, so a client that put the
- * value through an instant on the way would write `2026-09-01T00:00:00.000Z`,
- * which every date-SHAPED assertion but this one would happily pass.
- */
 Then(
   "{string} holds the node {string} dated {string}",
   async function (this: OlaiWorld, file: string, id: string, date: string) {
@@ -941,8 +675,6 @@ Then(
   },
 );
 
-/** The same field, on a node named by its TITLE — which is the only way to
- *  name a row a keystroke has just minted, since the id is the set's. */
 Then(
   "{string} holds a node titled {string} dated {string}",
   async function (this: OlaiWorld, file: string, title: string, date: string) {
@@ -956,16 +688,6 @@ Then(
   },
 );
 
-/**
- * The same field, against a day only the CLOCK can name — the `!` widget's
- * natural-language half, end to end.
- *
- * `tomorrow` cannot be written into a feature file, so the suite works it out
- * the way the client does: today from `@olai/web`'s own clock, one day on with
- * `@olai/web`'s own day arithmetic. Two spellings of "the day after today"
- * would be a scenario that passes on 364 days of the year — which is exactly
- * the class of bug this arithmetic exists to make impossible.
- */
 Then(
   "{string} holds the node {string} dated tomorrow",
   async function (this: OlaiWorld, file: string, id: string) {
@@ -993,15 +715,6 @@ Then(
   },
 );
 
-/**
- * A record carrying NONE of the marks — which is what "unmarked" is on disk,
- * and the answer the format draws as no box at all.
- *
- * Asked of the record rather than of the page, because the page can only say
- * that no box is drawn and the claim being made is stronger: the field is gone.
- * Over `MARKS` rather than named fields, so a fourth mark could not arrive and
- * leave this quietly passing — and one did, and it did not.
- */
 Then(
   "{string} holds the node {string} with no mark",
   async function (this: OlaiWorld, file: string, id: string) {
@@ -1016,9 +729,6 @@ Then(
   },
 );
 
-/** A node with no `desc` KEY at all — which is what an emptied note is on
- *  disk, and a different fact from one holding an empty string. The format
- *  spells absent by omitting the field, so this asks the records. */
 Then(
   "{string} holds a node with no note titled {string}",
   async function (this: OlaiWorld, file: string, title: string) {
@@ -1032,21 +742,6 @@ Then(
   },
 );
 
-/**
- * A record carrying NOTHING but its placement and its title — which is what a
- * node a split brought into being is, and the one assertion that says so about
- * every field at once.
- *
- * Over the KEYS rather than over a list of fields nobody may have thought of:
- * a tail that inherited the head's mark, date, note, `doc` or edges fails here
- * whichever of them it was, and so would a field this format grows later.
- *
- * `created` is in the allowed set and is the one addition since: it is not
- * something the tail INHERITED, it is the stamp that says the node came into
- * being just now, which is exactly what a split's tail is. A `changed` here
- * would be the failure this step is written to catch — nothing has been written
- * to it since it was made.
- */
 Then(
   "{string} holds a bare node titled {string}",
   async function (this: OlaiWorld, file: string, title: string) {
@@ -1064,20 +759,6 @@ Then(
   },
 );
 
-/**
- * The row has GONE — WAITED for, which is the opposite of the step below it.
- *
- * The two read almost the same and mean opposite things, and confusing them is
- * a flaky test rather than a wrong one: "nothing should have been written" has
- * to HOLD across the commit window, and "the write took it away" has to WAIT
- * for a round trip. `undo.feature` asked the holding form of ⌘Z — which passes
- * only when the archive happens to land inside one animation frame, and fails
- * whenever the machine is busy.
- *
- * BY TITLE, where the pair further up is by id: a row a keystroke created
- * carries an id nobody chose, so its title is the only thing a scenario can
- * name it by.
- */
 Then(
   "{string} no longer holds a node titled {string}",
   async function (this: OlaiWorld, file: string, title: string) {
@@ -1153,20 +834,9 @@ Then("the remembered parked input still holds the caret", async function (this: 
   assert.ok(state.connected && state.focused, JSON.stringify(state));
 });
 
-// ── the facts a row draws after its title ──────────────────────────────
-
-/** The pilcrow that opens a row's note, and the chip a plugin hangs on it —
- *  the two ends of one claim, and the two the report named by sight: opening a
- *  title editor used to take BOTH of them off the line. */
 const NOTE_MARK = selector(TESTID.noteMark);
 const AGENT_CHIP = selector(TESTID.agentStart);
 
-/** What is written down about them: the ELEMENT itself, and where it sat.
- *  Both halves, because they are two different failures — an element that was
- *  REMADE in the same place passes a box check and is still the blink this
- *  exists to catch (the chip is a button with state of its own, and remaking
- *  it is a pointer's hover and a plugin's own fetch both lost), and an element
- *  that survived while the line laid out around it has moved. */
 type Sat = {
   readonly what: string;
   readonly element: ElementHandle<HTMLElement | SVGElement>;
@@ -1193,7 +863,6 @@ When("I write down where the facts of {string} sit", async function (this: OlaiW
   facts.set(this, written);
 });
 
-/** What is no longer true about them, or `null` when nothing changed. */
 const movedOf = async (world: OlaiWorld, id: string): Promise<string | null> => {
   const written = facts.get(world);
   assert.ok(written !== undefined, "no `I write down where the facts of … sit` came first");
@@ -1222,18 +891,11 @@ Then("the facts of {string} sit where they sat", async function (this: OlaiWorld
   });
 });
 
-/** The editor is drawn IN the title cell — the cell rather than the line, which
- *  is the whole of what keeps everything after it still (`../browser/NodeLine.tsx`). */
 Then("the title of {string} is being typed", async function (this: OlaiWorld, id: string) {
   await this.node(id).locator(NODE_TITLE).first().locator(`${TITLE_EDITOR}:visible`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-// ── which row the ring is on ───────────────────────────────────────────
-
-/** The ring that says "this is the row" (`../browser/focus.ts`, one signal for
- *  the whole app). A row's ring is a `data-` fact rather than a colour, which
- *  is what makes "which row is pointed at" a question a scenario can ask. */
 Then("no row is pointed at", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator(`${NODE}[data-focused="true"]`).count()) === 0,
@@ -1256,18 +918,6 @@ Then("the row being typed is the one pointed at", async function (this: OlaiWorl
   );
 });
 
-// ── the boxes a landing must not move ─────────────────────────────────
-
-/** A line's GLYPH CELL and the caret's box: the two things a person sees move
- *  when a blank and a row are laid out differently — the bullet drops and the
- *  caret changes height (`../browser/edit/NewRow.tsx` draws the blank with the
- *  row's own `ROW_LINE` and its `GLYPH_BOX`, which is the whole of why they do
- *  not).
- *
- * ONE selector for the glyph in both states, because it is one cell: the blank
- * wears `new-row-glyph` and the row's is the link its bullet is drawn in
- * (`../browser/Glyph.tsx`), and a scenario that had to name them separately
- * would be free to compare two different things. */
 const GLYPH = `${selector(TESTID.newRowGlyph)}, ${selector(TESTID.zoom)}`;
 
 type LineBox = {
@@ -1302,14 +952,6 @@ Then("the row it became stands in the same boxes", async function (this: OlaiWor
     glyph: await readyBox(this, row.locator(GLYPH).first(), `the bullet of "${id}"`),
     field: await readyBox(this, row.locator(`${TITLE_EDITOR}:visible`).first(), `the caret of "${id}"`),
   };
-  // X, Y AND HEIGHT, and not the width: a blank's field is the rest of its LINE
-  // (`./RowEditor.tsx`'s `fillsLine`) while a row's title is as wide as its own
-  // words, so the two boxes are deliberately different shapes whose LEFT edges
-  // and baselines are the same pixels.
-  //
-  // EVERY difference is collected before the assertion, because they are one
-  // answer — the two lines are laid out by different rules — and the first
-  // number a loop happened to reach says less than all of them.
   const WHAT = { glyph: "bullet", field: "caret" } as const;
   const moved: Array<string> = [];
   for (const which of ["glyph", "field"] as const) {
@@ -1324,18 +966,11 @@ Then("the row it became stands in the same boxes", async function (this: OlaiWor
   assert.deepStrictEqual(moved, [], `the line moved when it landed: ${moved.join("; ")}`);
 });
 
-// ── what a row hides until a hand is on it ─────────────────────────────
-
-/** The controls a row keeps at `opacity: 0` until the pointer is on it — the
- *  `•••` and whatever a plugin hung beside it (`@olai/ui-primitives/touch.ts`'s
- *  `MENU_REVEAL` and `HOVER_REVEAL`, whose contract IS the opacity). */
 const HIDDEN_UNTIL_HOVERED: ReadonlyArray<readonly [string, string]> = [
   ["the •••", NODE_MENU],
   ["the plugin chip", AGENT_CHIP],
 ];
 
-/** The row the CARET is in, by id — a line a keystroke made has an id nobody
- *  chose, so the row these steps are about is named by where the caret is. */
 const caretRow = async (world: OlaiWorld): Promise<string> => {
   const id = await world.page.evaluate((editor) => {
     const field = document.activeElement;
@@ -1347,8 +982,6 @@ const caretRow = async (world: OlaiWorld): Promise<string> => {
   return id;
 };
 
-/** What each of them is at, as opacity, and `null` where the row has none
- *  (a plugin that is off draws no chip). */
 const revealsOf = async (
   world: OlaiWorld,
   id: string,
@@ -1367,9 +1000,6 @@ const revealsOf = async (
 };
 
 When("the pointer is off every row", async function (this: OlaiWorld) {
-  // A corner of the page no row can be under. `I click the title of …` leaves
-  // the pointer ON the row it pressed, which is a hand on that row and would
-  // be ordinary hover chrome — the report's state is a hand nowhere.
   await this.page.locator("body").hover({ position: { x: 2, y: 2 } });
   await this.waitForFrame();
 });
@@ -1400,19 +1030,6 @@ Then("the row being typed shows its furniture", async function (this: OlaiWorld)
   });
 });
 
-// ── the line that is saving ────────────────────────────────────────────
-
-/**
- * WATCH THE LINE, frame by frame — because what a scenario about a save has to
- * claim is about the WHOLE of it, and no single read can make that claim: by
- * the time a step looks, the hole the write's reply used to open has closed,
- * and what is on screen is a perfectly ordinary editor.
- *
- * `requestAnimationFrame` rather than a timer: one callback per frame, after
- * that frame's DOM update and before it is painted, which is exactly the moment
- * "what did the reader see" is decided. It stops by itself on a page that is
- * not being drawn, and the step below stops it on purpose.
- */
 When("I watch the line being typed", async function (this: OlaiWorld) {
   await this.page.evaluate((editor) => {
     const seen: Array<{ editors: number; focused: boolean }> = []
@@ -1428,15 +1045,6 @@ When("I watch the line being typed", async function (this: OlaiWorld) {
   }, TITLE_EDITOR)
 });
 
-/**
- * What the watch saw. TWO claims, and they are the two halves of one promise —
- * the line a person is typing in is never taken away from them: there is always
- * an editor, and the caret is always in it.
- *
- * A frame with an editor but the caret OUTSIDE it is the quieter half of the
- * bug and the one that costs a keystroke: the input is on the page, the words
- * are in it, and what is typed goes to `<body>`.
- */
 Then("the line being typed never stopped being an editor", async function (this: OlaiWorld) {
   const seen = await this.page.evaluate(() => {
     const held = (window as unknown as {
@@ -1470,12 +1078,6 @@ Then("the line being typed never stopped being an editor", async function (this:
   );
 });
 
-/**
- * THE OTHER END OF THE SEAM: the editor holding the caret is drawn by a ROW
- * (`[data-node-id]`) rather than by a ghost, and it holds the words that were
- * typed. Waited for, because the row the write made arrives on a frame of its
- * own — this is where the watch above must still find an editor.
- */
 Then(
   "the line being typed has become the row holding {string}",
   async function (this: OlaiWorld, text: string) {
@@ -1494,13 +1096,6 @@ Then(
   },
 );
 
-/**
- * Which row is being POINTED at — asked of a row that should not be, which is
- * the half a blank drawn inside that row's own `<li>` used to get wrong: the
- * blank's input bubbles its focus through the row it will follow, so the ring
- * landed on the line ABOVE wherever the reader was looking
- * (`./Tree.tsx`'s `onFocusIn`).
- */
 Then(
   "the row {string} is not pointed at",
   async function (this: OlaiWorld, id: string) {

@@ -11,7 +11,6 @@ test("an outgoing row cannot discard a replacement row's forms", async () => {
       first = createRoot(stop => { releaseFirst = stop; return useRowForms("row") })
       releaseFirst()
       replacement = createRoot(stop => { releaseReplacement = stop; return useRowForms("row") })
-      // This closure enters the provider owner, as a later row mount would.
       const owner = requireOwner()
       acquire = () => runWithOwner(owner, () => createRoot(stop => {
         current = useRowForms("row")

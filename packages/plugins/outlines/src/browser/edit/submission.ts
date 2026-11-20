@@ -1,4 +1,3 @@
-/** A row form's pending write and response outlive its rendered controls. */
 import { createSignal } from "solid-js"
 import type { Said } from "@olai/web/client/saying.ts"
 

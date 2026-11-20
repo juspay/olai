@@ -1,37 +1,3 @@
-/**
- * The three questions a filter asks of a DRAWN PAGE — one arm per shape, and
- * nothing in here knows a query, a preference or a signal.
- *
- * Split out of `./narrowing.ts` because they are two different kinds of thing
- * that were braided into one file. That one is a READING: a memo graph over
- * what the reader typed, what the store published and what the clock says —
- * time. This one is arithmetic over a value: given a page and a set of ids,
- * which rows survive, how many places there are, and how many of them the query
- * selected. Pure, total over `../page.ts`'s {@link Drawn}, and testable by
- * handing it a page.
- *
- * THE FOURTH QUESTION WAS THE ARCHIVE'S — whether the rows in front of somebody
- * are put-away ones, which the matcher had to be TOLD because only the caller
- * knew. It is the server's now (`@olai/format`'s `showsPutAway`), asked of the
- * page it is already computing: the browser stopped describing its page to the
- * matcher the day it started naming it instead
- * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
- *
- * WHY THE SPLIT IS WORTH A FILE. Every function here is a `switch` over the
- * five shapes a page can be, and each is one line per shape; the reading is
- * five memos and about as many paragraphs of argument. Read together, the
- * shapes-per-question table was invisible — and it is the thing that has to
- * grow an arm the day a sixth page kind draws nodes. The rule, and
- * the reason it is a rule: prefer files and a hierarchy over a module that
- * holds everything about one word.
- *
- * NO SECOND OPINION ABOUT A PRUNE. Where a count is over rows a prune already
- * decided, it counts the PRUNE rather than re-deciding it ({@link matchesIn}'s
- * day and agenda arms) — a walk written here would be free to disagree with
- * the very pruning it is counting, which is the drift `datedIn` was moved down
- * to `@olai/format` to prevent one layer lower.
- */
-
 import type { Selected, TrashGroup } from "@olai/format"
 import {
   datedIn,
@@ -45,26 +11,10 @@ import {
 
 import type { Drawn } from "../page.ts"
 
-/**
- * The same page with everything that did not match taken out of it — one arm
- * per shape, and each arm is the format's own prune rather than a rule invented
- * here (`keeping`, `keepingDated`, `keepingOwed`).
- *
- * The trash is the one composition: an archive is a tree, so its rows are
- * `keeping`'s, and an archive left with nothing goes the way a day's group does
- * — a heading over no rows would say that archive holds something the query
- * did not find.
- */
 export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
   switch (drawn.kind) {
     case "tree":
       return { kind: "tree", rows: keeping(drawn.rows, matched) }
-    // THE NOTE GOES WITH THE ROWS THAT DID NOT MATCH, and it is decided here
-    // rather than in the page for the reason everything else about a narrowed
-    // page is: a note is a DOCUMENT — prose, which is exactly the page kind
-    // that takes no filter (`../routes.ts`) — so it can never be a match, and
-    // a day answering a query with somebody's prose plus no rows would be
-    // answering something nobody asked.
     case "day":
       return { kind: "day", groups: keepingDated(drawn.groups, matched), notes: [] }
     case "agenda":
@@ -85,8 +35,6 @@ const keepingArchives = (
     return rows.length === 0 ? [] : [{ ...group, rows }]
   })
 
-/** How many PLACES a page is made of — asked of what it HOLDS, which is the
- *  second number in "3 of 41" (`./count.ts`'s `Counts.held`). */
 export const placesIn = (drawn: Drawn): number => {
   switch (drawn.kind) {
     case "tree":
@@ -102,23 +50,10 @@ export const placesIn = (drawn: Drawn): number => {
   }
 }
 
-/**
- * How many of those places the query SELECTED — the first number.
- *
- * Asked of the pruned page it is the count of what is on screen, and asked of
- * the unpruned one it is what the done preference held back; the membership
- * test is what lets one function answer both. On a tree the two numbers differ
- * for a third reason — a kept ancestor is drawn and is not a match — which is
- * the distinction the whole feature is made of.
- */
 export const matchesIn = (drawn: Drawn, matched: Selected): number => {
   switch (drawn.kind) {
     case "tree":
       return matchedIn(drawn.rows, matched)
-    // The prune, counted — never a second reading of which rows a set of ids
-    // selects. A count written here would be free to disagree with the very
-    // pruning it is counting, which is the drift `datedIn` was moved down to
-    // `@olai/format` to prevent one layer lower.
     case "day":
       return datedIn(keepingDated(drawn.groups, matched))
     case "agenda":

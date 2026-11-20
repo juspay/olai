@@ -62,7 +62,6 @@ Feature: The rest of Workflowy's chords
     And this page's Done flip says "hidden"
     When I press "Control+o"
     Then the node "demo" is shown
-    # The chord and the `finished` box are one pick: the box moves with it.
     And this page's Done flip says "shown"
     And the Done flip is this page's own
     When I press "Control+o"

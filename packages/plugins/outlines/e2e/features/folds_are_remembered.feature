@@ -27,7 +27,6 @@ Feature: The outline remembers how you left it
 
   @corpus:good
   Scenario: A tree you collapsed is still collapsed after a reload
-    # The complaint, verbatim, as a scenario.
     Given I open the outline "house.olai"
     And the node "kitchen" is expanded
     When I collapse the node "kitchen"
@@ -40,10 +39,6 @@ Feature: The outline remembers how you left it
 
   @corpus:good
   Scenario: A fold survives zooming in and back out
-    # The deliberate bonus of keying by node: a zoomed page derives its rows
-    # from the node down, so the same row has a different PLACE key there than
-    # it does on the whole outline. Folding by id makes the round trip a
-    # no-op, which is what a reader who zoomed in to look at one branch means.
     Given I open the outline "house.olai"
     When I collapse the node "install"
     Then the node "install" is collapsed
@@ -56,8 +51,6 @@ Feature: The outline remembers how you left it
 
   @corpus:good
   Scenario: A node folded on its own page is folded on the outline
-    # The same claim from the other end, and cold: `/#<id>` is a permalink
-    # somebody can arrive at with no history behind it.
     Given I open the node "kitchen"
     When I collapse the node "install"
     And I open the outline "house.olai"
@@ -65,10 +58,6 @@ Feature: The outline remembers how you left it
 
   @corpus:good
   Scenario: Mirrors of one node fold together
-    # THE RULING (2026-08-13): one node, one fold state. `kitchen-herbs` in
-    # house.olai is a mirror of `herbs`, which lives in garden.olai — so
-    # folding the placement is a fact about the node, and the node's own row in
-    # its own outline is folded with it.
     Given I open the outline "house.olai"
     When I collapse the node "kitchen-herbs"
     Then the children of "kitchen-herbs" are hidden
@@ -79,17 +68,6 @@ Feature: The outline remembers how you left it
 
   @scratch:good
   Scenario: A fold follows its node into the Trash
-    # GONE MEANS GONE FROM THE SET, and `archive` is a MOVE: the record lands
-    # in `_olai/Trash.olai` with its id kept while the file it left goes on
-    # being served. Read as "house.olai does not declare it any more" that is
-    # indistinguishable from a deletion, and the fold would be dropped at
-    # exactly the moment keying by id was supposed to keep it.
-    #
-    # Written by ANOTHER WRITER, because that is the case: nothing this tab did
-    # moved the node, and the memory has to catch up with a directory it was not
-    # told about. The reload is when it asks — a browser opening with folds in
-    # its entry asks where they now live, which is the tidy that used to be a
-    # walk of the whole vault.
     Given I open the outline "house.olai"
     When I collapse the node "install"
     Then this browser remembers "install" folded in "house.olai"

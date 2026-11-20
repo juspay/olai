@@ -1,15 +1,9 @@
-/** Unsubmitted row forms are owned by the retained tree pane. */
 import { edgeMemory } from "../edges/memory.ts"
 import { createComponent, createContext, createSignal, onCleanup, useContext, type JSX } from "solid-js"
 import { createSubmission } from "../edit/submission.ts"
 import type { Chosen } from "./pick.ts"
 
-/** One row's unsubmitted forms. A tree row's live in its pane's
- * {@link RowForms}, so they outlive a rebuild of the row; a dated row on a day
- * page or the agenda has no pane-held tree and owns its forms itself. */
 export const createRowForm = () => {
-  // The date picker's draft — its day and time together, and `null` while the
-  // picker is closed: one value, so opening and closing cannot leave half of it.
   const [date, setDate] = createSignal<Chosen | null>(null)
   const [rule, setRule] = createSignal<string | null>(null)
   return { edges: edgeMemory(), date, setDate, rule, setRule, dateSubmission: createSubmission(), repeatSubmission: createSubmission() }
@@ -37,8 +31,6 @@ export const useRowForms = (key: string): RowForm => {
   entry.readers++
   onCleanup(() => {
     entry.readers--
-    // A replacement row can acquire the same forms during this update.
-    // Its lease must survive the outgoing row's deferred cleanup.
     queueMicrotask(() => {
       if (!scope.disposed && entry.readers === 0 && scope.rows.get(key) === entry) scope.rows.delete(key)
     })

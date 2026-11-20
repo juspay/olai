@@ -1,26 +1,3 @@
-/**
- * What refers to a zoomed node, read backwards — the section, its count, and
- * the rows inside it.
- *
- * Its own file rather than more of `edge_steps.ts`, and the reason is the
- * division that file already draws: those steps are about WRITING a relation
- * and reading the file afterwards, and these are about a DERIVED reading with
- * nothing to write. Nothing here touches the disk; what it asserts is that a
- * reference somebody made elsewhere reaches this page.
- *
- * The count and the rows are asked separately on purpose. `data-count` is the
- * whole of what a SHUT section says, so a scenario about live updating can read
- * it without unfolding anything — which is the honest shape of the claim, since
- * a section that only grew once opened would be a section that had not updated.
- * It is also the honest shape of the CLIENT: the rows are not built until a
- * reader opens the section (`backlinks/Backlinks.tsx`).
- *
- * Which row a scenario means is named by the LABEL a reader sees on it — a
- * relation is read in the reader's language rather than as a field name in a
- * table (`@olai/markdown-ui`'s `makeReferrerWays`, via `world.ts`'s
- * `backlinkRow`), so a row renamed
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -61,9 +38,6 @@ Then(
   },
 );
 
-/** SHUT, which is the default and therefore the thing worth asserting: the
- *  `<details>` carries its own `open`, so this is the browser's answer rather
- *  than a class name. */
 Then("the referenced-by section is collapsed", async function (this: OlaiWorld) {
   const section = this.page.locator(BACKLINKS).first();
   await section.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
@@ -92,9 +66,6 @@ Then(
   },
 );
 
-/** One row, WHOLE and in order — never membership: corpus order is what the
- *  reading promises, and a row that had gained an entry somewhere else would
- *  satisfy a contains. */
 Then(
   "the referenced-by {string} row reads {string}",
   async function (this: OlaiWorld, label: string, titles: string) {
@@ -107,9 +78,6 @@ Then(
   },
 );
 
-/** ...and each entry NAVIGATES, which is half of what the section is for.
- *  Selected by `data-ref` rather than by text, for `navigation_steps.ts`'
- *  reason: titles change under a live page and ids do not. */
 When(
   "I follow the referenced-by link to {string}",
   async function (this: OlaiWorld, id: string) {

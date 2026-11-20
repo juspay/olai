@@ -1,24 +1,6 @@
 import { createMemo } from "solid-js"
 import { sameList } from "@olai/web/client/same.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
-/**
- * One node, as a page — the zoom.
- *
- * The node's title becomes the heading, its note the body, the document it
- * attaches the rest of that body, and its children the familiar tree. Which node this is came from `@olai/format`'s `zoom`: a
- * mirror's id resolves through its chain, so there is exactly one page per
- * node however many placements it has, and the crumbs above it are the
- * canonical ancestry rather than the path that was clicked.
- *
- * The date beside the heading is the node's `date` — what it is SCHEDULED for
- * — and deliberately not the instant on its mark, which a `done` now carries.
- * That is a decision rather than an omission: this page answers "what is this
- * node", where the checkbox says the work is finished and when it happened is
- * a fact about a DAY. The day is where that is read — `/d/<date>` puts the
- * node under the day it was finished on, with the instant on its badge
- * (`day/DayNode.tsx`) — and repeating it here would put a second date beside a
- * heading that already has one, meaning something else.
- */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { RowForms, useRowForms } from "./date/memory.tsx"
 import { isOverdue, type Row, type Zoomed } from "@olai/format"
@@ -54,8 +36,6 @@ import { Tree } from "./Tree.tsx"
 
 export function NodePage(props: {
   readonly zoomed: Zoomed
-  /** The children, off the app's one row derivation — the same rows an outline
-   *  draws, so a zoomed page is as live as any other. */
   readonly rows: ReadonlyArray<Row>
 }) {
   return (
@@ -73,45 +53,20 @@ function Zoom(props: {
   readonly rows: ReadonlyArray<Row>
 }) {
   const today = useToday()
-  /** Whether this page is narrowed — the one thing the empty state below has
-   *  to know, because "nothing under this node" and "nothing here matches" are
-   *  two different pieces of news (./filter/narrowed.tsx). */
   const narrowed = useNarrowed()
   const within = createMemo(() => [...props.zoomed.trail.map(crumb => crumb.node.id), props.zoomed.shows.node.id], [], { equals: sameList })
-  /** This page's edge editing — the panel, both doors' writes, and the line
-   *  that says what came of them (./edges/editing.tsx). A zoom always lands on
-   *  a regular node however it was addressed, so the node is never absent
-   *  here. */
   const forms = useRowForms(`heading:${props.zoomed.shows.node.id}`)
   const edges = createEdgeEditing(() => props.zoomed.shows.node, forms.edges)
-  /**
-   * ⌘Z is one stack for this page, whichever hand wrote: the run of chips files
-   * what would take a property back exactly as a keystroke does (./writes.ts).
-   *
-   * IT IS NEW HERE, and it closes a gap the old drawer had and said so — "a
-   * zoomed node draws its drawer and has no door to it", because the `•••`
-   * hangs off a ROW and this page has none. Every property is edited where it
-   * is read now, and this page needs no ADD entry of its own either: the run
-   * here always draws the node's own facts, so it always has an end for the `+`
-   * to sit at (`./props/PropsDrawer.tsx`).
-   */
   const undo = useUndo()
 
   return (
     <Editable
       rows={() => props.rows}
       file={props.zoomed.shows.file}
-      // The page is drawn INSIDE this node, so nothing under it is a place a
-      // drag carrying it may land — a fact its rows' keys cannot state, because
-      // they start at this page's own roots (`./drag/fields.ts`).
       within={within()}
     >
       <div class="contents">
 
-        {/* The subject is a node too — same testid a row uses — so "the
-            description of X" and "the node X" mean the same record on a
-            zoomed page as they do in a tree. The heading still carries
-            zoom-title: that is what a scenario waits on for the route. */}
         <div
           class="grow"
           data-testid={TESTID.node}
@@ -120,19 +75,6 @@ function Zoom(props: {
           data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
         >
-          {/* PINNED FROM `md` UP, and only there. On a phone, breadcrumbs, a
-              display-size title and an agent's line held at the top — with the
-              composer held at the bottom — left the transcript a few lines of
-              screen, so there the head scrolls away with the page. The title
-              row WRAPS for the same screen: below `sm` the title claims its
-              own line rather than being squeezed to a word per line.
-
-              What a phone keeps pinned is the node's NAME, on one line. It is
-              a zero-height sticky slot at the head's own layer, BEFORE the
-              head: the opaque head paints over it while it is on screen and
-              uncovers it as it scrolls away. No observer and no measurement —
-              the stacking order is the whole mechanism, so the line follows
-              the chrome's height whatever the layout publishes. */}
           <div class={`sticky top-[var(--height-chrome)] ${LAYER.page} h-0 md:hidden`} aria-hidden="true">
             <p class="m-0 truncate border-b border-rule bg-paper py-2 font-sans text-body font-semibold" data-testid={TESTID.zoomPinnedTitle}>
               <NodeTitle title={props.zoomed.shows.node.title} from={props.zoomed.shows.file} links={false} />
@@ -164,10 +106,6 @@ function Zoom(props: {
                 />
               )}
             </Show>
-            {/* …and how it comes back, beside the day it is on, in the same
-                order the row draws them. Read-only here as the date beside it
-                is: this heading says what the node IS, and the pickers are the
-                row's. */}
             <Show when={props.zoomed.shows.node.repeat}>
               {(repeat) => <RepeatBadge repeat={repeat()} />}
             </Show>
@@ -176,23 +114,13 @@ function Zoom(props: {
           <PluginPageHead node={props.zoomed.shows.node.id} />
           </header>
 
-          {/* What the node is waiting on, named in full and above its note:
-              a page whose subject cannot start yet should say so before it
-              says anything else about it. This is where a row's glyph was
-              pointing. DERIVED, and read-only for that reason — half of it can
-              be a `blocks` written on another record, and a finished blocker is
-              not in it at all (./Blocked.tsx). */}
           <Blocked blocked={props.zoomed.blocked} />
-          {/* …and the FIELD under it: what this node itself declares it comes
-              after, whether or not the target is still in the way. That is what
-              `outlines_after` writes, so that is what carries the `×`. */}
           <EdgeRefs
             node={props.zoomed.shows.node}
             relation="after"
             onRemove={(target) => edges.drop("after", target)}
           />
 
-          {/* The zoomed subject's full note is never densified. */}
           <NodeBody
             shows={props.zoomed.shows}
             zoomed
@@ -204,26 +132,11 @@ function Zoom(props: {
               )}
           />
 
-          {/* THE TWO EDGE VERBS, on the page rather than in a `•••` menu — the
-              heading has none, which is the same gap the ⌘K palette's op rows
-              closed for the verbs that need no second gesture (`palette/ops.ts`
-              leaves these two out precisely because they open something, the way
-              `Set date…` does). So the door is here, where the two rows above are
-              read, and it opens the same panel a row's menu opens. */}
           <EdgeVerbs open={edges.open} openFor={edges.openFor()} />
           <edges.Panel />
 
-          {/* ...and the same relations read BACKWARDS: what points at this
-              node, and what names it in prose. Last in the header and shut by
-              default, because it is the one block here that is about other
-              records — everything above says what this node IS
-              (./backlinks/Backlinks.tsx). */}
           <Backlinks id={props.zoomed.shows.node.id} />
 
-      {/* A FILTERED page says nothing here at all: the bar above it has just
-          counted what it found, and a second sentence under the heading would
-          be two readouts for one fact. What is below is about the node — a
-          leaf, or a subtree this reader is hiding. */}
       <Show
         when={props.rows.length > 0 || narrowed.active()}
         fallback={
@@ -235,9 +148,6 @@ function Zoom(props: {
               </p>
             }
           >
-            {/* Nothing under it, and nothing hidden either — so the honest
-                thing to offer is the first child, which a page with no rows
-                has nowhere else to put. */}
             <StartLine
               at={{ kind: "under", id: props.zoomed.shows.node.id }}
               label="Nothing here yet. Write the first line."
@@ -254,12 +164,6 @@ function Zoom(props: {
   )
 }
 
-/** An empty page has two causes and they are not the same news: a leaf has
- *  nothing under it, a subtree that is entirely done has been hidden by the
- *  done-pick this page answers to (the panel's default, or this page's own
- *  out-vote — the flip beside the bar says which) — and it is one flip from
- *  coming back. (A third — a filter that matched nothing — never reaches
- *  here: the bar has already said so, and this line is about the node.) */
 const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
 ): string =>

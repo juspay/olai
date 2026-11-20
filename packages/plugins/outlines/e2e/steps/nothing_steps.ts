@@ -1,13 +1,3 @@
-/**
- * THE PAGE WITH NOTHING ON IT, and the next step it offers (`../src/browser/
- * Nothing.tsx`): `No outlines yet` with `New outline` on a directory holding
- * none, and `Page not found` with `Go home` on a path that names nothing.
- *
- * Its own file because it is its own surface: the tree steps are about rows,
- * and an empty page has none. The sentence is read through the harness's one
- * empty-page helper (`emptyPage`, over the testid the shared `Empty` puts on
- * it); the button through the testid this row gives it.
- */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -30,7 +20,6 @@ Then("the empty page says {string}", async function (this: OlaiWorld, line: stri
   );
 });
 
-/** The short second line under it — what the page was asked for, in words. */
 Then("the empty page explains {string}", async function (this: OlaiWorld, detail: string) {
   const { detail: under } = emptyPage(this.page);
   await under.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -49,9 +38,6 @@ When("I press Go home on the empty page", async function (this: OlaiWorld) {
   await this.press(button);
 });
 
-/** A ZOOMED node with nothing drawn under it (`../../src/browser/NodePage.tsx`):
- *  a leaf says so, and a subtree the done-pick swept says THAT, which is the
- *  one on-screen sentence about the pick on that page. */
 Then("the empty zoomed page says {string}", async function (this: OlaiWorld, line: string) {
   const said = this.page.locator(EMPTY_UNDER);
   await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

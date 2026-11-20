@@ -1,88 +1,43 @@
-/** Static extension contracts owned by the outlines capability. */
 import type { JSX } from "solid-js"
 import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
 
 export type RowActions = (node: string) => ReadonlyArray<RowAction>
 
-/**
- * What a plugin hangs on a row's `•••`: one verb, or ONE ENTRY THAT OPENS A
- * CHOICE of verbs ({@link RowChoice}). Core decides where a plugin's entries sit
- * and draws the choice as a submenu; the plugin says only the words, the
- * presses, and which half each belongs to.
- */
 export type RowAction = RowVerb | RowChoice
 
 export interface RowVerb {
-  /** This plugin's own word for the verb — a testid and a list key, never an
-   *  address. Two plugins may spell it the same: what a reader keys the list by
-   *  is this beside the plugin's own name, which {@link Hung} carries and this
-   *  row deliberately does not repeat. */
   readonly id: string
-  /** The words on the row. */
   readonly label: string
-  /** Ask this question before running the action. */
   readonly confirm?: string
-  /**
-   * Does it change the DIRECTORY? A verb that arms a composer, opens a panel or
-   * moves this tab says `false` and sits with core's reads; one that writes a
-   * property, a record or a file says `true` and sits with core's writes, under
-   * the same rule.
-   *
-   * REQUIRED, with no default, because both answers are ordinary and the wrong
-   * one is silent: a default of `false` would put a destructive verb among the
-   * reads and a default of `true` would put a harmless one under Trash, and
-   * neither would say anything at the moment it was written.
-   */
   readonly writes: boolean
-  /** Act on the node shown; return a sentence when the action is refused. */
   readonly run: (node: string) => string | void | Promise<string | void>
 }
 
-/**
- * ONE ENTRY, SEVERAL WAYS TO DO IT — `Start an agent ›` and its engines. Drawn
- * as a submenu, so a verb that varies by a choice costs the menu one line
- * rather than one per option. The plugin hands its whole choice, however many
- * options it has: core draws a choice of one as that option's press under this
- * entry's label (a submenu with a single entry is a click that asks nothing),
- * and a choice of none as nothing at all.
- */
 export interface RowChoice {
-  /** This plugin's own word for the entry, as {@link RowVerb.id}. */
   readonly id: string
   readonly label: string
-  /** Which half the entry sits in, as {@link RowVerb.writes}. */
   readonly writes: boolean
-  /** The options, in the order they are offered. */
   readonly choices: ReadonlyArray<RowVerb>
 }
 
 export interface PropEntry {
   readonly key: string
-  /** What it says, as ONE string — a list joined by commas, exactly as the
-   *  drawer has always drawn it. */
   readonly value: string
-  /** ...and its MEMBERS, which is one element for a value that is text. */
   readonly values: ReadonlyArray<string>
-  /** A fact the record carries in a field of its own: drawn, never edited. */
   readonly system: boolean
 }
 
 export interface BlockChrome {
-  /** The key half of the fact line, with the drawer's editor gesture on it. */
   readonly Handle: (props: {
     readonly label: string
     readonly onOpen?: () => void
   }) => JSX.Element
-  /** `data-testid` for the fact line — the drawer's contract, spelled once. */
   readonly factId: string
-  /** `data-testid` for the value half. */
   readonly valueId: string
 }
 
 export interface BlockContext {
   readonly entry: PropEntry
-  /** Open this property's editor — `undefined` where the run is read-only, and
-   *  then no half of the face is a button. */
   readonly onOpen?: () => void
   readonly chrome: BlockChrome
 }
@@ -98,9 +53,6 @@ export type PropPane = (context: BlockContext) => JSX.Element
 
 export type PropBlock = (context: BlockContext) => JSX.Element
 
-/** A contribution about one node, owned by the row or page drawing it — or by
- *  one CRUMB of the trail above either (`outline.crumb.aside`, which a plugin
- *  fills to mark the ancestors it knows about). */
 export type NodeFace = (props: { readonly node: string; readonly record?: string }) => JSX.Element
 
 declare module "@olai/plugin-api/slots" {

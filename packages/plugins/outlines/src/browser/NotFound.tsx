@@ -1,15 +1,3 @@
-/**
- * A permalink that no longer names a page.
- *
- * Ids survive renames and moves, so a `/zoom/#<id>` that stops working is real
- * news: the node was deleted, or the outline holding it is no longer served.
- * The page says which of the three things happened — nothing declares the id,
- * a mirror chain from it dies on a missing target, or the chain closes on
- * itself — in the same voice as the error view, because they are the same kind
- * of message: what is wrong, and where to look.
- *
- * The sidebar stays. A dead link is not a reason to strand someone.
- */
 import { TESTID } from "olai-plugin-outlines/testids"
 import type { Zoomed } from "@olai/format"
 import { Match, Switch } from "solid-js"

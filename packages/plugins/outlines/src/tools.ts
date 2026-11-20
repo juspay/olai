@@ -1,31 +1,3 @@
-/**
- * THE OUTLINE ROW'S AGENT VERBS — the tools that name a NODE, and the row that
- * answers them.
- *
- * They were entries in `@olai/ops`' one closed `TOOLS` table, which said two
- * untrue things at once: a general package spelled every row's vocabulary, and
- * a serve without this row still advertised `outlines_subtree` to an agent that
- * would then be told there was nothing behind it. A tool leaves with the row
- * that owns it now (juspay/olai#546), so switching this row off takes its verbs
- * with it.
- *
- * WHAT DID NOT MOVE IS THE RULE THEY ARE WRITTEN AGAINST. The unit is a NODE:
- * there is no shell here, no grep, no read or write that names a byte or an
- * offset, and every write goes through the planner to whole records and the
- * format's own writer — so the glued-line file of 2026-08-09 is not a thing
- * these tools can express, and a refusal comes back as the validator's own rows
- * rather than as prose. The grammar the four kinds are built in is still
- * `@olai/ops`' ({@link @olai/ops}'s `tools.ts`); what is here is this row's
- * vocabulary in it.
- *
- * Each entry carries its request schema, and the JSON Schema an agent sees is
- * DERIVED from it rather than written beside it; a READ carries its reader in
- * the same entry, so a tool this table declares and nothing answers is a type
- * error rather than a runtime throw. `./tools.test.ts` walks the reads over one
- * maximal fixture and decodes every answer through the shape its own entry
- * declares.
- */
-
 import {
   AddRequest,
   AfterRequest,
@@ -57,11 +29,6 @@ import {
 } from "@olai/format"
 import { NoArgs, read, type Tool, write } from "@olai/ops"
 
-/**
- * What each MARK's tool says. The prose is per mark — they refuse for
- * different reasons and mean different things — but WHICH marks there are is
- * not this table's to decide, which is what the spread below is for.
- */
 const MARK_TOOL = {
   done: {
     title: "Mark done",
@@ -85,9 +52,6 @@ const MARK_TOOL = {
   },
 } as const satisfies Record<Status, { readonly title: string; readonly description: string }>
 
-/** One tool per mark, keyed by the format's own list: written out one by one,
- *  a mark could be plannable, writable and derivable everywhere and still have
- *  no way for an agent to set it, silently. Keyed, that is a missing key. */
 const MARK_TOOLS: ReadonlyArray<Tool> = MARKS.map((mark) =>
   write(
     `${mark}`,

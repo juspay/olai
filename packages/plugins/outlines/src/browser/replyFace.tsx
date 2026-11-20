@@ -17,8 +17,6 @@ export function story(input: { reply: unknown }) {
 
 function Story(props: { readonly wrote: NonNullable<ReturnType<typeof writeIn>> }) {
   const router = useRouter()
-  /** A write that changed no record has no honest word for what it did, and
-   *  this is what it says instead — the one case the table cannot cover. */
   const said = () => (props.wrote.sort === null ? "No change" : SAID[props.wrote.sort])
   const glyph = () => (props.wrote.sort === null ? "·" : GLYPH[props.wrote.sort])
 
@@ -30,17 +28,6 @@ function Story(props: { readonly wrote: NonNullable<ReturnType<typeof writeIn>> 
     >
       <p class="flex items-baseline gap-2">
         <span class="w-3 shrink-0 text-muted" aria-hidden="true">{glyph()}</span>
-        {/* The node itself, and pressing it shows you the row: this is the
-            reference a transcript carries most often, because every write the
-            agent makes through the ops layer draws one of these. `id` is the
-            reply's own — a row that came back without one says the same words
-            and simply does not point. */}
-        {/* A NODE'S TITLE is drawn as one wherever it appears: its `#tags`
-            wear pills in their own hues through the one pipeline
-            (`../markdown/title.ts`), here as on a tree row. The pipeline,
-            not `../NodeTitle.tsx`: this strip is no page, so a title naming
-            an address shows the address as written — and `links` false,
-            because the reference arm is a <button>. */}
         <Show
           when={props.wrote.id}
           fallback={

@@ -1,4 +1,3 @@
-/** An entry, distinguishable from the others by the id it names. */
 import type { Edit } from "@olai/surface"
 import { expect, test } from "bun:test"
 
@@ -23,8 +22,6 @@ test("an empty side answers nothing rather than a step that would write", () => 
 })
 
 test("an undo becomes a redo, and a redo becomes an undo", () => {
-  // The property that keeps redo from being a second derivation: replaying an
-  // inverse answers with ITS inverse, and it is filed on the other side.
   const stack = after("one")
   const held = taken(stack, "done")
   const back = kept(held?.rest ?? EMPTY, "done", step("one-back"))
@@ -43,8 +40,6 @@ test("a new op clears what redo would have put back", () => {
 })
 
 test("moving an entry between the sides clears nothing", () => {
-  // Only a NEW op is a branch. An undo followed by a redo followed by an undo
-  // has to keep working, and it would not if either side cleared the other.
   const stack: Stack = { done: [step("one")], undone: [step("two-back")] }
   expect(ids(kept(stack, "done", step("three")).undone)).toEqual([
     "two-back",

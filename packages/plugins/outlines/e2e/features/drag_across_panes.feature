@@ -19,26 +19,15 @@ Feature: Dragging a row from one pane into the other
   directory they are served. They share one copy per worker (`@share-scratch`);
   the corpus is restored between scenarios.
 
-  # ── the same file in both panes ──────────────────────────────────────
-
   Scenario: A row picked up in one pane lands in the other, and both see it
-    # The gap above `demo` is the first place under `kitchen`, and it is the
-    # one gap in this outline whose depth the pointer cannot get wrong: the row
-    # above is `kitchen` and the row below is its first child, so "one inside
-    # the row above" and "level with the row below" are the same answer.
     When I open the address "/s/house.olai/house.olai"
-    # `demo` anchors half the drops here, and it is finished: the pick is one
-    # page-scoped fact, so two panes of the one file both redraw off it.
     And I show the done nodes
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
     Then the drop line would put it under "kitchen"
     And the drop line would put it first
     When I let go
-    # The pane it landed in...
     Then the node "knobs" is a child of "kitchen" in pane 1
-    # ...and the pane it left, which is the same file drawn twice and therefore
-    # the same news arriving twice.
     And the node "knobs" is a child of "kitchen" in pane 0
     And the node "knobs" is not a child of "install" in pane 0
     And "house.olai" holds the node "knobs"
@@ -46,17 +35,6 @@ Feature: Dragging a row from one pane into the other
     And there should be no page errors
 
   Scenario: The line promising the landing is drawn over the pane it names
-    # The affordance is identical to an in-pane drop's, which means it has to
-    # be over the ROWS it is about — the pane the pointer is in, not the pane
-    # the press began in.
-    #
-    # THIS IS THE GEOMETRIC ASSERTION, and it is worth saying that it carries
-    # more than it looks like it does. With one file in both panes the two trees
-    # are identical, so a plan made against the WRONG pane's boxes computes the
-    # same `data-parent` and `data-after` — the scenario above cannot tell them
-    # apart, and neither can the file. What separates them is where the line is
-    # DRAWN, which is why this scenario exists and why the one below asserts the
-    # same thing from the other side (review, opencode + grok, 2026-08-18).
     When I open the address "/s/house.olai/house.olai"
     And I show the done nodes
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
@@ -65,14 +43,7 @@ Feature: Dragging a row from one pane into the other
     Then there should be no page errors
 
   Scenario: A drag that stays in its own pane still lands in its own pane
-    # The regression this feature is most able to cause, and the reason every
-    # measurement is now scoped to a pane: a `Row.key` is a chain from the roots
-    # of ITS page, so two panes showing one file draw two sets of lines wearing
-    # the SAME keys. Measured across the document, pane 0's gesture would be
-    # planned against pane 1's boxes and promise its landing over there.
     When I open the address "/s/house.olai/house.olai"
-    # `demo` anchors half the drops here, and it is finished: the pick is one
-    # page-scoped fact, so two panes of the one file both redraw off it.
     And I show the done nodes
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
@@ -82,8 +53,6 @@ Feature: Dragging a row from one pane into the other
     Then the node "knobs" is a child of "kitchen" in pane 0
     And there should be no page errors
 
-  # ── two different files ──────────────────────────────────────────────
-
   Scenario: A row held over another file's pane is refused there, in words, before the drop
     When I open the address "/s/house.olai/garden.olai"
     And I mark the page
@@ -91,9 +60,6 @@ Feature: Dragging a row from one pane into the other
     Then the drop is refused by "garden.olai"
     And the refused pane says "only moves a row within its own outline"
     And no drop line is drawn
-    # And the promise is kept when the hand lets go: the same sentence, on the
-    # bar every other refused gesture over these rows says its piece on, and the
-    # row exactly where it was.
     When I let go
     Then the pick says "only moves a row within its own outline"
     And the node "knobs" is a child of "install" in pane 0
@@ -101,12 +67,8 @@ Feature: Dragging a row from one pane into the other
     And there should be no page errors
 
   Scenario: The pane the drag began in is unaffected by the one that refuses
-    # One pointer, one pane, one answer — the refusal is about where the hand
-    # IS, not about the split being open.
     When I open the address "/s/house.olai/garden.olai"
     And I mark the page
-    # The pick this makes is the FOCUSED pane's — pane 0, which holds
-    # house.olai, where `demo` must be drawn for the drop below to land on it.
     Then pane 0 is focused
     And I show the done nodes
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
@@ -116,27 +78,12 @@ Feature: Dragging a row from one pane into the other
     Then the node "knobs" is a child of "kitchen" in pane 0
     And there should be no page errors
 
-  # ── a pane zoomed INSIDE what the hand is holding ────────────────────
-
   Scenario: A pane zoomed into the branch being carried has nowhere to put it
-    # The other way a page can have no landing, and the one that is NOT about
-    # files: pane 1 is zoomed into `install`, so every row it draws is under the
-    # branch pane 0 just lifted. "A branch is never offered a place inside
-    # itself" is answered ACROSS two pages here, which a row key cannot do — a
-    # zoomed page's keys start at its own roots, so `/handles` says nothing
-    # about `install` being above it. What answers is the page's own zoom
-    # ancestry (`drag/fields.ts`'s `within`), asked once for the whole page.
-    #
-    # Delete that early-out and this scenario fails rather than argues: pane 1's
-    # three children become candidates, and the line offers to put `install`
-    # inside itself — the loop the ops layer would then have to refuse.
     When I open the address "/s/house.olai/zoom%2F%23install"
     And I mark the page
     And I pick up the bullet of "install" in pane 0 and hold it over the title of "handles" in pane 1
     Then the drop is refused by "house.olai"
     And the refused pane says "every row in this pane is part of what you’re dragging"
-    # ...and NOT the file rule's words, which is the whole reason there are two
-    # sentences: nothing here is about files at all.
     And the refused pane does not say "only moves a row within its own outline"
     And no drop line is drawn
     When I let go

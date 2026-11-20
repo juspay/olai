@@ -6,9 +6,6 @@ import { reachable } from "@olai/web/client/connection/reaching.ts"
 import type { Home } from "../contracts/references.ts"
 import { client } from "../client.ts"
 
-/** Where a node lives, read over this row's own wire and owned by the caller.
- *  A call the wire dropped (busy: the connection was replaced) is asked again
- *  when the next connection is established — the wire's clock, not a timer. */
 export const nodeHome = (id: string): Accessor<Home> => {
   const [home, setHome] = createSignal<Home>()
   createEffect(() => {

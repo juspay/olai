@@ -1,49 +1,3 @@
-/**
- * The box that narrows the page, and what it has to say about the result.
- *
- * IT IS NOT THE HEADER'S SEARCH BOX, and the difference is the question each
- * one answers: the header takes you TO a node anywhere in the directory, this
- * one narrows what is already in front of you. One box answering both would
- * have to guess which was meant by every keystroke. What they DO share is the
- * grammar AND, since `search-server-side`, the matcher's own answer: the header
- * box, the ⌘K palette and this bar are all callers of the server's one reading,
- * so the operators work in all three and mean one thing.
- *
- * Everything it draws is a fact somebody could otherwise only guess at:
- *
- *   - the COUNT, "3 of 41", so a query that narrowed to nothing is
- *     distinguishable from one that narrowed to everything — and what the
- *     done-preference is HOLDING BACK, because `is:done` under a reader who
- *     hides finished work draws nothing and the reason must not be a mystery
- *     (`./narrowing.ts` argues the order, `./count.ts` the wording, and the
- *     three numbers are counted inside one set so the sentence adds up);
- *   - WHETHER THE ROWS ANSWER WHAT IS TYPED, which is the round trip's own
- *     line: a filter settles and then flies, so for a beat the page is one
- *     query behind, and the count of the query before is a number about a
- *     question nobody asked. The rows hold still and this line says so
- *     (`./count.ts`'s `ANSWERING`) — unless the last call FAILED, in which
- *     case it says nothing at all, because no answer is coming and the failure
- *     line below is the news (`./count.ts`'s `countSaid` holds all three);
- *   - a REFUSAL, in the grammar's own words, for a known operator with an
- *     unknown value. Never silently downgraded to a substring search:
- *     The rule is that an error reaches somebody. It is drawn from
- *     the browser's own parse, so it arrives with the keystroke rather than
- *     with an answer;
- *   - a FAILED CALL, which is a different piece of news in a different slot:
- *     the grammar refusing a word is an answer, the server not answering is
- *     not, and a reader shown one in the other's sentence has been told
- *     something untrue;
- *
- * WHAT IT NO LONGER DRAWS is a face for a dead wire. The box used to go inert
- * wearing the connection pill's sentence, because a filter that is a question
- * has nothing to answer a keystroke with while the socket is gone. The app-wide
- * ruling landed instead (§5b): a wire that cannot carry a question freezes the
- * WHOLE app under an overlay (`../connection/Offline.tsx`), so this box is
- * behind it, takes no keystroke, and has no reason left to explain itself.
- *
- * The value lives in the ADDRESS (`../routes.ts`), not here — so a narrowed
- * page is a link, and Back leaves the filter rather than un-typing it.
- */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { createSignal, Show } from "solid-js"
 
@@ -59,30 +13,14 @@ import { countSaid } from "./count.ts"
 import { FILTER_FORMS, type FilterForm } from "./forms.ts"
 import type { Narrowing } from "./narrowing.ts"
 
-/** What the box says when it is empty: one word. The grammar an operator
- *  language needs somebody to be told about is the hint under the focused
- *  box (`./forms.ts`), not a manual in the placeholder. */
 const PLACEHOLDER = "Filter"
 
 export function FilterBar(props: {
-  /** What the PAGE found — the count, the words, the rows behind it. */
   readonly narrowing: Narrowing
-  /** ...and the one thing the CALL has to say, which is a fact about the wire
-   *  rather than a reading of the page: the two are handed over separately
-   *  because the reading beside this one derives nothing from either, and a
-   *  value carried through a module that does not read it is a field two files
-   *  have to keep in step for nothing (`./asking.ts`). */
   readonly asked: Pick<Asked, "failure">
-  /** The file the done-preference's PAGE half answers for — this file's
-   *  outline's, or undefined on the pages with no tree for the pick to
-   *  read (settings/done.ts's pageFileOf): those get the bar without the
-   *  flip, because there the pick was never asked. */
   readonly doneAt: string | undefined
   readonly onType: (text: string) => void
 }) {
-  /** What the one line under the box says, or nothing — the three states a
-   *  filtered page can be in, decided in `./count.ts` rather than in a binding
-   *  here. */
   const said = () =>
     countSaid({
       answering: props.narrowing.answering(),
@@ -90,11 +28,6 @@ export function FilterBar(props: {
       counts: props.narrowing.counts(),
     })
 
-  // THE HINT: the grammar's forms, offered under the box while it is focused
-  // and empty, and put away by Escape until the box is next focused. Typing
-  // takes it away by making the box not empty. It is the completion box the
-  // row editor uses (`../complete/offer.tsx`), so it is drawn from this row's
-  // overlay socket and goes when this bar does.
   let input: HTMLInputElement | undefined
   const [focused, setFocused] = createSignal(false)
   const [shut, setShut] = createSignal(false)
@@ -114,60 +47,18 @@ export function FilterBar(props: {
     <div
       class="mb-4"
       data-testid={TESTID.filterBar}
-      // WHICH QUERY THE ROWS BELOW ANSWER, in the markup — the same fact the
-      // count line draws in words, published so something outside the browser
-      // can wait for it. Absent while they answer a question the reader has
-      // moved on from, which is the whole of what a debounce and a round trip
-      // added to this box: a scenario that read the rows in the beat between
-      // the keystroke and the answer would be reading the page before it.
-      //
-      // `data-asked`, which is what the shortlist under every other search box
-      // in this client already calls the identical fact
-      // (`../search/Shortlist.tsx`, off the same `answering`). One convention,
-      // two publishers; a second spelling would be a second thing to learn
-      // about one question.
       data-asked={props.narrowing.answering() ?? undefined}
     >
-      {/* ONE LINE, phone included: a short box that gives way, and the
-          finished toggle that never does. */}
       <div class="flex items-center gap-4">
-        {/* The box and its clear cross, which is what the hint hangs under —
-            the completion box hangs from its host's PARENT. */}
         <div class="relative flex min-w-0 flex-1 items-center md:w-72 md:flex-none">
-          {/* `text`, not `search`: a `type="search"` input draws the browser's
-              own clear cross, and this bar already has one of its own — two
-              crosses side by side, one of which no scenario can press
-              portably. The header's box keeps `search` precisely because it
-              has no cross of its own to collide with. */}
           <input
             ref={input}
             type="text"
             role="combobox"
-            // The border lights and the background goes to paper on focus;
-            // the app's one outline is the ring (`@olai/appearance/chrome.css`
-            // — unlayered, so the `outline-none` that used to be here never
-            // stood it down). The `focus:ring-2 focus:ring-accent/20` glow
-            // beside it was a second, redundant `box-shadow`, and a
-            // box-shadow is the first thing forced colours removes.
             class="min-h-11 w-full min-w-0 rounded-control border border-rule bg-desk/60 py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink placeholder:text-muted focus:border-accent focus:bg-paper md:min-h-0 md:h-8"
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
             aria-label="Filter"
-            // `search`, and it is the honest one here precisely BECAUSE this
-            // box submits nothing: the rows narrow on every keystroke, so the
-            // return key's job is to say "that is the query" and put the
-            // keyboard away — which is what a Search key means on a phone.
-            // Not `go`: Enter here opens nothing (the shortlist boxes and the
-            // header's do, and say `go`); not `done`, which belongs to a box
-            // that closes. While the form hint is up Enter puts a form IN,
-            // which is still the query being finished rather than a
-            // navigation.
-            //
-            // The corrections off for the identifier reason: what is typed here
-            // is a query against titles, tags and the `is:`/`has:` forms the
-            // hint offers, not a sentence — so a phone's autocorrect rewriting
-            // a half-typed word, and its capital on the first letter of an
-            // empty box, are edits to somebody's search that they did not make.
             enterkeyhint="search"
             autocorrect="off"
             autocapitalize="none"
@@ -181,12 +72,6 @@ export function FilterBar(props: {
             }}
             onBlur={() => setFocused(false)}
             onInput={(event) => props.onType(event.currentTarget.value)}
-            // THE HINT HEARS A KEY FIRST while it is up: the arrows walk it,
-            // Enter puts the form under the cursor in, and Escape puts it away
-            // with the caret still here. Otherwise WHICH key empties the box
-            // is the registry's (`../keys.ts`'s list layer, the same one the
-            // header box asks); what `dismiss` MEANS here is this bar's — the
-            // box empties and the page gets the caret back.
             onKeyDown={(event) => {
               if (hint.key(event)) {
                 event.preventDefault()
@@ -211,28 +96,14 @@ export function FilterBar(props: {
           </Show>
           <hint.Panel />
         </div>
-        {/* The page's own done-pick, when the page is one that has one
-            (settings/done.ts): "what about here?" is a filter-bar question,
-            not a settings one. */}
         <Show when={props.doneAt}>{(file) => <DoneFlip file={file()} />}</Show>
       </div>
 
-      {/* The three numbers, the word that says they are not about what is typed
-          yet, or NOTHING when the last call failed and the line under this one
-          is already the news — one element, and `./count.ts` decides which of
-          the three it is, so the decision is somewhere a test can ask about
-          it. */}
       <Show when={props.narrowing.active() && said()}>
         {(line) => (
           <p
             class="m-0 mt-1 text-label text-muted"
             data-testid={TESTID.filterCount}
-            // A READOUT rather than something said about a write, which is why
-            // it is not a `SaidLine` (`../SaidLine.tsx` owns the two MOODS a
-            // write has, and a count has neither). Announced politely for the
-            // reason a remark is: it changes under a reader who is typing, and
-            // interrupting them with each keystroke is worse than the number is
-            // worth.
             aria-live="polite"
           >
             {line()}
@@ -240,19 +111,12 @@ export function FilterBar(props: {
         )}
       </Show>
 
-      {/* The refusals, drawn — the sentence, the keying that keeps a screen
-          reader from hearing it twice, and the alarmed row are all
-          `../refusals.tsx`'s, once, for every door onto this grammar. What is
-          left here is where the lines sit and what this bar calls them. */}
       <Refusals
         of={props.narrowing.refusals()}
         class="m-0 mt-1 text-label"
         testid={TESTID.filterRefusal}
       />
 
-      {/* THE CALL refusing, which is not the grammar refusing: its own slot, so
-          a wire that fell over cannot be read as a query that found nothing.
-          Alarmed, because the rows on screen are now older than the box. */}
       <Show when={props.asked.failure()}>
         {(said) => (
           <SaidLine

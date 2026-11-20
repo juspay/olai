@@ -1,22 +1,3 @@
-/**
- * Dragging a row out of one pane and into the other.
- *
- * EVERY STEP HERE NAMES A PANE, and that is the whole difference from
- * `dragdrop_steps.ts`. A node id is unique in a SET and not on a SCREEN: two
- * panes showing one file draw every row of it twice, so "the bullet of `knobs`"
- * has no answer until the scenario says which column it means. The gesture
- * itself is the same one — press, travel, release — and comes from the same
- * place (`support/dragging.ts`), because a second copy of it would be a second
- * answer to what a drag is.
- *
- * WHAT IS ASSERTED IS THE PROMISE AND THE FILE, in that order. While the
- * pointer is down, the drag's answer is still a prediction and is on screen as
- * one of exactly two things — the line where the row would land, or the face
- * saying the pane under it cannot take it. Once the pointer is up it is the
- * directory, and the structural claims go back to being asked of the tree (in
- * the pane that drew it) and of the disk.
- */
-
 import * as assert from "node:assert";
 
 import { Then, When } from "@olai/tests/harness/runner.ts";
@@ -33,8 +14,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── carrying a row across ──────────────────────────────────────────────
-
 When(
   "I pick up the bullet of {string} in pane {int} and hold it above the title of {string} in pane {int}",
   async function (this: OlaiWorld, id: string, from: number, above: string, to: number) {
@@ -43,11 +22,6 @@ When(
   },
 );
 
-/**
- * The same gesture aimed at a pane that has no landing to offer — held OVER a
- * row rather than in the gap above it, because the point is the pane rather
- * than the gap, and it waits for the refusal instead of for the line.
- */
 When(
   "I pick up the bullet of {string} in pane {int} and hold it over the title of {string} in pane {int}",
   async function (this: OlaiWorld, id: string, from: number, over: string, to: number) {
@@ -65,11 +39,6 @@ When(
   },
 );
 
-// ── what the drag promises, and where ──────────────────────────────────
-
-/** The line is drawn over the PANE the pointer is in, which is a claim about
- *  its box rather than about its data: the two come from one answer, and this
- *  is the half a person actually sees. */
 Then(
   "the drop line is drawn over pane {int}",
   async function (this: OlaiWorld, index: number) {
@@ -101,10 +70,6 @@ Then(
   },
 );
 
-/** The negative of the pair above, and it is a real assertion rather than a
- *  negated one: the face IS drawn, and what is being held is that it carries
- *  the OTHER of the two sentences. Two pieces of news share one box, so a
- *  scenario that only checked for its own words would pass on either. */
 Then(
   "the refused pane does not say {string}",
   async function (this: OlaiWorld, said: string) {
@@ -131,14 +96,6 @@ Then("no drop is refused", async function (this: OlaiWorld) {
     "no refusal to be drawn",
   );
 });
-
-// ── where the row ended up, in the pane that drew it ────────────────────
-//
-// The same pair `outline_tree_steps.ts` asks of the whole page, asked of ONE
-// pane — which is the whole difference a split makes to a structural claim.
-// Both go through `support/nesting.ts`, so the wait semantics (and the reason
-// the negative is a different question rather than a negated one) are stated
-// once.
 
 Then(
   "the node {string} is a child of {string} in pane {int}",

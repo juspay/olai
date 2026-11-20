@@ -48,8 +48,6 @@ Feature: A frame leaves the rest of the page standing
     And there should be no page errors
 
   Scenario: A row's properties hold still while another row is retitled
-    # The ROW is where a node is an array element, which is where the rebuild
-    # was: a zoomed heading's node is merged in place and never showed it.
     Given I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -58,8 +56,6 @@ Feature: A frame leaves the rest of the page standing
       """
     And I open the outline "house.olai"
     And I mark the page
-    # No ¶ to press: the run is drawn on the row whether it is open or not
-    # (`props-doors-autoshow`), and `hinges` has no note behind a mark anyway.
     Then the node "hinges" shows the property "pr" holding "https://example.invalid/1"
     And I mark every element of the "property drawer"
     When I rewrite "house.olai" as:
@@ -74,9 +70,6 @@ Feature: A frame leaves the rest of the page standing
     And there should be no page errors
 
   Scenario: The caret stays on an edge panel's × while somebody else writes
-    # The one whose cost is visible without a probe: the chips were rebuilt on
-    # every frame, so a reader who had tabbed onto an `×` to take a link off
-    # lost the caret to the document body the moment anybody wrote anything.
     Given I open the outline "house.olai"
     And I mark the page
     When I open the node menu of "order"
@@ -93,8 +86,6 @@ Feature: A frame leaves the rest of the page standing
     Then the node "handles" has the title "choose the handles today"
     And the "edge panel's list" kept every element it had
     And the caret is still on the edge panel's ×
-    # ...and not because the caret survived a reload, which would have taken the
-    # panel with it.
     And the page has not reloaded
     And there should be no page errors
 
@@ -102,9 +93,6 @@ Feature: A frame leaves the rest of the page standing
     Given I open the document "finishes.md"
     And I mark the page
     When I open what points at the document
-    # The ROWS, not the count on the shut summary: the section is minted when
-    # the reading arrives, so a section marked before it was drawn would be a
-    # scenario watching a `<details>` with nothing under it.
     Then what points at the document is "install the cabinets"
     And I mark every element of the "referrers section"
     When I rewrite "house.olai" as:
@@ -120,10 +108,6 @@ Feature: A frame leaves the rest of the page standing
     And there should be no page errors
 
   Scenario: The shelf holds still while a pinned node is retitled somewhere else
-    # A pins frame goes out for a pin added, a pin reordered, or — as here — a
-    # pinned node retitled in the file it lives in. Every `<Pin>` was rebuilt for
-    # it: a column of links flickering in the corner of the eye of somebody
-    # typing on a different page entirely.
     Given I open the node "herbs"
     And I pin the page
     When I open the outline "house.olai"

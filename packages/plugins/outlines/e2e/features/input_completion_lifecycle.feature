@@ -51,8 +51,6 @@ Feature: Input completion choices survive rebuilding the same draft
     And I select all and type "abcde"
     And I press "ArrowLeft"
     And I press "ArrowLeft"
-    # The second tab can cross the idle-save deadline. Establish the first
-    # commit before the provider flip, then verify both retained undo entries.
     Then "house.olai" holds a node titled "abcde"
     And I open another browser tab
     And I open the plugins panel

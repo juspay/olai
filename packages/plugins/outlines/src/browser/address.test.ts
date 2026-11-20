@@ -1,13 +1,3 @@
-/**
- * WHAT COUNTS AS AN ADDRESS, and what the page it names is CALLED.
- *
- * The interesting half is the refusals. This reading runs over every title the
- * app draws now, and the file it was written for — `Pins.olai` — is an
- * ordinary outline, so a person and an agent may write a heading, a note or a
- * nested checklist into it, and none of those names a place. What decides is
- * the BIJECTION (`../routes.ts`), which is why a title that merely begins with
- * a slash reads as text.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -19,15 +9,10 @@ import { ROUTES, routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 import { requestFor } from "./page.ts"
 import { addressIn as addressWith, labelIn, nameOf as nameWith, shownIn } from "olai-plugin-navigation/address/address.ts"
 
-/** No plugin claims a URL, which is what every case here is about: the address
- *  grammar's own arms. The roster-dependent half is asked THROUGH this rather
- *  than off a module-scope table (`olai-plugin-navigation/routes`' header). */
 const routes = routingIn()
 const { href: hrefOf, routeIn, routeOf } = routes
 const addressIn = (title: string) => addressWith(routes, title)
 const nameOf = (route: Parameters<typeof nameWith>[1], shows: Parameters<typeof nameWith>[2]) => nameWith(routes, route, shows)
-
-// ── what is an address ─────────────────────────────────────────────────
 
 test("an address this app would mint is a pin, whatever page it names", () => {
   for (const address of [
@@ -41,26 +26,8 @@ test("an address this app would mint is a pin, whatever page it names", () => {
   }
 })
 
-// Finding 4's (a), held where it can fail: the delegation IS the reading.
-// `addressIn` adds NOTHING of its own to "is this string one of our
-// addresses, and which page" — it only decides whether a TITLE is carrying
-// an address at all (the first character, the prose rules, the markdown
-// bracket); the ADDRESS half of every answer is the door's. So it is asked
-// of the SHARED vocabulary — `olai-plugin-navigation/routes.testlib.ts`'s
-// table, the same one the bijection is held to: a new computed page is this
-// test's the day it is the bijection's, and a new file kind the day the
-// registry claims it — instead of being asked of a hand list that could rot
-// beside it. It reached that table through `@olai/web` until the table moved
-// to the row that owns the grammar, which is why the door is a declared
-// contract of that row rather than a path into it. A
-// recognizer grown back inside a title reader diverges from the markdown
-// LINK readers (`../router.tsx`) the day a page moves, and this test names
-// the exact spelling where.
 test("a title carrying an address gets the link's own answer — one grammar, one door", () => {
   const addresses = ROUTES.map(hrefOf)
-  // Every one of these is a link the app mints, so the door recognizes each —
-  // the `?? undefined` never fires; it lines the door's `null` up with a
-  // title's `undefined`, so the two lists compare like to like.
   const doors = addresses.map((address) => {
     expect(routeIn(address)).not.toBeNull()
     return routeIn(address) ?? undefined
@@ -80,24 +47,15 @@ test("the query rides along, and is read back as the filter it is", () => {
 })
 
 test("a query somebody wrote by hand is the same pin as the one a browser mints", () => {
-  // `?q=is:todo` and `?q=is%3Atodo` are one filter spelled two ways, and a
-  // shelf that told them apart would refuse a pin for its punctuation.
   expect(addressIn("/trash?q=is:todo")).toEqual(addressIn("/trash?q=is%3Atodo"))
 })
 
 test("a title that merely begins with a slash is a title, not a door", () => {
-  // `routeOf` answers the front page for anything it does not recognise, which
-  // is the right kindness in the address bar and would make every such row a
-  // pin to `/` here.
   expect(addressIn("/etc/passwd")).toBeUndefined()
   expect(addressIn("/notes and things")).toBeUndefined()
 })
 
 test("a title spelled with an escape nothing can read is not a door, and does not throw", () => {
-  // `decodeURIComponent("%")` throws, and this parse runs during render on a
-  // file the format invites a hand and an agent to edit — so a `URIError` here
-  // was the whole sidebar going down, not one row being skipped (review,
-  // 2026-08-18). It reads as what it is: not an address, so not a pin.
   for (const title of ["/%", "/%ZZ.md", "/%2.olai", "[x](/%)"]) {
     expect(addressIn(title)).toBeUndefined()
   }
@@ -115,16 +73,10 @@ test("a markdown link is a NAMED pin; a blank label is no name", () => {
 })
 
 test("prose either side of a link is a sentence, not a pin", () => {
-  // A row of `Pins.olai` may be a note about the shelf. Reading one as a door
-  // would put a sentence in the sidebar.
   expect(addressIn("see [the trash](/trash) tomorrow")).toBeUndefined()
 })
 
-// ── and what the outline draws a face for ──────────────────────────────
-
 test("both spellings name the same place — the label is the only difference", () => {
-  // One rule for both, because the difference between them is a NAME rather
-  // than a destination (human, 2026-08-19).
   expect(addressIn("/#herbs")).toEqual(atNode("herbs"))
   expect(addressIn("[the herb bed](/#herbs)")).toEqual(atNode("herbs"))
   expect(addressIn("buy milk")).toBeUndefined()
@@ -137,18 +89,8 @@ test("the label somebody wrote is a name; a blank one is not", () => {
 })
 
 
-// ── what a place is called ─────────────────────────────────────────────
-//
-// The switch is PURE: exactly one address is not called what it says it is —
-// a node, which is called whatever that node is called right now — and the
-// row arm asks the same question when the set can answer it, and answers like
-// a heading when not. So that one fact is handed in. Who asks it is the
-// caller's, and the two callers ask it on opposite sides of the wire (the
-// shelf's is the server's answer, an outline row's is `shownIn` below).
-
 test("a node address is called whatever that node is called right now", () => {
   expect(nameOf(atNode("herbs"), "the herb bed")).toBe("the herb bed")
-  // The same address, after somebody renamed the node somewhere else entirely.
   expect(nameOf(atNode("herbs"), "the herb spiral")).toBe("the herb spiral")
 })
 
@@ -168,13 +110,6 @@ test("the pages that are not files are called what a reader calls them", () => {
   expect(nameOf({ kind: "trash" }, undefined)).toBe("Trash")
 })
 
-// ── the lookup, over the names the page was sent with ──────────────────
-//
-// What an id NAMES is the server's answer now (`@olai/format`'s `page.ts`
-// resolves every id a page points at, through the same `nodeNamed` this used
-// to call locally). What is left here is the reading of that table against an
-// address — which arm of the route asks a question about the set at all.
-
 const named = (title: string): Names => (id) =>
   id === "herbs" ? { id: "herbs", title, file: "garden.olai" } : undefined
 
@@ -184,18 +119,11 @@ test("a node address asked of the page's names is that node's title", () => {
 })
 
 test("nothing to say, said the same way three times", () => {
-  // An id the table does not hold — nothing declares it, or the page does not
-  // point at it — and two addresses that are not a node's at all.
   expect(shownIn(named("the herb bed"), atNode("gone"))).toBeUndefined()
   expect(shownIn(named("the herb bed"), atFile("notes/finishes.md"))).toBeUndefined()
   expect(shownIn(named("the herb bed"), { kind: "trash" })).toBeUndefined()
 })
 
-// A landed row page is what the PALETTE names, and the palette is handed the
-// table of the REQUEST, not of the route: `requestFor` strips the row to its
-// document before the wire (`../page.ts`), so the table it answers with can
-// never hold the id. The width answers with the FILE — the heading arm's own
-// answer, and the opposite of the raw href this used to fall through to.
 test("a landed row page is named by its file — the request the table answered held no row", () => {
   expect(requestFor(routeOf("/house.olai#install"))).toEqual({
     kind: "at",
@@ -204,9 +132,6 @@ test("a landed row page is named by its file — the request the table answered 
   expect(nameOf(routeOf("/house.olai#install"), undefined)).toBe("house.olai")
 })
 
-// …and where the table DOES see the id — an in-tree title of the qualified
-// spelling, which `namesFor`'s pin half reliably asks about — the row arm
-// answers the node's live name, the same answer the bare spelling draws.
 test("the qualified spelling of a node answers the node's own live name", () => {
   expect(shownIn(named("the herb bed"), atElement(TEST_CLAIMS, "garden.olai", "herbs"))).toBe("the herb bed")
   expect(nameOf(routeOf("/garden.olai#herbs"), "the herb bed")).toBe("the herb bed")

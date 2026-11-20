@@ -1,8 +1,3 @@
-/**
- * The pilcrow's promise, in both directions: a mark where there is something
- * behind it, and no mark where there is not.
- */
-
 import { expect, test } from "bun:test"
 import type { RegularNode } from "@olai/format"
 
@@ -30,7 +25,6 @@ test("PROPERTIES are not a body — the run is drawn on the row, open or not", (
 })
 
 test("...nor is anything else the row already draws for itself", () => {
-  // A date is the badge and a mark is the glyph.
   expect(hasBody(node({ date: "2026-08-10", todo: true }))).toBe(false)
 })
 

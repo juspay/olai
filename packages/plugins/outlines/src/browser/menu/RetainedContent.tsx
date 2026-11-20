@@ -1,11 +1,6 @@
 import { children, onMount, onCleanup, Show, type JSX } from "solid-js"
 import { useShown } from "olai-plugin-navigation/routing"
 
-/** State and menu items belong to this owner. Only the visible content shell
- * claims Kobalte's dismissal layer; suspension moves the same items into a
- * hidden host without disposing their confirmation or submenu owners.
- * Pass an accessor into the shell: resolving children while constructing it
- * would rebuild the layer whenever a submenu changes the child list. */
 export function RetainedContent(props: {
   readonly children: JSX.Element
   readonly draw: (content: () => JSX.Element) => JSX.Element

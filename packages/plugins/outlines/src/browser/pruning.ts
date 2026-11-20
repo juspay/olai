@@ -1,5 +1,3 @@
-/** Reactive views of store rows. mapArray gives each source row one owner;
- * pruning changes membership and children, never copies its other fields. */
 import { createMemo, createSelector, getOwner, runWithOwner, untrack, mapArray, type Accessor } from "solid-js"
 import { shownRecord, type Row, type Selected } from "@olai/format"
 
@@ -8,8 +6,6 @@ const view = (row: Row, children: Accessor<readonly Row[]>): Row => new Proxy(ro
   get: (target, key, receiver) => key === "children" ? children() : Reflect.get(target, key, receiver),
 })
 
-/** Descendant readers are born only when a consumer asks for children. Their
- * owner is still the source row, so removal disposes even a lazily opened arm. */
 const lazy = <T>(make: () => Accessor<T>): Accessor<T> => {
   const owner = getOwner()
   let read: Accessor<T> | undefined

@@ -1,5 +1,3 @@
-/** A card owns this reading; none of the pane's edit callbacks or editor
- * memories enter this subtree. Rows are keyed by their stable placement key. */
 import { createMemo, For, Show } from "solid-js"
 import { type Row, printAddress } from "@olai/format"
 import { atNode } from "olai-plugin-navigation/routes"
@@ -10,10 +8,7 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { Note } from "./Note.tsx"
 
 export function OutlineLinkPreview(props: { readonly route: Route }) {
-  // A Preview route is immutable for this mount; only its reading is live.
   const address = props.route.kind === "at" ? props.route.address : null
-  // No wire face offers bounded top-level rows plus a count. Whole-outline
-  // cards retain the page lease; qualified rows use only the zoomed node face.
   const reading = createReading(() => address?.kind === "row" ? atNode(address.id) : { kind: "at", address })
   const named = createDeclared()
   const id = address?.kind === "node" || address?.kind === "row" ? address.id : undefined

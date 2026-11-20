@@ -1,36 +1,3 @@
-/**
- * ONE GLYPH COLUMN: what a node is, and the way into it, in a single cell.
- *
- * It used to be two — a filled bullet that linked to the node's page, and a
- * status box beside it — which meant every row in every tree spent two
- * fixed-width cells before its title to say one thing, and a phone spent 3.5rem
- * of a 390pt screen on them. They are one column now (the quiet outline,
- * human): the glyph IS the mark when the node carries one, the bullet when it
- * does not, and the hourglass when it cannot start yet. `./marks.tsx` draws each
- * face and argues the tones; this file is the cell, its link and its states.
- *
- * ONE PROMISE KEPT FROM THE BULLET: pressing it goes to `/#<id>`, wherever the
- * node is drawn — a row in a tree, an entry on a day. That is now true of the
- * MARK as well, which is a widening worth naming and not a promise this app did
- * not already make: the blocked face was a link before this, for the same
- * reason, and the box stays display-only in the sense that mattered — what
- * WRITES a mark is `Ctrl+Enter` in the row's own editor and `Ctrl+Shift+Enter`
- * for the walk (`./edit/editing.tsx`), never a click here. A box with four
- * readings has no obvious click anyway.
- *
- * The link is on the RECORD's id, whatever that record turns out to show: a
- * mirror's id resolves through its chain to the same canonical page, so the two
- * spellings agree and nothing has to resolve anything here.
- *
- * THE TESTIDS ARE THE OLD CONTRACT, unchanged, because merging two columns is a
- * design decision and not a licence to move what the browser tests find things
- * by: the cell carries `zoom`, the marked glyph inside it carries `checkbox`
- * with its `data-status` / `data-face`, and a waiting one carries `blocked`
- * with its `data-blocked-by`. The SENTENCE naming what a row is — "Done", or
- * what it waits on — is the cell's own name (see `named` below), not a mark
- * on any of those. A node with NO mark carries neither of
- * the inner two — which is still how a bullet is told from an unstarted task.
- */
 import { TESTID } from "olai-plugin-outlines/testids"
 import type { InTheWay, Status } from "@olai/format"
 import { Show } from "solid-js"
@@ -44,47 +11,28 @@ import { zoomNode } from "olai-plugin-navigation/routes"
 
 export function Glyph(props: {
   readonly id: string
-  /** The mark this place carries — absent for a plain bullet. */
   readonly status: Status | undefined
-  /** What holds this node up, and empty when nothing does. */
   readonly blocked: ReadonlyArray<InTheWay>
-  /** True when this row has children that are currently hidden. Workflowy's
-   *  gray circular halo around the glyph. */
   readonly collapsed?: boolean
-  /** True when this row is the one holding the caret. The glyph takes the
-   *  accent — the second half of saying WHERE the caret is, beside the row's
-   *  own tone (./Tree.tsx), because a blinking cursor at the end of a title is
-   *  not something a reader finds in a dense tree. */
   readonly holding?: boolean
 }) {
   const halo = () => props.collapsed === true
   const face = () => faceOf(props.status, props.blocked)
   const waiting = () => face() === "waiting"
-  /** The ink the glyph is drawn in: the caret's accent beats everything, then
-   *  the mark's own tone, then the page's ink for a bullet. */
   const tone = (): string => {
     if (props.holding === true) return "text-accent"
     const status = props.status
     return status === undefined ? BULLET_TONE : FACE[status].tone
   }
 
-  // A COMPONENT rather than a value, because it is drawn in two places below
-  // and a JSX value is one DOM node: bare, and wrapped in the tip that names
-  // what a waiting row waits on. Each arm builds its own.
   const Cell = () => (
     <Link
       route={zoomNode(props.id)}
-      // Sized from ./touch.ts, which is where the gutter's one exception to
-      // the 44px rule is argued and where everything that moves with it lives.
       class={`${CONTROL} group/glyph relative select-none text-center no-underline ${tone()}`}
       testid={TESTID.zoom}
       label={named()}
-      // The halo is a FACT about the reading, not a colour: a scenario asks
-      // for it the same way it asks for data-collapsed on the row.
       halo={halo()}
     >
-      {/* Halo behind the glyph — always for collapsed; also on hover, so the
-          one control that navigates has a Workflowy-style affordance. */}
       <span
         class="pointer-events-none absolute left-1/2 top-1/2 h-[0.95rem] w-[0.95rem] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-muted/60 bg-muted/10 group-hover/glyph:visible"
         classList={{ invisible: !halo() }}
@@ -113,21 +61,11 @@ export function Glyph(props: {
               </span>
             }
           >
-            {/* `aria-hidden` like every other face in this column: what the
-                glyph MEANS is the link's own name now (see {@link named}),
-                and a second copy on an inner element would be the sentence
-                read twice — or, on the platforms that announce only a
-                named link's name, read in a place nothing reaches. The
-                testid and the `data-` facts stay exactly where the browser
-                tests have always found them. */}
             <span
               class="relative"
               data-testid={TESTID.blocked}
               aria-hidden="true"
             >
-              {/* The mark is still the node's, so it stays in `data-status`
-                  where a scenario reads it — the face is what is DRAWN, not a
-                  fifth thing to be. */}
               <span
                 data-status={status()}
                 data-face="waiting"
@@ -142,12 +80,6 @@ export function Glyph(props: {
     </Link>
   )
 
-  /** WHAT THE GLYPH IS ABOUT, in the words a pointer gets. Two sentences and
-   *  one tip: what a waiting row WAITS ON, and otherwise what the mark it
-   *  draws MEANS. Both were a `title` on the link until this app drew its own
-   *  tip, and the second is why this tip is no longer switched off outside the
-   *  waiting face — "Done" over a check is the same answer the platform's
-   *  tooltip was giving. */
   const said = (): string =>
     waiting()
       ? blockedBy(props.blocked)
@@ -155,27 +87,9 @@ export function Glyph(props: {
       ? "Zoom in"
       : FACE[props.status].hint
 
-  /**
-   * THE SAME SENTENCE, SOMEWHERE A HOVER IS NOT NEEDED — the link's own name.
-   *
-   * A tip is a convenience and must never be the only copy ({@link Tip}), and
-   * this column is the only place a tree says what a row IS: the faces are a
-   * shape and a tone, every one of them `aria-hidden`, so "Done", "Doing" and
-   * "blocked by X" reached nobody reading with a keyboard or a screen reader
-   * once the platform's `title` — which browsers expose as a description —
-   * went. The name is the one channel every reader gets in every mode, which
-   * is why the sentence lands here rather than on an `aria-label` inside the
-   * anchor: a named link is announced BY ITS NAME, and an image nested in one
-   * is not reliably read at all.
-   *
-   * The verb stays on the end of it, lowercase, because what this control
-   * DOES is still the thing a reader is choosing: "Done, zoom in". A node
-   * with no mark has nothing to say first and is the bare verb it always was.
-   */
   const named = (): string =>
     props.status === undefined ? "Zoom in" : `${said()}, zoom in`
 
-  // Keep the link and its focus when its waiting face changes.
   return (
     <Tip text={said()}><Cell /></Tip>
   )

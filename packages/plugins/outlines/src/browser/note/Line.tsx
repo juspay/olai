@@ -1,36 +1,3 @@
-/**
- * A note as ONE DIM LINE under a title — the element both ways of choosing that
- * line are drawn through.
- *
- * There are two (./preview.ts and ./excerpt.ts, siblings that argue the split):
- * the top of the note, which is what a closed row shows at `Cozy`, and a window
- * around the hit, which is what a row a filter found behind its ¶ shows
- * whatever the density says. They are the SAME line — same slot, same clamp,
- * same gesture, one step dimmer than the title — so they are one element, and
- * the difference arrives as the runs it is handed plus the name it answers to.
- *
- * It was two components for a day and they were a copy: the same eleven
- * utilities, the same `title`, the same press. What that cost is the thing
- * nothing fails over — a clamp or a tone changed in one and not the other,
- * invisible from either file.
- *
- * IT IS A BUTTON, and pressing it opens where the finger named. A clamped
- * line is not something anybody can type into, but it IS the note's own words
- * drawn one to a character, so the click is measured against them the way the
- * title's click has been since #475 (../edit/point.ts) and the number rides
- * the gesture — where the line's words are not what was read (an excerpt's
- * are: the button fills its pane), the measurement in the caller's hands says
- * go to the end, the door's old answer. The POINTERLESS press — the click a
- * keyboard's Enter synthesizes — has no coordinate to measure, so it is that
- * old gesture outright: the caller's `undefined`. The press STOPS, because
- * the cell above it is the title's click-to-edit target (../NodeLine.tsx).
- *
- * SOLID ELEMENTS, not `innerHTML`, which is why a note's hit is cheaper to draw
- * than a title's: a title reaches the page as an HTML string and every
- * character of it has to be escaped by hand (../markdown/tags.ts), where a run
- * handed to JSX is text the framework escapes because it cannot do anything
- * else.
- */
 import { TESTID as IDS_MARKDOWN_UI } from "@olai/markdown-ui/testids.ts"
 import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 import { Index } from "solid-js"
@@ -42,29 +9,10 @@ import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 
 export function NoteLine(props: {
-  /** The line, as the runs it is drawn from — one unlit run for a preview,
-   *  and the query's words lit for an excerpt. */
   readonly runs: ReadonlyArray<Run>
-  /** This line is the REASON the row is on screen: the query's only hit is
-   *  behind the ¶, so the title above holds nothing the reader typed. It is
-   *  what the line answers to (`IDS_OUTLINES.descHit` rather than `IDS_OUTLINES.desc`),
-   *  because "a note is clamped here" and "this row was found by its note" are
-   *  two different things for a scenario to ask. */
   readonly hit?: boolean
-  /** Open the note — the pilcrow's gesture, from the other end of it. Absent
-   *  wherever the row draws no open state. `at` is the click measured in the
-   *  line's own characters (`../edit/point.ts`'s arithmetic); past the drawn
-   *  words it is `undefined`, which is the caller's old gesture — the same
-   *  answer the title's click made of its filler. */
   readonly onOpen?: (at: number | undefined) => void
 }) {
-  // WHAT THE POINTER GETS, and only the pointer. The verb is not echoed for a
-  // reader who never hovers, and that is the one place this app leaves a tip
-  // alone: the button's name is the note's own first line, "button" is what
-  // says it answers a press, and the press only puts a caret in those same
-  // words. An `sr-only` copy here would be one "Edit note" per ROW in a tree
-  // of hundreds — the open note says it once, where it is worth saying
-  // (`../NodeBody.tsx`).
   return (
     <Tip text="Edit note">
       <button
@@ -95,10 +43,6 @@ export function NoteLine(props: {
           props.onOpen?.(at)
         }}
       >
-        {/* `Index` rather than `For`: the runs are a fresh array of fresh
-            objects on every keystroke, so reference keying would tear down and
-            rebuild every mark and text node where position keying patches the
-            text in place. */}
         <Index each={props.runs}>
           {(run) => (
             run().lit

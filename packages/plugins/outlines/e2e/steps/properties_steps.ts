@@ -1,19 +1,3 @@
-/**
- * The run of chips under a node's title: what it shows, where a chip GOES when
- * it is pressed, what typing in one writes, and what the file says afterwards.
- *
- * Its own file for `date_steps.ts`' reason — a chip is a surface with a state
- * of its own — and it keeps the DISK assertions beside the screen ones rather
- * than in `editing_steps.ts`, because a property is named by a key the scenario
- * chose and the pair only reads as one claim together.
- *
- * THE PANEL IS GONE and so are its steps. A property used to be written in a
- * two-box form under the row, opened from the `•••`; it is written in the chip
- * now, where it is read. The steps below are shaped like that gesture: press a
- * chip's key, type, press Enter — with no Save button to name and no panel to
- * ask whether it is open.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -38,17 +22,9 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── the drawer ─────────────────────────────────────────────────────────
-
-/** One line of the drawer on one node, by KEY — never by position, so a
- *  scenario says which fact it is reading. */
 const line = (world: OlaiWorld, id: string, key: string) =>
   world.page.locator(`${nodeSelector(world.nodeId(id))} ${PROP}${attr("data-key", key)}`);
 
-/** WAITED FOR rather than read once, and that is not politeness: nothing here
- *  is echoed, so a chip says what the file says — which means a write made one
- *  step earlier lands on the frame the SERVER publishes, and a scenario that
- *  read the run the instant it typed would be reading the value it typed over. */
 Then(
   "the property {string} on {string} stays within the screen",
   async function (this: OlaiWorld, key: string, id: string) {
@@ -76,9 +52,6 @@ Then(
       },
       `\`${key}\` on ${JSON.stringify(id)} to hold ${JSON.stringify(value)}`,
     ).catch(() => {
-      // What it DREW, not only what it would not say: a chip that gains a word
-      // (a door's face beside its id, a warning folded into the run) reads as
-      // a value that never arrived, and the two are a long way apart to debug.
       assert.fail(`\`${key}\` on ${JSON.stringify(id)} draws ${JSON.stringify(drawn)}, not ${JSON.stringify(value)}`)
     });
   },
@@ -94,8 +67,6 @@ Then(
   },
 );
 
-/** A line the drawer draws and the menu does not offer to change: the node's
- *  own facts, which have verbs of their own. */
 Then(
   "the property {string} on {string} is read-only",
   async function (this: OlaiWorld, key: string, id: string) {
@@ -109,9 +80,6 @@ Then(
   },
 );
 
-/** No drawer AT ALL, which is not the same as an empty one: a row draws none
- *  until somebody has added a property, so a vault where nobody has looks
- *  exactly as it did before there were any. */
 Then(
   "the node {string} shows no drawer",
   async function (this: OlaiWorld, id: string) {
@@ -123,17 +91,6 @@ Then(
   },
 );
 
-// ── the doors ──────────────────────────────────────────────────────────
-
-/**
- * The `<a>` a value turned out to be, whatever kind of door it is — an app
- * `<Link>` and an external anchor are both anchors, which is what makes ONE
- * step able to say where any chip goes.
- *
- * Under the value rather than beside it, because `data-door` sits on the value
- * (`client/props/PropsDrawer.tsx`) and its ABSENCE is what a scenario asserts
- * when a value is meant to stay text.
- */
 const door = (world: OlaiWorld, id: string, key: string) =>
   line(world, id, key).locator(`${PROP_VALUE} [data-door] a`);
 
@@ -153,9 +110,6 @@ Then(
   },
 );
 
-/** A value that names nothing: drawn, readable, and NOT a link. The negative
- *  half of the rule, and the one worth a step of its own — a wrong door is
- *  worse than no door, so "no door" has to be assertable. */
 Then(
   "the property {string} on {string} is not a link",
   async function (this: OlaiWorld, key: string, id: string) {
@@ -174,10 +128,6 @@ Then(
   },
 );
 
-/** A door out of the app opens a tab of its own, and under the pair that keeps
- *  the far end from reaching back — the rule a link written into a note already
- *  follows (`client/markdown/rewrite.ts`). Asserted rather than clicked: a step
- *  that followed it would be a scenario waiting on somebody else's server. */
 Then(
   "the property {string} on {string} opens in a tab of its own",
   async function (this: OlaiWorld, key: string, id: string) {
@@ -201,9 +151,6 @@ When(
   },
 );
 
-/** THE RUN'S ORDER, key by key — the file's own, and never re-sorted. The whole
- *  list rather than "contains X", for the reason the breadcrumbs step asserts
- *  the whole trail: an order is only wrong relative to the rest of it. */
 Then(
   "the properties on {string} read {string}",
   async function (this: OlaiWorld, id: string, expected: string) {
@@ -212,8 +159,6 @@ Then(
     const wanted = expected.split(",").map((key) => key.trim());
     const drawn = async () =>
       await chips.evaluateAll((found) => found.map((one) => one.getAttribute("data-key") ?? ""));
-    // Waited for, for the reason the step above is: a write lands on the
-    // server's next frame, not on the keystroke that sent it.
     await this.waitUntil(
       async () => JSON.stringify(await drawn()) === JSON.stringify(wanted),
       `the run on ${JSON.stringify(id)} to read ${JSON.stringify(expected)}`,
@@ -222,8 +167,6 @@ Then(
   },
 );
 
-/** A value too long to be a fact, drawn as its first words. The presence of the
- *  fold is the claim; what it holds is asserted by opening it. */
 Then(
   "the property {string} on {string} is folded",
   async function (this: OlaiWorld, key: string, id: string) {
@@ -268,16 +211,6 @@ Then(
   },
 );
 
-// ── the editor, which is the chip itself ───────────────────────────────
-//
-// There is no panel and no Save button any more. A chip's KEY is its handle
-// and a value that is not a link is a second way in; Enter commits, Escape
-// cancels, leaving commits whatever changed, and clearing the box removes the
-// property — which is the op's own reading of an empty value, not a gesture
-// this face invented (`client/props/editor.ts`).
-
-/** The box open on ONE node — never `page.locator(PROP_EDIT)` alone, because a
- *  page draws a run per row and a step has to say which node it means. */
 const box = (world: OlaiWorld, id: string) =>
   world.page.locator(`${nodeSelector(id)} ${PROP_EDIT}`).first();
 
@@ -289,16 +222,6 @@ When(
   },
 );
 
-/**
- * The same gesture aimed at ONE HALF of a run drawing both — for the record
- * that carries a custom key spelling a field's name.
- *
- * `custom` is open all the way, so a hand-written `"custom":{"date":…}` sits
- * beside the `date` FIELD on a node's own page and two chips answer to the same
- * `data-key`. The suite's ordinary `line()` would match both and Playwright
- * would refuse the ambiguity; these two steps say which half a scenario means,
- * which is the same distinction `keyOf` draws in the markup.
- */
 const half = (world: OlaiWorld, id: string, key: string, system: boolean) =>
   world.page.locator(
     `${nodeSelector(world.nodeId(id))} ${PROP}${attr("data-key", key)}${
@@ -314,8 +237,6 @@ When(
   },
 );
 
-/** A system chip offers no way in at all: no key button, and no box inside it —
- *  which is the half the bare-key comparison used to open by accident. */
 Then(
   "the system property {string} on {string} offers no editor",
   async function (this: OlaiWorld, key: string, id: string) {
@@ -334,8 +255,6 @@ Then(
   },
 );
 
-/** HOW MANY boxes are open — one gesture opens one editor, and the count is the
- *  claim rather than the presence, because the bug this pins drew a second. */
 Then(
   "exactly {int} property editor is open on {string}",
   async function (this: OlaiWorld, count: number, id: string) {
@@ -347,9 +266,6 @@ Then(
   },
 );
 
-/** The other way in, and the one a reader reaches for first: the VALUE, where
- *  it is not a link. A step of its own because which half answered the press is
- *  the whole of the gesture ruling. */
 When(
   "I press the value of {string} on {string}",
   async function (this: OlaiWorld, key: string, id: string) {
@@ -376,14 +292,9 @@ Then(
   },
 );
 
-/** Type it and press Enter. `fill` then `Enter`, rather than the panel's old
- *  button, because the button is what went. */
 When(
   "I type {string} into the property editor on {string} without pressing Enter",
   async function (this: OlaiWorld, value: string, id: string) {
-    // Typed and LEFT there: clicking away is the OTHER commit, the one the
-    // Enter fix must not take with it — no key ever lands on the box, so the
-    // blur alone answers for the gesture.
     const open = box(this, id);
     await open.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await open.fill(value);
@@ -409,10 +320,6 @@ When(
   },
 );
 
-/** ...and the OTHER way out, which is not a way out at all: leaving the box
- *  commits what changed. A separate step from the row editor's own click-away
- *  (`editing_steps.ts`), which waits for the caret to leave a LINE — a chip is
- *  not one, and the receipt here is the box going. */
 When(
   "I click away from the property editor on {string}",
   async function (this: OlaiWorld, id: string) {
@@ -421,9 +328,6 @@ When(
   },
 );
 
-/** Nothing was said about a write, in either mood — which is what makes
- *  "opened a chip and left it alone" SILENT rather than refused. A refusal
- *  would be an alarm line under the run; a nudge would be a quiet one. */
 Then(
   "the node {string} says nothing about its properties",
   async function (this: OlaiWorld, id: string) {
@@ -435,8 +339,6 @@ Then(
   },
 );
 
-/** The `+` at the end of the run, and the two boxes it opens — the ONE place a
- *  key is ever typed, since a rename is two ops. */
 When("I add a property on {string}", async function (this: OlaiWorld, id: string) {
   await this.press(this.page.locator(`${nodeSelector(id)} ${PROP_ADD}`).first());
   await this.page
@@ -467,9 +369,6 @@ When(
   },
 );
 
-/** An existing chip's key is not typeable, and that is the format's rule rather
- *  than the box's: `outlines_prop` sets ONE key, so a rename is a removal and an
- *  addition. The KEY BOX is drawn only while a property is being NAMED. */
 Then(
   "the property editor on {string} offers no key box",
   async function (this: OlaiWorld, id: string) {
@@ -481,20 +380,6 @@ Then(
   },
 );
 
-/**
- * THE TWO RETURN KEYS OF ONE CHIP, which is the whole reason this is asserted
- * at all: the boxes do different things with Enter, so one cap for both would
- * lie about one of them.
- *
- * The KEY box's Enter moves the caret to the value box beside it and writes
- * nothing — `next`. The VALUE box's Enter commits the property and closes the
- * chip — `done`. The scenario that reads this goes on to write the property
- * with that value box's Enter, so the `done` cap is checked against the press
- * it labels rather than on its own.
- *
- * A key and a value are both NAMES rather than prose (`pr`, a URL, an agent's
- * id), so neither box is capitalised or corrected on the way in.
- */
 Then(
   "the property boxes on {string} ask for a Next key then a Done key",
   async function (this: OlaiWorld, id: string) {
@@ -511,23 +396,10 @@ Then(
   },
 );
 
-/**
- * Every box of the editor is on the screen and big enough for a thumb.
- *
- * The chip is a pill holding one or two boxes, which is comfortable at 1200pt
- * and a claim at 390. `min-h` is the other half: the app's rule for anything a
- * finger aims at is 44px, and these inputs carry `md:min-h-0`, so the phone
- * keeps the target and the laptop does not pay for it.
- *
- * Asked of the VIEWPORT rather than of a container, because what a person
- * cannot reach is what is off the screen (opencode's nit, review of #179).
- */
 Then(
   "the property editor on {string} fits the screen",
   async function (this: OlaiWorld, id: string) {
     const width = this.viewport().width;
-    // Waited for rather than counted once: the editor is opened by a gesture
-    // one step earlier, and Solid draws it on the next frame.
     await box(this, id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const boxes = this.page.locator(
       `${nodeSelector(id)} ${PROP_EDIT_KEY}, ${nodeSelector(id)} ${PROP_EDIT}`,
@@ -549,8 +421,6 @@ Then(
     }
   },
 );
-
-// ── and what the directory says ────────────────────────────────────────
 
 const customOf = (node: Record<string, unknown>): Record<string, unknown> =>
   (node["custom"] ?? {}) as Record<string, unknown>;
@@ -581,22 +451,6 @@ Then(
   },
 );
 
-/**
- * WHAT THE RUN SAID ABOUT A REFUSED WRITE — the typed-properties seam, read
- * where a person reads it.
- *
- * `says nothing about its properties` above is the silent half of the same
- * line; this is the loud one, and it is a separate step rather than a
- * parameter because the two are opposite claims and a scenario should not be
- * able to write the wrong one by leaving an argument off. The TONE is asserted
- * with the words: a refusal is an `alarm`, and a refusal drawn in the mood of a
- * remark is a sentence a reader is entitled to scroll past.
- *
- * The words are the OPS LAYER'S, verbatim, which is the whole claim — so the
- * step takes the fragment a scenario cares about and `saysThat` asks whether
- * the line contains it, rather than pinning a whole sentence that a better
- * wording would have to break a test to improve.
- */
 Then(
   "the node {string} refuses the property write with {string}",
   async function (this: OlaiWorld, id: string, said: string) {
@@ -619,10 +473,6 @@ Then("the vault node {string} has property {string} holding {string}", async fun
   }, `the stored property ${key} on ${name} to equal ${value}`);
 });
 
-/** The NEGATIVE of the step above, and it reads the vault rather than the row
- *  for the same reason: a draft chip is on screen while a value is being
- *  typed, so "no chip" would pass for a property that IS being written. What
- *  this says is that nothing reached the file. */
 Then("the vault node {string} has no property {string}", async function(this: OlaiWorld, name: string, key: string) {
   const file = await this.node(name).getAttribute("data-file");
   assert.ok(file);

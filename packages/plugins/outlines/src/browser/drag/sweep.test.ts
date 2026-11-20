@@ -1,19 +1,8 @@
-/**
- * The band's arithmetic: which rows a pull crosses, and which end is which.
- *
- * Rows are laid out at 20px each with no gap, so a y is easy to read as a row
- * number — the point of every case below is a RULE, and a fixture nobody can
- * hold in their head turns a failing rule into a puzzle about the fixture.
- */
-
 import { describe, expect, test } from "bun:test"
 
 import type { Line } from "./lines.ts"
 import { planSweep } from "./sweep.ts"
 
-/** Four rows down the page, the second and third indented — the shape that
- *  makes "a band is not a box" checkable: a rectangle drawn down the left of
- *  this would miss them. */
 const ROWS: ReadonlyArray<Line> = [
   { key: "/a", top: 0, bottom: 20, left: 100, right: 500 },
   { key: "/a/b", top: 20, bottom: 40, left: 132, right: 500 },
@@ -44,16 +33,10 @@ describe("planSweep", () => {
   })
 
   test("depth is not read at all: the deepest row is crossed like any other", () => {
-    // The whole of "a band, not a box". The pull is entirely to the LEFT of the
-    // indented rows' own left edge, and they are crossed regardless — a
-    // rectangle would have had to miss them.
     expect(planSweep(ROWS, 45, 55)?.run?.keys).toEqual(["/a/b/c"])
   })
 
   test("a band that touches a row's edge has crossed it", () => {
-    // Clipping the top pixel of a row and not picking it is the answer nobody
-    // means — this is deliberately not the drop planner's middle-crossing rule,
-    // which is choosing between two gaps rather than passing over a line.
     expect(planSweep(ROWS, 58, 60)?.run?.keys).toEqual(["/a/b/c", "/d"])
   })
 

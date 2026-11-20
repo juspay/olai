@@ -1,14 +1,3 @@
-/**
- * The two ends of the page seam that are still the browser's: the QUESTION a
- * route turns into, and the reading folded into the shape a filter narrows.
- *
- * WHICH PAGE AN ADDRESS NAMES is not here any more, and that is PR 10 of
- * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`: it was a pure function over the
- * tab's copy of every record in the directory, and it is now a reading the
- * server sends. Every claim that model made is made in `@olai/format`'s
- * `page.test.ts`, over the same shape of fixture, beside the parity that says
- * the answer equals what a browser would have derived.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { addressOf } from "@olai/format"
 import type { Agenda, Row, Shown } from "@olai/format"
@@ -18,8 +7,6 @@ import { drawnBy, fileOf, requestFor } from "./page.ts"
 import { atElement, atFile, atNode, defineAppRoute, HOME_ROUTE } from "olai-plugin-navigation/routes"
 
 const TODAY = "2026-08-10"
-
-// ── what the server is asked ───────────────────────────────────────────
 
 test("an address goes over as the address the parser read", () => {
   expect(requestFor(atFile("house.olai")))
@@ -40,25 +27,16 @@ test("a plugin route whose tenant vanished is not core's front page", () => {
   expect(requestFor(plugin.to("plugin"))).toBeNull()
 })
 
-// A `?q=` is a second question with a door of its own (`filter/asking.ts`), so
-// it must not reach this one — a page reading that carried the query would be
-// the whole page re-asked on every keystroke.
 test("the narrowing is dropped: it is not part of which page this is", () => {
   expect(requestFor({ ...atFile("house.olai"), filter: "is:todo" }))
     .toEqual(requestFor(atFile("house.olai")))
   expect(requestFor({ kind: "trash", filter: "is:todo" })).toEqual({ kind: "trash" })
 })
 
-// The ROUTE keeps the row — `landingOf` answers from it — and the request
-// keeps the FILE, because the outline page the row lands in is the same
-// outline its file spelled. Sent whole, a link to a row would re-ask the page
-// for each row of it.
 test("a row is the outline it sits in: its element is a landing, not a page", () => {
   expect(requestFor(atElement(TEST_CLAIMS, "house.olai", "install")))
     .toEqual(requestFor(atFile("house.olai")))
 })
-
-// ── which sidebar entry lights up ──────────────────────────────────────
 
 const ROW: Row = {
   at: { file: "garden.olai", line: 1, node: { id: "herbs", ord: "a0", title: "herbs" } },
@@ -78,8 +56,6 @@ test("the open outline is the one the page is of", () => {
     .toBe("notes/finishes.md")
 })
 
-// The point of asking the reading rather than the URL: `/#herbs-here` may be a
-// mirror living in house.olai, and the page it opens is in garden.olai.
 test("a zoomed node lights up the file its CANONICAL record is in", () => {
   expect(fileOf({
     kind: "node",
@@ -101,14 +77,10 @@ test("a page that names no node lights up nothing", () => {
     .toBeUndefined()
 })
 
-// ── what the page DRAWS, which is what a filter narrows ────────────────
-
 const NOTHING_OWED: Agenda = { overdue: [], today: [], upcoming: [] }
 
 test("an outline and a zoomed node are one shape: the tree they draw", () => {
   expect(drawnBy(OUTLINE)).toEqual({ kind: "tree", rows: [ROW] })
-  // A zoomed page's rows are its `children` — the same array `zoom` already
-  // walked, rather than the walk run a second time beside it.
   expect(drawnBy({
     kind: "node",
     backlinks: [],
@@ -131,8 +103,6 @@ test("a day and the agenda draw what they were answered with", () => {
 })
 
 test("the trash draws its groups, and keeps the FILES beside them", () => {
-  // Not the same list: what is drawn narrows with the query, and whether a pile
-  // is worth a file heading is a fact about the directory.
   expect(drawnBy({
     kind: "trash",
     files: ["_olai/Trash.olai"],
@@ -146,14 +116,6 @@ test("a page a query has nothing to say about draws none of it", () => {
     .toEqual({ kind: "none" })
   expect(drawnBy({ kind: "nothing", sought: "outline", requested: null }))
     .toEqual({ kind: "none" })
-  // …and the frame before the reading has arrived at all, which is the same
-  // nothing rather than a state of its own.
   expect(drawnBy(undefined)).toEqual({ kind: "none" })
 })
 
-// ── where a path of this vault opens ───────────────────────────────────
-
-/** The directory as this question is asked of it: the PATHS, in the order the
- *  directory holds them (`../client/directory.ts`). It was a list of faces
- *  until `perf-faces-broken-walk`, and every element of it was read for its
- *  `path` and nothing else. */

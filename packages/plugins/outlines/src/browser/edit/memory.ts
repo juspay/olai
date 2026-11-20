@@ -1,6 +1,3 @@
-/** Mutable draft state outlives a rebuild of its page; readers and DOM
- * listeners are recreated by the new editor. Sharing the queue also lets a
- * dispatched write settle before the remounted editor sends another one. */
 import { moveMemory } from "../move/memory.ts"
 import { createContext, useContext, createSignal } from "solid-js"
 import type { Draft, Pending, Slot } from "./draft.ts"

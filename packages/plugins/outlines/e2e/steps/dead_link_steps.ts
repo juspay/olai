@@ -1,5 +1,3 @@
-/** Missing-link findings, visible anchors, and their live repair. */
-
 import { TESTID } from "@olai/tests/harness/testids.ts";
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";

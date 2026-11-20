@@ -1,4 +1,3 @@
-/** The page-owned move gesture. Its state and write lifetime outlive the picker view. */
 import { type Accessor, batch, createEffect, createMemo, createSelector, createSignal } from "solid-js"
 import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@olai/format"
 import type { Edit } from "@olai/surface"
@@ -11,29 +10,7 @@ import { client } from "../../client.ts"
 import { applying } from "../writes.ts"
 
 export type Standing =
-  /** The picker is up on this row. */
   | { readonly kind: "picking"; readonly record: string; readonly place: string }
-  /**
-   * The picker is spent: a move landed, and what it SAID is still standing
-   * under the row — which is normally the row itself, drawn wherever it went.
-   *
-   * `under` is the fallback for the one case where following the row is not
-   * enough: a destination this page does not DRAW. A collapsed branch is the
-   * ordinary one (its children are not among the rows, deliberately —
-   * `../edit/order.ts` flattens what is on screen), and done-hidden is the
-   * other. The row is genuinely gone from the page, so it has no line of its
-   * own to hang the sentence under — and dropping it would lose the ops layer's
-   * `nudge` exactly when it has something to say.
-   *
-   * So the line falls back to the row it landed IN, which is drawn, is the
-   * nearest thing on screen to where it went, and — for the nudge this can
-   * actually carry — is a row the sentence is about anyway.
-   *
-   * NOT unfolding that branch instead: this app does not open what a reader has
-   * closed on their behalf (`../focus.ts` takes the same position for a chat
-   * reference pointing into a collapsed branch, and answers by navigating
-   * rather than by unfolding).
-   */
   | {
     readonly kind: "landed"
     readonly record: string
@@ -42,82 +19,23 @@ export type Standing =
   }
 
 export const createMoving = (
-  /** The rows on screen and what is folded — the same pair the caret and the
-   *  pick are found again through, and for the same reason. */
   page: {
     readonly rows: Accessor<ReadonlyArray<Row>>
     readonly collapsed: Accessor<ReadonlySet<string>>
   },
-  /**
-   * WHERE THE CARET GOES when the picker is dismissed — back into the row it
-   * was opened on.
-   *
-   * `⌘⇧M` is the keyboard door, and a keyboard door that leaves focus on
-   * `<body>` is a reader who has to reach for the pointer to get back into the
-   * outline. It is the rule the `•••` menu already keeps (`menu/Dropdown.tsx`'s
-   * `handBack`: a KEY gets the caret back, a pointer does not) and the picker
-   * is where it matters most, because there is no trigger element to restore —
-   * the row's own editor is where the reader was.
-   *
-   * Handed in rather than reached for, because the editor is made from this
-   * same page one line later (`../edit/Editable.tsx`) and the dependency runs
-   * one way: the editor knows the picker, and the picker knows one verb of the
-   * editor's. It takes the ROW, because opening a caret is a fact about a row
-   * and this module holds the place to find one at.
-   */
   back: (row: Row) => void,
   memory = moveMemory(),
 ) => {
   const undo = useUndo()
   const [heldStanding, setStanding] = memory.standing
-  /**
-   * THE DESTINATIONS BEING JUDGED — the ids the picker's shortlist is drawing
-   * right now.
-   *
-   * They are the STREAM'S ARGUMENT, which is why they live here rather than
-   * inside the panel: one subscription answers both halves of what this gesture
-   * needs to know — where the row now is, and which of these hits could take it
-   * — out of one revision of one set, so a refusal can never name a file the
-   * row has since left (`@olai/format`'s `moving.ts`).
-   *
-   * WHAT THE PANEL HANDS UP IS THE ACCESSOR, once, and what is here is a
-   * DERIVATION of it — not a report pushed on every answer. The push was an
-   * effect reading the hits and setting a signal this reads, which is a
-   * derivation spelled as a round trip through state: three hops for a value
-   * that is a function of one, and the shape that hid the two defects below
-   * (the request rebuilt when nothing about it moved). A list is what knows its
-   * hits and this is what asks about them; one line between the two, and it is
-   * an accessor.
-   *
-   * TWO NAMES for the two halves, and they are two things rather than one
-   * spelled twice: `hitIds` is WHOSE reading this is and `aimed` is WHAT IT
-   * SAYS, by value.
-   *
-   * WHOSE, exactly: {@link NONE} before any list has mounted; the open list's
-   * accessor while one is; a SPENT one after it goes, because a shortlist does
-   * not hand its list back as it unmounts (`../search/Shortlist.tsx` says why
-   * — the door's question would change at the moment the panel closes, which
-   * here is a subscription re-opened to say the gesture is over). A spent one
-   * is never read, because the request below asks nothing with no row standing
-   * — and `open` puts it down before the next row stands, so the panel that
-   * follows starts from nothing rather than from the last list's rows.
-   */
   const [hitIds, setHitIds] = createSignal<Accessor<ReadonlyArray<string>>>(NONE)
   const aimed = createMemo<ReadonlyArray<string>, undefined>(() => hitIds()(), undefined, {
-    // BY VALUE, because the shortlist's hits are a fresh array on every answer
-    // and BOTH readers of this want the destinations rather than the array: the
-    // request below, whose own equality would then absorb it, and `refusals`,
-    // which rebuilds a `Map` per run and is the reader this actually spares.
     equals: sameIds,
   })
-  /** How long the line lingers, and what clears it, is the client's ONE
-   *  receptacle for that (`../saying.ts`) rather than a fourth timer here. */
   const saying = createSaying()
   const [sending, setSending] = memory.sending
   const [judging, setJudging] = memory.judging
 
-  /** Keep the gesture's record and original place; resolve its current place
-   * from the drawn tree without publishing a second corrective state. */
   const located = createMemo((previous: { source: Standing | null; value: Standing | null } | undefined) => {
     const source = heldStanding()
     const held = previous?.source === source ? previous.value : source
@@ -134,42 +52,12 @@ export const createMoving = (
   const standing = () => located().value
   const showing = createSelector(() => standing()?.place)
 
-  /**
-   * WHAT THE SET SAYS ABOUT THIS MOVE — the row as it stands, and a verdict per
-   * destination.
-   *
-   * A SUBSCRIPTION rather than a question asked once, which is the same shape
-   * the reading of a page is and for the same reason: a panel stands open while
-   * anybody writes, and what it judges has to be where the row has actually got
-   * to. It was a walk of the tab's own copy of the vault
-   * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`); the rules did not move, the set
-   * did (`@olai/format`'s `moving.ts`).
-   *
-   * A `null` INPUT with no panel open, which is the framework's own way of
-   * holding a subscription closed: a row nobody is moving is a question nobody
-   * is asking.
-   *
-   * A MEMO WITH AN EQUALITY, and the equality is the whole of it. A stream's
-   * input is not compared — the framework re-subscribes whenever the input
-   * NOTIFIES (`@kolu/surface`'s `createReactiveSubscription`) — so an accessor
-   * minting a fresh object per run re-asks on every notification of anything it
-   * touched. `standing` is such a notification on every frame the row's drawn
-   * place moves under it (the effect above re-files it, which is its job), and
-   * the question is about the RECORD and the destinations, neither of which
-   * moved. Un-guarded, another writer's edit tore this down, blanked the answer
-   * for a round trip, and un-dimmed every refused row in the open list before
-   * re-dimming it.
-   */
   const request = createMemo<MovingRequest | null, undefined>(
     () => {
       const held = standing()
       return held === null ? null : { record: held.record, to: judging() ?? aimed() }
     },
     undefined,
-    // The FORMAT's own equivalence over the request, beside the one the server
-    // holds its answers by (`@olai/format`'s `sameMovingRequest`) — a
-    // hand-written pair of field comparisons here would be the same two fields
-    // spelled a second time, free to forget the third.
     {
       equals: (a, b) => a === null || b === null ? a === b : sameMovingRequest(a, b),
     },
@@ -177,32 +65,14 @@ export const createMoving = (
 
   const answer = client().streams.moving.use(request)
 
-  /**
-   * The row being moved — `undefined` for a record the set no longer declares,
-   * which is what closes the panel rather than leaving it pointing at nothing.
-   *
-   * IT HOLDS ACROSS A RE-ASK, which is the difference between the two absences
-   * this memo has to tell apart. A subscription's value resets to `undefined`
-   * between an input change and the first frame of the new one, and the input
-   * changes every time the shortlist answers with different hits — so a memo
-   * that read it straight through would take the panel off the screen and put
-   * it back on every search, restarting the search that caused it. `null` is
-   * the set's own answer that this record is gone, and that one closes it.
-   */
   const moved = createMemo<Moved | undefined>((held) => {
     const record = standing()?.record
     if (record === undefined) return undefined
     const said = answer()
-    // …and a HELD row is only kept for the row it is about: opening the picker
-    // on another row must not draw the last one's title for a frame.
     if (said === undefined) return held?.id === record ? held : undefined
     return said.moved ?? undefined
   })
 
-  /** …and why each destination cannot take it, by id. The answer's verdicts are
-   *  IN THE ORDER ASKED, so they are paired back up with the ids that were
-   *  sent — and with the ids on the ANSWER's own reading of that request rather
-   *  than with whatever the shortlist is showing a frame later. */
   const refusals = createMemo<ReadonlyMap<string, string>>(() => {
     const said = answer()?.refusals ?? []
     const asked = aimed()
@@ -216,27 +86,13 @@ export const createMoving = (
 
   const write = (edit: Edit): void => {
     if (sending()) return
-    // A write spends the shortlist. Keep the question it answered while the
-    // write and its sentence are alive; unmounting that list must not open a
-    // new subscription with its now-empty destinations.
     setJudging(aimed())
     setSending(true)
-    // WHERE IT IS GOING, remembered before the answer: the verb carries the
-    // destination, and after the write lands it is the only thing that can
-    // find a row this page has stopped drawing ({@link Standing.landed}).
     const under = edit.verb === "under" ? edit.parent : undefined
-    // Cleared BEFORE the attempt rather than after it, which is the menu's own
-    // rule: a write that takes a moment would otherwise sit under the last
-    // one's sentence, and that reads as this one's answer.
     saying.say(null)
     void applying(edit, undo.record)
       .then((said) => batch(() => {
         saying.say(said)
-        // …and a landed write SPENDS the picker: the row is somewhere else now,
-        // so the panel goes rather than offering to move it again from a list
-        // answering a question about where it used to be. The gesture becomes
-        // its other arm — the sentence, standing under the row, wherever
-        // `refound` above finds it.
         if (said?.tone === "alarm" || under === undefined) { setJudging(null); return }
         setStanding((held) =>
           held === null
@@ -247,16 +103,6 @@ export const createMoving = (
       .finally(() => setSending(false))
   }
 
-  /**
-   * Put the picker away, and hand the caret back to the row it was opened on.
-   *
-   * The row is looked up in what is DRAWN now rather than remembered from the
-   * open: a panel can stand through another writer's frame, and the row it is
-   * about may have been redrawn at a new place since (which is what `refound`
-   * above keeps `standing.place` honest through). A row that has left the page
-   * altogether takes nothing back — there is nowhere for a caret to go, and
-   * putting one somewhere else would be worse than leaving it where it is.
-   */
   const close = (): void => {
     const held = standing()
     setStanding(null)
@@ -277,22 +123,8 @@ export const createMoving = (
     saying,
     query: memory.query,
     open: (at: { readonly record: string; readonly place: string }) => {
-      // A stale sentence about the LAST move, hanging over a panel somebody has
-      // just opened to make another one, is a sentence about nothing they can
-      // see.
       saying.say(null)
-      // …and neither are the last panel's DESTINATIONS. The shortlist hands its
-      // own list up when it mounts, which is after this, so a picker that did
-      // not put the old ones down opens by asking the set to judge its row
-      // against rows nobody is showing — and then asks again, correctly, when
-      // the new list arrives. Opening is the moment the gesture starts, so it
-      // is the moment the question does.
-      //
-      // BATCHED so it is one question and not two: both of these feed the
-      // request, and written apart each would open a subscription of its own.
       batch(() => {
-        // `() => NONE` and not `NONE`: a function handed to a setter is an
-        // updater, so an accessor is set through one that answers with it.
         setJudging(null)
         setHitIds(() => NONE)
         memory.query[1]("")
@@ -303,9 +135,4 @@ export const createMoving = (
   }
 }
 
-/** No destinations, because no list is showing — what {@link createMoving}'s
- *  `hitIds` holds before the first shortlist has handed up its own reading, and
- *  what `open` puts it back to for every panel after that. The array is fresh
- *  per call and that costs nothing: what reads it compares by value
- *  ({@link ../ids.ts}), so an empty list is an empty list. */
 const NONE = (): ReadonlyArray<string> => []

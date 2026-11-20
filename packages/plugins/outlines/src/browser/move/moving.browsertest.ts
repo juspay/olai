@@ -1,4 +1,3 @@
-/** Drive the page gesture without mounting a picker: its lifetime is the subject. */
 import { expect, test } from "bun:test"
 import { createEffect, createRoot, createSignal, type Accessor } from "solid-js"
 import { Effect, Result } from "effect"

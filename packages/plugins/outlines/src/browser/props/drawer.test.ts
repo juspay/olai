@@ -1,13 +1,3 @@
-/**
- * What the drawer draws, without a browser: which chips, in what order, as what
- * text.
- *
- * The decisions the component does not make, and the ones that go quietly
- * wrong — a fact drawn twice on one screen, an order that changes under the
- * reader between one frame and the next. WHERE A CHIP GOES when it is pressed
- * is the other half and has its own file (`./door.test.ts`).
- */
-
 import { customOf, type RegularNode } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -18,15 +8,10 @@ const nodeOf = (record: string): RegularNode =>
   recordsOf(setOf({ "a.olai": record }))[0]?.node as RegularNode
 
 test("the id is always a line, because nothing else on the page says it", () => {
-  // The ruling this file was rewritten for: an id is what every tool call and
-  // every `((` reference takes, and it was readable nowhere.
   expect(systemEntries(nodeOf(`{"id":"order","ord":"a0","title":"t"}`)))
     .toEqual([{ key: "id", value: "order", values: ["order"], system: true, listed: false }])
 })
 
-/** The mark is ONE line holding both of what the field holds. The record has
- *  one field carrying two facts, and splitting them here would be the drawer
- *  inventing a shape the format does not have. */
 test("the mark is one line, with its instant when it has one", () => {
   expect(systemEntries(nodeOf(`{"id":"n","ord":"a0","title":"t","doing":true}`))[1])
     .toEqual({ key: "status", value: "doing", values: ["doing"], system: true, listed: false })
@@ -41,9 +26,6 @@ test("the mark is one line, with its instant when it has one", () => {
 })
 
 test("a date is a line; a note and the edges are not", () => {
-  // What is in the system half is exactly the facts with nowhere else to show.
-  // `see` is a reference row under the note, `desc` is the note — repeating any of them here would put two spellings of one
-  // fact on one screen.
   const node = nodeOf(
     `{"id":"n","ord":"a0","title":"t","date":"2026-08-10","desc":"a note","see":["y"],"after":["z"]}`,
   )
@@ -51,8 +33,6 @@ test("a date is a line; a note and the edges are not", () => {
 })
 
 test("the stamps are drawn when the node has them, and never invented", () => {
-  // Absent is the ordinary state of a node written before olai stamped
-  // anything, and the drawer says what the record says.
   expect(systemEntries(nodeOf(`{"id":"n","ord":"a0","title":"t"}`)).map((one) => one.key))
     .toEqual(["id"])
   const stamped = nodeOf(
@@ -68,22 +48,9 @@ test("the custom half is what somebody added, and nothing else", () => {
   expect(customEntries(customOf(node))).toEqual([
     { key: "pr", value: "https://x/1", values: ["https://x/1"], system: false, listed: false },
   ])
-  // ...and the whole drawer is the facts first, then the properties.
   expect(drawerEntries(node).map((entry) => entry.key)).toEqual(["id", "status", "date", "pr"])
 })
 
-/**
- * THE FILE'S OWN ORDER, and never alphabetical — the two are not the same
- * sentence even though they usually agree.
- *
- * A record OLAI wrote is alphabetical on disk because the writer canonicalises,
- * so that two files meaning the same thing are byte for byte the same
- * (`@olai/format`'s `custom.ts`). A record a hand or an agent edited holds its
- * keys in the order the person thought about them in, and the parse keeps that
- * order all the way here. Sorting at the draw would take the author's order
- * away in the one case where there is one, to no gain in the case where there
- * is not.
- */
 test("the custom chips are in the file's own order, whatever order that is", () => {
   const canonical = nodeOf(
     `{"id":"n","ord":"a0","title":"t","custom":{"agent":"claude-opus","pr":"https://x/1","terminal":"485cd9bb"}}`,
@@ -99,8 +66,6 @@ test("the custom chips are in the file's own order, whatever order that is", () 
 })
 
 test("a list is drawn joined, says that it is one, and keeps its members", () => {
-  // The joined string is what a search row draws (`../search/props.ts`); the
-  // members are what the run asks the door question of, one at a time.
   const node = nodeOf(`{"id":"n","ord":"a0","title":"t","custom":{"tags":["a","b"]}}`)
   expect(customEntries(customOf(node)))
     .toEqual([{ key: "tags", value: "a, b", values: ["a", "b"], system: false, listed: true }])
@@ -113,9 +78,6 @@ test("a value that is TEXT is one member, so the run has one rule and not two", 
 })
 
 test("a document's frontmatter is the same run, over the map", () => {
-  // `customEntries` takes the map, not a carrier — so a document's Face.props
-  // spends the same spelling a record's custom does, and a list is joined
-  // here once rather than in two drawers.
   expect(customEntries({
     agent: "claude-opus",
     owners: ["alice", "bob"],

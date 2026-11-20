@@ -5,9 +5,6 @@ import { createFocusState, holdFocusState } from "./browser/focus.ts"
 import { createRowElements, rowElements } from "./browser/row-elements.ts"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
-/** Outlines owns editor history, selection/drag registers, page readings and
- * browser preferences. These resources live in the provider activation, before
- * and independently of any layout. Content and settings are separate consumers. */
 import type {} from "olai-plugin-chat/slots"
 import { fileOf, story } from "./browser/replyFace.tsx"
 
@@ -74,41 +71,11 @@ import { connectionReadout } from "@olai/web/client/wire.ts"
 import { client } from "./client.ts"
 import { reachable } from "@olai/web/client/connection/reaching.ts"
 
-/**
- * WHAT THIS ROW OWNS IN A TAB, built once and OFFERED — not announced.
- *
- * `browser-state` used to be `Offers.own("browser-state", () => ({}))`: a
- * service carrying nothing at all, while every value it is named after went
- * into a module variable beside it. Cordis saw the announcement and none of the
- * consumers, which is the audit's §2 in one line.
- *
- * The values are on the service now — the sibling client, the undo stack, the
- * page readings, the two drag registers, this row's own naming of a node and
- * the overlay socket — so a consumer that named `outlines.browser-state` is
- * handed the state rather than a permission to go and find it.
- *
- * THE PRIVATE HOLDERS STAY, and they are the same activation's. A face three
- * levels inside a row cannot be handed an `apply`'s value, and each of those
- * holders installs exactly what is offered here and clears it by identity when
- * this scope closes — which is what makes them helpers rather than a second
- * ownership. What they are NOT is a door: none of them is exported through this
- * package's contracts, so no other package can reach one, and
- * `@olai/bundle`'s fence holds that.
- *
- * `outlines.references` is offered BESIDE it rather than folded into it,
- * because its consumer is a different package with a different lifetime: the
- * chat panel wants the naming of a node and must not be taken away when this
- * row stops (`./contracts/references.ts`).
- */
 export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slots], apply: Effect.gen(function*() {
     const landingTable = yield* Landings
     yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
-  // `Edits` rather than pushed into a module-scope map in a general package
-  // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
-  // beside it is how this row's faces spend the same table (`./browser/writes.ts`).
   const edits = yield* Edits
   yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
@@ -144,34 +111,21 @@ export const components = {
     yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "outline", article: "an", testid: KIND_IDS.outlineLink }, { key: fileKindKey(by) })
   }) }),
   palette, messages, "document-properties": documentProperties,
-  /** The shell's geometry, DECLARED — a component of its own because content
-   *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
-   *  that waited for this one could not (`./browser/shell.ts`). */
   shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
     const geometry = yield* appShell
     yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
   }) }),
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, Faces, gestures], apply: Effect.gen(function*() {
-    // The row doors, row verbs and kind dressings other plugins hang — held for
-    // this activation, which is the one that draws every page they appear on
-    // (`./browser/faces.ts`).
     yield* holdFaces(yield* Faces)
-    // The app's URL grammar, for the routes this page prints and parses
-    // (`./browser/routing.ts`).
     const served = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
-    // ...and the clock a date badge is drawn against (`./browser/clock.ts`).
     const clock = yield* Clocks
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))
-    // ...and the arbiter that eats the ghost click a long press leaves behind
-    // (`./browser/gestures.ts`).
     const touch = yield* gestures
     yield* Effect.acquireRelease(Effect.sync(() => holdGestures(touch)), stop => Effect.sync(stop))
     const slots = yield* rendererSlots
-    // ...and the walks over the locations this page draws, from the same
-    // renderer (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
     const Page = () => <OutlinePageView />
     yield* slots.contribute(pages, { by: { holds: "nodes" }, edits: true, page: Page }, { key: fileKindKey({ holds: "nodes" }) })
@@ -191,23 +145,14 @@ export const components = {
     yield* slots.contribute(titles, NodeTitle)
     yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.claims().byKind.get(served.kindOf(meaning.file) ?? "")?.holds === "nodes" ? atFile(meaning.file) : undefined)
   }) }),
-  /** The file controls this row draws, DECLARED — a component of its own so a
-   *  page with no files row mounted is a whole page (`./browser/files.tsx`). */
   "file-controls": definePlugin({ name: "file-controls", needs: [fileState], apply: Effect.gen(function*() {
     const controls = yield* fileState
     yield* Effect.acquireRelease(Effect.sync(() => holdFileControls(controls)), stop => Effect.sync(stop))
   }) }),
-  /** The pinned shelf, DECLARED — a component of its own so an outline with no
-   *  pins row mounted is a whole outline, with no glyph on a row
-   *  (`./browser/pins.ts`). */
   shelf: definePlugin({ name: "shelf", needs: [pinnedShelf], apply: Effect.gen(function*() {
     const shelf = yield* pinnedShelf
     yield* Effect.acquireRelease(Effect.sync(() => holdPins(shelf)), stop => Effect.sync(stop))
   }) }),
-  /** The matcher, DECLARED — a component of its own so the outline keeps
-   *  editing and navigating when the row leaves, and its completions and
-   *  shortlists say *no matcher* rather than disappearing
-   *  (`./browser/search.ts`). */
   matcher: definePlugin({ name: "matcher", needs: [readings], apply: Effect.gen(function*() {
     const reading = yield* readings
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
@@ -215,11 +160,6 @@ export const components = {
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
     yield* (yield* rendererSlots).contribute(fileTypes, { making: outlineMaking, Create: NewOutline })
   }) }),
-  /** The backlinks section's open-state memory, DECLARED — a component of its
-   *  own so the outline keeps editing and navigating when the markdown row
-   *  leaves: this component sits `waiting`, and the backlinks section reads
-   *  the empty answer (collapsed) rather than this row turning off with it
-   *  (`./browser/backlinks/memory.ts`, the `document-properties` pattern). */
   backlinks: definePlugin({ name: "backlinks", needs: [referrerMemory], apply: Effect.gen(function*() {
     const memory = yield* referrerMemory
     yield* Effect.acquireRelease(Effect.sync(() => backlinksMemory.hold(memory)), stop => Effect.sync(stop))

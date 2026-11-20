@@ -1,5 +1,3 @@
-/** A node's home is re-asked on the wire's own clock: a call dropped by a
- *  redial (busy) is asked again when the next connection is established. */
 import { afterAll, expect, mock, test } from "bun:test"
 import { Effect } from "effect"
 import { createRoot, createSignal } from "solid-js"
@@ -20,7 +18,6 @@ mock.module("@olai/web/client/wire.ts", () => ({
   connectionEpoch: epoch,
 }))
 const { nodeHome } = await import("./home.ts")
-/** One task: every promise the fake wire settled has been heard. */
 const settled = () => new Promise(resolve => setTimeout(resolve, 0))
 
 test("a busy answer waits for the next connection, then answers", async () => {

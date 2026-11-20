@@ -1,12 +1,3 @@
-/**
- * Empty drafts at one place: the parked ones first (Enter Enter Enter), then
- * the live caret if it is here. Tree and StartLine both draw this, so there
- * is one wiring of NewRow rather than two that can disagree about blur,
- * resume, or which input takes the caret.
- *
- * Parked inputs do not take focus; clicking one resumes it.
- */
-
 import { Key } from "@solid-primitives/keyed"
 import { createMemo } from "solid-js"
 
@@ -19,12 +10,6 @@ export function Ghosts(props: {
   readonly parked: ReadonlyArray<Pending>
   readonly live: Ghost | undefined
 }) {
-  // One keyed list preserves the input when its slot changes from parked to
-  // active. Removing from one list and adding to another loses browser focus.
-  //
-  // A PARKED blank is a ghost too, and its address is the one thing the two
-  // have to agree about: the slot it minted (`./draft.ts`'s `Ghost`). That is
-  // what makes this list's KEY the same key either side of a landing.
   const drafts = createMemo(() => {
     const live = props.live
     const parked = props.parked
@@ -39,9 +24,6 @@ export function Ghosts(props: {
   )
 }
 
-/** Slot is captured as a string at mount: a blur fires as this row unmounts
- *  (Enter spent the draft, a mirror took its place), and reading the
- *  `<Show>`/`<Key>` accessor then is the stale-value throw. */
 function GhostRow(props: {
   readonly line: Ghost
   readonly active?: boolean

@@ -14,8 +14,6 @@ Feature: Keyboard editing
 
   Background:
     Given I open the outline "house.olai"
-    # These scenarios tick rows off and keep reading them, so finished work
-    # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
     And I mark the page
 
@@ -34,18 +32,10 @@ Feature: Keyboard editing
     And the row being typed holds "choose the handles"
 
   Scenario: A draft is an editor until something commits it
-    # The no-optimistic-UI rule from the other side: what is typed is nowhere
-    # near the disk until one of the three moments — and then it is. Both
-    # halves, because either one alone is half the promise: a client that never
-    # wrote would pass the first, and one that wrote per keystroke the second.
     When I click the title of "knobs"
     And I select all and type "pick the little brass knobs"
     Then "house.olai" holds no node titled "pick the little brass knobs"
     And "house.olai" holds a node titled "pick the knobs"
-    # Idle is the third moment (blur and Enter are the other two, and have
-    # scenarios of their own): stop typing, and it goes. The editor stays open
-    # — a commit is not a reason to take the caret away — so the row is asked
-    # of the page only after the caret leaves it.
     Then "house.olai" holds a node titled "pick the little brass knobs"
     When I press "Escape"
     Then the node "knobs" has the title "pick the little brass knobs"
@@ -65,12 +55,6 @@ Feature: Keyboard editing
     And no row is being edited
 
   Scenario: Blur commits a BRAND-NEW line, and leaves it too
-    # The same promise for the other kind of draft, and it was half kept: the
-    # line was written and the caret stayed in the row it had just made. A
-    # blur closes the draft only when the editor it came from is still the open
-    # one, and committing a new line REPLACES that draft with the row it wrote
-    # — a different slot — so the guard read "the reader went somewhere else"
-    # about a reader who had gone nowhere.
     When I click the title of "handles"
     And I press "Enter"
     And I type "measure the alcove"
@@ -82,8 +66,6 @@ Feature: Keyboard editing
     When I click the title of "handles"
     And I press "Enter"
     Then a new row is being typed
-    # Still nothing on disk: an empty new row is not a node, which is why
-    # `Enter` opens an editor rather than writing a blank record.
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
     When I type "measure the alcove"
     And I press "Enter"
@@ -91,9 +73,6 @@ Feature: Keyboard editing
     And the page has not reloaded
 
   Scenario: Enter Enter Enter lays out three empty drafts, and writes none of them
-    # Outlining is sketching blanks. Empty titles are still illegal on disk, so
-    # each line is a local draft until it has words — but the drafts stay on
-    # the page, so a skeleton can be laid out and filled in.
     When I click the title of "handles"
     And I press "Enter"
     And I press "Enter"
@@ -102,10 +81,6 @@ Feature: Keyboard editing
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
   Scenario: Enter at the start of a line inserts a draft above it
-    # Workflowy's "make space": caret at column 0, Enter, a blank above, the
-    # words you were on stay where they were. Still a draft, still nothing on
-    # disk. What it must not do is teleport the caret to the floor of the
-    # subtree — that is what Enter at the END of the line does.
     When I click the title of "kitchen"
     And I put the caret at the start of the line
     And I press "Enter"
@@ -115,9 +90,6 @@ Feature: Keyboard editing
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
   Scenario: A titled column-0 draft lands above the row it was opened on
-    # The gate above asks the boxes; this one asks the file. `shows exactly
-    # the nodes` is a multiset, so "nothing extra was written" is not "written
-    # here".
     When I click the title of "kitchen"
     And I put the caret at the start of the line
     And I press "Enter"
@@ -127,8 +99,6 @@ Feature: Keyboard editing
     And the node titled "garage" comes before "kitchen"
 
   Scenario: Clicking a parked draft after titling the live one keeps it above
-    # Resume used to capture the ghost before the commit that re-aims it, so
-    # the blank above `garage` opened below it.
     When I click the title of "kitchen"
     And I put the caret at the start of the line
     And I press "Enter"
@@ -152,7 +122,6 @@ Feature: Keyboard editing
     When I type "garage"
     And I focus the first parked row and type "driveway" immediately
     Then "house.olai" holds a node titled "garage"
-    # Pausing after those early characters must still trigger the idle save.
     And "house.olai" holds a node titled "driveway"
     And the node titled "driveway" comes before the node titled "garage"
     And the node titled "garage" comes before "kitchen"
@@ -168,17 +137,12 @@ Feature: Keyboard editing
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
   Scenario: The line being typed sits where the row will sit
-    # A new sibling is drawn at the depth it will HAVE, not one step out of it:
-    # the draft reserves the same gutter a row does (the `•••` cell and the
-    # collapse triangle), so the line a person types is the line they get.
     When I click the title of "hinges"
     And I press "Enter"
     Then a new row is being typed
     And the row being typed lines up with the title of "hinges"
 
   Scenario: The row holding the caret says so
-    # Walking with the arrows moved a blinking cursor and nothing else, which
-    # in a tree of a hundred rows is a pixel nobody finds.
     When I click the title of "handles"
     Then the row "handles" holds the caret
     And no other row holds the caret
@@ -194,28 +158,16 @@ Feature: Keyboard editing
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
   Scenario: Backspace deletes the empty blank and aims the caret at the line above
-    # Reported on the #493 build: Backspace in the line Enter had just opened
-    # met the refusal "a node needs a title". There is nothing to refuse —
-    # nothing was ever written: the key is the abandon-with-aim Escape is
-    # not. The sketch dies — it is NOT parked — and the caret lands at the
-    # END of the line above, exactly where a merging Backspace would have
-    # left it had the sketch held words.
     When I click the title of "handles"
     And I press "Enter"
     Then a new row is being typed
     When I press "Backspace"
     Then the row being typed holds "choose the handles"
     And the caret is at offset 18
-    # And nothing happened on the way there: no add, no refusal, no node the
-    # blank could have become.
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
     And there should be no page errors
 
   Scenario: Backspace over a blank walks a skeleton back up one line at a time
-    # The same key when the line above is a PARKED blank: Enter Enter laid
-    # two empties down, and Backspace kills the live one and resumes the one
-    # above it — a blank is a line the arrow keys already stop on, and the
-    # caret aims at the next line up the eye would reach, written or not.
     When I click the title of "handles"
     And I press "Enter"
     And I press "Enter"
@@ -223,8 +175,6 @@ Feature: Keyboard editing
     When I press "Backspace"
     Then a new row is being typed
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
-    # And the resumed line is the live one: what is typed goes into it, at
-    # the seat it was parked at.
     When I type "measure the alcove"
     And I press "Enter"
     Then "house.olai" holds a node titled "measure the alcove"
@@ -243,8 +193,6 @@ Feature: Keyboard editing
     And I press "Tab"
     Then the refusal says "no row above to indent under"
     And the node "handles" is a child of "install"
-    # And the row goes on working: a refused key writes nothing and changes
-    # nothing about the editor it was pressed in.
     When I select all and type "choose the brass handles"
     And I click away from the editor
     Then "house.olai" holds a node titled "choose the brass handles"
@@ -256,9 +204,6 @@ Feature: Keyboard editing
     And the page has not reloaded
 
   Scenario: Enter, Tab, a title, Enter writes a child of the row above
-    # A blank takes the structure keys the moment it is a blank: the shape is
-    # laid out BEFORE any words, and the ONE write holds the shape the person
-    # sketched. A blank that only a title can move is a placeholder, not a row.
     When I click the title of "install"
     And I press "Enter"
     Then a new row is being typed
@@ -269,11 +214,6 @@ Feature: Keyboard editing
     And "house.olai" holds a node titled "measure twice" under "install"
 
   Scenario: the Tab seat of a CHILDLESS row is drawn, not air
-    # The seat the first Tab gives a blank under a childless row must be ON
-    # THE PAGE — an editor nobody can see, minted fresh by the Tab, was the
-    # bug. Since a parked blank drawn under a row and a live one at its
-    # ABSENT seat are told apart purely by geometry, the depth is measured
-    # by the box, on the page, e2e.
     When I click the title of "knobs"
     And I press "Enter"
     And I press "Tab"
@@ -282,10 +222,6 @@ Feature: Keyboard editing
     And the row being typed is drawn at the child depth of "knobs"
 
   Scenario: Tab seats a blank as the last child of the row above, one level in
-    # `kitchen`'s subtree ends with kitchen-herbs' WHOLE flight — under the
-    # wrong reading one Tab sat the blank at the floor of THAT, two levels
-    # deep (the human's review of #493). One level: the child `kitchen`
-    # would append, which is the rule a written row's Tab already follows.
     When I click the title of "kitchen"
     And I press "Enter"
     And I press "Tab"
@@ -295,8 +231,6 @@ Feature: Keyboard editing
     And "house.olai" holds a node titled "the mugs go in the old pantry" under "kitchen"
 
   Scenario: Tab UNFOLDS the branch it seats a blank in
-    # Indenting into a collapsed branch must not commit a caret into an
-    # invisible fold — Workflowy's answer: the branch opens on the way.
     When I collapse the node "install"
     And I click the title of "install"
     And I press "Enter"
@@ -308,13 +242,6 @@ Feature: Keyboard editing
     Then "house.olai" holds a node titled "mount the crown moulding" under "install"
 
   Scenario: Alt+Shift+Up steps past the parked blanks to the row above
-    # Three empties at one anchor: the plain arrows stop on each of them,
-    # because a blank is a line the eye lands on. The SHAPE keys do not, and
-    # it is the same rule all four of them keep — what one answers with is an
-    # anchor, anchors name records, and "between two lines nobody has written"
-    # is a place no anchor can spell. So the press crosses the sketch to the
-    # nearest real row and seats the blank one slot over it: above `knobs`,
-    # which is where `hinges` already ends.
     When I click the title of "knobs"
     And I press "Enter"
     And I press "Enter"
@@ -325,19 +252,12 @@ Feature: Keyboard editing
     And the row being typed is drawn immediately above the title of "knobs"
 
   Scenario: a blank among rows keeps the outline's line rhythm
-    # Reported on the #493 build: gaps between lines wobbled wherever a draft
-    # stood — "inconsistent gap between list items overall (empty ones in
-    # particular)". The blank carried the row's gutter WIDTHS but not its
-    # line arithmetic: no `my-0.5` around it, no `py-1` on the line — 12px
-    # shorter than every neighbour. Measured against two real rows.
     When I click the title of "knobs"
     And I press "Enter"
     Then a new row is being typed
     And the row being typed stands the same line below "knobs" as that row stands below "hinges"
 
   Scenario: A blank takes Shift+Tab back out, before it is written
-    # The same shape key the other way: the indent was the shape's, not a
-    # write's — so the un-indent is the blank's too, and nothing on disk moved.
     When I click the title of "install"
     And I press "Enter"
     And I press "Tab"
@@ -348,11 +268,6 @@ Feature: Keyboard editing
     And the node titled "regrout the bar" comes before "kitchen-herbs"
 
   Scenario: Shift+Tab of a line with words keeps the caret in it
-    # The written half: the line exists the moment the key asks for it, so
-    # the press is a commit and a `move out` — and the row is redrawn where
-    # the file says it now is, which in a browser takes the focus off it.
-    # Reported on the #493 build: the outdent landed and the caret went
-    # nowhere — the next keystroke had no editor.
     When I click the title of "knobs"
     And I press "Enter"
     And I type "regrout the bar"
@@ -364,12 +279,6 @@ Feature: Keyboard editing
     And there should be no page errors
 
   Scenario: Alt+Shift+Up moves a blank among its would-be siblings
-    # The reorder pair, for the blank too: it goes up without becoming a write,
-    # so the skeleton a person is sketching can be moved whole before one word
-    # of it is on disk. Pressed from AFTER THE THIRD sibling: hinges above and
-    # knobs below is the one slot the key says — from two above it is two
-    # (grok's review of #493: every tree the keys were pinned with sat the
-    # press at most two slots in, where the two counts coincide).
     When I click the title of "knobs"
     And I press "Enter"
     And I press "Alt+Shift+ArrowUp"
@@ -387,17 +296,6 @@ Feature: Keyboard editing
     Then the node "handles" has no status
 
   Scenario: The mark walk writes the two marks Ctrl+Enter cannot, and takes one off
-    # `Ctrl+Shift+Enter` is one step round the ring: a bullet, then `todo`, then
-    # `doing`, then a bullet again. The last stop is an ANSWER rather than a gap
-    # — the format draws it as no box at all — so the walk can take a mark off
-    # as well as put one on, and the record it leaves carries none of the three.
-    # `done` is not on the ring: finishing something is `Ctrl+Enter`'s, and
-    # nothing should tick work off on the way past.
-    # The marks themselves are asked of the PAGE, like every other key: nothing
-    # is echoed, so a box on screen is a box the file said. The DISK assertion
-    # is for the one stop the page cannot make a claim about — no box drawn and
-    # no field left behind are two different facts, and the second is the one
-    # that says unmarked is an answer rather than a rendering.
     When I click the title of "handles"
     And I press "Control+Shift+Enter"
     Then the node "handles" has status "todo"
@@ -410,20 +308,12 @@ Feature: Keyboard editing
     And there should be no page errors
 
   Scenario: Only the STARTING verb refuses — finishing out of order still lands
-    # The asymmetry, from the keyboard. `hinges` waits on `order`, which is
-    # `doing`. `Ctrl+Enter` ticks it off anyway, because the world outruns the
-    # plan and a tool that will not record what happened is a tool that gets
-    # lied to. Only the instruction — start this now — is refused. (What
-    # `Ctrl+Enter` IS refused over is what hangs below the row rather than what
-    # it waits on: done_over_open_work.feature.)
     When I click the title of "hinges"
     And I press "Control+Enter"
     Then the node "hinges" has status "done"
     And "house.olai" holds a node marked done titled "pick the hinges"
 
   Scenario: The keys keep working after the row has moved
-    # The caret is what a structural op nearly costs: the row is redrawn where
-    # the file says it now is, which in a browser takes the focus off it.
     When I click the title of "knobs"
     And I press "Tab"
     And I press "Shift+Tab"
@@ -441,38 +331,21 @@ Feature: Keyboard editing
     And there should be no page errors
 
   Scenario: An indent leaves the caret where it was in the line
-    # The other half of the sentence above, and the half that was missing. An
-    # indent changes the row's `Row.key` — the chain of ids down to it — so the
-    # branch the editor was drawn in stops matching and a DIFFERENT one starts:
-    # the box is not moved, it is replaced, and a fresh box opens at the end of
-    # the text. A reorder keeps the key and so keeps the box, which is why
-    # `Alt+Shift+Up` never showed this
-    # (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md`'s 4.10).
     When I click the title of "knobs"
     And I put the caret after "pick"
     And I press "Tab"
     Then the node "knobs" is a child of "hinges"
     And the row being typed holds "pick the knobs"
     And the caret is at offset 4
-    # ...and back out again, which is the same key and the same claim.
     When I press "Shift+Tab"
     Then the node "knobs" is a child of "install"
     And the caret is at offset 4
-    # And what is typed lands where the caret is, rather than at the end of a
-    # line somebody was in the middle of — which is the thing a reader would
-    # actually notice.
     When I type " out"
     And I click away from the editor
     Then "house.olai" holds a node titled "pick out the knobs"
     And there should be no page errors
 
   Scenario: Clicking the note you are reading puts the caret in it
-    # The human's call over the textarea this shipped with, mapped onto olai's
-    # fold: the pilcrow opens the row (and that open note is where a row draws
-    # its rendering and its see links), and a click in the note you are now
-    # reading puts the caret in it — one click from what Workflowy would have
-    # been showing all along. What you see while you are in it is the markdown
-    # SOURCE, the same trade the title takes.
     When I open the note of "order"
     Then the description of "order" renders bold text "walnut"
     When I click the note of "order"
@@ -481,24 +354,13 @@ Feature: Keyboard editing
     When I type " — measured twice"
     And I click away from the editor
     Then "house.olai" holds a node whose note ends "— measured twice"
-    # And clicking away is what it always was: the row folds back to its title.
-    # Editing and expanding are ONE state — you leave both at once — and the
-    # full rendered note is the node's own page, which is where a note has
-    # always been the body.
     And the row "order" is folded
 
   Scenario: A click on a note's clamped line measures the caret the way a title's click does
-    # The door the pilcrow's was one click longer than it needed to be: the
-    # line itself holds the words the note opens with, so the click is
-    # measured against THEM — the same question a title's click has answered
-    # since #475 — and the caret lands where the finger pointed, not at the
-    # end of the source.
     When I click the note of "order" near its end
     Then the note of "order" is being typed
     And the note being typed holds the source of "order"
     And the note's caret is at offset 15
-    # The same measurement, the other end of the line — and no click through
-    # the open state in between, which is the whole deal.
     When I press "Escape"
     And I click the note of "order" near its start
     Then the note of "order" is being typed
@@ -513,43 +375,21 @@ Feature: Keyboard editing
     When I type "the alcove is **1830mm** wide"
     And I press "Shift+Enter"
     Then the note of "handles" is no longer being typed
-    # `Shift+Enter` writes a note without opening the row's reading of it, so
-    # what comes back is the shape the row had before the caret arrived — its
-    # title.
     And the row "handles" is folded
     And "house.olai" holds a node whose note ends "wide"
-    # ...and once the caret leaves the row entirely, that title has a pilcrow
-    # beside it, because there is something behind one at last. Asked AFTER the
-    # click away on purpose: while the caret is in the line the title span is
-    # an input, and an input has nothing to hang a mark on.
     When I click away from the editor
     Then the node "handles" shows a pilcrow
 
   Scenario: A write that lands can have something to say
-    # The ops layer's nudge — advice on a SUCCESS, never a refusal. It reaches
-    # an agent in its tool result; the person who pressed the key is exactly
-    # who it is for, so it reaches them too.
-    # `mint` is the last unfinished task under `herbs` — which is the moment
-    # somebody might want to tick the parent too, and now can.
     Given I open the outline "garden.olai"
-    # `mint` is TICKED OFF below and the row has to stay on the page to be
-    # read: each page hides its finished work by default now.
     And I show the done nodes
     When I click the title of "mint"
-    # Marked BEFORE the key, because the claim is about a line that does not
-    # exist yet: the nudge is added to a live region under this row, and ONCE
-    # is the whole of it.
     And I mark every element of the row "mint"
     And I press "Control+Enter"
     Then the node "mint" has status "done"
     And the nudge says "every task under"
-    # Advice is announced POLITELY — a screen reader finishes the sentence it
-    # was reading. It is still announced: a remark nobody is told about is a
-    # remark only the sighted reader gets.
     And the nudge is announced politely
     And the row "mint" was read out loud 1 time
-    # And it is advice, not a state: the next keystroke takes it away — and a
-    # line taken away is silence, not a second announcement.
     When I type "!"
     Then nothing is being said about the row
     And the row "mint" was read out loud 1 time
@@ -559,19 +399,11 @@ Feature: Keyboard editing
     And I select all and type ""
     And I click away from the editor
     Then the refusal says "a node needs a title"
-    # The opposite half of the nudge's manners: a refusal is why nothing
-    # happened, so it interrupts. A reader who is not told believes the title
-    # they typed was saved.
     And the refusal is announced at once
     And the row being typed holds ""
     And "house.olai" holds a node titled "choose the handles"
 
   Scenario: A refusal belongs to the row that caused it
-    # Two rows and one refusal: clicking away to another title commits the
-    # first, and a commit that is REFUSED stops there — the reason is on the
-    # row whose text is still unsaved, and the row that was clicked is not
-    # opened over the top of it. Before the write queue, the click opened the
-    # second row and the refusal landed on it.
     When I click the title of "handles"
     And I select all and type ""
     And I click the title of "knobs"
@@ -580,8 +412,6 @@ Feature: Keyboard editing
     And "house.olai" holds a node titled "pick the knobs"
 
   Scenario: Two refusals in a row leave the editor working
-    # The blur guard is cleared by a refused key as well as by a frame, so a
-    # second refusal cannot latch it — after which the row still commits.
     When I click the title of "handles"
     And I press "Tab"
     Then the refusal says "no row above to indent under"
@@ -592,9 +422,6 @@ Feature: Keyboard editing
     Then "house.olai" holds a node titled "choose the brass handles"
 
   Scenario: The keys keep up with a person typing faster than the wire
-    # Every write goes through one queue, so keys pressed without waiting land
-    # in the order they were pressed — and each is judged against what the one
-    # before it did, rather than against the row as it was two writes ago.
     When I click the title of "knobs"
     And I press "Tab" without waiting
     And I press "Alt+Shift+ArrowUp" without waiting
@@ -611,9 +438,6 @@ Feature: Keyboard editing
     Then the row being typed holds "choose the handles"
 
   Scenario: Up and down carry the column, and a shorter line clamps it
-    # The vertical keys keep the caret's place in the LINE as they change the
-    # ROW — the way a person reads a column of text — and a line shorter than
-    # that place takes the caret at the end, not an error or a jump.
     When I click the title of "handles"
     And I put the caret after "choose the handles"
     And I press "ArrowDown"
@@ -627,9 +451,6 @@ Feature: Keyboard editing
     And the caret is at offset 14
 
   Scenario: Left at the start and right at the end cross into the line beside
-    # A caret sitting at a line's edge has nothing left in THIS line to move
-    # through — the arrow hands it to the next line a reader would reach, so
-    # the whole outline is one long line of text to the keys.
     When I click the title of "order"
     And I put the caret at the start of the line
     And I press "ArrowLeft"
@@ -640,9 +461,6 @@ Feature: Keyboard editing
     And the caret is at offset 0
 
   Scenario: The arrows cross a blank draft the way they cross a row
-    # A blank on the page is a place the caret can BE: walking down out of the
-    # row above must stop on it, not skip it, and walking back up must find the
-    # SAME draft again — not a fresh blank each pass.
     When I click the title of "order"
     And I put the caret after "order the new cabinets"
     And I press "Enter"
@@ -660,10 +478,6 @@ Feature: Keyboard editing
     Then there should be no page errors
 
   Scenario: Enter on a mirror makes a sibling of the PLACEMENT
-    # The other half of the mirror rule: what a row SAYS belongs to the node it
-    # shows, and where a row SITS belongs to the row. So the new line appears
-    # where the reader is looking — in this file, beside the placement — rather
-    # than beside the node it stands for, in another one.
     When I click the title of "kitchen-herbs"
     And I press "Enter"
     And I type "and one after the mirror"
@@ -672,18 +486,12 @@ Feature: Keyboard editing
     And "garden.olai" holds no node titled "and one after the mirror"
 
   Scenario: A zoomed node with nothing under it offers the first child
-    # The other page that has no row to press a key in. The anchor is the node
-    # itself rather than a sibling, which is the third of the three places a
-    # new row can go.
     When I open the node "knobs"
     And I start the first line
     And I type "brushed steel, maybe"
     And I click away from the editor
     Then "house.olai" holds a node titled "brushed steel, maybe"
     And the tree is shown
-    # The `under` anchor's half of the scenario above: a start line is a
-    # pending draft too, so the click that commits it is the click that ends
-    # it.
     And no row is being edited
 
   Scenario: An outline that holds nothing offers its first line
@@ -695,12 +503,9 @@ Feature: Keyboard editing
     And I type "the first thing"
     And I click away from the editor
     Then "empty.olai" holds a node titled "the first thing"
-    # And the `first` anchor's, which is the last of the three.
     And no row is being edited
 
   Scenario: A skeleton on an empty outline survives the first title
-    # StartLine used to unmount the moment the file had a row, taking the
-    # parked blanks with it — no title, no Escape, no page close.
     When I rewrite "empty.olai" as:
       """
       """

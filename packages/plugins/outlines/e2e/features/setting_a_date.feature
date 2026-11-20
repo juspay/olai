@@ -26,9 +26,6 @@ Feature: Setting a date from the web
     And the date picker offers to "Set date"
 
   Scenario: Picking a day writes exactly those ten characters
-    # The format's own rule at this seam: a date is text, stored verbatim, so
-    # what the record holds is what was picked — never a datetime that came
-    # back from a parse.
     When I open the date picker on "order"
     And I pick the date "2026-09-01"
     Then the node "order" shows the date "2026-09-01"
@@ -44,10 +41,6 @@ Feature: Setting a date from the web
     When I choose "Set date…" from the node menu
     Then the date picker is open
     And the date picker holds ""
-    # ...and the menu says NOTHING. An entry answers with what it has to say,
-    # and opening a picker has nothing — this shipped as an empty bordered box
-    # under the `•••` once, because a Solid setter answers with the new value
-    # and `() => void` accepts any return.
     And the node menu of "install" says nothing
     When I pick the date "2026-09-01"
     Then the node "install" shows the date "2026-09-01"
@@ -55,19 +48,12 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: A dated row's menu says which of the two it is, and still clears
-    # Both halves of `outlines_date` are a person's now, and the entry is named for
-    # what the row carries. Clearing keeps the verb #124 gave it, unchanged.
     When I open the node menu of "order"
     Then the node menu offers "Change date…"
     And the node menu offers "More › Clear date"
     And the node menu does not offer "Set date…"
 
   Scenario: An emptied box is the menu's own Clear date, and it clears
-    # The picker ABSORBS the gesture rather than adding a second spelling of
-    # it: the button takes the menu's label and sends the menu's edit. The
-    # alternative was a button that went dead the moment somebody emptied the
-    # box, in the one place they are most likely to be reaching for exactly
-    # that.
     When I open the date picker on "order"
     And I empty the date picker
     Then the date picker offers to "Clear date"
@@ -77,41 +63,25 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: Nothing to write is nothing to press
-    # The same rule the menu's own catalog follows: an entry whose only
-    # possible outcome is "it already says that" is not offered.
     When I open the date picker on "order"
     Then the date picker's button is dead
-    # And an empty box over a node with no date is the same answer: there is
-    # no date to take off. One picker at a time in this scenario, because the
-    # steps below name the one that is open.
     When I press "Escape"
     And I open the node menu of "install"
     And I choose "Set date…" from the node menu
     Then the date picker's button is dead
-    # And what the dead button SAYS is the verb they came for. `Clear date`
-    # here would be an offer to take away something that is not there — which
-    # is what it read before the label and the deadness became one answer, and
-    # a scenario that only asked about deadness would have kept that green.
     And the date picker offers to "Set date"
 
   @zone:America/New_York
   Scenario: A day and a time write one instant, in the offset of that moment
-    # The format's second width of `date`, reached from the web: the day is the
-    # ten characters picked, the time the face typed, and the offset the one
-    # this browser keeps AT THAT MOMENT — stamped the way a mark is, so the
-    # value names one instant wherever it is read.
     When I open the date picker on "order"
     Then the date picker holds "2026-08-10" at ""
     When I pick the date "2026-09-01" at "09:30"
     Then "house.olai" holds the node "order" dated "2026-09-01T09:30:00-04:00"
     And the node "order" shows the date "2026-09-01"
     And the date picker is closed
-    # Reopened, it starts on both halves, and saying them again is no write.
     When I open the date picker on "order"
     Then the date picker holds "2026-09-01" at "09:30"
     And the date picker's button is dead
-    # December is not written with September's offset: the zone moved its
-    # clocks in between, and the offset is the moment's, not today's.
     When I pick the date "2026-12-01" at "09:30"
     Then "house.olai" holds the node "order" dated "2026-12-01T09:30:00-05:00"
     And the page has not reloaded
@@ -119,8 +89,6 @@ Feature: Setting a date from the web
 
   @zone:America/New_York
   Scenario: A timed node opens on its day and time, and a changed time is written
-    # Written by another hand, which is also how a set arrives from a `git
-    # pull` — with seconds, which the boxes have no room for.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
@@ -130,7 +98,6 @@ Feature: Setting a date from the web
     When I open the date picker on "order"
     Then the date picker holds "2026-08-10" at "14:30"
     And the date picker says nothing
-    # The face is unchanged, so pressing would rewrite the seconds for nothing.
     And the date picker's button is dead
     When I draft the time "16:05"
     Then the date picker offers to "Set date"
@@ -150,8 +117,6 @@ Feature: Setting a date from the web
     When I open the date picker on "order"
     And I take the time off in the date picker
     Then the date picker holds "2026-08-10" at ""
-    # Named for the only thing pressing does — which is also what a time box a
-    # browser has half emptied says before anything is written.
     And the date picker offers to "Clear time"
     When I press the date picker's button
     Then "house.olai" holds the node "order" dated "2026-08-10"
@@ -161,8 +126,6 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: Emptying the day clears a timed date whole
-    # A time of day on no day is not a value the format has, so the day box is
-    # the clear, whatever the time box still holds.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
@@ -192,10 +155,6 @@ Feature: Setting a date from the web
 
   @zone:America/New_York
   Scenario: A time written in another zone says so, and quotes what a change writes
-    # The boxes show the face the file says, not that instant converted — so a
-    # value from another zone looks like any other, and the panel says what a
-    # changed pick would write. An unchanged face still writes nothing, and the
-    # offset quoted is the DRAFT's moment's: December is not August.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
@@ -213,9 +172,6 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: A time written with a space opens with its time, and Enter does not take it off
-    # The format accepts `2026-08-10 14:30` in a `date` on disk. A picker that
-    # read only `T` opened it on the day alone, offered `Set date`, and a press
-    # over the unchanged panel wrote the day — the time gone without a word.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
@@ -230,10 +186,6 @@ Feature: Setting a date from the web
 
   @zone:America/New_York
   Scenario: A time the clock skips is written as the moment it becomes, and says so first
-    # 02:30 does not exist in New York on the morning the clocks go forward.
-    # What is written is the instant the zone makes of it — the face AND the
-    # offset from one reading — never the typed face with the new offset
-    # stapled on, which would be 01:30 EST.
     When I open the node menu of "knobs"
     And I choose "Set date…" from the node menu
     And I draft the date "2026-03-08"
@@ -244,17 +196,12 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: A half-typed time from the keyboard writes nothing until it is finished or taken off
-    # One arrow key fills the hour alone, and the platform reports that box as
-    # holding no value — which would read as "no time" while showing one, and
-    # which its own form validation refuses to submit without a word.
     When I open the date picker on "order"
     And I draft the date "2026-09-01"
     And I press "ArrowUp" in the date picker's time box
     Then the date picker's button is dead
     And the date picker offers to "Set date"
     And the date picker says "The time is not finished. Finish it, or press No time."
-    # `No time` is offered for it, and empties the box on screen, not only the
-    # draft that already said nothing.
     When I take the time off in the date picker
     Then the date picker holds "2026-09-01" at ""
     And the date picker says nothing
@@ -280,8 +227,6 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: A date set here moves the node onto that day's page
-    # `knobs` carries no date, so the menu is its door — there is no pill to
-    # press until this write puts one there.
     When I open the node menu of "knobs"
     And I choose "Set date…" from the node menu
     And I pick the date "2026-09-01"
@@ -290,11 +235,6 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: A past date on a task puts it above now on the line, without a reload
-    # The agenda is the consumer, and it is a QUERY over the same dates: a
-    # `todo` given a day that has gone is late by construction, and the page
-    # that collects it is one SPA navigation away from the row it was set on.
-    # `knobs` is the new one, dated 2019; `order` was already late and is dated
-    # 2026 — and the line runs oldest first, so the new one goes above it.
     When I open the node menu of "knobs"
     And I choose "Set date…" from the node menu
     And I pick the date "2019-11-05"
@@ -306,9 +246,6 @@ Feature: Setting a date from the web
     And there should be no page errors
 
   Scenario: ⌘Z takes a picked date back, on the stack a keystroke files on
-    # A pointer's write files what would undo it on the same stack a keystroke
-    # files on — so the chord does not mean two things depending on which hand
-    # made the edit.
     When I open the date picker on "order"
     And I pick the date "2026-09-01"
     Then "house.olai" holds the node "order" dated "2026-09-01"
@@ -317,8 +254,5 @@ Feature: Setting a date from the web
     And the node "order" shows the date "2026-08-10"
 
   Scenario: The pill on a day page is not a control
-    # The same split a title's editability follows: a day page and the agenda
-    # are a query over the whole set, drawn read-only, so the badge there says
-    # something rather than doing something.
     When I open the day "2026-08-10"
     Then the date on "order" does not open the picker
