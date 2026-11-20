@@ -1,18 +1,3 @@
-/**
- * THE PROMOTED SETTINGS, in the preferences panel.
- *
- * A config schema leaf a plugin marks as a preference
- * (`@olai/plugin-api/configuration`'s `preference`) is drawn here, under a
- * heading named after the plugin, and moves out of the plugins panel while
- * that plugin is running. The rows are the plugins panel's own `Control.tsx`
- * wrapped in a preference `Row`, so the steps below address the same
- * `plugin-knob`/`plugin-reset`/`plugin-problem` marks the plugins panel does —
- * read through this panel, by the row's `data-pref`.
- *
- * `data-pref` IS `plugin-<plugin>-<key>` (`PromotedRows.tsx`'s `promotedPref`),
- * so a step names a row by whose it is and which leaf it is, never by its
- * position among a list somebody will reorder.
- */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
@@ -26,18 +11,14 @@ const KNOB = selector(TESTID.pluginKnob);
 const GROUP = selector(TESTID.prefsGroup)
 const RUN = selector(TESTID.prefsRun);
 
-/** One promoted row, by the preference it sets. */
 const preferenceRow = (world: OlaiWorld, pref: string): Locator =>
   world.page.locator(`${PREFS_ROW}${attr("data-pref", pref)}`);
 
-/** The control inside it — the plugins panel's own knob, drawn here. */
 const preferenceKnob = (world: OlaiWorld, pref: string): Locator =>
   preferenceRow(world, pref).locator(KNOB);
 
 const shownValue = async (world: OlaiWorld, pref: string): Promise<string | null> =>
   await preferenceKnob(world, pref).getAttribute("data-value");
-
-// ── where a promoted row is ────────────────────────────────────────────
 
 Then(
   "the preference {string} is drawn under the heading {string}",
@@ -51,8 +32,6 @@ Then(
   },
 );
 
-/** THE RUN a group belongs to — the container that closes it and carries the
- *  line, which is why the line outlives a group whose body drew nothing. */
 const runHolding = (world: OlaiWorld, heading: string): Locator =>
   world.page.locator(`${RUN}:has(${GROUP}${attr("aria-label", heading)})`)
 
@@ -75,8 +54,6 @@ Then(
     assert.equal(await lines.count(), 1, `one line per run, not one per group`);
   },
 );
-
-// ── what one of them shows, and what pressing it does ──────────────────
 
 Then(
   "the preference {string} shows {string}",
@@ -153,10 +130,6 @@ Then(
   "the preference {string} is frozen because {string}",
   async function (this: OlaiWorld, pref: string, text: string) {
     await showPreferences(this.page);
-    // The freeze is announced by whichever element IS the control: the group a
-    // segmented choice draws its buttons in, a select, a switch, or an input.
-    // It rides that control's own NAME now — a `title` said it only to a
-    // pointer, and a frozen setting is exactly the thing a reader needs told.
     const named = preferenceKnob(this, pref).locator("[aria-label]");
     await this.waitUntil(
       async () => (await named.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""))).some((one) => one.includes(text)),
@@ -191,10 +164,6 @@ Then(
   "the preference {string} has focus",
   async function (this: OlaiWorld, pref: string) {
     const knob = preferenceKnob(this, pref);
-    // WAITED FOR, like every other reading in this file: the freeze hands the
-    // caret back when the wire returns, which is the same moment the change
-    // lands, so the assertion is about where the caret ENDS UP rather than
-    // about a frame in the middle of the redial.
     await this.waitUntil(
       async () => await knob.locator("input, select, [aria-pressed]").first().evaluate((el) => el === document.activeElement),
       `the ${pref} preference to have the caret`,

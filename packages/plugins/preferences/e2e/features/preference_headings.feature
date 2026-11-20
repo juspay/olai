@@ -30,9 +30,6 @@ Feature: A heading in the preferences is its contributors
     And there should be no page errors
 
   Scenario: Notifications goes when alerts does, Reminders included
-    # Two plugins share this heading (alerts' Alerts and Sound, journal's
-    # Reminders), and Reminders rides the alerts channel — so switching alerts
-    # off withdraws every row under it, and the heading with them.
     Given I open the app
     And I mark the page
     When I open the preferences

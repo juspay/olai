@@ -52,8 +52,6 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And there should be no page errors
 
   Scenario: The heading leaves and returns live when its plugin is switched off and on from another tab
-    # The flip is made from a second tab on purpose: the claim is about a panel a
-    # person is looking at when the roster moves under it.
     Given I open the app
     And I mark the page
     When I open the preferences
@@ -72,9 +70,6 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And there should be no page errors
 
   Scenario: An absent settings reader freezes the promoted controls
-    # The reader is ABSENT, not the file: its switch is session-only (the file
-    # cannot turn it off), so a person switches it off and the schema still
-    # declares what is promoted — the controls are drawn and none of them move.
     Given I open the app
     When I open the plugins panel
     And I switch the plugin "settings" off
@@ -84,9 +79,6 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And there should be no page errors
 
   Scenario: A broken settings file freezes the promoted controls
-    # The reader is up and the file is torn, which is the other freeze: the
-    # schema still declares what is promoted, so the rows are drawn and none of
-    # them will move.
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """
@@ -126,14 +118,10 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And I press "Enter" in the preference "plugin-mail-poll"
     Then file "_olai/Settings.olai" has namespace "mail" setting "poll" as "1h"
     And the preference "plugin-mail-poll" is marked as authored by "vault"
-    # RESET, on a TEXT leaf: the property leaves the file and the row reads the
-    # schema's default again.
     When I use the default for the preference "plugin-mail-poll"
     Then file "_olai/Settings.olai" has namespace "mail" setting "poll" as "<absent>"
     And the preference "plugin-mail-poll" shows "2m"
     And the preference "plugin-mail-poll" is marked as authored by "default"
-    # ...AND ON A MALFORMED FILE VALUE: the refused spelling is drawn, and the
-    # reset is the way out of it.
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"mail-settings","ord":"a0","title":"mail","custom":{"on":"yes","poll":"bad"}}
@@ -146,15 +134,6 @@ Feature: A plugin's own settings can be marked as this panel's preferences
 
   @scratch:good @rows-on:mail @mail-himalaya:mailbox
   Scenario: A draft in the panel survives a contribution changing in another tab
-    # TWO HALVES OF ONE PROMISE. THE ROWS ARE KEYED, so a change elsewhere
-    # rebuilds only what changed — an unkeyed row is torn down and built again,
-    # and `Control.tsx` keeps its draft in the MOUNTED control, so the typist
-    # would come back to the committed reading. And THE FREEZE IS NOT A LEAVE:
-    # the reconnect a roster change forces opens the client's `<dialog>`
-    # (`showModal`), which takes the keyboard for a moment, and a blur into it
-    # must not be read as somebody leaving the field. Switching `outlines` off
-    # in another tab is a contribution of a different heading going away, and
-    # the typist typed nothing since and asked for nothing.
     Given I open the app
     And I mark the page
     And I rewrite "_olai/Settings.olai" as:
@@ -171,18 +150,12 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And I use the original browser tab
     Then the preferences have no "Outlines" heading
     And the preference "plugin-mail-poll" input reads "1h2"
-    # NOT WRITTEN: the blur the freeze caused was not a leave, so the shared
-    # property still holds the value it held when the typing began — while the
-    # input, which is where the draft lives, still holds the draft.
     And file "_olai/Settings.olai" has namespace "mail" setting "poll" as "1h"
     And the preference "plugin-mail-poll" has focus
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: A pick made elsewhere lands in an open panel
-    # A CHANGE FROM OUTSIDE: another tab writes the setting, and then the file
-    # itself is rewritten. The panel a person is looking at follows both — the
-    # row is drawn off the roster, and the roster follows the serve.
     Given I open the app
     And I mark the page
     When I open the preferences
@@ -203,13 +176,6 @@ Feature: A plugin's own settings can be marked as this panel's preferences
 
   @scratch:good @rows-on:mail @mail-himalaya:mailbox
   Scenario: A stopped plugin gives the shared scope line back
-    # THE SHARED RUN, WITH TWO PLUGINS IN IT: one line closes a run of one
-    # scope, and the line belongs to the RUN — so with both up there is exactly
-    # one, under the last group. When `mail` stops, its heading is GONE and
-    # `Git` keeps the run and its line. (A plugin's heading is withdrawn when it
-    # stops — that claim's regression test is `promoted.test.ts`, which holds a
-    # key of its own per heading. `mail` is `disabled: true` by default, so this
-    # scenario turns it on.)
     Given I open the app
     When I open the preferences
     Then the preferences are headed "Appearance, Outlines, Notifications, Git, Mail"
@@ -221,7 +187,6 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     Then the preferences have no "Mail" heading
     And the preferences are headed "Appearance, Outlines, Notifications, Git"
     And the preferences run that holds "Git" carries the scope line "Saved in Settings.olai, for everyone using this directory."
-    # ...AND BACK ON: the key was given back, so the second claim is free.
     When I open the plugins panel
     And I switch the plugin "mail" on
     And I open the preferences

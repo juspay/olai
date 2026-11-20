@@ -67,10 +67,6 @@ Feature: One place to set how this browser reads
 
   @phone
   Scenario: On a phone the whole panel fits the screen
-    # 390×844 is the handset every `@phone` scenario gets. The panel opens
-    # from the drawer's foot and has to fit it: no row, swatch or control
-    # past the right edge, no sideways scroll, and a panel taller than the
-    # screen scrolls inside itself rather than running off it.
     When I open the app
     And I open the preferences
     Then the preferences panel fits the screen
@@ -92,10 +88,6 @@ Feature: One place to set how this browser reads
     And there should be no page errors
 
   Scenario: A browser not yet asked is offered the one gesture that asks
-    # Alerts are on by default, so there is no "first enable" press for the
-    # browser's prompt to ride — the button is the door that always works,
-    # drawn only while it can help: Alerts on, and a browser that has neither
-    # granted nor refused.
     Given this browser has not yet been asked about notifications
     When I open the app
     And I open the preferences
@@ -106,8 +98,6 @@ Feature: One place to set how this browser reads
 
   @alerts-denied
   Scenario: A browser that refused is told so, and offered nothing it cannot do
-    # Once refused, only the browser's own settings can undo it; a button
-    # here would do nothing.
     When I open the app
     And I open the preferences
     Then the Alerts row explains "Notifications are blocked in this browser"
@@ -129,16 +119,6 @@ Feature: One place to set how this browser reads
     And the Alerts row offers no way to allow notifications
 
   Scenario: A keyboard opens it and is standing inside it
-    # THE REGRESSION THIS EXISTS FOR. The theme chips used to be laid out inside
-    # the trigger's own box, so they were the next thing in document order and
-    # Tab reached them. This panel is portalled to the end of the body, which
-    # puts it after the sidebar, the tree and everything else — so opening it
-    # and leaving the caret on the trigger means the controls are not reachable
-    # in any sense a person would accept.
-    #
-    # So the trigger and its panel are ONE tab cycle: opening moves the caret
-    # into the panel, Shift+Tab goes back out to the trigger, and Tab goes in to
-    # the first control.
     When I open the app
     And I focus the preferences trigger
     And I press Enter
@@ -152,9 +132,6 @@ Feature: One place to set how this browser reads
     Then the preferences trigger has the focus
 
   Scenario: Tab does not walk out of an open panel
-    # The other half of one cycle: the last control leads back to the trigger
-    # rather than to the page underneath, which is what a portalled panel would
-    # otherwise hand a keyboard.
     When I open the app
     And I open the preferences
     And I press Shift+Tab
@@ -163,10 +140,6 @@ Feature: One place to set how this browser reads
     Then the last control in the preferences has the focus
 
   Scenario: Every page hides until one is asked not to, and the ask is the page's own
-    # THE DEFAULT (ruled 2026-08-29), and ITS OVERRIDE: finished work waits
-    # until somebody says so — and the somebody is the PAGE, speaking beside
-    # its own filter (client/filter/DoneFlip.tsx). `demo` is done; `order` is
-    # not.
     Given I open the outline "house.olai"
     Then the node "demo" is not shown
     And the node "order" is shown
@@ -177,9 +150,6 @@ Feature: One place to set how this browser reads
     And the node "demo" is shown
 
   Scenario: The panel's row is still the door, for the default every page starts from
-    # The revision that put the flip on the page kept the row: what a page
-    # that never said its own thing answers to. And the page that follows the
-    # default marks nothing — "follow" is not a word it stores.
     Given I open the outline "house.olai"
     When I set Done to "visible"
     Then the "Show finished" switch reads "on"
@@ -192,8 +162,6 @@ Feature: One place to set how this browser reads
     And this browser has stored done nodes "hidden" by default
 
   Scenario: A page can also out-vote a shown default
-    # The override word runs BOTH WAYS — shown-under-hidden is why the flip
-    # exists, but a map that can only hold one direction is a flag with heirs.
     Given I open the outline "house.olai"
     When I set Done to "visible"
     And I press Escape on the preferences
@@ -206,11 +174,6 @@ Feature: One place to set how this browser reads
     And this browser has stored done nodes "shown" by default
 
   Scenario: Each page keeps its own pick
-    # THE FEATURE, in two files: `house.olai` shows its finished work because
-    # it was asked to; `garden.olai` has never been asked and hides by
-    # default. And going back finds the first pick still where it was made —
-    # the failure this fences is the reader-wide switch of old, which would
-    # have moved the roadmap's reading when the board was flipped.
     Given I open the outline "house.olai"
     When I show the done nodes
     And I open the outline "garden.olai"
@@ -222,12 +185,6 @@ Feature: One place to set how this browser reads
     And this browser has stored no Done word on "garden.olai"
 
   Scenario: Two panes read their two picks at the same moment
-    # The one shape this design can break in, on one screen: pruning per FILE
-    # while two files are drawn, and the flip answering to the FOCUSED pane.
-    # A sequential walk (the scenario above) passes even with one pick stored
-    # under two names; this cannot. The opening shows rows that MUST be there
-    # (each pane has settled its tree) before it claims absences — a pane
-    # still landing would make the same claims vacuously.
     Given I open the address "/s/house.olai/garden.olai"
     Then the node "kitchen" is shown in pane 0
     And the node "mint" is shown in pane 1
@@ -237,9 +194,6 @@ Feature: One place to set how this browser reads
     And I show the done nodes
     Then this page's Done flip says "shown"
     And the node "demo" is shown in pane 0
-    # THE SAME NODE, TWO ANSWERS, ONE MOMENT: `basil` under house.olai's
-    # mirror is read with house.olai's pick — which page its row STANDS in is
-    # the whole clause.
     And the node "basil" is shown in pane 0
     And the node "basil" is not shown in pane 1
     When I focus pane 1
@@ -248,10 +202,6 @@ Feature: One place to set how this browser reads
     And the node "basil" is shown in pane 1
 
   Scenario: A zoom is the same page, and mints no second pick
-    # `Hiding done nodes works on a zoomed page too` in zoom_and_navigate is
-    # the tree filter on a page opened first; this one is where the pick
-    # comes FROM: the zoom reads the outline's word, the flip says so, and
-    # pressing it there writes the outline's entry and nothing else.
     Given I open the outline "house.olai"
     When I show the done nodes
     Then the node "demo" is shown
@@ -263,11 +213,6 @@ Feature: One place to set how this browser reads
     And this browser has stored that done nodes are "hidden" on "house.olai"
 
   Scenario: The page's reset hands the pick back to the panel
-    # The release door is `reset` — not a second press of the box (the
-    # box's asks are idempotent: pressing what the pick already is means
-    # what it says, and it means it twice the same way). After the hand back,
-    # the word the page answers to is the panel's own, and the ask survives
-    # no further — the map keeps no entry for what follow already IS.
     Given I open the outline "house.olai"
     When I show the done nodes
     Then the Done flip is this page's own
@@ -277,10 +222,6 @@ Feature: One place to set how this browser reads
     And this browser has stored no Done word on "house.olai"
 
   Scenario: The finished box follows the default until the page says otherwise, and reset returns to it
-    # THE THREE STATES ON ONE BOX: following (no reset, the tooltip names the
-    # default), the page's own word (a reset, the tooltip names both), and
-    # following again. The default moving under a page that holds its own word
-    # does not move the page.
     Given I open the outline "house.olai"
     Then the finished box is named "Show finished"
     And this page's Done flip says "hidden"
@@ -319,10 +260,6 @@ Feature: One place to set how this browser reads
     And there should be no page errors
 
   Scenario: Asking the box for what the page ALREADY SHOWS while the page follows says nothing
-    # The pin case, in the negative: `demo` is done, `house.olai` follows the
-    # default and the box already stands clear — asking for hidden is not a
-    # way to pin the page at the word the panel already says: storage stays
-    # silent, and the mark stays off.
     Given I open the outline "house.olai"
     Then the Done flip is the panel's answer
     When I hide the done nodes
@@ -332,8 +269,6 @@ Feature: One place to set how this browser reads
     And this browser has stored no Done word on "house.olai"
 
   Scenario: It is remembered, and it is this browser's
-    # THE PIN FOR THE BOOT READ: the write is fenced by the stored-key steps
-    # above; this one is that the first read after a reload honours the entry.
     Given I open the outline "house.olai"
     When I show the done nodes
     Then the node "demo" is shown
@@ -343,12 +278,6 @@ Feature: One place to set how this browser reads
     And the node "demo" is shown
 
   Scenario: A preference set in another tab lands in this one
-    # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # which is what `followDonePrefs` is for, and what a reload scenario
-    # cannot ask: deleting that line entirely would pass every other Done
-    # scenario here. The theme has had this fence since it was written; this is
-    # the same one for this pick, through the same `storage` event — on the
-    # SAME page, because that is what a page's word is about.
     Given I open the outline "house.olai"
     Then the node "demo" is not shown
     When a second tab shows the done on this page
@@ -356,14 +285,8 @@ Feature: One place to set how this browser reads
     And there should be no page errors
 
   Scenario: A page the pick does not reach offers no flip
-    # A day is a record of what happened — finished work is the content there,
-    # never something to hide — so the question the flip answers is not one
-    # this page holds. "There is no pick in force" is drawn as NO CONTROL,
-    # not a frozen one: the filter bar keeps the rest of its say.
     Given I open the day "2026-08-03"
     Then this page offers no Done flip
-
-  # ── how much of a row is drawn ───────────────────────────────────────
 
   Scenario: Row density moves the page you are reading, and is remembered
     Given I open the outline "house.olai"
@@ -384,9 +307,5 @@ Feature: One place to set how this browser reads
     When I set Size to "larger"
     Then the page is set at "20px"
     When I reload the page
-    # THE PIN FOR THE BOOT READ. The shell's inline script puts the stored size
-    # on `<html>` while the document is still parsing, so the first paint is
-    # already at it — a size taken up by the bundle instead would reflow every
-    # line under a reader who had just opened the page.
     Then the page is set at "20px"
     And this browser has stored the size "larger"

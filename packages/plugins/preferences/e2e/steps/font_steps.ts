@@ -1,9 +1,3 @@
-/**
- * The typeface pick. The preference circuit is `theming.feature`'s; what is
- * unique here is that a generic face asks the server for nothing, so the
- * Font row has to actually change for that fetch to be about a pick.
- */
-
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import type { Page } from "@olai/tests/harness/playwright.ts";
 

@@ -1,22 +1,3 @@
-/** Preferences owns presentation and its extension location, not settings.
- * Registering requires the renderer, while activation waits for layout.tools.
- * Binding sections to this entry prevents feature controls from acquiring UI
- * resources when there is nowhere to render them. Removing preferences closes
- * those integrations without withdrawing their independent state providers;
- * theme's storage observers and selected values therefore remain effective.
- * The same entry supplies desktop and drawer presentations with explicit order.
- *
- * It ALSO OFFERS THE ONE DOOR onto the panel — `preferences.open` — so a link
- * elsewhere (`olai-plugin-plugin-inspector`'s promoted rows and its plugins-panel
- * "Set in Preferences") can land somebody here without importing this package's
- * panel or its state. The open bit lives HERE, in this activation, because the
- * door's panel can be asked to open from outside the shell that draws it, and a
- * rebuilt shell must draw the door again with the same answer.
- *
- * AND IT IS ACQUIRED LIKE ANY OTHER RESOURCE OF THIS ACTIVATION, with a
- * release: disabling Preferences SHUTS its panel (the bit is set back to shut
- * when the activation closes), and re-enabling starts shut rather than
- * reopening a panel a person did not ask for. */
 import { definePlugin, Offers } from "@olai/plugin-api"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
