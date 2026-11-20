@@ -1,25 +1,3 @@
-/**
- * The ops layer: the one way anything writes an outline.
- *
- * `@olai/format` says what a record is, `@olai/store` says how bytes become
- * durable, {@link ./plan.ts} says what an edit MEANS. This file is the loop
- * that joins them, and the loop is short because the hard parts are elsewhere:
- *
- *   read the snapshot → PLAN against it → commit at that revision →
- *   if the store moved, read again and plan AGAIN.
- *
- * Re-planning rather than re-sending is the whole point of optimistic
- * concurrency here. "Mark `order` done" means the same thing against a newer
- * snapshot, so a retry lands cleanly — a `git pull`, another tab and the agent
- * can all be writing and none of them loses an update. Only edits that
- * genuinely collide survive the retry, and then it is the op's own refusal that
- * speaks: the node is gone, or somebody else already marked it.
- *
- * A retry that SUCCEEDS is invisible, and deliberately so
- * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/acp.md). Everything else is not: a refusal comes back as an `OpFailure` with
- * its structured detail, and a retry that keeps colliding comes back as `busy`
- * rather than as silence.
- */
 import { serialized } from "./encode.ts"
 import {
   admits,
@@ -72,17 +50,9 @@ import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
 
-/**
- * THE LEDGER DOOR, as this layer calls it — record, push, and the two things
- * a write needs of a history. Core does not stand behind it; the git plugin
- * does. Absent is "no provider mounted": writes land and are recorded by
- * nobody, and {@link Ops.commit} / {@link Ops.push} refuse in words.
- */
 export interface Ledger {
   readonly wrote: (writer: Writer) => void
   readonly whyWaiting: (writer: Writer) => Effect.Effect<string>
-  /** See `@olai/plugin-api`'s `Ledger.waiting` — what is waiting, in the two
-   *  names every outline has. */
   readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
   readonly record: (
     request: CommitRequest,
@@ -90,31 +60,9 @@ export interface Ledger {
   ) => Effect.Effect<CommitResult>
   readonly push: Effect.Effect<PushResult>
   readonly resume: Effect.Effect<void>
-  /** See `@olai/plugin-api`'s `Ledger.hold` — the quiet window kept shut for
-   *  the caller's scope, counted per ledger, and a no-op where nobody records
-   *  anything. */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
 }
 
-/**
- * THE MATCHER DOOR, as this layer calls it — this query, over this reading,
- * answered. Core does not stand behind it; the search plugin does.
- *
- * Absent is "no provider mounted": every one of the five doors onto search —
- * `search_nodes` for an agent, and the ⌘K palette, the header's box, the
- * composer's `@` list, the edges panel and the move picker for a person — is
- * answered with no hits AND WITH THE REASON ({@link NO_SEARCH}), which is the
- * one shape every one of them already draws for a query the grammar could not
- * read. The FILTER over a page is not on this door at all: it is
- * {@link ./query.ts}'s `narrowing`, a reading of the page in front of somebody,
- * and it goes on working with no row mounted.
- *
- * THE READING COMES IN, which is the correctness argument rather than a
- * convention. A door that read the vault for itself would answer a revision of
- * its own choosing, and the candidates a table hands back are only ever right
- * about the snapshot they were brought level with (`olai-plugin-search`'s
- * `table.ts`). So the caller hands over the very reading the answer is about.
- */
 export interface Search {
   readonly nodes: (ask: {
     readonly at: Reading
@@ -124,29 +72,6 @@ export interface Search {
   }) => Effect.Effect<SearchAnswer>
 }
 
-/**
- * WHAT A SERVE WITH NO MATCHER ANSWERS — no hits, and the reason, in words.
- *
- * On {@link SearchAnswer.refusals} rather than a failure channel, and that is
- * the honest place rather than the convenient one: `refusals` is what the wire
- * already carries for *the reader typed something this search cannot answer*,
- * and every door onto search already draws it (`@olai/web`'s `refusals.tsx`,
- * and an agent reads it in the tool result). A failure would have been a red
- * connection error about a plugin nobody asked about.
- *
- * The token is the query AS TYPED, for `Refusal`'s own reason: a refusal that
- * quoted something else would be telling somebody they wrote something they did
- * not.
- *
- * IT NAMES THE ROW, and that is the difference between a sentence and a dead
- * end. This read "nobody is searching here", which is true and leaves both
- * readers stuck: an agent gets a tool result about an absence it cannot act on,
- * and a person gets a box that has given up. Named, each has a next move — an
- * agent asks `plugins.inspect` what this serve is running, and a person opens
- * the plugins panel and switches it on. Core spelling a row's word is what the
- * fence records as the `search` collision rather than what it forbids: the word
- * is already the verb this whole layer is about.
- */
 export const NO_SEARCH: Search = {
   nodes: ({ query }) =>
     Effect.succeed({
@@ -162,7 +87,6 @@ export const NO_SEARCH: Search = {
 
 export const NO_LEDGER: Ledger = {
   wrote: () => {},
-  // Nobody records anything, so nothing is waiting anywhere.
   waiting: Effect.succeed([]),
   whyWaiting: () =>
     Effect.succeed("nobody is recording writes here, so they land and wait for nobody"),
@@ -177,9 +101,6 @@ export const NO_LEDGER: Ledger = {
     said: "nobody is recording writes here, so there is nobody to push",
   }),
   resume: Effect.void,
-  // Nobody records anything here, so there is no window to keep shut and no
-  // state to hold — the acquisition succeeds and holds nothing, which is the
-  // contract `@olai/plugin-api`'s `Ledger.hold` states.
   hold: Effect.void,
 }
 
@@ -187,278 +108,55 @@ export interface Options {
   readonly claims: { readonly current: Claims }
   readonly format: string
   readonly store: Store
-  /** Absolute path of the served directory — kept because every call site
-   *  already has it, and the write gate's fence reads paths against it. */
   readonly root: string
-  /** The ledger, or nobody. Absent is {@link NO_LEDGER}. */
   readonly ledger?: Ledger
-  /** The matcher, or nobody. Absent is {@link NO_SEARCH}, and a test that
-   *  builds an `Ops` without one gets a search that refuses in words rather
-   *  than a walk of the corpus — the row is where a matcher lives now. */
   readonly search?: Search
-  /** Overridable so tests are deterministic: the id a new node gets and the
-   *  instant a mark is stamped with are the only two things about an op that
-   *  are not a function of the snapshot. */
   readonly context?: Context
-  /**
-   * WHICH PROPERTY KINDS A PLUGIN TAUGHT THIS VAULT, and which of them this
-   * serve is answering for — `@olai/format`'s `KindVocabulary`, handed down
-   * as data.
-   *
-   * It is an OPTION rather than an import for the reason every plugin fact in
-   * this layer is: `@olai/ops` names no plugin, the registry that knows them
-   * is above, and what crosses is a table. Both halves of it are spent here —
-   * the BUILT one refuses a declaration naming no word this binary knows, and
-   * the ENABLED one holds a value to a kind somebody is actually answering for
-   * ({@link @olai/format}'s `typing.ts`).
-   *
-   * Absent is `NO_KINDS`, which is not a fallback but the serve a policy with all rows off
-   * composes and the state every test in this package is in.
-   */
   readonly kinds?: KindVocabulary
-  /**
-   * Told about every write this layer REFUSED.
-   *
-   * It hangs here rather than on any one caller because "a refusal is never
-   * silently ignored" is a property of WRITES, not of whichever transport
-   * asked for one: an observer on the MCP server would leave a second writer —
-   * the web UI's own ops procedures, when they arrive — reporting nothing.
-   * The writer travels with the refusal so observers can keep it on the
-   * surface that asked. The caller also receives the original failure.
-   */
   readonly onRefusal?: (request: Request, failure: OpFailure, writer: Writer) => Effect.Effect<void>
 }
 
-/**
- * Everything this layer can be asked.
- *
- * It SATISFIES `./tools.ts`'s read door outright ({@link Asking}, which asks no
- * questions about who is asking) and it is one partial application away from
- * the other two: `Running` and `Acting` are the same verbs with the writer
- * already bound, because a tool has no business naming one. That is what makes
- * the tool table answerable by something which is not this layer at all — since
- * `mcp-bridge`, a surface client with no store behind it — and it is why those
- * two are interfaces rather than methods this file happens to have.
- */
 export interface Ops extends Asking {
   readonly parserFor: (path: string) => { readonly claims: Claims; readonly format: OutlineFormat } | null
-  /**
-   * WHICH NODES OF ONE PAGE a query selects — ids and why ({@link
-   * ./query.ts}'s `narrowing`).
-   *
-   * HERE RATHER THAN ON {@link Asking}, and the line is worth arguing because
-   * everything else about search is on that one. `Asking` is what a TOOL may
-   * ask, which is why something that is not this layer at all can satisfy it —
-   * `mcp-bridge`'s door, a surface client with no store behind it. This is not
-   * a tool and never will be: it answers with a set of ids to look up, useful
-   * only to a caller already looking at the rows those ids name, which is the
-   * browser narrowing a page in front of somebody. An agent asking which nodes
-   * match asks `search_nodes` and is answered with the nodes.
-   *
-   * So it hangs off the layer the SERVER holds (`@olai/server`'s `runtime.ts`
-   * binds it to the `narrowing` stream, exposed on the browser face alone) and
-   * the agent's bridge is not obliged to implement a member no agent face
-   * exposes.
-   *
-   * A STREAM's read rather than a procedure's, which is the whole of
-   * `filter-ask-carries-revision`: a filter is a STANDING view of a page, so
-   * asking it as a call meant re-asking it once per published revision — a
-   * whole-vault walk per frame of a bulk gesture. Read on the same pulse
-   * {@link page} is and sent when it moved by value, it costs a page and, for a
-   * gesture that changes no match, costs the wire nothing at all
-   * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
-   */
   readonly narrowing: (
     request: NarrowingRequest,
   ) => Effect.Effect<NarrowingAnswer, OpFailure>
-  /**
-   * WHICH of these ids the set declares, and what each one names ({@link
-   * ./query.ts}'s `named`).
-   *
-   * HERE FOR {@link narrowing}'s REASON, one door over: an agent that wants to
-   * know whether an id is real reads it (`outlines_read` answers the node or the id
-   * it does not hold), and is told everything about it. This answers a dozen
-   * ids with nothing but the node each names, which is useful only to a caller
-   * already looking at the words those ids are written in — the chat panel,
-   * deciding which of an agent's backticks are pressable.
-   */
   readonly named: (
     request: NamedRequest,
   ) => Effect.Effect<NamedAnswer, OpFailure>
-  /**
-   * WHERE these ids now live, and which of these FILES the set has anything
-   * from ({@link ./query.ts}'s `homes`).
-   *
-   * HERE FOR {@link named}'s REASON, one door further along: what comes back is
-   * a file per id and a list of paths, which is useful only to a caller holding
-   * a memory of records it saw earlier and deciding what is still worth
-   * remembering — the browser's fold memory, which kept a whole id→file map of
-   * its own to answer this. An agent that wants to know where a node is reads
-   * it and is told, beside everything else about it.
-   */
   readonly homes: (
     request: HomesRequest,
   ) => Effect.Effect<HomesAnswer, OpFailure>
-  /**
-   * WHAT ONE PAGE SHOWS — the reading a browser draws, for the address it is
-   * drawing (`@olai/format`'s `page.ts`, and
-   * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 10).
-   *
-   * HERE RATHER THAN ON {@link Asking} for {@link dated}'s reason, and it is
-   * the sharpest instance of it: what comes back is a SCREEN — rows carrying
-   * their own fold keys, a rollup beside a checkbox, the blockers a mark draws.
-   * An agent asking what an outline holds asks `outlines_index` and
-   * `outlines_subtree` and is answered in nodes, which is the thing it can act on.
-   *
-   * ONE MEMBER for seven routes, because they are one question asked with
-   * different words: which page does this address name, and what does it put on
-   * the screen. Splitting it per route would be seven doors onto one walk, each
-   * free to answer a different revision.
-   */
   readonly page: (
     request: PageRequest,
   ) => Effect.Effect<PageReading, OpFailure>
-  /**
-   * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview
-   * of this layer's own planner, for the destinations a search just offered
-   * (`@olai/format`'s `moving.ts`).
-   *
-   * HERE for the reason above, and NOT beside the write it previews: the write
-   * is `outlines_move`, which refuses in its own words on the way through
-   * {@link ./plan.ts}. This is what a person reads a moment earlier, over the
-   * same set, and it may never refuse something the planner would allow.
-   */
   readonly moving: (
     request: MovingRequest,
   ) => Effect.Effect<MovingAnswer, OpFailure>
-  /**
-   * WHICH TAGS the set already uses, for one sigil and one prefix — the row
-   * editor's completion popup, answered ({@link ./query.ts}'s `tags`).
-   *
-   * HERE RATHER THAN ON {@link Asking}, for {@link narrowing}'s reason one turn
-   * on: it is not a tool and is not meant to become one. What it answers is a
-   * capped shortlist shaped by the popup that draws it — eight rows, ranked by
-   * how much this set uses each word — which is useful to somebody watching a
-   * caret and to nobody else. An agent writing `#home` writes the word.
-   *
-   * It hangs off the layer the SERVER holds (`@olai/server`'s `runtime.ts` binds
-   * it to `vocabulary.tags`, exposed on the browser face alone), and the agent's
-   * bridge is not obliged to implement a member no agent face exposes.
-   */
   readonly tags: (
     request: TagsRequest,
   ) => Effect.Effect<TagsAnswer, OpFailure>
-  /** Perform one op. Fails only with an {@link OpFailure} — every internal
-   *  failure mode (a stale base, a file system error) is either retried or
-   *  translated, because a caller of this interface is a tool call or a
-   *  procedure and both need an answer they can render.
-   *
-   *  ONE refusal repairs itself before it is answered: a write REFUSED by a
-   *  set the disk has moved past (stale-set reads, refusing writes —
-   *  `stale-set-reads-clean-writes-refuse`), wherever the refusal showed —
-   *  the gate's verdict, or the planner's answer against a set withholding a
-   *  file it judged from bytes. The repair is asked and bounded where the
-   *  refusal sits below; what is said HERE is the caller's half: a repair
-   *  that works is invisible (the write lands on the current set), and one
-   *  that does not changes nothing the caller can observe — the answer is
-   *  the refusal reached against the resynced set.
-   *
-   *  The half of that bug where NOTHING refuses — a replacement the set
-   *  still validates, which this loop would plan against and then land
-   *  straight over — is not here at all: the write gate compares its own
-   *  paths by bytes on the way in and answers `StaleWrite`, so it arrives as
-   *  an ordinary re-derivation ({@link @olai/store}'s `commit`). Nothing
-   *  above the store has to know it happened.
-   *
-   *  `writer` is INTENT, not identity: git records the repository's own name
-   *  and email whoever asked, so this is the only thing that can tell an
-   *  agent's edits from a person's. It is required rather than defaulted —
-   *  a transport that forgot to say would be a transport whose writes are
-   *  attributed to somebody else. */
   readonly run: (
     request: Request,
     writer: Writer,
     rule?: SessionRule,
   ) => Effect.Effect<Applied, OpFailure>
-  /**
-   * No {@link run} is in flight.
-   *
-   * Completes the moment the last `run` returns, fails or is interrupted —
-   * planning included, not only the store gate. `POST /olai/resync` waits
-   * here before it probes, because a look at the disk while a write is
-   * still staging is a look at `.olai-*.tmp` (the shared-scratch After's
-   * leftover) rather than at the tree the next reader will be served.
-   */
   readonly idle: Effect.Effect<void>
-  /** Commit what is waiting — through the ledger, or refuse in words when
-   *  nobody stands behind it. */
   readonly commit: (
     request: CommitRequest,
     writer: Writer,
   ) => Effect.Effect<CommitResult>
-  /** Send the current branch to its upstream — through the ledger, or refuse. */
   readonly push: Effect.Effect<PushResult>
-  /** WHAT IS WAITING, in the two names every outline has — through the ledger,
-   *  and empty where nobody stands behind it (`@olai/plugin-api`'s
-   *  `Ledger.waiting` argues the pair). */
   readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
-  /** Start the quiet-window loop again after git stopped it. */
   readonly resume: Effect.Effect<void>
-  /**
-   * KEEP THE QUIET WINDOW SHUT for as long as this scope is open — through the
-   * ledger, and a no-op where nobody stands behind it.
-   *
-   * ON THIS DOOR and not only on the ledger because the caller that needs it is
-   * a plugin holding this layer's gate and nothing else: a node agent's tidying
-   * pass writes a subtree and then commits it as one commit
-   * (`olai-plugin-chat`'s `server/sleep.ts`). `@olai/plugin-api`'s `Ledger.hold`
-   * is the contract, and `website/docs/architecture/cordis.md` what a ledger replaced
-   * mid-hold means.
-   */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
-  /**
-   * The set as a reader sees it, or the one refusal for a directory that has
-   * never loaded.
-   *
-   * Here rather than at each reader so there is ONE answer to "there is
-   * nothing to read yet" — the writer's and the query tools' used to be two
-   * different shapes for the same condition — and so nothing above this layer
-   * has to reach into the store to find out.
-   */
   readonly read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure>
 }
 
-/** How many invalidated write attempts one request survives. A stale commit
- *  means another writer overtook its plan; a changed Claims snapshot means
- *  the membership used to plan is no longer current. Both spend this budget,
- *  though a claims swap need not involve another writer.
- *
- *  Repairs spend their separate budget. Every `continue` either counts an
- *  invalidated attempt here or spends a repair, so the loop remains bounded
- *  by `ROUNDS + REPAIRS` iterations. */
 const ROUNDS = 5
 
-/** How many TIMES one write may heal the set a REFUSAL was reached against
- *  ({@link run}'s two repair arms say why the number and why it is this
- *  small): one. */
 const REPAIRS = 1
 
-/**
- * WHICH FILE STOPS THIS WRITE — the sentence `run` says when the store
- * handed back a verdict.
- *
- * Three ways to be here, one function: the verdict implicates a file this
- * write touched; it does not, and this write caused invalidity in files
- * it did not write (the directory was loading); or the write is standing
- * on a base the disk has moved past while the set would not load, and
- * there is no file of ours to name.
- *
- * ASKED THROUGH THE STEP EVERY READER OF A VERDICT MAKES: it becomes per-file
- * ENTRIES (`blamed`), and both questions are asked of those — `admits` for the
- * files this write put down, and the first entry for the second arm, since
- * `blamed` files in path order and that first entry is what `implicatedIn` used
- * to answer. One partition, read twice, rather than two orderings of one axis.
- */
 const blockerOf = (
   verdict: Verdict,
   paths: ReadonlyArray<string>,
@@ -467,27 +165,9 @@ const blockerOf = (
   const entries = blamed(verdict.findings)
   const admission = admits(entries, paths)
   if (admission._tag === "implicated") return admission.file
-  // `blamed` has already filed the judges out (`Related.broken`) — the first
-  // entry is a BROKEN file, never one the finding merely looked at.
   return alreadyBroken ? undefined : entries[0]?.file
 }
 
-/**
- * Every file these findings were judged FROM — the ABOUT axis the drift ask
- * rides ({@link @olai/format}'s `implicatedBy`, deduplicated and path-ordered
- * so one refusal always asks the same question the same way).
- *
- * `implicatedBy` AND NEVER `blamedOn`, which is a live hazard rather than a
- * pedantic one since the two planes became two functions sitting beside each
- * other in `@olai/format`'s `errors.ts`. They differ by exactly the sites a
- * finding NAMES without blaming — a `bad-prop`'s judging declaration, a
- * `foreign-parent`'s parent — and the judge is precisely what stale reaches
- * through: the whole shape this arm exists for is a declaration whose bytes
- * moved on disk while the value it condemned did not. Swapping the axis here
- * would drop that file out of the ask and leave the refusal unhealable, and it
- * would do it silently, because every other file in the ask is unchanged.
- * `ops.test.ts` pins the asked SET for both arms for this reason.
- */
 const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
   [
     ...new Set(
@@ -495,7 +175,6 @@ const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string
     ),
   ].sort(byPath)
 
-/** A directory provider is absent; reads and writes share one refusal. */
 export const NO_DIRECTORY = new UsageFailure({ reason: "this process is serving no directory, so there is nothing to write to" })
 
 export const make = (options: Options): Ops & { readonly close: Effect.Effect<void> } => {
@@ -504,29 +183,9 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   const kinds = options.kinds ?? NO_KINDS
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
-    // The clock, read through the format's own minting: a mark is stamped with
-    // the instant it was made, in the zone the person marking it is standing
-    // in, and what that text looks like is the format's business rather than
-    // this file's (`@olai/format`'s `stampOf`).
     now: () => stampOf(new Date()),
   }
 
-  /**
-   * THE FIVE STANDING VIEWS, sharing per revision ({@link ./standing.ts}).
-   *
-   * Here rather than a layer up because what they hold is a fact about THIS
-   * served directory — the answers its open subscriptions are looking at —
-   * exactly as the write gate and the commit loop below are, so they are built
-   * where the store is named, a server serving two directories builds two
-   * without saying so, and a test that builds an `Ops` gets the shared path
-   * rather than a path only production takes.
-   *
-   * THE SEARCH INDEX used to be opened right here, on that same argument, and
-   * it is a ROW's now (`olai-plugin-search`). What moved with it is the whole
-   * of the table's lifetime question — one per served directory, in memory,
-   * closed when its fiber unloads — and what is left here is a door
-   * ({@link Search}) and the sentence for a serve that mounts nobody behind it.
-   */
   const views = standing(context.now, kinds)
 
   const ledger = options.ledger ?? NO_LEDGER
@@ -542,8 +201,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         verdict: errors ?? NOTHING_WRONG,
       })
     }
-    // The snapshot IS the reading: the validator paired the set with the view
-    // it judged, and the store published the pair. Nothing is derived here.
     return { ...snapshot.value, outlineRow: options.format }
   })
 
@@ -555,10 +212,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     Effect.gen(function*() {
       const store = yield* currentStore
       let repairs = REPAIRS
-      // Keep the last plan and the evidence from lost races local to this write.
-      // Claims mismatches spend the same budget as stale writes, but are our own
-      // revalidation failing to catch up, not evidence of another file writer.
-      // Their sum counts invalidated attempts; repairs have their own allowance.
       let summary: string | undefined
       let staleWrites = 0
       let claimsMismatches = 0
@@ -578,69 +231,19 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         lostBaseRev = undefined
       }
       /**
-       * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
-       * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
-       *
-       * `stale-set-reads-clean-writes-refuse` (roadmap bugs.olai) is the
-       * shape this repairs: a git operation replaced a file in a way the
-       * watcher's stamps cannot see, so reads went on serving the old set
-       * with no error and every write refused — the stale copy of that file
-       * no longer satisfies the declarations the SAME operation landed. The
-       * check asks about FILES, because a name is all a byte comparison
-       * needs: every file the refusal could be looking AT, re-read from disk
-       * and answered from BYTES rather than stamps ({@link @olai/store}'s
-       * `drifted`). One drifted file is proof the judgement was reached
-       * against a tree that is no longer there, so the write is not refused
-       * after all — the resync door a person would knock on is opened FOR
-       * them (`refresh("verified")`, the look the store reserves for
-       * "something outside this process rewrote the tree") and the round
-       * begins again, planned off the set the disk actually holds.
-       *
-       * THE FILES THIS WRITE ITSELF PUTS DOWN are not asked here, and not
-       * because they do not matter: the gate compares them by bytes on its
-       * own way in and answers `StaleWrite`, so drift under this write never
-       * reaches a refusal to repair. What is left for this door is the drift
-       * a refusal REACHED THROUGH — a stale judge, a withheld file — which
-       * only a reader of `E` can name, and the store cannot read `E`.
-       *
-       * ONCE, per write ({@link REPAIRS}) — one budget behind BOTH doors,
-       * so the two arms cannot spend it apart, and the only thing that
-       * bounds the loop a healed round begins again ({@link ROUNDS} counts
-       * lost races, and a repair is not one). A retry that HEALS and still
-       * refuses answers the refusal it was just handed — the fresh one,
-       * reached against the resynced set — rather than paying for another
-       * look. The failure of the LOOK says the same thing: a disk that
-       * cannot be re-read, or one that agrees with the set after all, is
-       * not a write problem, and the refusal already in hand is the honest
-       * sentence for both.
-       *
-       * THE CHECK BEFORE THE DOOR is the ordering the costs argue: a resync
-       * on every refusal would re-read the directory for every typo an agent
-       * talks to itself, so the cheap per-file byte check is what stands in
-       * front of it. Detection is where the refusal shows; the resync is
-       * whole-tree, which is what the one look verb offers, and one re-read
-       * of a served directory costs less than keeping a second look verb
-       * honest — the narrow, per-file heal is the GATE's, over the paths it
-       * is itself about to write.
+       * THE CHECK BEFORE THE DOOR is the ordering the costs argue: the cheap
+       * per-file byte check is what stands in front of the resync.
        */
       const repair = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
         Effect.gen(function*() {
           if (repairs === 0 || files.length === 0) return false
           const drift = yield* Effect.result(store.drifted(files))
           if (!Result.isSuccess(drift) || drift.success.length === 0) return false
-          // Drift is proof, so the budget is spent before the look is taken:
-          // the LOOK failing answers the refusal with the repair accounted
-          // for, and no second resync is owed however the round goes on.
           repairs -= 1
           const resynced = yield* Effect.result(store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
       while (staleWrites + claimsMismatches < ROUNDS) {
-        // The CHEAP class, and the write gate is why it is enough: a plan is
-        // derived from this revision and then judged against `baseRev` inside
-        // the gate, which probes on its way in. A tree that moved under the
-        // plan comes back `StaleWrite` and the round runs again — the drift
-        // this read cannot see is the drift the gate is there to catch.
         const { snapshot } = yield* store.read("cheap")
         observeRace(snapshot)
         if (snapshot === null) {
@@ -659,36 +262,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
         const planned = plan(scoping(snapshot.value, context, kinds, options.format), request)
         if (Result.isFailure(planned)) {
-          /**
-           * THE SAME REFUSAL, ONE DOOR EARLIER. Since brokenness is per
-           * file (the 2026-08-29 ruling), a file judged FROM STALE BYTES
-           * is withheld from the very set the planner reads — so the plan
-           * refuses before the gate is ever asked: the node it was shown
-           * names no records because its file's stale copy failed a
-           * declaration the disk has already moved past. The planner's
-           * sentence names an ID and no files, but the SET carries the
-           * names: its `broken` list is the files it withheld, each
-           * holding the rows it was judged by, and those rows name every
-           * file they were judged FROM. One of them reading differently
-           * on disk is the proof the refusal stands on a judgement that
-           * is no longer there.
-           *
-           * TWO REFUSAL SHAPES ONLY can be this symptom: `NotFoundFailure`
-           * (the id is gone because its file withheld its records) and
-           * `ValidationFailure` ({@link ./plan.ts}'s `writable` — the file
-           * answered, and the answer was rows from the broken list). Every
-           * other refusal the planner makes is a `UsageFailure` about the
-           * REQUEST — a typo, a misuse, a door the write ran into — and
-           * those are words about what was ASKED, never about bytes the
-           * set holds: a stale copy cannot invent a usage fault, so the
-           * hottest refusal path pays no byte check for it.
-           *
-           * And a plan refusal off a set that holds NOTHING broken keeps
-           * this door shut either way: there is no judgement in reach for
-           * staleness to have spoken through, so an unknown id stays
-           * unknown — the ruled trigger never fires where no refusal
-           * names files.
-           */
           const held = snapshot.value.set.broken
           const tag = planned.failure._tag
           if (
@@ -709,9 +282,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
               reason: doorRefusal({ why: "closed" }),
             })
           }
-          // THE CONFINEMENT'S OTHER HALF, and it is checked here because the
-          // OP is what says it: a `trash`, a delete or an emptied Trash is the
-          // one direction a tidy may not take, whatever it names.
           if (rule.confined != null && (request.op === "trash" || request.op === "empty" || request.op === "delete")) {
             return yield* new UsageFailure({
               reason: doorRefusal({ why: "trash", says: rule.confined.says }),
@@ -725,12 +295,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           }
         }
 
-        // Outlines go through the format's writer; a document IS its text, so
-        // it goes to disk verbatim — there is no serialiser for a writer to
-        // disagree with. Both ride the same all-or-none rename. A REMOVAL is
-        // the third shape and needs no bytes at all: `null` for "this path
-        // goes" ({@link @olai/store}'s `Change`), judged against the codec
-        // EXACTLY as a rewrite is — validated and published or not at all.
         const outlines = yield* Effect.forEach(files, file => {
           const value = serialized(snapshot.value.claims, file.file, file.nodes)
           return Result.isFailure(value) ? Effect.fail(value.failure)
@@ -746,13 +310,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         )
 
         if (Result.isFailure(outcome)) {
-          // A store that moved is the retry; anything else is a disk that
-          // cannot be written, which no re-plan will fix.
-          //
-          // This is the one site a lost gate race is observed ({@link ROUNDS}).
-          // It spends the same budget as a claims mismatch above; a repair
-          // spends neither. The next round's read supplies both its plan and
-          // this race's evidence, without counting one revision twice.
           if (outcome.failure._tag === "StaleWrite") {
             staleWrites++
             firstRev ??= outcome.failure.baseRev
@@ -768,36 +325,8 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
 
         const written = outcome.success
         if (Result.isFailure(written)) {
-          /**
-           * THE GATE'S REFUSAL, and its subject is the VERDICT: every file
-           * this refusal was judged FROM ({@link aboutFiles} — the judge's
-           * site included, since a stale declaration is exactly the shape
-           * this ask exists to reach). One question at one door.
-           *
-           * The write's OWN files are not a separate ask here: the gate
-           * compares them by bytes on its way in and answers `StaleWrite`
-           * rather than a verdict when they have moved ({@link
-           * @olai/store}'s `commit`), so a refusal reaching this line was
-           * reached over the bytes that are really under this write. What
-           * the verdict names, it names — this write's own file included,
-           * whenever the finding is about it.
-           */
           if (yield* repair(aboutFiles(written.failure.findings))) continue
           const paths = changes.map((change) => change.path)
-          /**
-           * THE REFUSAL NAMES ITS BLOCKER, which the sentence this replaces
-           * could not: "`x` would leave the outlines invalid" read as an
-           * indictment of the write, and the write was usually innocent — the
-           * directory had been invalid before it was asked for, and the gate
-           * had no way to say which file made it so
-           * (`broken-file-blocks-healthy-writes`).
-           *
-           * {@link blockerOf} is the three ways, asked of the verdict and of
-           * whether the directory was already not loading. The paths are the
-           * ones this commit carried — a second reading of "which files is
-           * this write about" is how the gate and the sentence come to
-           * disagree about one write.
-           */
           const alreadyBroken =
             (yield* SubscriptionRef.get(store.errors)) !== null
           const blocker = blockerOf(written.failure, paths, alreadyBroken)
@@ -813,41 +342,8 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           })
         }
 
-        /**
-         * A DOCUMENT WRITE'S YES IS EARNED, NOT REPORTED. (2026-09-01: a
-         * `markdown_create` answered a revision over a ~2KB body and the file
-         * was 0 bytes — the origin never reproduced, so this is the class
-         * narrowed rather than the cause named.) The gate stages, renames,
-         * re-probes, and takes the promised bytes only where the disk reads
-         * back as them — but an EMPTY `.md` still VALIDATES, so a loss inside
-         * the write's own window is published and answered the same as a
-         * landing. `documents` is the whole of what this asks: both verbs
-         * that carry bytes verbatim.
-         *
-         * What this read-back PROVES is narrower than durability: the bytes
-         * come back through the page cache over a stage+rename that never
-         * syncs, so it says nothing about the platter — only that nothing
-         * else has touched the file between the gate's rename and now. And
-         * what it closes is narrower than the window: the write is already
-         * PUBLISHED, and stays right to exist. A refusal here can only take
-         * back the ANSWER, not the landing — so it says what landed (rev,
-         * file, what the disk holds) and names `markdown_write` as the way
-         * back. "The disk did not keep it" is said only when the disk itself
-         * says so: a path the serve's walk prunes is refused at plan, and a
-         * real read failure arrives with its own words attached.
-         *
-         * The read-back is {@link @olai/store}'s `body`: live bytes, one
-         * file, kept by nobody — the door made for exactly this question. The
-         * cost is the write's own size once more, paid by document writes
-         * only: every other verb's answer is about RECORDS the gate
-         * validated, and their bytes are the serializer's, not the caller's.
-         */
         // Recorded BEFORE the read-back can refuse, because the write it
-        // tallies has already landed — a refused read-back is the ANSWER
-        // taken back, not the write, and the write is this counter's
-        // business. The counter is the panel's per-writer tally, not arming:
-        // what arms a pending sweep is the git survey, and the file a looted
-        // write left behind is dirty there exactly as any other write's is.
+        // tallies has already landed.
         ledger.wrote(writer)
         for (const document of documents) {
           const held = yield* Effect.result(store.body(document.file))
@@ -889,20 +385,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           }
         }
 
-        /** WHY this write is not in the history — always a sentence, because
-         *  there is always a reason (`./pending.ts`'s `whyOf`). It rides the
-         *  reply, so what happened is where the person who asked for the write
-         *  is looking rather than in the server's log. Under either waiting
-         *  mode that sentence is "waiting", which is the feature working and
-         *  must never render as the git-error state. */
         const why = yield* ledger.whyWaiting(writer)
-        // What the write CHANGED, classified the way a pending row is — off
-        // the two readings this write is made of, which are both still in
-        // hand. A reader that DRAWS a write rather than logging one needs a
-        // word it can switch on, and the summary above is a commit subject.
-        // The reading `plan` was just judged against, handed on rather than
-        // reached for a second time — the set and the derivation together, as
-        // the snapshot carries them.
         const { set, derived } = snapshot.value
         const sort = sortOfWrite(set, derived, planned.success)
         return {
@@ -913,7 +396,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
       }
 
-      // The final lost gate has no next round to read its evidence.
       if (lostBaseRev !== undefined) observeRace((yield* store.read("cheap")).snapshot)
       const subject = summary === undefined ? "this write" : `\`${summary}\``
       const paths = [...movements].sort(([a, left], [b, right]) => right.rounds - left.rounds || a.localeCompare(b))
@@ -951,9 +433,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         (failure) => options.onRefusal!(request, failure, writer),
       )
 
-  // Counted from the start of `run`, not from the store gate: planning a
-  // write has not taken the permit yet, and restoring a shared scratch in
-  // that window is how After left a staged `.tmp` on the tree.
   let inflight = 0
   const waiters: Array<() => void> = []
   const beginWrite = (): void => {
@@ -997,59 +476,15 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       return format === null ? null : { claims, format }
     },
     run: tracked,
-    // Closing first stops fresh calls through a retained handle, then drains
-    // accepted writes. The row acquires this after its store, so this release
-    // completes before the watcher and directory lock can leave.
     close: Effect.andThen(Effect.sync(() => { closed = true }), idle),
     idle,
     read,
-    // The four query answers, over the gated read above — one declaration of
-    // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent
-    // gets through a surface procedure and the answer a local tool call gets
-    // are the same statement rather than two that agree.
     ...asking(read, context.now, kinds, search),
-    // The BROWSER's half of the same matcher, over the same gated read — and
-    // over the WHOLE reading rather than the derivation alone, for `page`'s
-    // reason: what a query selects is asked of one page, and which page an
-    // address names is a question about files as well as records.
-    //
-    // …and through {@link ./standing.ts}, like the four other STANDING views
-    // below it: this is not asked once and answered, it is held open by every
-    // tab that has the filter box in front of somebody, and the framework gives
-    // each of them a poll loop of its own. What that module adds is that one
-    // question at one revision is answered ONCE however many are watching, and
-    // that a revision which moved nothing this answer read does not rebuild it
-    // at all. The read is still the gated one and the answer is still
-    // {@link ./query.ts}'s — nothing is decided there and nothing new is
-    // decided here.
-    //
-    // THE CLOCK GOES IN rather than being read at the call, which is the one
-    // visible difference: the narrowing's relative words count from the instant
-    // its answer was COMPUTED, which is once per question per revision instead
-    // of once per subscriber per read.
     narrowing: (request) => Effect.map(read, (at) => views.narrowing(at, request)),
-    // The transcript's backticks, over the same gated read and with no clock in
-    // it: an id names what it names whatever day it is asked on.
     named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),
-    // The fold memory's two facts, over the same gated read and with no clock
-    // in it either: where a record is and whether a file was read is true
-    // whatever day it is asked on. The WHOLE reading rather than the derivation
-    // alone — `Query.homes` argues it, and it is the near miss this member
-    // exists to avoid.
     homes: (request) => Effect.map(read, (at) => Query.homes(at, request)),
-    // THE PAGE, over the same gated read — the WHOLE reading rather than the
-    // derivation alone, because two of the questions a page asks are about
-    // files rather than about records: which paths the directory serves, and
-    // which of them is a day's note (`Query.homes`' argument, one door along).
     page: (request) => Effect.map(read, (at) => views.page(at, request)),
-    // The move picker's preview, over the same gated read and over the
-    // derivation alone: every rule it previews is about records and where they
-    // are drawn.
     moving: (request) => Effect.map(read, (at) => views.moving(at, request)),
-    // The COMPLETION's door, over the same gated read: the vocabulary the set
-    // has already written down, ranked and capped for a popup. Also the
-    // browser's alone, and also nothing decided here — what counts as a tag,
-    // and what the trash does to a count, is `@olai/format`'s `vocabulary.ts`.
     tags: (request) =>
       Effect.map(read, (at) => Query.tags(at.derived, request)),
     commit: (request, writer) => Effect.suspend(() => closed
@@ -1058,16 +493,8 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     push: Effect.suspend(() => closed
       ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
       : ledger.push),
-    // NOT a refusal when this layer is closed: a caller asking what is waiting
-    // is asking about a directory nobody is serving, and the answer to that is
-    // nothing rather than a failure to render.
     waiting: Effect.suspend(() => closed ? Effect.succeed([]) : ledger.waiting),
     resume: Effect.suspend(() => closed ? Effect.void : ledger.resume),
-    // Each of the three above refuses a closed layer in this layer's own words
-    // rather than the ledger's, and this one does not: a hold that cannot be
-    // taken because there is nothing to hold is a caller with nothing to do, not
-    // a caller being told no. So a closed layer opens a scope that holds
-    // nothing, which is what a caller may rely on.
     hold: Effect.suspend(() => closed ? Effect.void : ledger.hold),
   }
 }

@@ -1,44 +1,3 @@
-/**
- * What a write CHANGED, in one word — classified by the same function the
- * commit panel's rows are.
- *
- * A write that landed already answers `id`, `title`, `file` and a `summary`,
- * and none of those says what KIND of change it was: `done: fix the sink` is
- * the commit convention's phrasing, not a value anything can switch on. The
- * chat panel needs the switchable one, because a transcript row about an olai
- * write is never a text diff — a `.olai` diff is one enormous line, which is
- * the commit panel's own rule — and what it shows instead is the node-level
- * story in the vocabulary that already exists (*marked done*, *note rewritten*,
- * *moved*).
- *
- * So it is DERIVED rather than tabulated. A table from op name to {@link Sort}
- * would be a second classification of the same events, free to disagree with
- * `changesOf` the day either moves — and it would have to re-answer questions
- * the comparison already answers from the records: an `undo` that takes a mark
- * off, a `outlines_date` clearing one, a `create` whose seed captured a subtree. The
- * two readings this compares are the set the write was planned against and the
- * records the plan will write, which are both in hand at the moment the reply
- * is assembled and cost one pass over the touched files.
- *
- * When several nodes moved, the word is the one about the node the write was
- * ABOUT — the `id` the reply already names — and {@link biggestOf}'s fixed
- * priority is the fallback for the writes where nothing matches it. That order
- * is deliberate: archiving plans a dated bucket in the archive as well as the
- * subtree that goes into it, so the biggest change alone reads *created* about
- * a write whose whole point was to take something away.
- *
- * **A BATCH IS THE ONE WRITE WHERE "the node it was about" IS A STAND-IN**, and
- * it is worth saying out loud rather than leaving to be discovered. `apply`
- * plans a run of ops over any number of nodes, and `WriteResult` has one `id`;
- * the fold puts the LAST op's there (`@olai/ops`' `plan.ts`'s `folded`, which
- * argues why), so a batch of twenty `done`s ending in a `move` reads *moved*
- * and names the node that moved. That is a true sentence about the last thing
- * the run did rather than a summary of the run, and it is the honest limit of a
- * one-word classification: what a batch really changed is `captured` and the
- * files. `update` has no such gap — the run is one node, and the last plan is
- * the only one that has seen every field the call wrote.
- */
-
 import {
   biggestOf,
   changesOf,
@@ -54,64 +13,16 @@ import {
 
 import type { Plan } from "./plan.ts"
 
-/**
- * The one word for what this plan does to that set, or `undefined` when it does
- * nothing at all.
- *
- * `undefined` is a real answer and not a failure: a `outlines_done` on a node that
- * is already done plans a file whose records are identical, which is a write
- * that landed and changed nothing. Saying *edited* there would be inventing a
- * change to report.
- *
- * A FILE is not a record, though, and one op moves the first without the
- * second: `files_create` with no seed mints an empty `.olai`, which compares
- * as nothing at all. That one is *created* — a file that was not there before
- * is exactly what the word means, and the alternative is a panel telling
- * somebody that a write which just made an outline changed nothing.
- *
- * Only the files the plan TOUCHES are read — one lookup each, in the
- * derivation the write was planned against. (The walk this used to be was the
- * set's own: `OutlineSet` is a flat list of located nodes, deliberately, so
- * "what does this outline hold" cost a pass over every node in the directory to
- * keep one or two files' worth. `Derived.byFile` is that grouping, built with
- * the rest of the derivation.) The comparison is sound because the only op that
- * moves a node between files is `archive`, and it plans both ends — so a node
- * that left one file is matched to the record that arrived in the other, and
- * reads as *archived* rather than as a departure and an unrelated arrival.
- */
 export const sortOfWrite = (
   before: OutlineSet,
-  /** The derivation of `before`, HANDED IN rather than reached for. There is
-   *  nothing left to reach for: slice 2 threaded the validated view through, so
-   *  the snapshot carries the pair and the memo this could once have called
-   *  (`query.ts`'s `index`) is gone. The parameter was the direction that
-   *  change went in, and it is now the only way to be handed a derivation of
-   *  the set beside it — which is also the guarantee, since the caller that
-   *  owns the snapshot is the one that knows the two belong together. */
   derived: Derived,
-  /** The plan itself, rather than the three pieces of it this reads: it already
-   *  carries what would be written and which node (or document) the write was
-   *  ABOUT, so a fourth thing a plan learns to say is not a fourth argument
-   *  here and not a second place that has to spell what an absent one means. */
   plan: Plan,
 ): Sort | undefined => {
   const { files, documents = [], removed = [], id: about } = plan
-  // A REMOVAL moves no record through a rewrite: the question is the FILE —
-  // was the set still serving this path — and `gone` is the word the Sort
-  // vocabulary already has for a thing it no longer holds. The node's
-  // comparison below would read the file's records as departed one by one
-  // and answer about the WRONG unit, which is exactly the sentence a delete
-  // refuses to say.
   const gone = removed[0]
   if (gone !== undefined) {
     return documentAt(before, gone) !== undefined ? "gone" : undefined
   }
-  // A DOCUMENT write classifies off the same two readings a node's does — what
-  // the set held, what the plan writes — asked of the text instead of the
-  // records: a path the set did not hold is *created*, a text that differs is
-  // *edited*, and identical text is a write that changed nothing. One entry,
-  // always, because a document plan is one file (both planners emit exactly
-  // that, and `about` is its path).
   const doc = documents[0]
   if (doc !== undefined) {
     const prior = markdownAt(before, doc.file)
@@ -128,12 +39,6 @@ export const sortOfWrite = (
   const changes = changesOf(derived.claims, was, now)
   const change = changes.find((entry) => entry.id === about) ?? biggestOf(changes)
   if (change !== null && change !== undefined) return change.sort
-  // No RECORD moved — and one write can still mean something, because a file is
-  // not a record: `files_create` with no seed mints an empty `.olai`, which
-  // compares as nothing at all. Reporting *nothing changed* about a write that
-  // just brought a file into being is a lie the panel would draw, so the
-  // arrival of the FILE is the change, in the word the format already has for
-  // a thing that was not there before.
   const known = outlineNames(before)
   return files.some((planned) => !known.has(planned.file)) ? "created" : undefined
 }

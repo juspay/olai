@@ -1,57 +1,5 @@
-/**
- * THE SCRIPT — every op kind, twice, over one directory: what the planner is
- * held to when its shape changes underneath it.
- *
- * `perf-batch-assemble`'s decomplect moved two things about {@link ./plan.ts}
- * without meaning to move one answer: the questions a planner asks of the set
- * became a value handed in ({@link ./asked.ts}), and the switch that dispatched
- * twenty-six verbs became a TABLE. Both are behaviour-preserving by
- * construction and neither is behaviour-preserving by inspection — a context
- * that answered a shade differently from asking the set, or a table entry keyed
- * at the wrong verb, is a refusal nobody sees until an agent meets it.
- *
- * So this is the corpus the two claims are checked over
- * (`./plans.golden.test.ts`), and it is DATA rather than a suite for one
- * reason: the same script has to run against the planner as it stood BEFORE the
- * decomplect, in the checkout that still holds it, and be compared op by op.
- * Nothing here imports the planner, the fold, or anything that changed — the
- * requests are values and the corpus is text.
- *
- * ## What it covers, and why each op appears twice
- *
- * Every arm of the vocabulary, in a run where each op is planned against the
- * set the ops before it left — so a verb sees what the verbs before it wrote,
- * which is the state the batch fold puts a planner in. Each verb appears at
- * least once ANSWERING and at least once REFUSING, because a table keyed at the
- * wrong verb and a context that lost a fact fail differently: the first
- * usually plans something absurd, and the second refuses something that should
- * have landed (or lands something that should have been refused about a file
- * the set could not read).
- *
- * THAT SENTENCE IS ASSERTED, per verb, rather than left as a claim about a list
- * (`./plans.golden.test.ts`) — it was written before it was true of the file
- * below it, and six verbs answered without ever refusing until a reviewer
- * counted them. A promise about coverage that nothing checks is exactly the
- * promise the next decomplect will lean on.
- *
- * THE REFUSALS ARE THE POINT, and they are chosen to be the ones that read the
- * SET rather than the request: a file the set could not parse (every `writable`
- * gate), a path that is not an outline (`landsIn`), a path that is not a
- * document, a file that already exists, a trash that is not the trash, a
- * restore whose recorded source file is gone. Those are exactly the questions
- * the context now answers, so a wrong context shows up here as a sentence that
- * changed.
- *
- * Not a suite: `bun test` collects only `*.test.ts`.
- */
-
 import type { WriteRequest } from "@olai/format"
 
-/** The outlines the script runs over. A tree with marks, dates, properties,
- *  edges and a mirror; a second outline so a cross-file placement and a
- *  same-file rule can both be asked; a trash with a real pile in it (a source
- *  signpost above an ancestor scaffold above what was put away), so `untrash`
- *  and `empty` have something to work on. */
 export const OUTLINES: Record<string, string> = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"Kitchen remodel","desc":"the big one"}`,
@@ -78,39 +26,21 @@ export const OUTLINES: Record<string, string> = {
   ].join("\n"),
 }
 
-/** The documents beside them: one `.md` a `doc` write can replace, and one file
- *  the set holds the PATH of and not the bytes. */
 export const DOCUMENTS: ReadonlyArray<string | readonly [file: string, text: string]> = [
   ["notes/plan.md", "# Plan\n\nthe first draft\n"],
   "notes/page.html",
 ]
 
-/** A file that did not parse — the fact behind every `writable` refusal in the
- *  script, and the one thing a planner may never write over. */
 export const BROKEN: Record<string, string> = {
   "torn.olai": `{"id":"torn","ord":"a0"`,
 }
 
-/** One step of the script: the request, and what this step is FOR — the phrase
- *  a failing comparison names, so a divergence reads as a verb and a reason
- *  rather than as an index. */
 export interface Step {
   readonly what: string
   readonly op: WriteRequest
 }
 
-/**
- * The run, in order. Each step is planned against the set the steps before it
- * left; a step that REFUSES leaves the set where it was, exactly as a batch's
- * refusal leaves nothing behind — so the ops after it go on against the world
- * the last successful one made.
- *
- * The ORDER is load-bearing in a few places and says so where it is: a `split`
- * after a `title`, an `untrash` after the `create` that mints the outline its
- * pile came from, an `empty` last because it takes the trash away.
- */
 export const SCRIPT: ReadonlyArray<Step> = [
-  // ── add ──────────────────────────────────────────────────────────────
   {
     what: "add under a parent, with edges and properties",
     op: {
@@ -146,7 +76,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "add under an id nothing declares — the did-you-mean",
     op: { op: "add", parent: "kitchn", title: "nowhere" },
   },
-  // ── the four marks ───────────────────────────────────────────────────
   { what: "todo on a bullet", op: { op: "todo", id: "loose" } },
   { what: "doing, which the order gate judges", op: { op: "doing", id: "install" } },
   { what: "done on the node it was waiting for", op: { op: "done", id: "order" } },
@@ -158,7 +87,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
   },
   { what: "todo undone, back to a bullet", op: { op: "todo", id: "loose", undo: true } },
   { what: "a mark on a mirror — refused, naming the node", op: { op: "done", id: "shown" } },
-  // ── the fields ───────────────────────────────────────────────────────
   { what: "title", op: { op: "title", id: "loose", title: "a line with a name" } },
   {
     what: "title with a stale `was` — refused without reading the set",
@@ -176,7 +104,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "prop shadowing a field the format has — refused toward the verb that writes it",
     op: { op: "prop", id: "loose", key: "done", value: "yes" },
   },
-  // ── structure ────────────────────────────────────────────────────────
   { what: "move under another parent", op: { op: "move", id: "loose", parent: "garden" } },
   { what: "move to the top level", op: { op: "move", id: "loose", parent: null } },
   {
@@ -194,19 +121,11 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "duplicate a placement — refused, a mirror is not a subtree",
     op: { op: "duplicate", id: "shown" },
   },
-  // A node NOTHING points at, so the trash it lands in can still be emptied
-  // below: `trash_empty` refuses while anything outside the trash points into
-  // it, which is a rule this script has to sequence around rather than trip
-  // over.
   { what: "trash a node and what is under it", op: { op: "trash", id: "spare" } },
   {
     what: "trash an id nothing declares — refused with the near miss",
     op: { op: "trash", id: "spar" },
   },
-  // ── the files ────────────────────────────────────────────────────────
-  //
-  // BEFORE the create below, which is the whole of what this step asks: the
-  // recorded chain names an outline the directory does not have.
   {
     what: "untrash whose recorded outline is nowhere — refused",
     op: { op: "untrash", id: "orphan" },
@@ -222,11 +141,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     op: { op: "untrash", id: "tiles" },
   },
   { what: "untrash into a named file", op: { op: "untrash", id: "orphan", file: "notes.olai" } },
-  // ── the trash, emptied ───────────────────────────────────────────────
-  //
-  // HERE and not at the end: what is put away above is out again, and nothing
-  // live points into what is left, which is the one state `trash_empty`
-  // answers in. The edges the script adds below would each refuse it.
   {
     what: "empty an outline that is not the trash — refused",
     op: { op: "empty", file: "house.olai" },
@@ -236,7 +150,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "empty a trash that now holds nothing — refused",
     op: { op: "empty", file: "_olai/Trash.olai" },
   },
-  // ── the edges ────────────────────────────────────────────────────────
   { what: "see added", op: { op: "see", id: "loose", add: ["order"] } },
   { what: "see removed", op: { op: "see", id: "loose", remove: ["order"] } },
   {
@@ -249,7 +162,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     op: { op: "after", id: "demo", add: ["loose"] },
   },
   { what: "after removed", op: { op: "after", id: "loose", remove: ["demo"] } },
-  // ── the placements ───────────────────────────────────────────────────
   { what: "mirror placed in another file", op: { op: "mirror", target: "order", file: "notes.olai" } },
   {
     what: "mirror inside what it shows — refused, naming the loop",
@@ -260,7 +172,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "unmirror a node that is not a placement — refused",
     op: { op: "unmirror", id: "loose" },
   },
-  // ── the documents ────────────────────────────────────────────────────
   { what: "write a document, whole", op: { op: "doc", file: "notes/plan.md", text: "# Plan\n\nthe second draft\n" } },
   {
     what: "write a document with a stale `was` — refused",
@@ -275,7 +186,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "create a document that already exists — refused",
     op: { op: "create-doc", file: "notes/plan.md" },
   },
-  // ── the two that fold the rest ───────────────────────────────────────
   {
     what: "update several fields of one node at once",
     op: { op: "update", id: "loose", title: "the line", date: "2026-09-02" },
@@ -307,20 +217,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
       ],
     },
   },
-  // ...and the one that is left over: a node others point at, put away last so
-  // the emptied trash above is not what this step is about.
   { what: "trash a node others point at, which is allowed", op: { op: "trash", id: "beds" } },
-  // ── the refusals the six quiet verbs have ────────────────────────────
-  //
-  // APPENDED, and the position is the point: the rows above were recorded from
-  // the planner as it stood before the decomplect, and a step inserted among
-  // them would move every hash after it — so what a reader can check on the
-  // fixture's diff is that the earlier rows did not move (pi's SHOULD-1, whose
-  // finding was that the header claimed a refusal per verb and six verbs had
-  // none). Each of these refuses for the verb's OWN reason and refuses wherever
-  // it sits: a settled mark, a stale condition, an id nothing declares, a half
-  // of a split with nothing in it. `demo` is `done` in the corpus and no step
-  // above touches it, which is what makes the first two hold here.
   {
     what: "todo over a settled mark — refused, the instant is on a day's page",
     op: { op: "todo", id: "demo" },
@@ -341,10 +238,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "repeat on an id nothing declares — the same door, one field over",
     op: { op: "repeat", id: "dem", repeat: "every day" },
   },
-  // SPLIT, three more times: it is on the brief's own watch-list and appeared
-  // exactly once. Both of its own refusals — an empty head and an empty tail —
-  // and one more that ANSWERS, so the verb is exercised on both sides of its
-  // gate rather than only past it.
   {
     what: "split leaving a blank row behind — refused",
     op: { op: "split", id: "demo", title: "  ", rest: "the rest" },
@@ -357,11 +250,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "split a node that carries a mark, a date and children",
     op: { op: "split", id: "kitchen", title: "Kitchen", rest: "remodel" },
   },
-  // BORN UNDER WAY (native-timing, appended): the orchestrator's shape — a
-  // lane is captured with its `doing` in one call, and the record must come
-  // out carrying the `started` a `outlines_doing` would have stamped, since a
-  // later `outlines_doing` is refused. Appended per the differential's own rule,
-  // so the rows the braid answered stay checkable as unmoved.
   {
     what: "add born doing — the start rides the capture",
     op: {
@@ -371,18 +259,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
       children: [{ title: "watch it", mark: "doing" }],
     },
   },
-  // ROUNDS BANKED (worked-rounds, appended): a settle adds the round it
-  // closed into `worked`, an undo leaves the bank standing, and every start
-  // re-stamps `started`. The one `steady()` clock makes every span ZERO, so
-  // what these rows pin is the FIELD moving through the batch-path plans —
-  // the arithmetic itself is `./plan.test.ts`'s, at a clock driven minutes
-  // apart. THE TELL OF THE ZERO CLOCK: "done — the round is banked" and
-  // "done again — the second round adds in" SHA the SAME `750bf26f…`
-  // record — `0` banked, then `0 + 0` — so this appendix proves presence
-  // through the batch path and NOTHING about accumulation; a reader
-  // hunting the sum belongs in `plan.test.ts`'s moving clock.
-  // (The SECOND settle nests a fresh `doing` because a settle from anywhere
-  // else mints nothing: the bank only counts what a live round closed.)
   {
     what: "a node to run rounds on",
     op: { op: "add", parent: "kitchen", title: "season the pan", id: "season" },
@@ -393,15 +269,6 @@ export const SCRIPT: ReadonlyArray<Step> = [
   { what: "doing again — a fresh round stamped over the bank", op: { op: "doing", id: "season" } },
   { what: "done again — the second round adds in", op: { op: "done", id: "season" } },
   { what: "a bare undo leaves the work banked", op: { op: "done", id: "season", undo: true } },
-  // THE FILE GOES (`delete`, appended): one answer — a document the script
-  // itself minted above, so the write is judged against the world the
-  // script's own rows made — and its three most human refusals: the SAME
-  // file asked twice; the unit's own rule read of the corpus; and the kinds
-  // olai only SHOWS (`house.olai`, `notes/page.html` are both as recorded).
-  // The walk the refusal asks the refusal's walk to read, `namingDocument` —
-  // the document a `doc`-key sets is exercised in `./plan.test.ts`, where
-  // the PROPERTIES are that test's own corpus's and no row above has to
-  // move for them.
   {
     what: "delete the document the script minted",
     op: { op: "delete", file: "notes/next.md" },

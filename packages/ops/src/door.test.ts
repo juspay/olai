@@ -1,15 +1,3 @@
-/**
- * The remaining session rule as a pure plan judgement.
- *
- * THE FORBIDDEN KEY IS A LITERAL HERE, and it has to be: an open
- * {@link ./door.ts}'s `forbidden` is DATA on a ticket and the caller that
- * fills it is a plugin — `olai-plugin-chat`, with every key its own kind is
- * declared on for this revision. This package spells no plugin's word and
- * there is no core constant left to import, so the bench passes the string a
- * real ticket would carry and asserts what the rule does with it, which is
- * all this file was ever about.
- */
-
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import {
@@ -30,37 +18,21 @@ const vault = (): OutlineSet => setOf({
     `{"id":"house","ord":"a0","title":"House"}`,
     `{"id":"kitchen","parent":"house","ord":"a0","title":"Kitchen"}`,
     `{"id":"sink","parent":"kitchen","ord":"a0","title":"the sink"}`,
-    // A node that already CARRIES forbidden keys, so the removal arm has
-    // something to remove — one of each kind the table forbids.
     `{"id":"tap","parent":"kitchen","ord":"a1","title":"the tap","custom":{"approved":"always","chat-agent-sleep":"on"}}`,
     `{"id":"roof","parent":"house","ord":"a1","title":"the roof"}`,
   ].join("\n"),
 }, [
   ["spare.md", "a document the door may rewrite\n"],
-  // A NOTE WITH A CHAT ON IT: the other place the seating key can be
-  // written, and the one the document arm is about.
   ["notes/plan.md", "---\nchat-agent-session: claude:a1\ntopic: kitchen\n---\n# Plan\n"],
 ])
 
-/** One key a real ticket forbids: the word chat's binding kind claims, which is
- *  what a vault that has declared nothing keeps its bindings under. */
 const SEATING = "chat-agent-session"
 
-/** ...and a second, which is what made the table a MAP: a real ticket forbids
- *  the word a person's approval of a vault-defined plugin is written under, for
- *  a completely different reason (`olai-plugin-mcp`'s `tickets.ts` holds both
- *  clauses, because that is where a ticket is minted). The two are here as data
- *  for the same reason the first one is a literal: this package spells nobody's
- *  word, and what it asserts is what the rule DOES with whatever it carries. */
 const APPROVAL = "approved"
 
 const SAYS_SEATS = "it is what seats a conversation on a node"
 const SAYS_APPROVES = "it is a person's approval of code"
 
-/** ...and a third, which is what the table being a MAP is FOR: the word a
- *  person's opt-in for a chat's tidying is written under, forbidden to the
- *  session for a third reason again — an agent must not give itself permission
- *  to be tidied, nor quietly stop being. */
 const SLEEPING = "chat-agent-sleep"
 const SAYS_SLEEPING = "it is whether olai may tidy this chat on its own"
 
@@ -70,7 +42,6 @@ const forbidden = new Map([
   [SLEEPING, SAYS_SLEEPING],
 ])
 
-/** The clause a fence carries, in the words whoever raised it wrote. */
 const SAYS_TIDY = "olai is tidying this node's memory, and a turn nobody is watching writes only inside it"
 
 const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) => {
@@ -80,14 +51,6 @@ const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) 
   return barred(keys, at.derived, planned.success, at.set)
 }
 
-/** A chain eleven nodes long — the confined node at its head and ten levels
- *  under it — written DEEPEST FIRST.
- *
- *  The order is the point. `derived.children` is keyed in the order the rows
- *  are read, so a file written in tree order lets one round of a round-counted
- *  walk cascade the whole chain, and a round count only bites where a real
- *  outline bites: rows are matched by ID across the corpus and moves, edits and
- *  splits leave a memory in no order at all. */
 const deep = (): OutlineSet => setOf({
   "chain.olai": Array.from({ length: 11 }, (_, at) => 10 - at)
     .map((level) =>
@@ -95,8 +58,6 @@ const deep = (): OutlineSet => setOf({
     .join("\n"),
 }, [["spare.md", "a document the door may rewrite\n"]])
 
-/** The same judgement, with a fence up over one node's subtree — and, where a
- *  case needs it, the other node agents whose own subtrees are not this one's. */
 const askedUnder = (request: Request, under: string, set: OutlineSet = vault(), stop?: ReadonlySet<string>) => {
   const at = readingOf(set)
   const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
@@ -104,21 +65,11 @@ const askedUnder = (request: Request, under: string, set: OutlineSet = vault(), 
   return barred(forbidden, at.derived, planned.success, at.set, { under, says: SAYS_TIDY, stop })
 }
 
-/**
- * THE FENCE A PASS RAISES over the node it is tidying: while its turn runs, the
- * session that turn belongs to writes inside that subtree and nowhere else. The
- * reason is in `./door.ts`'s `Confinement`: an injected row can talk an
- * unattended turn with suppressed alerts into rewriting or trashing anything in
- * the directory, and those writes land outside the pass's own commit.
- */
 describe("a confined session", () => {
   test("writes inside the subtree land, wherever the file is", () => {
     expect(askedUnder({ op: "done", id: "kitchen" }, "kitchen")).toBeNull()
     expect(askedUnder({ op: "done", id: "sink" }, "kitchen")).toBeNull()
     expect(askedUnder({ op: "add", parent: "sink", title: "buy a washer" }, "kitchen")).toBeNull()
-    // The key table still applies inside the fence: the two rules are not
-    // alternatives. (`tap` already carries `approved: "always"`, so this is a
-    // movement — writing the same value back is nothing at all.)
     expect(askedUnder({ op: "prop", id: "tap", key: APPROVAL, value: "no" }, "kitchen"))
       .toEqual({ why: "key", id: "tap", title: "the tap", key: APPROVAL, says: SAYS_APPROVES })
   })
@@ -128,32 +79,19 @@ describe("a confined session", () => {
       .toEqual({ why: "outside", id: "roof", title: "the roof", says: SAYS_TIDY })
     expect(askedUnder({ op: "done", id: "house" }, "kitchen"))
       .toEqual({ why: "outside", id: "house", title: "House", says: SAYS_TIDY })
-    // THE DESTINATION COUNTS TOO: this changes only `sink`'s own record, and
-    // `sink` is inside — but the parent it lands under is not, so the row would
-    // be written into a file the pass's commit does not name.
     expect(askedUnder({ op: "move", id: "sink", parent: "roof" }, "kitchen"))
       .toEqual({ why: "outside", id: "sink", title: "the sink", says: SAYS_TIDY })
-    // ...and a move that stays inside is the pass's own work.
     expect(askedUnder({ op: "move", id: "sink", parent: "tap" }, "kitchen")).toBeNull()
   })
 
   test("the fence reaches the bottom of a chain ten deep", () => {
-    // The descent used to be eight rounds of the children map, so a row deeper
-    // than eight was judged outside and a legitimate write down there refused.
     expect(askedUnder({ op: "done", id: "d10" }, "d0", deep())).toBeNull()
     expect(askedUnder({ op: "add", parent: "d10", title: "one deeper" }, "d0", deep())).toBeNull()
-    // ...and it is still a fence: the head of the same chain is outside when the
-    // fence is up over the node at its bottom.
     expect(askedUnder({ op: "done", id: "d0" }, "d10", deep()))
       .toEqual({ why: "outside", id: "d0", title: "level 0", says: SAYS_TIDY })
   })
 
   test("a nested node agent's own subtree is outside the fence", () => {
-    // WHERE A MEMORY ENDS IS ONE LINE: the commit the pass makes names exactly
-    // the files the walk finds with the same exclusions, so a fence that stopped
-    // only at the outer boundary would permit the one write the instruction
-    // forbids — a write into a nested agent's memory, landing outside the commit
-    // that is the undo.
     const others = new Set(["sink"])
     expect(askedUnder({ op: "done", id: "tap" }, "kitchen", vault(), others)).toBeNull()
     expect(askedUnder({ op: "done", id: "sink" }, "kitchen", vault(), others))
@@ -188,22 +126,9 @@ describe("node-agent write rule", () => {
       .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: SEATING, says: SAYS_SEATS })
   })
 
-  /**
-   * THE HOLE PHASE 12 HAD, as a plan judgement.
-   *
-   * A vault-defined plugin's approval is an ordinary custom property on an
-   * ordinary node, and a definition an agent wrote is inside that agent's own
-   * subtree by construction — so `outlines_prop approved` was a legal write through
-   * the door the agent already held, and the plugin mounted having been read by
-   * nobody. The verb was closed on the face and the fact was not.
-   */
   test("...and the approval one is refused on a node the agent otherwise owns", () => {
     expect(asked({ op: "prop", id: "kitchen", key: APPROVAL, value: "always" }))
       .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: APPROVAL, says: SAYS_APPROVES })
-    // Every shape that carries a custom key, not only the one verb: an `apply`
-    // is the ops each of its entries is, and an `add` mints its props with the
-    // node. The rule judges the RECORDS a plan changed, so all of them land on
-    // the same comparison rather than on a list of verbs to keep in step.
     expect(asked({
       op: "apply",
       ops: [{ op: "prop", id: "sink", key: APPROVAL, value: "always" }],
@@ -213,10 +138,6 @@ describe("node-agent write rule", () => {
     ).toBe("key")
   })
 
-  /** Un-approving is the fail-safe direction and would be defensible to allow.
-   *  The rule reads a MOVEMENT rather than a direction, so it is refused with
-   *  the rest — and an asymmetric rule here would be one more thing a reader of
-   *  the rule has to hold for a capability nothing asks for. */
   test("...and taking one off is writing it, because the rule reads a movement", () => {
     expect(asked({ op: "prop", id: "tap", key: APPROVAL, value: null })?.why).toBe("key")
   })
@@ -224,10 +145,6 @@ describe("node-agent write rule", () => {
   test("...and the sleeping mark is refused on the agent's own node too", () => {
     expect(asked({ op: "prop", id: "kitchen", key: SLEEPING, value: "on" }))
       .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: SLEEPING, says: SAYS_SLEEPING })
-    // Taking it OFF is writing it, exactly as un-approving is: the rule reads a
-    // movement, and an agent that cleared its own mark would be opting itself
-    // out. (`tap` is the row that carries one, because a removal of a key that
-    // is not there never reaches this door at all.)
     expect(asked({ op: "prop", id: "tap", key: SLEEPING, value: null })?.why).toBe("key")
   })
 
@@ -235,8 +152,6 @@ describe("node-agent write rule", () => {
     expect(doorRefusal({ why: "closed" })).toContain("conversation has been reaped")
   })
 
-  /** THE CLAUSE IS THE TICKET'S, spent verbatim — which is what stops a general
-   *  package writing prose about a word a plugin (or a later phase) owns. */
   test("the refusal quotes the clause the rule carried for that key", () => {
     const reached = asked({ op: "prop", id: "kitchen", key: APPROVAL, value: "always" })
     if (reached === null) throw new Error("the forbidden write landed")
@@ -261,8 +176,6 @@ describe("file-scoped agent reservation", () => {
     return barred(keys, at.derived, result.success, at.set)
   }
 
-  /** The KEY arm's own key, for the assertions below: `Barred` gained two arms
-   *  that are not about a key at all (`./door.ts`'s confinement). */
   const keyOf = (reached: Barred | null): string | undefined =>
     reached !== null && reached.why === "key" ? reached.key : undefined
 
@@ -296,52 +209,30 @@ describe("file-scoped agent reservation", () => {
   })
 })
 
-/**
- * THE OTHER PLACE A PROPERTY IS WRITTEN: the `---` block at the top of a
- * `.md`.
- *
- * A note carries its chat's binding in its front matter the way a node
- * carries it on its row, so `markdown_write` was the door the key reservation
- * did not watch: an agent could seat a conversation on a note, or quietly drop
- * its own binding, by rewriting a file it is otherwise free to rewrite. The
- * rule is the record rule word for word — a MOVEMENT of the value, in either
- * direction — and the refusal names the file, because a document has no record
- * to name.
- */
 describe("a reserved key in a document's front matter", () => {
   const note = "notes/plan.md"
   const block = (said: string) => `---\n${said}topic: kitchen\n---\n# Plan\n`
 
   test("writing, changing or dropping the binding in a note is refused", () => {
     for (const text of [
-      // Changed...
       block("chat-agent-session: grok\n"),
-      // ...taken off...
       block(""),
-      // ...and the whole block gone with it.
       "# Plan\n",
     ]) {
       expect(asked({ op: "doc", file: note, text }))
         .toEqual({ why: "document", file: note, key: SEATING, says: SAYS_SEATS })
     }
-    // A NOTE THAT HAS NONE cannot be given one either: seating a conversation
-    // is the same movement read from the other end.
     expect(asked({ op: "doc", file: "spare.md", text: "---\nchat-agent-session: claude\n---\nhi\n" }))
       .toEqual({ why: "document", file: "spare.md", key: SEATING, says: SAYS_SEATS })
-    // ...and so is deleting the note the binding is written in.
     expect(asked({ op: "delete", file: note }))
       .toEqual({ why: "document", file: note, key: SEATING, says: SAYS_SEATS })
   })
 
   test("a write that leaves the key where it was lands", () => {
-    // The prose rewritten, another key added, the block reordered: none of it
-    // moves the value, so none of it is this door's business.
     expect(asked({ op: "doc", file: note, text: "---\nchat-agent-session: claude:a1\ntopic: hinges\n---\n# Hinges\n" }))
       .toBeNull()
     expect(asked({ op: "doc", file: note, text: "---\ntopic: kitchen\nchat-agent-session: claude:a1\nowner: alice\n---\n" }))
       .toBeNull()
-    // ...and a document with no reserved key in it either way is an ordinary
-    // write, as is a file of another kind.
     expect(asked({ op: "doc", file: "spare.md", text: "rewritten\n" })).toBeNull()
     expect(asked({ op: "create-doc", file: "notes/new.md", text: "# New\n" })).toBeNull()
   })

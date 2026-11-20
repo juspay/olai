@@ -1,19 +1,3 @@
-/**
- * The ops layer against a real directory: the planner, the write gate and the
- * file system, joined the way the server joins them.
- *
- * {@link ./plan.test.ts} already proves what each op DECIDES, so nothing here
- * re-asserts that. What is only true end to end is what these tests are for:
- * that the bytes on disk are what a reader can read back, and that a write
- * racing another writer re-derives instead of losing.
- *
- * The TOOL surface used to be proved here too, because this package used to own
- * an MCP server. It does not any more — the table is projected onto
- * `@kolu/surface-mcp` up in `@olai/server`, which is where the MCP SDK belongs —
- * so those tests moved with it, to `packages/server/src/mcp/tools.test.ts`, and
- * got better on the way: they now run through a real MCP client rather than
- * through a dispatch function.
- */
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
@@ -34,9 +18,6 @@ import type { SessionRule } from "./door.ts"
 import { STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 
-/** The codec this suite validates through — the vocabulary of a build that
- *  composed no plugin, which is what every test in this package runs under
- *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
 const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = [
@@ -47,8 +28,6 @@ const HOUSE = [
   "",
 ].join("\n")
 
-/** The same outline with a property on it — what a stamp-only write needs to
- *  be about, since the seam only shows on a node that carries one. */
 const PROPPED = HOUSE.replace(
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
@@ -61,21 +40,12 @@ interface Fixture {
   readonly root: string
   readonly read: (file: string) => string | null
   readonly write: (file: string, contents: string) => void
-  /** The set as it stands, so a test can look at records rather than bytes. */
   readonly set: () => Effect.Effect<OutlineSet>
-  /** Every write this layer refused, as `<op>: <tag>`. Collected at the OPS
-   *  seam, which is where the observer hangs — so it records a refusal
-   *  whichever caller asked for the write. */
   readonly refusals: ReadonlyArray<string>
 }
 
 const withOps = <A>(
   files: Readonly<Record<string, string>>,
-  // `unknown`, because a test yields whatever it needs to: the direct store
-  // calls some of these make fail with `PlatformFailure` on a tired disk, and
-  // a test that fails is a failing test whichever channel it came out of —
-  // enumerating them here would be a list to maintain. Matches
-  // `@olai/store`'s own fixture.
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
   options: {
     readonly claims?: { current: Claims }
@@ -96,10 +66,6 @@ const withOps = <A>(
     const ops = Ops.make({claims: options.claims ?? { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
-      // The planner's own fixture context by default — ids from `n1`, one fixed
-      // instant — so an assertion can name what a mark stamps. `realClock`
-      // hands the layer back its OWN: the one test that is about what that
-      // context mints cannot be handed a fixture of it.
       ...(options.realClock === true ? {} : { context: steady() }),
       onRefusal: (request, failure, writer) =>
         Effect.andThen(Effect.sync(() => {
@@ -131,7 +97,6 @@ const withOps = <A>(
   })
 }
 
-/** Run an op, or fail the test with what it refused. */
 const run = (
   fixture: Fixture,
   request: Request,
@@ -141,14 +106,6 @@ const run = (
       new Error(`\`${request.op}\` was refused: ${failure._tag} — ${failure.message}`),
     ))
 
-// ── what one load holds ────────────────────────────────────────────────
-
-// The codec's seam and the store's, read from the outside as the SET a real
-// directory produces: every bodied file is in it, a document brings its text,
-// and a `.html` brings its path and a `null` where the bytes used to be. That
-// last one is the whole memory claim — a vault of saved pages costs paths — and
-// the reference below is the other half of it: `doc` is still checked, so the
-// set is still valid or not for the same reasons it was.
 test("the shown kinds join the set as paths; a `.md` brings its text", () =>
   withOps(
     {
@@ -171,19 +128,7 @@ test("the shown kinds join the set as paths; a `.md` brings its text", () =>
             ["sales.csv", "csv", null],
             ["shot.png", "image", null],
           ])
-        // THE BYTES ARE NEVER READ, which is what `kept: false` buys and why
-        // the two files above hold text no reader of a picture would accept: a
-        // probe that opened them would have to decide what to do with that,
-        // and it does not open them at all.
-        // The set loaded, which is what says the `doc` above resolved against
-        // the documents found: a reference is checked against PATHS, and those
-        // are the half this keeps for every bodied file.
         expect(set.broken).toEqual([])
-        // And the bytes are still there for whoever asks for them — read from
-        // the disk on demand, held by nobody. That read is the `.csv` page's
-        // as well as the saved page's; a picture and a `.pdf` have one only in
-        // the sense that any path does, since what draws those points a
-        // browser at `/media/` instead.
         expect(yield* Effect.orDie(fixture.store.body("report.html"))).toBe(
           "<h1>Cabinet quote</h1>\n",
         )
@@ -192,8 +137,6 @@ test("the shown kinds join the set as paths; a `.md` brings its text", () =>
         )
       }),
   ))
-
-// ── the write path ─────────────────────────────────────────────────────
 
 test("PIN (idle): idle is already true when nothing is writing", () =>
   withOps({ "house.olai": HOUSE }, (fixture) => fixture.ops.idle))
@@ -286,22 +229,11 @@ test("a mark lands on disk as bytes the parser reads back", () =>
       const parsed = parseOutline("house.olai", text, TEST_CLAIMS)
       expect(Result.isSuccess(parsed)).toBe(true)
 
-      // And the browser sees it: the snapshot moved, without anyone probing.
       const set = yield* fixture.set()
       const order = recordsOf(set).find((located) => located.node.id === "order")
       expect(order?.node).toMatchObject({ done: STAMP })
     })))
 
-/**
- * The round-trip promise, in the language it is made in.
- *
- * `website/docs/format.md` and `packages/ops/README.md` both say it about BYTES — a
- * writer must reproduce what it read — and the planner's test compares
- * records, which is a different sentence about the same thing. Here the file
- * is read back as text, so a `true` that came back `"true"`, a day-only value
- * widened into an instant, or a neighbour restamped by the op would all be
- * caught where the claim is actually made.
- */
 test("the marks on the other records come back as the bytes they were", () =>
   withOps({
     "house.olai": [
@@ -321,23 +253,9 @@ test("the marks on the other records come back as the bytes they were", () =>
       expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
     })))
 
-/**
- * What the layer stamps when nobody hands it a clock — the whole of the
- * `outlines_done`-stamps-itself promise, and the one test that has to use the real
- * one.
- *
- * Asserted as a SHAPE and a window rather than a value: what a wall clock says
- * is not something a test can name, but "an ISO datetime, with its zone, that
- * names an instant this test was running in" is exactly the promise. It rules
- * out every wrong answer the op could give — a bare `true`, a day with no
- * time, a UTC `Z` on a machine that is not in UTC (the day would be tomorrow's
- * for anyone east of the line, and the value would not parse back to now).
- */
 test("marking done with no clock handed in stamps the current instant", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
-      // Whole seconds: the stamp has no fraction, so it can land a fraction of
-      // a second before this test started counting.
       const before = Math.floor(Date.now() / 1000) * 1000
       yield* run(fixture, { op: "done", id: "order" })
 
@@ -374,19 +292,9 @@ test("creating an outline lands a new file the set and the disk both see", () =>
       expect(recordsOf(set).some((located) => located.node.id === applied.id)).toBe(true)
     })))
 
-/**
- * The last hole in the atomicity claim, closed on disk.
- *
- * A new outline used to be `create` then `outlines_add` — two plans, two gates, two
- * commits — so a second call that refused left an EMPTY outline behind that
- * nobody had asked for. The seed is a whole capture now: one plan, one
- * validation, one rename, and a refusal costs nothing at all, which is only
- * checkable where the file system is.
- */
 test("a new outline arrives holding its whole tree, or does not arrive", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
-      // Refused: the seed names an id the set already holds, two levels down.
       const failure = yield* Effect.orDie(
         Effect.flip(fixture.ops.run({
           op: "create",
@@ -398,13 +306,10 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
         }, "mcp")),
       )
       expect(failure._tag).toBe("UsageFailure")
-      // Not an empty outline, not a partial one: no file.
       expect(fixture.read("shed.olai")).toBeNull()
       expect(outlinePaths(yield* fixture.set())).toEqual(["house.olai"])
-      // And the outline that WAS there is untouched, byte for byte.
       expect(fixture.read("house.olai")).toBe(HOUSE)
 
-      // The same call with the collision fixed lands all of it at once.
       const applied = yield* run(fixture, {
         op: "create",
         file: "shed.olai",
@@ -420,9 +325,6 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
       expect(Result.isSuccess(parseOutline("shed.olai", text, TEST_CLAIMS))).toBe(true)
       expect(fixture.read("house.olai")).toBe(HOUSE)
 
-      // ONE REVISION for a file and everything in it — and nothing in the log
-      // yet, because no write commits itself: what records is the quiet window
-      // over the whole repository (`./pending.test.ts`).
       expect(applied.rev).toBe(2)
     })))
 
@@ -435,20 +337,11 @@ test("creating an empty outline is a zero-byte file the sidebar can list", () =>
       expect(outlinePaths(yield* fixture.set())).toContain("empty.olai")
     })))
 
-// The published set is in LISTING order, which is path order — what
-// `outlines_index` answers with and what a search tie breaks on. A create is the
-// one write that can put a file at the FRONT of that order, and it is the case
-// where the gate's own candidate map disagrees with the listing: the candidate
-// is what the last probe held with the new path appended, so a file sorting
-// before an existing one lands last there and first here. The gate must not
-// publish the candidate's order for the listing's.
 test("a created file sorting before an existing one is published in path order", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       yield* run(fixture, { op: "create", file: "_olai/Trash.olai" })
       expect(outlinePaths(yield* fixture.set())).toEqual(["_olai/Trash.olai", "house.olai"])
-      // And the flat node list follows the same order, which is what a search
-      // tie reads: every record of the earlier file comes first.
       const set = yield* fixture.set()
       const records = recordsOf(set)
       expect(records.map((located) => located.file)).toEqual(
@@ -469,18 +362,11 @@ test("archiving writes both files, and the set stays valid across them", () =>
       expect(archive).toContain(`"title":"Kitchen remodel"`)
       expect(archive).toContain(`"id":"order"`)
 
-      // One revision for the pair, not two — the gate renamed both or neither.
       expect(applied.rev).toBe(2)
       const set = yield* fixture.set()
       expect([...outlinePaths(set)].sort()).toEqual(["_olai/Trash.olai", "house.olai"])
     })))
 
-/**
- * The whole claim of a batch capture, and it is only true end to end: thirteen
- * nodes used to be thirteen calls, thirteen revalidations and thirteen commits,
- * with a failure partway through leaving half an outline behind. One call is
- * ONE revision and ONE commit, and the ids it hands back are the ids on disk.
- */
 test("a subtree captured in one call is one revision and one commit", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
@@ -495,7 +381,6 @@ test("a subtree captured in one call is one revision and one commit", () =>
       })
 
       expect(applied.summary).toBe("capture: the pantry (+3)")
-      // One revision for four records: the gate renamed the file once.
       expect(applied.rev).toBe(2)
       expect(applied.captured?.map((node) => node.title)).toEqual([
         "the pantry",
@@ -508,21 +393,12 @@ test("a subtree captured in one call is one revision and one commit", () =>
       expect(Result.isSuccess(parseOutline("house.olai", text, TEST_CLAIMS))).toBe(true)
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
 
-      // The round-trip promise, over the op that rewrites the most records at
-      // once: a capture re-emits the WHOLE file, so every line that was already
-      // there has to come back as the bytes it was read as — `demo`'s day-only
-      // `done` and `install`'s `doing` included. Only the new lines are new.
       expect(text.split("\n").slice(0, 4)).toEqual(HOUSE.trimEnd().split("\n"))
 
-      // The ids in the answer are the ids in the set, which is what makes a
-      // second call under one of them possible without a search.
       const set = yield* fixture.set()
       const byId = new Map(recordsOf(set).map((located) => [located.node.id, located.node]))
       for (const node of applied.captured ?? []) expect(byId.has(node.id)).toBe(true)
       expect(byId.get(applied.captured?.[3]?.id ?? "")).toMatchObject({ done: STAMP })
-
-      // ONE REVISION for the whole subtree, and nothing in the log yet: a
-      // write waits, whichever mode this directory is in.
     })))
 
 test("a refusal writes nothing and comes back with its structured detail", () =>
@@ -534,9 +410,6 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
       expect(failure._tag).toBe("UsageFailure")
       expect(fixture.read("house.olai")).toBe(HOUSE)
       expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
-      // Reported wherever it came from: the observer hangs off the WRITER, so
-      // a second caller — the web UI's own procedures, when they arrive — is
-      // not a second place to remember to report from.
       expect(fixture.refusals).toEqual(["done: UsageFailure"])
     })))
 
@@ -557,47 +430,17 @@ test("refusal observers receive each request's writer without swallowing the fai
   })
 })
 
-// ── self-heal on refusal: the stale-set repair ──────────────────────────
-//
-// `stale-set-reads-clean-writes-refuse`: a git operation replaces a file
-// inside the stamp's own resolution, so the loop never sees it — reads serve
-// the old set with no error, and writes REFUSE, because the same operation's
-// declarations now judge the old bytes wrong. The repair is asked where the
-// refusal shows, and since brokenness went per file that is one of TWO
-// doors: the gate's verdict names its files, and the PLANNER'S refusal
-// stands behind a set withholding a file it judged from bytes — if the
-// disk's bytes there are not the set's, the set — not the write — was the
-// problem, so the resync door opens for the writer and the write runs once
-// more.
-
-/** A record whose `pr` is free text at boot (no vault declares it) and a
- *  wrong `date` once the declaration below lands — the two halves of a
- *  refusal the SET owes, not the write. The three spellings are ONE LENGTH,
- *  which is the whole of the blind spot they swap inside. */
 const PLAN_BEFORE =
   `{"id":"the-plan","ord":"a0","title":"The plan","custom":{"pr":"not-a-date"}}\n`
 const PLAN_AFTER =
   `{"id":"the-plan","ord":"a0","title":"The plan","custom":{"pr":"2026-09-01"}}\n`
-/** The same length again, and STILL not a date: the repair that lands and
- *  still refuses answers THIS file's refusal — the fresh one. */
 const PLAN_STILL_BAD =
   `{"id":"the-plan","ord":"a0","title":"The plan","custom":{"pr":"2026-99-99"}}\n`
-/** The migration's other half: declaring `pr` a date, and nothing else. */
 const DECLARE_PR_DATE =
   `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"date"}}\n`
-/** The same declaration BEFORE that migration — `text` and `date` are four
- *  letters each, so the two spellings swap inside the stamps' blind spot the
- *  way the records above do. What it buys is a stale JUDGE: a set that
- *  withholds a file over a declaration the disk no longer holds. */
 const DECLARE_PR_TEXT =
   `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"text"}}\n`
 
-/**
- * The store's byte check, wrapped so a test can name EXACTLY what a refusal
- * asked it. The drift question's whole correctness is its set of paths —
- * one the verdict forgot is a refusal that never heals — and the shape of
- * the set cannot be read back out of what lands on disk.
- */
 const watchingDrift = (fixture: Fixture): ReadonlyArray<ReadonlyArray<string>> => {
   const asked: Array<ReadonlyArray<string>> = []
   const original = fixture.store.drifted
@@ -608,19 +451,6 @@ const watchingDrift = (fixture: Fixture): ReadonlyArray<ReadonlyArray<string>> =
   return asked
 }
 
-/**
- * THE STALE JUDGE'S VERDICT: `bad-prop` filed on the write's own file, the
- * declaration that judged the value reached as a `related` site and marked
- * NAMED-but-not-broken.
- *
- * Faked rather than earned, in both tests that use it, and for one reason:
- * the pin is the ARM's behaviour — which files it asks about — and not the
- * codec's means of arriving at a verdict of this shape. Said once because the
- * `broken: false` related site is the load-bearing detail of both (it is what
- * puts a declarations file on `implicatedBy`'s about-axis at all), and two
- * copies is one place for that shape to go stale while the other test goes on
- * passing.
- */
 const STALE_JUDGE = verdictOf([{
   file: "plan.olai",
   line: 1,
@@ -629,15 +459,6 @@ const STALE_JUDGE = verdictOf([{
   related: [{ file: "_olai/Properties.olai", line: 1, note: "declared here", broken: false }],
 }])
 
-/**
- * `commit`, wrapped so a test can answer the first attempts itself and let
- * the rest through — the store's own gate, reached by returning `undefined`.
- *
- * Both the arm tests below fake this, and the cast is the same three lines
- * each time. What a case is left holding is the LADDER it wants (attempt one
- * refuses; attempts one to four are lost races) and the counter, which is
- * what `expect(attempts())` reads.
- */
 const fakingCommit = (
   fixture: Fixture,
   answer: (attempt: number, write: Store.Write) => ReturnType<OutlineStore["commit"]> | undefined,
@@ -651,7 +472,6 @@ const fakingCommit = (
   return () => attempts
 }
 
-/** Count the gate's reads without changing the snapshots it sees. */
 const countingReads = (fixture: Fixture): (() => number) => {
   const read = fixture.store.read
   let reads = 0
@@ -662,9 +482,6 @@ const countingReads = (fixture: Fixture): (() => number) => {
   return () => reads
 }
 
-/** The resync door, wrapped so a test can say whether the repair ever
- *  knocked on it: the byte check standing in front is only a guarantee if a
- *  NO from it keeps THIS latched. */
 const watchingRefresh = (fixture: Fixture): ReadonlyArray<string> => {
   const opened: Array<string> = []
   const original = fixture.store.refresh
@@ -678,9 +495,6 @@ const watchingRefresh = (fixture: Fixture): ReadonlyArray<string> => {
 test("the rebase shape: a write refused over a stale set heals, and lands", () =>
   withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
     Effect.gen(function*() {
-      // The migration: the declaration lands visibly (a NEW file — any
-      // listing sees it), the content lands INVISIBLY. Reads go on serving
-      // the set that was valid at boot…
       fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
       replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_AFTER)
       const served = yield* fixture.set()
@@ -688,67 +502,36 @@ test("the rebase shape: a write refused over a stale set heals, and lands", () =
         recordsOf(served).find((located) => located.node.id === "the-plan")?.node,
       ).toMatchObject({ custom: { pr: "not-a-date" } })
 
-      // …and the write heals BELOW this loop. Its plan is derived off the
-      // stale copy, and the gate compares the file it is about to write over
-      // against the disk before judging anything: the bytes are not the ones
-      // the plan was made from, so the write comes back `StaleWrite` and the
-      // round runs again off the truth. The refusal this shape is named for
-      // (a PLAN against a set withholding the very node it names) is never
-      // reached — the drift is caught a door earlier than #440 could catch
-      // it, which is this lane.
       const asked = watchingDrift(fixture)
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
-      // So NO repair is asked for up here: the ruled bug's own reproduction
-      // costs one re-derivation and nothing else.
       expect(asked).toEqual([])
 
-      // The caller was never told there was anything to heal.
       expect(fixture.refusals).toEqual([])
-      // The write did not trample the rebase's file: its NEW `pr` survived,
-      // and the mark was planned against it.
       const text = fixture.read("plan.olai") ?? ""
       expect(text).toContain(`"pr":"2026-09-01"`)
       expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
-      // And the reads catch up with the write: the served set says what the
-      // disk said from the moment the refusal showed.
       const healed = yield* fixture.set()
       expect(
         recordsOf(healed).find((located) => located.node.id === "the-plan")?.node,
       ).toMatchObject({ custom: { pr: "2026-09-01" }, done: STAMP })
     })))
 
-// THE PLANNER ARM'S OWN ASK, pinned — and reachable only where the write's
-// own files are NOT the stale half, since the ask above stands in front of
-// every write and would spend the budget first. That is the STALE JUDGE: the
-// declaration migrated behind the stamps in the OTHER direction, so the set
-// goes on withholding a file over a rule the disk has already dropped, and the
-// write's own bytes are exactly what the set holds.
 test("the planner arm's ask is every file the withheld rows were judged FROM", () =>
   withOps({
     "plan.olai": PLAN_BEFORE,
     "_olai/Properties.olai": DECLARE_PR_DATE,
   }, (fixture) =>
     Effect.gen(function*() {
-      // Loaded as broken: `not-a-date` is not a date, so plan.olai is
-      // withheld and the node cannot be reached at all.
       const served = yield* fixture.set()
       expect(served.broken.map((entry) => entry.file)).toEqual(["plan.olai"])
-      // …and then the declaration is relaxed, invisibly. The disk now says
-      // `pr` is free text, which `not-a-date` has always been.
       replaceBehindTheStamps(fixture.root, "_olai/Properties.olai", DECLARE_PR_TEXT)
 
       const asked = watchingDrift(fixture)
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
-      // THE PIN: the plan refuses before there are any files of its own to
-      // ask about, so the ask is the withheld rows' ABOUT axis — every file
-      // they were judged FROM, in `byPath` order. `reportPropValues`'s
-      // related site (`broken: false`) is what puts the DECLARATIONS file in
-      // it, and the declarations file is the drifted one here.
       expect(asked).toEqual([["_olai/Properties.olai", "plan.olai"]])
       expect(fixture.refusals).toEqual([])
-      // The value the stale judge condemned is still there, now legally.
       const text = fixture.read("plan.olai") ?? ""
       expect(text).toContain(`"pr":"not-a-date"`)
       expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
@@ -757,38 +540,22 @@ test("the planner arm's ask is every file the withheld rows were judged FROM", (
 test("a repair that still refuses answers the FRESH refusal, once", () =>
   withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
     Effect.gen(function*() {
-      // The same shape, except the migration's plan.olai is wrong under its
-      // own declaration: the repair resyncs, the disk's truth STILL refuses
-      // the declaration, and the same write is refused again — at the same
-      // door, against the resynced set.
       fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
       replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_STILL_BAD)
 
       const failure = yield* Effect.orDie(
         Effect.flip(fixture.ops.run({ op: "done", id: "the-plan" }, "mcp")),
       )
-      // THE CALLER'S "NO" IS THE FRESH ONE: reached against the resynced
-      // set, where the node is withheld because the DISK'S OWN bytes refuse
-      // the declaration — the planner's sentence names nothing stale
-      // because nothing stale is in it.
       if (failure._tag !== "NotFoundFailure") {
         throw new Error(`expected a NotFoundFailure, got ${failure._tag}`)
       }
       expect(failure.message).toContain("the-plan")
-      // What the repair CHANGED is the story the SERVER tells: the served
-      // set's broken rows were re-judged against the resynced tree, so they
-      // quote the bytes ON DISK — before it, the same rows quoted the stale
-      // copy, and a reader of them would go hunting for `not-a-date` in a
-      // file that says `2026-99-99`. (The errors channel stays EMPTY: one
-      // broken file is the set's own sentence now, not the channel's.)
       expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
       const said = (yield* fixture.set()).broken.flatMap((entry) =>
         entry.errors.map((finding) => finding.message)
       ).join("\n")
       expect(said).toContain("2026-99-99")
       expect(said).not.toContain("not-a-date")
-      // One refusal reached the caller — the retry's, not the stale one's —
-      // and nothing was written by any round.
       expect(fixture.refusals).toEqual(["done: NotFoundFailure"])
       expect(fixture.read("plan.olai")).toBe(PLAN_STILL_BAD)
     })))
@@ -796,10 +563,6 @@ test("a repair that still refuses answers the FRESH refusal, once", () =>
 test("a refusal the disk AGREES with heals nothing and changes nothing", () =>
   withOps({ "plan.olai": PLAN_STILL_BAD }, (fixture) =>
     Effect.gen(function*() {
-      // The same brokenness, honestly earned: the declaration arrives and
-      // the file IS what the set holds, so the byte check agrees with the
-      // refusal and the door stays shut — no resync, the refusal answered
-      // exactly as it was.
       fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
       const refreshes = watchingRefresh(fixture)
 
@@ -808,38 +571,16 @@ test("a refusal the disk AGREES with heals nothing and changes nothing", () =>
       )
       expect(failure._tag).toBe("NotFoundFailure")
       expect(fixture.refusals).toEqual(["done: NotFoundFailure"])
-      // The check was asked and answered NO, so the one look the repair
-      // would spend was never spent — the degraded set the gate's cycle
-      // published is the served one, and nothing re-read the tree.
       expect(refreshes).toEqual([])
       expect(fixture.read("plan.olai")).toBe(PLAN_STILL_BAD)
     })))
 
-// THE GATE'S OWN ASK, pinned. The repairs above all show at the planner's
-// door or at the write's own files — per-file brokenness withholds the
-// stale-judged file from the set before the gate is ever reached, and every
-// class of write a `plan` can emit is fenced at the plan by the same tables
-// the validator re-judges with (`typedProps`, `declaredWrong`), so an
-// ordinary write's plan and gate cannot come to different answers about its
-// bytes. The gate arm below is the door left for the case they CAN diverge —
-// a stale JUDGE against a healthy target — and its contract is the asked set.
-// The verdict is therefore FAKED ({@link STALE_JUDGE}): the pin is the arm's
-// own behaviour, not the codec's means of producing the answer. The write's own file is honest here for the same reason as the
-// planner arm above: a write whose own bytes have moved never reaches a
-// refusal at all — the gate answers `StaleWrite` on its way in — so the only
-// stale half a refusal arm can be about is one the write does not carry.
 test("the gate arm's ask is every file the verdict was judged FROM", () =>
   withOps({
     "plan.olai": PLAN_AFTER,
     "_olai/Properties.olai": DECLARE_PR_TEXT,
   }, (fixture) =>
     Effect.gen(function*() {
-      // The declaration replaced invisibly — the drift the heal stands on —
-      // and one commit answered with a stale judge's verdict: `bad-prop`
-      // filed on the write's own file, the judging declaration
-      // NAMED-but-not-broken. (`2026-09-01` satisfies both spellings, so the
-      // set itself is whole either way and the ONLY refusal here is the
-      // faked one.)
       yield* fixture.set()
       replaceBehindTheStamps(fixture.root, "_olai/Properties.olai", DECLARE_PR_DATE)
       fakingCommit(fixture, (attempt) =>
@@ -848,22 +589,11 @@ test("the gate arm's ask is every file the verdict was judged FROM", () =>
       const asked = watchingDrift(fixture)
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
-      // THE PIN: the verdict's ABOUT axis in `byPath` order, which is this
-      // arm's whole question. The `broken: false` judge is ASKED (a stale
-      // declaration is exactly the drift this arm exists for) even though the
-      // blame would never file it — and the write's own file rides in on the
-      // same axis, because the finding is about it.
       expect(asked).toEqual([["_olai/Properties.olai", "plan.olai"]])
-      // The refusal the verdict carried was never delivered — the heal
-      // answered it — and the write landed on the current set.
       expect(fixture.refusals).toEqual([])
       expect(fixture.read("plan.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
     })))
 
-// THE NARROWING, pinned: a `UsageFailure` is words about the REQUEST — a
-// typo, a misuse — and a stale copy cannot invent one, so the hottest refusal
-// path pays no byte check: not even when a broken file sits in the set AND
-// the disk under it has drifted.
 test("a usage refusal never reaches the byte check — drift or no drift, the door stays shut", () =>
   withOps({
     "plan.olai":
@@ -872,9 +602,6 @@ test("a usage refusal never reaches the byte check — drift or no drift, the do
       `{"id":"garden","ord":"a0","title":"the garden","see":["nobody-declares-this"]}\n`,
   }, (fixture) =>
     Effect.gen(function*() {
-      // garden.olai is broken (its `see` dangles) AND its on-disk bytes have
-      // drifted from the set's — everything the check could spend itself on,
-      // present at once.
       yield* fixture.store.refresh("cheap")
       replaceBehindTheStamps(
         fixture.root,
@@ -882,7 +609,6 @@ test("a usage refusal never reaches the byte check — drift or no drift, the do
         `{"id":"garden","ord":"a0","title":"the Garden","see":["nobody-declares-this"]}\n`,
       )
       const asked = watchingDrift(fixture)
-      // The write's refusal is a USAGE one: the node is already done.
       const failure = yield* Effect.orDie(
         Effect.flip(fixture.ops.run({ op: "done", id: "the-plan" }, "mcp")),
       )
@@ -891,51 +617,22 @@ test("a usage refusal never reaches the byte check — drift or no drift, the do
       expect(asked).toEqual([])
     })))
 
-// ── drift with no refusal in it, from the outside ──────────────────────
-//
-// The other half of the same bug, and the half no refusal ever reaches
-// (#440's `The no-refusal arm`, ruled closed 2026-08-30). A replacement that
-// lands inside the stamps' blind spot does not have to make the set INVALID:
-// swap one accepted value for another and every door #440 opened stays shut —
-// the write is planned off bytes that are gone, lands on top of them, and the
-// other process's write is simply not there any more, with nothing said
-// anywhere.
-//
-// What closes it is one layer DOWN, in the write gate: `commit` compares its
-// own paths by bytes on the way in and answers `StaleWrite` when they have
-// moved, which this loop already knows how to do something about
-// (`store/src/store.test.ts` pins the gate's own half). So there is no arm
-// here at all, and no repair is spent — these say what that buys from the
-// caller's chair, which is the seat the bug was reported from.
-
-/** Open at boot, and marked done by somebody else behind the stamps — the two
- *  are one length, so the replacement is invisible to the loop and the set
- *  goes on saying the row is open. */
 const PLAN_OPEN =
   `{"id":"the-plan","ord":"a0","title":"The plan (and its long tail)"}\n`
 const PLAN_MARKED_ELSEWHERE =
   `{"id":"the-plan","ord":"a0","title":"The plan","done":"2026-08-01"}\n`
 
-/** Two outlines, so a test can say what a write does about a file it does NOT
- *  touch. `before` and `healed` are one length. */
 const APPLES_BEFORE = `{"id":"apples","ord":"a0","title":"apples, before"}\n`
 const APPLES_HEALED = `{"id":"apples","ord":"a0","title":"apples, healed"}\n`
 const PEARS_BEFORE = `{"id":"pears","ord":"a0","title":"pears, before"}\n`
 const PEARS_HEALED = `{"id":"pears","ord":"a0","title":"pears, healed"}\n`
 
-/** Every ordinary record's title, sorted — what a two-file set looks like from
- *  the outside. `isRegular` is the format's own mirror drop, asked of the
- *  `Located` pair rather than re-spelled here. */
 const titles = (set: OutlineSet): ReadonlyArray<string> =>
   recordsOf(set).filter(isRegular).map((located) => located.node.title).sort()
 
 test("a still-valid replacement of the write's own file is caught, and not clobbered", () =>
   withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
     Effect.gen(function*() {
-      // The migration WITHOUT its declaration: `pr` moves from free text to a
-      // day, and since nothing in this vault declares `pr` at all, both
-      // spellings are valid. Nothing refuses anything, at any door — which is
-      // exactly why #440's arms could not see this.
       const served = yield* fixture.set()
       expect(served.broken).toEqual([])
       replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_AFTER)
@@ -945,24 +642,14 @@ test("a still-valid replacement of the write's own file is caught, and not clobb
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
 
-      // THE BUG, closed: the replacement's value is still on disk, with this
-      // write's mark beside it. Before the gate's own check, the write was
-      // planned off the stale copy and its bytes went straight over the top —
-      // `not-a-date` written back with a `done` on it, and the other
-      // process's edit gone with no error anywhere.
       const text = fixture.read("plan.olai") ?? ""
       expect(text).toContain(`"pr":"2026-09-01"`)
       expect(text).not.toContain("not-a-date")
       expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
 
-      // AND NOTHING UP HERE KNEW. No repair was asked for and no whole-tree
-      // resync was taken: the gate answered `StaleWrite`, which this loop has
-      // always answered by re-deriving, so the fix costs the caller a round
-      // it already had rather than a door it did not.
       expect(asked).toEqual([])
       expect(refreshes).toEqual([])
       expect(fixture.refusals).toEqual([])
-      // And the served set caught up with the disk on the way through.
       const healed = yield* fixture.set()
       expect(
         recordsOf(healed).find((located) => located.node.id === "the-plan")?.node,
@@ -972,36 +659,21 @@ test("a still-valid replacement of the write's own file is caught, and not clobb
 test("the round is PLANNED again: a write the true bytes refuse is refused, once", () =>
   withOps({ "plan.olai": PLAN_OPEN }, (fixture) =>
     Effect.gen(function*() {
-      // Somebody else marked the row done, invisibly. The set still says
-      // open, so the plan derived from it is a perfectly good `done` — and
-      // landing it would erase both their mark and their title.
       yield* fixture.set()
       replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_MARKED_ELSEWHERE)
 
       const failure = yield* Effect.orDie(
         Effect.flip(fixture.ops.run({ op: "done", id: "the-plan" }, "mcp")),
       )
-      // THE ROUND IS RE-DERIVED, NOT RE-SENT, which is what makes the fresh
-      // bytes able to refuse at all: a `StaleWrite` sends this loop back to a
-      // fresh read and a fresh plan, and against the truth this op has
-      // nothing left to do.
       expect(failure._tag).toBe("UsageFailure")
       expect(failure.message).toContain("already done")
-      // ONE refusal reached the caller, and it is the FRESH one — #440's
-      // retry semantics, reached without a refusal to start from.
       expect(fixture.refusals).toEqual(["done: UsageFailure"])
-      // Their bytes, untouched.
       expect(fixture.read("plan.olai")).toBe(PLAN_MARKED_ELSEWHERE)
     })))
 
 test("a write heals the file it is ABOUT, and leaves an untouched one to the door that names it", () =>
   withOps({ "a.olai": APPLES_BEFORE, "b.olai": PEARS_BEFORE }, (fixture) =>
     Effect.gen(function*() {
-      // One operation replaced both files invisibly; the write is about one
-      // of them. The gate asks about the bytes it is about to write over and
-      // heals exactly those — going looking for the other would mean reading
-      // the whole tree on every write, which is the read side's own red line
-      // moved onto the write side.
       yield* fixture.set()
       replaceBehindTheStamps(fixture.root, "a.olai", APPLES_HEALED)
       replaceBehindTheStamps(fixture.root, "b.olai", PEARS_HEALED)
@@ -1010,12 +682,8 @@ test("a write heals the file it is ABOUT, and leaves an untouched one to the doo
       yield* run(fixture, { op: "done", id: "apples" })
       expect(refreshes).toEqual([])
       expect(titles(yield* fixture.set())).toEqual(["apples, healed", "pears, before"])
-      // b.olai's replacement is still ON DISK and still unread — waiting, not
-      // lost, and never overwritten by a write that was not about it.
       expect(fixture.read("b.olai")).toBe(PEARS_HEALED)
 
-      // THE DOOR THAT NAMES IT is the next write to that file — or the resync
-      // a person knocks on, which is the same look one size larger.
       yield* run(fixture, { op: "done", id: "pears" })
       const text = fixture.read("b.olai") ?? ""
       expect(text).toContain("pears, healed")
@@ -1023,14 +691,6 @@ test("a write heals the file it is ABOUT, and leaves an untouched one to the doo
       expect(fixture.refusals).toEqual([])
     })))
 
-// THE REVIEWER'S PROBE, pinned. The declaraxis-fix's `related` asks the
-// DECLARATION where an ordinary value went wrong — and without the
-// `implicating` split, that ask leaks into the write gate's answer: one bad
-// value in lanes.olai refuses every write to `_olai/Properties.olai`, the
-// one door every declaration lives behind (`broken-file-blocks-healthy-writes`,
-// redeployed at the one site the whole vault shares). With it, the gate is
-// asked the finding's FILED file, and the laned writing of a DIFFERENT key
-// lands.
 test("a bad value in one file does NOT block declaring another key — the ask stays the ask", () =>
   withOps({
     "_olai/Properties.olai":
@@ -1040,15 +700,11 @@ test("a bad value in one file does NOT block declaring another key — the ask s
   }, (fixture) =>
     Effect.gen(function*() {
       yield* fixture.set()
-      // The hand edit that makes one ordinary value bad — the loop sees it,
-      // so the verdict the gate will ask about CARRIES the finding.
       fixture.write(
         "lanes.olai",
         `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"not-a-date"}}\n`,
       )
       yield* fixture.store.refresh("cheap")
-      // The write is to the DECLARATIONS file, about a key lanes.olai has
-      // never heard of: pre-fix, the shared axis refused this outright.
       const applied = yield* run(fixture, {
         op: "title",
         id: "prop-owner",
@@ -1058,15 +714,6 @@ test("a bad value in one file does NOT block declaring another key — the ask s
       expect(fixture.refusals).toEqual([])
     })))
 
-// A repair does not spend a LOST RACE, which is the whole of what `ROUNDS`
-// counts. Without that rule a write that had already lost four races would
-// walk off the loop the moment its refusal healed, and the caller would hear
-// `BusyFailure` about a flood that never happened. The rule is the counter's
-// now — it moves at the one site a race is observed — and this is the pin from
-// outside: the write LANDS.
-//
-// The stale half is the JUDGE here, so the write's own file is honest and the
-// repair waits for the gate — which is what puts it AFTER every race.
 test("a repair does not spend a lost race — four races and a heal still land", () =>
   withOps({
     "plan.olai": PLAN_AFTER,
@@ -1076,9 +723,6 @@ test("a repair does not spend a lost race — four races and a heal still land",
       yield* fixture.set()
       replaceBehindTheStamps(fixture.root, "_olai/Properties.olai", DECLARE_PR_DATE)
 
-      // Four attempts overtaken, then one refusal from the stale judge. The
-      // sixth attempt is the repair's, and a sixth is exactly what a repair
-      // that spent a race could not have reached.
       const attempts = fakingCommit(fixture, (attempt, write) =>
         attempt <= 4
           ? Effect.fail(
@@ -1095,17 +739,6 @@ test("a repair does not spend a lost race — four races and a heal still land",
       expect(fixture.read("plan.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
     })))
 
-/**
- * A `outlines_prop` of the value a node already holds is a refusal, and the point is
- * the BYTES: nothing lands, so nothing is stamped, so git sees nothing.
- *
- * The planner's own test says it is refused; this says what that buys. Before
- * the guard the write landed — the record was rewritten with a fresh `changed`
- * — and every face then told a different story: git called the tree dirty, the
- * pending panel listed nothing (it does not compare stamps, on purpose), and the
- * transcript claimed an edit. Disclosed by opencode in review of #179, and the
- * one assertion that covers all three is that the file did not move.
- */
 test("a outlines_prop of the value already held writes nothing at all", () =>
   withOps({ "house.olai": PROPPED }, (fixture) =>
     Effect.gen(function*() {
@@ -1116,9 +749,6 @@ test("a outlines_prop of the value already held writes nothing at all", () =>
       )
       expect(failure._tag).toBe("UsageFailure")
       expect(failure.message).toContain("nothing would change")
-      // Byte for byte, including the stamp that would otherwise have been put
-      // there — and the store never moved, so nothing downstream was told a
-      // revision happened.
       expect(fixture.read("house.olai")).toBe(PROPPED)
       expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
     })))
@@ -1132,19 +762,9 @@ test("a outlines_prop that DOES change something lands, and stamps the write", (
       expect(written).toContain(`"changed":`)
     })))
 
-/**
- * The retry, seen from outside: the op is derived from revision 1, somebody
- * else's edit lands first, and the op still succeeds because "mark `order`
- * done" means the same thing against the newer set. A SUCCEEDING retry is
- * invisible by design — there is nothing in the answer that says it happened,
- * and that is what is being asserted.
- */
 test("an edit that arrives mid-write is absorbed, not lost", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
-      // A second outline appears the way a `git pull` would put it there. The
-      // store has not probed yet, so the op's first attempt is against a
-      // revision the gate's own probe is about to overtake.
       fixture.write("notes.olai", `{"id":"idea","ord":"a0","title":"an idea"}\n`)
 
       const applied = yield* run(fixture, { op: "done", id: "order" })
@@ -1153,25 +773,9 @@ test("an edit that arrives mid-write is absorbed, not lost", () =>
       expect(
         recordsOf(set).find((located) => located.node.id === "order")?.node,
       ).toMatchObject({ done: STAMP })
-      // The pulled file is still there: the write re-derived rather than
-      // re-sending bytes computed from a set that no longer existed.
       expect(fixture.read("notes.olai")).toContain("an idea")
     })))
 
-/**
- * The other half of that retry, and the half a condition exists for.
- *
- * "Mark `order` done" means the same thing against the newer set, so the retry
- * absorbs it. "Set this title back to what it said, ASSUMING it still says
- * what I read" does not: if the thing it assumed stopped being true while the
- * write was in flight, re-planning it would write over somebody's words.
- *
- * The interleaving is the same one the test above sets up — the file changes
- * before the gate's own probe — so the request is planned once against a
- * snapshot where the condition holds and again against one where it does not.
- * Either attempt may be the one that sees the new title, and BOTH must refuse:
- * that is what makes this a fence rather than a race.
- */
 test("a conditional write refuses when the field moves under the retry", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
@@ -1193,7 +797,6 @@ test("a conditional write refuses when the field moves under the retry", () =>
       )
 
       expect(Result.isFailure(outcome)).toBe(true)
-      // And the other writer's words are still on disk, which is the claim.
       expect(fixture.read("house.olai")).toContain("order the chrome ones")
       expect(fixture.read("house.olai")).not.toContain("put back what I replaced")
     })))
@@ -1218,26 +821,7 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
         .toBe(true)
     })))
 
-// ── the 2026-09-01 incident: a document's write reported over lost bytes ──
-
-/**
- * A `markdown_create` returned success — a revision — over a ~2KB body, and
- * the file on disk was 0 bytes. The incident's own report adds two
- * circumstances: the create rode a parallel MCP batch beside a `files_delete`
- * of another document, and the serve runs `commit: manual` with deploys in
- * the gap between a write and its commit.
- *
- * These tests are the honest reproduction attempts: each shape the incident
- * names, driven against a real directory, asserting the one claim the
- * incident broke — THE BYTES THE CALL CARRIED ARE THE BYTES THE DISK KEEPS at
- * the moment the write reports. (The report's third observation, that the
- * file was absent from all git history, is reproduced by neither code nor
- * these tests because it needs none: that vault gitignores `briefs/`, so the
- * file could never have been in a commit.)
- */
 describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () => {
-  /** A body at the incident's size: two kilobytes of markdown with frontmatter,
-   *  paragraphs and a list — the shape a dispatch brief actually has. */
   const BRIEF = [
     "---",
     "lane: doorbell-missing-claim",
@@ -1263,29 +847,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
     "",
   ].join("\n")
 
-  /**
-   * THE GUARANTEE, pinned at the seam that makes it: each incident shape this
-   * block drives passes at HEAD — the incident itself did not reproduce — so
-   * the rule is made of this test instead. Beneath a healthy plan, the landed
-   * bytes are taken away between the rename and the answer (a racing
-   * truncation by something the gate does not serialize — vim, a `git pull`,
-   * a bad deploy step; this layer cannot name which, and does not have to).
-   * A document write that cannot read its own bytes back is a REFUSAL, never
-   * a reported success: what the incident got is the one answer this layer no
-   * longer has.
-   *
-   * The refusal it pins must tell the truth about what landed, because the
-   * write DID land: the revision is published, the file is on disk, the set
-   * serves it, and — for the create verb — "try again" is now refused, the
-   * file existing. So the sentence says so, names what the disk actually kept
-   * (in bytes — `markdown_index`' vocabulary), and points at `markdown_write`
-   * as the way back.
-   */
   describe("a document write whose bytes do not survive its window is refused, not reported", () => {
-    /** The re-enactment, BELOW the layer being held to account: the gate
-     *  stages, renames, publishes and answers — and by the time the ops layer
-     *  looks, the file is 0 bytes, exactly as the incident found it. `run`
-     *  returns the refusal the ops layer concludes from that disk. */
     const looted = async (
       files: Record<string, string>,
       request: Request,
@@ -1298,8 +860,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
       return Effect.gen(function*() {
         const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
         const landed = store.commit
-        // `commit` answers one Result: a SUCCESS carries the revision —
-        // those are the writes that reported, and the ones looted here.
         const wrapped: typeof store = {
           ...store,
           commit: (write) =>
@@ -1336,12 +896,8 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
       try {
         expect(failure._tag).toBe("ValidationFailure")
         expect(failure.message).toContain("briefs/dispatch.md` landed")
-        // The headline of this PR, asserted directly: the sentence names WHAT
-        // THE DISK KEPT, not that nothing was written — and since the write
-        // landed, it names the verb that can still rewrite it.
         expect(failure.message).toContain("0 bytes where")
         expect(failure.message).toContain("markdown_write")
-        // The re-enactment really did its part.
         expect(fs.readFileSync(path.join(root, "briefs/dispatch.md"), "utf8")).toBe("")
       } finally {
         fs.rmSync(root, { recursive: true, force: true })
@@ -1365,10 +921,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
     })
 
     test("a markdown_write killed between gate and read-back by the set itself — the gone file is named, not the disk blamed", async () => {
-      // `body` answers null for a path the served set does not hold: after a
-      // dot-directory path is refused at plan, the only way to reach this arm
-      // is the file leaving the set inside the write's own window. Re-enacted
-      // by deleting the file behind the store's back in the same seam.
       const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-looted-")))
       fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
       fs.mkdirSync(path.join(root, "notes"), { recursive: true })
@@ -1416,10 +968,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
         })
         expect(applied.rev).toBeGreaterThan(1)
 
-        // THE CLAIM, at the moment the answer went out: the bytes are the call's.
         expect(fixture.read("briefs/doorbell-missing-claim.md")).toBe(BRIEF)
-        // …and not through the fixture's second read of the disk only: the set
-        // the next read answers carries the same body.
         const documents = markdownIn(yield* fixture.set())
         expect(documents.map((document) => String(document.path))).toEqual([
           "briefs/doorbell-missing-claim.md",
@@ -1437,9 +986,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
       },
       (fixture) =>
         Effect.gen(function*() {
-          // Eight rounds, each firing the incident's pair at the store gate at
-          // once: a race that lands wrong once lands wrong OFTEN, and a single
-          // pass of a race test is a coin flip that happened to come up.
           for (let round = 0; round < 8; round++) {
             const created = `briefs/dispatch-${round}.md`
             yield* Effect.all(
@@ -1449,9 +995,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
               ],
               { concurrency: 2 },
             )
-            // Asserted INSIDE the round, not collected after: the claim is
-            // about the moment the answers went out, and a later look could
-            // have been repaired by the reads in between.
             expect(fixture.read(created)).toBe(BRIEF)
             expect(fixture.read(`spent-${round}.md`)).toBeNull()
           }
@@ -1459,13 +1002,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
     ))
 
   test("a serve restart between the write and the commit loses nothing", async () => {
-    /**
-     * The deploy case, made small: the serve that took the write is CLOSED
-     * with the write still waiting on a commit, and a fresh store+ops over
-     * the same root answers for the bytes afterwards. `withOps` cannot be
-     * reused — it deletes its root — so the boot is spelled here over one
-     * root the test owns, twice.
-     */
     const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-restart-")))
     const write = (file: string, contents: string) => {
       fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
@@ -1491,8 +1027,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
         Effect.runPromise,
       )
     try {
-      // Boot one: the write lands, its answer goes out, the serve goes away
-      // with the commit never asked for.
       await booted((ops) =>
         Effect.gen(function*() {
           const applied = yield* Effect.orDie(ops.run({
@@ -1502,13 +1036,9 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
           }, "mcp"))
           expect(applied.rev).toBeGreaterThan(1)
         }))
-      // THE CLAIM, read of the disk with no olai process alive to speak for it.
       expect(fs.readFileSync(path.join(root, "briefs/doorbell-missing-claim.md"), "utf8"))
         .toBe(BRIEF)
 
-      // Boot two: the next serve finds the file as its own, still holding its
-      // body. Recording it is the ledger plugin's; this layer only promises
-      // the bytes survive a restart.
       await booted((ops) =>
         Effect.gen(function*() {
           const set = yield* Effect.orDie(ops.read)
@@ -1535,10 +1065,6 @@ describe("delete, against a real directory", () => {
           summary: "delete: ideas.md",
           sort: "gone",
         })
-        // One revision, one publication: THE GATE'S claim, at the place the
-        // claim is made. The disk holds the path no longer, and the set the
-        // read gate hands anybody — the same value a `markdown_index` call
-        // answers with — holds it no longer either.
         expect(fixture.read("ideas.md")).toBeNull()
         expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(2)
         const set = yield* fixture.set()
@@ -1561,9 +1087,6 @@ describe("delete, against a real directory", () => {
         expect(refusal._tag).toBe("UsageFailure")
         expect(refusal.message).toContain("house.olai")
         expect(refusal.message).toContain("`order`")
-        // NOTHING IS WRITTEN is the promise the refusal makes, and the two
-        // files untouched are its proof: the refusal was judged in the
-        // planner and never reached a staged byte.
         expect(fixture.read("house.olai")).toBe(HOUSE)
         expect(fixture.read("ideas.md")).toBe("# Ideas\n")
       })))
@@ -1578,24 +1101,10 @@ describe("delete, against a real directory", () => {
       })))
 })
 
-// ── a batch on the disk ────────────────────────────────────────────────
-
-/**
- * What batching is actually FOR, at the only level where the claim can be made.
- *
- * {@link ./batch.test.ts} proves that a run of ops decides what the same ops
- * decide one at a time. Neither of the two properties that make it worth having
- * is visible there, because both are about what reaches a disk: one revision for
- * the whole run, and a refused run leaving the file byte for byte as it was.
- */
 describe("apply, against a real directory", () => {
   test("a batch of three ops moves the store ONE revision", () =>
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        // The load is revision 1, so a single write lands at 2. Three ops in a
-        // batch land at 2 as well — which is the whole claim: one plan, one
-        // validation, one rename, one publication. Three calls would have been
-        // 2, 3 and 4, and three frames to every open page.
         expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
         const applied = yield* run(fixture, {
           op: "apply",
@@ -1612,7 +1121,6 @@ describe("apply, against a real directory", () => {
         expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
         expect(text).toContain(`"custom":{"pr":"https://x/1"}`)
         expect(text).toContain("demolition, done")
-        // Still one record per line, read back by the parser that wrote it.
         expect(Result.isSuccess(parseOutline("house.olai", text, TEST_CLAIMS))).toBe(true)
       })))
 
@@ -1620,14 +1128,6 @@ describe("apply, against a real directory", () => {
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const before = fixture.read("house.olai")
-        // The three are chosen so op 2 can only refuse for a reason ops 0 and 1
-        // MADE. `install` arrives `doing` and `order` arrives a bullet, so
-        // against the set this call was handed, `kitchen` holds exactly one
-        // unfinished task and it is `install`. Op 0 finishes it; op 1 turns the
-        // bullet into a task, which is unfinished work that did not exist a
-        // moment ago; op 2 is refused NAMING THAT — a sentence no
-        // implementation that planned each op against the arriving set could
-        // produce, since `order` is not work there at all.
         const outcome = yield* Effect.result(fixture.ops.run({
           op: "apply",
           ops: [
@@ -1642,13 +1142,9 @@ describe("apply, against a real directory", () => {
           expect(outcome.failure.message).toContain("`ops[2]` (`done`)")
           expect(outcome.failure.message).toContain("holds 1 unfinished task")
           expect(outcome.failure.message).toContain("`order the cabinets` (`order`, todo)")
-          // …and NOT the one the arriving set would have named.
           expect(outcome.failure.message).not.toContain("`install them`")
         }
-        // Nothing landed — not the two ops that would have, not a stamp, not a
-        // rewritten line. The bytes are the bytes.
         expect(fixture.read("house.olai")).toBe(before)
-        // …and the store never moved, so no open page saw a half-run.
         expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
         expect(fixture.refusals).toEqual(["apply: UsageFailure"])
       })))
@@ -1663,10 +1159,6 @@ describe("apply, against a real directory", () => {
             { op: "title", id: "demo", title: "demolition, done" },
           ],
         })
-        // The run's own summary is still what a batch composes for itself —
-        // it is what the reply and the chat transcript read — but it is no
-        // longer a commit subject: nothing commits a write any more, so the
-        // batch waits with everything else for the sweep.
         expect(applied.summary).toContain("apply: 2 ops")
         expect(applied.rev).toBe(2)
       })))
@@ -1707,50 +1199,17 @@ describe("apply, against a real directory", () => {
         const text = fixture.read("house.olai") ?? ""
         expect(text).toContain(`"after":["measure"]`)
         expect(text).toContain(`"custom":{"agent":"claude-opus"}`)
-        // The whole set still validates — the forward reference resolved to a
-        // record in the same write, which is what makes it legal at all.
         const set = yield* fixture.set()
         expect(set.broken).toEqual([])
       })))
 })
 
-/**
- * ONE BROKEN OUTLINE DEGRADES ALONE — reads, writes and all.
- *
- * The bug (`broken-file-blocks-healthy-writes`, sighted 2026-08-25): one
- * outline failing typed validation refused an `outlines_add` into a perfectly
- * healthy file — the gate reduced the whole set's verdict to one boolean, so
- * every write in the vault was frozen by a file it had nothing to do with, and
- * the refusal said "would leave the outlines invalid", which reads as an
- * indictment of a write that was innocent. Filing THAT BUG was blocked by it.
- *
- * The first fix let the BYTES land while the snapshot stayed frozen at the last
- * good revision — better, and still a vault where nothing on screen moved. The
- * human's ruling of 2026-08-29 took the freeze out: a broken `.olai` degrades
- * alone, so the set is PUBLISHED with that file withheld and every other file
- * is live, revisioned and writable. What is only true END TO END is here — that
- * the revision moves, that the brokenness is carried on the file rather than on
- * the errors channel, that a second write lands on top of the first, and that
- * the writes which must still be refused are refused with the file named.
- */
 describe("a broken file beside a healthy one", () => {
-  /** A second outline, valid on its own — what the healthy write goes into. */
   const GARDEN = `{"id":"garden","ord":"a0","title":"the garden"}\n`
 
-  /** The same file, saying something the set cannot hold: an edge naming an id
-   *  nothing in the directory declares. It PARSES — that is the point, since a
-   *  file that merely failed to parse has degraded gracefully for a year. */
   const DANGLING =
     `{"id":"garden","ord":"a0","title":"the garden","see":["nobody-declares-this"]}\n`
 
-  /**
-   * Break `garden.olai` on disk and let the store see it.
-   *
-   * THE DIRECTORY GOES ON BEING SERVED, which is the ruling in one assertion:
-   * a revision is published, `garden.olai` is in the set's `broken` with its own
-   * row, and the ERRORS CHANNEL IS EMPTY — that channel says the directory
-   * could not be read, and this directory was read perfectly.
-   */
   const breakGarden = (fixture: Fixture) =>
     Effect.gen(function*() {
       fixture.write("garden.olai", DANGLING)
@@ -1759,8 +1218,6 @@ describe("a broken file beside a healthy one", () => {
       const set = yield* fixture.set()
       expect(set.broken.map((one) => one.file)).toEqual(["garden.olai"])
       expect(set.broken[0]?.errors.map((one) => one.code)).toEqual(["unknown-target"])
-      // The file keeps its PLACE and loses its content, which is what makes its
-      // own page draw rows where its tree was.
       expect(recordsOf(set).filter((at) => at.file === "garden.olai")).toEqual([])
     })
 
@@ -1772,34 +1229,17 @@ describe("a broken file beside a healthy one", () => {
           yield* breakGarden(fixture)
 
           const applied = yield* run(fixture, { op: "done", id: "order" })
-          // THE BYTES ARE ON DISK. Under the original gate this write was
-          // refused outright and nothing was written at all.
           expect(fixture.read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
           expect(fixture.refusals).toEqual([])
-          // AND THE REVISION MOVES, which is what the ruling added: the write
-          // is on screen. It used to come back at the standing revision, with
-          // the last good snapshot still being served to every reader.
           expect(applied.rev).toBeGreaterThan(1)
 
           const set = yield* fixture.set()
           const done = recordsOf(set).find((at) => at.node.id === "order")?.node
           expect(done !== undefined && !isMirror(done) ? done.done : undefined).toBe(STAMP)
-          // …and the broken file is still broken, in the same set, beside it.
           expect(set.broken.map((one) => one.file)).toEqual(["garden.olai"])
         }),
     ))
 
-  /**
-   * THE FREEZE IS GONE, and this is the test that was written the other way up.
-   *
-   * While a broken file held the snapshot at the last good revision, a second
-   * write to a file the first one had already changed had to be REFUSED: it
-   * would have been planned off a copy without the first write in it and would
-   * have put that copy back. The store still owns that guard — a path the
-   * published revision no longer accounts for cannot be written from it — and
-   * it has nothing to defend against here, because the snapshot moves on every
-   * write. Both writes land, and the second is derived from the first.
-   */
   test("a second write to the same file lands on top of the first", () =>
     withOps(
       { "house.olai": HOUSE, "garden.olai": GARDEN },
@@ -1816,16 +1256,6 @@ describe("a broken file beside a healthy one", () => {
         }),
     ))
 
-  /**
-   * …AND A WRITE TO THE BROKEN FILE ITSELF IS REFUSED, naming it.
-   *
-   * The other end of the same rule, and the refusal is the planner's rather
-   * than the gate's: the set holds a PLACE for `garden.olai` and no records, so
-   * there is nothing in it for an op to name, and re-emitting the file from the
-   * set would erase what is really on disk. One sentence for every kind of
-   * broken — the same one a file that would not parse has always got — and the
-   * repair is a whole-file write rather than a node edit.
-   */
   test("a write INTO the broken file is refused, and says which file", () =>
     withOps(
       { "house.olai": HOUSE, "garden.olai": GARDEN },
@@ -1839,14 +1269,10 @@ describe("a broken file beside a healthy one", () => {
           )
           expect(failure._tag).toBe("ValidationFailure")
           expect(failure.message).toContain("`garden.olai`")
-          // Nothing was written, so the broken file is still exactly the bytes
-          // its owner has to go and fix.
           expect(fixture.read("garden.olai")).toBe(DANGLING)
         }),
     ))
 
-  // And it comes back on its own: fixing the file publishes it, with the
-  // healthy file's writes still in the set the way any other write would be.
   test("the broken file comes back the moment it is fixed", () =>
     withOps(
       { "house.olai": HOUSE, "garden.olai": GARDEN },
@@ -1870,12 +1296,6 @@ describe("a broken file beside a healthy one", () => {
 })
 
 
-/**
- * A bad `type` in a Properties declaration used to pass the planner and meet
- * the generic write gate — "`capture: took` would leave `_olai/Properties.olai`
- * invalid" — which named nothing. The planner now refuses as `usage`, naming
- * the legal kinds, so this layer never reaches that sentence.
- */
 test("a bad type in a Properties declaration is refused naming the legal vocabulary", () =>
   withOps(
     {
@@ -1917,12 +1337,6 @@ test("a bad type in a Properties declaration is refused naming the legal vocabul
       }),
   ))
 
-/**
- * THE INCIDENT, replayed: declaring a key over unfit values used to land
- * (`admits` ignored `bad-prop` findings on other files) and took the vault
- * into last-good. The declaration now refuses at the planner, naming the
- * offenders; one `apply` cleans them; the declaration then accepts.
- */
 describe("a declaration over unfit values", () => {
   const LANES = [
     `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
@@ -1984,19 +1398,6 @@ describe("a declaration over unfit values", () => {
         expect(set.broken).toEqual([])
       })))
 
-  /**
-   * Declare-blocked cleanup of the last-good trap: a hand-edited declaration
-   * is already on disk, the file it fences is WITHHELD from the published set,
-   * and a single `outlines_prop` of one of several bad values in that file is
-   * refused (the candidate still has the others). One `apply` that fixes them
-   * all lands.
-   *
-   * THE FROZEN SNAPSHOT IS GONE and the claim is not: since the per-file
-   * ruling the directory publishes with `lanes.olai` withheld rather than
-   * holding every page at the last good revision, so what says the file is in
-   * trouble is its own `broken` entry and not the errors channel — which is
-   * about a directory that could not be read.
-   */
   test("a hand-edited declaration withholds the file, and no node op reaches it", () =>
     withOps(FILES, (fixture) =>
       Effect.gen(function*() {
@@ -2015,12 +1416,6 @@ describe("a declaration over unfit values", () => {
           "bad-prop",
         ])
 
-        // NEITHER OP REACHES IT, and that is the per-file ruling rather than a
-        // gap: a withheld file is one the set holds a PLACE for and no records,
-        // so there is no `a` for a planner to resolve. #439 shipped `apply` as
-        // the one-write repair of several bad values in one file, and that door
-        // is a repair of a file the set still HOLDS — a healthy file that would
-        // become broken. A file already withheld is a hand edit's to mend.
         const one = yield* Effect.orDie(
           Effect.flip(
             fixture.ops.run({
@@ -2048,10 +1443,6 @@ describe("a declaration over unfit values", () => {
         expect(batch._tag).toBe("NotFoundFailure")
         expect(fixture.read("lanes.olai")).toContain("not a path")
 
-        // AND THE HAND EDIT MENDS IT, with no reload and nothing else touched —
-        // which is the state's only door, and is why #439's other half (the
-        // planner fence that stops a declaration landing over unfit values in
-        // the first place) is what keeps a vault out of here through olai.
         fixture.write(
           "lanes.olai",
           [
@@ -2084,33 +1475,6 @@ describe("a declaration over unfit values", () => {
     ))
 })
 
-/**
- * MOVING A `ref` VARIANT INTO A THIRD FILE — refused, naming the file it would
- * have broken.
- *
- * THE PIN THAT USED TO BE HERE said the move LANDED and the third file went
- * dark, and said out loud that it was pinned rather than endorsed. This is that
- * pin flipped. The behaviour it recorded was the one place per-file degradation
- * let a write break a file it did not write: the planner builds the move
- * (nothing about one record says a value in a third file goes stale), #439
- * caught it at the STORE over a candidate the codec REFUSED, and per-file
- * publishing left no refusal there to read — the candidate is published with
- * `lanes.olai` withheld, and `stopping` was asked only about the files the
- * write put down.
- *
- * IT IS ASKED ABOUT MORE FILES NOW. `Codec.stopping` is handed the STANDING
- * value as well as the candidate ({@link @olai/store}'s `Codec`), so the write
- * gate's ask is the files it puts down PLUS the ones it darkened
- * (`@olai/format`'s `darkened`): `lanes.olai` was lit before this write and
- * would be dark after it, and no write of this shape has ever been anything but
- * the cause of that. #439's law — an ops write must never mint a state the next
- * load refuses, even when the findings sit on files it did not write — is back,
- * and per file rather than whole-set, which is what makes it live beside #441's.
- *
- * The other candidate fix was a fence at the planner, the way #439 fenced the
- * declaration doors. The PR body argues why the gate got it: a fence is
- * per-verb and this door is not the only one.
- */
 test("moving a ref variant is refused, naming the third file it would strand", () =>
   withOps(
     {
@@ -2134,26 +1498,17 @@ test("moving a ref variant is refused, naming the third file it would strand", (
             fixture.ops.run({ op: "move", id: "claude", parent: "garden" }, "mcp"),
           ),
         )
-        // THE REFUSAL NAMES THE BYSTANDER — not `garden.olai`, which is the
-        // file the write was putting down and has nothing wrong with it.
         expect(failure._tag).toBe("ValidationFailure")
         expect(failure.message).toContain("`lanes.olai`")
         if (failure._tag !== "ValidationFailure") throw new Error("a validation refusal")
-        // …and it shows its work: the bystander's own rows, so the reader is
-        // told what the move would have meant rather than only that it stopped.
         expect(failure.verdict.findings.map((one) => [one.file, one.code]))
           .toEqual([["lanes.olai", "bad-prop"]])
 
-        // NOTHING WAS WRITTEN. Not the file the variant left, not the one it
-        // was going to, not the one that names it.
         expect(fixture.read("agents.olai")).toBe(agents)
         expect(fixture.read("garden.olai")).toBe(garden)
         const set = yield* fixture.set()
         expect(set.broken).toEqual([])
 
-        // …AND IT LANDS THE MOMENT NOTHING NAMES THE VARIANT. The value is
-        // cleared first — one write to `lanes.olai`, which is legal because
-        // clearing it breaks nothing — and then the same move goes through.
         yield* run(fixture, { op: "prop", id: "lane", key: "agent", value: null })
         yield* run(fixture, { op: "move", id: "claude", parent: "garden" })
         expect(fixture.read("garden.olai")).toContain(`"id":"claude"`)
@@ -2161,40 +1516,6 @@ test("moving a ref variant is refused, naming the third file it would strand", (
       }),
   ))
 
-/**
- * …AND THE GATE ARM IS A LIVE PATH NOW, which is what this refusal did to
- * #440's drift door and why the asked SET is pinned against a real one.
- *
- * The arm above it (`the gate arm's ask is the write's own files, then every
- * file the verdict was judged FROM`) FAKES its verdict, deliberately: before
- * this lane the shapes that reached the gate named the write's own files, so
- * there was no ordinary write whose refusal carried somebody else's rows. A
- * bystander refusal is exactly that write, and it arrives with a `bad-prop`
- * about a file the commit never opened plus the `broken: false` declaration
- * that judged it.
- *
- * SO THE ASK IS PINNED HERE ON THE REAL THING, and what it protects is one
- * swap: `aboutFiles` rides the ABOUT plane (`implicatedBy`), and the two
- * planes are two functions beside each other in `@olai/format` since this
- * lane. Reading the BLAME plane instead would drop `_olai/Properties.olai` —
- * the judge, and the file a stale declaration lives in — out of the drift ask
- * and leave a refusal of exactly this shape unhealable, silently, because
- * every other path in the ask would be unchanged.
- *
- * THE COMPOSITION IS #442's, and this is the merge of the two lanes: #440's
- * `paths` first, then the about-axis, has become the about-axis ALONE. The
- * write's own files are asked by the write GATE now, by bytes, on its way in
- * ({@link @olai/store}'s `commit`), so a write standing on moved bytes never
- * reaches a verdict at all — and re-asking them here would be this door asking
- * the question that door already answered, for this same round.
- *
- * So the set below pins both halves at once, which is what makes it worth
- * pinning exactly rather than by `toContain`: the JUDGE is in it (#443's half
- * — read the blame plane instead and `_olai/Properties.olai` silently leaves,
- * taking healability with it), and the write's OWN files are not (#442's half
- * — `agents.olai` and `garden.olai` are what this move puts down, and they
- * were compared before the commit that refused).
- */
 test("a bystander refusal reaches the drift arm with the judge in the ask", () =>
   withOps(
     {
@@ -2218,34 +1539,12 @@ test("a bystander refusal reaches the drift arm with the judge in the ask", () =
         )
         expect(failure._tag).toBe("ValidationFailure")
 
-        // The check ran once, over the verdict's ABOUT axis in `byPath`
-        // order and nothing else: the bystander the `bad-prop` was filed on,
-        // and the declarations file it was judged FROM. The judge is the half
-        // the blame axis would silently drop; the write's own `agents.olai`
-        // and `garden.olai` are the half the gate has already compared.
         expect(asked).toEqual([["_olai/Properties.olai", "lanes.olai"]])
 
-        // The disk AGREES with the refusal — nothing drifted — so the door
-        // stays shut and the caller hears the refusal once, unhealed.
         expect(fixture.refusals).toEqual(["move: ValidationFailure"])
       }),
   ))
 
-/**
- * THE BYSTANDER RULE IS A DIFFERENCE, NOT A STATE — which is what keeps
- * `broken-file-blocks-healthy-writes` closed while the refusal above stands.
- *
- * `lanes.olai` is ALREADY broken here, by a hand edit nobody's write made: it
- * holds a second value naming a variant that was never declared. It is off
- * every page and refusing its own writes before the move is asked for. So the
- * move that would strand its OTHER value is not what took it off the screen,
- * and the write lands — the file it darkens was dark.
- *
- * The alternative — comparing ROWS rather than files — would refuse this, and
- * that is the freeze re-entering one row at a time: every already-broken file
- * becomes a wall for writes three directories away, which is the bug the
- * per-file ruling closed.
- */
 test("a file that was already dark is not a bystander this write struck", () =>
   withOps(
     {
@@ -2265,15 +1564,12 @@ test("a file that was already dark is not a bystander this write struck", () =>
     },
     (fixture) =>
       Effect.gen(function*() {
-        // It is dark before anybody writes anything.
         const before = yield* fixture.set()
         expect(before.broken.map((one) => one.file)).toEqual(["lanes.olai"])
 
         yield* run(fixture, { op: "move", id: "claude", parent: "garden" })
         expect(fixture.read("garden.olai")).toContain(`"id":"claude"`)
 
-        // Still exactly one dark file, now carrying both rows — and every
-        // other file still live and writable.
         const set = yield* fixture.set()
         expect(set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
         expect(set.broken[0]?.errors.length).toBe(2)
@@ -2281,18 +1577,6 @@ test("a file that was already dark is not a bystander this write struck", () =>
       }),
   ))
 
-/**
- * THE FOREIGN PARENT'S FILE KEEPS ITS WRITES — the other half of this lane,
- * at the door it is about.
- *
- * `child.olai` places a record under a parent declared in `parent.olai`. The
- * finding is `foreign-parent`, and it NAMES both files: the record that reached
- * across, and the parent it reached at. Only the first is at fault — the edit
- * that fixes it is the `parent` field, in `child.olai` — so `parent.olai` stays
- * lit, keeps its records in the set, and accepts writes. It used to go
- * errors-only and refuse every write in it, which is
- * `broken-file-blocks-healthy-writes` re-entering through one code's blame.
- */
 test("a foreign parent darkens the child's file, and the parent's stays writable", () =>
   withOps(
     {
@@ -2302,22 +1586,15 @@ test("a foreign parent darkens the child's file, and the parent's stays writable
     (fixture) =>
       Effect.gen(function*() {
         const set = yield* fixture.set()
-        // ONE dark file, and it is the one holding the `parent`.
         expect(set.broken.map((one) => one.file)).toEqual(["child.olai"])
         expect(set.broken[0]?.errors.map((one) => one.code)).toEqual(["foreign-parent"])
-        // The finding still NAMES the parent's file — the about axis is
-        // unfiltered, and the drift check rides it.
         expect(implicatedBy(set.broken[0]?.errors[0] as OutlineError))
           .toEqual(["child.olai", "parent.olai"])
         expect(admits(set.broken, ["parent.olai"])._tag).toBe("admitted")
 
-        // …and the write lands: a retitle inside the file that was merely
-        // pointed at, with the bytes on disk.
         yield* run(fixture, { op: "title", id: "kitchen", title: "the kitchen, tidied" })
         expect(fixture.read("parent.olai")).toContain("the kitchen, tidied")
 
-        // A write INTO the broken file is still refused, naming it — the
-        // pointed-at file being innocent does not make the pointing one so.
         const refused = yield* Effect.orDie(
           Effect.flip(fixture.ops.run({ op: "title", id: "sink", title: "no" }, "mcp")),
         )
@@ -2373,7 +1650,7 @@ test("five stale writes name the plan, revisions, frequent paths and removals", 
     }))
     const failure = yield* Effect.flip(fixture.ops.run({ op: "create", file: "sdf.olai" }, "web"))
     expect(attempts()).toBe(5)
-    expect(reads()).toBe(6) // Initial plan, four replans, and the final race's evidence.
+    expect(reads()).toBe(6)
     expect(failure._tag).toBe("BusyFailure")
     expect(failure.message).toContain("`create: sdf.olai` was not written")
     expect(failure.message).toContain("all 5 attempts (revision 1 → 6)")

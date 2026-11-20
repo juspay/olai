@@ -1,5 +1,3 @@
-/** Literal ops test membership. Only the codec comes from its owning row;
- * no plugin testlib supplies the table or owns these fixtures. */
 import { claims } from "@olai/format"
 import { format } from "olai-plugin-outline-olai/format"
 export const TEST_CLAIMS = claims([

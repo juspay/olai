@@ -1,17 +1,3 @@
-/**
- * The seam, in the one way it can be got wrong.
- *
- * `@olai/format`'s patcher is held to `derive` by a property test of its own,
- * so what is left to prove here is the TRANSLATION: the store says what it last
- * published and which paths have moved, and this codec turns that into a delta
- * about files. A delta that named the wrong file, or read a changed file's
- * records out of the wrong place, would produce a perfectly self-consistent
- * view of a directory nobody has — and every rule below it would then be
- * checked against that.
- *
- * So each test validates the same set twice, once building on the last verdict
- * and once from nothing, and asserts the two are the same reading.
- */
 import { claims } from "@olai/format"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import type { Document, OutlineError, Reading } from "@olai/format"
@@ -26,9 +12,6 @@ import { Result } from "effect"
 
 import { codecFor } from "./codec.ts"
 
-/** The codec this suite validates through — the vocabulary of a build that
- *  composed no plugin, which is what every test in this package runs under
- *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
 const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 type Files = Record<string, string>
@@ -43,8 +26,6 @@ const decoded = (
     ]),
   )
 
-/** A verdict that must be one, so a test that mis-writes a fixture hears which
- *  rule refused it rather than a type error three lines later. */
 const accepted = (
   outcome: Result.Result<Reading, Verdict>,
 ): Reading => {
@@ -60,9 +41,6 @@ const accepted = (
   return outcome.success
 }
 
-/** The two readings compared the way the patcher's own suite compares two
- *  views: every index, entries and all. `Map`s and `Set`s are spread, because
- *  `toEqual` reads a `Set` as membership and these promise more than that. */
 const readable = (reading: Reading): unknown => ({
   set: reading.set,
   nodes: reading.derived.nodes,
@@ -77,16 +55,6 @@ const readable = (reading: Reading): unknown => ({
   edgesTo: [...reading.derived.edgesTo].map(([id, to]) => [id, [...to]]),
 })
 
-/**
- * Validate `after` twice — once building on `before`'s verdict with `changed`
- * and `removed` named, once from nothing at all — and insist the two agree.
- *
- * The second map is the FIRST one with the moved paths swapped in, which is
- * what a probe hands over: a file whose stamp did not move keeps the very value
- * it was cached with ({@link ../../store/src/probe.ts}). Re-decoding the whole
- * directory here instead would build a set of equal-but-different records, and
- * the fixture would be measuring a thing the store never does.
- */
 const bothWays = (
   before: Files,
   after: Files,
@@ -100,8 +68,6 @@ const bothWays = (
   for (const path of moved.changed) {
     files.set(path, codec.byName?.(path) ?? codec.decode(path, after[path] as string))
   }
-  // The fixture's own claim, checked: the two lists really are the difference
-  // between the two directories.
   expect([...files.keys()].sort()).toEqual(Object.keys(after).sort())
 
   const built = accepted(
@@ -126,10 +92,6 @@ test("an edited outline is patched onto the last verdict", () => {
     changed: ["kitchen.olai"],
     removed: [],
   })
-  // The placement in the other file says what its target says, and what was
-  // waiting is waiting no longer — the two facts a patch has to carry across
-  // files, asserted here as well as compared, so a test that agreed with a
-  // rebuild about NOTHING would still have to agree about these.
   expect(reading.derived.status.get("here")).toBe("done")
   expect(reading.derived.blocked.has("shop")).toBe(false)
 })
@@ -147,16 +109,11 @@ test("an outline that goes away takes its records out of the indexes", () => {
   const { "notes/plan.olai": _gone, ...left } = KITCHEN
   const reading = bothWays(KITCHEN, left, { changed: [], removed: ["notes/plan.olai"] })
   expect(reading.derived.mirrorsOf.has("cook")).toBe(false)
-  // What still names it is what is left naming it: the `see` and the placement
-  // went with the file, and the edge in the file that stayed did not.
   expect((reading.derived.namedBy.get("cook") ?? []).map((naming) => naming.at.node.id))
     .toEqual(["shop"])
 })
 
 test("a document that changed is a moved path with no records of its own", () => {
-  // The store names every file it re-decoded, and a `.md` is one of them. It
-  // holds no records, so the delta says so — and a codec that had read a
-  // body's text as an outline's nodes would say something else entirely.
   const body = { ...KITCHEN, "notes/plan.md": "# the plan, rewritten\n" }
   const reading = bothWays(KITCHEN, body, { changed: ["notes/plan.md"], removed: [] })
   expect(markdownIn(reading.set).map((one) => [String(one.path), one.body]))
@@ -165,9 +122,6 @@ test("a document that changed is a moved path with no records of its own", () =>
 })
 
 test("a file deleted and written back in one breath is what the upsert says", () => {
-  // Both lists name it — deleted out of band, put back by the commit that is
-  // being judged — and the removal is answered by the upsert rather than the
-  // other way around.
   const rewritten = `{"id":"cook","ord":"a","title":"cook something else","todo":true}\n` +
     `{"id":"shop","ord":"b","title":"shop","after":["cook"],"todo":true}`
   const reading = bothWays(KITCHEN, { ...KITCHEN, "kitchen.olai": rewritten }, {

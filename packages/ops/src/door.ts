@@ -1,26 +1,3 @@
-/**
- * THE NODE-AGENT DOOR'S REMAINING RULE.
- *
- * The subtree is not the agent's territory. It is the session's home — where
- * its charter is, where its history is kept, where its doorbells ring. What
- * the agent may act on is the vault, the same as a person at the panel or a
- * coding agent on the loopback door. So there is no write fence, and this
- * module is not one.
- *
- * TWO INHABITANTS, and neither of them is a place:
- *
- *   - a released ticket is closed, never widened;
- *   - an open session, with the keys it may not write, each with the clause
- *     that says why.
- *
- * Absence of a rule is absence: a panel keystroke and loopback MCP pass no
- * third argument to `run`. The forbidden table is a MAP AND NOT A SET for the
- * reason it always was: the two words are forbidden for different reasons —
- * one is a conversation's binding, the other is a person's approval of code —
- * and the sentence that explains each one travels from whoever forbade it,
- * from the plugin that owns the word, rather than being composed in this
- * general package.
- */
 import {
   changesOf,
   customText,
@@ -40,36 +17,9 @@ import type { Plan } from "./plan.ts"
 
 export type ReservedKey = string | { readonly says: string; readonly file: string }
 
-/**
- * WHERE THE WRITES MAY LAND, for a session that is in the middle of somebody
- * else's work.
- *
- * The pass that tidies a node agent's memory holds the quiet window shut for
- * minutes and asks that agent to rewrite a subtree. Its session's rule is
- * otherwise the ordinary one — the vault is the agent's to act on — and for the
- * span of that turn it must not be: an injected row can talk an unattended turn
- * with suppressed alerts into rewriting or trashing anything in the directory,
- * and those writes land OUTSIDE the pass's own commit (under `auto` when the
- * hold releases, or waiting), so reverting the sleep would not undo them.
- *
- * A THUNK, on the rule rather than on the caller, because the ticket that mints
- * the rule outlives the turn: read per call, like {@link SessionRule}'s
- * `forbidden`, so the fence is up exactly while the turn is.
- */
 export interface Confinement {
-  /** The node whose subtree the writes are confined to, by id. */
   readonly under: string
-  /** The clause that says why, in the words of whoever raised the fence. */
   readonly says: string
-  /**
-   * THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — every other node agent in
-   * the set ({@link @olai/format}'s `othersOf`).
-   *
-   * WHERE THE MEMORY ENDS IS ONE LINE, and the fence is not allowed its own: the
-   * commit the pass makes names exactly the files `memoryFiles` finds under this
-   * node with this same set, so a fence stopping only at the outer boundary would
-   * permit a write into a NESTED agent's memory — landing outside the undo.
-   */
   readonly stop?: ReadonlySet<string>
 }
 
@@ -78,13 +28,11 @@ export type SessionRule =
   | {
     readonly _tag: "open"
     readonly forbidden: ReadonlyMap<string, ReservedKey>
-    /** Absent or `null` is the ordinary rule: the whole vault. */
     readonly confined?: Confinement | null
   }
 
 export interface Caller {
   readonly writer: Writer
-  /** Absent is loopback MCP or the panel: the ordinary write face. */
   readonly rule?: SessionRule
 }
 
@@ -95,20 +43,15 @@ export type Barred =
     readonly id: string
     readonly title: string
     readonly key: string
-    /** The clause the open rule carried for this key. */
     readonly says: string
   }
-  /** A record the plan changes that is not under the confined node. */
   | {
     readonly why: "outside"
     readonly id: string
     readonly title: string
     readonly says: string
   }
-  /** A plan that trashes or empties: the one direction a tidy may not take. */
   | { readonly why: "trash"; readonly says: string }
-  /** A DOCUMENT whose front matter the plan would move a reserved key in —
-   *  the same movement, in the other place a property can be written. */
   | {
     readonly why: "document"
     readonly file: string
@@ -120,40 +63,20 @@ export const doorRefusal = (reached: Barred): string => {
   if (reached.why === "closed") {
     return "this conversation has been reaped, so the door it was handed is closed and nothing may be written through it."
   }
-  // THE TWO CONFINEMENTS, and their sentences are the fence's own: whoever put
-  // the fence up says why, the way a forbidden key's clause does.
   if (reached.why === "outside") {
     return `“${reached.title}” (\`${reached.id}\`) is outside the subtree this door is confined to — ${reached.says}.`
   }
   if (reached.why === "trash") {
     return `nothing may be trashed or deleted through this door right now — ${reached.says}.`
   }
-  // A NOTE'S PROPERTIES ARE PROPERTIES, and the refusal names the FILE rather
-  // than a record, because a `.md` has no record to name — it is the document
-  // itself that carries the key.
   if (reached.why === "document") {
     return `\`${reached.key}\` is a property this door may not write — ${reached.says}, in \`${reached.file}\`'s front matter as anywhere else.`
   }
-  // THE CLAUSE IS THE RULE'S, carried on the ticket beside the key it is
-  // about. It used to be written in `./refusals.ts`, in a drawer of shared
-  // "no"s, about a word a plugin owns; a second forbidden key — one that is
-  // a person's approval of code rather than a conversation's binding — is
-  // what made that one sentence untrue of half its subjects.
   return `\`${reached.key}\` is a property this door may not write — ${reached.says}, on “${reached.title}” (\`${reached.id}\`) as anywhere else.`
 }
 
 
 
-/**
- * Judge what a plan actually changes for the keys an open session may not
- * write — the RECORDS it rewrites, and the FRONT MATTER of the documents it
- * writes or deletes. Closed is refused at `run` without a plan walk.
- *
- * THE SET AND THE VIEW BOTH, because the two halves are kept in different
- * places: a record's properties are read off the derivation, and a document's
- * are the text the set is holding, which is what the plan's new text is
- * compared against.
- */
 export const barred = (
   forbidden: ReadonlyMap<string, ReservedKey>,
   derived: Derived,
@@ -164,15 +87,7 @@ export const barred = (
   // THE FENCE FIRST, because it is about WHERE rather than about WHICH KEY, and
   // a plan that lands outside is refused whatever it writes.
   if (confined !== null) {
-    // THE SUBTREE, off the reading this call was already handed — the SAME walk
-    // the pass's own due-ness test and its commit's file set are taken off, with
-    // the same exclusions, so what this fence refuses and what that commit
-    // cannot name are one line (`@olai/format`'s `idsUnder`).
     const inside = new Set<string>([confined.under, ...idsUnder(derived, confined.under, confined.stop)])
-    // WHAT THE PLAN ACTUALLY CHANGES, and not every node of the files it
-    // touches: a subtree lives in files that hold other work, and refusing a
-    // write because a sibling of the file is outside would refuse the pass's own
-    // tidying.
     const before = new Map(plan.files.map((one) => [one.file, nodesOf(derived, one.file).map((at) => at.node)]))
     const after = new Map(plan.files.map((one) => [one.file, one.nodes]))
     const landed = (id: string): Node | undefined => {
@@ -183,19 +98,9 @@ export const barred = (
       return undefined
     }
     for (const change of changesOf(derived.claims, before, after)) {
-      // ...AND WHERE IT LANDS, not only where it was: a move rewrites the record
-      // of the node that moved, so a row inside the subtree could be carried
-      // OUT of it by a plan that changes nothing else — and the pass's commit
-      // names the subtree's files, so that write would land outside the undo.
-      // ...AND THE NODE THE FENCE IS NAMED FOR IS THE ONE EXCEPTION: its own
-      // parent is outside its subtree by definition, and writing the node itself
-      // is exactly what the pass is there to do.
       if (change.id === confined.under) continue
       const known = derived.byId.get(change.id) !== undefined
       const parent = landed(change.id)?.parent
-      // A RECORD THAT WAS ALREADY THERE IS JUDGED BY WHERE IT IS; ONE THE PLAN
-      // MINTED (`add`, `capture`, a split's tail) by where it LANDS, because a
-      // fresh id is in no walk of the reading yet.
       const here = known ? inside.has(change.id) : parent !== undefined && inside.has(parent)
       const lands = parent === undefined || inside.has(parent)
       if (here && lands) continue
@@ -204,15 +109,6 @@ export const barred = (
   }
   if (forbidden.size === 0) return null
 
-  // THE OTHER PLACE A PROPERTY CAN BE WRITTEN, judged by the same movement
-  // rule as a record's: the `---` block at the top of a `.md`. Without this,
-  // an agent holding an ordinary write door could seat a conversation on a
-  // note — or drop its own binding — through `markdown_write`, which is the
-  // whole of what the key reservation exists to stop, one file kind over.
-  //
-  // A DELETION IS A REMOVAL OF EVERY KEY IT CARRIED, which is why the paths
-  // the plan unlinks are judged here too: taking the file away takes the
-  // binding with it.
   for (const [file, text] of [
     ...(plan.documents ?? []).map((one) => [one.file, one.text] as const),
     ...(plan.removed ?? []).map((file) => [file, ""] as const),
@@ -222,21 +118,12 @@ export const barred = (
     const now = frontmatterIn(text)
     for (const [key, says] of forbidden) {
       if (typeof says !== "string") continue
-      // The VALUE and not merely the key: a list and a scalar spelling the
-      // same word are different values, and a block rewritten around the key
-      // without touching it is a write this door allows.
       if (JSON.stringify(was[key] ?? null) === JSON.stringify(now[key] ?? null)) continue
       return { why: "document", file, key, says }
     }
   }
 
-  // EVERY PATH THE SET HOLDS, which is what a file-scoped reservation is
-  // judged over: the namespace it names can be masked by a file in another
-  // directory, so the comparison has to see them all.
   const paths = set.documents.map((one) => one.path)
-  // File-scoped reservations compare the selected namespace as a whole. This
-  // also refuses renames, moves, deletion and an empty shallower file masking
-  // a deeper one; a property-only comparison would miss all four.
   for (const [key, reservation] of forbidden) {
     if (typeof reservation === "string") continue
     const before = new Map<string, ReadonlyArray<Node>>(paths.map((file) => [file, nodesOf(derived, file).map((one) => one.node)]))
@@ -252,8 +139,6 @@ export const barred = (
       const protectedTitles = new Set(nodes.flatMap(node => !isMirror(node) && node.parent === undefined && keyed(node, key) !== undefined ? [node.title] : []))
       return nodes.flatMap(node => {
         const value = keyed(node, key)
-        // A duplicate namespace without this key can become the selected row
-        // and erase an existing choice. Its position is part of that choice.
         const shadow = !isMirror(node) && node.parent === undefined && protectedTitles.has(node.title)
         return value === undefined && !shadow ? [] : [{ id: node.id, title: isMirror(node) ? "" : node.title, parent: node.parent, ord: node.ord, value }]
       }).sort((a, b) => a.id.localeCompare(b.id))
@@ -280,12 +165,6 @@ export const barred = (
     const after = planned.get(change.id)
     for (const [key, says] of forbidden) {
       if (typeof says !== "string") continue
-      // BOTH DIRECTIONS, which is the comparison rather than a policy: a value
-      // that moved is a value this door wrote, and taking one off is writing it
-      // as much as putting one on. Un-approving is the fail-safe direction and
-      // would be defensible to allow; it is not a capability anything asks for,
-      // and an asymmetric rule here would be one more thing a reader of the
-      // rule has to hold.
       if (keyed(before?.node, key) !== keyed(after, key)) {
         return { why: "key", id: change.id, title: change.title, key, says }
       }

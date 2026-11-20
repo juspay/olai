@@ -1,13 +1,3 @@
-/**
- * What an agent READS of a set — values in, values out, no disk and no
- * protocol, the same bargain {@link ./plan.test.ts} makes about writes.
- *
- * The half these tests exist for is the half a write cannot reach: a placement
- * and an edge are both written BY ID, so a caller that cannot read them back
- * can only guess. The wire tests in `@olai/server` cover one happy path each
- * through a real MCP client; this is where the shapes are pinned, because a
- * field dropped from a search hit would fail nothing over there.
- */
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import {
   bytesOf,
@@ -54,24 +44,13 @@ import {
   tags,
 } from "./query.ts"
 
-/** The hits on RECORDS, which is what nearly every case below is about: a
- *  search answers with both kinds now, and a reader that draws one says so. */
 const nodeHits = (answer: SearchAnswer): ReadonlyArray<NodeHit> =>
   answer.hits.filter(isNodeHit)
 
-/** THE READING these walks are asked of — the fixture READING production's
- *  `validate` pairs the set with, and the one every read below answers from. */
 const derivedOf = (set: OutlineSet): Reading => readingOf(set)
 
-/** The day every search below is asked on. A search takes one because the
- *  grammar's relative words count from it (`date:yesterday`); in the server it
- *  is the day of the layer's own clock (`./tools.ts`'s `asking`), and here it
- *  is a constant, so nothing in this file is a different test tomorrow. */
 const TODAY = "2026-08-09"
 
-/** A ledger: items in their sections, and a `Now` list made of placements —
- *  including one that CHAINS through another placement, which is the case
- *  every answer here has to follow rather than report as itself. */
 const LEDGER = (): OutlineSet =>
   setOf({
     "roadmap.olai": [
@@ -84,51 +63,23 @@ const LEDGER = (): OutlineSet =>
     ].join("\n"),
     "focus.olai": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
-      // A mirror OF a mirror: `now-git` shows this, which shows `git`.
       `{"id":"focus-git","parent":"focus","ord":"a0","mirror":"git"}`,
     ].join("\n"),
   })
 
 const at = () => derivedOf(LEDGER())
 
-/**
- * A subtree read that ANSWERED, and one that refused.
- *
- * The read answers a `Result` now that it takes a path as well as an id: an id
- * the set does not hold is still an ANSWER (`{ missing }`), and a path that is
- * not an outline is a refusal carrying the closest one that is. The UNWRAP and
- * the diagnostic that goes with it are `./fixtures.testlib.ts`'s, which is
- * where the planner's pair already lived — a walk that refuses where the case
- * expected an answer says what it refused with rather than failing two
- * assertions later on `undefined`.
- */
 const walked = (of: Reading, request: SubtreeRequest): SubtreeAnswer =>
   succeeded(subtree(of, request), "`outlines_subtree` to answer")
 
 const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
   failed(subtree(of, request), "`outlines_subtree`")
 
-/**
- * A node read that ANSWERED — `detail`'s pair, since it went the way of
- * {@link subtree}: a field nobody may name is a refusal now, so the function
- * says "or else" and the door lifts it. The UNWRAP and the diagnostic are the
- * two lines above, which is where `walked`/`refusedWalk` already live for it.
- */
 const read = (of: Reading, id: string, fields?: ReadonlyArray<string>): Detail | null =>
   succeeded(detail(of, id, fields), "`outlines_read` to answer")
 
-/** The one that REFUSED — {@link read}'s other arm. */
 const refusedRead = (of: Reading, id: string, fields: ReadonlyArray<string>): OpFailure =>
   failed(detail(of, id, fields), "`outlines_read`")
-/**
- * The two ARMS of an answer that is not the `{ missing }` one — a diagnostic
- * rather than a cast at each assertion.
- *
- * Every arm of the union is a real answer this read can give, so reading
- * `children` or `roots` off the wrong one is `undefined` two assertions later,
- * naming nothing. These say which arm was expected, once, and hand back the
- * narrowed value.
- */
 const nodeOf = (answer: SubtreeAnswer): Subtree | ProjectedSubtree => {
   if (!("children" in answer)) {
     throw new Error(`expected one node's walk, and got ${JSON.stringify(answer)}`)
@@ -145,22 +96,8 @@ const outlineOf = (answer: SubtreeAnswer): OutlineRoots | ProjectedRoots => {
   return answer
 }
 
-/** The whole READING — what a search is asked of now that it answers with both
- *  kinds of thing: the derivation is where the records are matched, and the set
- *  is where the documents are. */
 const reading = () => readingOf(LEDGER())
 
-/**
- * EVERY field {@link Found} declares is one this layer actually fills.
- *
- * The floor's record fields are all OPTIONAL, so a field declared there and
- * never produced by `foundOf` type-checks clean everywhere and is silently
- * absent from every answer — which is precisely how a field once reached an
- * agent through `search_nodes` and was dropped on the way to the palette
- * (`@olai/format`'s `searching.ts` header). `carriedOf`'s list and `Found`'s
- * are two hand-written lists of the same fields; this is the cheap thing
- * that fails when they stop agreeing, and it names the field when it does.
- */
 test("a node carrying everything produces every field `Found` declares", () => {
   const at = derivedOf(setOf({
     "roadmap.olai": [
@@ -169,17 +106,11 @@ test("a node carrying everything produces every field `Found` declares", () => {
       `"see":["top"],"after":["top"],"custom":{"pr":"https://github.com/juspay/olai/pull/192"}}`,
     ].join("\n"),
   }))
-  // A child in a node's list is a plain `Found` — no `matched`, which is the
-  // query's fact rather than the record's.
   const carrying = read(at, "top")?.children[0]
   expect(carrying?.id).toBe("all")
   expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
 })
 
-// The work's own facts of time: the record's `started` and `worked` handed
-// back verbatim, and `took` derived — the bank when there is one, else the
-// settling instant minus the start. An annotation beside `progress`, with
-// the same absences doing the saying.
 test("a node's read carries `started`, `worked` and the derived `took` — and the jump carries none", () => {
   const at = derivedOf(setOf({
     "house.olai": [
@@ -187,36 +118,20 @@ test("a node's read carries `started`, `worked` and the derived `took` — and t
       `{"id":"plumber","ord":"a1","title":"call the plumber","done":"2026-08-29T12:26:44-04:00"}`,
       `{"id":"hinge","ord":"a2","title":"fix the hinge on the door","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"water","ord":"a3","title":"water the plants","doing":true,"started":"2026-08-29T09:52:00-04:00"}`,
-      // The MULTI-ROUND record — the shapes above with a bank beside them:
-      // two rounds in, a third live.
       `{"id":"knead","ord":"a4","title":"knead the dough","doing":true,"started":"2026-08-29T09:50:00-04:00","worked":600}`,
       `{"id":"proof","ord":"a5","title":"proof it","done":"2026-08-29T09:58:00-04:00","started":"2026-08-29T09:50:00-04:00","worked":1080}`,
     ].join("\n"),
   }))
-  // SETTLED: the instant, and the span it closes — 2h34m44s and 41m, in
-  // whole seconds either way, because the two settling marks read the same.
   expect(read(at, "bake")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 9284 })
   expect(read(at, "hinge")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 2460 })
-  // …and NO BANK IS ANSWERED for them: `toMatchObject` ignores extra keys,
-  // so a `worked: 0` default grown later would slip the span pins above —
-  // the property's ABSENCE is the byte-identical rule, named on purpose.
   expect(read(at, "bake")).not.toHaveProperty("worked")
   expect(read(at, "hinge")).not.toHaveProperty("worked")
-  // STILL RUNNING: the instant is there for the tick, and there is no `took`
-  // to say — a span needs both ends, and the wire carries no durations.
   expect(read(at, "water")).toHaveProperty("started")
   expect(read(at, "water")).not.toHaveProperty("took")
-  // THE JUMP: a todo→done has no span, and `created` is never the fallback —
-  // none of the three is invented at read time.
   expect(read(at, "plumber")).not.toHaveProperty("started")
   expect(read(at, "plumber")).not.toHaveProperty("worked")
   expect(read(at, "plumber")).not.toHaveProperty("took")
-  // THE SETTLED MULTI-ROUND node: the bank IS the answer — `took` is the
-  // 1080 the settles counted, not the 480 a subtraction against the fresh
-  // `started` would misread as the whole of it.
   expect(read(at, "proof")).toMatchObject({ worked: 1080, took: 1080 })
-  // …and a LIVE one carries the two things the tick is a sum of — bank and
-  // instant, durations never: the arithmetic stays where the clock is.
   expect(read(at, "knead")).toMatchObject({ worked: 600, started: "2026-08-29T09:50:00-04:00" })
   expect(read(at, "knead")).not.toHaveProperty("took")
 })
@@ -231,27 +146,7 @@ describe("the edges a node carries", () => {
 
 })
 
-/**
- * The DERIVED half of the ordering graph, on a node read — what is standing in
- * the way right now, rather than the ids the record happens to name.
- *
- * A page has drawn this since blockedness existed; an agent could not ask for
- * it at all, and reconstructing it from `after` is not the same answer — it
- * would count a `done` target and a bullet as obstacles, and would miss the
- * edge the other record wrote as `blocks` entirely. Which is the whole reason
- * it is a field: one derivation (`@olai/format`'s `blockersOf`, where the rule
- * is argued and tested), answered at both faces.
- *
- * A set of its own rather than the ledger above, because the case that names
- * the rule is a BULLET carrying an `after` — a shape `LEDGER` has no room for,
- * and one every other test in this file would have to be re-read against.
- */
 describe("what a node is waiting on", () => {
-  /** A slab, a cure, a frame and a shelf: the three answers this field has, in
-   *  one file. `frame` waits on both `pour` (its own `after`) and `cure`
-   *  (written from the other end as `blocks`); `pour` is unfinished work with
-   *  nothing before it; `chips` names the same unfinished target and is a
-   *  bullet, so nothing is telling it it cannot start. */
   const WAITING = (): OutlineSet =>
     setOf({
       "build.olai": [
@@ -265,9 +160,6 @@ describe("what a node is waiting on", () => {
   const waiting = () => derivedOf(WAITING())
 
   test("a blocked node names every blocker, situated and marked", () => {
-    // In the order the format promises: the node's own `after` first, then the
-    // `blocks` pointing back at it from elsewhere. And each blocker is a whole
-    // situated answer, so "has this moved" needs no second read.
     expect(read(waiting(), "frame")?.blockedBy).toEqual([
       { id: "pour", title: "pour the slab", file: "build.olai", line: 1, status: "todo", path: [] },
       { id: "cure", title: "let it cure", file: "build.olai", line: 2, status: "doing", path: [] },
@@ -275,36 +167,22 @@ describe("what a node is waiting on", () => {
   })
 
   test("a node with nothing in its way does not say so with an empty list", () => {
-    // `pour` is the blocker itself — unfinished work, and nothing before it.
-    // Absence is how the format spells nothing, and an answer follows it.
     expect(read(waiting(), "pour")).not.toHaveProperty("blockedBy")
   })
 
   test("a bullet is waiting on nothing, whatever `after` it carries", () => {
-    // The one case that separates this field from the record's: `chips` names
-    // `pour`, which IS unfinished — but a bullet is not work, so nothing is
-    // telling it it cannot start. The record's own field still answers.
     const chips = read(waiting(), "chips")
     expect(chips).toMatchObject({ after: ["pour"] })
     expect(chips).not.toHaveProperty("blockedBy")
   })
 })
 
-/**
- * The custom map, on a node read — every named fact it carries, and nothing
- * invented for a node that carries none.
- *
- * Without it `outlines_prop` would be a write whose result no read could show, which
- * is the gap `see` and `after` were given their own fields on an answer to
- * close: a value written by id and unreadable can only be changed by guessing.
- */
 describe("the properties a node carries", () => {
   test("a node read answers the map, verbatim", () => {
     expect(read(at(), "git")?.custom).toEqual({
       pr: "https://github.com/juspay/olai/pull/176",
       agent: "claude-opus",
     })
-    // Beside the fields, not instead of them: the mark is still `todo`.
     expect(read(at(), "git")).toMatchObject({ todo: true, status: "todo" })
   })
 
@@ -313,9 +191,6 @@ describe("the properties a node carries", () => {
   })
 
   test("a child in a node's list and a subtree row carry it, like `see`", () => {
-    // Every situated answer is built out of one `foundOf`, so this follows from
-    // the hit rather than being a second decision — the same shape the edge
-    // test above pins for `see` and `after`.
     expect(read(at(), "bugs")?.children.find((child) => child.id === "git"))
       .toMatchObject({ custom: { agent: "claude-opus" } })
     const bugs = nodeOf(walked(reading(), { id: "bugs", depth: 1 }))
@@ -328,16 +203,6 @@ describe("the properties a node carries", () => {
 })
 
 describe("what refers to a node", () => {
-  /**
-   * The reverse of a reference, through the door an agent uses.
-   *
-   * `sticky` does BOTH things to `git` — it sees it and it comes after it — and
-   * only the first is a reference: the ordering edge is already answered by
-   * `after` on the record and by the blockedness derived from it, so counting
-   * it here would say one edge twice under a word that means something else.
-   * The placements chained onto `git` are not references either, and they are
-   * answered one describe up as `mirrors`.
-   */
   test("a `see` is a reference and an ordering edge is not", () => {
     expect(read(at(), "git")?.referencedBy).toEqual([{
       source: {
@@ -373,9 +238,6 @@ describe("what refers to a node", () => {
     expect(read(at(), "sticky")).not.toHaveProperty("referencedBy")
   })
 
-/** The question `outlines_desc` and the subtree rows answer too, and the one
- *  detail's little brother used to lose: a note naming nothing served is a
- *  finding an AGENT wants back from the read it can act on. */
 test("a node read reports the dead links its note names, against the served set", () => {
   const set = setOf({
     "projects/olai.olai": [
@@ -392,13 +254,6 @@ test("a node read reports the dead links its note names, against the served set"
 })
 
   test("a document's body can refer to a node too, and is one source like a record", () => {
-    // `@git` in a `.md`'s prose is a mention, a `[git](#git)` a link — the
-    // body has no finer grain than itself, so either way the source is the
-    // document's face and the reading answers it the same way it answers a
-    // record. This is the half the browser already draws on a node's page and
-    // the reason `outlines_read` answers the SAME list: an agent asking who
-    // points at a node sees the documents that point at it, not a narrower
-    // answer than the page.
     const view = derivedOf(setOf(
       {
         "a.olai": [`{"id":"git","ord":"a0","title":"two git indicators"}`].join("\n"),
@@ -406,17 +261,12 @@ test("a node read reports the dead links its note names, against the served set"
       [["note.md", "# Note\n\nabout @git and [git](#git)"]],
     ))
     expect(read(view, "git")?.referencedBy?.map((one) =>
-      // A face source carries a `path`; a record's a `file` and a `node`.
       `${"path" in one.source ? one.source.path : one.source.node.id} ${one.ways.join("+")}`
     )).toEqual(["note.md mention+link"])
   })
 })
 describe("placements", () => {
-  /** WHERE ELSE this node is drawn — the id half of `outlines_unmirror`, and the
-   *  only way to reach a placement a previous session made. */
   test("`mirrors` names every placement of a node, chains followed", () => {
-    // `git` is placed twice: directly by `focus-git`, and through it by
-    // `now-git`, which mirrors the mirror. Both are places `git` is drawn.
     expect(read(at(), "git")?.mirrors).toEqual([
       { id: "focus-git", file: "focus.olai", line: 2, parent: "focus" },
       { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
@@ -430,20 +280,6 @@ describe("placements", () => {
     expect(read(at(), "bugs")).not.toHaveProperty("mirrors")
   })
 
-  /**
-   * ONE PLACEMENT PER ID, on a set the validator refuses.
-   *
-   * Two mirror records claiming `dupe` is a duplicate-id error, so this asks
-   * what a CONDEMNED set looks like — which is a real question, because a
-   * reader draws one beside the errors. The answer is the record that id
-   * means: `byId` is first-claim-wins, the format's one rule for duplicates,
-   * and `mirrors` is read out of an index keyed by id like every other. Two
-   * entries here would name a record `outlines_unmirror` could never reach, since
-   * that verb takes an ID and one of the two would always be the other.
-   *
-   * The rule is §3 of https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/model-indices.md — the tax an index
-   * charges for answering by id — and this is where it first shows.
-   */
   test("two placements sharing an id are the one record that id means", () => {
     const condemned = derivedOf(setOf({
       "a.olai": [
@@ -457,13 +293,9 @@ describe("placements", () => {
     ])
   })
 
-  /** WHAT IS ON THE LIST — the question the ledger is read with, and the one
-   *  the ops layer could not answer at all before the 2026-08-11 review. */
   test("`placed` lists what a curated list holds, in sibling order", () => {
     const now = read(at(), "now")
     expect(now?.placed?.map((entry) => entry.id)).toEqual(["now-sticky", "now-git"])
-    // Each entry carries the NODE it shows — situated, so the reader has the
-    // item's mark and where it is defined, not just an id.
     expect(now?.placed?.[0]).toMatchObject({
       id: "now-sticky",
       parent: "now",
@@ -475,69 +307,33 @@ describe("placements", () => {
         path: ["Bugs"],
       },
     })
-    // …and a chain is followed to the node at its end rather than reported as
-    // the placement in the middle.
     expect(now?.placed?.[1]?.shows).toMatchObject({ id: "git", status: "todo" })
   })
 
   test("the placements are not the node's own children", () => {
-    // `children` is what hangs off it; `placed` is what it points at. A Now
-    // section has no children at all.
     expect(read(at(), "now")?.children).toEqual([])
     expect(read(at(), "bugs")).not.toHaveProperty("placed")
   })
 
-  /**
-   * THE WALK NAMES WHAT IT WILL NOT DESCEND — `outlines_subtree`'s answer to a
-   * board of mirrors, in the very shape the node read pins above.
-   *
-   * The case this was filed from (2026-08-27, and again 2026-08-31): a day
-   * board's children are ALL placements, and `outlines_subtree(day-root)`
-   * answered `children: []` — the practical answer to "what is on this
-   * board" was silence, and an orchestrator read it as the board wiped.
-   * `now` is exactly that node, and the whole claim is that the walk says
-   * NOW where the node read always has.
-   */
   test("a node whose children are all placements no longer reads as empty", () => {
-    // At the cheapest ask there is — `depth: 0` bottoms out AT the board
-    // itself, and a placement is named rather than descended into, so the
-    // naming costs the depth dial nothing.
     const board = nodeOf(walked(reading(), { id: "now", depth: 0 }))
-    // Nothing is WALKED: `children` is what hangs off a node, and a board of
-    // mirrors hangs nothing off itself. The emptiness was never the lie —
-    // the silence beside it was. And a board is not `truncated`: the walk
-    // stopped at a leaf here, because a placement is nowhere it ever goes.
     expect(board.children).toEqual([])
     expect(board).not.toHaveProperty("truncated")
-    // …and nothing is SILENT: both entries, named — the placement's own id,
-    // and the node's own id and title. A chain is followed to the node at
-    // its end, exactly as the node read's answer has it.
     expect(board.placed?.map((entry) => [entry.id, entry.shows.id, entry.shows.title]))
       .toEqual([
         ["now-sticky", "sticky", "the header scrolls away"],
         ["now-git", "git", "two git indicators"],
       ])
-    // UNWALKED: the entry is a placement plus `shows`, not a walk row.
-    // The key set is the claim — a `children` on this object would be the
-    // walk having descended, and this is the one assertion that would
-    // notice the object growing that key.
     expect(Object.keys(board.placed![0]!).sort())
       .toEqual(["file", "id", "line", "parent", "shows"])
   })
 
   test("the note dial and the row projection leave the naming alone", () => {
-    // `withDesc: false` drops prose, not structure: the placements ride.
     const lean = nodeOf(walked(reading(), { id: "now", depth: 0, withDesc: false }))
     expect(lean.placed?.map((entry) => entry.id)).toEqual(["now-sticky", "now-git"])
-    // And `fields` shapes RECORD fields: `placed` is the walk's structure,
-    // like `children` and `truncated` — a projection that cut it would read
-    // this board as empty, which is the silence the listing exists to end.
     const shaped = nodeOf(walked(reading(), { id: "now", depth: 0, fields: ["title"] }))
     expect(shaped).toMatchObject({ id: "now", title: "Now" })
     expect(shaped.placed?.map((entry) => entry.shows.id)).toEqual(["sticky", "git"])
-    // The KEY rides; `shows` is the same projection the row is — id and
-    // title, not the place, the ancestry, or the whole custom map. That is
-    // the 51KB lane-walk the dial exists to drop, one field over.
     expect(shaped.placed?.[0]?.shows).toEqual({
       id: "sticky",
       title: "the header scrolls away",
@@ -551,23 +347,12 @@ describe("placements", () => {
     const answer = outlineOf(walked(reading(), { file: "roadmap.olai" }))
     expect(answer.roots.find((root) => root.id === "now")?.placed?.map((entry) => entry.id))
       .toEqual(["now-sticky", "now-git"])
-    // …and a node with none is answered with none — absence, never an empty
-    // list, the same spelling of nothing the node read uses.
     expect(answer.roots.find((root) => root.id === "bugs")).not.toHaveProperty("placed")
-    // This file's top level is roots, not placements.
     expect(answer).not.toHaveProperty("placed")
   })
 
 })
 
-/**
- * THE PARENT'S ID, on every situated answer — a hit, a child in a node's list,
- * a row of a subtree, and the node read itself.
- *
- * `path` is titles. Every write that names a parent takes an id. A caller that
- * can see "Bugs" and not `bugs` cannot file a sibling without a second guess,
- * which is the 2026-08-28 incident that named the field.
- */
 describe("the parent a node sits under", () => {
   test("a child carries `parent`; a root does not", () => {
     expect(read(at(), "git")).toMatchObject({ parent: "bugs" })
@@ -584,33 +369,12 @@ describe("the parent a node sits under", () => {
   })
 })
 
-/**
- * THE CALLER SHAPES THE ROWS — `fields`, on both reads.
- *
- * What this describe pins and what it does not: WHICH of the record an answer
- * hands back when the caller names it, the refusal of a name outside the
- * vocabulary, and the one thing `fields` never touches — the walk's own
- * structure. The DESIGNS are in `@olai/format`'s `reading.ts` and this
- * layer's `Wants`; what is pinned here row-for-row is the answer an agent is
- * handed, because a field quietly dropped is exactly the case the request
- * exists to close.
- */
 describe("the caller shapes the rows", () => {
   test("the vocabulary and the row's schema are one list, neither way", () => {
-    // The one second spelling a `satisfies` cannot close: `Projected`'s keys
-    // (what a row may carry) against PROJECTABLE (what a request may name),
-    // `id` excepted — it rides. The other legs of the closure — the refusal's
-    // sentence, the copy's per-field table — read the list itself; this is
-    // where the schema's spread of STAMPED + the record fields is made to
-    // answer to it.
     expect(Object.keys(Projected.fields).filter((key) => key !== "id").sort())
       .toEqual([...PROJECTABLE].sort())
   })
 
-  /** A lane and its two steps: the FIRST is settled (its `done` is an
-   *  instant, the field a timings walk asks for and the one today's child
-   *  rows cannot say), the second under way, and one of them writes notes
-   *  and a property — every kind `fields` carries, in two rows. */
   const TIMED = (): OutlineSet =>
     setOf({
       "steps.olai": [
@@ -633,9 +397,6 @@ describe("the caller shapes the rows", () => {
       "started",
       "worked",
     ])
-    // A MARK INSTANT (`done`) — the field this request was born for; the
-    // custom key asked alone comes back AS a map of one; the note rides
-    // whole. `status` is the derivative's word, beside it.
     expect(lane?.children[0]).toEqual({
       id: "one",
       title: "first",
@@ -644,10 +405,6 @@ describe("the caller shapes the rows", () => {
       desc: "the forensics",
       custom: { took: "4m" },
     })
-    // …and the row HOW the dial reads, which is the whole point: the
-    // situating — `file`, `line`, `path`, `parent` — is not named, so it is
-    // not there. `toEqual` rather than `toMatchObject`: the ABSENCE is the
-    // answer.
     expect(Object.keys(lane?.children[0] ?? {}).sort()).toEqual([
       "custom",
       "desc",
@@ -656,11 +413,6 @@ describe("the caller shapes the rows", () => {
       "status",
       "title",
     ])
-    // The SECOND row carries this lane's OWN clock, BOTH halves: `started`,
-    // the stamp `outlines_doing` wrote, and `worked`, the bank it cannot be read
-    // without — a multi-round row naming the stamp alone would say one
-    // round's wall for several rounds' work. And the asked-for names it
-    // does not hold stay ABSENT, exactly as they are on a full row.
     expect(lane?.children[1]).toEqual({
       id: "two",
       title: "second",
@@ -671,34 +423,21 @@ describe("the caller shapes the rows", () => {
   })
 
   test("its own node is answered in full — `fields` shapes the list, not the node", () => {
-    // The read is "one node in full": the lever on a full read's cost was
-    // never its own row. Pinning it as a fact: the note, the place, the
-    // stamps are all still there.
     const lane = read(timed(), "lane", ["status"])
     expect(lane).toMatchObject({ file: "steps.olai", line: 1, path: [], tags: [] })
     expect(lane?.children[0]).toEqual({ id: "one", status: "done" })
   })
 
   test("the whole map, and one key of it, are two different asks", () => {
-    // `custom` is the whole held map — through `heldCustom` either way, so a
-    // key holding nothing is absent exactly as it is on the line on disk.
     const whole = read(timed(), "lane", ["custom"])?.children[0]
     expect(whole).toEqual({ id: "one", custom: { agent: "claude-opus", took: "4m" } })
     const one = read(timed(), "lane", ["custom.agent"])?.children[0]
     expect(one).toEqual({ id: "one", custom: { agent: "claude-opus" } })
-    // Asked for a key the node does not carry: absent, never an empty map —
-    // the same spelling of nothing the full rows use.
     const absent = read(timed(), "lane", ["custom.pr"])?.children[0]
     expect(absent).toEqual({ id: "one" })
   })
 
   test("`took` projects the span — whole seconds on a settled row, absent when there is none", () => {
-    // The one derived name beside `status`, asked for DIRECTLY: a settled
-    // step answers the NUMBER, and `tookOf`'s three absences answer none —
-    // four rows for them: the todo→done jump (no `started`), the
-    // still-running step (no settle), the merely dated bullet (neither),
-    // and work finished before olai stamped instants (a settling mark
-    // holding the instant-less `true`).
     const SPAN = (): OutlineSet =>
       setOf({
         "steps.olai": [
@@ -717,12 +456,8 @@ describe("the caller shapes the rows", () => {
       { id: "dated", title: "only dated" },
       { id: "stamped-free", title: "done before instants", status: "done" },
     ] as const
-    // The child list of a `outlines_read` …
     expect(read(readingOf(SPAN()), "lane", ["title", "status", "took"])?.children)
       .toEqual(expected)
-    // …and every row of a `outlines_subtree`: one derivation, one vocabulary,
-    // two doors — the timings ask the parameter was born for. (The walk's
-    // rows carry their own `children`, the structure being the walk's own.)
     const rows =
       nodeOf(walked(readingOf(SPAN()), { id: "lane", depth: 1, fields: ["title", "status", "took"] })).children
     for (const [index, row] of expected.entries()) {
@@ -732,14 +467,10 @@ describe("the caller shapes the rows", () => {
         ["children", "id", ...Object.keys(row).filter((key) => key !== "id")].sort(),
       )
     }
-    // And the row cannot disagree with the node's own FULL read: the one
-    // `tookOf` answers both shapes, the same number either way.
     expect(read(readingOf(SPAN()), "done-one")?.took).toBe(240)
   })
 
   test("an asked-for field is dropped from the DESCS as well — the walk is shape, not prose", () => {
-    // The note dials: `desc` named is the note whole, `withDesc` has nothing
-    // left to say — and the two together are their own refusal below.
     const lane = read(timed(), "lane", ["desc"])
     expect(lane?.children[0]).toEqual({ id: "one", desc: "the forensics" })
   })
@@ -765,10 +496,6 @@ describe("the caller shapes the rows", () => {
   })
 
   test("`depth` cuts the SHAPED rows where it claims to", () => {
-    // One level: the children answer, `one-a` under them does not — and the
-    // cut is SAID, on the very row that carries the caller's fields. The
-    // default is the floor's number's own; the claim is that `depth` on a
-    // shaped walk is the same dial.
     const one = nodeOf(
       walked(timed(), { id: "lane", depth: 1, fields: ["title"] }),
     )
@@ -776,8 +503,6 @@ describe("the caller shapes the rows", () => {
       { id: "one", title: "first", children: [], truncated: true },
       { id: "two", title: "second", children: [] },
     ])
-    // One more level down, and the wrinkle arrives — named and shaped, at
-    // whichever distance the caller pays for.
     const two = nodeOf(
       walked(timed(), { id: "lane", depth: 2, fields: ["title", "status"] }),
     )
@@ -806,12 +531,8 @@ describe("the caller shapes the rows", () => {
   })
 
   test("an id alone is a legal ask — the answer is then the ids", () => {
-    // Naming NOTHING is not an error: the row is the id, and only that.
     expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: [] })).children)
       .toEqual([{ id: "one", children: [], truncated: true }, { id: "two", children: [] }])
-    // …and asking for the id ITSELF is no-op rather than refused: it rides
-    // every row already, and a request listing only it is a request for the
-    // ids.
     expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: ["id"] })).children)
       .toEqual([{ id: "one", children: [], truncated: true }, { id: "two", children: [] }])
     expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: ["title", "id"] })).children)
@@ -822,21 +543,13 @@ describe("the caller shapes the rows", () => {
     const refusal = refusedWalk(timed(), { id: "lane", fields: ["florp"] })
     expect(refusal._tag).toBe("UsageFailure")
     expect(refusal.message).toContain("`florp` is not a field `fields` names")
-    // EVERY legal name is in the sentence: the refusal is where one learns
-    // them, and the list it names is the vocabulary's own — derived HERE,
-    // since a retyped list (the first pass's) can only ever prove that two
-    // spellings once agreed.
     for (const legal of PROJECTABLE) {
       expect(refusal.message).toContain(`\`${legal}\``)
     }
     expect(refusal.message).toContain("`custom.<key>`")
-    // The same words at the OTHER read, since the question is one.
     const refused = refusedRead(timed(), "lane", ["florp"])
     expect(refused._tag).toBe("UsageFailure")
     expect(refused.message).toBe(refusal.message)
-    // The id beside it is never REACHED: the request is refused before the
-    // set is consulted — a missing id with a bad field is refused, not
-    // answered {missing}.
     expect(refusedRead(timed(), "gone", ["florp"])._tag).toBe("UsageFailure")
   })
 
@@ -850,16 +563,11 @@ describe("the caller shapes the rows", () => {
       expect(refusal.message).toContain("`withDesc`")
       expect(refusal.message).toContain("`desc`")
     }
-    // …and without `fields`, the lean read is untouched: the dial is the
-    // projection's own.
     expect(nodeOf(walked(timed(), { id: "lane", depth: 1, withDesc: false })).children[0])
       .not.toHaveProperty("desc")
   })
 
   test("absent, the dial answers today's rows — the situating and all", () => {
-    // THE NO-CHANGE RULE, pinned as a case of its own rather than left to
-    // every other test in the file: name nothing, and the full situated
-    // shape of today is what comes back, place, ancestry, edges and all.
     const lane = nodeOf(walked(timed(), { id: "lane", depth: 1 }))
     expect(lane.children[0]).toMatchObject({
       id: "one",
@@ -871,12 +579,6 @@ describe("the caller shapes the rows", () => {
       custom: { agent: "claude-opus", took: "4m" },
       desc: "the forensics",
     })
-    // …and the KEY SET is pinned against the schemas, not against a third
-    // hand-typed list: a default walk row is a {@link Found} plus the five
-    // the walk itself adds (`date`, the live note, `children`, `placed`,
-    // `truncated`), and nothing FORWARD — the day a walk row carries a key
-    // that is neither, the row definition here has drifted in someone's
-    // darkness.
     const checkKeys = (row: object) => {
       for (const key of Object.keys(row)) {
         expect(
@@ -900,15 +602,7 @@ describe("the caller shapes the rows", () => {
   })
 })
 
-/**
- * A WHOLE OUTLINE IN ONE CALL — `outlines_subtree`'s second way in, and the reason
- * this item exists: `outlines_index` says which files there are and what their
- * roots are CALLED, and until this the only way down was one call per root.
- */
 describe("a whole outline, walked", () => {
-  /** One outline with SEVERAL roots — the shape the `file` arm is for — with a
-   *  placement at its top level (which is not a root), a second outline to be
-   *  the near miss's near miss, and a file that did not parse. */
   const SHELF = (): OutlineSet =>
     setOf({
       "plan.olai": [
@@ -916,7 +610,6 @@ describe("a whole outline, walked", () => {
         `{"id":"call","parent":"today","ord":"a0","title":"call the joiner","todo":true}`,
         `{"id":"hinges","parent":"call","ord":"a0","title":"ask about the hinges"}`,
         `{"id":"later","ord":"a1","title":"Later","desc":"nothing urgent"}`,
-        // A placement, at the top level, of a node that lives under `today`.
         `{"id":"echo","ord":"a2","mirror":"call"}`,
       ].join("\n"),
       "notes.olai": `{"id":"scrap","ord":"a0","title":"a scrap"}`,
@@ -929,46 +622,29 @@ describe("a whole outline, walked", () => {
 
   test("one call answers every top-level node, nested", () => {
     const answer = walked(shelf(), { file: "plan.olai" })
-    // The file rides back, so an agent holding several reads in flight knows
-    // which one this is.
     expect(answer).toMatchObject({ file: "plan.olai" })
-    // BOTH roots, in the sibling order a reader sees them in — which is the
-    // whole claim: two roots used to be two calls.
     expect(rootIds(answer)).toEqual(["today", "later"])
-    // …and each one walked, not merely named: `outlines_index` already answers
-    // the titles.
     const answered = outlineOf(answer)
     expect(answered.roots[0]?.children.map((child) => child.id)).toEqual(["call"])
     expect(answered.roots[0]?.children[0]?.children.map((child) => child.id))
       .toEqual(["hinges"])
-    // The note rides on a row exactly as it does under an `id` walk.
     expect(answered.roots[1]).toMatchObject({ desc: "nothing urgent" })
   })
 
   test("each root says for itself where the walk stopped", () => {
     const answer = outlineOf(walked(shelf(), { file: "plan.olai", depth: 1 }))
-    // One root bottoms out at the depth…
     expect(answer.roots[0]?.children[0]).toMatchObject({ id: "call", truncated: true })
-    // …while its neighbour bottoms out at a leaf, and says nothing.
     expect(answer.roots[1]).not.toHaveProperty("truncated")
   })
 
-  /**
-   * THE LEAN WALK — `withDesc: false` omits every note, default keeps them,
-   * and `truncated` does not move. Depth bounds levels, not prose; the flag
-   * is how a table-of-contents question does not pay for the forensics.
-   */
   test("the notes ride by default, and `withDesc: false` takes them off", () => {
     const withNotes = outlineOf(walked(shelf(), { file: "plan.olai" }))
     expect(withNotes.roots[1]).toMatchObject({ desc: "nothing urgent" })
-    // Explicit `true` is the same answer as omitting the flag — ON is the
-    // default, said out loud rather than inferred from the line above.
     expect(outlineOf(walked(shelf(), { file: "plan.olai", withDesc: true })).roots[1])
       .toMatchObject({ desc: "nothing urgent" })
 
     const lean = outlineOf(walked(shelf(), { file: "plan.olai", withDesc: false }))
     expect(lean.roots[1]).not.toHaveProperty("desc")
-    // Structure is unchanged: both roots, the child, the grandchild.
     expect(lean.roots.map((root) => root.id)).toEqual(["today", "later"])
     expect(lean.roots[0]?.children[0]?.children.map((child) => child.id))
       .toEqual(["hinges"])
@@ -990,24 +666,8 @@ describe("a whole outline, walked", () => {
       .not.toHaveProperty("desc")
   })
 
-  /**
-   * THE ONE PLACE THE TWO ANSWERS ABOUT ONE OUTLINE DIFFER, pinned so it is a
-   * decision rather than something that happens.
-   *
-   * `outlines_index` names a file's roots in the order the FILE writes them, and
-   * that is deliberate and has a case of its own ("the directory", below). This
-   * walk answers in the TREE's order, `ord`, which is what a page draws and
-   * what every `children` list in the same answer is in — a walk that ordered
-   * its roots one way and their children another would be the odd one.
-   *
-   * `ord` is a fractional index and a write re-emits a file without sorting it,
-   * so a reordered root parts the two. Both declarations say so; this is what
-   * makes them say the same thing as the code.
-   */
   test("the roots are the tree's order, where the listing is the file's", () => {
     const set = setOf({
-      // Written out of `ord` order on purpose — the same fixture shape the
-      // listing's own case uses, so the two claims are read against each other.
       "out.olai": [
         `{"id":"second","ord":"a1","title":"Second"}`,
         `{"id":"first","ord":"a0","title":"First"}`,
@@ -1023,8 +683,6 @@ describe("a whole outline, walked", () => {
   })
 
   test("a placement at the top level is not a root", () => {
-    // Still not a root — the walk never descends into a placement — but
-    // named on the answer, because `{file, roots}` is the row a file has.
     const answer = outlineOf(walked(shelf(), { file: "plan.olai" }))
     expect(answer.roots.map((root) => root.id)).not.toContain("echo")
     expect(answer.placed?.map((entry) => [entry.id, entry.shows.id, entry.shows.title]))
@@ -1057,26 +715,18 @@ describe("a whole outline, walked", () => {
   })
 
   test("…and with the outlines themselves when nothing is close", () => {
-    // The right answer for a directory of a handful of outlines, and the wrong
-    // one for its few thousand node ids — which is why the two refusals differ.
     const refusal = refusedWalk(shelf(), { file: "nothing/like/it/at/all.olai" })
     expect(refusal.message).toContain("plan.olai")
     expect(refusal.message).toContain("notes.olai")
   })
 
   test("a file that did not parse is refused with the validator's own rows", () => {
-    // Never answered as an outline holding nothing: nobody read that file, so
-    // there is nothing to answer with — `markdown_read`'s rule for a `.md`.
     const refusal = refusedWalk(shelf(), { file: "torn.olai" })
     expect(refusal._tag).toBe("ValidationFailure")
     expect(
       (refusal as { readonly verdict: { readonly findings: ReadonlyArray<unknown> } })
         .verdict.findings,
     ).not.toBeEmpty()
-    // …and told the truth about ITSELF. An outline is read perfectly well and
-    // then has lines the format cannot take, which is not the same failure as a
-    // body that could not be read — the two reads that answer a whole file
-    // share one sentence and the file decides which half of it applies.
     expect(refusal.message).toContain("has lines that do not parse")
     expect(refusal.message).toContain("nothing to answer with")
   })
@@ -1093,19 +743,12 @@ describe("a whole outline, walked", () => {
   })
 
   test("an id the set does not hold is still an answer, not a refusal", () => {
-    // The asymmetry, pinned: an id is minted and carried around in prose, so
-    // "is there a node called this?" is a fair question with a true answer. A
-    // path was listed or typed, and the useful answer to a typo is the near
-    // miss above.
     expect(walked(shelf(), { id: "nope" })).toEqual({ missing: "nope" })
-    // A placement is not a node, and is answered the same way.
     expect(walked(shelf(), { id: "echo" })).toEqual({ missing: "echo" })
   })
 })
 
 describe("the tags a node carries", () => {
-  /** A set with both sigils, including the same NAME under each — which is the
-   *  whole reason the sigil is reported. */
   const TAGGED = (): OutlineSet =>
     setOf({
       "work.olai": [
@@ -1114,10 +757,6 @@ describe("the tags a node carries", () => {
       ].join("\n"),
     })
 
-  // AS WRITTEN, sigil and all. `#alice` and `@alice` are two different tags
-  // (`@olai/format`'s TAG_SIGILS), so a list of bare names could not say which
-  // of them a node carries — and this is the shape an agent reads off
-  // `outlines_read`, which nothing on the wire side would notice losing.
   test("a node read reports its tags as they are written", () => {
     expect(read(derivedOf(TAGGED()), "call")?.tags).toEqual([
       "@alice",
@@ -1131,65 +770,30 @@ describe("the tags a node carries", () => {
 
 })
 
-/**
- * What a listing says about a set of files — every arm of it in one fixture,
- * because a row is answered by a LOOKUP into the grouped nodes, and a lookup
- * is a thing that can miss.
- *
- * The three that miss differently are all here: a file whose nodes are in the
- * grouping, one that holds none at all (in `files`, in no group), and one that
- * did not parse (answered before the grouping is consulted).
- */
 describe("the directory", () => {
   const DIRECTORY = (): OutlineSet =>
     setOf({
       "house.olai": [
-        // Written out of `ord` order on purpose: the roots a listing shows are
-        // the file's, in the order the file writes them.
         `{"id":"garden","ord":"a1","title":"Garden"}`,
         `{"id":"house","ord":"a0","title":"House"}`,
         `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","todo":true}`,
-        // A mirror is a placement: it is neither counted nor a root, even
-        // sitting at the top level of the file.
         `{"id":"shown","ord":"a2","mirror":"paint"}`,
       ].join("\n"),
       "empty.olai": "",
       "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
     }, [], { "torn.olai": `{"id":` })
 
-  /** The WHOLE listing in one assertion rather than four indexes into it: the
-   *  order is one of the claims, so a row pinned by position would be leaning
-   *  on a fact a sibling test owns. */
   test("every file gets its row, in order, counted and titled by its own nodes", () => {
     const set = DIRECTORY()
     expect(outlines(set, derivedOf(set).derived)).toEqual([
-      // In PATH order, which is the set's ({@link ../../format/src/set.ts}'s
-      // `assemble` puts it there) and what the sidebar shows.
       { file: "empty.olai", nodes: 0, roots: [] },
-      // Three regular nodes — the mirror is a placement, so it is neither
-      // counted nor a root — and the roots are in FILE order.
       { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
       { file: "shed.olai", nodes: 1, roots: ["Shed"] },
-      // The torn row is the other arm: its errors and NOTHING ELSE — no
-      // `nodes: 0` for a count nobody counted, and no empty `roots` claiming
-      // the outline is about nothing. Empty above is a file somebody emptied;
-      // this is a file nobody read. They must not look the same.
       { file: "torn.olai", unreadable: [expect.any(String)] },
     ])
   })
 })
 
-/**
- * LISTING SIZES ≡ RECOMPUTE-FROM-BODY.
- *
- * `markdown_index` used to UTF-8-encode every served body on every call to
- * report a size the decode already knew. The size now lives on the document;
- * this is the gate that the remembered number is still the old answer, byte
- * for byte — including over multi-byte UTF-8, which is the case a
- * `text.length` count (UTF-16 units) would silently get wrong. And including
- * after a write replaces the body, which is the case a spread that swapped
- * `body` and left `bytes` would silently get wrong.
- */
 describe("a document listing's sizes are a recompute from the body", () => {
   const agree = (set: OutlineSet): void => {
     const listed = documents(set)
@@ -1214,9 +818,6 @@ describe("a document listing's sizes are a recompute from the body", () => {
   test("over a generated corpus, including multi-byte UTF-8", () => {
     const set = generatedCorpus()
     agree(set)
-    // THE CLASSIC FAILURE: a size that drifts on emoji. `👋` is one character,
-    // two UTF-16 units, four UTF-8 bytes; a listing that reported
-    // `text.length` would pass every ASCII fixture and fail here.
     const emoji = documents(set).find((row) => row.file === "emoji.md")
     if (emoji === undefined || "unreadable" in emoji) {
       throw new Error("generated corpus is missing emoji.md")
@@ -1226,10 +827,6 @@ describe("a document listing's sizes are a recompute from the body", () => {
   })
 
   test("after a write replaces the body", () => {
-    // THE APPLY STEP, which a cold listing never reaches. `markdown_write`
-    // lands through `following`'s fold (`bodiedDocument` on the applied
-    // text); a future fast path that spread a document and swapped `body`
-    // without `bytes` would pass every fixture above and fail here.
     const was = "hello\n"
     const next = "hello 👋🔥\n"
     const set = setOf({}, [["note.md", was]])
@@ -1249,8 +846,6 @@ describe("a document listing's sizes are a recompute from the body", () => {
   })
 })
 
-/** The e2e fixtures' `.md` files, loaded as a set — the directory the suite
- *  actually serves, not a hand-picked handful of the same texts. */
 const suiteCorpus = (): OutlineSet => {
   const root = join(import.meta.dir, "../../tests/fixtures")
   const files: Array<readonly [string, string]> = []
@@ -1267,11 +862,6 @@ const suiteCorpus = (): OutlineSet => {
   return setOf({}, files)
 }
 
-/**
- * Bodies chosen to catch a size that drifts on emoji: 4-byte UTF-8, a ZWJ
- * sequence, combining marks, CJK, an empty file, frontmatter. `text.length`
- * on any of the multi-byte rows is a different number than `bytesOf`.
- */
 const generatedCorpus = (): OutlineSet =>
   setOf({}, [
     ["empty.md", ""],
@@ -1285,21 +875,6 @@ const generatedCorpus = (): OutlineSet =>
     ["front.md", "---\ntitle: 🎉\n---\n# Hello\n"],
   ], { "torn.md": "{ not a record" })
 
-// ── the other question the matcher answers ─────────────────────────────
-
-/**
- * `narrowing` is the PAGE FILTER's door: which nodes OF ONE PAGE a query
- * selects, ids and why.
- *
- * Every case here is about the ways it is deliberately NOT {@link search} —
- * uncapped, unranked, records only, no situating — because that is the whole of
- * the shape (`@olai/format`'s `searching.ts` argues it), and a hit list quietly
- * answering here would fail nothing in a browser until somebody counted
- * "3 of 41" off twelve rows. Plus the one that is newer and is the reason this
- * member exists at all: the candidates are the PAGE's rows, so a node the page
- * does not draw is not in the answer however well it matches
- * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
- */
 describe("which nodes of a page a query selects", () => {
   const PILE = (): OutlineSet =>
     setOf({
@@ -1315,9 +890,6 @@ describe("which nodes of a page a query selects", () => {
       ].join("\n"),
     })
 
-  /** The outline everything below is filtered on, unless a case names another
-   *  page. An `.olai` path is an outline: the address grammar says which page a
-   *  suffix opens, and nothing here re-decides it. */
   const AT_HOUSE: PageRequest = {
     kind: "at",
     address: { kind: "document", path: DocumentPath.make("house.olai") },
@@ -1330,21 +902,11 @@ describe("which nodes of a page a query selects", () => {
     asked(page, text).matches.map((one) => one.id)
 
   test("every match comes back, past the cap a search would have applied", () => {
-    // Three of them, where `search` answers twelve by default and a palette
-    // asks for eight: a page that pruned itself by a capped answer would draw
-    // the rows the cap kept and count the ones it did not.
     expect(ids("door")).toEqual(["order", "hinges", "tiles"])
   })
 
   test("A NODE THIS PAGE DOES NOT DRAW IS NOT IN THE ANSWER", () => {
-    // The whole of `filter-ask-carries-revision`. `shed` matches the query as
-    // well as any row of `house.olai` does, and the box that asked is narrowing
-    // an outline it is not in — so the walk never reaches it, where the door
-    // this replaced walked the whole vault to hand it over for the page to drop
-    // again.
     expect(ids("door")).not.toContain("shed")
-    // ...and the page that DOES draw it says so, which is what makes the line
-    // above a claim about scope rather than about this fixture.
     expect(ids("door", {
       kind: "at",
       address: { kind: "document", path: DocumentPath.make("shed.olai") },
@@ -1352,80 +914,33 @@ describe("which nodes of a page a query selects", () => {
   })
 
   test("why a node is here is the field that carried the words, or nothing", () => {
-    // `walnut` is in `order`'s note and in no title anywhere — the row a
-    // filtered page draws an excerpt for (`@olai/web`'s `filter/why.ts`).
     expect(asked(AT_HOUSE, "walnut").matches)
       .toEqual([{ id: NodeId.make("order"), matched: "desc" }])
-    // ...and a query that named no words at all is carried by no field, so the
-    // slot is ABSENT rather than filled with an invented reason.
     expect(asked(AT_HOUSE, "is:done").matches)
       .toEqual([{ id: NodeId.make("hinges") }])
   })
 
   test("the words come back with the answer, so a page knows what it answers", () => {
-    // Read off the value that holds the rows rather than off a signal beside
-    // it: the bar draws `filtering…` over rows that answer a query the reader
-    // has moved on from, and that fact may not be a frame ahead of them
-    // (`@olai/format`'s `NarrowingAnswer`).
     expect(asked(AT_HOUSE, "walnut").text).toBe("walnut")
   })
 
   test("what was put away is out, unless the PAGE is already showing it", () => {
-    // A live outline draws no archived row, so `is:trashed` on one selects
-    // nothing: the grammar's door is still the grammar's, and what it opens is
-    // a corner of the set this page is not in.
     expect(ids("is:trashed door")).toEqual([])
-    // The trash IS the archive, and a matcher applying the default there would
-    // take every row off the screen and leave the reader nothing to read the
-    // absence by.
     expect(ids("door", { kind: "trash" })).toEqual(["old"])
   })
 
   test("a query nobody could read selects nothing, and says nothing about it", () => {
-    // No `refusals` on this answer, deliberately: the door that asks it reads
-    // the same grammar itself, so it has already drawn the sentence by the time
-    // a frame could carry one (`@olai/format`'s `NarrowingAnswer`).
     expect(asked(AT_HOUSE, "is:open")).toEqual({ text: "is:open", matches: [] })
-    // Nothing typed is not a question either.
     expect(asked(AT_HOUSE, "  ")).toEqual({ text: "  ", matches: [] })
   })
-
-  // A DOCUMENT IS NEVER ONE, and it is structural rather than a case: a
-  // document's page draws no rows at all, so the walk that produces the
-  // candidates has nothing to yield. Which is the honest arrangement — the page
-  // that draws prose is the one page that carries no filter at all
-  // (`@olai/web`'s `routes.ts`).
 })
 
-/**
- * `named` is the TRANSCRIPT's door: which of these ids the set declares, and
- * what each one names.
- *
- * A lookup and not a query, which is what every case here is about — an id is
- * matched exactly, a placement is followed to the node it shows, and what the
- * set does not declare is simply not in the answer. The browser answered this
- * out of its own copy of the directory until `vib-3-transcript-ids`, so these
- * cases are the ones a chat panel used to prove by pressing a word.
- */
-/**
- * The house, for the TWO doors that ask about ids exactly — {@link named} and
- * {@link homes}.
- *
- * ONE fixture and not one each, because the sharpest case in either describe is
- * the CONTRAST: `nowhere` is a placement whose chain is dead, and what the two
- * doors say about it is the whole reason they are two members. Over two sets
- * that merely look alike, that contrast stops being one the day somebody edits
- * the copy in front of them.
- */
 const HOUSE = (): OutlineSet =>
   setOf({
     "house.olai": [
       `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
       `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
-      // A placement of `order`, which is the id an agent writes: `outlines_read`
-      // answers `mirrors` with it and `outlines_unmirror` takes it.
       `{"id":"echo","ord":"a1","mirror":"order"}`,
-      // ...and one whose chain ends nowhere.
       `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
     ].join("\n"),
     "garden.olai": HERBS,
@@ -1434,8 +949,6 @@ const HOUSE = (): OutlineSet =>
     ].join("\n"),
   })
 
-/** One record in a file of its own, so a case can ask about a FILE it is not
- *  asking about the ids of. */
 const HERBS = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 
 describe("which of these ids the set declares", () => {
@@ -1446,22 +959,14 @@ describe("which of these ids the set declares", () => {
   })
 
   test("a PLACEMENT names the node it shows, not itself", () => {
-    // The whole reason this answers with a pair. A row in the tree carries the
-    // node it SHOWS, so a span marked `echo` would name no row and every press
-    // of it would leave the page for a node that is right there.
     expect(asked("echo")).toEqual([{ asked: "echo", id: "order", title: "order the cabinets" }])
   })
 
   test("what the set does not declare is not in the answer at all", () => {
-    // Every other backticked thing an agent writes — a flag, a file, a
-    // command — and a placement whose chain is dead, which has nothing to
-    // point at either.
     expect(asked("true", "house.olai", "bun test", "nowhere")).toEqual([])
   })
 
   test("one question, one answer per id — the rest of the batch is unaffected", () => {
-    // The batch is the point: one message's backticks are one question, and
-    // most of them are not ids.
     expect(asked("true", "order", "npm test", "echo")).toEqual([
       { asked: "order", id: "order", title: "order the cabinets" },
       { asked: "echo", id: "order", title: "order the cabinets" },
@@ -1470,14 +975,10 @@ describe("which of these ids the set declares", () => {
   })
 
   test("an id repeated is asked once", () => {
-    // A caller builds a lookup out of this, and a lookup has one entry per key.
     expect(asked("order", "order", "order")).toEqual([{ asked: "order", id: "order", title: "order the cabinets" }])
   })
 
   test("what was put away is still declared", () => {
-    // A lookup is not a search, so the grammar's rule about `is:trashed` has
-    // nothing to say here: the id names the node it names, and a reader
-    // pressing it is shown where it now is.
     expect(asked("old")).toEqual([{ asked: "old", id: "old", title: "the old counters" }])
   })
 
@@ -1486,17 +987,6 @@ describe("which of these ids the set declares", () => {
   })
 })
 
-/**
- * `homes` is the FOLD MEMORY's door: where these ids are, and which of these
- * files the set has anything from.
- *
- * The door beside it ({@link named}) is the same shape and a different
- * question, which is what most of these cases hold apart: this one is the plain
- * record table and follows no mirror chain, because its caller remembers
- * RECORDS rather than what a reader would be shown. The browser answered both
- * halves out of a walk of its own copy of the whole directory until
- * `vib-6-refile`.
- */
 describe("where these ids are, and which of these files the set has", () => {
   const asking = (ids: ReadonlyArray<string>, files: ReadonlyArray<string> = []) =>
     homes(readingOf(HOUSE()), { ids, files })
@@ -1506,17 +996,10 @@ describe("where these ids are, and which of these files the set has", () => {
   })
 
   test("a node that was PUT AWAY answers with the file it was moved to", () => {
-    // The case the whole member exists for: `archive` keeps the id and moves
-    // the record, so a fold filed under the source file is re-filed rather than
-    // read as a deletion.
     expect(asking(["old"]).homes).toEqual([{ id: "old", file: "_olai/Trash.olai" }])
   })
 
   test("a PLACEMENT answers for ITSELF — no chain is followed", () => {
-    // The one decision in the function, and the difference from `named` one
-    // door over. A fold is of a record: a mirror whose chain has died shows
-    // nothing and is folded by its own id, so asked through `named` it would
-    // read as a node that is gone while its record sits in the file.
     expect(asking(["echo", "nowhere"]).homes).toEqual([
       { id: "echo", file: "house.olai" },
       { id: "nowhere", file: "house.olai" },
@@ -1537,10 +1020,6 @@ describe("where these ids are, and which of these files the set has", () => {
   })
 
   test("the files answered are the asked ones this directory READ", () => {
-    // The other half of the decision, and the half the ids cannot give: a file
-    // whose every remembered id has gone away looks exactly like a file that
-    // stopped parsing, from the ids alone. A path the directory does not serve
-    // is not one either.
     expect(asking([], ["house.olai", "garden.olai", "gone.olai"]).loaded).toEqual([
       "house.olai",
       "garden.olai",
@@ -1548,11 +1027,6 @@ describe("where these ids are, and which of these files the set has", () => {
   })
 
   test("an outline somebody EMPTIED was still read", () => {
-    // The near miss. `byFile` answers "holds a record", and a file with nothing
-    // of its own is absent from it rather than mapped to an empty list — so an
-    // outline whose last node was deleted would come back unreadable, and a
-    // caller reading that as "nothing can be concluded" would keep the folds of
-    // every node that used to be in it, for good.
     const emptied = readingOf(setOf({ "house.olai": "", "garden.olai": HERBS }))
     expect(homes(emptied, { ids: [], files: ["house.olai"] }).loaded).toEqual([
       "house.olai",
@@ -1560,9 +1034,6 @@ describe("where these ids are, and which of these files the set has", () => {
   })
 
   test("a file that would not parse is silent, and so is one nobody serves", () => {
-    // Both mean "nothing can be concluded", which is what leaving them out
-    // says. The broken one keeps its key on the wire and declares no nodes; the
-    // other is not there at all.
     const torn = readingOf(
       setOf({ "garden.olai": HERBS }, [], { "house.olai": `{"id":` }),
     )
@@ -1577,8 +1048,6 @@ describe("where these ids are, and which of these files the set has", () => {
   })
 })
 
-// ── the vocabulary a completion draws ──────────────────────────────────
-
 describe("which tags the set already uses", () => {
   const HOUSE = (): OutlineSet =>
     setOf({
@@ -1590,10 +1059,6 @@ describe("which tags the set already uses", () => {
       "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"the old boiler #boiler"}`,
     })
 
-  // The ENVELOPE, which is this layer's half: what the rules are is
-  // `@olai/format`'s `vocabulary.ts` and is pinned there, and what travels is
-  // this shape — a field dropped between the reading and the answer would fail
-  // nothing over there.
   test("the answer is the shortlist, ranked, in the envelope the wire carries", () => {
     expect(tags(derivedOf(HOUSE()).derived, { sigil: "#", query: "ho", limit: 8 }))
       .toEqual({
@@ -1609,9 +1074,4 @@ describe("which tags the set already uses", () => {
     expect(tags(derivedOf(HOUSE()).derived, { sigil: "@", query: "", limit: 8 }))
       .toEqual({ tags: [{ name: "alice", count: 1 }] })
   })
-
-  // What the trash does to the vocabulary is NOT re-asserted here: it is a rule
-  // about what a tag count means, pinned where the rule lives
-  // (`@olai/format`'s `vocabulary.test.ts`). The fixture keeps its trashed
-  // record so the two above are asked of a directory that has one.
 })
