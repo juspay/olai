@@ -182,6 +182,9 @@ table.cmp td:nth-child(2), table.cmp th:nth-child(2) {
   padding-left: 0.8rem; min-width: 15rem;
 }
 table.cmp thead th:nth-child(2) { color: var(--accent); }
+table.cmp:not(.formats) :is(td, th):nth-child(3) { padding-left: 0.8rem; }
+.scroll-hint { display: none; }
+@media (max-width: 61rem) { .scroll-hint { display: block; } .scroll-hint + .tablewrap { margin-top: var(--space-s); } }
 @media (max-width: 40rem) {
   table.cmp td:first-child { white-space: normal; width: 6.5rem; padding-right: 0.8rem; }
   table.cmp td:nth-child(2), table.cmp th:nth-child(2) { min-width: 0; width: 11.5rem; }
@@ -221,13 +224,13 @@ table.cmp.formats td:nth-child(2), table.cmp.formats th:nth-child(2) {
 .teasers span { display: block; margin-top: var(--space-3xs); color: var(--muted); font-size: 0.92rem; }
 .teasers .shot.small img { aspect-ratio: 16 / 10; object-fit: cover; object-position: 0 0; }
 .teasers.gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@media (max-width: 40rem) { .teasers.gallery { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 70rem) { .teasers.gallery { grid-template-columns: minmax(0, 1fr); gap: var(--space-l); } }
 .teasers.gallery figcaption { font-size: 0.82rem; color: var(--muted); margin-top: var(--space-xs); }
 
 .pagehead { padding: var(--space-xl) 0 0; }
 .pagehead h1 { font-family: var(--display); font-style: italic; font-weight: 600; font-size: clamp(2.4rem, 5vw, 3.6rem); letter-spacing: -0.03em; line-height: 1.05; margin-top: var(--space-2xs); }
 .pagehead p { color: var(--muted); margin-top: var(--space-s); max-width: 40rem; }
-.use { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: var(--space-l); align-items: center; margin-top: var(--space-l); }
+.use { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: var(--space-l); align-items: start; margin-top: var(--space-l); }
 .use.flip > :first-child { order: 2; }
 @media (max-width: 56rem) { .use { grid-template-columns: minmax(0, 1fr); gap: var(--space-l); } .use.flip > :first-child { order: 0; } }
 .use .needs { font-size: 0.86rem; color: var(--muted); }
