@@ -1,10 +1,3 @@
-/**
- * The file table, and the one thing it and `./typefaces.ts` owe each other:
- * a family a pick QUOTES has to be a family this app ships a file for. The
- * two tables are apart (`hosted.ts` says why) and that promise is the seam
- * between them, so it is checked here rather than remembered.
- */
-
 import { expect, test } from "bun:test"
 
 import { HOSTED_FILES, woff2Name } from "./hosted.ts"

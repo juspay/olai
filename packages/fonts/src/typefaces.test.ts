@@ -9,10 +9,6 @@ import {
   typefaceNamed,
 } from "./typefaces.ts"
 
-// That the default names a row is held by `DEFAULT_TYPEFACE`'s own throw, at
-// import, before any assertion here could run — so asking `typefaceNamed` for
-// it and comparing the answer to the value defined as that answer was a
-// question with one possible outcome.
 test("every typeface has a unique name", () => {
   expect(new Set(FONT_NAMES).size).toBe(FONT_NAMES.length)
 })
@@ -30,10 +26,6 @@ test("every typeface answers the three tokens", () => {
   }
 })
 
-// THE DEFAULT'S THREE JOBS, as ruled: the interface in a proportional face
-// (Inter), because the duospace Quattro read as code beside real code and
-// made every label look like one; titles in Literata; code in iA Writer Mono.
-// Quattro stays a pick of its own.
 test("the default olai typeface sets the interface in Inter", () => {
   expect(DEFAULT_TYPEFACE.name).toBe("olai")
   expect(DEFAULT_TYPEFACE.sans.split(",")[0]?.trim()).toBe("Inter")

@@ -1,35 +1,3 @@
-/**
- * The named typefaces, and the three tokens they write.
- *
- * A font is a PICK WITH A NAME, the same shape as a theme
- * (`@olai/web`'s `theme/palettes.ts`): adding one is adding a row, `./css.ts`
- * generates the `@font-face` rules and the `:root[data-font="…"]` block from
- * what is here, and the preferences panel's Font row draws one option per row.
- * Hand-written CSS would be the same three `--font-*` lines copied twenty
- * times, and one place per face for a file to be forgotten.
- *
- * Three jobs, one pick. `--font-serif` is the page (outline titles, a
- * document). `--font-sans` is the chrome (header, sidebar, notes, chat).
- * `--font-mono` is for code-like values only (a SHA, a path, a diff, a
- * key). The default is olai — titles in Literata, the interface in Inter,
- * code in iA Writer Mono. The interface was iA Writer Quattro, a duospace
- * face; beside real code it read as monospace, so every label looked like
- * code (the 2026-09 simplification). Quattro stays a pick of its own. Atkinson Hyperlegible remains a pick, for a
- * page that wants one voice. Pick Inter and the page speaks Inter; pick
- * Fira Code and it speaks Fira Code, chrome included.
- *
- * What a row names is a FAMILY, never a file. The files those families need
- * are `./hosted.ts` — from nixpkgs, converted to woff2 once by this package's
- * own `default.nix` — and they are a table apart because nothing that draws a
- * picker has any use for them. Generics download nothing. No CDN, no font
- * binary in the repo.
- *
- * Bold and Light from Workflowy's list are not here: they are weights, not
- * faces, and a weight is not a typeface.
- */
-
-/** The three tokens a typeface answers. Tailwind reads these as `font-sans`,
- *  `font-serif`, `font-mono`. */
 export const FONT_TOKENS = ["sans", "serif", "mono"] as const
 
 export type FontToken = (typeof FONT_TOKENS)[number]
@@ -37,14 +5,9 @@ export type FontToken = (typeof FONT_TOKENS)[number]
 export type FontGroup = "olai" | "generic" | "face"
 
 export interface Typeface {
-  /** What a page names this face by — the `data-font` value, the option's
-   *  value, and the key this browser stores. One string, three jobs. */
   readonly name: string
-  /** What the picker says. */
   readonly label: string
-  /** Which optgroup it sits in. */
   readonly group: FontGroup
-  /** What the choice in force means, for the Font row's hint. */
   readonly hint: string
   readonly sans: string
   readonly serif: string
@@ -65,7 +28,6 @@ const withSerif = (family: string): string =>
   `${named(family)}, ${SERIF_FALLBACK}`
 const withMono = (family: string): string => `${named(family)}, ${MONO_FALLBACK}`
 
-/** One proportional voice on sans and serif; mono stays the system stack. */
 const proportional = (
   family: string,
   generic: "sans" | "serif",
@@ -74,7 +36,6 @@ const proportional = (
   return { sans: stack, serif: stack, mono: MONO_FALLBACK }
 }
 
-/** One voice everywhere, chrome included. */
 const monospaced = (family: string): Pick<Typeface, FontToken> => {
   const stack = withMono(family)
   return { sans: stack, serif: stack, mono: stack }
@@ -339,5 +300,4 @@ export const DEFAULT_TYPEFACE: Typeface = (() => {
   return face
 })()
 
-/** The custom property a token is read through — Tailwind's namespace. */
 export const fontProperty = (token: FontToken): string => `--font-${token}`

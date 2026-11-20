@@ -36,13 +36,6 @@ describe("the generated typeface blocks", () => {
   })
 
   test("every hosted file has an @font-face naming its family and woff2", () => {
-    // Read out of the generated text and spelled HERE, rather than asked of
-    // `fontFaceRule` — which is what this used to do, and which made it a
-    // comparison of that function with itself: every declaration could be
-    // deleted from the rule and both sides moved together. The `src:` line is
-    // the one that matters, and it was the one nothing held: drop it and the
-    // page falls back to whatever the family name happens to match on the
-    // machine, silently, with this test still green.
     const rules = css
       .split("@font-face {")
       .slice(1)
@@ -61,7 +54,6 @@ import { HOSTED_WOFF2 } from "./build.ts"
 
 test("the default typeface's three regular uprights are preloaded, and nothing else", () => {
   const names = fontPreloads()
-  // One per voice — sans, serif, mono — each a hosted woff2 the sheet names.
   expect(names).toHaveLength(3)
   for (const name of names) expect(HOSTED_WOFF2).toContain(name)
   expect(names).toEqual(["InterVariable.woff2", "Literata-Regular.woff2", "iAWriterMonoV.woff2"])

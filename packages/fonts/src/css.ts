@@ -1,24 +1,3 @@
-/**
- * The typefaces, as the CSS that puts one in force.
- *
- * Generated from `./typefaces.ts` and appended to the built stylesheet by
- * `@olai/web`'s `src/build.ts`, which is why nothing here is in that package's
- * `styles.css`: the table is the source, and a sheet with twenty hand-copied
- * `@font-face` blocks in it would be twenty chances for a file to be
- * forgotten. What `styles.css` still spells is the TOKEN NAMES and the default
- * row's stacks — Tailwind can only generate `font-sans` for a `--font-sans` it
- * has seen in `@theme`.
- *
- * Every block is UNLAYERED, which is how it beats the `@layer theme` Tailwind
- * puts its own `:root` in. The default's block also lands on a bare `:root`,
- * because a page that picked nothing is in it — one block rather than two, so
- * the default cannot drift from itself.
- *
- * A hosted file is declared even when no pick uses it yet this load: the
- * browser only fetches a family a computed style names, so the unused faces
- * cost a few lines of CSS and no bytes on the wire.
- */
-
 import { FONTS_DIR, type HostedFile, HOSTED_FILES, woff2Name } from "./hosted.ts"
 import {
   DEFAULT_FONT,
@@ -29,10 +8,6 @@ import {
   fontProperty,
 } from "./typefaces.ts"
 
-/** The selector a page in this typeface matches. The default matches TWO: its
- *  own name, and the page that has picked nothing at all.
- *
- *  Exported so a test can ask which face the bare `:root` belongs to. */
 export const selectorFor = (face: Typeface): string => {
   const named = `:root[${FONT_ATTRIBUTE}="${face.name}"]`
   return face.name === DEFAULT_FONT ? `:root, ${named}` : named
@@ -56,7 +31,6 @@ const fontFaceRule = (file: HostedFile): string =>
     "}",
   ].join("\n")
 
-/** Every `@font-face`, then every pick's block, in table order. */
 export const fontCss = (): string =>
   [
     "/* The named typefaces — GENERATED from packages/fonts/src/typefaces.ts",
