@@ -28,8 +28,69 @@ export const TREE = readWorkspace(REPO)
 
 const relativeToPackages = (member: string): string => path.relative("packages", member)
 
-export const manifestAt = (dir: string): Manifest | undefined =>
-  manifestAtDirectory(path.isAbsolute(dir) ? dir : path.join(PACKAGES, dir))
+export const manifestOf = (member: string): Manifest | undefined => manifestAtDirectory(path.join(PACKAGES, member))
+
+const withoutShellComments = (text: string, nix: boolean): string => {
+  let out = ""
+  let at = 0
+  const blankTo = (end: number): void => {
+    for (; at < end && at < text.length; at += 1) out += text[at] === "\n" ? "\n" : " "
+  }
+  const copy = (count: number): void => {
+    for (let n = 0; n < count && at < text.length; n += 1, at += 1) out += text[at]
+  }
+  while (at < text.length) {
+    const ch = text[at]
+    if (ch === "#" && (nix || /^\s$/.test(text[at - 1] ?? " "))) {
+      const end = text.indexOf("\n", at)
+      blankTo(end === -1 ? text.length : end)
+      continue
+    }
+    if (nix && ch === "/" && text[at + 1] === "*") {
+      const close = text.indexOf("*/", at + 2)
+      blankTo(close === -1 ? text.length : close + 2)
+      continue
+    }
+    if (nix && ch === "'" && text[at + 1] === "'") {
+      copy(2)
+      while (at < text.length) {
+        if (text[at] === "'" && text[at + 1] === "'") {
+          const after = text[at + 2]
+          if (after === "'" || after === "$" || after === "\\") {
+            copy(3)
+            continue
+          }
+          copy(2)
+          break
+        }
+        copy(1)
+      }
+      continue
+    }
+    if (ch === '"' || (!nix && ch === "'")) {
+      copy(1)
+      while (at < text.length && text[at] !== ch) {
+        if (text[at] === "\\") {
+          copy(2)
+          continue
+        }
+        copy(1)
+      }
+      copy(1)
+      continue
+    }
+    copy(1)
+  }
+  return out
+}
+
+const ONLY_A_COMMENT = /^[ \t]*(?:#|\/\/)/
+
+export const codeIn = (file: string, text: string): string =>
+  (/\.(?:[cm]?[jt]sx?)$/.test(file) ? withoutComments(file, text) : withoutShellComments(text, file.endsWith(".nix")))
+    .split("\n")
+    .map((line) => (ONLY_A_COMMENT.test(line) ? "" : line))
+    .join("\n")
 
 export { cssImportsOf, dependencyNames, doorsOf, grammarOf, isBench, mainOf, packageOf, specifiersOf, withoutComments }
 

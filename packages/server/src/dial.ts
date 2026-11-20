@@ -36,7 +36,7 @@ const clientOver = (connection: McpConnection, url: string): RootedSurfaceClient
     url: string
   }> = {}
   for (const [key, sibling] of Object.entries(AGENT_SIBLINGS)) {
-    const resolved = resolveExpose(sibling.surface.spec as never, sibling.expose as never, key)
+    const resolved = resolveExpose(sibling.surface.spec as never, (sibling.expose ?? {}) as never, key)
     const byKey = new Map(resolved.resources.map((resource) => [resource.key, resource]))
     const templateByKey = new Map(
       resolved.resourceTemplates.map((template) => [template.key, template]),

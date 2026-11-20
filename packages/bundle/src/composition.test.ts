@@ -14,7 +14,7 @@ import { BUNDLE_NAMES, ROWS } from "./rows.ts"
 import {
   composing,
   doorsOf,
-  manifestAt,
+  manifestOf,
   MEMBER_OF_PACKAGE,
   PACKAGES,
   packageOf,
@@ -162,7 +162,7 @@ describe("a plugin answers to the name its row binds it under", () => {
       const member = MEMBER_OF_PACKAGE.get(packageOf(row.name))
       if (member === undefined) throw new Error(`composition: no member for ${row.name}`)
       const dir = path.join(PACKAGES, member)
-      const manifest = manifestAt(dir)
+      const manifest = manifestOf(member)
       const door = manifest === undefined ? undefined : doorsOf(manifest)["./browser"]
       if (door === undefined) {
         return { id: row.id, exports: false }

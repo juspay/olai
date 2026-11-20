@@ -8,12 +8,13 @@ import { CLAIMS, fence } from "@olai/effect-cordis/fence"
 import { DECLARATION, RECORD_OF, RUNTIMES } from "./fence.testlib.ts"
 import { BUNDLE_NAMES as PLUGIN_NAMES, ROWS } from "./rows.ts"
 import {
+  codeIn,
   cssImportsOf,
   dependencyNames,
   doorsOf,
   edgesOf,
   graphFrom,
-  manifestAt,
+  manifestOf,
   MEMBER_OF_PACKAGE,
   mainOf,
   MEMBERS,
@@ -71,7 +72,7 @@ const PLUGIN_DIRS = TENANTS_OF.map((one) => one.dir)
 const staticDoors = (pkg: string): ReadonlyArray<string> => {
   const member = MEMBER_OF_PACKAGE.get(pkg)
   if (member === undefined) return []
-  const manifest = manifestAt(member) as { readonly olai?: { readonly contracts?: readonly string[] } } | undefined
+  const manifest = manifestOf(member) as { readonly olai?: { readonly contracts?: readonly string[] } } | undefined
   const declared = manifest?.olai?.contracts ?? []
   if (!Array.isArray(declared) || declared.some((door) => typeof door !== "string" || !door.startsWith("./") || door.includes("*"))) {
     throw new Error(`fence: ${pkg} olai.contracts must name explicit static export doors`)
@@ -85,7 +86,7 @@ const staticDoor = (spec: string): boolean => {
 const staticTargets = (pkg: string): ReadonlyArray<string> => {
   const member = MEMBER_OF_PACKAGE.get(pkg)
   if (!member) return []
-  const manifest = manifestAt(member)
+  const manifest = manifestOf(member)
   return staticDoors(pkg).flatMap((door) => {
     const target = manifest === undefined ? undefined : doorsOf(manifest)[door]
     return target ? [path.resolve(PACKAGES, member, target)] : []
@@ -117,7 +118,7 @@ const tree: ReadonlyMap<string, ReadonlyArray<Read>> = new Map(
   ]),
 )
 
-const declaredBy = (pkg: string): ReadonlyArray<string> => dependencyNames(manifestAt(pkg)).filter(namesAPlugin)
+const declaredBy = (pkg: string): ReadonlyArray<string> => dependencyNames(manifestOf(pkg)).filter(namesAPlugin)
 
 const packages = [...tree.keys()].sort()
 
@@ -127,7 +128,7 @@ const componentsOn = (door: { files: ReadonlyArray<string> }): ReadonlyArray<str
 const BROWSER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "rows.ts"))
 
 const BROWSER_TENANTS = TENANTS_OF.flatMap((tenant) => {
-  const manifest = manifestAt(tenant.dir)
+  const manifest = manifestOf(tenant.dir)
   const target = manifest === undefined ? undefined : doorsOf(manifest)["./browser"]
   return target === undefined ? [] : [{ ...tenant, target }]
 })
@@ -336,7 +337,7 @@ describe("machine-local state has one door", () => {
           .filter((spec) => packageOf(spec) === "@olai/state")
           .map((spec) => `${source.file}: ${spec}`),
       ) ?? []
-      const declared = dependencyNames(manifestAt(pkg)).filter((spec) => packageOf(spec) === "@olai/state")
+      const declared = dependencyNames(manifestOf(pkg)).filter((spec) => packageOf(spec) === "@olai/state")
       expect(reached, pkg).toEqual([])
       expect(declared, pkg).toEqual([])
     }
@@ -408,7 +409,7 @@ describe("only the registry knows a plugin's name", () => {
       for (const spec of specs) {
         const provider = MEMBER_OF_PACKAGE.get(packageOf(spec))
         expect(provider, spec).toBeDefined()
-        const manifest = manifestAt(provider!)
+        const manifest = manifestOf(provider!)
         const target = manifest === undefined ? undefined : doorsOf(manifest)[`.${spec.slice(packageOf(spec).length)}`]
         expect(target, spec).toBeDefined()
         const graph = graphAt(path.join(PACKAGES, provider!, target!))
@@ -417,7 +418,7 @@ describe("only the registry knows a plugin's name", () => {
           const absolute = path.resolve(PACKAGES, file)
           const member = memberOf(file)
           if (!member || !PLUGIN_DIRS.includes(member)) return false
-          const pkg = manifestAt(member)?.name
+          const pkg = manifestOf(member)?.name
           if (typeof pkg !== "string") return true
           const targets = staticTargets(pkg)
           const identity = /^export const name = ["'][a-z0-9-]+["'];?\s*$/.test(transpiledAt(file).trim())
@@ -457,7 +458,7 @@ describe("only the registry knows a plugin's name", () => {
           ...new Set([
             ...(TESTLIB_DECLARED[pkg] ?? []),
             ...[...new Set(tree.get(pkg)?.flatMap((source) => source.plugins.filter((spec) => staticDoor(spec)).map(packageOf)) ?? [])].filter(
-              (name) => name !== manifestAt(pkg)?.name,
+              (name) => name !== manifestOf(pkg)?.name,
             ),
           ]),
         ].sort(),
@@ -533,7 +534,7 @@ const isHydrated = (pkg: string, spec: string, own: ReadonlySet<string>): boolea
 }
 
 const hydratedIn = (pkg: string): ReadonlyArray<string> => {
-  const own = new Set(dependencyNames(manifestAt(pkg)))
+  const own = new Set(dependencyNames(manifestOf(pkg)))
   return (tree.get(pkg) ?? [])
     .flatMap((source) =>
       [...new Set(source.specs)].filter((spec) => isHydrated(pkg, spec, own)).map((spec) => `${source.file}: ${spec}`),
@@ -542,7 +543,7 @@ const hydratedIn = (pkg: string): ReadonlyArray<string> => {
 }
 
 const codeDoorsOf = (dir: string): ReadonlyArray<string> => {
-  const manifest = manifestAt(dir)
+  const manifest = manifestOf(dir)
   if (manifest === undefined) return []
   const targets = [...Object.values(doorsOf(manifest)), mainOf(manifest) ?? ""]
   return [...new Set(targets)].filter((t) => /\.tsx?$/.test(t)).map((t) => path.join(dir, t))
@@ -616,7 +617,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     expect(naming).toEqual([BRIDGE])
     expect(packages).toContain(BRIDGE)
     for (const pkg of packages) {
-      expect(dependencyNames(manifestAt(pkg)).filter((one) => ENGINE.test(one)), pkg).toEqual([])
+      expect(dependencyNames(manifestOf(pkg)).filter((one) => ENGINE.test(one)), pkg).toEqual([])
     }
   })
 
@@ -638,7 +639,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     const tiers = new Set([...TIERS.values()].flatMap((t) => [...t]))
     for (const pkg of packages) {
       if (TENANT_MEMBERS.has(pkg)) continue
-      expect(dependencyNames(manifestAt(pkg)).filter((d) => tiers.has(d)), pkg).toEqual([])
+      expect(dependencyNames(manifestOf(pkg)).filter((d) => tiers.has(d)), pkg).toEqual([])
     }
   })
 
@@ -655,7 +656,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     const reached = new Set(SERVER_DOOR.files)
     const wireDoors = [...TENANT_MEMBERS]
       .flatMap((pkg) => {
-        const manifest = manifestAt(pkg)
+        const manifest = manifestOf(pkg)
         if (manifest === undefined) return []
         const doors = doorsOf(manifest)
         return (["./wire", "./appliance/wire"] as const)
@@ -664,7 +665,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       })
       .sort()
     const applianceWires = [...TENANT_MEMBERS].filter((pkg) => {
-      const manifest = manifestAt(pkg)
+      const manifest = manifestOf(pkg)
       return manifest !== undefined && doorsOf(manifest)["./appliance/wire"] !== undefined
     })
     expect(wireDoors.length).toBeGreaterThan(applianceWires.length)
@@ -684,7 +685,7 @@ test("the composition root imports no plugin definition factory", () => {
 
 test("the generated style chain contains exactly the declared stylesheet exports", () => {
   const expected = TENANTS_OF.flatMap((tenant) => {
-    const manifest = manifestAt(tenant.dir)
+    const manifest = manifestOf(tenant.dir)
     return manifest !== undefined && doorsOf(manifest)["./all.css"] !== undefined ? [`${tenant.pkg}/all.css`] : []
   })
   const actual = cssImportsOf(readFileSync(path.join(PACKAGES, "bundle/src/all.generated.css"), "utf8"))
@@ -696,7 +697,7 @@ test("the generated style chain contains exactly the declared stylesheet exports
 test("permanent host entry closures contain no Olai feature implementation", () => {
   const policyTargets = new Set(
     TENANTS_OF.flatMap((tenant) => {
-      const target = doorsOf(manifestAt(tenant.dir)!)["./policy"]
+      const target = doorsOf(manifestOf(tenant.dir)!)["./policy"]
       return target ? [path.relative(PACKAGES, path.resolve(PACKAGES, tenant.dir, target))] : []
     }),
   )
@@ -726,7 +727,7 @@ test("bundle static asset and policy catalogs match declared row exports", () =>
     ["./policy", "policy.generated.ts"],
   ] as const) {
     const expected = TENANTS_OF.flatMap((tenant) =>
-      doorsOf(manifestAt(tenant.dir)!)[door] ? [`${tenant.pkg}/${door.slice(2)}`] : [],
+      doorsOf(manifestOf(tenant.dir)!)[door] ? [`${tenant.pkg}/${door.slice(2)}`] : [],
     )
     const source = readFileSync(path.join(PACKAGES, REGISTRY, "src", file), "utf8")
     expect(specifiersOf(`${REGISTRY}/src/${file}`, source).filter(namesAPlugin).sort()).toEqual(expected.sort())
@@ -807,41 +808,23 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     return out.sort()
   })()
 
-  const stripped = (file: string): string =>
-    readFileSync(path.join(REPO, file), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, " ")
-      .split("\n")
-      .map((line) => line.replace(/\s*#.*$/, "").replace(/\s*\/\/.*$/, ""))
-      .join("\n")
+  const codeOf = (file: string): string => codeIn(file, readFileSync(path.join(REPO, file), "utf8"))
 
-  const ALLOWED: Record<string, ReadonlyArray<string> | string> = {
-    "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu; the pin note spells `KOLU_ACP_AGENT` because that rename is what the bump did, and the knob happens to be the claude row's; the bare word is the SEED `@kolu/acp-claude`, a kolu package this file hydrates — the Claude row imports it, and a seed list that left it to another package's closure is the hazard this file argues against twenty lines up",
-    "nix/kolu.nix": ["claude", "claude#knob", "kolu", "mcp"],
-    "// justfile": "kolu-deps names the framework pin; git/odu are tool names, files/pins are recipe names",
+  const ALLOWED: Record<string, ReadonlyArray<string>> = {
+    "nix/kolu.nix": ["claude", "kolu", "mcp"],
     justfile: ["git", "kolu", "odu", "files", "pins"],
-    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; the comments enumerate the wrapper-baked knobs (OLAI_ACP_*, OLAI_ODU_BIN, OLAI_HIMALAYA) so the wrap text explains itself",
-    "default.nix": ["claude#knob", "codex#knob", "pi#knob", "kolu", "odu#knob", "mail#knob", "pins"],
-    "// flake.nix": "the flake folds plugin Nix halves as flake outputs through the fold (kolu is the npins source name); the e2e shell names nixpkgs' `playwright-mcp` for the browsing row's live scenarios",
+    "default.nix": ["kolu", "pins"],
     "flake.nix": ["kolu", "mcp"],
-    "// packages/bundle/default.nix": "the bundle fold names the framework's surface pin and the bundle's pin vocabulary",
     "packages/bundle/default.nix": ["kolu", "pins"],
-    "// packages/bundle/nix/fold-check.nix": "asserts fixture containers named after bundle vocabulary",
     "packages/bundle/nix/fold-check.nix": ["pins"],
-    "// nix/home/*.nix": "home-manager module's option names (a user's outlines directory) and one mention of a plugin by word (opencode's env key in an error string)",
     "nix/home/check.nix": ["settings", "outlines"],
     "nix/home/module.nix": ["opencode", "outlines"],
-    "// scripts/check-hydrated-deps.sh": "names the pins directory the framework hydrate writes into",
     "scripts/check-hydrated-deps.sh": ["pins"],
-    "// scripts/cordis-graph.ts": "walks plugin words to draw the cordis graph",
     "scripts/cordis-graph.ts": ["ui-renderer", "layout"],
-    "// scripts/test-shard.sh": "spells the git CLI and one odu-shaped perf bucket; per-member heavy-test weights come from each member's own test-weights.json",
     "scripts/test-shard.sh": ["git", "odu", "files"],
-    "// shell.nix": "the dev shell carries OLAI_KOLU_HYDRATE / OLAI_KOLU_EXTERNALS — harness constants outside any plugin's `olai.knobs`; the vault's OSS_OLAI_VAULT workspace import does not match `OLAI_VAULT` and is not a knob spelling",
     "shell.nix": ["kolu", "pins"],
-    "// packages/tests/support/hooks.ts": "the e2e harness's per-tag setup spells the plugins its scenario tags drive (`@alerts`, `@markdown-paints`), the tool suites it exercises (git, files, search, capture), and the worker constants it seeds; its comments name OLAI_HIMALAYA so the mail row's knob counts",
-    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "mail#knob", "files", "capture", "markdown"],
-    "// packages/tests/support/workers.ts": "the e2e harness's isolation loop reads the fold-derived KNOBS list and deletes every declared knob the wrapper could have baked; the mail row's door names travel beside it",
-    "packages/tests/support/workers.ts": ["git", "odu", "mail", "mail#knob"],
+    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "files", "capture", "markdown"],
+    "packages/tests/support/workers.ts": ["git", "odu", "mail"],
   }
 
   const casings = (name: string): ReadonlyArray<string> => {
@@ -862,16 +845,15 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
 
   test("claim 1: no file outside packages/plugins contains the path itself", () => {
     const PATH_ALLOWED: Record<string, true> = {
-      "packages/bundle/default.nix": true,
+      "default.nix": true,
       "scripts/cordis-graph.ts": true,
     }
-    const offenders = corpus.filter((file) => PATH_ALLOWED[file] !== true && stripped(file).includes("packages/plugins/"))
+    const offenders = corpus.filter((file) => PATH_ALLOWED[file] !== true && codeOf(file).includes("packages/plugins/"))
     expect(offenders).toEqual([])
   })
 
   test("every recorded allowance names a real corpus file and a real plugin word", () => {
     for (const [file, words] of Object.entries(ALLOWED)) {
-      if (file.startsWith("//")) continue
       expect([file, corpus.includes(file)]).toEqual([file, true])
       for (const word of words) {
         const base = word.endsWith("#knob") ? word.slice(0, -"#knob".length) : word
@@ -899,24 +881,18 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     const actual = Object.fromEntries(
       corpus.map((file) => {
         if (HARNESS[file] === true) return [file, []]
-        const text = stripped(file)
-        const raw = readFileSync(path.join(REPO, file), "utf8")
+        const code = codeOf(file)
         const hits = PLUGIN_NAMES.flatMap((name) => {
           const out: string[] = []
-          if (SPELLING.get(name)!.test(text)) out.push(name)
+          if (SPELLING.get(name)!.test(code)) out.push(name)
           const entry = knobEntries.find((e) => e.name === name)
-          if (entry && entry.knobs.test(raw)) out.push(`${name}#knob`)
+          if (entry && entry.knobs.test(code)) out.push(`${name}#knob`)
           return out
         })
         return [file, hits]
       }),
     )
-    const expected = Object.fromEntries(
-      corpus.map((file) => [
-        file,
-        [...(typeof ALLOWED[file] === "string" ? [] : (ALLOWED[file] ?? []))],
-      ]),
-    )
+    const expected = Object.fromEntries(corpus.map((file) => [file, [...(ALLOWED[file] ?? [])]]))
     expect(actual).toEqual(expected)
   })
 })

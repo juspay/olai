@@ -16,16 +16,24 @@ import { resources as vault, surface as vaultSurface } from "olai-plugin-vault/s
 import { tools as definitions } from "olai-plugin-vault-plugins/tools"
 import { surface as definitionsSurface } from "olai-plugin-vault-plugins/surface"
 
-const NO_RESOURCES = {} as const
+interface AgentRow {
+  readonly surface: { readonly spec: unknown }
+  readonly expose?: Readonly<Record<string, unknown>>
+  readonly tools: ReadonlyArray<unknown>
+}
 
-export const AGENT_SIBLINGS = {
+const agentSiblings = <const T extends Readonly<Record<string, AgentRow>>>(
+  rows: T,
+): { readonly [K in keyof T]: AgentRow & T[K] } => rows
+
+export const AGENT_SIBLINGS = agentSiblings({
   outlines: { surface: outlinesSurface, expose: outlines, tools: outlinesTools },
   markdown: { surface: markdownSurface, expose: markdown, tools: markdownTools },
-  files: { surface: filesSurface, expose: NO_RESOURCES, tools: files },
-  trash: { surface: trashSurface, expose: NO_RESOURCES, tools: trash },
-  search: { surface: searchSurface, expose: NO_RESOURCES, tools: search },
-  capture: { surface: captureSurface, expose: NO_RESOURCES, tools: capture },
-  git: { surface: gitSurface, expose: NO_RESOURCES, tools: git },
-  "vault-plugins": { surface: definitionsSurface, expose: NO_RESOURCES, tools: definitions },
+  files: { surface: filesSurface, tools: files },
+  trash: { surface: trashSurface, tools: trash },
+  search: { surface: searchSurface, tools: search },
+  capture: { surface: captureSurface, tools: capture },
+  git: { surface: gitSurface, tools: git },
+  "vault-plugins": { surface: definitionsSurface, tools: definitions },
   vault: { surface: vaultSurface, expose: vault, tools: [] },
-} as const
+})

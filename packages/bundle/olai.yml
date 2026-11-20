@@ -34,9 +34,6 @@
   name: olai-plugin-journal/server
   section: Notes
   label: Journal
-# ORDER IS LOAD-BEARING HERE: this list is what `@olai/server` sorts the
-# registry by, so it decides the order of the picker's rows and the order of
-# the install sentences on the no-agent face.
 - id: claude
   name: olai-plugin-claude/server
   section: Agents

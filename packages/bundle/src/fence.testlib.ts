@@ -69,7 +69,6 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   "packages/format/src/typing.ts": "a WeakMap memo of a derivation's declared kinds, keyed by it",
   "packages/format/src/vocabulary.ts": "a WeakMap memo of a derivation's tag counts, keyed by it",
   "packages/format/src/validate.ts": "a WeakMap ledger memo, and one slot a suite installs a listener in",
-  "packages/plugin-build/src/bind.ts": "a sticky regex's cursor, reset at the top of every scan",
 }
 
 const HOLDERS: ReadonlyArray<Holder> = [

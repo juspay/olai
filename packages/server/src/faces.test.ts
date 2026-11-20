@@ -245,7 +245,7 @@ test("the outlines collection is the AGENT's, and the two shared members are sha
 
 const perRow = () =>
   Object.entries(AGENT_SIBLINGS).map(([key, sibling]) =>
-    resolveExpose(sibling.surface.spec as never, sibling.expose as never, key)
+    resolveExpose(sibling.surface.spec as never, (sibling.expose ?? {}) as never, key)
   )
 
 const resolved = () => ({
