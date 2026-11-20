@@ -72,6 +72,9 @@ main p, main li, main figcaption { text-wrap: pretty; }
   background: var(--panel);
 }
 .shot img { display: block; width: 100%; height: auto; }
+.shot > a.full { display: block; cursor: zoom-in; }
+.shot > a.full:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.shot .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .hero .shot { margin-top: var(--space-l); }
 @media (max-width: 40rem) {
   .shot.crop { aspect-ratio: 4 / 5; }
