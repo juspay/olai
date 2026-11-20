@@ -1,66 +1,4 @@
 import { createMemo } from "solid-js"
-/**
- * The Commit pill: what olai wrote, what it last recorded — and, since
- * `one-git-indicator`, whether git is in any state to record anything at all.
- *
- * It exists because every write olai makes is a write nobody typed — the chat
- * agent auto-approves its ops, and an agent in a terminal is working on its
- * own — so git is how you see what the tool did to your files. That is the ONE
- * job: an audit trail. Not history (the notes carry their own dates), not undo
- * — and not sync either, though it does now PUSH what it recorded: sharing an
- * audit trail is not merging one, and nothing here pulls, fetches or resolves.
- *
- * **It is the only git indicator in the header.** There were two: this pill and
- * #108's `● git` readout beside it, which answered "is what gets written here
- * being kept?" while this one answered "what is waiting, and when was the last
- * time?". The human filed the screenshot — `● git` next to `✓ committed · 3m
- * ago` — and he is right that those are one question wearing two chips. #114
- * had already made them one DERIVATION (both are renderings of a single survey,
- * never two probes); this is the face catching up with the data. Nothing #108
- * won is given back: a git that FAILED still reads differently from a directory
- * that is no repository, git's own words are still on screen rather than in the
- * server's log, and none of it blocks a write. What is gone is the second chip.
- *
- * **On desktop it is ALWAYS drawn**, in every state the directory can be in.
- * That follows from what it is for: if the job is to be an audit trail, then
- * "there is no audit trail here" is the most important thing it can say, and
- * a chip that disappeared cannot be trusted when it is absent. On a phone the
- * same control is a banner, and only while there is news (`isNews` in
- * `./said.ts`): a banner that vanished CAN be trusted, because the page
- * itself is the healthy state. Two faces of ONE control — not a second
- * `News` that also called `createCommit` and opened this panel.
- *
- * Two of them are SETTINGS rather than faults — `commit: off`, and a directory
- * that is not a work tree — so they are dim and inert, and they get no warning
- * colour. `⚠` is for the two states a person can act on: a repository that is
- * mid-rebase and could take a commit once they finish, and a git that failed.
- * One more face is this PAGE rather than the directory: before the server has
- * said anything, it says so instead of claiming one of the settings.
- *
- * The sentence rides this app's own {@link ../Tip.tsx} rather than a `title`,
- * and that is #108's finding rather than a preference: git's words are a
- * paragraph, and the platform's tooltip ran one off the right edge of the
- * window. It is on the `aria-label` too, so nothing here is hover-only — which
- * is also why the inert faces are `aria-disabled` rather than `disabled`: a
- * disabled button takes no focus, and a reason a keyboard cannot reach is a
- * reason half the readers do not get.
- *
- * WHERE the pill goes is the layout's to say, like the connection dot beside it:
- * the app header, which is where the readout it absorbed used to sit
- * (`../AppHeader.tsx`). It wears that header's own pill (`../readout.ts`), the
- * same one the connection wears — the bar is a fixed height, so the label
- * truncates rather than wrapping a 390pt phone's first row off the top.
- *
- * WHERE THE PANEL GOES is not the layout's, and cannot be. It is portalled out
- * of whatever the pill is inside and positioned against the VIEWPORT
- * (`../anchor.ts`), which is what a popover in a scrolling column needs: an
- * overflow container clips in both axes, and one laid out inside the sidebar was
- * cut off at the 16rem column, taking the commit message, the writer and half
- * the button with it. Which way it opens is that arithmetic's answer rather than
- * a constant — from the header it opens downward, because that is the side with
- * the room. Being open, being placed and being dismissed are `../popover.ts`,
- * which the preferences at the other end of the bar are the second consumer of.
- */
 
 import { For, Show } from "solid-js"
 import { Portal } from "solid-js/web"
@@ -85,65 +23,22 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 
 export function Commit() {
   const commit = createCommit()
-  /** What the quiet-window loop is doing, as one word for the chrome to wear
-   *  (`./said.ts`). It used to be a union this file constructed from a loop it
-   *  owned; the loop is the server's now, so this is a reading and every tab
-   *  makes the same one. */
   const auto = () => loopIn(commit.git())
-  // Whether the panel is up, where it goes, and the ways it shuts
-  // (`../popover.ts`, shared with the preferences at the other end of the bar).
-  // It used to be `note/expand.ts` — the row note's "open until you click
-  // somewhere else" — plus a measuring effect of this file's own, and the
-  // borrowed half was wrong here: that one keeps ONE root, so the pill and the
-  // portalled panel overwrote each other, a press of the pill was read as a
-  // click-away, and the pill's own click re-opened what it had just shut.
-  // Pressing it a second time did nothing at all.
   const panel = createPopover()
   const now = createNow()
 
   const face = createMemo(() => faceOf(commit.pending(), commit.heard(), commit.git()))
   const inert = () => isInert(face())
-  /** THE ONE READING (`./said.ts`): the tone the dot wears — the same one the
-   *  bar's health dot folds — the first words, the riders, and the sentence for
-   *  the two places it has to be: the tip a pointer opens, and the label
-   *  everything else gets. */
   const read = createMemo(() => readingOf(face(), commit.pending(), commit.git()))
   const said = createMemo(() => read().detail)
 
-  /**
-   * How long ago the last commit was, for the one face that has one — and `""`
-   * everywhere else.
-   *
-   * Beside the first words rather than inside them, because it is the half the bar
-   * gives up first: at 390pt the header has five things in it, and `· 3m ago` is
-   * the only piece of any label that a reader can lose and still be told what
-   * they came to find out. It is drawn from `sm` up; the exact instant, with
-   * the message and the writer, is a tap away in the panel at every width.
-   */
   const ago = () => {
     const last = commit.pending().last
     return face() === "committed" && last !== null ? agoOf(last.at, now()) : ""
   }
 
-  /**
-   * How many commits are recorded here and nowhere else.
-   *
-   * The human's ruling at dispatch: the unpushed count belongs in the HEADER as
-   * part of this one pill, not only inside the panel. The argument is the one
-   * this pill is built on — an audit trail that exists on one machine is one
-   * disk failure from not existing, and "there are eleven commits nobody else
-   * has" is exactly the kind of thing a person only finds out by going looking.
-   * So it rides here, beside the count of what is not committed at all, and the
-   * two are different facts about the same work: not recorded, and not shared.
-   *
-   * Zero draws nothing, and so does a branch with no upstream — there is
-   * nothing to act on, and chrome that speaks in the ordinary case is chrome
-   * nobody reads in the rare one.
-   */
   const unpushed = () => unpushedIn(commit.pending())
 
-  /** What git said when it last refused a push, or `null` — an attribute here;
-   *  its words are one of {@link read}'s riders. */
   const pushSaid = () => commit.git().pushSaid
 
   const showPill = () => desktop()
@@ -153,88 +48,35 @@ export function Commit() {
   return (
     <>
       <Show when={showPill()}>
-      {/* {@link LAYER.over}: this pill lives in the bar, so the sentence
-          about it is the same claim the panel behind it already makes —
-          cover the bar. Sitting at the page layer is how the coral rule cut
-          the first line and how a page's own pills painted through the rest. */}
       <Tip text={said()} layer={LAYER.over}>
         <button
           type="button"
           ref={panel.setTrigger}
-          // The header's own pill (`../readout.ts`), the same one the connection
-          // wears and the same one the retired git readout wore: the bar is a
-          // fixed height, so a long label truncates rather than wrapping. It
-          // did wrap, and on a 390pt phone `✓ committed · 3m ago` took a second
-          // row inside a bar that has no second row — pushing the wordmark
-          // under the pills beside it.
-          //
-          // This is the ONLY thing in the bar that still shrinks, which is the
-          // header's stated order (`../AppHeader.tsx`) and not an accident: the
-          // connection has a floor, the agent's word is already gone at this
-          // width, and what is left is this label — the longest in the bar, and
-          // the one whose first glyph (`✓`, `⚠`) carries most of its meaning
-          // when the rest of it goes. `min-w-9` is the floor of THAT shrink:
-          // without it a 360pt bar (an iPhone mini) ate the glyph too and
-          // left an empty oval between `live` and the agent toggle.
-          //
-          // Hover brightens to paper, the same token the agent and prefs
-          // already use (`../readout.ts`'s ICON_BUTTON). `hover:text-ink` is
-          // the paper-page hover — muted words going dark — and on this bar
-          // it painted the label the colour of the bar. The tip is a hover;
-          // asking what the pill says made the pill unreadable.
           class={`${PILL} min-w-9 max-w-[9rem] sm:max-w-none ${
             inert() ? "opacity-60" : ""
           }`}
           data-testid={TESTID.commitPill}
-          // The STATE as an attribute, so a scenario asserts on which face this
-          // is rather than on the sentence it is rendered into.
           data-state={face()}
           data-uncommitted={commit.waiting()}
           data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
-          // What the quiet-window loop is doing for this DIRECTORY — its own
-          // attribute rather than a ninth face, because "is the loop running"
-          // and "is anything waiting" are two questions (`./said.ts`).
           data-auto={auto()}
-          // ... and whether the last push was refused, which is the other thing
-          // no face can carry: the history is fine and the sharing is not.
           data-push-refused={pushSaid() === null ? undefined : "true"}
-          // Absent rather than `false` on the faces with no panel behind them:
-          // a control that says it can expand and never does is a promise the
-          // page does not keep.
           aria-expanded={inert() ? undefined : panel.open()}
-          // `aria-disabled`, NOT `disabled`. A disabled button takes no focus,
-          // and the sentence below is the whole point of the control in exactly
-          // the states where nothing can be written — see the header.
           aria-disabled={inert() ? true : undefined}
           aria-label={said()}
           onClick={() => {
             if (!inert()) panel.toggle()
           }}
         >
-          {/* The dot, in the reading's tone — the same tone the bar's health
-              dot folds, so a dot that is not green always has this row's
-              colour under it when git is why. A quiet face paints none, and
-              the dot-wide box still stands so the words line up. */}
           <span class={`${DOT} ${TONE[read().tone].dot}`} data-health={read().tone} aria-hidden="true" />
           <span class="min-w-0 truncate">{read().says}</span>
-          {/* The first thing the bar gives up — see {@link ago}. */}
           <Show when={ago() !== ""}>
             <span class="hidden shrink-0 sm:block">· {ago()}</span>
           </Show>
-          {/* THE RIDERS — what is recorded and not shared, WHY it is not coming
-              down (`push-failure-invisible`), and a loop that has STOPPED.
-              Each stays at every width, unlike the recency: each is news, and
-              git's own words are a gesture away, on this pill's own label and
-              in the panel. They wear the reading's ink. */}
           <For each={read().riders}>
             {(rider) => <span class={`shrink-0 ${TONE[read().tone].text}`}>· {rider}</span>}
           </For>
-          {/* Which way the panel opens, and it opens DOWNWARD from the header
-              — `../anchor.ts` picks the side with the room. Not below 40rem:
-              the bar holds five things at 390pt, and a caret is the cheapest of
-              them to give up — what it says is "there is more", which the words
-              beside it would rather spend the pixels saying. */}
           <Show when={!inert()}>
             <span class="ml-auto hidden shrink-0 text-muted sm:inline" aria-hidden="true">
               {panel.open() ? "▴" : "▾"}
@@ -265,7 +107,6 @@ export function Commit() {
           {line()}
         </button>
       </Show>
-      {/* Out of the header entirely — see the header comment. */}
       <Show when={panel.open() && !inert() ? panel.at() : null}>
         {(at) => (
           <Portal>

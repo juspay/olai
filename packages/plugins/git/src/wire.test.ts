@@ -31,9 +31,6 @@ test("what git is doing knows when it has not changed", () => {
       { policy: { commit: "auto", push: "off" } },
       { pushSaid: "! [rejected] main -> main" },
       { paused: "! [rejected] main -> main" },
-      // The lock a refusal was about, which the panel draws a button beside —
-      // a cell that swallowed a repeat of it would leave the button saying
-      // nothing about a different file.
       { lock: { since: 1_760_000_000_000 } },
     ] as const
   ) {

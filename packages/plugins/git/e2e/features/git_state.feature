@@ -34,17 +34,10 @@ Feature: What git is doing is on screen, in ONE indicator
 
   Background:
     Given I open the outline "garden.olai"
-    # The write some of these watch land is a DONE mark (`mint`), and the row
-    # must stay drawn to be seen wearing it.
     And I show the done nodes
 
   @scratch:good @git:none @policy:git.commit=off
   Scenario: One pill answers for git, and a serve told not to commit says so
-    # `commit: off` is an owner's choice about a directory whose history is
-    # somebody else's job. The readout drew NOTHING for it, which was right for
-    # a chip whose only subject was git; it is wrong for the pill, whose subject
-    # is the audit trail — "there is none here" is the thing to say, and it is
-    # said dimly, as the setting it is.
     Then the header shows one git indicator
     And the commit pill says "off"
     And the commit pill reads "Commits off"
@@ -55,62 +48,40 @@ Feature: What git is doing is on screen, in ONE indicator
 
   @scratch:good @git:repo
   Scenario: A repository is reported, and quietly
-    # The healthy default. It has to be legible and it must not shout: an
-    # indicator that cries in the ordinary case is one nobody reads in the rare
-    # one. Nothing has been written here yet, so what it reports is the fact a
-    # count of what is pending cannot express.
     Then the header shows one git indicator
     And the commit pill says "never"
     And the commit pill reads "No commits yet"
     And the commit pill explains "This is a git repository"
     And the commit pill is not alarming
-    # Healthy, and the bar's one dot says so: nothing here is news.
     And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:good @git:none
   Scenario: A directory that is no repository says so, calmly
-    # Plenty of directories are not repositories, and being told so is not being
-    # told off.
     Then the header shows one git indicator
     And the commit pill says "no-repo"
     And the commit pill reads "Not a git folder"
     And the commit pill explains "isn't a git repository"
     And the commit pill is not alarming
     And the commit pill cannot be pressed
-    # A setting, not a fault: the row is quiet and it does not colour the dot.
     And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:good @git:broken
   Scenario: A git that fails says so, in git's own words
-    # The state that used to be indistinguishable from the one above, and must
-    # never collapse back into it: git ran, refused, and said why. What it said
-    # is the answer a reader wants, so it is on the pill's own `aria-label` and
-    # in the tip — never only in a log. It is the one face here that WARNS, and
-    # the one a keyboard can still reach.
     Then the header shows one git indicator
     And the commit pill says "error"
     And the commit pill reads "Git error"
-    # The mark, positively. It is what a reader SCANS for, and a face that lost
-    # its glyph would pass every other assertion on this scenario.
     And the commit pill is alarming
     And the commit pill explains "dubious ownership"
     When I hover the commit pill
     Then a tip says "Git failed here, so changes are saved but not committed — fatal: detected dubious ownership in repository"
-    # ...and the bar's one dot is red with the row's own words, so the fault is
-    # heard with the popover shut.
     And the health dot is "alarm"
     And the health dot names "Git error"
     And there should be no page errors
 
   @scratch:good @git:broken
   Scenario: A write that could not be committed says why where the reader is looking
-    # The other half of the bug, and the half the header cannot answer: the
-    # write LANDED — that is the guarantee — and the reply says why it is not in
-    # the history, in git's own words, in the block a reader opens on the call
-    # that made it. The whole path is real here: panel, ops, git, and the tool
-    # result coming back.
     When I open the "claude" agent on node "herbs"
     Given the node agent's fold is ready
     When I ask the agent "done mint"

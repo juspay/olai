@@ -1,26 +1,3 @@
-/**
- * BOTH ARMS OVER ONE REPOSITORY, which is what an equivalence about the
- * committed side needs to be asked of.
- *
- * `./committed.testlib.ts` keeps the computation as it was and the counters
- * around it; this is the scaffolding that puts the two side by side — a real
- * repository in a temporary directory, a real store over the served part of it,
- * and TWO {@link Committing} instances differing in exactly one thing, the
- * memory of HEAD's copies.
- *
- * ONE STORE for both, deliberately: the working side of the comparison is the
- * store's own last-good parse, so two stores would be two readings of the disk
- * and a divergence could mean nothing worse than one of them having refreshed
- * first. What is under test is the COMMITTED side.
- *
- * Shared because the differential (`./pending.equivalence.test.ts`) and the
- * bench (`./pending.bench.ts`) are the same setup asked two different
- * questions, and this repository's rule for a perf claim is that both arms and
- * the harness under them stay in the tree — a figure nobody can re-run is a
- * figure nobody can check.
- *
- * Not a suite: `bun test` collects only `*.test.ts`.
- */
 import { parsers } from "./parser.testlib.ts"
 import { TEST_CLAIMS } from "@olai/ops/testlib"
 import * as fs from "node:fs"
@@ -42,42 +19,28 @@ import { type Committing, make } from "./pending.ts"
 
 type OutlineStore = StoreModule.Store<Reading, Verdict>
 
-/** The codec this suite validates through — the vocabulary of a build that
- *  composed no plugin, which is what every test in this package runs under
- *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
 const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
-/** One line of an outline, so a corpus and a keystroke are written the same
- *  way. */
 export const node = (id: string, title: string): string =>
   `{"id":"${id}","ord":"a0","title":"${title}"}`
 
 export const outline = (...lines: ReadonlyArray<string>): string => `${lines.join("\n")}\n`
 
-/** The repository a script writes to, in the three moves a step ever makes. */
 export interface Session {
   readonly root: string
-  /** Relative to the REPOSITORY root, so a script can write above the served
-   *  directory — which is the case a served subdirectory is here for. */
   readonly write: (file: string, contents: string) => void
   readonly remove: (file: string) => void
   readonly git: (...argv: ReadonlyArray<string>) => string
 }
 
-/** Both arms over one repository and one store, with the counters around them
- *  — what a differential steps a script through, and what a bench times. */
 export interface Arms {
   readonly session: Session
-  /** Re-read the directory, so a change made behind olai's back is part of the
-   *  revision the next question is answered against. */
   readonly settle: Effect.Effect<void>
   readonly cached: Committing
   readonly plain: Committing
   readonly cachedSide: Counted
   readonly plainSide: Counted
-  /** The sha, or `""` for a branch with no commits yet. */
   readonly head: () => string
-  /** Zero both counters, so what is read next is what ONE revision spent. */
   readonly reset: () => void
 }
 
@@ -101,8 +64,6 @@ export const withArms = <A>(
   fs.mkdirSync(served, { recursive: true })
   repoAt(root, options.seed === false ? { seed: false } : {})
 
-  /** The sha, or `""` for a branch that has no commits yet — which is a step of
-   *  the session like any other rather than a thing to throw about. */
   const headOf = (): string => {
     try {
       return git("rev-parse", "--verify", "--quiet", "HEAD").trim()

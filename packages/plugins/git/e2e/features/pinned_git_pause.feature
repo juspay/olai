@@ -38,8 +38,6 @@ Feature: A pinned loop that git stopped can still be started again
     And olai has recorded 1 commit here
     And the commit pill says auto-commit is "paused"
     And the commit pill explains "CONFLICT"
-    # ... and the gesture named is the one that exists: a frozen row has no
-    # toggle, and neither does an unfrozen one any more.
     And the commit pill explains "Resume"
     When I open the commit panel
     Then the commit panel offers to resume auto-commit
@@ -49,9 +47,6 @@ Feature: A pinned loop that git stopped can still be started again
     And there should be no page errors
 
   Scenario: A running loop is offered no Resume, because there is nothing to resume
-    # A control with nothing to do is a control that teaches a reader to ignore
-    # it — which is exactly the wrong lesson for the one button that undoes a
-    # silent stop.
     When I open the commit panel
     Then the commit panel does not offer to resume auto-commit
     And there should be no page errors

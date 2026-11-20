@@ -1,13 +1,4 @@
 /**
- * THE COMMIT READOUT'S STATUS, read for the bar's health dot.
- *
- * The readout itself (`./Commit.tsx`) is drawn only while the health popover
- * is open, but the dot's colour has to be true while it is shut. So this is a
- * second READER of the same two cells the readout reads (`pending` and `git`) —
- * the sibling client shares one subscription per cell, so it is not a second
- * subscription — folded through the same pure words (`./said.ts`), so the dot
- * and the row cannot disagree.
- *
  * Call it inside a Solid owner this plugin's activation holds (`../../browser.tsx`
  * makes one and disposes it with the activation), after the wire is held.
  */

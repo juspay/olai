@@ -1,21 +1,3 @@
-/**
- * GIT'S OWN SURFACE — what git is doing, what is waiting, and the four verbs,
- * under git's own sibling key.
- *
- * The members used to sit in `@olai/surface`'s own spec: a `git` cell, a
- * `pending` cell, and `git.commit` / `git.push` / `git.resume`. They are here
- * now — with `git.unlock`, which is the commit panel's other button. Procedures
- * are a group then a verb, so composed they read `surface/git/git/get`,
- * `surface/git/pending/get`, `surface/git/git/commit`.
- * The browser face binds `git.commit` as `"web"` itself.
- *
- * ## THIS ENTRY'S OWN FENCE
- *
- * The composed group is on the static graph of everything that reads the
- * surface, so this module may import the framework, `effect` and `@olai/format`
- * and nothing else: no `solid-js`, no `node:child_process`.
- */
-
 import { defineSurface } from "@kolu/surface/define"
 import {
   CommitRequest,
@@ -32,8 +14,6 @@ import {
 } from "@olai/format"
 import { Schema } from "effect"
 
-/** The sibling key, the preferences row, the docs slug, and the word
- *  the file’s row selection takes. */
 export const name = "git"
 
 export const surface = defineSurface({
@@ -79,22 +59,6 @@ export const surface = defineSurface({
   },
 })
 
-/**
- * WHICH FACE SEES WHAT.
- *
- * Browser sees the two cells and the four verbs. THIS ROW PUTS NOTHING ON THE
- * AGENT FACE, and that is still true now that it carries its own tools
- * ({@link ./tools.ts}): `git_commit` and `git_push` are entries in THIS row's table
- * since #546 — there is no `@olai/ops` table left for them to sit in — but they
- * reach the ledger through the ops layer's `Acting` door (`ops.commit`,
- * `ops.push`), not through these members. The adapter has no sibling segment for
- * `surface://` cells either way, so what an agent gets is the two tools and none
- * of this surface. `resume` is the browser's alone: it is the commit panel's
- * button, and an agent has no loop of its own to restart. `unlock` is too, and
- * for a stronger reason: removing a lock file is a person saying they have
- * checked that no git command is running, which is not a judgement an agent
- * gets to make on their behalf.
- */
 export const faces = {
   browser: {
     repository: "resource",

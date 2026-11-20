@@ -1,24 +1,3 @@
-/**
- * The Commit pill, driven the way a person drives it — and it is the header's
- * ONE indicator for git, so the steps that used to drive the `● git` readout
- * beside it are here too (`one-git-indicator` retired that chip and this file
- * inherited its three assertions).
- *
- * The scenarios that WRITE are the only ones in the suite whose served
- * directory is a git repository (`@git`, `support/hooks.ts`), and that is the
- * point: what is waiting to be committed is DERIVED from git rather than
- * counted, so the only honest way to test it is to have one and then to look in
- * its log afterwards. WHICH situation a server was started into — a repository,
- * a directory that is not one, a git that fails when it is asked — is the
- * scenario's tag rather than a step, because the claim being made is that the
- * page knows before anybody writes anything.
- *
- * Everything asserted here is either a `data-` fact on the chrome, the words on
- * it, the sentence a reader with no pointer gets, or a line out of `git log`.
- * Nothing reads the words in the panel: which phrase stands for "marked done"
- * is the view's to reword, and `data-sort` is the contract.
- */
-
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -85,8 +64,6 @@ Then("the phone commit banner sits below the header", async function (this: Olai
     `commit banner starts at ${banner.y}, header ends at ${header.y + header.height}`);
 });
 
-// ── the chrome ─────────────────────────────────────────────────────────
-
 Then(
   "the commit pill says {int} uncommitted",
   async function (this: OlaiWorld, count: number) {
@@ -99,13 +76,6 @@ Then(
   },
 );
 
-/** WHICH of the eight faces the pill is wearing. It is never absent — this
- *  feature is an audit trail, so "there is no audit trail here" is the most
- *  important thing it can say — which is why every assertion here is about the
- *  state it reports rather than about whether it is on screen.
- *
- *  The HYDRATION budget: the faces that come from the server's first survey
- *  arrive with the first frames of the subscription rather than after a click. */
 Then(
   "the commit pill says {string}",
   async function (this: OlaiWorld, state: string) {
@@ -119,16 +89,6 @@ Then(
   },
 );
 
-/**
- * THE ROW IS STILL READING ITS CELLS — the assertion a config edit owes.
- *
- * `off` and `unknown` are both quiet, so neither the dot nor the health dot
- * would call a dead subscription a fault: the pill would simply read "Commits
- * off" forever and nothing on screen would say the tab had stopped listening.
- * This waits for the pill to be on a face that only a LIVE reading can produce,
- * which is what makes a remount-without-redial a failing scenario rather than a
- * (wrong but green) screenshot.
- */
 Then("the commit pill is live", async function (this: OlaiWorld) {
   await this.readStatus(async () => {
     const pill = this.page.locator(COMMIT_PILL);
@@ -144,10 +104,6 @@ Then("the commit pill is live", async function (this: OlaiWorld) {
   });
 });
 
-/** The WORDS on it, which are not the same claim as the state behind them: a
- *  face renamed in the table and left saying the old thing is a page that reads
- *  wrong while every attribute passes. Contains rather than equals, because the
- *  mark and the caret beside the words are `aria-hidden` decoration. */
 Then(
   "the commit pill reads {string}",
   async function (this: OlaiWorld, words: string) {
@@ -163,9 +119,6 @@ Then(
   },
 );
 
-/** The REASON, off the `aria-label` — because it has to be readable without a
- *  pointer. The tip a pointer does open is checked by the step that already
- *  owns tips; this asserts the copy everybody else gets. */
 Then(
   "the commit pill explains {string}",
   async function (this: OlaiWorld, reason: string) {
@@ -182,8 +135,6 @@ Then(
   },
 );
 
-/** The tone the pill's dot wears — its `data-health`, the state and never the
- *  colour, in the same words the health dot uses. */
 const pillTone = (world: OlaiWorld): Promise<string | null> =>
   world.readStatus(async () => {
     const pill = world.page.locator(COMMIT_PILL);
@@ -191,9 +142,6 @@ const pillTone = (world: OlaiWorld): Promise<string | null> =>
     return pill.locator("[data-health]").getAttribute("data-health");
   });
 
-/** Quiet: no warning at all. The healthy directory is the ordinary case, and
- *  chrome that cries in the ordinary case is chrome nobody reads in the rare
- *  one. */
 Then("the commit pill is not alarming", async function (this: OlaiWorld) {
   const tone = await pillTone(this);
   assert.ok(
@@ -202,17 +150,11 @@ Then("the commit pill is not alarming", async function (this: OlaiWorld) {
   );
 });
 
-/** And the other direction, which is the half that matters on a fault: the
- *  dot is what a reader SCANS for, and a face that lost its tone would still
- *  pass every attribute and word assertion beside this one. */
 Then("the commit pill is alarming", async function (this: OlaiWorld) {
   const tone = await pillTone(this);
   assert.equal(tone, "alarm", `the commit pill's dot is "${tone}", on a state that is an alarm`);
 });
 
-/** Open the tip, and leave the assertion to the step that already owns tips
- *  (`navigation_steps.ts`'s `a tip says …`, which also holds the rule this app
- *  learnt the hard way: exactly one tip on screen, ever). */
 When("I hover the commit pill", async function (this: OlaiWorld) {
   await this.openStatus();
   const pill = this.page.locator(COMMIT_PILL);
@@ -224,20 +166,6 @@ When("I hover the commit pill", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/**
- * The human's bug, as an assertion: ONE control in the header answers for git.
- *
- * There were two — this pill and the `● git` readout beside it. The claim is
- * that count, not the chrome row's whole membership: plugin Headers grow in
- * registry order with no bar edit (`web`'s `plugins/Chrome.tsx`), so a closed
- * set of every testid in the row breaks on a legitimate new pill (spaces,
- * the next one). "The old one is absent" would still pass for a twin under
- * a new name, so the retired readout's attribute is checked too — a chip
- * that arrives with no test id of its own.
- *
- * Settle first: an absent element and a frame that has not arrived look
- * identical, and only one of them is the claim.
- */
 Then("the header has no git indicator", async function (this: OlaiWorld) {
   await this.waitForFrame();
   const header = this.page.locator(APP_HEADER);
@@ -254,12 +182,6 @@ Then("the header has no git indicator", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * ONE readout answers for git, and it is a row of the health popover. The bar
- * itself holds no git chip at all now — the dot folds the Commit readout's
- * tone in with the rest — so the count is taken in the popover, and the bar is
- * held to having none.
- */
 Then("the header shows one git indicator", async function (this: OlaiWorld) {
   await this.waitForFrame();
   const header = this.page.locator(APP_HEADER);
@@ -293,10 +215,6 @@ Then("the header shows one git indicator", async function (this: OlaiWorld) {
 });
 
 Then("the commit pill cannot be pressed", async function (this: OlaiWorld) {
-  // `aria-disabled`, not the `disabled` property: the pill stays focusable in
-  // its inert faces on purpose, because the sentence explaining why nothing is
-  // being recorded is the whole of the control in exactly those states, and a
-  // disabled button takes no focus and so cannot be asked.
   await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
     "aria-disabled",
@@ -318,9 +236,6 @@ Then(
   },
 );
 
-/** Open it, or leave it open. The pill TOGGLES — a step that clicked
- *  unconditionally would shut a panel that was already up, which is what a
- *  scenario asking twice actually meant to avoid. */
 Then(
   "the commit panel offers to resume auto-commit",
   async function (this: OlaiWorld) {
@@ -374,8 +289,6 @@ When("I open the commit panel", async function (this: OlaiWorld) {
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** Unconditionally, unlike the step above: the scenario that presses it a
- *  SECOND time is asking what that press does. */
 When("I press the commit pill", async function (this: OlaiWorld) {
   await this.openStatus();
   await this.press(this.page.locator(COMMIT_PILL));
@@ -387,9 +300,6 @@ Then("the commit panel is shut", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-/** The other half, and the assertion a LIVE policy pick owes: the panel belongs
- *  to the running activation, so a pick must not shut it. Waited for rather than
- *  counted, because "still open" is what the step after a pick is claiming. */
 Then("the commit panel is open", async function (this: OlaiWorld) {
   await this.page
     .locator(COMMIT_PANEL)
@@ -460,21 +370,13 @@ When("I tick {string}", async function (this: OlaiWorld, file: string) {
   await this.page.locator(`${COMMIT_TICK}${attr("data-path", file)}`).check({ timeout: POLL_TIMEOUT });
 });
 
-// ── what ended up in the repository ────────────────────────────────────
-
 Then(
   "the last commit is {string} by {string}",
   async function (this: OlaiWorld, subject: string, writer: string) {
-    // THE WRITE IS ASYNCHRONOUS, THE PILL IS NOT: a retry's press publishes
-    // "armed" before the commit it started has landed, so a single read of the
-    // log can see the commit before it. Wait for the subject the gesture
-    // promised, then assert the trailer on that same commit.
     await this.waitUntil(
       async () => this.git("log", "--format=%s", "-1").trim() === subject,
       `the last commit to be ${JSON.stringify(subject)}`,
     );
-    // The trailer is the permanent half of "who wrote this": git records only
-    // the repository's own user, which every commit in it already has.
     assert.strictEqual(
       this.git(
         "log",
@@ -486,16 +388,6 @@ Then(
   },
 );
 
-// ── Auto-commit ────────────────────────────────────────────────────────
-
-/**
- * What the loop is doing IN THIS BROWSER — `off`, `armed`, `paused`.
- *
- * Its own attribute rather than one of the pill's eight faces, and the steps
- * follow the app: the faces are claims about the DIRECTORY, and this is a claim
- * about the reader, so a scenario that asserted "the pill says auto-commit" for
- * a state two tabs could disagree about would be asserting the wrong thing.
- */
 Then(
   "the commit pill says auto-commit is {string}",
   async function (this: OlaiWorld, state: string) {
@@ -509,16 +401,6 @@ Then(
   },
 );
 
-/**
- * WHETHER THE LAST PUSH WAS REFUSED — the fact `push-failure-invisible` was
- * filed about, as an attribute rather than a sentence.
- *
- * Its own attribute beside the eight faces for the reason the pause has one: a
- * repository whose commits all land and whose push will not go is healthy on
- * one question and broken on the other, and one word could not say both. What
- * the reader SEES of it — the row's dot in alarm, git's own words on the label
- * — is asserted by the alarming/reads/explains steps above.
- */
 Then(
   "the commit pill says the push was refused",
   async function (this: OlaiWorld) {
@@ -532,15 +414,6 @@ Then(
   },
 );
 
-/**
- * The flurry landing — the one step in this suite that waits out the SERVER's
- * quiet window.
- *
- * Its own budget (`QUIET_WINDOW_TIMEOUT`) and its own step envelope, for the
- * reason the world file gives: the window is a claim about the product and is
- * not shortened to suit a test, and no other step should inherit a wait this
- * wide.
- */
 Then(
   "the flurry records itself",
   { timeout: QUIET_WINDOW_STEP_TIMEOUT },
@@ -555,17 +428,6 @@ Then(
   },
 );
 
-/**
- * Give the quiet window its full run and look afterwards — the only way to say
- * a timer did NOT fire.
- *
- * A bare wait, and it is named as one: what follows it is whatever the scenario
- * wanted to still be true, and the value of the step is that the window has
- * demonstrably had its chance. The one scenario that needs it is the stop —
- * "nothing goes round again" is a claim about a timer nobody re-armed, and an
- * assertion made a moment after the edit would pass just as well against a loop
- * that was about to record.
- */
 When(
   "the quiet window is given its full run",
   { timeout: QUIET_WINDOW_STEP_TIMEOUT },
@@ -574,13 +436,6 @@ When(
   },
 );
 
-/**
- * How many commits olai has made here — the whole claim of the debounce.
- *
- * Counted out of the log by the prefix every olai commit carries, because "one
- * commit and not five" is the thing a burst of edits is being asked, and no
- * amount of chrome can answer it.
- */
 Then(
   "olai has recorded {int} commit(s) here",
   function (this: OlaiWorld, count: number) {
@@ -594,22 +449,12 @@ Then(
   },
 );
 
-/** The panel's promise while the loop is armed and something is waiting. */
 Then("the panel promises to record it on its own", async function (this: OlaiWorld) {
   await this.page
     .locator(COMMIT_AUTO_ARMED)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/**
- * ... and its absence, which is the half that regressed.
- *
- * The promise is the SERVER's own gate asked by the panel, and the term the
- * panel's shorter copy of it had lost is that something is waiting: on a clean
- * tree under `commit: auto` the policy is still the window and the repository
- * is still ready, so it printed "Auto-commit will record all of this as one
- * commit once the edits stop" over an empty list.
- */
 Then("the panel promises nothing", async function (this: OlaiWorld) {
   assert.equal(
     await this.page.locator(COMMIT_AUTO_ARMED).count(),
@@ -618,15 +463,6 @@ Then("the panel promises nothing", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * ... and the line a STOPPED loop leaves in the panel.
- *
- * It asserts the GESTURE rather than git's words, and that is the app's shape
- * rather than a weaker test: git's refusal is a line of its own further down,
- * beside the verb that produced it, and the header's own sentence carries it
- * for a reader with no pointer — which is what "the commit pill explains" asks
- * for. What is unique to this line is that a stopped loop can be started again.
- */
 Then("the panel says auto-commit is paused", async function (this: OlaiWorld) {
   const line = this.page.locator(COMMIT_AUTO_PAUSED);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -637,31 +473,16 @@ Then("the panel says auto-commit is paused", async function (this: OlaiWorld) {
   );
 });
 
-/** ... and git's own account of the push it refused, in the panel, verbatim.
- *  It comes off the CELL, so it is readable by whoever opens the panel rather
- *  than only by the tab that happened to make the request. */
 Then("the panel says a push was refused", async function (this: OlaiWorld) {
   const line = this.page.locator(COMMIT_PUSH_REFUSED);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const said = oneLine(await line.innerText());
   assert.ok(
-    // A refused push says "rejected" in git's words; a take-in that met a
-    // conflict says "CONFLICT" and names the file — both are git's own
-    // account of the refusal, which is what this line carries.
     said.includes("reject") || said.includes("CONFLICT"),
     `the refused-push line says "${said}", which is not git's own refusal`,
   );
 });
 
-/** THE DIVERGENCE, in the only shape a single user meets it: another machine
- *  — or a colleague — has pushed, so this branch's upstream has moved. A push
- *  from here now FETCHES that, rebases what is unpushed onto it, and sends —
- *  so the other side's commit is taken in and this side's lands on top. Real
- *  git, a real bare remote, and no network.
- *
- *  The file the other side commits is real, so a take-in visibly moves the
- *  served directory. What makes the rebase STOP is the
- *  conflicting-edit step next door. */
 Given(
   "somebody else has pushed {string} to the remote",
   function (this: OlaiWorld, subject: string) {
@@ -672,21 +493,12 @@ Given(
 Given(
   "somebody else has rewritten {string} as:",
   function (this: OlaiWorld, file: string, contents: string) {
-    // THE OTHER SIDE'S EDIT, spelled out — for the cases where the fixed
-    // conflicting-edit content is not the right shape (an OVERLAP wants the
-    // other side's change on a line of its OWN, so the person's later commit
-    // of a different line can rebase cleanly).
     this.advanceRemote("somebody else's work", { file, content: contents });
   },
 );
 Given(
   "somebody else has pushed a conflicting edit to {string}",
   function (this: OlaiWorld, file: string) {
-    // A SAME-LINE rewrite of the file this side is about to edit: the other
-    // machine changes the one line that carries the divergence, which is the
-    // only shape of change that makes a rebase STOP rather than take in
-    // cleanly. (Different lines, or a different file entirely, rebase with
-    // no conflict at all on real git.)
     this.advanceRemote("somebody else's work", { file, content: "\"somebody else's\"\n" });
   },
 );
@@ -707,20 +519,9 @@ When("HEAD is detached in the served repository", function (this: OlaiWorld) {
   this.git("checkout", "--quiet", "--detach", "HEAD");
 });
 
-// ── the stale lock file ────────────────────────────────────────────────
-
-/** Where the served repository's GIT DIRECTORY is — asked of git rather than
- *  assumed, because a linked worktree's is not `.git`. */
 const gitDirIn = (world: OlaiWorld): string =>
   world.git("rev-parse", "--absolute-git-dir").trim();
 
-/**
- * Plant a lock file of a given age.
- *
- * WHERE THE LOCK LIVES comes from {@link gitDirIn}, which is the case the
- * verb's path pinning exists for: `.git/index.lock` is right for a work tree at
- * the repository root and wrong for a linked one.
- */
 const plantLock = (world: OlaiWorld, ageMs: number): void => {
   const at = path.join(gitDirIn(world), "index.lock");
   fs.writeFileSync(at, "");
@@ -728,29 +529,17 @@ const plantLock = (world: OlaiWorld, ageMs: number): void => {
   fs.utimesSync(at, stamp, stamp);
 };
 
-/**
- * A LOCK FILE NOBODY IS HOLDING — the bug, as a fixture: git removes
- * `index.lock` on the way out of every exit it controls, and a killed process,
- * a full disk or a machine that went down mid-write leaves one behind that
- * refuses every write in the repository until somebody removes it.
- */
 Given("a stale lock file sits in the repository", function (this: OlaiWorld) {
   plantLock(this, 10 * 60_000);
 });
 
-/** ... and the other one: younger than a git command's own budget, so it may
- *  belong to a git that is still writing it. */
 Given("a fresh lock file sits in the repository", function (this: OlaiWorld) {
   plantLock(this, 0);
 });
 
 /**
- * THE GIT DIRECTORY, MADE UNWRITABLE — the one shape of "the file is there and
- * the unlink is refused" a test can produce on any machine that is not root.
- *
  * Root can unlink from a directory it cannot write, so the step is PENDING
- * there rather than inverted (`@olai/plugins/vault`'s `live_steps.ts` makes the
- * same call for an unreadable file).
+ * there rather than inverted.
  */
 Given("the git directory cannot be written to", async function (this: OlaiWorld) {
   if (typeof process.getuid === "function" && process.getuid() === 0) {
@@ -759,8 +548,6 @@ Given("the git directory cannot be written to", async function (this: OlaiWorld)
   fs.chmodSync(gitDirIn(this), 0o500);
 });
 
-/** ... and writable again, which is the half that turns the failure into a
- *  press that works. */
 When("the git directory can be written to again", async function (this: OlaiWorld) {
   if (typeof process.getuid === "function" && process.getuid() === 0) {
     return "pending";
@@ -776,11 +563,6 @@ Then("the commit panel says a lock file is in the way", async function (this: Ol
     said.includes("lock file is in the way"),
     `the refusal line says "${said}", which is not the sentence about a lock file`,
   );
-  // ... AND GIT'S OWN WORDS ARE BESIDE IT, for a pointer in the tip and for a
-  // screen reader in the hidden line the tip wraps with the sentence. The
-  // sentence says what to do about the file; git's own words are where the
-  // path it refused over survives, which is what a person with a terminal is
-  // looking for. Read off the pair's own box, which holds both.
   const both = oneLine(await line.locator("xpath=..").innerText());
   assert.ok(
     both.includes("index.lock"),
@@ -788,14 +570,6 @@ Then("the commit panel says a lock file is in the way", async function (this: Ol
   );
 });
 
-/**
- * HOW OLD THE PANEL SAYS THE LOCK IS — the one stamp, and the assertion that
- * two ages cannot be on screen at once.
- *
- * Waited for rather than read once: the guard answers a press by REWRITING the
- * cell's copy of the age to the one it saw, so the sentence a scenario is
- * waiting for arrives a republish after the click.
- */
 Then(
   "the commit panel says the lock was left {string}",
   async function (this: OlaiWorld, ago: string) {
@@ -824,13 +598,10 @@ Then("the commit panel does not offer to remove a lock file", async function (th
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-/** THE ONE GESTURE, and the press that makes it: the file goes, the refusal and
- *  the pause go with it, and the panel makes the commit it was refused. */
 When("I remove the lock file and retry", async function (this: OlaiWorld) {
   await this.page.locator(COMMIT_UNLOCK).click({ timeout: POLL_TIMEOUT });
 });
 
-/** ... and the answer when it is too early to make: the guard says so. */
 Then("the panel says a git process may still be writing", async function (this: OlaiWorld) {
   const line = this.page.locator(COMMIT_LOCK_HELD);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -841,12 +612,6 @@ Then("the panel says a git process may still be writing", async function (this: 
   );
 });
 
-/**
- * WHAT THE SERVER COULD NOT DO, on the line under the button that asked.
- *
- * Asserted by its ERRNO, because that is the whole of what a reader can act on
- * — the difference between a permission, a full disk and a read-only mount.
- */
 Then("the panel says the lock could not be removed", async function (this: OlaiWorld) {
   const line = this.page.locator(COMMIT_UNLOCK_REFUSED);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -857,15 +622,6 @@ Then("the panel says the lock could not be removed", async function (this: OlaiW
   );
 });
 
-// ── the whole repository ───────────────────────────────────────────────
-
-/**
- * A file that is NOT an outline, waiting in the panel — the bug this feature
- * was filed for, as an assertion.
- *
- * `data-how` rather than the chip's words: which phrase stands for a file git
- * has never seen is the view's to reword, and the status is the contract.
- */
 Then(
   "the panel lists {string} as {string}",
   async function (this: OlaiWorld, file: string, how: string) {
@@ -878,9 +634,6 @@ Then(
   },
 );
 
-/** The scope the panel reports on. New because the scope is new: a `README.md`
- *  above the outlines is a row in that list, and a reader who is not told that
- *  has to work out why. */
 Then(
   "the panel says it covers the whole repository",
   async function (this: OlaiWorld) {
@@ -894,8 +647,6 @@ Then(
   },
 );
 
-/** Leave one file OUT of this commit. What is unticked stays waiting, for its
- *  own commit and its own message. */
 When(
   "I untick {string}",
   async function (this: OlaiWorld, file: string) {
@@ -905,9 +656,6 @@ When(
   },
 );
 
-/** What the button is offering to do, which follows the ticks: unticking a
- *  file has to change the offer, or the piecemeal selection is a lie about what
- *  pressing it will record. */
 Then(
   "the commit button offers {string}",
   async function (this: OlaiWorld, words: string) {
@@ -922,8 +670,6 @@ Then(
   },
 );
 
-/** Exactly which files the commit named — the whole point of a piecemeal
- *  commit, and the one thing about it that is permanent. */
 Then(
   "the last commit touched exactly {string}",
   function (this: OlaiWorld, files: string) {
@@ -947,17 +693,10 @@ Then(
   },
 );
 
-// ── pushing ────────────────────────────────────────────────────────────
-
-/** Somewhere to push to: a bare repository on disk, wired up as `origin` with
- *  the branch tracking it. Real git, no network. */
 Given("the served repository has a remote", function (this: OlaiWorld) {
   this.giveRemote();
 });
 
-/** The header's own count of what is recorded here and nowhere else — the
- *  human's ruling at dispatch: one indicator, and the unpushed count is on it
- *  rather than only inside the panel. */
 Then(
   "the commit pill says {int} unpushed",
   async function (this: OlaiWorld, count: number) {
@@ -987,10 +726,6 @@ When("I push", async function (this: OlaiWorld) {
 Then(
   "the remote has taken in {string} before this commit",
   function (this: OlaiWorld, subject: string) {
-    // The take-in is a REBASE, so the other side's commit is older than this
-    // side's: the tip's history CONTAINS it rather than the tip itself being
-    // it — which is the proof a push took the divergence in instead of a
-    // force overwriting it.
     const remoteTip = this.remoteGit("log", "--format=%s", "-1", "main").trim();
     const all = this.remoteGit("log", "--format=%s", "main").split("\n");
     assert.ok(
@@ -1001,8 +736,6 @@ Then(
   },
 );
 
-/** What actually arrived at the other end. The whole reason the button exists
- *  is that a person should not have to check this by hand — so the test does. */
 Then(
   "the remote has {string}",
   function (this: OlaiWorld, subject: string) {

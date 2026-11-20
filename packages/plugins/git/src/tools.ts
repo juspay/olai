@@ -1,20 +1,3 @@
-/**
- * THE LEDGER ROW'S TWO AGENT VERBS — record what is waiting, send it on.
- *
- * They were entries in `@olai/ops`' one closed `TOOLS` table, which meant a
- * general package named this row's vocabulary and a serve without a ledger
- * still advertised `git_commit` and `git_push` to an agent that would be refused in
- * words by a door nobody stood behind. A tool leaves with the row that owns it
- * now (juspay/olai#546).
- *
- * THEY REACH THE LEDGER THROUGH THE `Acting` DOOR — `ops.commit` / `ops.push`,
- * the same door `@olai/ops` refuses in words when no ledger is mounted — and
- * NOT through this row's own surface: the adapter has no sibling segment for
- * `surface://` cells, and this row still puts nothing on the agent face
- * ({@link ./wire.ts}). So the two tools are this row's to declare and core's to
- * dispatch, which is the same split every other row's tools have.
- */
-
 import { CommitRequest } from "@olai/format"
 import { act, NoArgs, type Tool } from "@olai/ops"
 

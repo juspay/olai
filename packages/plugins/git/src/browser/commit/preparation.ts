@@ -1,4 +1,3 @@
-/** A tab's prepared commit survives closing the panel and plugin rebuilds. */
 import { batch, createSignal } from "solid-js"
 
 export const preparation = {
@@ -6,7 +5,6 @@ export const preparation = {
   dropped: createSignal<ReadonlySet<string>>(new Set()),
 }
 
-/** A successful reply only clears the preparation that was submitted. */
 export const submittedPreparation = (): (() => void) => {
   const submittedIn = repository
   const typed = preparation.typed[0]()
@@ -19,7 +17,6 @@ export const submittedPreparation = (): (() => void) => {
 }
 
 
-// Only the stable repository name survives withdrawal, never a vault capability.
 let repository: string | undefined
 let owner: object | undefined
 export const prepareForRepository = (identity: string): (() => void) => {

@@ -1,17 +1,3 @@
-/**
- * The plumbing, against real repositories.
- *
- * Two things are worth holding here and neither is "git works". The first is
- * the SHAPE OF A REFUSAL: a git that says no is a line and never a failed
- * write, so the message has to be stable and git's own words have to ride it as
- * a FIELD rather than interpolated into the sentence. The second is
- * {@link state}, which is new — nothing used to ask whether the repository was
- * mid-merge, mid-rebase or on a detached HEAD before committing, and an agent
- * marking a node done in the middle of a conflict could swallow a resolution.
- * A blocked repository is the one answer that cannot be tested by reading the
- * code, so it is tested by putting a repository in that state.
- */
-
 import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Cause, Effect, Exit, Fiber } from "effect"
@@ -22,14 +8,8 @@ import * as path from "node:path"
 import { gitIn as git, repoAt } from "./fixtures.testlib.ts"
 import { type Audit, type Dirt, open, type Repo } from "./git.ts"
 
-/** The audit convention the packages above this one actually use, so what the
- *  tests read back is what olai writes — handed in, because which prefix and
- *  which trailer a caller signs with is exactly what this package does not
- *  know. */
 const OLAI: Audit = { prefix: "olai", trailer: "X-Olai-Writer" }
 
-/** A directory with a file in it and no repository anywhere it can reach —
- *  `/tmp` is not itself a work tree, and nothing here walks upwards past it. */
 const loose = (): { readonly root: string; readonly file: string } => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-")))
   const file = path.join(root, "a.olai")
@@ -37,9 +17,6 @@ const loose = (): { readonly root: string; readonly file: string } => {
   return { root, file }
 }
 
-/** The same directory, with a repository and one commit in it — or with the
- *  repository and NO commit, which is the shape `head` has to answer `null`
- *  for. */
 const repo = (
   options: { readonly seed?: boolean } = {},
 ): { readonly root: string; readonly file: string } => {
@@ -48,8 +25,6 @@ const repo = (
   return made
 }
 
-/** Every question below is asked of a repository, so this is the prologue they
- *  share: open the directory, or fail the test saying it is not one. */
 const asEffect = <A, E = never>(
   root: string,
   use: (git: Repo) => Effect.Effect<A, E>,
@@ -59,22 +34,11 @@ const asEffect = <A, E = never>(
       ? Effect.die(new Error(`${root} is not a work tree: ${opening._tag}`))
       : use(opening.repo))
 
-/**
- * ... and the same, run for its ANSWER.
- *
- * `unknown` rather than `never`, because one verb can genuinely fail — the one
- * that removes a lock file. A test that expects an answer dies on a failure,
- * which is what it meant; a test that is ABOUT the failure asks through
- * `Effect.runPromiseExit` instead.
- */
 const asked = <A>(
   root: string,
   use: (git: Repo) => Effect.Effect<A, unknown>,
 ): Promise<A> => Effect.runPromise(Effect.orDie(asEffect(root, use)))
 
-/** The survey, for the tests that are about what it FOUND rather than about a
- *  git that could not answer — which has its own test, and which every one of
- *  these would otherwise have to narrow past. */
 const surveyed = async (root: string): Promise<Extract<Dirt, { _tag: "Surveyed" }>> => {
   const dirt = await asked(root, (git) => git.dirty)
   if (dirt._tag !== "Surveyed") throw new Error(`git would not survey ${root}: ${dirt.said}`)
@@ -92,17 +56,6 @@ test("a bare repository is NoRepo: there is nowhere for the files to be", async 
   expect(await Effect.runPromise(open(root))).toEqual({ _tag: "NoRepo" })
 })
 
-/**
- * The distinction #108 was filed for, and the one this socket must never give
- * back.
- *
- * Every way of failing to ANSWER the question used to be the same `null`, which
- * a caller read as "not a repository" — so a service with no git on its PATH,
- * and a repository git refuses to use (dubious ownership is the one people
- * actually hit), both told the reader their notes were not under version
- * control. Anything git says that is not its own "not a git repository" is
- * `Unusable`, and it arrives with what git said.
- */
 test("a git that cannot answer is Unusable carrying its words, not NoRepo", async () => {
   const { root } = loose()
   fs.rmSync(root, { recursive: true, force: true })
@@ -113,15 +66,6 @@ test("a git that cannot answer is Unusable carrying its words, not NoRepo", asyn
   expect(opening.said).not.toBe("")
 })
 
-/**
- * The three spellings, from a served SUBDIRECTORY — where they are three
- * different strings and the difference matters.
- *
- * git prints `notes/b.olai`, because git speaks repo-relative paths. What
- * comes back also says what the SERVED root calls it, and where it is on disk,
- * which is the whole reason the placement belongs to the handle rather than to
- * a caller.
- */
 test("a dirty file answers in all three spellings, from a served subdirectory", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
@@ -140,14 +84,6 @@ test("a dirty file answers in all three spellings, from a served subdirectory", 
   expect(await asked(served, (git) => Effect.succeed(git.served))).toBe("notes/")
 })
 
-/**
- * The bug this whole item was filed for: serving `docs/` and editing a
- * `README.md` one level up said nothing was waiting.
- *
- * A file OUTSIDE the served directory comes back with `served: null`, which is
- * exactly the news a caller needs — it is dirty, and olai does not serve it, so
- * nothing above can have anything to say about what is in it.
- */
 test("a served subdirectory still sees the dirt above it, marked as outside", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
@@ -161,9 +97,6 @@ test("a served subdirectory still sees the dirt above it, marked as outside", as
   ])
 })
 
-/** The porcelain XY letters, which were surveyed and thrown away one line
- *  later. Every arm, in one repository, because the collapse of X and Y is a
- *  decision rather than an accident. */
 test("dirty keeps how each file moved", async () => {
   const { root, file } = repo()
   const run = git(root)
@@ -188,22 +121,10 @@ test("dirty keeps how each file moved", async () => {
   expect(how.get("gone.olai")).toBe("deleted")
   expect(how.get("fresh.md")).toBe("untracked")
   expect(how.get("staged.md")).toBe("added")
-  // A rename is ONE entry that names both sides — see the test below. The side
-  // it came from is not an entry of its own: it is not a file waiting to be
-  // deleted, it is half of the one above.
   expect(how.get("landed.md")).toBe("renamed")
   expect(how.has("moved.md")).toBe(false)
 })
 
-/**
- * A rename is ONE thing that happened, and the survey has to say so.
- *
- * Two entries — a `renamed` arrival and a `deleted` departure with nothing
- * joining them — is what left a person's commit panel reading `Kept.md deleted`
- * after a `git mv Kept.md Kept.olai`, with the file that actually holds their
- * notes nowhere near it. Git knows both halves and prints them on one line; the
- * entry keeps them together, in the same three spellings the arriving side has.
- */
 test("a staged rename is ONE entry naming both sides", async () => {
   const { root } = repo()
   const run = git(root)
@@ -228,19 +149,6 @@ test("a staged rename is ONE entry naming both sides", async () => {
   ])
 })
 
-/**
- * A COPY is not a rename, and its source is somebody else's row.
- *
- * Git only prints `C` when a reader has asked for copy detection
- * (`status.renames=copies`), so this is a repository configured the way the
- * handful of people who want that configure it. What it costs to get wrong is
- * not rare at all: a copy's source is a file that is STILL THERE, so folding it
- * into the copy's entry both hid a staged edit to it — the porcelain prints
- * `C dest\0src` before `M src` whenever `dest` sorts first — and put it on the
- * pathspec of any commit that ticked the copy, sweeping that edit in unasked.
- *
- * Both orderings, because the swallow only showed up in one of them.
- */
 test("a copy leaves its source to be its own row, whichever order git prints", async () => {
   const { root } = repo()
   const run = git(root)
@@ -248,8 +156,6 @@ test("a copy leaves its source to be its own row, whichever order git prints", a
   run("add", "-A")
   run("commit", "--quiet", "-m", "more fixtures")
 
-  // `Copy.md` sorts BEFORE `notes.md`, so the porcelain prints the copy first
-  // and the source's own modification second.
   fs.writeFileSync(path.join(root, "Copy.md"), "the original\n")
   fs.writeFileSync(path.join(root, "notes.md"), "the original, edited\n")
   run("add", "-A")
@@ -258,26 +164,11 @@ test("a copy leaves its source to be its own row, whichever order git prints", a
   const found = (await surveyed(root)).files
   expect(found.map((one) => [one.path, one.how, one.from?.path ?? null]).sort())
     .toEqual([
-      // The arrival is an arrival. WHERE git thinks it was copied from is git's
-      // inference about content, not a second file waiting to be committed.
       ["Copy.md", "added", null],
-      // And the source's staged edit is still here, as its own row and its own
-      // tick — which is the whole of what folding it in had taken away.
       ["notes.md", "modified", null],
     ])
 })
 
-/**
- * The MCP face's own reproduction, at the plumbing.
- *
- * `git mv old new` by hand and then a commit answered
- * `fatal: pathspec 'old' did not match any files` — git's raw refusal, carried
- * all the way out to an agent's reply. The cause is one call: the `add` that
- * makes an untracked file committable was handed a path that has already left
- * the working tree, and `git add` looks only at the working tree and the index.
- * A path with nothing on disk has nothing to stage; `git commit -- <path>`
- * records its departure out of HEAD, which is what git's own porcelain does.
- */
 test("a commit records a staged rename instead of refusing on a pathspec", async () => {
   const { root } = repo()
   const run = git(root)
@@ -294,26 +185,12 @@ test("a commit records a staged rename instead of refusing on a pathspec", async
   expect(done._tag === "Failed" ? done.said : "").not.toContain("pathspec")
   expect(done._tag).toBe("Committed")
 
-  // ONE commit, and git reads it back as the rename it is rather than as an
-  // unrelated add beside a deletion.
   expect(run("show", "--name-status", "--find-renames", "--format=", "HEAD").trim())
     .toBe("R100\tKept.md\tKept.olai")
   expect(run("status", "--porcelain").trim()).toBe("")
-  // And the INDEX is what a person's next `git commit` in a terminal will see:
-  // nothing staged that this call left behind. `status` being empty says the
-  // work tree matches HEAD; this says the index does too, which is the promise
-  // {@link keptIndex} makes and the one a clean tree can hide.
   expect(run("diff", "--cached", "--name-only").trim()).toBe("")
 })
 
-/**
- * The other departing half, and the same one-line fix under it: a `git rm`.
- *
- * `git add -- <a path that is gone>` is the same pathspec fatal the rename hit,
- * reached without any rename at all — which makes it the narrower statement of
- * what the filter is for. The commit still names it, and `git commit -- <path>`
- * records the removal out of HEAD with nothing staged for it.
- */
 test("a commit records a staged deletion, which has nothing to stage", async () => {
   const { root } = repo()
   const run = git(root)
@@ -347,11 +224,9 @@ test("a repository mid-merge says so rather than committing", async () => {
   run("checkout", "--quiet", "main")
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"main"}\n`)
   run("commit", "--quiet", "-am", "main")
-  // A conflicting merge leaves MERGE_HEAD behind, which is the whole point.
   try {
     run("merge", "other")
   } catch {
-    // Expected: the merge conflicts, and that is the state under test.
   }
 
   const repoState = await asked(root, (git) => git.state)
@@ -370,13 +245,6 @@ test("a detached HEAD is blocked, in git's own words", async () => {
   expect(repoState._tag === "Blocked" ? repoState.said : "").not.toBe("")
 })
 
-// EVERY served file that moved, including the ones that are not outlines:
-// which of them matter is a statement about the format, and this module has
-// none of that in it.
-// A conflicting rebase leaves `rebase-merge` behind, and it also detaches
-// HEAD — which is exactly why the markers are read BEFORE the branch is asked
-// for. Reported as "detached", this would be true and useless: the thing to do
-// about it is `git rebase --continue`, not `git checkout`.
 test("a repository mid-rebase says rebase, not detached", async () => {
   const { root, file } = repo()
   const run = git(root)
@@ -390,7 +258,6 @@ test("a repository mid-rebase says rebase, not detached", async () => {
   try {
     run("rebase", "main")
   } catch {
-    // Expected: the rebase stops on the conflict, which is the state under test.
   }
 
   const repoState = await asked(root, (git) => git.state)
@@ -410,7 +277,6 @@ test("a repository mid-cherry-pick says so", async () => {
   try {
     run("cherry-pick", "other")
   } catch {
-    // Expected: it conflicts, leaving CHERRY_PICK_HEAD.
   }
 
   const repoState = await asked(root, (git) => git.state)
@@ -427,24 +293,11 @@ test("dirty names every file that moved, tracked or not", async () => {
   const found = await surveyed(root)
   expect(found.files.map((one) => one.path).sort())
     .toEqual(["a.olai", "new.olai", "notes.md"])
-  // Nothing to push to, which is not the same as nothing to push — a
-  // repository nobody has given a remote has nowhere for a branch to go.
   expect(found.upstream).toBe(null)
 })
 
-/**
- * A status git REFUSES is not a clean tree.
- *
- * It used to answer with no files and no upstream, which every reader above
- * draws as "nothing waiting, nothing to push" — so a repository that became
- * unreadable under a running server would have shown `✓ committed` with the
- * reason nowhere. That is #108's own mistake one call over, and the rule
- * is the same one: git's words come back, and the caller publishes them.
- */
 test("a status git refuses is Unusable with its words, not an empty tree", async () => {
   const { root } = repo()
-  // The git directory taken out from under a handle that is already open —
-  // which is what a survey meeting a repository it cannot read looks like.
   const opening = await Effect.runPromise(open(root))
   if (opening._tag !== "Opened") throw new Error("the fixture is not a work tree")
   fs.rmSync(path.join(root, ".git"), { recursive: true, force: true })
@@ -454,11 +307,6 @@ test("a status git refuses is Unusable with its words, not an empty tree", async
   expect(dirt._tag === "Unusable" ? dirt.said : "").not.toBe("")
 })
 
-/**
- * How far ahead of its upstream the branch is, off the header line the status
- * call is already printing — one subprocess for both halves of "what is not
- * recorded, and what is not shared".
- */
 test("dirty says where the branch stands against its upstream", async () => {
   const { root, file } = repo()
   const bare = fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-remote-"))
@@ -475,8 +323,6 @@ test("dirty says where the branch stands against its upstream", async () => {
   expect((await surveyed(root)).upstream)
     .toEqual({ name: "origin/main", ahead: 1 })
 
-  // And pushing it is one verb with nothing to decide: the current branch, to
-  // the upstream it already has.
   const sent = await asked(root, (git) => git.push)
   expect(sent._tag).toBe("Pushed")
   expect((await surveyed(root)).upstream)
@@ -487,12 +333,6 @@ test("dirty says where the branch stands against its upstream", async () => {
 // when browser shards compete for the same runner.
 }, 30_000)
 
-/**
- * A push that git refuses comes back with git's own words, exactly as a refused
- * commit does. Never a failed effect, and never a silent nothing — this is the
- * one thing about pushing a person cannot find out any other way from inside
- * the app.
- */
 test("a push git refuses is an answer carrying its words", async () => {
   const { root } = repo()
   const { layer, said } = collector()
@@ -501,8 +341,6 @@ test("a push git refuses is an answer carrying its words", async () => {
     asEffect(root, (git) => git.push).pipe(Effect.provide(layer)),
   )
   expect(sent._tag).toBe("Refused")
-  // A branch with no upstream and no remote: git says so, at length, and what
-  // it says is what a reader is shown.
   expect(sent.said).not.toBe("")
 
   const warned = findSaid(said, "the branch was not pushed")
@@ -514,7 +352,6 @@ test("the last commit is olai's own, never the repository's HEAD", async () => {
   const { root, file } = repo()
   const run = git(root)
 
-  // Nothing of olai's yet, however many commits the person has made.
   expect(await asked(root, (git) => git.last(OLAI))).toBe(null)
 
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
@@ -523,7 +360,6 @@ test("the last commit is olai's own, never the repository's HEAD", async () => {
       paths: [file],
       message: "olai: one edit\n\nX-Olai-Writer: chat-agent\n",
     }))
-  // ... and a person's commit on top of it does not become olai's.
   fs.writeFileSync(path.join(root, "b.olai"), `{"id":"b","ord":"a0","title":"b"}\n`)
   run("add", "-A")
   run("commit", "--quiet", "-m", "mine, by hand")
@@ -535,10 +371,6 @@ test("the last commit is olai's own, never the repository's HEAD", async () => {
   expect(last?.at).not.toBe("")
 })
 
-/** A commit carrying the prefix and no trailer comes back with an EMPTY one,
- *  rather than a guess — and rather than a `null` this file would have had to
- *  invent a vocabulary to justify. What "no writer recorded" means is decided
- *  one package up, which is the whole of the classification that moved out. */
 test("a commit carrying the prefix but no trailer has an empty one", async () => {
   const { root, file } = repo()
   const run = git(root)
@@ -549,9 +381,6 @@ test("a commit carrying the prefix but no trailer has an empty one", async () =>
   expect((await asked(root, (git) => git.last(OLAI)))?.trailer).toBe("")
 })
 
-/** And a trailer nothing here recognises is NOT filtered out: an unknown
- *  writer is news, and the classification that turns it into `null` is the
- *  caller's — this file hands over what git printed. */
 test("an unrecognised trailer arrives verbatim rather than swallowed", async () => {
   const { root, file } = repo()
   const run = git(root)
@@ -574,57 +403,23 @@ test("show is the named commit's copy, and Absent for a file it never had", asyn
     .toEqual({ _tag: "Absent" })
 })
 
-/**
- * THE THIRD ARM, and the whole reason there is one.
- *
- * "That commit does not have this file" and "git could not answer" used to be
- * the same `null`, which is the collapse #108 closed at the socket and this
- * closed one call in — and it started to matter when the caller began
- * REMEMBERING what came back (`@olai/ops`' `committed.ts`): a copy filed as
- * absent reports every node of the working file as CREATED, so a bitten budget
- * folded into that arm would put a screen of invented rows in front of somebody
- * until HEAD next moved.
- *
- * The two provocations are the two git has words for. A path the commit does
- * not hold at all, and a path that is on DISK (staged, even) and not in the
- * commit — git phrases those differently, and a classification that knew only
- * the first would report the commonest shape of all, a brand-new outline, as a
- * git fault. A revision that is not an object at all is neither: it is git
- * saying it could not answer, and the caller must not remember that.
- */
 test("a path no commit has is Absent; a git that could not answer is Unusable", async () => {
   const { root, file } = repo()
   const head = (await asked(root, (git) => git.head)) ?? ""
 
-  // On disk, staged, and not in the commit — git's other spelling for absent.
   fs.writeFileSync(path.join(root, "new.olai"), `{"id":"n","ord":"a0","title":"n"}\n`)
   git(root)("add", "new.olai")
   expect(await asked(root, (git) => git.show(head, "new.olai"))).toEqual({ _tag: "Absent" })
-  // ... and the index it is sitting in is not what `show` reads: the file it
-  // ALSO holds a staged edit of still answers with the commit's bytes.
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"staged edit"}\n`)
   git(root)("add", "a.olai")
   expect(await asked(root, (git) => git.show(head, "a.olai")))
     .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
 
-  // A revision that is not one. git's own words ride the answer, exactly as
-  // they do on every other refusal this file reports.
   const refused = await asked(root, (git) => git.show("not-a-revision", "a.olai"))
   expect(refused._tag).toBe("Unusable")
   expect(refused._tag === "Unusable" ? refused.said : "").toContain("invalid object name")
 })
 
-/**
- * WHICH COMMIT, and the shapes where there is not one.
- *
- * The pairing is the point: a caller that keeps what {@link Repo.show} answered
- * keeps it under this sha, so a commit landing here has to produce a DIFFERENT
- * one — that is what makes a remembered copy impossible to serve for the wrong
- * revision (`@olai/ops`' `committed.ts`). A repository with no commits yet
- * answers `null` rather than a sentinel, which is the same answer a git that
- * could not be asked gives, and the same answer `show` would give for every
- * path in it.
- */
 test("head names the commit, moves when a commit lands, and is null before the first", async () => {
   const { root, file } = repo({ seed: false })
   expect(await asked(root, (git) => git.head)).toBe(null)
@@ -641,23 +436,10 @@ test("head names the commit, moves when a commit lands, and is null before the f
   expect(second).toMatch(/^[0-9a-f]{40}$/)
   expect(second).not.toBe(first)
 
-  // ... and the first sha still answers what it always answered, which is the
-  // property the cache one package up is built on.
   expect(await asked(root, (git) => git.show(first ?? "", "a.olai")))
     .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
 })
 
-/**
- * REPO-ROOT-RELATIVE, from a served subdirectory — the spelling {@link Dirty}
- * hands out, and the reason it is that one.
- *
- * It took the SERVED name and prefixed it, which can name everything under the
- * served root and nothing above it. That is a hole rather than a restriction:
- * the side a rename INTO a served directory came from lives above it, and a
- * caller with only the served spelling had no way to ask for it. `HEAD:<path>`
- * is repo-root-relative in git's own object syntax whatever directory it runs
- * in, so the prefix was never doing anything the caller could not do better.
- */
 test("show names a file the way the repository does, from a served subdirectory", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
@@ -671,17 +453,12 @@ test("show names a file the way the repository does, from a served subdirectory"
   const head = (await asked(served, (git) => git.head)) ?? ""
   expect(await asked(served, (git) => git.show(head, "notes/b.olai")))
     .toEqual({ _tag: "Text", text: `{"id":"b","ord":"a0","title":"b"}\n` })
-  // The one the served spelling could not reach at all.
   expect(await asked(served, (git) => git.show(head, "above.md")))
     .toEqual({ _tag: "Text", text: "one level up\n" })
 })
 
 test("git refusing is a warning with git's own words in a field, and a Failed", async () => {
   const { root } = repo()
-  // A path git will not stage, because it is not in this repository at all.
-  // What is under test is the SHAPE of the refusal rather than this particular
-  // way of provoking one — a commit runs after the bytes are already on disk
-  // and on screen, so every way git can say no has to come back as an answer.
   const outside = loose().file
   const { layer, said } = collector()
 
@@ -690,18 +467,11 @@ test("git refusing is a warning with git's own words in a field, and a Failed", 
       .pipe(Effect.provide(layer)),
   )
 
-  // Never fails the write, and never claims to have committed.
   expect(done._tag).toBe("Failed")
-  // ... AND NO LOCK, which is the half the panel needs: a refusal about a path
-  // that is not in this repository has no file behind it, and offering to
-  // remove one would be offering to remove somebody else's.
   expect(done._tag === "Failed" ? done.lock : undefined).toBe(null)
 
   const warned = findSaid(said, "could not stage the write")
   expect(warned?.level).toBe("Warn")
-  // The message is the stable half; what git actually said varies, so it is an
-  // annotation — greppable by field rather than by substring, which is the
-  // whole reason it is not in the sentence.
   expect(String(warned?.annotations.said)).not.toBe("")
   expect(warned?.message).not.toContain("fatal")
 })
@@ -720,43 +490,19 @@ test("a commit is the named paths, the message, and the sha it made", async () =
   expect(run("log", "--format=%s", "-1").trim()).toBe("olai: one edit")
   expect(run("log", "--format=%(trailers:key=X-Olai-Writer,valueonly)", "-1").trim())
     .toBe("web")
-  // The file nobody named is still untracked: only the paths given are ever
-  // staged, because a served directory is a working tree with other work in it.
   expect(run("status", "--porcelain").trim()).toBe("?? untouched.olai")
 })
 
-/**
- * A commit that REFUSES leaves the index exactly as it found it.
- *
- * This is the contract every layer above advertises — the MCP tool's text, the
- * wire schema, the panel's own prose all say olai never touches the index — and
- * until now it was true only on the success path. A commit is `add` then
- * `commit`, and when the commit refused, the `add` stayed: the next `git commit`
- * a person typed in a terminal would have recorded the very files olai had just
- * told them it could not.
- *
- * SIGNING is how it was found, and it is the case that makes it a bug rather
- * than a curiosity: `--no-verify` skips hooks and nothing else, so a repository
- * with `commit.gpgsign` and no usable key refuses EVERY olai commit — and
- * staged the selection every time. That configuration is what this test makes,
- * with a `gpg.program` that does not exist so the refusal does not depend on
- * what is installed on the machine running it.
- */
 test("a refused commit puts the index back exactly as it was", async () => {
   const { root, file } = repo()
   const run = git(root)
   const index = path.join(root, ".git", "index")
 
-  // Something staged BY HAND, and edited again afterwards, so the index holds a
-  // blob that is neither HEAD's nor the working tree's — the state a careless
-  // restore would flatten.
   fs.writeFileSync(path.join(root, "mine.md"), "half-finished, staged by hand\n")
   run("add", "mine.md")
   fs.writeFileSync(path.join(root, "mine.md"), "…and typed into since\n")
-  // And what olai is about to be asked to commit.
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
 
-  // A signature nothing can produce, which is a real repository's real setting.
   run("config", "commit.gpgsign", "true")
   run("config", "gpg.program", path.join(root, "no-such-gpg"))
 
@@ -772,38 +518,17 @@ test("a refused commit puts the index back exactly as it was", async () => {
       .pipe(Effect.provide(layer)),
   )
   expect(done._tag).toBe("Failed")
-  // Git's own words about the signature, not a sentence of ours.
   expect(done._tag === "Failed" ? done.said : "").not.toBe("")
-  // And no lock: a signature nothing can produce refuses every commit and has
-  // no file behind it.
   expect(done._tag === "Failed" ? done.lock : undefined).toBe(null)
   expect(run("log", "--format=%s").trim()).toBe("fixtures")
 
-  // BIT-IDENTICAL, which is the strongest way to say "untouched" — and the
-  // logical reading beside it, because that is the claim a person cares about:
-  // their staged blob is still staged, and the outline olai could not commit is
-  // not sitting in their index waiting to be swept into a commit of their own.
   expect(fs.readFileSync(index).equals(before.bytes)).toBe(true)
   expect(run("ls-files", "-s")).toBe(before.entries)
   expect(run("status", "--porcelain")).toBe(before.status)
-  // `AM`: staged by hand, typed into since — both halves of what was there.
   expect(before.status).toContain("AM mine.md")
-  // And the outline is MODIFIED rather than staged: the `add` this call made
-  // has been taken back out.
   expect(before.status).toContain(" M a.olai")
 })
 
-/*******************************************************************************
- * the stale lock file — the one refusal with a gesture behind it.           *
- ******************************************************************************/
-
-/**
- * Plant a lock file of a given age, and answer with the stamp it really got.
- *
- * The AGE is the whole signal there is: git's `index.lock` carries no pid, so
- * nothing can ask whether the process that left it is still alive, and `utimes`
- * is how a test makes an old one without waiting.
- */
 const plantLock = (at: string, ageMs: number): number => {
   fs.writeFileSync(at, "")
   const stamp = (Date.now() - ageMs) / 1000
@@ -811,7 +536,6 @@ const plantLock = (at: string, ageMs: number): number => {
   return fs.statSync(at).mtimeMs
 }
 
-/** The lock file git refuses a write over, in a repository at `root`. */
 const lockAt = (root: string): string => path.join(root, ".git", "index.lock")
 
 test("a commit git refused over a lock file carries the file and when it was left", async () => {
@@ -826,15 +550,9 @@ test("a commit git refused over a lock file carries the file and when it was lef
 
   expect(done._tag).toBe("Failed")
   if (done._tag !== "Failed") throw new Error("unreachable")
-  // git's own words, whole — what a person would paste into a search.
   expect(done.said).toContain("index.lock")
-  // ... AND THE FILE, which is the half no sentence can be acted on: the age is
-  // what tells a reader whether a git process could still be writing it. The
-  // path is never parsed out of the words — it is this handle's own git
-  // directory — so what is asserted is the stamp of the file that was planted.
   expect(done.lock).not.toBe(null)
   expect(Math.abs((done.lock?.since ?? 0) - planted)).toBeLessThan(5_000)
-  // Nothing was committed, and the lock olai did not put there is still there.
   expect(run("log", "--format=%s").trim()).toBe("fixtures")
   expect(fs.existsSync(lock)).toBe(true)
   fs.rmSync(lock)
@@ -844,35 +562,23 @@ test("unlock holds a fresh lock, removes a stale one, and is Absent with none at
   const { root } = repo()
   const lock = lockAt(root)
 
-  // Nothing there at all — an answer rather than a failure.
   expect(await asked(root, (git) => git.unlock)).toEqual({ _tag: "Absent" })
 
-  // FRESH: younger than a git command's own budget, so it may belong to a git
-  // that is still writing it. olai does not touch it, and says when it was
-  // left.
   const fresh = plantLock(lock, 1_000)
   const held = await asked(root, (git) => git.unlock)
   expect(held._tag).toBe("Held")
   expect(held._tag === "Held" ? Math.abs(held.since - fresh) : 0).toBeLessThan(5_000)
   expect(fs.existsSync(lock)).toBe(true)
 
-  // STALE: past the budget, so nothing on this machine could still be holding
-  // it for a reason and the human's press decides. The file goes.
   plantLock(lock, 10 * 60_000)
   expect(await asked(root, (git) => git.unlock)).toEqual({ _tag: "Removed" })
   expect(fs.existsSync(lock)).toBe(false)
 
-  // ... and pressing again is `Absent` rather than a second `Removed`.
   expect(await asked(root, (git) => git.unlock)).toEqual({ _tag: "Absent" })
 })
 
 test("a lock that cannot be removed fails with the errno's own words, and stays", async () => {
-  // A git directory olai cannot write: a permission that is not its, a read-only
-  // mount. THIS IS A FAILURE AND NOT AN ANSWER, and the difference is the whole
-  // reason it is one: `Absent` would say the file is gone when it is not, and
-  // the ledger clears the remembered refusal on `Absent` — so the panel would
-  // drop the fault, retry, and meet the same refusal again with nothing on
-  // screen saying why. Root ignores the mode, so the test skips there.
+  // Root ignores the mode, so the test skips there.
   if (typeof process.getuid === "function" && process.getuid() === 0) return
   const { root } = repo()
   const at = lockAt(root)
@@ -883,8 +589,6 @@ test("a lock that cannot be removed fails with the errno's own words, and stays"
   try {
     const exit = await Effect.runPromiseExit(asEffect(root, (git) => git.unlock))
     expect(Exit.isFailure(exit)).toBe(true)
-    // The errno's own words, which is what tells a reader whether this is a
-    // permission, a full disk or a read-only mount.
     if (Exit.isFailure(exit)) {
       expect(Cause.pretty(exit.cause)).toContain("permission denied")
     }
@@ -892,7 +596,6 @@ test("a lock that cannot be removed fails with the errno's own words, and stays"
     fs.chmodSync(dir, 0o700)
   }
 
-  // ... and the file is still there, which is the fact the failure means.
   expect(fs.existsSync(at)).toBe(true)
   fs.rmSync(at)
 })
@@ -904,12 +607,6 @@ test("a lock in a linked worktree is found under that worktree's own git directo
   const linked = path.join(where, "linked")
   run("worktree", "add", "--quiet", "--detach", linked)
 
-  // A LINKED WORKTREE'S GIT DIRECTORY IS NOT THE MAIN ONE: `rev-parse
-  // --absolute-git-dir` answers `.git/worktrees/<name>` there, and that is
-  // where its own `index.lock` lives. A handle opened on the worktree must find
-  // the lock git actually refused over rather than the main repository's —
-  // which is what pinning the path to `gitDir` buys, and what parsing a path
-  // out of git's sentence would get wrong.
   const theirs = lockAt(root)
   const mine = path.join(root, ".git", "worktrees", path.basename(linked), "index.lock")
   const planted = plantLock(mine, 10 * 60_000)
@@ -924,8 +621,6 @@ test("a lock in a linked worktree is found under that worktree's own git directo
   expect(done._tag === "Failed" ? Math.abs((done.lock?.since ?? 0) - planted) : 0)
     .toBeLessThan(5_000)
 
-  // ... and the verb removes exactly that file, leaving the main repository's
-  // lock alone.
   expect(await asked(linked, (git) => git.unlock)).toEqual({ _tag: "Removed" })
   expect(fs.existsSync(mine)).toBe(false)
   expect(fs.existsSync(theirs)).toBe(true)
@@ -934,24 +629,6 @@ test("a lock in a linked worktree is found under that worktree's own git directo
   fs.rmSync(where, { recursive: true, force: true })
 })
 
-/**
- * THE THIRD WAY OUT — a commit that is STOPPED, which is the one the two
- * dispositions above had no answer for.
- *
- * A serve that stops, a git row switched off, a SIGTERM: every one of them
- * interrupts the fiber this commit is running on, and the calls that put the
- * index back used to be ordinary statements after an awaited subprocess. An
- * interrupt landing on that await abandoned them.
- *
- * TWO CASES, because the two sides of the commit want opposite answers and a
- * fix that gets one right can get the other exactly backwards. Stopped BEFORE
- * the commit landed, the staging is olai's and must go. Stopped AFTER it
- * landed, the index is agreeing with a commit that exists and putting the
- * backup back would stage a DELETION of the file just recorded.
- *
- * Both are slow on purpose: git is made to take its time inside the step, so
- * the interrupt lands where it matters rather than wherever it happened to.
- */
 test("a commit stopped before it lands stages nothing and leaves no backup behind", async () => {
   const { root } = repo()
   const run = git(root)
@@ -999,25 +676,11 @@ test("a commit stopped after it lands keeps it, and does not un-stage what it re
   })))
 
   expect(run("log", "--format=%s").trim().split("\n")[0]).toBe("olai: hooked")
-  // NOT `D  fresh.olai`, which is what restoring the pre-`add` backup over a
-  // landed commit reads as.
   expect(run("status", "--porcelain").trim()).toBe("")
   expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
     .toEqual([])
 }, 30_000)
 
-/**
- * ...AND THE FOURTH WAY OUT, which is neither a refusal nor a stop: git NEVER
- * ANSWERED.
- *
- * A `post-commit` hook that outlives the ten-second budget is killed, and what
- * comes back is `ok: false` — the same shape a refusal has, over a commit that
- * has already moved HEAD. Restoring the pre-`add` backup there stages a
- * deletion of the file just recorded, which is the corruption `keptIndex`'s
- * header is about, reached through the timeout rather than through an
- * interrupt. It is slow on purpose and it cannot be made fast: the budget is
- * what has to be outlived.
- */
 test("a commit whose hook outlives the budget is not un-staged over a landed commit", async () => {
   const { root } = repo()
   const run = git(root)
@@ -1028,27 +691,13 @@ test("a commit whose hook outlives the budget is not un-staged over a landed com
   fs.writeFileSync(fresh, `{"id":"w","ord":"a0","title":"w"}\n`)
 
   const done = await asked(root, (git) => git.commit({ paths: [fresh], message: "olai: wedged" }))
-  // GIT SAID NOTHING, so olai reports the write as not committed — which is
-  // honest, and is not the same as knowing it did not land.
   expect(done._tag).toBe("Failed")
-  // ...and it DID land, which is what the index must agree with.
   expect(run("log", "--format=%s").trim().split("\n")[0]).toBe("olai: wedged")
   expect(run("status", "--porcelain").trim()).toBe("")
   expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
     .toEqual([])
 }, 60_000)
 
-/**
- * And the SUCCESS path still updates the index for what it committed, which is
- * the half a "never touch the index at all" fix would have broken.
- *
- * Doing the whole thing under a temporary `GIT_INDEX_FILE` leaves the real
- * index never having heard of a newly committed file — and a file that is in
- * HEAD and absent from the index reads as a staged DELETION, so a person's
- * `git status` would show `D` against the file olai had just recorded. Git's
- * own `git commit -- <paths>` writes those paths back into the real index for
- * exactly this reason.
- */
 test("a commit that lands leaves the index agreeing with it", async () => {
   const { root } = repo()
   const run = git(root)
@@ -1058,19 +707,10 @@ test("a commit that lands leaves the index agreeing with it", async () => {
   expect((await asked(root, (git) => git.commit({ paths: [fresh], message: "olai: new" })))._tag)
     .toBe("Committed")
 
-  // Clean, rather than a staged deletion of the file that was just committed.
   expect(run("status", "--porcelain").trim()).toBe("")
   expect(run("ls-files", "-s")).toContain("new.olai")
 })
 
-/**
- * A survey and a commit at once must not lose to git's `index.lock`.
- *
- * `git status` refreshes the index; `git commit` writes it. Two fibers doing
- * both in one repository used to fail the write with `File exists`, and the
- * quiet window recorded nothing under load. The permit is per git directory,
- * and only those two verbs take it.
- */
 test("a survey and a commit at once never fight index.lock", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
@@ -1096,10 +736,6 @@ test("a survey and a commit at once never fight index.lock", async () => {
   ).toBe(true)
 })
 
-/**
- * TWO HANDLES, one repository — the gate is per `gitDir`, not per handle.
- * A handle-local semaphore would pass the test above and still lose here.
- */
 test("two handles on one repository still never fight index.lock", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
@@ -1138,14 +774,6 @@ test("two handles on one repository still never fight index.lock", async () => {
   ).toBe(true)
 })
 
-/*******************************************************************************
- * fetch, standing, integrate — the push path's three new verbs.              *
- ******************************************************************************/
-
-/** A served repository with a bare `origin` its branch tracks, and a SECOND
- *  clone standing in for the other machine: the upstream the integration has
- *  to take in. Every integrate test below is the same story — base, then
- *  theirs on the remote, then mine not pushed — told differently. */
 const diverged = async (): Promise<{
   readonly root: string
   readonly file: string
@@ -1176,16 +804,11 @@ const diverged = async (): Promise<{
 test("fetch moves the remote-tracking ref; a remote that cannot be reached is Refused with words", async () => {
   const { root, bare } = await diverged()
   const run = git(root)
-  // Stale: the remote-tracking ref has not seen the other machine's commit
-  // yet — it still points at the fixture's own seed.
   expect(run("log", "--format=%s", "origin/main", "-1").trim()).toBe("fixtures")
   const fetched = await asked(root, (g) => g.fetch)
   expect(fetched).toEqual({ _tag: "Fetched" })
   expect(run("log", "--format=%s", "origin/main", "-1").trim()).toBe("theirs")
 
-  // A remote that cannot be reached is a refusal, with git's own words — the
-  // same shape as a refused commit or push, because it is the same class of
-  // news.
   run("remote", "set-url", "origin", fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-gone-")))
   const refused = await Effect.runPromise(
     asEffect(root, (g) => g.fetch).pipe(Effect.provide(collector().layer)),
@@ -1198,9 +821,6 @@ test("fetch moves the remote-tracking ref; a remote that cannot be reached is Re
 test("standing reads ahead and behind and the upstream, and is null with no upstream", async () => {
   const { root } = await diverged()
   const before = await asked(root, (g) => g.standing)
-  // STALE until the fetch: `behind` is 0 because the remote-tracking ref has
-  // not seen the other machine. That is the whole reason the push path fetches
-  // before it stands — and the reason the sweep must never.
   expect(before).toEqual({
     upstream: "refs/remotes/origin/main",
     name: "origin/main",
@@ -1216,8 +836,6 @@ test("standing reads ahead and behind and the upstream, and is null with no upst
     behind: 1,
   })
 
-  // A branch nobody has ever pushed tracks nothing: `null`, which is a
-  // different fact from "nothing behind".
   const unborn = repo()
   git(unborn.root)("checkout", "--quiet", "-b", "feature")
   expect(await asked(unborn.root, (g) => g.standing)).toBe(null)
@@ -1237,20 +855,14 @@ test("integrate rebases the unpushed commits onto the upstream, and cleans up af
   if (done._tag !== "Integrated") throw new Error("unreachable")
   expect(done.taken).toBe(1)
   expect(done.from).toBe(old)
-  // The other machine's file is ON DISK, in the served tree, uncommitted —
-  // the two-tree move, not a pull into nothing.
   expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("the other machine\n")
   expect(run("rev-parse", "HEAD").trim()).toBe(done.to)
-  // The audit view is one line: the rebase kept the subject and the trailer.
   expect(run("log", "--format=%s", "-1").trim()).toBe("mine")
-  // ... and the plumbing left nothing behind: one worktree entry, no
-  // `olai-integrate-*` directory, no rebase in progress in the MAIN git dir.
   expect(run("worktree", "list").trim().split("\n")).toHaveLength(1)
   expect(fs.readdirSync(path.join(root, ".git")).filter((name) => name.startsWith("olai-integrate-")))
     .toHaveLength(0)
   expect(fs.existsSync(path.join(root, ".git", "rebase-merge"))).toBe(false)
   expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("theirs")
-  // The served tree is still Ready — the integration never detached it.
   expect((await Effect.runPromise(open(root)))._tag).toBe("Opened")
   fs.rmSync(path.join(root, "theirs.md"), { force: true })
 }, 30_000)
@@ -1262,10 +874,6 @@ test("integrate preserves a hand-staged entry and an unstaged edit for a path th
   const standing = await asked(root, (g) => g.standing)
   if (standing === null) throw new Error("expected an upstream")
 
-  // THE selection-shaped work: a staged edit, and a further unstaged edit on
-  // top of it, in a path the upstream never touched. The integration must
-  // leave both bit-identical — this is the test `git reset --keep` would
-  // have failed.
   const staged = `{"id":"a","ord":"a0","title":"staged"}\n`
   const further = `{"id":"a","ord":"a0","title":"staged, and still working"}\n`
   fs.writeFileSync(file, staged)
@@ -1287,7 +895,6 @@ test("integrate with an uncommitted edit in a path the upstream changed is Overl
   const standing = await asked(root, (g) => g.standing)
   if (standing === null) throw new Error("expected an upstream")
 
-  // The upstream changed `theirs.md`; edit THAT file, uncommitted.
   fs.writeFileSync(path.join(root, "theirs.md"), "half a thought\n")
   const old = run("rev-parse", "HEAD").trim()
 
@@ -1307,8 +914,6 @@ test("integrate with an untracked file where the upstream added one is Overlappe
   const standing = await asked(root, (g) => g.standing)
   if (standing === null) throw new Error("expected an upstream")
   const old = run("rev-parse", "HEAD").trim()
-  // The upstream ADDED `theirs.md`, and this tree has one of its own there,
-  // untracked: the two-tree merge refuses rather than overwriting it.
   fs.writeFileSync(path.join(root, "theirs.md"), "mine is here\n")
 
   const done = await asked(root, (g) => g.integrate(standing))
@@ -1323,9 +928,6 @@ test("integrate with an untracked file where the upstream added one is Overlappe
 }, 30_000)
 
 test("integrate on a conflict is Conflicted naming the path, tree clean, nothing left behind", async () => {
-  // A DIFFERENT repository from {@link diverged}, because the conflict has to
-  // be in a path both sides wrote — the ordinary shape is two machines editing
-  // the same file.
   const made = repo()
   const bare = fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-remote-"))
   git(bare)("init", "--quiet", "--bare", "--initial-branch", "main")
@@ -1358,8 +960,6 @@ test("integrate on a conflict is Conflicted naming the path, tree clean, nothing
     expect(done.paths.join(" ")).toContain("both.txt")
     expect(done.said).toContain("CONFLICT")
   }
-  // The served tree is untouched: same HEAD, no markers on disk, nothing
-  // rebasing anywhere olai could see it.
   expect(run("rev-parse", "HEAD").trim()).toBe(old)
   expect(fs.readFileSync(path.join(made.root, "both.txt"), "utf8")).toBe("my line\n")
   expect(fs.existsSync(path.join(made.root, ".git", "rebase-merge"))).toBe(false)
@@ -1369,10 +969,6 @@ test("integrate on a conflict is Conflicted naming the path, tree clean, nothing
 test("interrupting integrate mid-rebase removes the worktree", async () => {
   const { root, theirs } = await diverged()
   const run = git(root)
-  // A rebase slow enough to still be running when the interrupt arrives —
-  // without the many unpushed commits the interrupt could land after the
-  // integrate had already finished, and the test would pass for the wrong
-  // reason.
   manyCommits(root, run, 40)
   await asked(root, (g) => g.fetch)
   const standing = await asked(root, (g) => g.standing)
@@ -1382,11 +978,6 @@ test("interrupting integrate mid-rebase removes the worktree", async () => {
   let exit: Exit.Exit<unknown, unknown> | undefined
   await Effect.runPromise(Effect.gen(function*() {
     const fiber = yield* asEffect(root, (g) => g.integrate(standing)).pipe(Effect.forkChild)
-    // Wait for the worktree to be there — the rebase is running inside it —
-    // then stop the fiber. `@kolu/child`'s `run` has no abort hook, so the
-    // rebase subprocess is still alive in that directory when the release
-    // runs — exactly the residue the review named — and `worktree remove
-    // --force` removes it anyway.
     let found = false
     for (let i = 0; i < 400; i++) {
       if (fs.readdirSync(path.join(root, ".git")).some((n) => n.startsWith("olai-integrate-"))) {
@@ -1399,9 +990,6 @@ test("interrupting integrate mid-rebase removes the worktree", async () => {
     yield* Fiber.interrupt(fiber)
     exit = yield* Fiber.await(fiber)
   }))
-  // PROOF the interrupt landed while the work was in flight: the fiber's
-  // Exit carries an Interrupt cause. A run in which the integrate finished
-  // first would be Success and fail this.
   expect(exit?._tag).toBe("Failure")
   expect(exit !== undefined && Exit.hasInterrupts(exit)).toBe(true)
   expect(run("worktree", "list").trim().split("\n").length).toBe(before)
@@ -1411,9 +999,6 @@ test("interrupting integrate mid-rebase removes the worktree", async () => {
 }, 30_000)
 
 
-/** Many unpushed commits, all touching the one served file — what makes a
- *  rebase slow enough that the race tests below have a real window to act
- *  in. */
 const manyCommits = (root: string, run: (...argv: ReadonlyArray<string>) => string, n: number): void => {
   const file = path.join(root, "a.olai")
   for (let i = 0; i < n; i++) {
@@ -1433,15 +1018,12 @@ test("a stale olai-integrate-<deadpid> worktree is swept at the start of the nex
   const standing = await asked(root, (g) => g.standing)
   if (standing === null) throw new Error("expected an upstream")
 
-  // A "previous process" left a worktree behind under the git dir, and its
-  // pid is dead: the sweep at the start of the next integrate removes it.
   const gitDir = run("rev-parse", "--git-dir").trim()
   const stale = path.join(gitDir, "olai-integrate-2147483647-1")
   run("worktree", "add", "--no-checkout", "--detach", stale, "HEAD")
   expect(worktreeCount(run)).toBe(2)
 
   await asked(root, (g) => g.integrate(standing))
-  // The stale worktree is gone, and only the served entry remains.
   expect(worktreeCount(run)).toBe(1)
   expect(fs.existsSync(stale)).toBe(false)
   fs.rmSync(theirs, { recursive: true, force: true })
@@ -1454,14 +1036,6 @@ test("integrate's compare-and-swap refuses when a terminal commit landed, and do
   if (standing === null) throw new Error("expected an upstream")
   const from = run("rev-parse", "HEAD").trim()
 
-  // The terminal commit lands while the rebase runs, so by the time the
-  // move reaches its compare-and-swap the branch is no longer where `from`
-  // says it is — the exact window the review named. The served repo's
-  // post-checkout hook does the moving, and it fires from the rebase's
-  // initial checkout inside the temporary worktree: that checkout is the
-  // one `git` invocation under this test that runs the hook.
-  // (`read-tree -m -u`, `worktree add --no-checkout` and `reset --hard`
-  // run no hook.)
   const tree = run("rev-parse", "HEAD^{tree}").trim()
   const terminal = run("commit-tree", tree, "-p", from, "-m", "terminal commit").trim()
   const hooks = path.join(root, ".git", "hooks")
@@ -1471,10 +1045,6 @@ test("integrate's compare-and-swap refuses when a terminal commit landed, and do
   fs.chmodSync(path.join(hooks, "post-checkout"), 0o755)
 
   const done = await asked(root, (g) => g.integrate(standing))
-  // The CAS refused: the ref is the terminal commit, NOT the rebased tip —
-  // the terminal commit was not dropped. The tree was put back (read-tree
-  // the other way), so the served tree is clean and the branch is where the
-  // terminal move left it. The integrate's release still removed the worktree.
   expect(done._tag).toBe("Refused")
   if (done._tag === "Refused") expect(done.said).not.toBe("")
   expect(run("rev-parse", "HEAD").trim()).toBe(terminal)
@@ -1504,24 +1074,15 @@ test("the served survey stays Ready and worktree-free while an integrate is in f
       yield* Effect.sleep("5 millis")
     }
     expect(found).toBe(true)
-    // The temp worktree lives under `.git`, so the served survey must read a
-    // coherent state — not Blocked by a rebase it cannot see (the rebase
-    // state is in the worktree, not `.git/rebase-merge`). The index gate is
-    // held by the integrate for its whole span, so `dirty` would wait for it
-    // to finish; `state` is ungated (`git.ts:335`), and this test's own
-    // `status` probe bypasses the gate too.
     const mid = yield* asEffect(root, (g) => g.state)
     expect(mid._tag).toBe("Ready")
     if (mid._tag !== "Ready") throw new Error("expected Ready mid-integrate")
-    // The served tree itself: nothing staged or modified, and no path from
-    // the temporary worktree anywhere.
     const servedStatus = run("status", "--porcelain")
     const serveProbe = run("status", "--porcelain", "--", "a.olai")
     expect(serveProbe).toBe("")
     expect(servedStatus.split("\n").some((l) => l.includes("olai-integrate-"))).toBe(false)
     yield* Fiber.await(fiber)
   }))
-  // After it lands, no residue anywhere the survey or git could see it.
   expect(fs.readdirSync(path.join(root, ".git")).filter((n) => n.startsWith("olai-integrate-")))
     .toHaveLength(0)
   fs.rmSync(theirs, { recursive: true, force: true })

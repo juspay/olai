@@ -1,42 +1,3 @@
-/**
- * What is waiting, in olai's words — and the two verbs that deal with it.
- *
- * The panel reports on the WHOLE REPOSITORY, in two kinds of row, and the
- * difference between them is what olai can honestly say about a file rather
- * than what it is allowed to commit:
- *
- *   - an OUTLINE it serves gets node-level rows — "marked done", "note
- *     rewritten", "archived" — because both sides parse into records and the
- *     comparison is in hand. Never a text diff: a `.olai` diff is one enormous
- *     line per node with everything on it changing at once;
- *   - EVERY OTHER dirty file gets a path and a status chip. A document, a source
- *     file, an outline outside the served root. The only richer thing available
- *     would be a text diff, and this is an audit-trail recorder rather than a
- *     git client.
- *
- * The SCOPE line says so out loud, and it is new because the scope is new: a
- * `README.md` two directories above the outlines is a row in this list, and a
- * reader who is not told that has to work out why.
- *
- * Every row is TICKED by default, so the ordinary sweep stays one click, and
- * unticking one dims it and recomposes both the message and the button live —
- * through the same `composed` the server would have used, so the two faces
- * cannot word one commit differently. What is left out stays waiting, for its
- * own commit and its own message; olai never touches git's index, so work
- * somebody staged by hand is untouched either way.
- *
- * The LAST COMMIT is at the top, above everything waiting, because the two are
- * one question asked twice: what is waiting does not say whether anything was
- * ever recorded here, and a directory olai has never committed in looks exactly
- * like one it committed a minute ago if you only count what is pending.
- *
- * The MESSAGE is a suggestion and not a decision: it arrives composed from what
- * is ticked, and the moment somebody types in the box it is theirs.
- *
- * Every word on screen comes from `./said.ts`. Nothing here decides what a
- * change is called, which is what keeps the panel's vocabulary and the commit
- * log's from being kept in step by hand.
- */
 import { servedDirectory } from "../vault.ts"
 import { isReady } from "@olai/format"
 import { createSignal, Show } from "solid-js"
@@ -71,81 +32,30 @@ import { Unpushed } from "./Unpushed.tsx"
 export function Panel(props: {
   readonly commit: Commit
   readonly now: number
-  /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
-   *  a matter of CSS alone. */
   readonly at: Anchor
-  /** Register this surface with the click-away, since it is portalled and so is
-   *  not a descendant of the control that opened it. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
   const pending = () => props.commit.pending()
   const ready = () => isReady(pending().repo)
   const selection = createSelection(() => servedDirectory()?.claims(), pending, preparation.dropped)
 
-  /**
-   * The draft: the composed suggestion until somebody types, and theirs
-   * afterwards.
-   *
-   * `null` is "nobody has typed", which is what lets the box follow the
-   * selection — untick a file and the message stops naming it — while never
-   * overwriting a sentence a person is in the middle of writing. It used to be
-   * seeded once at open, which was the same promise made with less: the box
-   * could not recompose, because it had no way to tell a stale seed from an
-   * edit.
-   */
   const [typed, setTyped] = preparation.typed
   const draft = () => typed() ?? selection.message()
 
-  /**
-   * Whether there is anything at all to record.
-   *
-   * The pill's own count, read as a fence (`waitingIn`, in `./said.ts`), rather
-   * than a second sum of its own. They were two sums for a while and they
-   * disagreed: a served outline whose bytes moved with no NODE moving was drawn
-   * here and counted nowhere, so the pill said `committed` over a panel offering
-   * to commit it. `waitingIn` counts the rows this panel draws, so its
-   * positivity is this question.
-   */
   const anything = () => waitingIn(pending()) > 0
 
-  /** Nothing ticked is a button with nothing to do, and it says so by being
-   *  disabled rather than by refusing afterwards: the server would answer
-   *  `NothingToCommit`, which is a correct answer to a question nobody meant to
-   *  ask. */
   const nothingTicked = () => selection.paths()?.length === 0
 
-  /** Whether the quiet window would record this list on its own — the loop's
-   *  OWN gate, asked rather than re-derived (`./said.ts`). */
   const promised = () => willRecord(pending(), props.commit.git())
 
-  /** The `index.lock` the last refusal was about, or `null` — the one refusal
-   *  with a gesture behind it (`./said.ts`). */
   const lock = () => lockRefused(props.commit.git())
 
-  /** The stamp the GUARD answered about, or `null` — the one fact about a lock
-   *  the cell cannot carry: "there is a lock in the way" and "olai has been
-   *  asked about this one and would not touch it" are the same cell and two
-   *  different sentences.
-   *
-   *  A STAMP rather than a flag, because the guard REWRITES the cell's stamp
-   *  when it answers (`@olai/plugin-git`'s `unlock`, so that one file has one
-   *  age): the sentence draws while the cell's lock is the one the guard
-   *  answered about, and a different lock cannot inherit it. */
   const [guarded, setGuarded] = createSignal<number | null>(null)
   const held = () => {
     const stopped = lock()
     return stopped !== null && guarded() === stopped.since
   }
 
-  /**
-   * The refusal line: what it SAYS, and what the tip beside it says.
-   *
-   * One derivation rather than two readings of the same fault. `says` is olai's
-   * lock sentence when the refusal was about a lock file — with the age phrased
-   * against THIS panel's clock, which ticks — and git's own words otherwise;
-   * `tip` is always git's own, which names the path a person with a terminal
-   * is looking for.
-   */
   const refusal = () => {
     const said = commitRefused(props.commit.git())
     if (said === null) return null
@@ -161,17 +71,11 @@ export function Panel(props: {
       ref={props.inside}
       class={`${PANEL_BOX} gap-3`}
       style={styleOf(props.at)}
-      // Focusable, never in the tab order — see `settings/Panel.tsx`, and
-      // `../popover.ts` for why a portalled panel has to take the caret itself.
       tabindex="-1"
       data-testid={TESTID.commitPanel}
       data-repo={pending().repo._tag}
       aria-label="Uncommitted changes"
     >
-      {/* What was last recorded, and by whom — the other half of the question
-          "is this directory being audited". `null` is not an absence to hide:
-          it means olai has never committed here, which is the one thing a
-          count of what is pending can never say. */}
       <p class="wrap-anywhere text-label text-muted" data-testid={TESTID.commitLast}>
         <Show
           when={pending().last}
@@ -206,9 +110,6 @@ export function Panel(props: {
         <Others others={pending().others} selection={selection} />
       </Show>
 
-      {/* A dirty outline nobody can parse is still going to be committed — the
-          bytes are the bytes — but nothing can be said about what changed in
-          it, and saying nothing at all would be the panel lying by omission. */}
       <Show when={pending().unreadable.length > 0}>
         <p class="wrap-anywhere text-label text-muted" data-testid={TESTID.commitUnreadable}>
           {pending().unreadable.join(", ")} changed, but can't be read, so its
@@ -216,18 +117,12 @@ export function Panel(props: {
         </p>
       </Show>
 
-      {/* What all of that is a list OF. It is drawn whenever there is a list,
-          because "why is my README in here" is a question the rows themselves
-          cannot answer. */}
       <Show when={anything()}>
         <p class="text-label text-muted" data-testid={TESTID.commitScope}>
           {scopeOf(pending().served)}
         </p>
       </Show>
 
-      {/* Intent, never truth: this is a count the server keeps in memory and
-          clears on a commit, so it is empty after a restart and knows nothing
-          about an edit made in vim. Absent is a perfectly good answer. */}
       <Show when={pending().wrote.length > 0}>
         <p class="text-label text-muted" data-testid={TESTID.commitWriters}>
           {pending().wrote.map((wrote, at) =>
@@ -236,17 +131,6 @@ export function Panel(props: {
         </p>
       </Show>
 
-      {/* Why nothing is recording itself, when this browser asked it to. Above
-          the list rather than beside the button, because it is the answer to
-          "why is this still waiting" — which is the question the list itself
-          raises. It names the one gesture that resumes the loop: a stop nobody
-          can undo is a feature that has quietly left.
-
-          It does NOT repeat git. Whatever refused is already a line of its own
-          further down — beside the verb that produced it, which is where a
-          person reads it — and this popover printed that paragraph twice.
-          The HEADER's own sentence carries the words, because the header has
-          nowhere else to put them (`./said.ts`). */}
       <Show when={props.commit.git().paused !== null}>
         <p class="text-label text-alarm" data-testid={TESTID.commitAutoPaused}>
           ⚠ {AUTO_STOPPED}
@@ -259,9 +143,6 @@ export function Panel(props: {
         >
           Resume
         </button>
-        {/* ... and what the SERVER would not take from THAT press — a call that
-            never reached it. Its own line, because the seam keeps one refusal
-            per control (`GitPolicySeam.unlockRefused` has the argument). */}
         <Show when={props.commit.resumeRefused()}>
           {(said) => (
             <p
@@ -274,19 +155,7 @@ export function Panel(props: {
         </Show>
       </Show>
 
-      {/* Why the button is disabled — said, rather than left for somebody to
-          work out from a control that does nothing. Git's own words are the
-          title, because they are what you would paste into a search.
-
-          Two tones, the same two the pill wears and for the same reason: a
-          repository mid-rebase is amber, because it will take a commit once
-          that is finished, and a git that FAILED is alarm, because it will not.
-          One line painting both the same would be telling a reader that a
-          broken git is a thing they are in the middle of. */}
       <Show when={!ready()}>
-        {/* Git's own words ride the tip for a pointer and the hidden line
-            after it for a reader: the sentence drawn is olai's, and the
-            verbatim one is what you paste into a search. */}
         <Tip text={verbatim(pending().repo) ?? ""} disabled={verbatim(pending().repo) === undefined}>
           <p
             class={`text-label ${
@@ -302,9 +171,6 @@ export function Panel(props: {
 
       <Show when={anything()}>
         <textarea
-          // Tall enough for a composed message, which is a subject, a blank
-          // line and its first detail line: the shorter box cut the detail in
-          // half and looked like a rendering fault rather than a scroll.
           class="min-h-24 w-full resize-y rounded-control border border-rule bg-paper p-2 text-label"
           data-testid={TESTID.commitMessage}
           aria-label="Commit message"
@@ -313,16 +179,6 @@ export function Panel(props: {
         />
       </Show>
 
-      {/* What git said when it last refused a COMMIT here. Off the cell, so it
-          is the same words in every tab and after a reload — and so a commit
-          the agent or the quiet window made and git refused is readable by the
-          person who opens this panel, who need not be the one who was looking
-          when it happened.
-
-          A LOCK FILE is the one refusal with a gesture behind it, so it reads
-          as olai's sentence rather than as a `fatal:` line naming a path — with
-          git's own words in the tip and in the hidden line beside it, which is
-          where that path stays for a pointer and for a reader alike. */}
       <Show when={refusal()}>
         {(line) => (
           <Tip text={line().tip}>
@@ -339,17 +195,6 @@ export function Panel(props: {
         )}
       </Show>
 
-      {/* ... AND THE ONE GESTURE THAT ANSWERS IT. Drawn only while the refusal
-          was about a lock file, because it is the only fault a button can
-          clear: the sentence above asks the reader to check that no git
-          command is running, and this is them saying they have. It never runs
-          on olai's own initiative, and an agent has no way to reach it.
-
-          ONE PRESS RECOVERS: `Removed` and `Absent` mean the file is not in
-          the way any more, so the commit this panel was refused is made again
-          with the draft and the ticks it is holding. `Held` is the guard saying
-          the lock is younger than a git command's own budget, and nothing is
-          retried. */}
       <Show when={lock()}>
         <button
           type="button"
@@ -367,9 +212,6 @@ export function Panel(props: {
         >
           Remove lock file & retry
         </button>
-        {/* ... and the same for this press: a call that never arrived, or a file
-            that is there and a git directory that will not let go of it — where
-            the errno IS the reason. */}
         <Show when={props.commit.unlockRefused()}>
           {(said) => (
             <p
@@ -387,12 +229,6 @@ export function Panel(props: {
         </Show>
       </Show>
 
-      {/* ... and what the SERVER would not take from this tab: a call the wire
-          dropped, a usage refusal, or a lock file that was there and could not
-          be removed — where the errno is the whole of what a reader can act on.
-          Its own line because it is about this press rather than about the
-          directory, and a control that silently did nothing is the failure this
-          whole feature is about. */}
       <Show when={props.commit.refused()}>
         {(said) => (
           <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitCallRefused}>
@@ -401,17 +237,8 @@ export function Panel(props: {
         )}
       </Show>
 
-      {/* What is recorded and not shared. Below the message because it is about
-          commits that already happened, and drawn whether or not anything is
-          waiting — a clean tree with three unpushed commits is exactly when a
-          person goes looking for this. */}
       <Unpushed commit={props.commit} />
 
-      {/* What is about to happen to this list without anybody pressing
-          anything — a promise rather than a description of a setting, so it is
-          drawn only while the loop really would keep it. The button stays
-          either way: a person who does not want to wait out the window meant
-          it. */}
       <Show when={promised()}>
         <p class="text-label text-muted" data-testid={TESTID.commitAutoArmed}>
           {AUTO_ARMED}
@@ -439,9 +266,6 @@ export function Panel(props: {
   )
 }
 
-/** A section heading, drawn as a rule with a word on it: the two kinds of row
- *  are two different claims about a file, and a reader scanning the list should
- *  not have to infer where one stops. */
 function Rule(props: { readonly children: string }) {
   return (
     <p class="flex items-center gap-2 text-caption uppercase tracking-wide text-muted">
@@ -451,16 +275,6 @@ function Rule(props: { readonly children: string }) {
   )
 }
 
-/**
- * The button says how much it is about to record, in the two counts a commit
- * now has.
- *
- * Both halves, because a commit can be entirely one or entirely the other: a
- * person who edited two documents by hand and nothing else would otherwise be
- * offered a bare "Commit" for work the panel had just listed. Bare "Commit" is
- * kept for the one case where neither can be counted — a dirty outline nothing
- * could be parsed in.
- */
 const label = (changes: number, others: number): string => {
   const parts = [
     ...(changes === 0 ? [] : [`${changes} ${changes === 1 ? "change" : "changes"}`]),

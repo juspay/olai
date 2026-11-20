@@ -12,10 +12,6 @@ Feature: Git policy travels with the vault
     Given I open the outline "garden.olai"
 
   Scenario: The personal rows are untouched, and still move
-    # The fence for a pin that spread. Theme, font, size, notes and done
-    # are personal view choices — the reader's or the page's — and no server
-    # has anything to say about them: they are live here exactly as they are
-    # on an unpinned serve.
     When I open the preferences
     And I set Done to "visible"
     Then the "Show finished" switch reads "on"
@@ -47,8 +43,6 @@ Feature: Git policy travels with the vault
 
   @policy:git.commit=auto @policy:git.push=off
   Scenario: File policy controls what the commit loop does as well as what it draws
-    # This browser has no git preference. The file’s auto policy makes the
-    # server record the external edit without a browser action.
     Then this browser has stored nothing about git
     When I rewrite "notes.md" as:
       """
@@ -56,5 +50,4 @@ Feature: Git policy travels with the vault
       """
     Then the flurry records itself
     And olai has recorded 1 commit here
-    # ... and push: off is honoured too: the commit is made and stays here.
     And there should be no page errors

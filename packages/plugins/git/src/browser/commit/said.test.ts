@@ -1,20 +1,3 @@
-/**
- * Which face the one indicator wears, what it wears, and what it says.
- *
- * Two bugs meet in this table and both are about a page that told a reader
- * nothing. `git-invisible` (#108) was a write that came back `committed: false`
- * on a directory its owner knew was a repository, with the reason in the server
- * log: "git is fine", "this is not a repository" and "git is broken here" were
- * one blank space. `one-git-indicator` is the human's screenshot of the fix
- * having grown a second chip — `● git` beside `✓ committed · 3m ago`, two
- * controls answering one question.
- *
- * So the assertions here are the ones the retired readout's own test made,
- * moved to where the states live now: nothing #108 fought for may regress, and
- * the healthy case must stay quiet enough that a reader still scans the place
- * the news appears.
- */
-
 import { NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/format"
 import { expect, test } from "bun:test"
@@ -50,8 +33,6 @@ import {
   willRecord,
 } from "./said.ts"
 
-/** A survey of a directory in one repository state, with nothing waiting unless
- *  a test says otherwise. */
 const surveyed = (repo: RepoState, over: Partial<Pending> = {}): Pending => ({
   ...NOTHING_PENDING,
   repo,
@@ -60,10 +41,6 @@ const surveyed = (repo: RepoState, over: Partial<Pending> = {}): Pending => ({
 
 const READY: RepoState = { _tag: "Ready", branch: "main" }
 
-/** A healthy git cell, and the one field a case is about, over it. Every
- *  scenario here moves ONE of the seven things this value carries, which is what
- *  keeps a sentence about a refused push from being a sentence about a broken
- *  repository. */
 const git = (over: Partial<GitState> = {}): GitState => ({
   ...GIT_OFF,
   status: "repo",
@@ -72,24 +49,15 @@ const git = (over: Partial<GitState> = {}): GitState => ({
 
 const gitSaid = (said: string): GitState => git({ status: "error", said })
 
-/** The loop stopped, with git's own words on it. */
 const stopped = (said: string): GitState => git({ paused: said })
 
-/** A directory with `count` rows waiting, and one with `count` commits nobody
- *  else has — the two numbers `newsSays` and `isNews` read off the survey now
- *  that they take it whole. */
 const waiting = (count: number): Pending =>
   surveyed(READY, { unreadable: Array.from({ length: count }, (_, at) => `f${at}.olai`) })
 
 const behind = (count: number): Pending =>
   surveyed(READY, { unpushed: { upstream: "origin/main", commits: count } })
 
-// ── which face ─────────────────────────────────────────────────────────
-
 test("a page that has not been told anything claims nothing about the directory", () => {
-  // The alternative is what the pill used to do: draw the default value's
-  // `off`, which is a SETTING somebody could go and change — a claim a page has
-  // no business making about a server it has not heard from.
   expect(faceOf(surveyed(READY), false, GIT_OFF)).toBe("unknown")
 })
 
@@ -100,9 +68,6 @@ test("the opt-out and the directory that is no work tree are told apart", () => 
 })
 
 test("a git that failed is NOT a directory without a repository", () => {
-  // #108's whole finding. Every way of failing used to read as "you have no
-  // repository", so a service with no git on its PATH told a reader their notes
-  // were not under version control.
   const said = "fatal: detected dubious ownership in repository"
   const face = faceOf(surveyed({ _tag: "Unusable", said }), true, gitSaid(said))
   expect(face).toBe("error")
@@ -110,17 +75,11 @@ test("a git that failed is NOT a directory without a repository", () => {
 })
 
 test("a commit git REFUSED reads as a fault, even though the directory looks fine", () => {
-  // The one thing no survey can see: a repository with no `user.email` answers
-  // `rev-parse` happily and fails every commit. The server remembers the
-  // refusal and publishes it on the git cell — so the pill has to read that
-  // cell, not just the repository state beside it.
   const said = "fatal: unable to auto-detect email address"
   expect(faceOf(surveyed(READY), true, gitSaid(said))).toBe("error")
 })
 
 test("a serve that never asks git cannot report a git fault", () => {
-  // `off` is decided before the fault is, and it has to be: nothing was asked,
-  // so there is nothing that could have failed.
   expect(faceOf(surveyed({ _tag: "Off" }), true, gitSaid("stale"))).toBe("off")
 })
 
@@ -134,9 +93,6 @@ test("what is waiting outranks what was last recorded, and a busy repository say
       GIT_OFF,
     ),
   ).toBe("blocked")
-  // A busy repository with nothing waiting is not a problem anybody has: there
-  // is nothing the block is stopping, so it reads as what it is — a clean tree
-  // olai has not committed in.
   expect(faceOf(surveyed({ _tag: "Blocked", reason: "rebase", said: "" }), true, GIT_OFF))
     .toBe("never")
 })
@@ -152,8 +108,6 @@ test("never committed is not the same as committed, on the same empty tree", () 
   expect(faceOf(surveyed(READY, { last }), true, GIT_OFF)).toBe("committed")
 })
 
-// ── what it wears ──────────────────────────────────────────────────────
-
 test("the two settings and the page that has not heard are quiet, and cannot be pressed", () => {
   for (const face of ["unknown", "off", "no-repo"] as const) {
     expect(FACE_TONE[face]).toBe("quiet")
@@ -161,7 +115,6 @@ test("the two settings and the page that has not heard are quiet, and cannot be 
   }
 })
 
-// Every face's one tone — the row's dot and the health dot's vote alike.
 test("every face has its one tone", () => {
   expect(FACE_TONE).toEqual({
     unknown: "quiet",
@@ -175,9 +128,6 @@ test("every face has its one tone", () => {
   })
 })
 
-// The bug the one-tone rule was filed for: the health dot was amber for
-// `2 uncommitted` while git's row drew no dot at all. The row and the status
-// are one reading now, so whatever the dot says, the row says too.
 test("the row wears a tone for writes waiting, and the riders move it", () => {
   const cases = [
     ["waiting", waiting(2), git(), "notice"],
@@ -199,15 +149,10 @@ test("the row wears a tone for writes waiting, and the riders move it", () => {
 })
 
 test("the fault is reachable, because its whole point is the reason on it", () => {
-  // Inert means `aria-disabled`, which means no focus — and a reason a keyboard
-  // cannot reach is a reason half the readers do not get.
   expect(isInert("error")).toBe(false)
 })
 
 test("a phone only interrupts the page when git has news", () => {
-  // The desktop pill is always drawn. A banner that vanished cannot be
-  // trusted either — so the healthy faces stay off screen and the page
-  // itself is the healthy state.
   const quiet = surveyed(READY)
   for (const face of ["committed", "never", "off", "no-repo", "unknown"] as const) {
     expect(isNews(face, quiet, git())).toBe(false)
@@ -226,45 +171,21 @@ test("the phone banner is one line, and waiting outranks unpushed", () => {
   expect(newsSays("committed", surveyed(READY), git())).toBe("")
 })
 
-// ── the quiet window, which is a fact about the DIRECTORY ──────────────
-//
-// It rides beside the faces rather than being one of them (the module's own
-// argument, and `alsoUnpushed`'s): eight faces are eight things about whether
-// writes are being RECORDED, and whether the loop has stopped is a different
-// question about the same directory. So what is asserted here is that it
-// reaches a reader on EVERY face — including the healthy ones, which is the
-// whole risk: a loop that stopped is silent by design.
-
 test("a stopped loop reaches a reader on every face, healthy ones included", () => {
   const said = "gpg failed to sign the data"
   for (const face of ["committed", "never", "waiting", "error", "blocked"] as const) {
     expect(explain(face, surveyed(READY), stopped(said))).toContain(said)
   }
-  // ... and a running loop adds nothing at all, so the ordinary sentence is
-  // exactly what it was.
   expect(explain("committed", surveyed(READY), git()))
     .toBe(explain("committed", surveyed(READY), GIT_OFF))
 })
 
-/**
- * The sentence a stopped loop leaves says how to start it again — and there is
- * exactly ONE gesture now.
- *
- * There used to be two, and which one a reader had depended on whether the
- * operator had pinned the policy: an unpinned row was this browser's, so
- * turning it off and on again cleared a stop that lived in this tab, while a
- * frozen row carried a Resume button because it had no toggle to flip. The stop
- * is the directory's, so neither a toggle nor a reload can clear it — Resume is
- * the gesture on every deployment, and the panel's own line says the same one.
- */
 test("the sentence a stopped loop leaves names Resume, on both sentences", () => {
   const said = explain("committed", surveyed(READY), stopped("no upstream"))
   expect(said).toContain("Resume")
   expect(said).not.toContain("off and on again")
   expect(AUTO_STOPPED).toContain("Resume")
   expect(AUTO_STOPPED).not.toContain("off and on again")
-  // The header carries git's own account of what happened; the panel points at
-  // it rather than printing the same paragraph twice in one popover.
   expect(said).toContain("no upstream")
   expect(AUTO_STOPPED).toContain("Git's message is below")
 })
@@ -276,37 +197,25 @@ test("a phone is interrupted by a stopped loop, on a face that is otherwise quie
 })
 
 test("the banner says the loop stopped ahead of whatever else is true", () => {
-  // It outranks every face, because it is the one line about a promise having
-  // broken rather than about work waiting.
   expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain(AUTO_PAUSED)
   expect(newsSays("committed", surveyed(READY), stopped("no upstream")))
     .toContain(AUTO_PAUSED)
   expect(newsSays("waiting", waiting(6), git())).toBe("6 uncommitted — tap to record")
 })
 
-// ... and it does not take the COUNT with it. A halted loop plus a later edit
-// is exactly when how much is sitting here is worth knowing, and the desktop
-// pill says both beside each other — a phone that had to tap through to find
-// out is the same fact told to two readers differently.
 test("a stopped loop on a phone still says how much is waiting", () => {
   expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain("6 uncommitted")
   expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain(AUTO_PAUSED)
-  // Nothing waiting is nothing to count, and the line stays one line.
   expect(newsSays("committed", surveyed(READY), stopped("no upstream")))
     .toBe(`${AUTO_PAUSED} — tap to see`)
 })
 
-// ── what it says ───────────────────────────────────────────────────────
-
 test("a git failure hands over git's own words", () => {
   const said = "fatal: detected dubious ownership in repository at '/srv/notes'"
   expect(explain("error", surveyed(READY), gitSaid(said))).toContain(said)
-  // And from the survey's own side, when the cell has nothing to quote.
   expect(
     explain("error", surveyed({ _tag: "Unusable", said }), git({ status: "error" })),
   ).toContain(said)
-  // ... and the panel reads the same words off the cell, so a commit the agent
-  // or the quiet window made and git refused is readable by whoever opens it.
   expect(commitRefused(gitSaid(said))).toBe(said)
   expect(commitRefused(git())).toBe(null)
 })
@@ -316,16 +225,6 @@ test("a fault that arrived with nothing to say still reads as a sentence", () =>
     .toBe(DETAIL.error)
 })
 
-/**
- * THE STALE LOCK FILE, in words.
- *
- * git's own sentence for one is a `fatal:` line naming a path: accurate, and
- * telling a reader nothing they can do. This is the one refusal with a gesture
- * behind it, so it reads as olai's sentence instead — and the AGE is phrased
- * against whichever clock the reader has, because the two readers differ: the
- * panel ticks, the pill re-reads only when the directory changes (see
- * {@link lockSays}).
- */
 test("a lock file in the way reads as olai's sentence, aged only where a clock is", () => {
   const now = 1_760_000_000_000
   const left = { since: now - 12 * 60_000 }
@@ -335,32 +234,19 @@ test("a lock file in the way reads as olai's sentence, aged only where a clock i
     lock: left,
   })
 
-  // The panel's copy, against this panel's own clock.
   expect(lockSays(left.since, now)).toBe(
     "A git lock file is in the way (left 12m ago). " +
       "If no git command is running, remove it and retry.",
   )
-  // ... and the pill's, which has no clock: the same sentence, with no age
-  // that would sit there reading "12m ago" for the rest of the afternoon.
   expect(explain("error", surveyed(READY), stopped))
     .toBe("A git lock file is in the way. If no git command is running, remove it and retry.")
 
-  // THE FILE is on the reading too, which is what the button is drawn from —
-  // and a refusal that was about something else carries none, so the panel
-  // falls back to git's own words.
   expect(lockRefused(stopped)).toEqual(left)
   expect(lockRefused(git({ status: "error", said: "fatal: gpg failed" }))).toBe(null)
   expect(explain("error", surveyed(READY), gitSaid("fatal: gpg failed")))
     .toContain("fatal: gpg failed")
 })
 
-/**
- * ... AND THE OTHER ANSWER THE BUTTON GETS: the lock is younger than a git
- * command's own budget, so olai will not remove it and the sentence says why.
- * No age on it — the line above already says how young the lock is, and the
- * guard rewrites that stamp on the cell when it answers (`@olai/plugin-git`'s
- * `unlock`), so a second one here could only contradict it.
- */
 test("the answer when the lock is too young to remove says git may still be writing it", () => {
   expect(LOCK_HELD).toBe("A git process may still be writing; try again in a moment.")
 })
@@ -385,58 +271,26 @@ test("a state with nothing to quote reads as its own sentence", () => {
 })
 
 test("the panel's line about a broken git is not the line about an absent one", () => {
-  // Same rule as the pill's, one layer down: "there is nowhere to commit to"
-  // over a git that FAILED would be the collapse #108 exists to have ended.
   const said = "fatal: detected dubious ownership in repository"
   expect(because({ _tag: "Unusable", said })).toContain("couldn't read this folder")
   expect(verbatim({ _tag: "Unusable", said })).toBe(said)
   expect(because({ _tag: "NoRepo" })).toBe("There is nowhere to commit to")
 })
 
-// ── the whole repository, and what is not shared ───────────────────────
-
-/**
- * The SCOPE the panel reports on, which is new because the scope is new: a
- * `README.md` two directories above the outlines is a row in this list, and a
- * reader who is not told that has to work out why it is there.
- */
 test("the scope line says which part of the repository olai serves", () => {
   expect(scopeOf("docs/")).toBe("Whole repository · olai shows docs/")
-  // Served AT the root, where the two are the same directory and "shows " with
-  // nothing after it would read as a rendering fault.
   expect(scopeOf("")).toBe("Whole repository")
   expect(scopeOf("")).not.toEndWith("shows ")
 })
 
-/**
- * Where a rename came from, in the outline list's own spelling.
- *
- * The wire carries one unambiguous name — repo-root-relative, the namespace a
- * commit request ticks in — and this is the rendering the outline list does to
- * it, so that a rename inside `docs/` reads `a.olai → b.olai` rather than
- * spelling the served directory once on each side of the arrow.
- */
 test("a rename's other half is shortened to the served spelling, and only there", () => {
   expect(localOf("docs/a.olai", "docs/")).toBe("a.olai")
-  // Served AT the root, where the two spellings are already the same string.
   expect(localOf("a.olai", "")).toBe("a.olai")
-  // From OUTSIDE the served root, where the repo-relative name is the only one
-  // that names a file that exists. Shortening by prefix alone would have turned
-  // `docsy/a.olai` into `a.olai` — a file one directory over, or none at all.
   expect(localOf("README.md", "docs/")).toBe("README.md")
   expect(localOf("docsy/a.olai", "docs/")).toBe("docsy/a.olai")
-  // Nothing to say for a row that did not move.
   expect(localOf(null, "docs/")).toBe(null)
 })
 
-/**
- * What is committed here and nowhere else.
- *
- * `null` is drawn as nothing at all, and it covers the two cases that are not
- * the same fact: a branch already in sync, and a branch with no upstream — the
- * second is not something to fix by guessing a remote, and a Push button on
- * either would be one people learn to ignore.
- */
 test("the unpushed line counts commits, and is absent when there is nothing to send", () => {
   const behind = (commits: number): Pending => ({
     ...NOTHING_PENDING,
@@ -448,15 +302,6 @@ test("the unpushed line counts commits, and is absent when there is nothing to s
   expect(unpushedOf(NOTHING_PENDING)).toBe(null)
 })
 
-/**
- * ... and it rides EVERY face's sentence, because it is a different question
- * from the one the face answers.
- *
- * A clean tree with three unpushed commits wears `committed`, which is true and
- * is the complacent half of the truth — and the sentence is what a reader with
- * no pointer gets, so leaving it on the pill's own text would be leaving it out
- * for half of them.
- */
 test("the sentence says what is unpushed, whichever face is worn", () => {
   const shared: Pending = {
     ...NOTHING_PENDING,
@@ -465,19 +310,9 @@ test("the sentence says what is unpushed, whichever face is worn", () => {
   }
   expect(explain("committed", shared, GIT_OFF)).toContain("3 commits not on origin/master")
   expect(explain("waiting", shared, GIT_OFF)).toContain("3 commits not on origin/master")
-  // And nothing at all when there is nothing to say.
   expect(explain("committed", surveyed(READY), GIT_OFF)).toBe(DETAIL.committed)
 })
 
-/**
- * ── a push git refused, which is the bug this whole feature is named after ──
- *
- * The screenshot: `✓ committed · 1h ago · 13 unpushed`, auto-push on, and no
- * error anywhere — every word of it true and the one that mattered absent,
- * because the refusal lived in one tab's memory and that tab had been reloaded.
- * It is on the cell now, so these are assertions about a value every reader
- * gets.
- */
 test("a refused push says what git said, and a successful one says nothing", () => {
   const said = "! [rejected] master -> master (non-fast-forward)"
   expect(git({ pushSaid: said }).pushSaid).toBe(said)
@@ -486,13 +321,11 @@ test("a refused push says what git said, and a successful one says nothing", () 
 
 test("a failing push turns the pill to alarm, whatever the face is saying", () => {
   const said = "! [rejected] master -> master (non-fast-forward)"
-  // The ordinary healthy chip, which is the one that lied.
   expect(readingOf("committed", surveyed(READY), git()).tone).toBe("healthy")
   expect(readingOf("committed", surveyed(READY), git({ pushSaid: said }))).toMatchObject({
     tone: "alarm",
     riders: [PUSH_REFUSED],
   })
-  // ... and it overrules a face that is only a notice, too.
   expect(readingOf("waiting", waiting(1), git()).tone).toBe("notice")
   expect(readingOf("waiting", waiting(1), git({ pushSaid: said })).tone).toBe("alarm")
 })
@@ -516,28 +349,15 @@ test("a phone is interrupted by a refused push, and the banner says which", () =
   expect(isNews("committed", surveyed(READY), git({ pushSaid: said }))).toBe(true)
   expect(newsSays("committed", behind(13), git({ pushSaid: said })))
     .toContain(PUSH_REFUSED)
-  // ... and the plain count is what it says when nothing was refused.
   expect(newsSays("committed", behind(13), git())).toBe("13 unpushed — tap to push")
 })
 
-/** Every status a dirty file can have wears a word. A table, so a sixth one
- *  the format grew would be a compile error here rather than a blank chip
- *  beside somebody's file. */
 test("every status a file can be in has a word", () => {
   for (const how of ["modified", "added", "deleted", "renamed", "untracked"] as const) {
     expect(HOW[how]).not.toBe("")
   }
 })
 
-/**
- * A dirty outline whose bytes moved with NO node moving still counts.
- *
- * The reviewer's reproduction: add a blank line to a `.olai` and the file is
- * dirty, listed, and committable, while `changes` is empty — so a tally of node
- * changes read zero and the pill said `committed` over a panel offering to
- * commit it. `outlines` exists precisely so that reformat is not invisible, and
- * the count has to agree with the list it is a count of.
- */
 test("an outline that changed no node is still something waiting", () => {
   const reformatted: Pending = {
     ...NOTHING_PENDING,
@@ -548,7 +368,6 @@ test("an outline that changed no node is still something waiting", () => {
   expect(waitingIn(reformatted)).toBe(1)
   expect(faceOf(reformatted, true, GIT_OFF)).toBe("waiting")
 
-  // ... and it is counted ONCE when its nodes did move, rather than twice.
   const changed: Pending = {
     ...reformatted,
     changes: [{
@@ -561,23 +380,12 @@ test("an outline that changed no node is still something waiting", () => {
   }
   expect(waitingIn(changed)).toBe(1)
 
-  // An outline that does not parse is its own row and is not double-counted
-  // with the file it names either.
   const broken: Pending = { ...reformatted, unreadable: ["garden.olai"] }
   expect(waitingIn(broken)).toBe(1)
 
-  // A clean tree is still clean, which is the other half of the fence.
   expect(waitingIn(NOTHING_PENDING)).toBe(0)
 })
 
-/**
- * ... and git's words go into the sentence ONCE.
- *
- * A refused push is the ordinary way the loop stops, so the same refusal is
- * already on the unpushed clause by the time the pause clause is added. Quoting
- * it twice put five lines of git's non-fast-forward hint into one `aria-label`,
- * which is a label nobody reads either copy of.
- */
 test("a refusal that stopped the loop is quoted once, not twice", () => {
   const words = "! [rejected] main -> main (fetch first)"
   const shared: Pending = {
@@ -592,29 +400,15 @@ test("a refusal that stopped the loop is quoted once, not twice", () => {
     git({ pushSaid: words, paused: words }),
   )
   expect(sentence.split(words)).toHaveLength(2)
-  // ... and the loop is still reported, with the gesture that starts it again.
   expect(sentence).toContain("Auto-commit is paused")
   expect(sentence).toContain("Resume")
-  // A stop with a reason nothing else quoted still carries it.
   expect(explain("committed", surveyed(READY), stopped(words))).toContain(words)
 })
 
-/**
- * THE PROMISE IS THE LOOP'S OWN GATE, and the term it must not lose is that
- * something is WAITING.
- *
- * A clean tree under `commit: auto` is the case that got through: the policy
- * is the window and the repository is ready, both true, so a shorter version of
- * the rule promised "Auto-commit will record all of this as one commit once the
- * edits stop" over an empty list — while the server's own answer was `""`
- * precisely because there was nothing to record.
- */
 test("the panel promises to record only what there is to record", () => {
   const windowed = git({ policy: { commit: "auto", push: "off" } })
   expect(willRecord(waiting(2), windowed)).toBe(true)
-  // A clean tree: the policy has not changed and neither has the repository.
   expect(willRecord(surveyed(READY), windowed)).toBe(false)
-  // ... and the other three terms of the same rule.
   expect(willRecord(waiting(2), git())).toBe(false)
   expect(willRecord(waiting(2), { ...windowed, paused: "no upstream" })).toBe(false)
   expect(willRecord(
@@ -632,19 +426,11 @@ test("the move names its own writer and counts writes", () => {
   expect(WHO.auto).toBe("auto-commit")
 })
 
-/** The word nothing writes any more. An installed olai signed real commits
- *  `filer`, so the table owes them a sentence — and it has to read as
- *  something that HAPPENED, since the server that filed into Inbox › Chats is
- *  gone. Pending is what is waiting now, which nothing can be waiting as
- *  `filer`, so it takes the plain fall-through rather than a count sentence
- *  of its own. */
 test("the retired filer still has a sentence, in the past tense", () => {
   expect(WHO.filer).toBe("olai filed conversations into the Inbox")
   expect(WHO.filer).toContain("filed")
   expect(wroteOf("filer", 2)).toBe("olai filed conversations into the Inbox 2")
 })
-
-// ── the readout as the health dot reads it ─────────────────────────────
 
 test("no repository and commits off are quiet: they never colour the dot", () => {
   const none = surveyed({ _tag: "NoRepo" })
@@ -673,16 +459,11 @@ test("the status's words are the row's words, and its sentence is the row's tip"
 })
 
 test("every face lands on the dot's tone its argument names", () => {
-  // A page not yet told anything is quiet, like the two settings: it has no
-  // claim to make, and the dot must not go amber while the survey is in flight.
   expect(gitStatusOf("unknown", NOTHING_PENDING, GIT_OFF)).toMatchObject({ tone: "quiet", label: "…" })
-  // A clean repository olai has not committed in is working, not news.
   expect(gitStatusOf("never", surveyed(READY), git())).toMatchObject({ tone: "healthy", label: "No commits yet" })
   expect(gitStatusOf("committed", surveyed(READY), git())).toMatchObject({ tone: "healthy", label: "Committed" })
-  // A busy repository with writes waiting wants attention; it is not broken.
   const busy = surveyed({ _tag: "Blocked", reason: "merge", said: "" }, { unreadable: ["garden.olai"] })
   expect(gitStatusOf("blocked", busy, git())).toMatchObject({ tone: "notice", label: "1 uncommitted" })
-  // The fault face is an alarm in its own two words.
   expect(gitStatusOf("error", surveyed(READY), gitSaid("fatal: nope")))
     .toMatchObject({ tone: "alarm", label: "Git error" })
 })
@@ -692,7 +473,6 @@ test("a rider outranks a healthy face: a stopped loop over a clean tree is an al
     .toMatchObject({ tone: "alarm", label: `Committed · ${AUTO_PAUSED}` })
   expect(gitStatusOf("never", surveyed(READY), git({ pushSaid: "rejected" })))
     .toMatchObject({ tone: "alarm", label: `No commits yet · ${PUSH_REFUSED}` })
-  // ...and a healthy face with commits nobody else has is a notice.
   expect(gitStatusOf("never", behind(1), git()))
     .toMatchObject({ tone: "notice", label: "No commits yet · 1 unpushed" })
 })

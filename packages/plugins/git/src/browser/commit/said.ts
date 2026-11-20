@@ -1,21 +1,3 @@
-/**
- * What a change is CALLED on screen.
- *
- * The panel never shows a text diff, and this is the whole reason it does not
- * have to: a `.olai` diff is one enormous line per node with everything on it
- * changing at once, and what a reader actually wants is the sentence. So
- * `@olai/format` classifies a change into one `Sort` — once, on the server,
- * from the fields that differ and what they became — and this is the table that
- * turns that into words a person reads.
- *
- * What one CHANGE is called — *marked done*, *note rewritten* — is not here:
- * it moved to `../changes.ts` when the chat transcript started drawing an olai
- * write in the same words. Those two are one vocabulary about one event seen at
- * two moments, and a second table is the day one of them starts saying
- * something else. What stayed is everything about the PILL and the panel, which
- * nothing else reads.
- */
-
 import {
   armedOn,
   type How,
@@ -30,40 +12,6 @@ import type { BarStatus, BarTone } from "olai-plugin-layout/slots"
 
 import { agoOf } from "@olai/web/client/ago.ts"
 
-/**
- * Which of the eight things the pill is saying right now.
- *
- * EIGHT, and every one of them is drawn — the control is never absent. This
- * feature exists to be an audit trail of what the tool wrote, so "there is no
- * audit trail here" is the single most important thing it can say, and a pill
- * that disappeared is exactly how a person would never find that out. The same
- * argument the connection dot makes: green is a claim the page keeps making,
- * and an indicator that is only there when something is wrong cannot be trusted
- * when it is absent.
- *
- * `off` and `no-repo` are SETTINGS rather than faults, and are drawn as such:
- * dim, inert, no warning. `blocked` and `error` are the two a person can act
- * on, so they are the two that get a warning.
- *
- * `error` is the newest, and it is the whole of `one-git-indicator`: it is
- * #108's git readout, which used to be a SECOND chip in the header answering
- * the same question this one does. Two indicators for one subject is what the
- * human filed, and folding the fault face in here is the answer — the reason a
- * repository will not take a write has to stay visible (that was #108's bug),
- * but it belongs on the control that is already talking about writes. Git's own
- * words ride it, on the tip AND on the `aria-label`, because a sentence only a
- * pointer can reach is a sentence half the readers never get.
- *
- * `unknown` is not a state of the DIRECTORY at all: it is this page, before the
- * server has said anything. It is here because the alternative is what the pill
- * used to do — draw the default value's `off` face, claiming a setting about a
- * server it had not heard from.
- *
- * `never` is not the same as `committed` and the difference is the whole reason
- * the last commit is carried at all: a clean tree that just committed and a
- * clean tree where olai has never written anything both have nothing pending,
- * and saying "committed" to the second would be a lie.
- */
 export type Face =
   | "unknown"
   | "off"
@@ -74,20 +22,6 @@ export type Face =
   | "committed"
   | "never"
 
-/**
- * How much is waiting, in one place — and the fence every reader uses.
- *
- * It counts what the panel would DRAW: one per node-level change, one per other
- * dirty file, one per outline nothing could be read in, and one per outline
- * whose bytes moved with no node moving — a reformat, a reordered line. That
- * last term is why this is not simply `changes + others + unreadable`: such an
- * outline is dirty, committable and listed, and left out of the tally the pill
- * read `committed` while the panel underneath offered to commit it.
- *
- * Because it counts rows, `waitingIn(p) > 0` is exactly "the panel has
- * something in it" — so the count and the fence cannot disagree, which is the
- * shape the split into two numbers was reaching for and did not have.
- */
 export const waitingIn = (pending: Pending): number => {
   const changed = new Set(pending.changes.map((change) => change.file))
   const unreadable = new Set(pending.unreadable)
@@ -98,87 +32,30 @@ export const waitingIn = (pending: Pending): number => {
     silent.length
 }
 
-/**
- * The one face, from the two readings the server publishes together.
- *
- * `git` is the second argument rather than something derived from `pending`
- * alone, and it has to be: a repository whose identity nobody set answers
- * `rev-parse` perfectly happily, so `repo` reads `Ready` while every commit
- * fails — which is precisely the silence #108 was filed for. The server
- * REMEMBERS that refusal and publishes it as `error` (`@olai/ops`' `gitOf` and
- * the override beside it); nothing in the survey alone can say so. The two
- * values are recomputed from ONE survey in one statement (`server/runtime.ts`),
- * so reading both here is not a second probe.
- *
- * Order is the argument. A page that has heard nothing claims nothing. `off`
- * comes next because a server that never asks git cannot have a git fault to
- * report. Then the FAULT, ahead of `no-repo`: #108's rule is that broken-git
- * and no-repo must never collapse into each other, and of the two, the fault is
- * the one with something to fix.
- */
 export const faceOf = (pending: Pending, heard: boolean, git: GitState): Face => {
   if (!heard) return "unknown"
   if (pending.repo._tag === "Off") return "off"
-  // Both spellings of the same news: git could not be asked about the directory
-  // at all (the survey's own answer), or it refused a commit here (the server's
-  // memory, which no probe can see).
   if (git.status === "error" || pending.repo._tag === "Unusable") return "error"
   if (pending.repo._tag === "NoRepo") return "no-repo"
   const waiting = waitingIn(pending)
-  // A busy repository with nothing waiting is not a problem anybody has: there
-  // is nothing the block is stopping.
   if (waiting > 0) return pending.repo._tag === "Blocked" ? "blocked" : "waiting"
   return pending.last === null ? "never" : "committed"
 }
 
-/** Whether pressing it could do anything. The two settings are inert — there is
- *  no panel to open, because there is nothing behind it to say — and so is a
- *  page that has not been told anything yet.
- *
- *  `error` is deliberately NOT one of them. A git that refused a commit is a
- *  repository with writes waiting in it, and the panel is where they are listed
- *  and where the retry lives; and an inert control is a control a keyboard
- *  cannot reach, which is how the reason would go back to being hover-only. */
 export const isInert = (face: Face): boolean =>
   face === "unknown" || face === "off" || face === "no-repo"
 
-/**
- * Whether a phone should interrupt the page with this face.
- *
- * A healthy phone does not advertise health: `committed`, `never`, the two
- * settings, and a page that has not heard yet stay off screen. The desktop
- * pill is ALWAYS drawn, because absence and health look identical in a bar
- * of chips; a banner that is only there when there is news can be trusted
- * when it is absent, because the page itself is the healthy state.
- */
 export const isNews = (face: Face, pending: Pending, git: GitState): boolean =>
   NEWS.has(readingOf(face, pending, git).tone)
 
 const NEWS: ReadonlySet<BarTone> = new Set(["notice", "alarm"])
 
-/** How many commits are recorded here and nowhere else, as a number — `0` for a
- *  branch already in sync and for one with no upstream at all, which are two
- *  different facts and the same amount to say about them. */
 export const unpushedIn = (pending: Pending): number => pending.unpushed?.commits ?? 0
 
-/**
- * One line for the phone banner. The panel behind it has the sentence.
- *
- * Waiting outranks unpushed when both are true: not-recorded is the more
- * urgent half of the same work, and the panel lists both.
- */
 export const newsSays = (face: Face, pending: Pending, git: GitState): string => {
   const waiting = waitingIn(pending)
   const unpushed = unpushedIn(pending)
   const paused = git.paused
-  // A stopped loop outranks every face, because it is the one line that is
-  // about something having gone wrong with a promise rather than about work.
-  //
-  // It KEEPS THE COUNT when there is one, and that is the whole of this arm
-  // being three words longer than it was: a halted loop plus a later edit is
-  // exactly when "how much is sitting here" is worth knowing, and a banner that
-  // dropped it made a phone tap through to the panel to find out something the
-  // desktop pill says beside the same chip.
   if (paused !== null) {
     return waiting > 0
       ? `${waiting} uncommitted · ${AUTO_PAUSED} — tap to see`
@@ -192,24 +69,11 @@ export const newsSays = (face: Face, pending: Pending, git: GitState): string =>
     case "error":
       return "Git error — tap to see"
     default:
-      // WHY the count is not coming down outranks the count, which is the whole
-      // of `push-failure-invisible` on a phone: a number with a reason and a
-      // number without one look identical, and only one of them is news.
       if (git.pushSaid !== null) return `${PUSH_REFUSED} — tap to see`
       return unpushed > 0 ? `${unpushed} unpushed — tap to push` : ""
   }
 }
 
-/**
- * How bad each face is — ONE tone, which the row's dot paints and the bar's
- * health dot folds (`olai-plugin-layout`'s `BarTone`), so the two cannot
- * disagree. A table, so every face must be given one.
- *
- * The two settings and a page not yet told are quiet: nothing is wrong, there
- * is nothing running. Writes waiting — in a repository mid-rebase too — want
- * attention. A git that failed is broken. Committed, and a clean tree nothing
- * has written to yet, are healthy.
- */
 export const FACE_TONE: Readonly<Record<Face, BarTone>> = {
   unknown: "quiet",
   off: "quiet",
@@ -221,10 +85,6 @@ export const FACE_TONE: Readonly<Record<Face, BarTone>> = {
   never: "healthy",
 }
 
-/** WHAT THE READOUT SAYS, whole: its tone, its first words, the riders that
- *  follow them, and the sentence behind them. The row draws it and the bar's
- *  health dot reads it ({@link gitStatusOf}) — one reading, so the dot's colour
- *  is always the row's. */
 export interface Reading {
   readonly tone: BarTone
   readonly says: string
@@ -232,13 +92,6 @@ export interface Reading {
   readonly detail: string
 }
 
-/**
- * The one reading. The riders are what no face can carry — commits nobody
- * else has, a push git refused, a loop that stopped — and they move the tone:
- * unpushed work is at least a notice, and a refused push or a stopped loop is
- * a promise (shared, recorded without anybody watching) not being kept, so it
- * is an alarm whatever the face underneath says.
- */
 export const readingOf = (face: Face, pending: Pending, git: GitState): Reading => {
   const unpushed = unpushedIn(pending)
   const riders = [
@@ -254,26 +107,12 @@ export const readingOf = (face: Face, pending: Pending, git: GitState): Reading 
   return { tone, says: saysOf(face, waitingIn(pending)), riders, detail: explain(face, pending, git) }
 }
 
-/**
- * What a face MEANS, in one sentence — the tip a pointer opens and the
- * `aria-label` everybody else gets.
- *
- * The static half. {@link explain} adds the words only the VALUE has, which is
- * the half #108 existed for: what git actually said.
- */
 export const DETAIL: Readonly<Record<Face, string>> = {
   unknown: "Loading…",
   off: "Commits are turned off (`commit: off`), so changes are saved but not committed",
   "no-repo":
     "This folder isn't a git repository, so changes are saved but not committed",
-  // True of both ways this state is reached — a git that could not be asked
-  // about the directory at all, and a commit it refused — because what happened
-  // is in the words that follow, and what a reader needs first is the
-  // consequence.
   error: "Git failed here, so changes are saved but not committed",
-  // The two that are counted: {@link explain} puts the tally in front of them,
-  // because "3 uncommitted" on screen and "some writes are waiting" in the
-  // sentence would be the same fact told twice and told differently.
   blocked: "waiting to be committed",
   waiting: "waiting to be committed. Open it to see what changed and commit",
   committed:
@@ -281,59 +120,24 @@ export const DETAIL: Readonly<Record<Face, string>> = {
   never: "This is a git repository, and olai hasn't committed here yet",
 }
 
-/**
- * WHAT A GIT LOCK FILE IN THE WAY IS CALLED, and how long it has been there.
- *
- * ONE SENTENCE for the two places it is drawn, and the AGE is optional because
- * the two readers differ: the panel has a ticking clock
- * (`@olai/web/client/ago.ts`) and phrases the age against that, while the
- * header pill re-reads when the DIRECTORY changes and not on the minute — an
- * age on it would freeze, which is the "12m ago for four hours" `agoOf` exists
- * to prevent. `null` is the pill's case: no clock to phrase this against.
- */
 export const lockSays = (since: number, now: number | null): string =>
   `A git lock file is in the way${
     now === null ? "" : ` (left ${agoOf(since, now)})`
   }. If no git command is running, remove it and retry.`
 
-/**
- * ... AND WHAT A REMOVAL THAT WAS TOO EARLY TO MAKE GETS — the one answer the
- * unlock button can be refused with, in the words of the guard that refused it:
- * the lock is younger than a git command's own budget, so it may belong to a
- * git that is still writing.
- *
- * No age on it: the guard rewrites the age on the sentence above, so a second
- * one here could only contradict it.
- */
 export const LOCK_HELD =
   "A git process may still be writing; try again in a moment."
 
-/** The lock file that stopped the last commit, or `null` — the companion of
- *  {@link commitRefused}, gated the same way so the two cannot come to disagree
- *  about whether there was a fault at all. */
 export const lockRefused = (git: GitState): Lock | null =>
   git.status === "error" ? git.lock : null
 
-/**
- * The whole sentence, for the one face being worn.
- *
- * Three of the eight have something the table cannot hold: the fault carries
- * git's own words, and the two that are waiting carry how much. Everything else
- * reads as its own sentence.
- */
 export const explain = (face: Face, pending: Pending, git: GitState): string =>
   alsoPaused(alsoUnpushed(sentence(face, pending, git), pending, git), git)
 
 const sentence = (face: Face, pending: Pending, git: GitState): string => {
   switch (face) {
     case "error": {
-      // A LOCK FILE is the one fault with a gesture behind it, so it gets
-      // olai's sentence rather than git's paragraph — which is a `fatal:` line
-      // naming a path and telling nobody what to do about it. The AGE is on the
-      // panel's copy alone: this reading has no clock (see {@link lockSays}).
       if (git.lock !== null) return lockSays(git.lock.since, null)
-      // The cell's words first — they are the remembered refusal, which is the
-      // half a survey cannot see — and the survey's own as the fallback.
       const words = git.said === null || git.said === ""
         ? verbatim(pending.repo) ?? ""
         : git.said
@@ -348,26 +152,8 @@ const sentence = (face: Face, pending: Pending, git: GitState): string => {
   }
 }
 
-/**
- * ... and how much is recorded here and nowhere else, on whichever face is
- * being worn.
- *
- * It rides EVERY face rather than being one of them, because it is a different
- * question: what is not committed, and what is not shared. A clean tree with
- * eleven unpushed commits is the case that matters most and is the one no face
- * would have covered — `✓ committed` is true of it, and on its own it is the
- * complacent half of the truth.
- *
- * On the sentence as well as on the pill, because the sentence is what a reader
- * with no pointer gets: the pill's own `· 3 unpushed` is hover-free but silent
- * to a screen reader that only takes the label.
- */
 const alsoUnpushed = (said: string, pending: Pending, git: GitState): string => {
   const unpushed = unpushedOf(pending)
-  // WHY it is still unpushed, when git has said. This is the clause the
-  // screenshot was missing: `✓ committed · 13 unpushed` is every word of it
-  // true and the one that matters absent, because the refusal lived in a tab's
-  // memory and that tab had been reloaded an hour before.
   if (git.pushSaid !== null) {
     const count = unpushed === null ? "" : `${unpushed} · `
     return `${said} · ${count}${PUSH_REFUSED}: ${git.pushSaid}`
@@ -375,154 +161,42 @@ const alsoUnpushed = (said: string, pending: Pending, git: GitState): string => 
   return unpushed === null ? said : `${said} · ${unpushed}. Open it to push`
 }
 
-/** What a push that git said no to is CALLED — short, because it goes on a
- *  fixed-height bar and on a phone banner, with git's own words a gesture
- *  away. Spelled once for the chip, the sentence and the banner. */
 export const PUSH_REFUSED = "Push refused"
 
-/**
- * ── Auto-commit, as the DIRECTORY has it ──────────────────────────────
- *
- * The loop is the server's (`@olai/ops`, over `@olai/format`'s `window.ts`); these are the words for
- * it. It is not one of the pill's {@link Face}s and never was: those are eight
- * things about whether writes are being RECORDED, and whether the loop has
- * stopped is a different question about the same directory — a stopped loop
- * with nothing waiting has nothing wrong with the history. It rides beside them
- * instead, exactly as the unpushed count does and for the same reason.
- *
- * What changed is who it is true of. These sentences used to describe THIS
- * BROWSER — a loop in this tab, a pause a reload cleared — so two tabs could
- * say different things about one directory and a phone could say a third. They
- * are read off the git cell now, so every reader gets the same one.
- */
-
-/** The chip a stopped loop wears in the header. Short, because the bar is a
- *  fixed height and the sentence is one gesture away — on the tip, on the
- *  `aria-label`, and in full in the panel. */
 export const AUTO_PAUSED = "Auto-commit paused"
 
-/**
- * WHAT THE LOOP IS DOING, as one word — and the one place that reading is made.
- *
- * Three states, and they are the DIRECTORY's: `off` where the policy is not the
- * quiet window, `paused` where git stopped it, `armed` otherwise. Three
- * surfaces ask — the pill wears it as `data-auto`, the panel makes a promise
- * off it, and a phone's banner speaks it — and asked separately they would be
- * three readings of one cell, free to disagree about a directory that has none
- * of the ambiguity between them.
- */
 export const loopIn = (git: GitState): "off" | "armed" | "paused" =>
   git.policy.commit !== "auto" ? "off" : git.paused !== null ? "paused" : "armed"
 
-/**
- * The one gesture that starts the loop again, spelled once for both sentences
- * below: the header and the panel drifting on how to restart it is the one
- * sentence a reader cannot work out for themselves.
- *
- * ONE gesture now, where there were two. The stop used to be this tab's, so
- * turning the browser's own Auto-commit toggle off and on again cleared it —
- * and on a server that had PINNED the policy there was no toggle to flip, so
- * the frozen row grew a Resume button and the sentence had to name whichever
- * one this reader had. The stop is the directory's, so neither a toggle nor a
- * reload can clear it: Resume is the gesture, on every deployment.
- */
 const RESUME_GESTURE = "Press Resume in the commit panel to start it again."
 
-/**
- * ... and the sentence the HEADER carries, which is git's own words plus that
- * gesture.
- *
- * The gesture is named because a stopped loop is silent by design: without a
- * sentence saying how to start it again, "olai stopped committing" is something
- * a person finds out days later from `git log`.
- *
- * The WORDS are in it because the header has nowhere else to put them: this is
- * the pill's tip and its `aria-label`, and a reader with no pointer would
- * otherwise be told a loop stopped and never told why. The PANEL is the other
- * case and takes {@link AUTO_STOPPED} instead — git's refusal is already a line
- * of its own down there, beside the verb that produced it, and one paragraph
- * printed twice in one popover is a popover nobody reads either copy of.
- */
 const autoSays = (paused: string): string =>
   `Auto-commit is paused: ${paused}. ${RESUME_GESTURE}`
 
-/** ... and the same clause for a sentence that has ALREADY quoted whatever git
- *  said, which is the ordinary case: a refused push both stops the loop and
- *  rides {@link alsoUnpushed}, so a paragraph of git's hints would otherwise be
- *  printed twice inside one `aria-label`. */
 const AUTO_SAYS_AGAIN = `Auto-commit is paused. ${RESUME_GESTURE}`
 
-/** Whether the words that stopped the loop are already on the sentence. There
- *  are exactly two things that can have printed them — the refused push's
- *  clause and the fault face's — and the stop is set from one of those two, so
- *  this is a comparison rather than a search through the prose. */
 const quoted = (git: GitState): boolean =>
   git.paused === git.pushSaid || git.paused === git.said
 
-/** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
 export const AUTO_STOPPED =
   `Auto-commit is paused. Git's message is below. ${RESUME_GESTURE}`
 
-/**
- * Whether the server's quiet window really would record what the panel is
- * listing — the loop's OWN gate, called rather than re-derived.
- *
- * `armedOn` is the expression the server arms the window with and re-asks at
- * the moment it fires (`@olai/format`'s `window.ts`), and the panel is its
- * third caller for exactly the reason it is on the floor: a promise made out of
- * a shorter version of the rule is a promise the loop does not keep. It was
- * made out of a shorter version — the policy and the repository's readiness,
- * without the term that says something is WAITING — so on a clean tree under
- * `commit: auto` the committed pill printed {@link AUTO_ARMED} over an empty
- * list, while the server's own answer was `""` precisely because there was
- * nothing to record.
- *
- * `held` IS `false` HERE, and this is the one term the browser does not have. A
- * hold belongs to a caller inside the server (a node agent's tidying pass,
- * `olai-plugin-chat`'s `server/sleep.ts`) and travels nowhere: what the pill
- * promises is that these writes ARE recorded once the directory goes quiet, and
- * a hold changes WHO records them — the pass commits them itself a moment later
- * — rather than whether they are. An `armed` pill over a held window is
- * therefore still true, and a third state here would be a lie the panel cannot
- * keep in step with the server.
- */
 export const willRecord = (pending: Pending, git: GitState): boolean =>
   armedOn(git.policy.commit, git.paused, false, pending) !== ""
 
-/** What an ARMED loop is about to do with what the panel is listing. Drawn only
- *  while it is really going to happen, so it is a promise rather than a
- *  description of a setting. */
 export const AUTO_ARMED =
   "Auto-commit will commit all of this once you stop editing."
 
-/**
- * The pause, on whatever sentence the face produced — see {@link explain}.
- *
- * GIT'S WORDS GO IN ONCE. The same refusal is very often already on the
- * sentence: a push that would not go stops the loop AND rides the unpushed
- * clause, so quoting it here as well put the whole of git's non-fast-forward
- * hint — five lines of it — twice into one label, which is a label nobody reads
- * either copy of.
- */
 const alsoPaused = (said: string, git: GitState): string =>
   git.paused === null
     ? said
     : `${said} · ${quoted(git) ? AUTO_SAYS_AGAIN : autoSays(git.paused)}`
 
-/** How much is waiting, in words — the same tally the pill draws as a number,
- *  so the sentence and the label cannot disagree. */
 const counted = (pending: Pending): string => {
   const waiting = waitingIn(pending)
   return `${waiting} ${waiting === 1 ? "change is" : "changes are"}`
 }
 
-/**
- * What happened to a file that is not an outline — the chip beside its path.
- *
- * Git's own word for each, because these rows are the one place the panel
- * reports on a file rather than on a node, and a person who is going to reach
- * for a terminal about one of them should read the same word `git status` uses.
- */
 export const HOW: Readonly<Record<How, string>> = {
   modified: "modified",
   added: "added",
@@ -531,17 +205,6 @@ export const HOW: Readonly<Record<How, string>> = {
   untracked: "untracked",
 }
 
-/**
- * The tone each chip wears, out of the palette the marks already use.
- *
- * Three tones for five words, and the grouping is what a reader is being told:
- * a file that has LEFT is the one worth a second look (`alarm`), a file that is
- * NEW to the repository is a claim about the tree rather than an edit to it
- * (`done` — the same green a finished node wears, because arriving is the
- * ordinary good case), and everything else is an edit (`doing`'s amber, the tone
- * of work in progress). Nothing here is red-for-danger: every one of these is a
- * file somebody is about to record on purpose.
- */
 export const HOW_TONE: Readonly<Record<How, string>> = {
   modified: "text-doing",
   added: "text-done",
@@ -550,31 +213,6 @@ export const HOW_TONE: Readonly<Record<How, string>> = {
   deleted: "text-alarm",
 }
 
-/**
- * What the panel is reporting ON — the scope line, which is new because the
- * scope changed.
- *
- * It used to be unsayable and unnecessary: what was waiting was the served
- * outlines, and the panel hung off a page already showing them. Now it is every
- * dirty file in the repository, so a `README.md` two directories above the
- * outlines is a row in this list — and a reader who is not told that has to
- * work out why.
- */
-/**
- * Where a renamed row came FROM, in the spelling the OUTLINE list draws its own
- * names in.
- *
- * The wire carries `from` repo-root-relative on both kinds of row — the one
- * unambiguous name a file has across a repository, and the namespace a commit
- * request ticks in. The other-files list draws that name as it is; the outline
- * list draws SERVED names (`roadmap.olai`, not `docs/roadmap.olai`), and
- * `docs/a.olai → b.olai` on one line is two spellings of the same directory in
- * six inches of screen.
- *
- * A file from OUTSIDE the served root keeps its repo-relative name, which is
- * the only honest thing to call it: it really is up there, and shortening it
- * would name a file that does not exist.
- */
 export const localOf = (from: string | null, served: string): string | null =>
   from !== null && served !== "" && from.startsWith(served)
     ? from.slice(served.length)
@@ -585,14 +223,6 @@ export const scopeOf = (served: string): string =>
     ? "Whole repository"
     : `Whole repository · olai shows ${served}`
 
-/**
- * What is committed here and nowhere else, in the sentence the panel puts beside
- * the Push button — and the header puts in its own words.
- *
- * `null` for a branch with no upstream and for one already in sync: there is
- * nothing to offer, and a button that pushed nothing would be a button that
- * teaches a person to ignore it.
- */
 export const unpushedOf = (pending: Pending): string | null => {
   const unpushed = pending.unpushed
   if (unpushed === null || unpushed.commits === 0) return null
@@ -600,72 +230,31 @@ export const unpushedOf = (pending: Pending): string | null => {
   return `${commits} not on ${unpushed.upstream}`
 }
 
-/** Who a writer is, to a reader. `web` is the only one that gets a different
- *  word than its name: the person reading this is the one who pressed the
- *  button, and "web" would be telling them about a transport.
- *
- *  Keyed by `Writer` rather than by `string`, so a writer the format grows is
- *  a compile error here instead of a raw tag on screen. */
 export const WHO: Readonly<Record<Writer, string>> = {
   "chat-agent": "chat agent",
   mcp: "an agent in a terminal",
   web: "you",
   move: "olai moved chats onto their notes",
-  // The server's own quiet window, which nobody pressed. `auto-commit` rather
-  // than "the server": a reader who turned the row on recognises the name of
-  // the thing they turned on, and a commit trailer saying `web` here would have
-  // told them they made it.
   auto: "auto-commit",
-  // The server's own pass over a node agent's memory, out of hours. Named for
-  // the thing that happened rather than for the process that did it: this is a
-  // line in a person's history they did not write and may want to undo.
   sleep: "olai put a node agent's memory in order",
-  // Past tense, and deliberately: nothing writes this trailer any more, so the
-  // only way a person reads this line is off an OLD commit an earlier olai
-  // made when it filed conversations into Inbox › Chats. "olai files" would
-  // describe a thing this olai does not do.
   filer: "olai filed conversations into the Inbox",
 }
 
-/** Pending counts are Ops writes, not a count of chats: a move writes a note
- * and then its old row. Keep that unit explicit for the move.
- *
- * `filer` gets no arm of its own, and that is not an oversight: pending is
- * what is waiting to be committed NOW, and no live writer produces that
- * trailer, so no pending count can be attributed to it. The fall-through is
- * the honest answer — it would read as a past act and a count, which is a
- * sentence this function has no caller for. */
 export const wroteOf = (writer: Writer, ops: number): string => writer === "move"
   ? `olai moved chats onto their notes · ${ops} ${ops === 1 ? "write" : "writes"}`
   : `${WHO[writer]} ${ops}`
 
-/** Why the repository cannot take a commit right now. Git's own words ride the
- *  pending value as `said` and are what the panel hangs on the line as a title;
- *  this is the sentence. */
 export const because = (repo: RepoState): string => {
   switch (repo._tag) {
     case "Blocked":
       return BLOCKED[repo.reason]
-    // A git that could not be asked at all. It says so HERE as well as on the
-    // pill, because this is the line the panel draws where the button would be
-    // — and "there is nowhere to commit to" would be reporting a broken git as
-    // an absent repository, which is the one confusion #108 exists to have
-    // ended.
     case "Unusable":
       return "Git couldn't read this folder"
-    // The two settings, and the pill DOES draw for both — it is never absent —
-    // but their sentence is {@link DETAIL}'s, because they are statements
-    // rather than something to fix. This is the fallback that keeps the
-    // function total.
     default:
       return "There is nowhere to commit to"
   }
 }
 
-/** Git's own words, when there are any — what you would paste into a search,
- *  which is why they are kept verbatim rather than folded into the sentence
- *  above. Both states that HAVE any hand them over: a repository that is busy,
- *  and a git that failed. */
 export const verbatim = (repo: RepoState): string | undefined =>
   repo._tag === "Blocked" || repo._tag === "Unusable" ? repo.said : undefined
 
@@ -676,39 +265,17 @@ const BLOCKED: Readonly<Record<Reason, string>> = {
   detached: "No branch is checked out. Check out a branch first",
 }
 
-/**
- * What git said when it last refused a COMMIT, or `null` when it did not.
- *
- * The cell's `said`, read only on the face that has one — a `Blocked`
- * repository puts its own words on `pending.repo` and the panel draws those
- * beside the button, and quoting them here as well would be one paragraph
- * printed twice in one popover.
- *
- * It used to be this TAB's last attempt, unpacked from five arms, which had the
- * shape of a receipt and the lifetime of a page: the commit an agent made, the
- * one the quiet window made, and the one made in another tab all left nothing
- * here. What is drawn now is the directory's, so a reload does not change it and
- * the reader who opens the panel last sees what the reader who opened it first
- * saw.
- */
 export const commitRefused = (git: GitState): string | null =>
   git.status === "error" ? git.said : null
 
-/** What the readout's row says for a face — its first words. The riders (the
- *  unpushed count, a refused push, a paused loop) follow them. */
 export const saysOf = (face: Face, waiting: number): string => {
   switch (face) {
-    // Not a claim about the directory — a claim about this page, which has
-    // not been told anything yet.
     case "unknown":
       return "…"
     case "off":
       return "Commits off"
     case "no-repo":
       return "Not a git folder"
-    // What the readout this pill absorbed used to say in its own chip. The
-    // WORDS are the consequence rather than the cause — git's own account of
-    // what happened is a paragraph, and it rides the tip and the aria-label.
     case "error":
       return "Git error"
     case "never":
@@ -720,8 +287,6 @@ export const saysOf = (face: Face, waiting: number): string => {
   }
 }
 
-/** THE READOUT AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
- *  `BarStatus`): {@link readingOf}, its words and riders on one line. */
 export const gitStatusOf = (face: Face, pending: Pending, git: GitState): BarStatus => {
   const said = readingOf(face, pending, git)
   return { tone: said.tone, label: [said.says, ...said.riders].join(" · "), detail: said.detail }

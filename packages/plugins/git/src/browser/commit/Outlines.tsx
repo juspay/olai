@@ -1,25 +1,3 @@
-/**
- * The outlines, one group per file: what changed in each, node by node.
- *
- * Every row here is a NODE and what changed about it — "marked done", "note
- * rewritten", "archived". There is no text diff and there will not be one: a
- * `.olai` diff is one enormous line per node with everything on it changing at
- * once, which is exactly the shape this format bought line-based merges with and
- * exactly the shape nobody can read.
- *
- * Grouped by FILE because that is the unit git commits and the unit the sidebar
- * already lists — and, since the panel learnt to be piecemeal, the unit a person
- * ticks. Ordered as the server derived them, which is the outline's own order.
- *
- * The group is drawn from `pending.outlines` rather than by grouping the
- * changes, and that is what makes a dirty outline with NO node changes visible:
- * a reformat, a reordered line, a file somebody touched and saved. It is dirty,
- * it is committable, and grouping the changes would have drawn nothing at all.
- *
- * A RENAME is one group with both names on it ({@link Moved}), never a group
- * beside a departure in the other list: it is one thing that happened, one
- * tick, and one commit that carries both halves.
- */
 import { servedDirectory } from "../vault.ts"
 import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
@@ -37,9 +15,6 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 export function Outlines(props: {
   readonly outlines: ReadonlyArray<DirtyOutline>
   readonly changes: ReadonlyArray<NodeChange>
-  /** Where olai serves from, inside the repository — what turns the
-   *  repo-relative name a rename came from into this list's own spelling
-   *  (`localOf`). */
   readonly served: string
   readonly selection: Selection
 }) {
@@ -54,9 +29,6 @@ export function Outlines(props: {
           data-file={outline.file}
           data-path={outline.path}
           data-from={outline.from ?? undefined}
-          // Unticked is DIMMED rather than hidden: what a person left out is
-          // still waiting, and a row that vanished when it was unticked would
-          // read as one that had been dealt with.
           class={props.selection.ticked(outline.path) ? "" : "opacity-40"}
         >
           <p class="flex items-baseline gap-2">
@@ -70,8 +42,6 @@ export function Outlines(props: {
             <span class="min-w-0 truncate font-mono text-label text-muted">
               {outline.file}
             </span>
-            {/* A brand-new outline is UNTRACKED, which no node comparison can
-                say: every node in it reads as created either way. */}
             <Show when={outline.how !== "modified"}>
               <span class={`ml-auto shrink-0 text-label ${HOW_TONE[outline.how]}`}>
                 {HOW[outline.how]}
@@ -87,24 +57,10 @@ export function Outlines(props: {
                   data-node-id={change.id}
                   data-sort={change.sort}
                 >
-                  {/* The fields behind the word: "moved" is `parent, ord`, and
-                      a row that changed three things says which three without
-                      spending a line on it. The tip is the pointer's copy and
-                      the hidden line at the end is the reader's; the `title`
-                      this replaced was only ever the first. */}
                   <Tip text={change.fields.join(", ")} disabled={change.fields.length === 0}>
                     <span class="w-3 shrink-0 text-muted" aria-hidden="true">
                       {GLYPH[change.sort]}
                     </span>
-                    {/* Drawn as a title, because it IS one: its `#tags` wear
-                        their pills and hues through the one pipeline
-                        (`../markdown/title.ts`) — same words, same marks, here
-                        as in the outline they belong to, because a title whose
-                        colour changes between the tree and this panel is two
-                        answers about one row. The pipeline, not
-                        `../NodeTitle.tsx`: this panel is no page, so a title
-                        naming an address is spelled as written (the
-                        `../search/row.ts` contract). */}
                     <span class="min-w-0 truncate">
                       <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                     </span>
