@@ -1,18 +1,3 @@
-/**
- * THE WAY TO WHAT WAS PUT AWAY — one quiet row at the column's foot, and its
- * icon at the rail's.
- *
- * A `sidebar.entry` placed `foot`: the sidebar pins it under the scrolling list
- * so it stays in view however long the tree runs (the 2026-09 simplification).
- * It used to nest under the files row's vault group, which made the Trash's
- * presence depend on the file tree being mounted — a door into this row's own
- * page, withdrawn by another row's lifetime. Now it comes and goes with this
- * row alone.
- *
- * Always drawn while the row stands, like the agenda: an empty trash is a fact
- * a reader may want, not a control to hide until it would say something. It is
- * current when the ROUTE is the trash page — the trash belongs to no one file.
- */
 import { TESTID } from "olai-plugin-trash/testids"
 
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
@@ -28,20 +13,15 @@ export function Trash() {
   return (
     <Link
       route={TRASH_ROUTE}
-      // The quiet ink says what the row is: a door onto a page, not one more
-      // file of the reader's own.
       class={`${ENTRY_SHAPE} text-muted`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
-      {/* No glyph and no fold seat: a door of the column like Agenda and
-          Today, so it shares their left edge rather than the tree's. */}
       <span class="min-w-0 truncate">Trash</span>
     </Link>
   )
 }
 
-/** The same door, collapsed: the rail's foot. */
 export function TrashRail() {
   const router = useRouter()
   return (

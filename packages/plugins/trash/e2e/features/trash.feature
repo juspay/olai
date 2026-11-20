@@ -25,9 +25,6 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I mark the page
 
   Scenario: The Trash door is pinned at the sidebar's foot and opens the Trash
-    # One quiet row under the scrolling list, the trash row's own `foot`
-    # entry — it used to nest in the files row's vault group, whose lifetime it
-    # shared.
     Then the Trash door is pinned at the sidebar's foot
     When I open the Trash
     Then the Trash is empty
@@ -50,12 +47,8 @@ Feature: The trash can be seen into, taken out of, and emptied
     And there should be no page errors
 
   Scenario: The trash starts empty, and says so rather than erroring
-    # No archive file exists in the fixture at all — the archive op creates
-    # it on first use, so an absent archive IS an empty trash.
     When I open the Trash
     Then the Trash is empty
-    # Said, with what will appear here — and nothing to press: an empty Trash
-    # has no next step.
     And the empty page says "Trash is empty" over "Deleted outlines and rows appear here."
     And the empty page "Trash is empty" offers nothing to press
     And there should be no page errors
@@ -72,8 +65,6 @@ Feature: The trash can be seen into, taken out of, and emptied
     And the Trash lists the node "knobs"
 
   Scenario: The archive is the Trash's to show, not the sidebar's file tree
-    # Before the trash view, the first archive quietly grew a new entry in the
-    # outline list, editable like anything else. The entry now is the Trash.
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
@@ -89,44 +80,26 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I put back "install" from the Trash
     Then "_olai/Trash.olai" no longer holds the node "install"
     And "house.olai" holds the node "install"
-    # WHERE it landed is the half "holds" cannot pin: under its old parent,
-    # found by the chain of ancestor titles the archive recorded — and the
-    # children came back shaped as they left.
     And the node "install" in "house.olai" sits under "kitchen"
     And "house.olai" holds the node "handles"
     And the node "handles" in "house.olai" sits under "install"
     And the node "hinges" in "house.olai" sits under "install"
-    # The emptied scaffold went with it: archive-then-unarchive leaves the
-    # archive as it stood, which for this fixture is empty.
     And the Trash is empty
     And there should be no page errors
 
   Scenario: The signpost above a pile is not a row you can put back
-    # The root row of a pile in the Trash is the TITLE the archive wrote to
-    # remember where things hung — a copy of a node that never left. It is the
-    # row a person reaching for "put this pile back" clicks first, so the
-    # refusal has to be the ops layer's own sentence rather than a missing
-    # button: it names the live node that still carries the title, and says to
-    # put back what was put away.
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
     Then "_olai/Trash.olai" holds the node "knobs"
     When I open the Trash
     Then the Trash lists the node "knobs"
-    # The signpost carries the live `install`'s title, and putting it back
-    # would stand a second one beside it with `knobs` hanging off the copy.
     When I put back the row titled "install the cabinets" from the Trash
     Then the Trash says under the row titled "install the cabinets" that it is a signpost
     And "house.olai" holds one node titled "install the cabinets"
     And there should be no page errors
 
   Scenario: A chain that no longer stands is refused, and restoring it heals the way back
-    # `knobs` goes in first, so its recorded chain ends at `install the
-    # cabinets`; then `install` goes in too, and the chain matches nothing
-    # live. The refusal is the ops layer's own sentence, verbatim, under the
-    # row it was pressed on — and putting `install` back first re-erects the
-    # chain, so the same press then lands.
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
@@ -147,9 +120,6 @@ Feature: The trash can be seen into, taken out of, and emptied
     And there should be no page errors
 
   Scenario: An empty Trash offers nothing to empty
-    # A control that would delete nothing teaches a reader the wrong thing
-    # about the one control here that cannot be taken back — so it is not
-    # drawn at all until there is a pile.
     When I open the Trash
     Then the Trash is empty
     And the Trash does not offer Empty trash
@@ -178,17 +148,10 @@ Feature: The trash can be seen into, taken out of, and emptied
     Then "_olai/Trash.olai" holds nothing
     And the Trash is empty
     And the Trash does not offer Empty trash
-    # The blast radius is the archive and nothing else: the live outline the
-    # subtree came out of is untouched by the delete.
     And "house.olai" holds the node "kitchen"
     And there should be no page errors
 
   Scenario: A live row still pointing into the Trash refuses it, in the ops layer's own words
-    # Ids move with a node when it is archived — that is what makes a mirror or
-    # an `after` naming what you put away go on resolving — so deleting those
-    # records would leave live rows naming ids nothing declares. `install` and
-    # `hinges` both wait on `order`, and the refusal names them rather than
-    # letting the write gate answer with the validator's rows.
     When I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
@@ -201,26 +164,11 @@ Feature: The trash can be seen into, taken out of, and emptied
     And there should be no page errors
 
   Scenario: Two piles are one emptying, and an edge BETWEEN them is not a holder
-    # Grok's objection on #250, driven from the button. `catch-up` lives in
-    # `Daily/2026-08.olai` and `knobs` in `house.olai` — two piles in the ONE
-    # trash, and a `see` written from one to the other before either is put away.
-    #
-    # The edge is a record THIS WRITE DELETES, so it is not a reason to refuse.
-    # It used to be one: the button sent an `apply` of one `empty` per archive,
-    # each judged against one pile. One op naming the union is what fixed it,
-    # and one trash file is why the two piles are already one emptying.
     When I open the outline "Daily/2026-08.olai"
     And I open the node menu of "catch-up"
     And I choose "More › Link to…" from the node menu
     Then the see panel is open on "catch-up"
     When I search the edge panel for "knobs"
-    # The hit's place line names its ancestry — `kitchen remodel #home` — and
-    # its `#home` is drawn as the pill every tag wears now, below the row's
-    # title. The press below LANDS on that pill: one press is one door, and
-    # the row's button claims a press AT its pill — a press that instead
-    # filtered the tree would hide `house.olai` from itself, `kitchen` and
-    # every descendant, and the pick would fall out from under this click
-    # (found while this suite's own run broke here at 30s, #378).
     And I choose "pick the knobs" from the edge panel
     Then "Daily/2026-08.olai" holds the node "catch-up" seeing "knobs"
     When I open the node menu of "catch-up"
@@ -233,10 +181,6 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I choose "Move to Trash" from the node menu
     Then "_olai/Trash.olai" holds the node "knobs"
     When I open the Trash
-    # Seven: source-file signposts for both piles, the ancestor titles above
-    # each (`kitchen remodel #home` → `install the cabinets` for knobs — the
-    # same crumb the pill-press above lands on, here a RECORD line),
-    # `August 2026` for catch-up, and the two rows themselves.
     And I press Empty trash
     Then the Trash asks "Permanently delete all 7 rows in Trash? olai can't bring them back. Only what git has already saved can be recovered."
     When I confirm emptying the Trash

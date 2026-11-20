@@ -1,56 +1,3 @@
-/**
- * The trash: what was put away, kept whole, and the one way back out.
- *
- * This is `_olai/Trash.olai` made visible — every archive under the directory,
- * drawn as the tree the archive op wrote: the scaffold of ancestor titles,
- * and the subtrees hanging off it exactly as they left. The web calls it
- * TRASH because that is what it is to a person (Workflowy's word, and the
- * confirm's promise); the file keeps its name, the ops vocabulary keeps
- * `outlines_trash`, and only this human-facing surface renames anything.
- *
- * IT IS NOT A PLACE YOU EDIT, and that is drawn rather than fenced: no
- * editor mounts here, no `•••`, no checkbox, no date pill — a row is its
- * title and the one verb a trash ROW has, **Put back**, which sends the
- * `unarchive` edit with the id alone. Where the subtree returns is the ops
- * layer's own answer (the recorded chain of ancestor titles, matched back
- * against the live outlines), a refusal comes back in the ops layer's own
- * words under the row, and ⌘Z after a put-back archives it again — the
- * inverse the server records. An agent's `trash_restore` is the same call,
- * which is what the consistency rule demands of a new verb.
- *
- * THE PAGE HAS ONE VERB OF ITS OWN, and it is the app's only delete:
- * **Empty trash**, beside the heading, which permanently removes every record
- * in every archive the directory holds (`./EmptyTrash.tsx`). It is not a row's
- * verb and could not be — what it is about is the piles rather than anything
- * in one — and it sits behind a confirm naming how many rows go, counted over
- * the SET, saying plainly that nothing puts them back. `trash_empty` is the
- * same op for an agent, so the rule that put **Put back** here put this here
- * too.
- *
- * An EMPTY trash is a page that says so, not an error: the archive tool
- * re-creates `_olai/Trash.olai` on first use, so a directory with no archive
- * file and one whose archives hold nothing are the same fact, and both are
- * drawn the same way — and that is also what takes the **Empty trash** verb
- * off the page, since a control offering to delete nothing teaches a reader
- * the wrong thing about the one control here that cannot be taken back.
- *
- * ## It can be looked THROUGH, which is not the same as edited
- *
- * The filter box narrows this page like any other, and the one thing that had
- * to be said out loud for it to work is that the archive is IN SCOPE here: a
- * query normally leaves what was put away alone unless it says `is:trashed`
- * (website/docs/search.md), and a matcher applying that rule to the page that IS the
- * archive would take away every row and give the reader nothing to read it by.
- * So the scope is the page (`../filter/narrowing.ts`), and a word typed here
- * searches what is in front of somebody. Read-only is a fact about this page's
- * VERBS — one, Put back — and never about looking through a pile of it.
- *
- * The rows narrow as a tree does, ancestors kept: a matching row keeps its
- * subtree, the scaffold above it stays as the context that says where the pile
- * came from, and an archive with nothing left drops out the way an empty one
- * does. "The Trash is empty." is not said over a filter — that is a claim about
- * the archive, and the bar makes the other one.
- */
 import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
 import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
 import { isMirror,type Row,settles,shownRecord } from "@olai/format"
@@ -72,17 +19,8 @@ import { useTrashUndo as useUndo } from "./history.ts"
 import { NodeTitle } from "./PageView.tsx"
 
 export function TrashPage(props: {
-  /** Every archive the directory holds, in path order (`page.ts`) — including
-   *  the ones that hold nothing, which is what decides whether a heading is
-   *  worth drawing: that is a fact about the DIRECTORY, so a filter narrowing
-   *  the page to one pile does not take the file name off it. */
   readonly files: ReadonlyArray<string>
-  /** The archives with rows in them, narrowed by whatever is in the box
-   *  (`../filter/narrowing.ts`). */
   readonly groups: ReadonlyArray<TrashGroup>
-  /** How many RECORDS emptying would delete, across every archive — the set's
-   *  own count, off the page's reading (`./EmptyTrash.tsx` argues why it can be
-   *  neither the rows' nor the groups'). */
   readonly records: number
 }) {
   const narrowed = useNarrowed()
@@ -95,20 +33,11 @@ export function TrashPage(props: {
           What was put away, kept whole. Put a row back and it returns where it
           came from, everything under it included.
         </p>
-        {/* The PAGE's verb, and the only one here that is not about a row —
-            emptying is about every archive at once, so it hangs off the heading
-            rather than off anything in the pile (`./EmptyTrash.tsx`). It is
-            handed the SET's count rather than anything drawn, deliberately:
-            what it deletes is what the archives hold, and the groups are what
-            survived the filter box. */}
         <EmptyTrash going={props.records} />
       </header>
       <Show
         when={props.groups.length > 0}
         fallback={
-          // "Trash is empty" is a claim about the TRASH; a query that
-          // found none of it is a claim about the query, and the bar makes
-          // that one (`../filter/narrowed.tsx` holds the division).
           <Show when={unfiltered(narrowed)}>
             <Empty testid={IDS_TRASH.trashEmpty} line="Trash is empty" detail="Deleted outlines and rows appear here." />
           </Show>
@@ -117,9 +46,6 @@ export function TrashPage(props: {
         <Key each={props.groups} by="file">
           {(group) => (
             <section data-testid={IDS_TRASH.trashGroup} data-file={group().file}>
-              {/* One archive is the ordinary case and needs no heading; a
-                  directory whose subdirectories archive separately gets one
-                  per file, the way the day page groups by outline. */}
               <Show when={props.files.length > 1}>
                 <h2 class="mb-1 mt-4 text-body font-medium text-muted">
                   {group().file}
@@ -151,54 +77,24 @@ function Branch(props: {
 }) {
   const undo = useUndo()
   const narrowed = useNarrowed()
-  /** The line under this row, and the six seconds it lasts — the same
-   *  receptacle the `•••` menu's line rides on (`../saying.ts`), which is
-   *  where the three rules around it live now that two surfaces keep them. */
   const { said, say } = createSaying()
 
-  // The id the verb names is the ROW's own record — for the one row that
-  // offers it, a regular node, so it is the id `trash_restore` takes. A
-  // placement in the trash draws as the footnote it is and offers nothing:
-  // the way to take a mirror out is to put its node back.
   const putBack = async () => {
     const answer = await applying(
       { verb: "untrash", id: props.row.at.node.id },
       undo.record,
     )
-    // A landed put-back removes this row on the next frame, so what lingers
-    // here is the half worth reading in place: the refusal, verbatim, or a
-    // nudge from a write that happened. Handed straight through — an answer
-    // of `undefined` is "nothing to say", which `say` reads as clearing the
-    // line rather than as a sentence.
     say(answer)
   }
 
-  /** The node this row SHOWS — a placement in a pile matches, lights and dims
-   *  by what it stands for. One accessor because three bindings ask it and
-   *  `props.row` is a fresh object on every frame the store publishes; the
-   *  tree's own row keeps the same one (`../Tree.tsx`). */
   const shownId = createMemo(() => shownRecord(props.row).node.id)
 
   return (
     <li
       data-testid={IDS_TRASH.trashRow}
       data-node-id={props.row.at.node.id}
-      // Whether the filter SELECTED this row or kept it as the scaffold that
-      // leads to one — one spelling for every surface that says it
-      // (`../filter/why.ts`), asked of the node the row SHOWS, because a
-      // placement in a pile matches by what it stands for.
       data-match={matchedAttr(narrowed, shownId())}
     >
-      {/* The dim is on the LINE, never on the `<li>`: a pile nests, and an
-          item would take every match under this row down with it
-          (`../filter/why.ts`, `../blocked.ts`).
-
-          TWO of the three things a narrowed row says are drawn here and the
-          third cannot be: a trash row is a title and a `Put back`, with no
-          note body under it (`../NodeBody.tsx` is the tree's and the day's),
-          so there is no ¶ for a note-only hit to be excerpted from. What a
-          reader gets instead is the row and its pile — which is what this page
-          is for. */}
       <div
         class={`group flex min-h-6 items-baseline gap-2 py-0.5 ${
           CONTEXT_DIM(narrowed, shownId())
@@ -209,16 +105,7 @@ function Branch(props: {
         </span>
         <span
           class="flex-1 text-ink"
-          // What a row is CALLED, said the way every other surface says it
-          // (`../NodeLine.tsx`): a title span is a title span, and a reader of
-          // this page — a scenario, the evidence pass — should not have to
-          // know that this one is drawn by a different component.
           data-testid={IDS_OUTLINES.nodeTitle}
-          // SETTLED work is struck through here as it is everywhere else, and
-          // that means both marks: what the strike says is "nobody is waiting
-          // on this line" (`../tone.ts`), which is what `done` and `cancelled`
-          // share. Its own classList rather than `toneOf` because this page
-          // paints its rows in the trash's dimmer ink to begin with.
           classList={{
             "line-through opacity-60": props.row.status !== undefined &&
               settles(props.row.status),
@@ -228,11 +115,6 @@ function Branch(props: {
         </span>
         <Show when={props.row.kind === "node" ? props.row : undefined}>
           {(row) => (
-            // `Put back` appears with a hand on the row, and is simply there
-            // where there is no hand to put on one. This page was the first
-            // surface to answer that question and spelled the media query
-            // here; the spelling is now `@olai/ui-primitives`'s, so every
-            // reveal in the app says it once and says it the same way.
             <button
               type="button"
               class={`shrink-0 rounded-control border border-rule/60 bg-panel px-2 py-0.5 text-label text-muted opacity-0 transition-opacity hover:bg-rule/60 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
@@ -247,8 +129,6 @@ function Branch(props: {
       </div>
       <Show when={said()}>
         {(line) => (
-          // The mood is `../SaidLine.tsx`'s, for every surface that says
-          // something about a write; where the line sits is this row's.
           <SaidLine
             said={line()}
             class="m-0 mb-1 ml-6 text-body"
@@ -265,15 +145,8 @@ function Branch(props: {
   )
 }
 
-/** What a trash row is called. A node or a mirror says the title of the node
- *  it shows, rendered the one way titles are; the two degenerate kinds a
- *  condemned set could hold say the outline tree's own sentences (`Tree.tsx`,
- *  quoted — a reader who meets the same broken record on two pages should
- *  read the same words about it). */
 function Title(props: {
   readonly row: Row
-  /** The words the query found this row by, lit in its title — the same fact
-   *  every other surface's rows draw (`../filter/lit.ts`). */
   readonly needles?: ReadonlyArray<string>
 }) {
   return (

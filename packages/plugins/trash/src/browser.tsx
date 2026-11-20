@@ -21,10 +21,6 @@ import { Trash, TrashRail } from "./Entry.tsx"
 export default definePlugin({name:"trash", needs:[Wired, Offers, Edits], apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
-  // `Edits` rather than pushed into a module-scope map in a general package
-  // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
-  // beside it is how this row's faces spend the same table (`./browser/writes.ts`).
   const edits = yield* Edits
   yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
@@ -38,15 +34,9 @@ export default definePlugin({name:"trash", needs:[Wired, Offers, Edits], apply:E
 export const components={content:definePlugin({name:"content",needs:[navigation,rendererSlots,browserState,trashState,fileAccess],apply:Effect.gen(function*(){
  const files=yield* fileAccess
  const slots=yield* rendererSlots
- // The page view and the titles this page draws are other rows' contributions
- // (`./browser/locations.ts`).
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* slots.contribute(content,{matches:route=>route.kind==="trash",Page:()=> <TrashPageView files={files} />})
 })}),
- /** The Trash door, at the sidebar's foot. A `sidebar.entry` placed `foot`
-  *  (`olai-plugin-sidebar/slots`), registered and withdrawn with THIS
-  *  component — it no longer hangs inside the files row's vault group, whose
-  *  lifetime it used to share. */
  sidebar:definePlugin({name:"sidebar", needs:[Slots,navigation,trashState], apply:Effect.gen(function*(){
  yield* (yield* Slots).register("sidebar.entry", { place: "foot", body: Trash, rail: TrashRail })
 })})}

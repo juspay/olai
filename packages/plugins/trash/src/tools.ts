@@ -1,19 +1,3 @@
-/**
- * THE TRASH ROW'S AGENT VERBS — the way back out of the pile, and the way to
- * end it.
- *
- * They were entries in `@olai/ops`' one closed `TOOLS` table, which meant a
- * general package named this row's vocabulary and a serve without this row
- * still offered an agent an `trash_empty` nothing stood behind. A tool leaves
- * with the row that owns it now (juspay/olai#546).
- *
- * THE UNIT IS THE WHOLE PILE, and that is the rule rather than an exception to
- * it: `trash_empty` names the `_olai/Trash.olai` the set already serves and
- * empties it whole — every record in it or none, and nothing that could name
- * part of one. `trash_restore` is the other half, and the only undo a RECORD
- * has; a file deleted has git's and nothing else's.
- */
-
 import { EmptyRequest, UntrashRequest } from "@olai/format"
 import { type Tool, write } from "@olai/ops"
 
