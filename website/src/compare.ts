@@ -32,7 +32,7 @@ export const ROWS: ReadonlyArray<Row> = [
     obsidian: { text: "Markdown files on your device", source: "https://obsidian.md/" },
     logseq: { text: "Markdown or Org-mode files. A database version is in beta.", source: LOGSEQ_REPO },
     roam: { text: "Online with Roam, or stored locally", source: "https://roamresearch.com/" },
-    workflowy: { text: "In your Workflowy account", source: "https://workflowy.com/" },
+    workflowy: { text: "Online. They sync across web, desktop, and mobile.", source: "https://workflowy.com/" },
   },
   {
     label: "Cost and source code",
