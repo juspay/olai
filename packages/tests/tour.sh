@@ -36,6 +36,13 @@ under_root() {
   esac
 }
 
+switched_off() {
+  if ! grep -q "\"id\":\"$1\".*\"on\":\"no\"" "$root/vault/_olai/Settings.olai"; then
+    echo "refusing to start the server: _olai/Settings.olai does not switch $1 off" >&2
+    return 1
+  fi
+}
+
 tour() {
   local mode=$1
   root=$(mktemp -d /tmp/olai-tour.XXXXXX)
@@ -56,6 +63,8 @@ tour() {
 
   under_root HOME "$home"
   under_root XDG_STATE_HOME "$state"
+  switched_off kolu
+  switched_off odu
   echo "vault:   $root/vault"
   echo "home:    $home"
   echo "state:   $state"

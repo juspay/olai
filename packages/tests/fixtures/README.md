@@ -477,7 +477,14 @@ the real one, because the Agenda counts from the server's clock:
 `paint`, `deposit`, `tiler`, and `plumber` are the ones the exchanges in
 `../tour-agent.ts` name.
 
+`notes/cabinets.md` is the document the pictures show beside the outline:
+frontmatter, two headings, a table, a task list, a link to `finishes.md`, a
+link to the row `cabinets`, and `art/handle.png`, a copy of the one in
+`good/`. It holds no wikilink, math, or callout, because olai draws those as
+text today and the pictures must not show them as working.
+
 `_olai/Settings.olai` switches off `odu` and `kolu`, which would reach for
 services on the machine, and the four agents other than Claude Code, which the
 tour does not set up. The Plugins panel would otherwise list each of them
-under *Needs attention*.
+under *Needs attention*. `tour.sh` refuses to start the server when the copy
+does not switch `odu` and `kolu` off.

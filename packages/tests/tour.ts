@@ -15,7 +15,7 @@ const shiftDates = (dir: string): void => {
   const days = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - FIXTURE_TODAY) / DAY)
   for (const name of readdirSync(dir, { recursive: true, encoding: "utf8" })) {
     const file = join(dir, name)
-    if (!statSync(file).isFile()) continue
+    if (!/\.(olai|md)$/.test(name) || !statSync(file).isFile()) continue
     const text = readFileSync(file, "utf8")
     const shifted = text.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, y: string, m: string, d: string) =>
       new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)) + days * DAY).toISOString().slice(0, 10),
@@ -89,6 +89,18 @@ const stills = async (): Promise<void> => {
   await shoot(page, out, "plugins-panel.png")
   await page.keyboard.press("Escape")
 
+  await page.getByRole("checkbox", { name: "Show finished" }).check()
+  await page.goto(`${base}/s/house.olai/notes%2Fcabinets.md`)
+  await page.getByRole("heading", { name: "Sizes" }).waitFor()
+  await shoot(page, out, "outline-and-document.png")
+
+  await page.goto(`${base}/notes/cabinets.md`)
+  await page.getByText("Referenced by").first().click()
+  await page.getByText("Order the new cabinets").last().waitFor()
+  await shoot(page, out, "document.png")
+
+  await page.goto(`${base}/house.olai`)
+  await page.locator('[data-testid="outline-list"]').waitFor()
   await page.getByRole("checkbox", { name: "Show finished" }).check()
   await page.getByRole("button", { name: "Start an agent" }).first().click()
   await page.locator('[data-testid="chat-input"]').waitFor()
