@@ -1,32 +1,3 @@
-/**
- * A LEDGER FILE'S PAGE — the transactions it draws, the tree they net to, and
- * the bytes it read, driven the way a person reads them: one view at a time,
- * switched by pressing the strip.
- *
- * WHAT IS ASSERTED AND WHAT IS NOT, said once:
- *
- *   - the facts come off the DOM's OWN `data-` attributes (`data-date`,
- *     `data-status`, `data-code`, `data-description`, `data-payee`, `data-note`,
- *     `data-account`, `data-amount`, `data-inferred`, `data-cost`,
- *     `data-assertion`, `data-depth`, `data-commodity`), never off the ink —
- *     which is the difference between a promise and a palette;
- *   - the ARITHMETIC is the scenario's: `money/household.journal` is round
- *     amounts on purpose, so a leaf total, a rolled-up parent and a
- *     multi-commodity row are checked against a sum a person can do by hand;
- *   - the page is VIEW ONLY, read through the global `this file has no editor`
- *     (`olai-plugin-csv/e2e/steps/viewer_steps.ts`) rather than again here.
- *
- * WHAT THE READER OWNS AND THIS FILE DOES NOT: whether a payee is split off at
- * `|`, which lines are unparseable, how a commodity is spelled. Those are
- * this row's `src/journal/` tests — the fixture below is what the BROWSER
- * shows of them, not a second unit suite.
- *
- * THE SOURCE VIEW IS THE FILE, checked by reading the served copy off disk (the
- * scratch copy the scenario owns, which the `Given` above has just written)
- * rather than by repeating the source in the Gherkin: a second copy of a
- * fixture in a feature is a copy that drifts the day the fixture is edited.
- */
-
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -80,34 +51,8 @@ import {
   HLEDGER_UNREADABLE,
 } from "../selectors.ts";
 
-// ── the row in the tree, and the fixtures it stands for ────────────────
-//
-// A LEDGER IS A SERVED FILE, so its page needs one on disk — and the file is
-// this ROW's, kept beside these steps rather than in the harness's corpus.
-// The harness knows no ledger kind (`support/world.ts` has no `ROW_TESTID`
-// entry for it), so a scenario's first move is to put the fixtures it reads
-// into the copy it owns — through the world's own `scratch()`, which is the
-// guard that refuses anything but a `@scratch:` scenario's tree.
-//
-// THE BYTES ARE EXACT. `world.writeServed` appends a newline when the text has
-// none (`support/world.ts`), which is right for the outlines and documents its
-// other callers write and wrong for one of these: `empty.journal` is ZERO
-// BYTES, and a scenario that said "this file is empty" about a file with a
-// newline in it would be asserting the sentence and not the file. So the
-// fixture is written as it is on disk, byte for byte, through the same guard.
-
-/** The fixture files, beside this step file — one home for the ledger's own
- *  bytes, and a relative path INTO the plugin so the harness's import fence
- *  (`packages/tests/imports.test.ts`) never sees a climb out of it. */
 const FIXTURES = new URL("../fixtures/", import.meta.url);
 
-/** What every ledger scenario is served, at the paths its scenarios address.
- *  A feature's `Background` writes them all: the harness restores the copy
- *  between scenarios, so the `Given` below runs again for each and each one
- *  starts from these bytes and no other. `personal.journal` is the audit's
- *  realistic books — 47 transactions, four commodities, grouping, a cost, an
- *  assertion and month-spanning dates — kept here so the redesigned page is
- *  read against facts a person can open the file and check. */
 const HLEDGER_FIXTURES = [
   "broken.journal",
   "empty.journal",
@@ -125,13 +70,6 @@ Given("the ledger fixtures are served", function (this: World) {
     fs.writeFileSync(target, fs.readFileSync(new URL(name, FIXTURES)));
   }
 });
-
-// The four steps the harness used to own for this kind, said here instead:
-// `the {string} rows listed are {string}` and its siblings go through
-// `world.rowsOfKind`, which is the ROW_TESTID table — and this kind left that
-// table with the row (there is no `hledger` entry to look up). Every phrase
-// below reads this row's own `HLEDGER_LINK`, so a rename is a compile error in
-// `e2e/selectors.ts` rather than a selector nobody writes.
 
 Then(
   "the ledger rows listed are {string}",
@@ -156,10 +94,6 @@ When(
   },
 );
 
-// The glyph is the KIND's, asserted on `data-glyph` rather than on the
-// drawing: which shape is right for a journal is a design question, and "it is
-// this row's own mark" is the promise — read against the kind this package
-// registers, so a second row's glyph here is the failure.
 Then(
   "the ledger row {string} wears its own glyph",
   async function (this: World, file: string) {
@@ -174,8 +108,6 @@ Then(
   },
 );
 
-// The name a row draws is the file's own — a ledger is not a document, so no
-// title is invented for it and the suffix stays.
 Then(
   "the ledger row {string} reads {string}",
   async function (this: World, file: string, name: string) {
@@ -186,33 +118,21 @@ Then(
   },
 );
 
-// ── the page's chrome ──────────────────────────────────────────────────
-
-/** The header ROW, waited for first, so a failure says "no ledger page drew"
- *  rather than "expected 5, got null". Its facts are separate spans, so the
- *  reads below grip one by the `data-fact` it carries rather than parsing the
- *  row's whole sentence — the redesign moved the counts behind spans, and the
- *  order of the row is a layout decision this row need not pin. */
 const header = async (world: World): Promise<string> => {
   const found = world.page.locator(HLEDGER_HEADER);
   await found.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   return oneLine(await found.innerText());
 };
 
-/** One header fact, by the name it carries. */
 const fact = (world: World, name: string) =>
   world.page.locator(`${HLEDGER_FACT}${attr("data-fact", name)}`);
 
-/** What a header fact says right now, or `null` while it is not drawn — the
- *  non-waiting read `waitUntil` may poll with (a waiting read nested in a poll
- *  outlives the poll's own deadline and reports the wrong timeout). */
 const factReading = async (world: World, name: string): Promise<string | null> => {
   const found = fact(world, name);
   if ((await found.count()) === 0) return null;
   return oneLine((await found.first().textContent()) ?? "");
 };
 
-/** The same read, for a step that is asking once rather than waiting. */
 const factText = async (world: World, name: string): Promise<string> => {
   await fact(world, name).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
   return (await factReading(world, name)) ?? "";
@@ -232,9 +152,6 @@ When(
 Then(
   "the ledger is showing the {string} view",
   async function (this: World, view: string) {
-    // THE NAME FIRST, because an unknown one is a scenario's mistake and should
-    // read as that sentence rather than as a thirty-second wait for a tab that
-    // was never going to exist.
     assert.ok(
       view === "transactions" || view === "balances" || view === "source",
       `no ledger view is called "${view}" — they are transactions, balances and source`,
@@ -257,9 +174,6 @@ Then(
   },
 );
 
-/** The strip's own focus, for the keyboard half of the tabs pattern: a roving
- *  tabindex means the SELECTED tab is the one a press lands on, so a scenario
- *  focuses it explicitly rather than hoping Chromium picked it. */
 When(
   "I focus the ledger tab {string}",
   async function (this: World, view: string) {
@@ -291,10 +205,6 @@ Then(
     accounts: number,
     accountNoun: string,
   ) {
-    // THE NOUN IS PART OF THE CLAIM: the header pluralises `1 transaction` /
-    // `1 account`, so a scenario writing the wrong one is asserting a line the
-    // page does not draw — checked here rather than by a looser phrase that
-    // would swallow either.
     assert.strictEqual(
       transactionNoun,
       transactions === 1 ? "transaction" : "transactions",
@@ -306,11 +216,6 @@ Then(
       `the noun for ${String(accounts)}`,
     );
     await header(this);
-    // WAITED FOR, not read once: a scenario may be asserting the counts a live
-    // rewrite just produced, and the old fact is still on screen until the
-    // watcher's revision lands. The COUNT is compared as a number, so a page
-    // that grouped a four-digit count (`1,000 transactions`) still reads as the
-    // count it is — the noun is what the fact has to spell.
     const wanted: ReadonlyArray<readonly [string, number, string]> = [
       ["transactions", transactions, transactionNoun],
       ["accounts", accounts, accountNoun],
@@ -333,9 +238,6 @@ Then(
   },
 );
 
-// THE DATES FACT, read as the one human string the header draws it as — the
-// redesign replaced the row's whole sentence with facts a reader scans, so this
-// is the span and not `parts[2]` of an ordered line any more.
 Then(
   "the ledger header spans {string}",
   async function (this: World, expected: string) {
@@ -348,8 +250,6 @@ Then(
   },
 );
 
-// THE COMMODITY LIST the file uses, space-joined in the header's own order —
-// the same union the Balances columns are one per.
 Then(
   "the ledger header lists the commodities {string}",
   async function (this: World, expected: string) {
@@ -357,8 +257,6 @@ Then(
   },
 );
 
-// The sentence the header owes a reader for the lines it could not read —
-// shown only when there are any, and a BUTTON, because it goes somewhere.
 Then(
   "the ledger header reports {int} lines not read",
   async function (this: World, lines: number) {
@@ -380,11 +278,6 @@ When("I click the ledger unreadable button", async function (this: World) {
   await this.waitForFrame();
 });
 
-// ── the month bands ────────────────────────────────────────────────────
-
-// THE BANDS ARE THE MONTHS THE FILE HOLDS, in the order it holds them: the
-// `data-month` keys a scenario reads rather than the label's case, which is a
-// stylesheet decision.
 Then(
   "the ledger month bands are {string}",
   async function (this: World, expected: string) {
@@ -404,9 +297,6 @@ Then(
   },
 );
 
-// ONE BAND: the month it names and the count of transactions under it. The band
-// has exactly two child spans — the label, then the count — because the count
-// is what a reader scans at the right edge.
 Then(
   "the ledger month {string} is named {string} with {int} {word}",
   async function (
@@ -435,8 +325,6 @@ Then(
   },
 );
 
-// ── the transactions ───────────────────────────────────────────────────
-
 Then(
   "the ledger draws {int} transactions",
   async function (this: World, expected: number) {
@@ -448,8 +336,6 @@ Then(
   },
 );
 
-/** One transaction, waited for, so a fact read off it names the one that is
- *  missing rather than timing out on a null attribute. */
 const transaction = async (world: World, at: number) => {
   const found = world.page.locator(HLEDGER_TXN).nth(at - 1);
   await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
@@ -478,11 +364,6 @@ Then(
   },
 );
 
-// WHAT THE ROW DRAWS FOR ITS DATE, which is the DAY and not the ISO string:
-// the band above already names the month, so `2026-07-01` under `JULY 2026`
-// would say July twice. The whole date is still said beside the cell — in the
-// tip a pointer gets and in the hidden line a screen reader reads — and that
-// is asserted here rather than left to the markup.
 Then(
   "the ledger transaction {int} draws the date {string}",
   async function (this: World, at: number, drawn: string) {
@@ -502,8 +383,6 @@ Then(
   },
 );
 
-// ON A PHONE the day rides the payee's line instead of a column of its own, and
-// the column's cell is gone: one of the two is drawn, never both.
 Then(
   "the ledger transaction {int} opens with the day {string}",
   async function (this: World, at: number, day: string) {
@@ -523,10 +402,6 @@ Then(
   },
 );
 
-// THE AMOUNTS ARE ONE COLUMN DOWN THE PAGE, which is what makes a column of
-// money readable: every number's last digit in one place, and every suffix
-// commodity starting from one. The claim is the CELLS' own boxes — the numbers
-// on their right edge, the tails on their left — and never a pixel of a shot.
 Then("the ledger amounts line up on their last digit", async function (this: World) {
   const cells = this.page.locator(`${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_AMOUNT}`);
   await this.waitUntil(
@@ -562,9 +437,6 @@ Then("the ledger amounts line up on their last digit", async function (this: Wor
   }
 });
 
-// ON A PHONE the transactions are set apart by the row's own margin: there is
-// no date column to open one with, so the gap is what says where one ends and
-// the next begins.
 Then("the ledger transactions are set apart", async function (this: World) {
   const rows = this.page.locator(`${HLEDGER_TRANSACTIONS} ${HLEDGER_TXN}`);
   await this.waitUntil(async () => (await rows.count()) > 1, "the transactions to be drawn");
@@ -580,9 +452,6 @@ Then("the ledger transactions are set apart", async function (this: World) {
   }
 });
 
-// THE HEADER'S FACTS WRAP AS WHOLE ITEMS: each is one line and none runs off
-// the row, so a fact is never split in half and the `·` — which belongs to the
-// fact that follows it — never ends a line on its own.
 Then("the ledger header facts each stay on one line", async function (this: World) {
   const header = this.page.locator(HLEDGER_HEADER);
   await header.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -608,11 +477,6 @@ Then("the ledger header facts each stay on one line", async function (this: Worl
   }
 });
 
-// THE PHONE'S POSTING SHAPE, three claims about where things sit. On a laptop
-// the amount is two columns and the marker ends the row; on a phone there is no
-// room for that, so the account and the amount are separated by the grid's own
-// gap, the marker rides the amount, and whatever was written beside an amount
-// takes a line under it.
 Then("the ledger postings keep a gap between the account and the amount", async function (this: World) {
   const postings = this.page.locator(`${HLEDGER_TXN} ${HLEDGER_POSTING}`);
   await this.waitUntil(async () => (await postings.count()) > 0, "the transactions to draw a posting");
@@ -663,9 +527,6 @@ Then("the ledger annotations sit under the amount", async function (this: World)
   const below = await spans.evaluateAll((nodes, selectors) => {
     const { posting, amount } = selectors as { posting: string; amount: string };
     return nodes.map((node) => {
-      // The AMOUNT's cell in this posting, not the posting's row: the row ends
-      // below the line the annotation is on, so it would measure the annotation
-      // as "above" it whatever happened.
       const cell = node.closest(posting)?.querySelector(amount)?.getBoundingClientRect() ?? null;
       return cell === null ? Number.NEGATIVE_INFINITY : Math.round(node.getBoundingClientRect().top - cell.bottom);
     });
@@ -678,10 +539,6 @@ Then("the ledger annotations sit under the amount", async function (this: World)
   }
 });
 
-// NO LINE OF THE FACTS OPENS WITH A SEPARATOR: the `·` belongs to the fact
-// BEFORE it, so a line that wraps begins with a fact. A separator drawn as an
-// element of its own is what cannot make that claim — it is exactly the thing
-// that gets stranded at the start of the next line.
 Then("the ledger header never opens a line with a separator", async function (this: World) {
   const header = this.page.locator(HLEDGER_HEADER);
   await header.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -712,9 +569,6 @@ Then("the ledger header never opens a line with a separator", async function (th
   }
 });
 
-// THE STATUS IS DRAWN as a mark (the redesign's dot), and `data-status` is the
-// fact behind it: this says the mark is on the row at all, and the step above
-// says which status it stands for.
 Then(
   "the ledger transaction {int} draws the status mark",
   async function (this: World, at: number) {
@@ -745,9 +599,6 @@ Then(
   },
 );
 
-// THE TWO HALVES OF THE HEAD, drawn apart now: the payee is the whole
-// description when the file wrote no `|`, and the note is only there when it
-// did. `data-description` stays the whole head; these are what the page DRAWS.
 Then(
   "the ledger transaction {int} has payee {string}",
   async function (this: World, at: number, payee: string) {
@@ -772,11 +623,6 @@ Then(
   },
 );
 
-// HOW LONG THE DRAWN DESCRIPTION IS — the cell bound read off the DRAWING and
-// not only off the sentence: `the ledger page says "Long lines are cut at 2,000
-// characters."` is true of a page that then drew two thousand five hundred and
-// no eye counts them. `data-description` is the same fact the sentence is
-// about, so the two can be asserted against each other.
 Then(
   "the ledger transaction {int} description is {int} characters long",
   async function (this: World, at: number, characters: number) {
@@ -790,14 +636,6 @@ Then(
   },
 );
 
-// ONE POSTING, THREE FACTS, in one step because they are one row: `account |
-// amount | inferred`, the account ending at two spaces. `data-amount` is the
-// amount AS THE FILE WROTE IT — grouping and all — so `$4,250.00` keeps its
-// comma, while a COMPUTED or INFERRED amount is written by the format (which
-// is why a negative symbol amount reads `-$1200.00` there, in front of the
-// symbol, whatever the file's own minus did). The empty spelling is how an
-// omission that could not be inferred — or an assertion-only line — is asked
-// for.
 Then(
   "the ledger transaction {int} posting {int} reads {string}",
   async function (this: World, at: number, which: number, expected: string) {
@@ -822,8 +660,6 @@ Then(
   },
 );
 
-// A COST ANNOTATION (`@ $271.12`) is drawn muted beside the amount, and kept on
-// the row — the reader does not convert with it, but the page shows it.
 Then(
   "the ledger transaction {int} posting {int} shows the cost {string}",
   async function (this: World, at: number, which: number, cost: string) {
@@ -834,8 +670,6 @@ Then(
       cost,
       `the cost on transaction ${String(at)}'s posting ${String(which)}`,
     );
-    // `:visible`, because the annotations are drawn twice — beside the amount
-    // on a laptop, under the posting on a phone — and a reader sees one.
     const span = posting.locator(`${HLEDGER_COST}:visible`);
     await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
@@ -846,9 +680,6 @@ Then(
   },
 );
 
-// A BALANCE ASSERTION (`= $5,123.45`) is drawn the same way, named beside the
-// figure — it is a claim about a running total this reader never kept, so it
-// is shown and not checked.
 Then(
   "the ledger transaction {int} posting {int} shows the assertion {string}",
   async function (this: World, at: number, which: number, assertion: string) {
@@ -873,10 +704,6 @@ Then(
   },
 );
 
-// THE INFERRED MARK: a posting whose amount the reader COMPUTED (an omission
-// it filled in to balance the transaction) is drawn with a marker in the
-// last column, named in the line beside it — the visible half of
-// `data-inferred`.
 Then(
   "the ledger transaction {int} posting {int} carries the inferred mark",
   async function (this: World, at: number, which: number) {
@@ -892,9 +719,6 @@ Then(
   },
 );
 
-// HOW MANY postings the row draws — the count a scenario asks when what matters
-// is that a line did NOT become one (an unreadable amount, an indented comment),
-// where reaching for posting 3 would time out instead.
 Then(
   "the ledger transaction {int} draws {int} postings",
   async function (this: World, at: number, expected: number) {
@@ -906,10 +730,6 @@ Then(
   },
 );
 
-// The COMMENT is drawn as the prose it is — its tags are pills beside it now,
-// drawn once rather than the whole comment and then the tags out of it. A
-// comment that is ONLY tags draws no prose span at all, which is why this step
-// waits rather than reading an absent one.
 Then(
   "the ledger transaction {int} carries the comment {string}",
   async function (this: World, at: number, comment: string) {
@@ -940,8 +760,6 @@ Then(
   },
 );
 
-// A POSTING's own comment and tags, drawn beside the amount it sits under — an
-// indented comment after a posting belongs to that posting, not the transaction.
 Then(
   "the ledger transaction {int} posting {int} carries the comment {string}",
   async function (this: World, at: number, which: number, comment: string) {
@@ -976,24 +794,15 @@ Then(
   },
 );
 
-// ── the balances ───────────────────────────────────────────────────────
-
-/** One account's row of the tree, by the account name it carries. */
 const balance = async (world: World, account: string) => {
   const row = world.page.locator(`${HLEDGER_BALANCE}${attr("data-account", account)}`);
   await row.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
   return row;
 };
 
-/** A row's fold chevron — only a parent draws one. */
 const foldOf = (world: World, account: string) =>
   world.page.locator(`${HLEDGER_BALANCE}${attr("data-account", account)} ${HLEDGER_BALANCE_TOGGLE}`);
 
-// THE SUM, per commodity, in the commodity's own spelling — sorted by
-// commodity, which is the format's order. `, ` (comma and a space) separates
-// the amounts, and a COMPUTED total carries its own grouping commas inside a
-// number (`$1,019.50`), which is why the separator is the spaced one and not a
-// bare comma.
 Then(
   "the ledger balance for {string} is {string}",
   async function (this: World, account: string, expected: string) {
@@ -1034,9 +843,6 @@ Then(
   },
 );
 
-// THE COMMODITY COLUMNS: one per commodity the file uses, named by the header
-// band and keyed by `data-commodity`, so a scenario reads the CELL and never a
-// pixel of where it sits.
 Then(
   "the ledger balances head the commodities {string}",
   async function (this: World, expected: string) {
@@ -1063,10 +869,6 @@ Then(
   },
 );
 
-// ONE CELL: the amount a row holds in one commodity. This is the assertion the
-// redesign's columns are for — two rows' `$` cells read side by side line up on
-// the decimal because they are the same column, and the claim is each cell's
-// own text.
 Then(
   "the ledger balance for {string} shows {string} in {string}",
   async function (this: World, account: string, amount: string, commodity: string) {
@@ -1082,9 +884,6 @@ Then(
   },
 );
 
-// A row with NO total at all draws the empty marker rather than nothing — an
-// account the file NAMED and never moved (`equity:adjustments` in the personal
-// books).
 Then(
   "the ledger balance for {string} has no total",
   async function (this: World, account: string) {
@@ -1109,7 +908,6 @@ Then(
   },
 );
 
-// The row is GONE, not merely empty — the claim a collapse makes about a child.
 Then(
   "the ledger balance for {string} is not drawn",
   async function (this: World, account: string) {
@@ -1121,8 +919,6 @@ Then(
   },
 );
 
-// The other half: the row IS on screen — a depth level that keeps it, an
-// unfolded parent whose child came back.
 Then(
   "the ledger balance for {string} is drawn",
   async function (this: World, account: string) {
@@ -1131,8 +927,6 @@ Then(
   },
 );
 
-// FOLD A PARENT: its chevron's `aria-expanded` is the state, and the rows under
-// it come and go with it.
 When(
   "I collapse the ledger balance for {string}",
   async function (this: World, account: string) {
@@ -1185,11 +979,6 @@ Then(
   },
 );
 
-// THE DEPTH CONTROL: the chosen level hides rows at or past it, so a reader
-// folds the whole tree to the levels they care about in one press. Each button
-// carries its `data-depth`; the testid is on the control, but the selector
-// admits it on the button too, and scoping to the control is what keeps a
-// balance row's own `data-depth` out of the match.
 When(
   "I set the ledger balance depth to {string}",
   async function (this: World, level: string) {
@@ -1202,13 +991,6 @@ When(
   },
 );
 
-// ── the panel that did not go away ─────────────────────────────────────
-//
-// A live revision re-parses the file into fresh objects; the rows are `<Index>`
-// so the DOM a reader was looking at stays. A scenario proves that by MARKING
-// the panel element and asking whether the mark survived the rewrite — the same
-// trick the csv table's steps use, because "the DOM was replaced" and "the
-// markup ended up the same" are different failures.
 When("I remember the ledger balances", async function (this: World) {
   const panel = this.page.locator(HLEDGER_BALANCES);
   await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -1230,19 +1012,6 @@ Then(
   },
 );
 
-// ── the file itself ────────────────────────────────────────────────────
-
-/**
- * THE SOURCE VIEW IS THE FILE — not a re-rendering of the parse.
- *
- * The panel has a line-number gutter, so its own `textContent` interleaves the
- * numbers with the lines; what IS the file is the `hledger-source-line` spans,
- * each one line's own text, joined with the newline the file has. Read off disk
- * rather than repeated in the Gherkin: the scratch copy this scenario owns,
- * which its `Background` wrote (`world.served`). The comparison normalizes only
- * TRAILING newlines, which is the one byte a text editor's save and a joined
- * run of lines may disagree about without the file having changed.
- */
 Then(
   "the ledger source view is the file {string}",
   async function (this: World, file: string) {
@@ -1250,11 +1019,6 @@ Then(
     await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const lines = panel.locator(HLEDGER_SOURCE_LINE);
     await lines.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-    // THE SERVED COPY the server is reading, which is a path this scenario
-    // OWNS: the source view's whole claim is that it is the bytes of the file on
-    // disk, so the step has to read one — and a row's steps may not climb out
-    // of the row into the harness's fixtures (`packages/tests/imports.test.ts`),
-    // which is why the scenario asking this is a `@scratch:` one.
     const root = this.served;
     assert.ok(root !== undefined, "this step reads the served copy, so its scenario is @scratch:<corpus>");
     const source = fs.readFileSync(path.join(root, file), "utf8").replace(/\n+$/, "");
@@ -1265,9 +1029,6 @@ Then(
   },
 );
 
-// HOW MANY LINES the source view draws — the visible half of the reading's LINE
-// bound. One span per READ line, so the count is the bound and not a scroll
-// height, and the gutter's numbers are separate spans that do not change it.
 Then(
   "the ledger source view draws {int} lines",
   async function (this: World, expected: number) {
@@ -1288,9 +1049,6 @@ Then(
   },
 );
 
-// WHICH KIND the reader kept a line as (`directive`/`comment`/`unknown`) — the
-// one thing typed about a line that is neither a transaction nor a posting, and
-// what a scenario asks to prove an unreadable line stayed raw.
 Then(
   "the ledger source line {int} is kept as {string}",
   async function (this: World, line: number, kind: string) {
@@ -1304,9 +1062,6 @@ Then(
   },
 );
 
-// THE GUTTER: every line carries its own number beside it, which is why the
-// panel's `textContent` is no longer the file and why the line spans are what
-// `the ledger source view is the file` reads.
 Then("the ledger source draws a number for every line", async function (this: World) {
   const lines = this.page.locator(`${HLEDGER_SOURCE} ${HLEDGER_SOURCE_LINE}`);
   const numbers = this.page.locator(`${HLEDGER_SOURCE} ${HLEDGER_SOURCE_NUMBER}`);
@@ -1317,9 +1072,6 @@ Then("the ledger source draws a number for every line", async function (this: Wo
   }, "the source view to number every line");
 });
 
-// THE UNREADABLE JUMP: pressing the header's button switches to Source and
-// scrolls the first line it could not read into view — so the claim is the
-// line's own `data-entry="unknown"` mark is on screen, not merely in the DOM.
 Then(
   "the ledger source line {int} is in view",
   async function (this: World, line: number) {
@@ -1334,11 +1086,6 @@ Then(
   },
 );
 
-// ── what the page is not showing ───────────────────────────────────────
-
-// The sentence the page owes a reader for a bound it reached (`../src/browser/said.ts`)
-// — read as the sentence it is, because a scenario asserting "it said
-// something" would pass on a page that said anything at all.
 Then(
   "the ledger page says {string}",
   async function (this: World, expected: string) {
@@ -1348,8 +1095,6 @@ Then(
   },
 );
 
-// The other half: the whole file is on screen, so the element is ABSENT
-// (`Show when={said()}`), never empty and never saying "showing all of it".
 Then("the ledger page says nothing", async function (this: World) {
   await header(this);
   assert.strictEqual(
@@ -1359,8 +1104,6 @@ Then("the ledger page says nothing", async function (this: World) {
   );
 });
 
-// A FILE WITH NO RECORDS draws the app's empty block rather than three empty
-// tabs over a sentence — the glyph and the words, and no view strip at all.
 Then(
   "the ledger shows the empty state {string}",
   async function (this: World, expected: string) {
@@ -1382,18 +1125,6 @@ Then("the ledger draws no tabs", async function (this: World) {
   );
 });
 
-// ── a journal bigger than a page ───────────────────────────────────────
-
-/**
- * A journal with more transactions than the page reads, WRITTEN by the
- * scenario rather than checked in — the same argument the csv clamp makes
- * (`olai-plugin-csv/e2e/steps/viewer_steps.ts`): a fixture whose whole point is
- * being big is thousands of lines of nothing in the repository, and the COUNT
- * belongs in the Gherkin where a reader can see the bound and the file at once.
- *
- * Every transaction is whole and round, so what the bound did can be said in
- * rows (`the ledger draws 1000 transactions`) and not merely in a sentence.
- */
 Given(
   "a journal of {int} transactions exists at {string}",
   function (this: World, count: number, file: string) {
@@ -1408,13 +1139,6 @@ Given(
   },
 );
 
-/**
- * A journal whose LINE count is past the bound — the sibling of the transaction
- * bound above, and written for the same reason: the file's whole point is being
- * longer than the repository should hold. Every line is a comment, so the line
- * bound is the ONLY one that runs out: no transaction header is past its own
- * bound, and the sentence a scenario reads is the lines clause alone.
- */
 Given(
   "a ledger of {int} lines exists at {string}",
   function (this: World, count: number, file: string) {
@@ -1424,12 +1148,6 @@ Given(
   },
 );
 
-/**
- * A one-transaction journal whose DESCRIPTION is longer than the cell bound, so
- * `longCells` is the only bound that runs out. The description is generated
- * rather than spelled in the Gherkin: three thousand characters of `x` in a
- * scenario would bury the one assertion it makes.
- */
 Given(
   "a ledger whose description is {int} characters exists at {string}",
   function (this: World, characters: number, file: string) {

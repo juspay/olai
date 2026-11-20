@@ -1,4 +1,3 @@
-/** This row's drawing, contributed for the lifetime of its glyph component. */
 export function KindGlyph() {
   return <svg class="h-full w-full" viewBox="0 0 16 16" preserveAspectRatio="xMinYMid meet" fill="currentColor" aria-hidden="true">{HledgerPaths()}</svg>
 }

@@ -17,9 +17,6 @@ Feature: A link to a ledger is a link
     Given the ledger fixtures are served
 
   Scenario: A node's link to a ledger draws no card
-    # A node whose note links the ledger, opened on the node's own page — the
-    # precedent `link_preview.feature` sets, and the same door this claim needs:
-    # a note's links are the markdown an ordinary reader writes.
     Given I rewrite "pointer.olai" as:
       """
       {"id":"ptr","ord":"a0","title":"Pointer","desc":"[the ledger](money/household.journal)"}

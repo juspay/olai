@@ -1,27 +1,8 @@
-/**
- * A TRANSACTION'S HEADER — the date, the mark, the code and the two halves of
- * the description — and NOTHING under it.
- *
- * This is context-free: it reads one line and answers whether that line is a
- * header. The postings below it are {@link ./posting.ts}'s, and it is
- * {@link ./group.ts}'s fold that knows there were any. Splitting the header
- * from the body is what makes a header a value a caller can judge before it
- * decides what follows.
- *
- * A date-shaped line whose date names no real day is NOT a header (`null`):
- * a header this reader cannot date is a line it cannot make sense of, and the
- * caller keeps it as raw text.
- */
 import { DATE_SHAPE, endsAt, iso } from "./date.ts"
 import { type Tag, tagsIn } from "./tags.ts"
 
-/** How a transaction is marked: `*` cleared, `!` pending, or neither. */
 export type Status = "cleared" | "pending" | "unmarked"
 
-/** One transaction's header. `date` is the line's own spelling normalized to
- *  `YYYY-MM-DD`; `payee` and `note` are the two halves of a `a | b`
- *  description, and `payee` is the whole description when the file wrote no
- *  `|`. */
 export interface Header {
   readonly date: string
   readonly secondaryDate: string | null
@@ -34,7 +15,6 @@ export interface Header {
   readonly tags: ReadonlyArray<Tag>
 }
 
-/** One transaction's header, or `null` when the line is not one. */
 export const headerOf = (line: string): Header | null => {
   const dateWritten = DATE_SHAPE.exec(line)?.[0]
   if (dateWritten === undefined) return null
@@ -44,9 +24,6 @@ export const headerOf = (line: string): Header | null => {
 
   let secondaryDate: string | null = null
   if (rest.startsWith("=")) {
-    // `=` here is a secondary date and nothing else; a spelling that names no
-    // real day makes the whole line unreadable rather than a transaction whose
-    // second date quietly went missing.
     const after = rest.slice(1)
     const second = DATE_SHAPE.exec(after)?.[0]
     if (second === undefined || !endsAt(after, second.length)) return null

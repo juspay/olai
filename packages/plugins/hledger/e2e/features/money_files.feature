@@ -22,42 +22,25 @@ Feature: A ledger file in the vault
     When I open the app
     And I expand the folder "money"
     Then the ledger rows listed are "money/broken.journal, money/empty.journal, money/household.journal, money/ledger.ledger, money/personal.journal, money/wallet.hledger"
-    # The glyph is the KIND's, asked of every suffix so that a `.ledger` drawn
-    # with some other kind's mark is a failure rather than a detail.
     And the ledger row "money/household.journal" wears its own glyph
     And the ledger row "money/wallet.hledger" wears its own glyph
     And the ledger row "money/ledger.ledger" wears its own glyph
-    # A ledger is not a document, so the name a row draws is the file's own —
-    # suffix and all, exactly what the tab would say.
     And the ledger row "money/household.journal" reads "household.journal"
     And the ledger row "money/wallet.hledger" reads "wallet.hledger"
-    # …and the outlines beside them are untouched: a vault that gained a kind
-    # did not lose the one `Daily/2026-08.olai` lives in.
     And the "outline-olai" rows listed are "Daily/2026-08.olai, garden.olai, house.olai"
     And there should be no page errors
 
   Scenario: The noun the kind answers to is what a missing ledger is called
-    # The registry's `noun` for this kind is `ledger` (`../src/claim.ts`), and
-    # the one place a reader meets it is the page for an address that names no
-    # file. Asserted here rather than in a unit test because the sentence is
-    # drawn by the body page the ledger borrows.
     When I open the address "/money/nowhere.journal"
     Then the empty page says "Page not found" over "There is no ledger named money/nowhere.journal."
     And there should be no page errors
 
-  # The address alone opens each of the three suffixes — a RELOAD, not a route,
-  # because a prefix-free address is a real URL somebody can paste. One outline
-  # rather than three scenarios, so a suffix that stopped being claimed is one
-  # row of a failure and not a missing test.
   Scenario Outline: The address alone opens each ledger suffix
     When I open the address "/<file>"
     Then the document open is "<file>"
     And the address is "/<file>"
     And the ledger is showing the "transactions" view
     And the ledger header counts <transactions> <txnoun> and <accounts> <acnoun>
-    # ONE POSTING EACH, so the three fixtures' arithmetic is read and not only
-    # their header: the dollars of the household, the euros of the wallet, the
-    # bare number of the `.ledger`.
     And the ledger transaction 1 posting 1 reads "<posting>"
     And there should be no page errors
 
@@ -67,9 +50,6 @@ Feature: A ledger file in the vault
       | money/wallet.hledger    | 1            | transaction  | 4        | accounts | expenses:coffee \| 4.50 EUR \| false       |
       | money/ledger.ledger     | 1            | transaction  | 4        | accounts | expenses:transport \| 2.75 \| false        |
 
-  # The sidebar's half of the same door: a reader who does not know the address
-  # finds the row. A ROUTE, not a reload — the page answers in place, exactly as
-  # a document's link does.
   Scenario: Clicking a ledger in the sidebar opens its page in place
     When I open the app
     And I expand the folder "money"
@@ -82,8 +62,6 @@ Feature: A ledger file in the vault
     And the ledger header counts 5 transactions and 12 accounts
     And there should be no page errors
 
-  # A ledger is a file of the vault, so the palette finds it by name and opens
-  # it — the row this kind earns in the same list `.md` does.
   Scenario: The palette finds a ledger by name and opens it
     When I open the app
     Given I mark the page
