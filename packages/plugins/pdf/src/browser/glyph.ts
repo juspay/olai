@@ -1,6 +1,3 @@
-/** The glyph activation has no page dependency. The icon is an inert drawing
- * supplied by this row's browser entry, so this lifetime can be tested without
- * importing JSX into the headless runner. */
 import { definePlugin } from "@olai/plugin-api"
 import { fileKindKey } from "@olai/plugin-api/file-kinds"
 import { Effect } from "effect"

@@ -13,22 +13,12 @@ import { Pdf } from "./browser/Pdf.tsx"
 import { holdServed } from "./browser/vault.ts"
 import { referrerMemoryChannel } from "@olai/ui-primitives/referrer-memory.ts"
 
-// THE CHANNEL to the section's memory, factory-minted HERE (a package calls
-// it once; `@olai/ui-primitives/referrer-memory.ts`'s `referrerMemoryChannel`
-// says why it is a factory rather than a module-scope holder). The `referrers`
-// component below holds through it; this row's `page` reads through it.
 const channel = referrerMemoryChannel()
 
 const by = { kind: name } as const
 export default definePlugin({ name, needs: [], apply: Effect.void })
 export const components = {
   glyph: glyphComponent(KindGlyph),
-  /** The referrers section's open-state memory, DECLARED — a component of its
-   *  own so a pdf page still draws when the markdown row is off (the
-   *  `document-properties` pattern): this component sits `waiting`, the page
-   *  reads the empty answer (collapsed section) rather than this row turning
-   *  off with it (the `channel` below, minted from
-   *  `@olai/ui-primitives/referrer-memory.ts`'s `referrerMemoryChannel`). */
   referrers: definePlugin({ name: "referrers", needs: [referrerMemory], apply: Effect.gen(function*() {
     const memory = yield* referrerMemory
     yield* Effect.acquireRelease(Effect.sync(() => channel.hold(memory)), stop => Effect.sync(stop))

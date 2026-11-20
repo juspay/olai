@@ -1,4 +1,3 @@
-/** Stable identifiers owned by this row's browser contributions. */
 export const TESTID = {
   pdfLink: "pdf-link",
   pdfEmbed: "pdf-embed",
