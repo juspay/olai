@@ -22,9 +22,13 @@ export const judge = (
   sender: Sender,
   here: { readonly self: number; readonly parent: number; readonly armedParent: number },
 ): Verdict => {
+  // rt_sigqueueinfo lets a sender supply any si_pid; only the kill family's
+  // codes (SI_USER, SI_TKILL, SI_KERNEL) are the kernel's own to write.
   if (sender.code < 0 && sender.code !== SI.TKILL) return "refuse"
   if (sender.pid === 0) return "honor"
   if (sender.pid === here.self || sender.pid === here.parent) return "honor"
+  // PR_SET_PDEATHSIG's death signal carries si_pid of the DYING parent, and
+  // the reparent to init has already happened by the time it is read.
   if (sender.pid === here.armedParent && here.parent !== here.armedParent) return "honor"
   return "refuse"
 }
@@ -46,6 +50,9 @@ export const who = (pid: number, self: number): string => {
 const journal = (word: "honoring" | "refused", sender: Sender): string =>
   `olai web: ${word} SIGTERM from pid ${sender.pid} uid ${sender.uid} ${who(sender.pid, process.pid)}\n`
 
+/** glibc/musl's userland `struct sigaction` on 64-bit Linux: handler@0 (8),
+ *  mask@8 (128 bytes), flags@136 — 152 bytes total. Built by hand because the
+ *  ffi layer has no headers. */
 const SA_SIZE = 152
 const SA_FLAGS_OFF = 136
 const SA_SIGINFO = 4
@@ -92,6 +99,10 @@ const openLibc = (): Libc => {
   throw new Error(`no libc with pipe2/sigaction/write: ${tried.join("; ")}`)
 }
 
+/** `bun:ffi`'s `cc` ends every compile with a libc link, even for a
+ *  freestanding source that references nothing, and looks for `libc.so` in FHS
+ *  paths NixOS does not have — so the object this process already has mapped is
+ *  staged under that name for the `-L`. */
 const compileHandler = (): {
   readonly addr: () => bigint | number
   readonly arm: (writeAddr: bigint, fd: number) => void

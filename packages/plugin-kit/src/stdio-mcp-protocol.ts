@@ -42,7 +42,7 @@ export const parse = (line: string): { message: Record<string, unknown> } | { er
 export const step = (state: Exchange, message: Record<string, unknown>): Step => {
   const unchanged: Step = { state, send: [] }
   const failed = (cause: string): Step => ({ ...unchanged, answer: { _tag: "failed", cause } })
-  // Notifications carry no id and cannot finish either outstanding question.
+  // A JSON-RPC notification carries no id, so it answers neither question.
   if (message["id"] === undefined) return unchanged
   if (message["error"] !== undefined) return failed(JSON.stringify(message["error"]))
   if (message["id"] === 1) {
@@ -67,8 +67,8 @@ export const step = (state: Exchange, message: Record<string, unknown>): Step =>
     return { name: String(tool["name"]), inputs: Object.keys(schema.properties ?? {}) }
   })]
   const next = { ...state, tools }
-  // A surface is judged only after its last page: a required tool can appear
-  // on any page, and the cursor is the peer's opaque continuation.
+  // MCP paginates `tools/list`: a tool can appear on any page, and
+  // `nextCursor` is the peer's opaque continuation.
   const cursor = result.nextCursor
   return typeof cursor === "string" && cursor !== ""
     ? { state: next, send: [{ jsonrpc: "2.0", id: 2, method: "tools/list", params: { cursor } }] }

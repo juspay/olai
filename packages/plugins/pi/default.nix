@@ -18,9 +18,9 @@ let
     bin = "pi-acp";
     npmDepsHash = "sha256-1bRrVwPBx5i6aGE6vbhI8UgjFkOsLXsHyrMDBXcDP9k=";
     patches = ./acp/patches;
-    # esbuild bundles the MCP bridge into one self-contained file (below),
-    # which is what pi LOADS through jiti from inside a bun-compiled binary
-    # whose package-resolution drops the knot of relative-URL discipline.
+    # pi loads the bridge through jiti from inside a bun-compiled binary whose
+    # package resolution drops relative-URL discipline, so it is bundled into
+    # one self-contained file.
     extraNativeBuildInputs = [ pkgs.esbuild ];
     env = [ ''--set PI_ACP_MCP_EXTENSION "${mcpBridgeDir}/extension.bundle.mjs"'' ];
     postInstall = ''

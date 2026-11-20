@@ -4,7 +4,7 @@ import { dispatch } from "./surface.ts"
 import { holdEdits } from "./writes.ts"
 import { inboxIn } from "@olai/format"
 import { definePlugin } from "@olai/plugin-api"
-import { createInboxHeld } from "./inbox.ts"
+import { createInboxCount } from "./inbox.ts"
 import { Effect } from "effect"
 import { navigation } from "olai-plugin-navigation/contract"
 import { fileNamed } from "olai-plugin-navigation/routes"
@@ -17,9 +17,9 @@ import { Inbox } from "./Inbox.tsx"
 import { capturePalette } from "./Palette.tsx"
 import { captureThumb } from "./Thumb.tsx"
 function Entry(props: SidebarRegionProps & {active:()=>string|undefined}) {
- const count=createInboxHeld(); const served = useServed(); const inbox = createMemo(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : inboxIn(claims, served()) })())
+ const count=createInboxCount(); const served = useServed(); const inbox = createMemo(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : inboxIn(claims, served()) })())
  const off = () => { const files = servedDirectory(), row = files?.outlineRow(); return row !== undefined && files?.claims().byKind.has(row) === false }
- return <Show when={!off()} fallback={<p class="px-2 py-1 text-body text-muted">Inbox needs {servedDirectory()?.outlineRow()}, which is turned off.</p>}><Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count().count}/>}</Show></Show>
+ return <Show when={!off()} fallback={<p class="px-2 py-1 text-body text-muted">Inbox needs {servedDirectory()?.outlineRow()}, which is turned off.</p>}><Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count() ?? 0}/>}</Show></Show>
 }
 export const components={palette:capturePalette,thumb:captureThumb}
 export default definePlugin({name:"capture", needs:[Wired, Edits, rendererSlots, navigation, fileAccess], apply:Effect.gen(function*(){

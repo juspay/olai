@@ -19,8 +19,7 @@ export const createWho = (): Asking => {
     fromAsk(await runAsync(olai.procedures.who.get())),
   )
   return {
-    // `createResource()` rethrows on error; the chip must not. A failed
-    // door is `failed`, not a thrown render (which is a fault card).
+    // SolidJS rethrows the error from a resource accessor on every read.
     who: () => (who.error != null ? undefined : who.latest),
     heard: () => connectionEpoch() > 0 && who.state !== "unresolved" && who.state !== "pending",
     failed: () => who.error != null,

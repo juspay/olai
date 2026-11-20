@@ -1,8 +1,6 @@
-# `contract` is the strict door: it returns the validated contract and throws.
-# `contractProblems` is the pure door — the same rules as a list of messages,
-# never thrown — because Nix exposes no thrown message to the evaluator, so
-# `nix/fold-check.nix` and the fold's `diagnostics` cannot read a `throw`.
-# One helper computes both.
+# Nix exposes no thrown message to the evaluator, so `nix/fold-check.nix` and
+# the fold's `diagnostics` cannot read a `throw`: the same rules are computed
+# once and offered as a throwing door and a message-list door.
 { pkgs }:
 let
   lib = pkgs.lib;

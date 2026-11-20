@@ -19,11 +19,8 @@ pkgs.runCommand "olai-fonts"
   meta.description = "olai's hosted typefaces, as woff2";
 } ''
   mkdir -p $out
-  # woff2_compress writes its output BESIDE its input and cannot be told
-  # otherwise, and its input here is a read-only store path — so each face is
-  # copied into the build directory first, converted there, and only the
-  # .woff2 moves to $out. The TTF/OTF is a build intermediate, never product:
-  # the generated sheet names woff2 and there is no fallback path.
+  # woff2_compress writes its output beside its input and cannot be told
+  # otherwise, and its input here is a read-only store path.
   for face in $faces; do
     base=''${face##*/}
     cp "$face" "$base"

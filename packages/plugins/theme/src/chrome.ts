@@ -4,12 +4,9 @@ import type { Palette, Scheme } from "@olai/appearance/palettes.ts"
 
 export const createChrome = () => {
   const previousTitle = document.title
-  /**
-   * EVERY `theme-color` meta, not the first one: the browser paints from the
-   * first meta whose `prefers-color-scheme` media matches, and the shell ships
-   * one per scheme (`@olai/appearance/shell.ts`). The media attributes are left as the
-   * shell authored them, so withdrawal hands that story back intact.
-   */
+  /** The browser paints from the first `theme-color` meta whose
+   *  `prefers-color-scheme` media matches, and the shell ships one per scheme,
+   *  so every one of them is held and repainted. */
   const previousColors = Array.from(document.querySelectorAll('meta[name="theme-color"]'))
     .map((element) => ({ element, content: element.getAttribute("content") }))
   const previousIcon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')

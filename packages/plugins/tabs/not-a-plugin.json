@@ -7,7 +7,7 @@
     "src/Links.tsx": 2,
     "src/Strip.tsx": 2,
     "src/browser.tsx": 9,
-    "src/store.ts": 3
+    "src/store.ts": 4
   },
   "trash": {
     "src/face.ts": 1

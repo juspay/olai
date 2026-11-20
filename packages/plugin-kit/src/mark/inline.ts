@@ -14,14 +14,7 @@ function refuse(source: string, what: string): never {
   throw new Error(`${source}: ${what}`)
 }
 
-export const inlineMark = (
-  svg: string,
-  source: string,
-): { readonly viewBox: string; readonly body: string } => {
-  if (svg.includes(MARK_TOKEN)) {
-    refuse(source, `already contains the sentinel ${MARK_TOKEN}, which this transform needs to be its own`)
-  }
-
+const bodyOf = (svg: string, source: string): { readonly viewBox: string; readonly body: string } => {
   const open = /<svg\b[^>]*>/.exec(svg)
   if (open === null) refuse(source, "has no root <svg> element")
   const openTag = open[0]
@@ -29,36 +22,38 @@ export const inlineMark = (
   if (close < open.index + openTag.length) {
     refuse(source, "has no closing </svg> for its root element")
   }
-  const viewBoxAt = /\sviewBox\s*=\s*"([^"]*)"/.exec(openTag)
-  const viewBox = viewBoxAt?.[1] ?? ""
-  if (viewBox.trim() === "") {
+  const viewBox = (/\sviewBox\s*=\s*"([^"]*)"/.exec(openTag)?.[1] ?? "").trim()
+  if (viewBox === "") {
     refuse(source, "root <svg> has no viewBox — the nested viewport has nothing to fit the artwork into")
   }
+  return { viewBox, body: svg.slice(open.index + openTag.length, close) }
+}
 
-  let body = svg.slice(open.index + openTag.length, close)
-
-  // A FIXPOINT, AND THEN A REFUSAL — because one pass is not a strip. Removing
-  // a match splices what is on either side of it, and two halves can close up
-  // into a delimiter that was not there before: `<!-<!-- -->-` is one match,
-  // and taking it leaves `<!--` (CodeQL's
-  // `js/incomplete-multi-character-sanitization`). And HTML's
-  // comment-end-bang state accepts `--!>`, so a strip that knew only `-->`
-  // would walk past `<!-- x --!>` and leave the whole of it standing.
-  for (let before = ""; before !== body;) {
-    before = body
-    body = body.replace(/<!--[\s\S]*?--!?>/g, "")
+// A fixpoint, and then a refusal: removing a match splices what is on either
+// side of it, so two halves can close up into a delimiter that was not there
+// before — `<!-<!-- -->-` is one match and taking it leaves `<!--` — and
+// HTML's comment-end-bang state accepts `--!>` as a close as well as `-->`.
+const withoutComments = (body: string, source: string): string => {
+  let stripped = body
+  for (let before = ""; before !== stripped;) {
+    before = stripped
+    stripped = stripped.replace(/<!--[\s\S]*?--!?>/g, "")
   }
-  const bogus = /<[!?]|--!?>/.exec(body)
+  const bogus = /<[!?]|--!?>/.exec(stripped)
   if (bogus !== null) {
     refuse(source, `still carries ${bogus[0]} after the comments were taken out`)
   }
+  return stripped
+}
 
-  body = body
+const withoutProse = (body: string): string =>
+  body
     .replace(/<title\b[^>]*\/>/g, "")
     .replace(/<title\b[^>]*>[\s\S]*?<\/title>/g, "")
     .replace(/<desc\b[^>]*\/>/g, "")
     .replace(/<desc\b[^>]*>[\s\S]*?<\/desc>/g, "")
 
+const refuseConstructs = (body: string, source: string): void => {
   if (/<script\b/i.test(body)) refuse(source, "contains a <script> element")
   if (/<style\b/i.test(body)) {
     refuse(source, "contains a <style> element, whose selectors reference ids this rewrite cannot see")
@@ -72,7 +67,9 @@ export const inlineMark = (
       refuse(source, `references ${value} outside the document — a mark may only point at its own ids`)
     }
   }
+}
 
+const declaredIn = (body: string, source: string): ReadonlySet<string> => {
   const declared = new Set<string>()
   for (const found of body.matchAll(ID_ATTR)) {
     const id = found[2] ?? ""
@@ -82,32 +79,32 @@ export const inlineMark = (
     if (declared.has(id)) refuse(source, `declares the id "${id}" twice`)
     declared.add(id)
   }
-  const declaredCount = declared.size
+  return declared
+}
 
-  body = body.replace(
-    /(\sid\s*=\s*)(["'])(.*?)\2/g,
-    (_whole: string, before: string, quote: string, id: string) =>
-      `${before}${quote}${MARK_TOKEN}${id}${quote}`,
-  )
-  body = body.replace(
-    /url\(\s*(['"]?)#([^'")\s]+)\1\s*\)/g,
-    (_whole: string, quote: string, id: string) => {
-      if (!declared.has(id)) {
-        refuse(source, `references #${id}, which it does not declare`)
-      }
-      return `url(${quote}#${MARK_TOKEN}${id}${quote})`
-    },
-  )
-  body = body.replace(
-    /(\s(?:xlink:)?href\s*=\s*)(["'])#(.*?)\2/g,
-    (_whole: string, before: string, quote: string, id: string) => {
-      if (!declared.has(id)) {
-        refuse(source, `references #${id}, which it does not declare`)
-      }
-      return `${before}${quote}#${MARK_TOKEN}${id}${quote}`
-    },
-  )
+const tokenised = (body: string, declared: ReadonlySet<string>, source: string): string => {
+  const known = (id: string): string => {
+    if (!declared.has(id)) refuse(source, `references #${id}, which it does not declare`)
+    return id
+  }
+  return body
+    .replace(
+      /(\sid\s*=\s*)(["'])(.*?)\2/g,
+      (_whole: string, before: string, quote: string, id: string) =>
+        `${before}${quote}${MARK_TOKEN}${id}${quote}`,
+    )
+    .replace(
+      /url\(\s*(['"]?)#([^'")\s]+)\1\s*\)/g,
+      (_whole: string, quote: string, id: string) => `url(${quote}#${MARK_TOKEN}${known(id)}${quote})`,
+    )
+    .replace(
+      /(\s(?:xlink:)?href\s*=\s*)(["'])#(.*?)\2/g,
+      (_whole: string, before: string, quote: string, id: string) =>
+        `${before}${quote}#${MARK_TOKEN}${known(id)}${quote}`,
+    )
+}
 
+const verifyRewrite = (body: string, declaredCount: number, source: string): void => {
   for (const found of body.matchAll(ID_ATTR)) {
     const id = found[2] ?? ""
     if (!id.startsWith(MARK_TOKEN)) refuse(source, `left the id "${id}" untokenised`)
@@ -126,6 +123,20 @@ export const inlineMark = (
   if (!DRAWS.test(body)) {
     refuse(source, "has no drawing element left after the rewrite — the mark would be an empty box")
   }
+}
 
-  return { viewBox: viewBox.trim(), body: body.trim() }
+export const inlineMark = (
+  svg: string,
+  source: string,
+): { readonly viewBox: string; readonly body: string } => {
+  if (svg.includes(MARK_TOKEN)) {
+    refuse(source, `already contains the sentinel ${MARK_TOKEN}, which this transform needs to be its own`)
+  }
+  const { viewBox, body: raw } = bodyOf(svg, source)
+  const stripped = withoutProse(withoutComments(raw, source))
+  refuseConstructs(stripped, source)
+  const declared = declaredIn(stripped, source)
+  const body = tokenised(stripped, declared, source)
+  verifyRewrite(body, declared.size, source)
+  return { viewBox, body: body.trim() }
 }

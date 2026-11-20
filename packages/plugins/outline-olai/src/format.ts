@@ -157,12 +157,12 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
     }
   }
 
-  // `new Date("2026-08-01")` is midnight UTC by spec, where the offset-local
-  // spellings beside it read local, so a day-only `started` would slide a span
-  // by half a day: no day arm here.
+  // `new Date("2026-08-01")` is midnight UTC by spec, where the zoned
+  // spellings beside it carry their own offset: a day-only `started` would
+  // slide a span by half a day.
   if (
     typeof node.started === "string" &&
-    !(isIsoInstant(node.started) && isIsoDatetime(node.started))
+    !(isIsoInstant(node.started) && isZonedIsoInstant(node.started))
   ) {
     at(
       "bad-date",
@@ -174,7 +174,7 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
 }
 
 
-const isIsoDatetime = (value: string): boolean =>
+const isZonedIsoInstant = (value: string): boolean =>
   /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(value)
 
 const describe = (json: unknown): string =>

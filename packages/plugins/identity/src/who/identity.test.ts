@@ -121,8 +121,6 @@ test("Pomerium claim headers are the same family under other words", () => {
 })
 
 test("the allowlist names each header once, and drops a claim that is off", () => {
-  // Tailscale's login IS the email claim, so the two names collide: listing
-  // both would take the bind down (kolu#2196 refuses a repeated wire header).
   expect(headerNamesOf(DEFAULT_IDENTITY_HEADERS)).toEqual([
     "Tailscale-User-Login",
     "Tailscale-User-Name",

@@ -52,7 +52,7 @@ const prettyFormat = (stream: Stream) => {
   })
 }
 
-export const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
+const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
   Logger.withConsoleLog(prettyFormat(stream))
 
 const adaptive = (

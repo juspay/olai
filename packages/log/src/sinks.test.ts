@@ -5,10 +5,8 @@ import { TestConsole } from "effect/testing"
 import {
   colorsFor,
   formatFor,
-  prettyFor,
   LogPresentation,
   type Presentation,
-  type Stream,
   toStderr,
   toStdout,
 } from "./sinks.ts"
@@ -41,13 +39,23 @@ const withNoColor = async <A>(
   }
 }
 
-const renderedPretty = (stream: Stream): Promise<string> =>
-  Effect.gen(function*() {
-    yield* Effect.logInfo("serving").pipe(
-      Effect.provide(Logger.layer([prettyFor(stream)])),
-    )
-    return (yield* TestConsole.logLines).map(String).join("\n")
-  }).pipe(Effect.provide(TestConsole.layer), Effect.runPromise)
+const withIsTTY = async <A>(
+  stream: NodeJS.WriteStream,
+  value: boolean,
+  body: () => Promise<A>,
+): Promise<A> => {
+  const prev = Object.getOwnPropertyDescriptor(stream, "isTTY")
+  Object.defineProperty(stream, "isTTY", { value, configurable: true, writable: true })
+  try {
+    return await body()
+  } finally {
+    if (prev !== undefined) Object.defineProperty(stream, "isTTY", prev)
+    else delete (stream as unknown as { isTTY?: boolean }).isTTY
+  }
+}
+
+const renderedPretty = (isTTY: boolean): Promise<string> =>
+  withIsTTY(process.stdout, isTTY, async () => (await written(toStdout, "pretty")).out.map(String).join("\n"))
 
 const writtenWithExpected = (
   sink: Layer.Layer<never>,
@@ -154,10 +162,10 @@ test("presentation is explicit, while auto follows the destination", () => {
   expect(formatFor({})).toBe("logfmt")
 })
 
-test("prettyFor emits ANSI only for a TTY stream", async () => {
+test("pretty output emits ANSI only for a TTY stream", async () => {
   await withNoColor(undefined, async () => {
-    const onTty = await renderedPretty({ isTTY: true })
-    const onPipe = await renderedPretty({ isTTY: false })
+    const onTty = await renderedPretty(true)
+    const onPipe = await renderedPretty(false)
 
     expect(onTty).toContain("serving")
     expect(onPipe).toContain("serving")
@@ -166,29 +174,14 @@ test("prettyFor emits ANSI only for a TTY stream", async () => {
   })
 })
 
-test("prettyFor honours NO_COLOR even on a TTY stream", async () => {
+test("pretty output honours NO_COLOR even on a TTY stream", async () => {
   await withNoColor("1", async () => {
     expect(colorsFor({ isTTY: true })).toBe(false)
-    const line = await renderedPretty({ isTTY: true })
+    const line = await renderedPretty(true)
     expect(line).toContain("serving")
     expect(line).not.toContain("\u001b[")
   })
 })
-
-const withIsTTY = async <A>(
-  stream: NodeJS.WriteStream,
-  value: boolean,
-  body: () => Promise<A>,
-): Promise<A> => {
-  const prev = Object.getOwnPropertyDescriptor(stream, "isTTY")
-  Object.defineProperty(stream, "isTTY", { value, configurable: true, writable: true })
-  try {
-    return await body()
-  } finally {
-    if (prev !== undefined) Object.defineProperty(stream, "isTTY", prev)
-    else delete (stream as unknown as { isTTY?: boolean }).isTTY
-  }
-}
 
 test("toStderr's pretty colour comes from stderr, not stdout", async () => {
   await withNoColor(undefined, async () => {
@@ -251,22 +244,23 @@ test("toStderr does not force LogToStderr on sibling loggers", async () => {
 
 
 test("compact output keeps context inline, abbreviates UUIDs, and names root changes", async () => {
-  const lines = await Effect.gen(function*() {
-    for (const root of ["/vault/a", "/vault/a", "/vault/b", "/vault/a"]) {
-      yield* Effect.logInfo("conversation opened").pipe(Effect.annotateLogs({
-        root,
-        agent: "claude",
-        session: "9b618f09-62d4-406d-bf8f-6e88bd8b3f89",
-        args: "",
-        detail: "first\nsecond",
-      }))
-    }
-    return yield* TestConsole.logLines
-  }).pipe(
-    Effect.provide(Logger.layer([prettyFor({ isTTY: false })])),
-    Effect.provide(TestConsole.layer),
-    Effect.runPromise,
-  )
+  const lines = await withIsTTY(process.stdout, false, () =>
+    Effect.gen(function*() {
+      for (const root of ["/vault/a", "/vault/a", "/vault/b", "/vault/a"]) {
+        yield* Effect.logInfo("conversation opened").pipe(Effect.annotateLogs({
+          root,
+          agent: "claude",
+          session: "9b618f09-62d4-406d-bf8f-6e88bd8b3f89",
+          args: "",
+          detail: "first\nsecond",
+        }))
+      }
+      return yield* TestConsole.logLines
+    }).pipe(
+      Effect.provide(Layer.merge(toStdout, Layer.succeed(LogPresentation, () => "pretty" as const))),
+      Effect.provide(TestConsole.layer),
+      Effect.runPromise,
+    ))
   expect(lines).toHaveLength(4)
   const rendered = lines.map(String)
   for (const line of rendered) {
@@ -310,14 +304,15 @@ test("compact errors retain the cause and root on the selected stream", async ()
 test("compact messages handle errors, circular values, bigint and redaction", async () => {
   const circular: Record<string, unknown> = { count: 1n }
   circular["self"] = circular
-  const lines = await Effect.gen(function*() {
-    yield* Effect.logInfo("details", new Error("ordinary error"), circular, Redacted.make("secret-value"))
-    return yield* TestConsole.logLines
-  }).pipe(
-    Effect.provide(Logger.layer([prettyFor({ isTTY: false })])),
-    Effect.provide(TestConsole.layer),
-    Effect.runPromise,
-  )
+  const lines = await withIsTTY(process.stdout, false, () =>
+    Effect.gen(function*() {
+      yield* Effect.logInfo("details", new Error("ordinary error"), circular, Redacted.make("secret-value"))
+      return yield* TestConsole.logLines
+    }).pipe(
+      Effect.provide(Layer.merge(toStdout, Layer.succeed(LogPresentation, () => "pretty" as const))),
+      Effect.provide(TestConsole.layer),
+      Effect.runPromise,
+    ))
   expect(lines).toHaveLength(1)
   const line = String(lines[0])
   expect(line).toContain("ordinary error")

@@ -6,7 +6,7 @@ import * as path from "node:path"
 
 import {
   canonical,
-  digestOf,
+  nameForServedDir,
   directoryForLocal,
   fileForLocal,
   LOCAL_DIRECTORY_MARK,
@@ -59,8 +59,8 @@ test("one directory is one name, however it was spelled", () =>
     try {
       expect(canonical(link)).toBe(root)
       expect(canonical(`${root}/`)).toBe(root)
-      expect(digestOf(canonical(link))).toBe(digestOf(canonical(root)))
-      expect(digestOf(root)).not.toBe(digestOf(`${root}-other`))
+      expect(nameForServedDir(link)).toBe(nameForServedDir(root))
+      expect(nameForServedDir(root)).not.toBe(nameForServedDir(`${root}-other`))
     } finally {
       fs.unlinkSync(link)
     }
@@ -68,13 +68,13 @@ test("one directory is one name, however it was spelled", () =>
 
 test("a directory that is not there still has a name", () => {
   expect(canonical("/no/such/place")).toBe("/no/such/place")
-  expect(digestOf(canonical("/no/such/place"))).toHaveLength(16)
+  expect(nameForServedDir("/no/such/place")).toHaveLength(16)
 })
 
 test("a plugin is a subdirectory of the state home, and the digest names the file", () =>
   withState(async ({ root, home }) => {
     expect(fileForLocal("example", root)).toBe(
-      path.join(home, "olai", "example", `${digestOf(root)}.json`),
+      path.join(home, "olai", "example", `${nameForServedDir(root)}.json`),
     )
   }))
 
@@ -153,7 +153,7 @@ test("a sweep walks every tenant directory, not only the kinds this build knows"
   withState(async ({ home }) => {
     const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
     fs.rmSync(gone, { recursive: true, force: true })
-    const foreign = path.join(home, "olai", "mirror", `${digestOf(gone)}.json`)
+    const foreign = path.join(home, "olai", "mirror", `${nameForServedDir(gone)}.json`)
     fs.mkdirSync(path.dirname(foreign), { recursive: true })
     fs.writeFileSync(foreign, JSON.stringify({ cwd: gone, channel: "ch-team" }) + "\n")
     expect(pruneGone()).toBe(1)
@@ -187,7 +187,7 @@ test("a record whose directory merely fails to answer stays — only ENOENT is d
     }
     const blocker = path.join(root, "afile")
     fs.writeFileSync(blocker, "not a directory\n")
-    const pinned = path.join(home, "olai", "chat", `${digestOf(`${blocker}/vault`)}.json`)
+    const pinned = path.join(home, "olai", "chat", `${nameForServedDir(`${blocker}/vault`)}.json`)
     fs.mkdirSync(path.dirname(pinned), { recursive: true })
     fs.writeFileSync(pinned, JSON.stringify({ cwd: `${blocker}/vault` }) + "\n")
     expect(pruneGone()).toBe(0)
@@ -204,7 +204,7 @@ test("what the sweep cannot rule on, it leaves: no cwd, no JSON, a staged tmp", 
     fs.writeFileSync(nameless, JSON.stringify({ session: "abc" }) + "\n")
     const broken = path.join(kind, "b.json")
     fs.writeFileSync(broken, "{ not json")
-    const staged = path.join(kind, `${digestOf(gone)}.json.123.4.tmp`)
+    const staged = path.join(kind, `${nameForServedDir(gone)}.json.123.4.tmp`)
     fs.writeFileSync(staged, JSON.stringify({ cwd: gone }) + "\n")
     expect(pruneGone()).toBe(0)
     for (const at of [nameless, broken, staged]) expect(fs.existsSync(at)).toBe(true)
@@ -230,7 +230,7 @@ test("bun test never answers with the developer's own state home by default", ()
 test("a local directory sits beside the record, owner-only, and reopens to the same path", () =>
   withState(async ({ root, home }) => {
     const at = directoryForLocal("browsing", root)
-    expect(at).toBe(path.join(home, "olai", "browsing", digestOf(root)))
+    expect(at).toBe(path.join(home, "olai", "browsing", nameForServedDir(root)))
     expect(`${at}.json`).toBe(fileForLocal("browsing", root))
     expect(await Effect.runPromise(openLocalDirectory(at, root))).toBe(at)
     expect(fs.statSync(at).mode & 0o777).toBe(0o700)

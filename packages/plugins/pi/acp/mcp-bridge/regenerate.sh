@@ -74,9 +74,9 @@ awk -v spawnHead="$work/spawnHead.js" -v envLine="$work/envLine.js" '
   { print }
 ' "$work/original.js" > "$work/rebuilt.js"
 
-if [ -z "$(tail -c1 "$work/original.js")" ]; then
-  :  # ends in a newline — awk's print matches it exactly
-else
+# awk's `print` ends every line with a newline and the upstream bundle ends
+# without one, so the byte it added comes back off.
+if [ -n "$(tail -c1 "$work/original.js")" ]; then
   truncate -s -1 "$work/rebuilt.js"
 fi
 

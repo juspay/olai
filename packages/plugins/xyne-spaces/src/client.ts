@@ -1,28 +1,3 @@
-/**
- * THE DIAL — Spaces' installed-app chat routes, as this plugin posts them.
- *
- * Shapes are read off `~/code/xyne-spaces` (`apps/backend/src/apps/routes/chat.ts`,
- * `controllers/chatController.ts`, `core/conversationUtils.ts`). Never guessed.
- *
- *   POST /api/apps/chat/postMessage     Authorization: Bearer <JWT>
- *     { channelId, markdownText, conversationId? }
- *     201 { eventType, conversationId, messageId }
- *
- *   POST /api/apps/chat/updateMessage
- *     { messageId, markdownText, channelId }
- *     200 { eventType, conversationId, messageId }
- *     `channelId` is required by `validateChannelAccessForPost` — the refine
- *     wants one of channelId / channelName / conversationId, and without it
- *     the route 400s before ChatController.updateMessage runs.
- *
- *   POST /api/apps/chat/agentProgress
- *     { conversationId, channelId?, status: "working"|"done", agentSlug?, sessionId? }
- *     200 { success: true }
- *
- * `conversationId` absent on postMessage opens a thread (a new Conversation);
- * present, it replies into that thread. That is `findOrCreateConversation`.
- */
-
 export interface Posted {
   readonly conversationId: string
   readonly messageId: string

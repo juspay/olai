@@ -16,7 +16,8 @@ export interface PluginHeading {
 
 export type HeadingName = Heading | PluginHeading
 
-export type Scope = "browser" | "shared"
+export const SCOPES_BY_REACH = ["browser", "shared"] as const
+export type Scope = (typeof SCOPES_BY_REACH)[number]
 
 export interface Section {
   readonly heading: HeadingName

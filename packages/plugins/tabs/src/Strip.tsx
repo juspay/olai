@@ -37,9 +37,9 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
 
   const faces = createFaces(props.router.routes, tabs.tabs)
 
-  /** Inside a `then` rather than a `catch`: a page served over plain http has
-   *  no `navigator.clipboard` at all, so the call throws before any promise
-   *  exists. The address is handed over to copy by hand instead. */
+  /** A page served over plain http has no `navigator.clipboard` at all, so the
+   *  call throws where it stands rather than rejecting: it is made inside a
+   *  `then` so the `catch` below sees it. */
   const copyAddress = (id: string): void => {
     const href = tabs.tabs().find((tab) => tab.id === id)?.href
     if (href === undefined) return

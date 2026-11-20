@@ -1,6 +1,5 @@
 {
   "name": "olai-plugin-codex",
-  "//name": "UNSCOPED, like every engine plugin: the directory, bundle id, settings namespace and docs address are all `codex`.",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -18,7 +17,6 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//": "THE CODEX ENGINE \u2014 its shipped ACP adapter, conservative reading of that wire, and the faces that identify it.",
   "dependencies": {
     "olai-plugin-chat": "workspace:*",
     "@olai/plugin-api": "workspace:*",

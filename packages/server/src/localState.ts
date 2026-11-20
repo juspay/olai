@@ -22,7 +22,7 @@ export const localStateFor = (
   ) => Effect.Effect<void, StateFailure> = writeLocal,
 ): LocalState => {
   const cwd = canonical(served)
-  const at = fileForLocal(plugin, cwd)
+  const at = fileForLocal(plugin, served)
   const gate = Semaphore.makeUnsafe(1)
   let loaded = false
   let record: Record<string, unknown> | null = null
@@ -43,7 +43,7 @@ export const localStateFor = (
     }))
 
   const directory = Effect.tapError(
-    Effect.suspend(() => openLocalDirectory(directoryForLocal(plugin, cwd), cwd)),
+    Effect.suspend(() => openLocalDirectory(directoryForLocal(plugin, served), cwd)),
     (failure) => Effect.sync(() => warn(`plugin ${plugin}: local directory unavailable (${failure.why})`)),
   )
 

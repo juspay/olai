@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { canonical, digestOf, fileForLocal, stateHome, StateFailure, writeLocal } from "@olai/state"
+import { canonical, nameForServedDir, fileForLocal, stateHome, StateFailure, writeLocal } from "@olai/state"
 import { definePlugin, LocalState, mountPlugin, } from "@olai/plugin-api/services"
 
 import { localStateFor } from "./localState.ts"
@@ -41,7 +41,7 @@ test("unreadable local state warns and answers null", () =>
     const warnings: Array<string> = []
     const local = localStateFor("example", served, (line) => warnings.push(line))
     await run(local.save({ queue: ["ok"] }))
-    const at = fileForLocal("example", canonical(served))
+    const at = fileForLocal("example", served)
     writeFileSync(at, "{ not json")
     const restarted = localStateFor("example", served, (line) => warnings.push(line))
     expect(await run(restarted.load)).toBeNull()
@@ -118,7 +118,7 @@ test("a flip reads the same door, and a restart reads the same record from disk"
 
       const first = yield* mountPlugin(plugins.host, plugin)
       yield* first.dispose
-      const at = fileForLocal("example", canonical(served))
+      const at = fileForLocal("example", served)
       const persisted = readFileSync(at, "utf8")
       rmSync(at)
 
@@ -134,7 +134,7 @@ test("a flip reads the same door, and a restart reads the same record from disk"
 test("old layouts stay inert and the first save writes only the current path", () =>
   withHome(async ({ served }) => {
     const cwd = canonical(served)
-    const old = join(stateHome(), "hold", `${digestOf(cwd)}.example.json`)
+    const old = join(stateHome(), "hold", `${nameForServedDir(cwd)}.example.json`)
     await run(writeLocal(old, { cwd, queue: ["old"] }))
     const warnings: Array<string> = []
     const local = localStateFor("example", served, (line) => warnings.push(line))
@@ -150,7 +150,7 @@ test("the directory door answers one private path per plugin and served director
     const warnings: Array<string> = []
     const local = localStateFor("example", served, (line) => warnings.push(line))
     const at = await run(local.directory)
-    expect(at).toBe(join(home, "olai", "example", digestOf(canonical(served))))
+    expect(at).toBe(join(home, "olai", "example", nameForServedDir(served)))
     expect(statSync(at).mode & 0o777).toBe(0o700)
     rmSync(at, { recursive: true })
     expect(await run(localStateFor("example", served, () => {}).directory)).toBe(at)

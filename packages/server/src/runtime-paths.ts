@@ -1,4 +1,4 @@
-import { canonical, digestOf, runtimeHome } from "@olai/state"
+import { canonical, nameForServedDir, runtimeHome } from "@olai/state"
 import type { RuntimePaths } from "@olai/ops"
 
-export const runtimePaths: RuntimePaths = { home: runtimeHome, canonical, digest: digestOf }
+export const runtimePaths: RuntimePaths = { home: runtimeHome, canonical, digest: nameForServedDir }

@@ -20,9 +20,6 @@ export const stateHome = (): string => {
   )
 }
 
-export const digestOf = (cwd: string): string =>
-  createHash("sha256").update(cwd).digest("hex").slice(0, 16)
-
 export const canonical = (root: string): string => {
   try {
     return fs.realpathSync(resolve(root))
@@ -30,6 +27,9 @@ export const canonical = (root: string): string => {
     return resolve(root)
   }
 }
+
+export const nameForServedDir = (root: string): string =>
+  createHash("sha256").update(canonical(root)).digest("hex").slice(0, 16)
 
 export class StateFailure extends Data.TaggedError("StateFailure")<{
   readonly why: string
@@ -39,15 +39,15 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
   }
 }
 
-export const fileForLocal = (plugin: string, cwd: string): string => {
+export const fileForLocal = (plugin: string, root: string): string => {
   if (plugin.length === 0 || /[^\w.-]/.test(plugin)) {
     throw new Error(`local state: plugin name ${JSON.stringify(plugin)} is not a filename`)
   }
-  return join(stateHome(), plugin, `${digestOf(cwd)}.json`)
+  return join(stateHome(), plugin, `${nameForServedDir(root)}.json`)
 }
 
-export const directoryForLocal = (plugin: string, cwd: string): string =>
-  fileForLocal(plugin, cwd).slice(0, -".json".length)
+export const directoryForLocal = (plugin: string, root: string): string =>
+  fileForLocal(plugin, root).slice(0, -".json".length)
 
 export const LOCAL_DIRECTORY_MARK = ".olai-cwd"
 

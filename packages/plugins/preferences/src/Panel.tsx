@@ -1,8 +1,3 @@
-/**
- * A row written for everyone must not sit under a line that says this
- * browser's, and the ordering makes that a consequence rather than a promise:
- * browser-local groups draw first, shared ones after.
- */
 import { TESTID } from "olai-plugin-preferences/testids"
 import type { Contribution } from "@olai/plugin-api"
 import { createMemo, For } from "solid-js"

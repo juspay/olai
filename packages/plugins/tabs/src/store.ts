@@ -53,7 +53,7 @@ export const createTabs = (router: Navigation): TabsStore => {
     return marked
   })
 
-  let laned = false
+  let lane: Navigation["switchLane"] | undefined
 
   const commit = (next: TabList): void => batch(() => {
     const before = untrack(list)
@@ -67,8 +67,8 @@ export const createTabs = (router: Navigation): TabsStore => {
     setList(updateTab(next, before.front, { key: router.entryKey() }))
     const incoming = next.tabs.find((tab) => tab.id === next.front)!
     const workspace = workspaceOf(router.routes, incoming.href)
-    if (laned) {
-      const key = router.switchLane(incoming.id, { workspace, key: incoming.key })
+    if (lane !== undefined) {
+      const key = lane(incoming.id, { workspace, key: incoming.key })
       setList((all) => updateTab(all, incoming.id, { key }))
     } else {
       router.open(workspace)
@@ -111,16 +111,24 @@ export const createTabs = (router: Navigation): TabsStore => {
       return () => setDots((all) => all.filter((one) => one !== row))
     },
     takeLane: () => createRoot((dispose) => {
+      const take = (): void => {
+        lane = router.switchLane
+        lane(untrack(list).front)
+      }
+      const release = (): void => {
+        if (lane === undefined) return
+        const held = lane
+        lane = undefined
+        held(null)
+      }
       createEffect(on(drawn, (desk) => {
-        if (desk === laned) return
-        laned = desk
-        router.switchLane(desk ? untrack(list).front : null)
+        if (desk === (lane !== undefined)) return
+        if (desk) take()
+        else release()
       }))
       return () => {
         dispose()
-        if (!laned) return
-        laned = false
-        router.switchLane(null)
+        release()
       }
     }),
     follow: () => createRoot((dispose) => {

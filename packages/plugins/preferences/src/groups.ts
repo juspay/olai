@@ -1,6 +1,6 @@
 import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { Contribution } from "@olai/plugin-api"
-import { HEADINGS, type PluginHeading, type Scope, type Section } from "./index.ts"
+import { HEADINGS, type PluginHeading, type Scope, SCOPES_BY_REACH, type Section } from "./index.ts"
 
 export const SCOPE_WORDS: Record<Scope, string> = {
   browser: "Saved in this browser only.",
@@ -19,11 +19,14 @@ export interface Run {
   readonly groups: ReadonlyArray<Group>
 }
 
-/** Their scopes should agree; the strictest wins, because a shared row under
- *  the browser-only line is the one arrangement the ordering exists to
- *  prevent. */
-const scopeOf = (entries: ReadonlyArray<Contribution<Section>>): Scope =>
-  entries.some((entry) => entry.value.scope === "shared") ? "shared" : "browser"
+const widestScope = (entries: ReadonlyArray<Contribution<Section>>): Scope =>
+  entries.reduce<Scope>(
+    (held, entry) =>
+      SCOPES_BY_REACH.indexOf(entry.value.scope) > SCOPES_BY_REACH.indexOf(held)
+        ? entry.value.scope
+        : held,
+    SCOPES_BY_REACH[0],
+  )
 
 export const groupsOf = (sections: ReadonlyArray<Contribution<Section>>): ReadonlyArray<Group> => {
   const fixed: Group[] = HEADINGS
@@ -32,7 +35,7 @@ export const groupsOf = (sections: ReadonlyArray<Contribution<Section>>): Readon
       return {
         key: heading.key,
         label: () => heading.label,
-        scope: scopeOf(entries),
+        scope: widestScope(entries),
         entries: entries.slice().sort((a, b) => a.value.order - b.value.order),
       }
     })
@@ -49,17 +52,15 @@ export const groupsOf = (sections: ReadonlyArray<Contribution<Section>>): Readon
     .map(([plugin, bucket]) => ({
       key: plugin,
       label: bucket.label,
-      scope: scopeOf(bucket.entries),
+      scope: widestScope(bucket.entries),
       entries: bucket.entries.slice().sort((a, b) => a.value.order - b.value.order),
     }))
     .filter((group) => group.entries.length > 0)
   const byLabel = (a: Group, b: Group): number => a.label().localeCompare(b.label())
-  return [
-    ...fixed.filter((group) => group.scope === "browser"),
-    ...plugins.filter((group) => group.scope === "browser").sort(byLabel),
-    ...fixed.filter((group) => group.scope === "shared"),
-    ...plugins.filter((group) => group.scope === "shared").sort(byLabel),
-  ]
+  return SCOPES_BY_REACH.flatMap((scope) => [
+    ...fixed.filter((group) => group.scope === scope),
+    ...plugins.filter((group) => group.scope === scope).sort(byLabel),
+  ])
 }
 
 export const runsOf = (groups: ReadonlyArray<Group>): ReadonlyArray<Run> => {
