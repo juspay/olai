@@ -1,11 +1,3 @@
-/**
- * The policy the guard applies, tested as the pure function it is —
- * the real-process halves of the same contract are
- * packages/server/src/shutdown.test.ts's (a stray TERM refused live;
- * the parent path honored live; the parent-DEATH contract honored
- * live, asserted on the journal line).
- */
-
 import { expect, test } from "bun:test"
 
 import { judge, SI, who } from "./sigterm.ts"
@@ -26,22 +18,13 @@ test("pid 0 is the belt, accepted only with a genuine kernel tag", () => {
 })
 
 test("THE MEASURED PDEATH SHAPE: the dying parent's pid, SI_USER, read after reparenting — honored", () => {
-  // kernel 7.1.5, probed twice by the review and once by the fix: the
-  // PR_SET_PDEATHSIG signal arrives with the DYING PARENT's pid and
-  // SI_USER — never si_pid 0 — and `forget_original_parent()` has
-  // already moved getppid() to 1 by the time the record is drained,
-  // so the PARENT arm alone would refuse it.
   const reparented = { self: 400, parent: 1, armedParent: 300 }
   expect(judge({ pid: 300, uid: 1000, code: SI.USER }, reparented)).toBe("honor")
-  // ...but that arm does not expire independently: an ordinary stop
-  // still comes from whoever the parent IS now.
   expect(judge({ pid: 1, uid: 0, code: SI.USER }, reparented)).toBe("honor")
   expect(judge({ pid: 301, uid: 1000, code: SI.USER }, reparented)).toBe("refuse")
 })
 
 test("the armed-parent arm is vacuous while that parent is alive", () => {
-  // parent === armedParent: the ordinary parent arm already covers the
-  // stop; the dead-parent arm adds nothing.
   expect(judge({ pid: 300, uid: 1000, code: SI.USER }, here)).toBe("honor")
 })
 
@@ -52,14 +35,10 @@ test("every other pid is refused — the incident's whole class", () => {
 
 test("uid plays no part in the rule: root is refused like any other stranger", () => {
   expect(judge({ pid: 999, uid: 0, code: SI.USER }, here)).toBe("refuse")
-  // ...and a root-UID supervisor is honored for being the supervisor
   expect(judge({ pid: 300, uid: 0, code: SI.USER }, here)).toBe("honor")
 })
 
 test("the forge gate: a user-SUPPLIED siginfo can claim to be the supervisor — its si_code gives it away", () => {
-  // rt_sigqueueinfo(2) hands us any pid with si_code < 0 (SI_QUEUE & co);
-  // claiming to be the supervisor, the arming parent, ourselves, or even
-  // the kernel's belt — all refused.
   const reparented = { self: 400, parent: 1, armedParent: 300 }
   expect(judge({ pid: 1, uid: 0, code: -1 }, reparented)).toBe("refuse")
   expect(judge({ pid: 300, uid: 1000, code: -1 }, reparented)).toBe("refuse")
