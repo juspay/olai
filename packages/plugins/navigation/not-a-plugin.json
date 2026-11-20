@@ -1,6 +1,4 @@
 {
-  "//layout": "Workspace tree fields use layout vocabulary, not a lookup of the layout plugin.",
-  "//tabs": "A LinkTarget carries the optional navigation-owned tab capability, not a plugin lookup.",
   "files": {
     "src/PageView.tsx": 4,
     "src/browser.tsx": 4,
@@ -12,7 +10,7 @@
     "src/live.ts": 8,
     "src/pane/state.ts": 12,
     "src/routing.tsx": 1,
-    "src/workspace.ts": 179
+    "src/workspace.ts": 177
   },
   "link-preview": {
     "src/index.ts": 2

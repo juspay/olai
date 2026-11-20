@@ -6,6 +6,36 @@ export const CEILING_MS = 30_000
 
 const TAKEOVER = ["wheel", "touchstart", "keydown", "pointerdown"] as const
 
+interface ArrivalWatch {
+  readonly stop: () => void
+}
+
+const whenArrivalSettles = (settled: () => void): ArrivalWatch => {
+  let height = document.documentElement.scrollHeight
+  let standingPageLeft = false
+  let quiet: ReturnType<typeof setTimeout> | undefined
+  const sizing = new ResizeObserver(() => {
+    const next = document.documentElement.scrollHeight
+    if (next < height) {
+      height = next
+      standingPageLeft = true
+      return
+    }
+    if (next <= height) return
+    height = next
+    if (!standingPageLeft) return
+    clearTimeout(quiet)
+    quiet = setTimeout(settled, SETTLE_MS)
+  })
+  sizing.observe(document.documentElement)
+  return {
+    stop: () => {
+      clearTimeout(quiet)
+      sizing.disconnect()
+    },
+  }
+}
+
 export interface ScrollMemory {
   readonly leave: () => void
   readonly toTop: () => void
@@ -20,16 +50,17 @@ export const createScrollMemory = (
 
   const left = new Map<string, number>()
 
-  /** The `scrollY` we last assigned. Chromium dispatches `scroll` at a
-   *  rendering update rather than inside `scrollTo`, so a flag around the
-   *  write is already false when the handler runs; an event matching this
-   *  value is our own restore. Cleared when the restore ends. */
-  let assignedTop = Number.NaN
-  let assigning = false
+  let ourTop = Number.NaN
+
+  /** Chromium dispatches `scroll` at a rendering update, not inside `scrollTo`. */
+  const releaseAfterTheEvent = (): void => {
+    requestAnimationFrame(() => {
+      ourTop = Number.NaN
+    })
+  }
 
   const record = (): void => {
-    if (assigning) return
-    if (Number.isFinite(assignedTop) && Math.abs(scrollY - assignedTop) < 1) return
+    if (Number.isFinite(ourTop) && Math.abs(scrollY - ourTop) < 1) return
     const key = keyHere()
     if (key !== undefined) left.set(key, scrollY)
   }
@@ -37,10 +68,8 @@ export const createScrollMemory = (
   onCleanup(() => removeEventListener("scroll", record))
 
   const go = (top: number): void => {
-    assigning = true
     scrollTo({ top, behavior: "instant" })
-    assignedTop = scrollY
-    assigning = false
+    ourTop = scrollY
   }
 
   let giveUp: (() => void) | undefined
@@ -49,30 +78,14 @@ export const createScrollMemory = (
   const keepAsking = (top: number): void => {
     giveUp?.()
     let frame = 0
-    let hang: ReturnType<typeof setTimeout> | undefined
-    let ceiling: ReturnType<typeof setTimeout> | undefined
-    let seenDip = false
-    let lastHeight = document.documentElement.scrollHeight
-    const growing = new ResizeObserver(() => {
-      const height = document.documentElement.scrollHeight
-      if (height < lastHeight) {
-        lastHeight = height
-        seenDip = true
-        return
-      }
-      if (height <= lastHeight) return
-      lastHeight = height
-      if (!seenDip) return
-      clearTimeout(hang)
-      hang = setTimeout(stop, SETTLE_MS)
-    })
+    let stuck: ReturnType<typeof setTimeout> | undefined
+    let arrival: ArrivalWatch | undefined
     const stop = (): void => {
       cancelAnimationFrame(frame)
-      clearTimeout(hang)
-      clearTimeout(ceiling)
-      growing.disconnect()
+      arrival?.stop()
+      clearTimeout(stuck)
       for (const gesture of TAKEOVER) removeEventListener(gesture, stop)
-      assignedTop = Number.NaN
+      ourTop = Number.NaN
       giveUp = undefined
     }
     const again = (): void => {
@@ -84,8 +97,8 @@ export const createScrollMemory = (
     for (const gesture of TAKEOVER) {
       addEventListener(gesture, stop, { passive: true })
     }
-    growing.observe(document.documentElement)
-    ceiling = setTimeout(stop, ceilingMs)
+    arrival = whenArrivalSettles(stop)
+    stuck = setTimeout(stop, ceilingMs)
     frame = requestAnimationFrame(again)
   }
 
@@ -94,20 +107,14 @@ export const createScrollMemory = (
     toTop: () => {
       giveUp?.()
       go(0)
-      requestAnimationFrame(() => {
-        assignedTop = Number.NaN
-      })
+      releaseAfterTheEvent()
     },
     restore: (key) => {
       const top = left.get(key) ?? 0
       giveUp?.()
       go(top)
       if (scrollY < top) keepAsking(top)
-      else {
-        requestAnimationFrame(() => {
-          assignedTop = Number.NaN
-        })
-      }
+      else releaseAfterTheEvent()
     },
   }
 }

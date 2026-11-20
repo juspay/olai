@@ -80,7 +80,6 @@ Then("page shortcuts leave the retained page untouched", async function(this: Ol
   await this.page.getByTestId(TESTID.paletteInput).waitFor();
   assert.equal(await this.page.getByTestId(TESTID.paletteItem).filter({ hasText: "Mark: Done" }).count(), 0,
     "the palette must not offer actions on the retained page");
-  // This is real typing, not fill(): navigation/search input must remain usable.
   await this.page.keyboard.type("cabinet");
   assert.equal(await this.page.getByTestId(TESTID.paletteInput).inputValue(), "cabinet");
   await this.page.keyboard.press("Escape");

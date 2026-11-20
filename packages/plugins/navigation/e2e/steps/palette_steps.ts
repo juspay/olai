@@ -25,8 +25,7 @@ import {
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 When("I press the palette shortcut", async function (this: OlaiWorld) {
-  // `ControlOrMeta` is Playwright's name for the platform modifier: Meta on
-  // Darwin, Control elsewhere.
+  // `ControlOrMeta` is Playwright's platform modifier: Meta on Darwin, Control elsewhere.
   await pressed(this, "ControlOrMeta+k");
 });
 

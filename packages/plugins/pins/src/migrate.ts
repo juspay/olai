@@ -1,5 +1,5 @@
 import { addressWritten, type Shelf } from "@olai/format"
-import { legacyZoomHref } from "olai-plugin-navigation/workspace"
+import { legacyZoomHref } from "olai-plugin-navigation/persistence"
 
 /** Freeze the legacy shelf once, before writing: later /#id titles are reveals. */
 export const legacyPins = (shelf: Shelf) => shelf.flatMap(row => {

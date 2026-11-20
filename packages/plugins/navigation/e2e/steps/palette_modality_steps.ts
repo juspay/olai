@@ -118,9 +118,8 @@ const sheetModal = `dialog:has(${SHORTCUTS})`;
 /**
  * Safari ships no dialog light dismiss, so `client/dismiss.ts` installs a
  * fallback. Both `closedBy` on the prototype (what the fallback reads) and the
- * `closedby` attribute (what the engine acts on) are removed, or Chromium
- * would answer the press under test. Installed before a navigation and
- * reloaded into, because the dialog wires its dismissal once, at mount.
+ * `closedby` attribute (what the engine acts on) go, or Chromium answers the
+ * press under test.
  */
 Given("this browser has no light dismiss of its own", async function (this: OlaiWorld) {
   const where = this.page.url();

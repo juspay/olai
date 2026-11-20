@@ -51,13 +51,12 @@ export const isLone = (workspace: Workspace): boolean =>
 export const panesOf = (workspace: Workspace): readonly Pane[] => {
   const layout = workspace.layout
   if (layout.kind === "leaf") return [{ route: layout.route }]
-  if (layout.children.every((child) => child.layout.kind === "leaf")) {
-    return layout.children.map((child) => {
-      const route = (child.layout as Leaf).route
-      return child.fraction === undefined ? { route } : { route, width: child.fraction }
-    })
-  }
-  return leavesOf(layout).map((route) => ({ route }))
+  const routes = leavesOf(layout)
+  if (!isFlatSplit(layout)) return routes.map((route) => ({ route }))
+  return routes.map((route, index) => {
+    const fraction = layout.children[index]?.fraction
+    return fraction === undefined ? { route } : { route, width: fraction }
+  })
 }
 
 export const focusedRoute = (workspace: Workspace): Route => {
@@ -712,14 +711,3 @@ export const splitOf = (
   layout: { kind: "split", axis, children },
   focus,
 })
-
-export const legacyZoomHref = (href: string): string => {
-  if (/^\/(?:\?[^#]*)?#.+/.test(href)) return "/zoom/" + href.slice(1)
-  if (!href.startsWith(WORKSPACE_PREFIX)) return href
-  const query = href.indexOf("?")
-  const path = query < 0 ? href : href.slice(0, query)
-  try {
-    return WORKSPACE_PREFIX + path.slice(WORKSPACE_PREFIX.length).split("/").map(part =>
-      encodeURIComponent(legacyZoomHref("/" + decodeURIComponent(part)).slice(1))).join("/") + (query < 0 ? "" : href.slice(query))
-  } catch { return href }
-}

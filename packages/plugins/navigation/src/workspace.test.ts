@@ -1,4 +1,4 @@
-import { legacyZoomHref } from "./workspace.ts"
+import { legacyZoomHref } from "./persistence.ts"
 import { zoomNode } from "./routes.ts"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"

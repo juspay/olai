@@ -173,8 +173,6 @@ export function Palette(props: {
   const opRows = createMemo(() => paletteOpen() ? adapters().flatMap(adapter=>adapter.available?.() === false ? [] : adapter.items?.()??[]) : [])
 
   const items = createMemo(() => {
-    // It is the first line for the reason `opRows` above is guarded:
-    // everything below reads values that move on their own.
     if (!paletteOpen()) return [] as ReadonlyArray<PaletteItem>
     if (box().kind === "level") {
       const live = levels.topLive()
@@ -193,9 +191,6 @@ export function Palette(props: {
         search: face.search,
       })),
     ]
-    // A block that arrives late must not push the rows a reader is already
-    // walking down the list under their cursor, so the local block sits above
-    // it and the list only ever grows at the bottom.
     return [
       ...filterItems(query(), commands),
       ...hitItems(nodes),
@@ -474,12 +469,7 @@ export function Palette(props: {
       aria-label="Command palette"
       // Safari has no `closedby`, so `lightDismiss` does the outside press on
       // the pointer's own position (`../../../../web/src/client/dismiss.ts`).
-      ref={(element) => {
-        modal = element
-        lightDismiss(element)
-        claimCloseRequest(element)
-        if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) enterTopLayer(element) })
-      }}
+      ref={(element) => { modal = element; lightDismiss(element); claimCloseRequest(element) }}
       onCancel={(event) => {
         if (paletteAsking() !== null) {
           event.preventDefault()

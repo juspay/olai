@@ -33,9 +33,6 @@ export const landingsOf = (workspace: Workspace): Landings => {
   return all
 }
 
-/** THE SAME MAP BACK when there is nothing to say, which is not an economy: the
- *  signal these live on compares by identity, so a fresh empty map where
- *  nothing changed would wake every pane in the workspace to tell it so. */
 export const marked = (
   all: Landings,
   index: number,

@@ -1,4 +1,4 @@
-import { legacyZoomHref } from "olai-plugin-navigation/workspace"
+import { legacyZoomHref } from "olai-plugin-navigation/persistence"
 import { parsedJson } from "@olai/web/client/preference.ts"
 
 import type { Tab } from "./contract.ts"

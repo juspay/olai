@@ -16,8 +16,9 @@ untrack
 import { type Landings, landingsOf, NOWHERE } from "./landing.ts"
 import { adopted, forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
 import { routing } from "./pages.ts"
+import { legacyZoomHref } from "./persistence.ts"
 import { createScrollMemory } from "./scroll.ts"
-import { legacyZoomHref, hrefOfWorkspace, isLone, focusedRoute, type Workspace, workspaceOf } from "./workspace.ts"
+import { hrefOfWorkspace, isLone, focusedRoute, type Workspace, workspaceOf } from "./workspace.ts"
 
 interface Entry {
   readonly links?: 2
