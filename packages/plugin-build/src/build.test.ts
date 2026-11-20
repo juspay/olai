@@ -1,11 +1,3 @@
-/**
- * The compiler, benched on the shapes an agent actually writes — and on the
- * ones it must not get away with.
- *
- * Two string constants and no serve: the package knows nothing about vaults or
- * rows, which is what makes every claim here checkable without one.
- */
-
 import { describe, expect, test } from "bun:test"
 
 import { bind } from "./bind.ts"
@@ -13,9 +5,6 @@ import { buildHalf } from "./build.ts"
 import { unresolvable } from "./imports.ts"
 import { BROWSER_MODULES, REGISTRY, SERVER_MODULES } from "./shared.ts"
 
-/** Evaluate a built half with a registry standing in for the host's modules,
- *  and answer what it exported. This is the whole contract: the text is a module
- *  that reads `globalThis[REGISTRY]` and nothing else. */
 const evaluated = async (
   text: string,
   modules: Record<string, unknown>,
@@ -76,9 +65,6 @@ describe("binding a built module to the host's own copies", () => {
     )
     expect(bound.ok).toBe(true)
     if (!bound.ok) return
-    // `Layer as L` is `Layer: L` in the pattern: the name on the left is the
-    // one the host's namespace carries, and the one on the right is what the
-    // author called it.
     expect(bound.text).toContain(`const { Effect, Layer: L } = globalThis`)
     expect(bound.text).toContain(`const All = globalThis`)
     expect(bound.text).toContain(`.default;`)
@@ -104,21 +90,6 @@ describe("binding a built module to the host's own copies", () => {
     expect(bound.ok).toBe(true)
   })
 
-  /**
-   * THE SHAPE THAT WAS QUADRATIC, benched by the clock rather than argued.
-   *
-   * `bind` read a whole statement with one regular expression, and it held a
-   * `\s+` in front of a lazy class that also admitted whitespace — so for
-   * `import` followed by a long run of spaces and no `from`, the engine tried
-   * every split of the run. CodeQL named it (`js/polynomial-redos`), and the
-   * input here is a person's: the compiled form of source somebody wrote into a
-   * vault.
-   *
-   * THE ASSERTION IS THAT THIS TEST RETURNS. At a hundred thousand spaces the
-   * old shape is minutes of matching, so the bench is bun's own timeout; the
-   * `expect` below is about the ANSWER being the honest one — a shape that is
-   * not an import statement is left where it is and refused by name.
-   */
   test("a long run of whitespace after `import` is refused rather than chewed on", () => {
     const bound = bind(`import ${" ".repeat(100_000)}`, SERVER_MODULES)
     expect(bound.ok).toBe(false)
@@ -157,27 +128,11 @@ describe("a built half is a module that runs", () => {
     )
     expect(built.ok).toBe(true)
     if (!built.ok) return
-    // The transform reached for `solid-js/web`, which the author never wrote —
-    // and it is bound, which is the whole reason the two lists in `./shared.ts`
-    // differ from the one an author may write.
     expect(built.text).toContain(`["solid-js/web"]`)
     expect(built.text).not.toMatch(/^\s*import\s/m)
     expect(BROWSER_MODULES).toContain("solid-js/web")
   })
 
-  /**
-   * A COMMENTED-OUT IMPORT IS NOT AN IMPORT, all the way through — and it took
-   * being read through `buildHalf` to see that it was not.
-   *
-   * The gate is a real parse and answered this correctly from the first line;
-   * the bench beside it (`a specifier in a comment or a string is not an
-   * import`) asks `unresolvable` and passes either way. What it could not see is
-   * that babel PRESERVES comments, so the comment reached `bind` — which reads
-   * emitted text and is not a parser — and the build was refused naming a module
-   * the author had deliberately commented out.
-   *
-   * Two steps, two answers, and only the composition of them is the product.
-   */
   test("a commented-out import is not an import to the compiler either", async () => {
     const built = await buildHalf(
       "browser",
@@ -196,10 +151,6 @@ describe("a built half is a module that runs", () => {
     expect(built.text).not.toContain("node:fs")
   })
 
-  /** ...and the same on the server half, which gets there by a different road:
-   *  `Bun.Transpiler` strips comments on its way through, so nothing downstream
-   *  ever sees one. Benched anyway, because what is being kept is the PRODUCT's
-   *  behaviour and not either compiler's. */
   test("...and on the server half, which strips them a step earlier", async () => {
     const built = await buildHalf(
       "server",
