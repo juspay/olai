@@ -1,28 +1,3 @@
-/**
- * WHAT A PAGE SHOWS — the reading, and the PARITY that lets it be trusted.
- *
- * Two things are asserted here and they are different in kind.
- *
- * **Which page an address names**, which is the model the browser used to hold
- * (`@olai/web`'s `page.ts`, deleted with `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s
- * PR 10). Every claim it made is made here, over the same shape of fixture,
- * because the rules did not move — the set did.
- *
- * **That the reading IS the pure functions the browser used to call.** For
- * every route, what the server sends must equal what a tab would have derived
- * from its own copy of the vault — and since both sides are the same
- * `packages/format` functions, the honest way to say so is to call them
- * directly and compare. That is the oracle rule this design keeps wherever one
- * answer has two producers (`shelf.ts`'s note, `filter.ts`'s), read for the
- * one PR where the second producer is being deleted.
- *
- * **And that it survives the wire.** The parity is worth nothing if the encoder
- * drops a field on the way — which is not hypothetical: a field added to a
- * search answer once type-checked clean across every package, reached an agent,
- * and was silently dropped by the wire's own encoder
- * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md). So every reading below is encoded, put through
- * JSON, decoded, and compared with what went in.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
@@ -56,21 +31,12 @@ const GARDEN = [
 const RECORDS = nodesOfFiles({ "house.olai": HOUSE, "garden.olai": GARDEN })
 const SET = derive(TEST_CLAIMS, RECORDS)
 
-/** What day it is, for the two arms that have to be told. Fixed, because a
- *  reading that read a clock would be a reading whose tests expire. */
 const TODAY = "2026-08-10"
 
-/** The served directory, as its faces — the shape a caller hands this reading
- *  (the set's own documents, which ARE faces plus their content). A face's
- *  links and tags are no business of these claims, so the fixtures say only
- *  what a path is; the referrers case below writes its own with links in. */
 const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
   paths.map((path) => ({ path, title: path, links: [], tags: [], props: {} }) as unknown as Face)
 
 const FILES = ["garden.olai", "house.olai"]
-/** Two of these are about the day arm: one NAMED for a date, which IS that
- *  day's note, and one merely naming a date, which is a document about a day
- *  and nobody's note. */
 const DOCUMENTS = [
   "notes/finishes.md",
   "Daily/2026-08-10.md",
@@ -79,18 +45,6 @@ const DOCUMENTS = [
 
 const READABLE: ReadonlyArray<BrokenFile> = []
 
-/**
- * The three-field {@link Reading} these cases are read through — a derivation,
- * the faces standing in for the served files, and the links index those faces
- * amount to (`./pointing.ts`).
- *
- * The SET is a stand-in and is cast as one: what a page reads off it is the two
- * arrays, and the fixtures above write faces rather than whole documents
- * because a face is all these claims are about. The index is built from the
- * same faces by the same fold the validator runs, so a case that gives a face
- * links gets the referrers those links amount to and nothing has to be kept in
- * step by hand.
- */
 const readingAt = (
   derived: Derived,
   faces: ReadonlyArray<Face>,
@@ -117,15 +71,12 @@ const at = (path: string, element: string | null = null): PageRequest => ({
 const HOME: PageRequest = { kind: "at", address: null }
 const node = (id: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, "", id)! })
 
-/** The ids a page's rows start from — what its screen would show. */
 const roots = (shows: ReturnType<typeof readAt>): ReadonlyArray<string> =>
   shows.kind === "outline"
     ? shows.rows.map((row) => row.at.node.id)
     : shows.kind === "node" && shows.zoomed.kind === "node"
     ? shows.zoomed.children.map((row) => row.at.node.id)
     : []
-
-// ── which page an address names ────────────────────────────────────────
 
 test("the front page prefers ordinary outlines while convention files remain addressable", () => {
   const paths = ["_olai/Settings.olai", "house.olai"]
@@ -146,18 +97,12 @@ test("a named outline opens that one, with its own rows", () => {
   expect(roots(shows)).toEqual(["kitchen"])
 })
 
-// A ROW address names the outline the row is in: which ROW of it the address
-// asked to land on is a fact for the reader of the page, not for the reading
-// — exactly as `notes/finishes.md#install` is the document and a landing.
 test("a row address opens the outline that holds it", () => {
   const shows = readAt(at("house.olai", "kitchen"))
   expect(shows.kind === "outline" ? shows.file : undefined).toBe("house.olai")
   expect(roots(shows)).toEqual(["kitchen"])
 })
 
-// ...and one whose file went stale is the outline-nothing, not a blank page:
-// the id is durable and the file half is not, which is the price this arm
-// chose to pay the way the heading arm pays it.
 test("a row of an outline the directory does not hold is a nothing that names it", () => {
   expect(readAt(at("shed.olai", "kitchen"))).toEqual({
     kind: "nothing",
@@ -166,8 +111,6 @@ test("a row of an outline the directory does not hold is a nothing that names it
   })
 })
 
-// The two nothings are decided HERE rather than by a view counting files, so
-// the screen that says them has one thing to say and no reasoning to do.
 test("an outline the directory does not have is a nothing that names it", () => {
   expect(readAt(at("shed.olai"))).toEqual({
     kind: "nothing",
@@ -206,8 +149,6 @@ test("an outline whose file did not parse is the broken page, not an empty one",
   })
 })
 
-// ── the day ────────────────────────────────────────────────────────────
-
 test("a day collects the dated nodes of every outline", () => {
   const shows = readAt({ kind: "day", date: "2026-08-10" })
   expect(shows.kind === "day" ? shows.groups.map((group) => group.file) : [])
@@ -221,16 +162,11 @@ test("a day with nothing dated it is an empty day, not a nothing", () => {
   expect(shows.kind === "day" ? shows.notes : undefined).toEqual([])
 })
 
-// The day's other half: a document named for the date is that day's note, and
-// it JOINS the query's answer rather than replacing it. A document merely
-// NAMING the date is not one.
 test("a day carries the documents named for it, beside its dated nodes", () => {
   const shows = readAt({ kind: "day", date: "2026-08-10" })
   expect(shows.kind === "day" ? shows.notes : undefined).toEqual(["Daily/2026-08-10.md"])
   expect(shows.kind === "day" ? shows.groups.length : undefined).toBe(2)
 })
-
-// ── the agenda ─────────────────────────────────────────────────────────
 
 test("the agenda is answered for the day it was asked for, and says which", () => {
   const shows = readAt({ kind: "agenda", today: TODAY })
@@ -238,8 +174,6 @@ test("the agenda is answered for the day it was asked for, and says which", () =
   expect(shows.kind === "agenda" ? shows.agenda : undefined)
     .toEqual(agendaOf(SET, TODAY))
 })
-
-// ── the trash ──────────────────────────────────────────────────────────
 
 const ARCHIVED = derive(TEST_CLAIMS, [
   ...RECORDS,
@@ -258,14 +192,9 @@ test("the trash is the one `_olai/Trash.olai`, and an empty one is a page", () =
   expect(readAt({ kind: "trash" }, WITH_TRASH)).toEqual({
     kind: "trash",
     files: ["_olai/Trash.olai"],
-    // Nothing has been put away in the plain fixture, so the archive is a file
-    // with no rows: not a heading over nothing, which is also what makes "the
-    // trash is empty" this list being empty.
     groups: [],
     records: 0,
   })
-  // Nothing put away yet at all — `outlines_trash` creates the file on first use,
-  // so an absent trash is an empty page, never a missing one.
   expect(readAt({ kind: "trash" }))
     .toEqual({ kind: "trash", files: [], groups: [], records: 0 })
 })
@@ -298,15 +227,11 @@ test("the trash draws each archive that has something in it, and counts the SET"
       ? shows.groups.flatMap((group) => group.rows.map((row) => row.at.node.id))
       : [],
   ).toEqual(["old"])
-  // TWO records go, and only one row is drawn: `tiles` hangs under `old`.
   expect(shows.kind === "trash" ? shows.records : undefined).toBe(2)
 })
 
-// ── the names table ────────────────────────────────────────────────────
-
 test("every id this page points at is resolved, once each", () => {
   const reading = pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))
-  // `install` sees `herbs`; `linky`'s TITLE addresses the same node. One entry.
   expect(reading.names).toEqual([
     { id: "herbs", title: "the herb bed", file: "garden.olai" },
   ])
@@ -325,9 +250,6 @@ test("the address the page IS gets a name too — the palette's pin row asks it"
   expect(reading.names.some((one) => one.id === "herbs")).toBe(true)
 })
 
-/** The set the custom-value cases below are read against: one node carrying a
- *  property that IS an id, one that only looks like a word, one holding a
- *  sentence, and one holding a list of both kinds. */
 const PROPPED = derive(TEST_CLAIMS, nodesOfFiles({
   "lanes.olai": [
     `{"id":"lane","ord":"a0","title":"a lane","custom":{"reviewer":"pi","agent":"nobody","merge":"the human approves personally"}}`,
@@ -343,9 +265,6 @@ test("a custom value that IS a node id is resolved — the door's question, aske
 
 test("a custom value naming nothing is absent, and prose never reaches the index", () => {
   const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
-  // `nobody` is id-shaped and declares nothing; `merge` holds a sentence, which
-  // is not id-shaped at all. Neither is a name, and the drawer draws both as
-  // the plain text they are.
   expect(reading.names.map((one) => one.id)).not.toContain("nobody")
   expect(reading.names.map((one) => one.id))
     .not.toContain("the human approves personally")
@@ -353,12 +272,8 @@ test("a custom value naming nothing is absent, and prose never reaches the index
 
 test("each member of a LIST value is asked about on its own", () => {
   const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
-  // `two` carries `["pi","stranger"]`: the first is a node, the second is not,
-  // and one entry answers for both rows that name it.
   expect(reading.names.map((one) => one.id)).toEqual(["pi"])
 })
-
-// ── parity: the reading IS the pure functions the browser used to call ──
 
 test("an outline's rows are `rowsOf`, exactly", () => {
   const shows = readAt(at("house.olai"))
@@ -369,9 +284,6 @@ test("an outline's rows are `rowsOf`, exactly", () => {
 test("a node page is `zoom` plus the one references reading, exactly", () => {
   const shows = readAt(node("herbs"))
   expect(shows.kind === "node" ? shows.zoomed : undefined).toEqual(zoom(SET, "herbs"))
-  // The page's reading is the one source of the answer: the fixtures' faces
-  // carry no links or tags, so nothing refers — which is what the page says
-  // and what the same reading says.
   const reading = readingAt(SET, facesOf(FILES))
   expect(shows.kind === "node" ? shows.backlinks : undefined)
     .toEqual(referencesOf(reading, addressOf(TEST_CLAIMS, "", "herbs")!))
@@ -417,10 +329,6 @@ test("a document page is the one references reading, whole-document", () => {
 })
 
 test("a document page carries the frontmatter its face already has", () => {
-  // The page ABOUT a document is where its record is read, the same way a
-  // node's own page draws the node's custom map. Empty is the honest none —
-  // a file that wrote no block, or a `.html` that never could — and not an
-  // omitted field: the face's `props` is total.
   const empty = readAt(at("notes/finishes.md"))
   expect(empty.kind === "document" ? empty.props : undefined).toEqual({})
 
@@ -439,8 +347,6 @@ test("a document page carries the frontmatter its face already has", () => {
     owners: ["alice", "bob"],
   })
 })
-
-// ── ...and it survives the wire whole ──────────────────────────────────
 
 const encode = Schema.encodeUnknownSync(PageReading)
 const decode = Schema.decodeUnknownSync(PageReading)
@@ -470,9 +376,6 @@ for (const request of EVERY_ROUTE) {
     )
     const back = decode(JSON.parse(JSON.stringify(encode(reading))))
     expect(back).toEqual(reading)
-    // …and the equivalence the server sends frames by agrees with that, which
-    // is the other half: a reading that came back equal and compared unequal
-    // would be a frame per revision to every open tab.
     expect(samePageReading(back, reading)).toBe(true)
   })
 }
@@ -492,23 +395,12 @@ test("two readings of one set are the same reading, and a moved set is not", () 
     .toBe(false)
 })
 
-// ── the narrowings a row declares its member with ──────────────────────
-//
-// THREE FILTERS AND NOT THREE UNIONS, which is what these tests are about:
-// each is `PageRequest` or `PageReading` with arms taken OUT, so a shape that
-// passes one passes the wider one by construction and there is no second
-// declaration to drift. What is worth asserting is the boundary — that the arm
-// a row cannot answer is actually refused at the door rather than at the
-// handler, one frame late.
-
 test("a filed page request admits a file, a node and the trash, and refuses the journal", () => {
   const admits = Schema.is(FiledPageRequest)
   expect(admits(at("house.olai"))).toBe(true)
   expect(admits(node("kitchen"))).toBe(true)
   expect(admits(HOME)).toBe(true)
   expect(admits({ kind: "trash" })).toBe(true)
-  // The journal's two pages are `olai-plugin-journal`'s, and a member declared
-  // over this shape would be promising an answer its owner cannot compute.
   expect(admits({ kind: "day", date: "2026-09-06" })).toBe(false)
   expect(admits({ kind: "agenda", today: "2026-09-06" })).toBe(false)
 })

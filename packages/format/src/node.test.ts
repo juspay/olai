@@ -24,36 +24,22 @@ import {
   RegularNode,
 } from "./node.ts"
 
-/** The records of a JSONL fixture, in file order. */
 const parsed = (contents: string): ReadonlyArray<Node> =>
   nodesOf(contents).map((located) => located.node)
 
-// There are exactly two record shapes, and which one a record is decides
-// almost everything downstream — whether it needs a title, whether it can hold
-// children, whether it counts toward a parent's status. One field answers it,
-// and `isMirror` is the one place that question is asked.
 test("a record is a mirror when, and only when, it names one", () => {
   expect(parsed(`{"id":"m","ord":"a","mirror":"x"}\n{"id":"x","ord":"b","title":"x"}`)
     .map(isMirror)).toEqual([true, false])
 })
 
-// The mirror struct is the mirror record spelled out, and it is shared: the
-// parser admits exactly its keys and a writer serialises exactly its keys.
-// Drift between the schema and the canonical mirror line is a silently widened
-// format, so the two are compared against each other.
 test("the mirror shape is exactly the keys of a canonical mirror line", () => {
   expect(parsed(`{"id":"m","parent":"p","ord":"a","mirror":"x"}`)
     .map((node) => new Set(Object.keys(node))))
     .toEqual([new Set(Object.keys(MirrorNode.fields))])
-  // Spelled out once, so a field added to either struct has to be added here
-  // deliberately rather than arriving unnoticed.
   expect(new Set(Object.keys(MirrorNode.fields)))
     .toEqual(new Set(["id", "parent", "ord", "mirror"]))
 })
 
-// Two structs, not one with an optional `mirror`: the illegal combinations are
-// unrepresentable rather than scanned for. What the two share is placement, and
-// nothing else — every descriptive field belongs to the regular arm alone.
 test("the two shapes share placement and nothing else", () => {
   const mirror = new Set(Object.keys(MirrorNode.fields))
   const regular = new Set(Object.keys(RegularNode.fields))
@@ -63,11 +49,6 @@ test("the two shapes share placement and nothing else", () => {
   expect(mirror.has("title")).toBe(false)
 })
 
-// The id alphabet is published because ids travel into URLs and wire keys, so
-// the layers that mint or accept an id check against this very regex. It IS
-// the mention alphabet (`MENTION_ALPHABET`, imported and asserted here rather
-// than trusted): an id nobody can be mentioned with is an id the backlinks
-// reading can never draw, so the two shapes cannot be allowed to drift.
 test("ID_SHAPE is the mention alphabet, and nothing else admits", () => {
   expect(MENTION_ALPHABET).toContain("A")
   for (const good of ["kitchen-2_a", "work/olai"]) {
@@ -78,10 +59,6 @@ test("ID_SHAPE is the mention alphabet, and nothing else admits", () => {
   }
 })
 
-// The two conventional names are DERIVED from the suffix rather than typed
-// beside it, for the reason the registry gives: a retyped suffix left behind is
-// not a type error, it is a file the walk stops claiming. `fileKind` needs no
-// assertion here — it reads the same constant these two do.
 test("the trash and the inbox wear the one suffix", () => {
   expect(TRASH).toBe("Trash")
   expect(INBOX).toBe("Inbox")
@@ -113,26 +90,17 @@ test("mints combine the convention stem with the configured format suffix", () =
   expect(isTrashed(TEST_CLAIMS, "Archive.olai")).toBe(false)
 })
 
-// WHICH FILES OLAI NAMED FOR ITSELF, as one predicate — the question the
-// sidebar asks of every path (`@olai/web`'s `Sidebar.tsx`: tree or vault
-// group). It is the mint read backwards rather than a second spelling of
-// `_olai/`, which is why it is here beside it.
 test("a file olai named for itself is one under _olai/, exactly", () => {
   expect(inOlaiDir(mintedInto(PINS))).toBe(true)
   expect(inOlaiDir(mintedInto(INBOX))).toBe(true)
   expect(inOlaiDir(TRASH_FILE(TEST_CLAIMS, "outline-olai")!)).toBe(true)
   expect(inOlaiDir("house.olai")).toBe(false)
   expect(inOlaiDir("notes/palette.md")).toBe(false)
-  // The mint is at the ROOT, so a `_olai` a person made under a folder of
-  // their own is their directory and not olai's — and a file merely NAMED
-  // for it is a file.
   expect(inOlaiDir("notes/_olai/Pins.olai")).toBe(false)
   expect(inOlaiDir("_olai.olai")).toBe(false)
   expect(inOlaiDir("_olai")).toBe(false)
 })
 
-// Leftover per-directory Archive.olai: basename exactly, not trash, not an
-// ordinary live outline. `archive.olai` is a different file.
 test("a leftover Archive.olai is dormant by basename, and is not the trash", () => {
   expect(isLeftoverArchive("Archive.olai")).toBe(true)
   expect(isLeftoverArchive("notes/Archive.olai")).toBe(true)
@@ -145,8 +113,6 @@ test("a leftover Archive.olai is dormant by basename, and is not the trash", () 
   expect(isTrashed(TEST_CLAIMS, "Archive.olai")).toBe(false)
 })
 
-// The two conventions are two files and never one, which is what a directory
-// holding both has to be able to say.
 test("the inbox and the shelf are different files", () => {
   const files = ["_olai/Inbox.olai", "_olai/Pins.olai"]
   expect(inboxIn(TEST_CLAIMS, files)).toBe("_olai/Inbox.olai")

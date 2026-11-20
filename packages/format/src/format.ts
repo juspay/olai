@@ -1,5 +1,3 @@
-/** A pure storage format. The caller supplies the claims snapshot against
- * which this parse is interpreted; a format never reads a live registry. */
 import type { Result } from "effect"
 import type { Outline } from "./document.ts"
 import type { OutlineError } from "./errors.ts"

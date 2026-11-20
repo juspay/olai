@@ -1,13 +1,3 @@
-/**
- * THE SHELF, READ OFF THE SET.
- *
- * What is pinned here is the half of the shelf that is a question about the
- * DIRECTORY: which file it is, which of that file's rows travel, in what order,
- * and what the set says a pinned node is called right now. Which titles name a
- * PAGE is the browser's parser and has its own suite one package up
- * (`@olai/web`'s `address/address.test.ts`, and `pins/target.test.ts` for the
- * agreement between the two sides).
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -31,13 +21,8 @@ const GARDEN = [
 const setWith = (pins: string, garden = GARDEN) =>
   derive(TEST_CLAIMS, recordsOf(setOf({ "_olai/Pins.olai": pins, "garden.olai": garden })))
 
-// ── the rows ───────────────────────────────────────────────────────────
-
 test("the shelf is the top level of Pins.olai, in ord order, mirrors left out", () => {
   const shelf = shelfOf(setWith(PINS))
-  // The note travels: whether a title names a PAGE is the app parser's answer,
-  // and this reading does not hold one. What does NOT travel is the row nested
-  // under a pin, and a placement, which carries no title to address with.
   expect(shelf.map((row) => row.id)).toEqual(["p-herbs", "p-doc", "p-late", "p-note"])
 })
 
@@ -62,8 +47,6 @@ test("the shelf is found by stem under _olai", () => {
 test("a directory with no shelf has none", () => {
   expect(shelfOf(derive(TEST_CLAIMS, recordsOf(setOf({ "garden.olai": GARDEN }))))).toEqual(NO_PINS)
 })
-
-// ── the one thing only the set can answer ──────────────────────────────
 
 test("a node pin carries the name that node has RIGHT NOW", () => {
   expect(shelfOf(setWith(PINS)).find((row) => row.id === "p-herbs")?.shows)
@@ -91,30 +74,19 @@ test("a pin at a MIRROR is named for the node standing there", () => {
       "garden.olai": `${GARDEN}\n{"id":"m","ord":"a2","mirror":"herbs"}`,
     })),
   )
-  // The id ECHOED is the one the row addresses — a reader compares it against
-  // the address it read — and the name is the node standing at the end of the
-  // chain, which is what a reader can be shown.
   expect(shelfOf(set)[0]?.shows).toEqual({ id: "m", name: "the herb bed" })
 })
 
 test("the QUALIFIED node spelling resolves to the same node", () => {
-  // `garden.olai#herbs` is what somebody writes when they know where the node
-  // lives; the grammar normalises the file away, and the browser's parser does
-  // too, so both sides land on the same id (`@olai/web`'s `pins/target.test.ts`).
   const set = setWith(`{"id":"p","ord":"a0","title":"/garden.olai#herbs"}`)
   expect(shelfOf(set)[0]?.shows).toEqual({ id: "herbs", name: "the herb bed" })
 })
-
-// ── which titles name a node ───────────────────────────────────────────
 
 test("a node address is the one the grammar reads as one", () => {
   expect(pinTargetIn(TEST_CLAIMS, "/#herbs")).toBe("herbs")
   expect(pinTargetIn(TEST_CLAIMS, "/zoom/#herbs")).toBe("herbs")
   expect(pinTargetIn(TEST_CLAIMS, "[the herb bed](/#herbs)")).toBe("herbs")
-  // The query sits between the two halves of a URL, so a narrowed node page is
-  // still a node page.
   expect(pinTargetIn(TEST_CLAIMS, "/?q=is%3Atodo#herbs")).toBe("herbs")
-  // An id somebody chose, escaped as an address is written.
   expect(pinTargetIn(TEST_CLAIMS, "/#the%20bed")).toBe("the bed")
 })
 
@@ -130,8 +102,6 @@ test("everything else names itself, and nothing here throws", () => {
       "/",
       "the ones I keep coming back to",
       "/etc/passwd",
-      // An escape nothing can read names nothing, rather than throwing on the
-      // server that answers every open tab.
       "/#%",
       "/%",
       "",
@@ -139,8 +109,6 @@ test("everything else names itself, and nothing here throws", () => {
     ]
   ) expect(pinTargetIn(TEST_CLAIMS, title)).toBeUndefined()
 })
-
-// ── what keeps a quiet revision quiet ──────────────────────────────────
 
 test("two readings of one shelf are the same answer; a rename is not", () => {
   const was = shelfOf(setWith(PINS))

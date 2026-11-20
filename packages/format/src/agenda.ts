@@ -1,46 +1,3 @@
-/**
- * The set, read forward: what is OWED.
- *
- * A day page asks what is on a day; this asks what has not happened yet and
- * should have. It is the same kind of question and the same kind of answer —
- * derived at view time, over every node in every outline, stored nowhere — so
- * it is built out of ./dates.ts rather than beside it
- * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/agenda.md, ratified 2026-08-12).
- *
- * ## No new field: `date` and the mark, read together
- *
- * The format already keeps the two questions apart — `date` says WHEN, a mark
- * says whether it is work — and an agenda is what they answer together:
- *
- *   - `date` and NO mark is an OCCURRENCE: a birthday, an appointment, a note
- *     pinned to a day. It can never be overdue, because a day passing is not a
- *     failure of a bullet. That is the crown rule of the format read once more
- *     (website/docs/format.md's Status): an unmarked node is not an unfinished one.
- *     It stays on its day page and in the calendar dots; it is not owed, so
- *     it is not on this page (`agenda-only-todo`).
- *   - `date` with `todo` or `doing` is DUE WORK — the only thing this page
- *     lists, and the only thing that can be late, because somebody said it was
- *     work and said when.
- *
- * A second `due` field beside `date` would have been two dates answering one
- * question, which is the disagreement the mirror shape exists to make
- * unrepresentable. So nothing here is stored and nothing here is written.
- *
- * ## Overdue is the next `blocked`
- *
- * {@link isOverdue} is spelled ONCE and read everywhere — the days above now on
- * the agenda's spine and the tone every date badge takes are one predicate, for the reason
- * blockedness is one predicate read at both ends of its arrow (./derive.ts): two
- * spellings would be two chances to disagree about what late work is. It is a
- * SECOND fact about a node and never a replacement for its mark, and `done`
- * extinguishes it by construction — a finished task is late at nothing.
- *
- * The one thing this reading needs that the set cannot give it is what day it
- * IS, so `today` is an argument at every entry point here. A clock in this
- * package would be a fact about the reader smuggled into a fact about the
- * directory — and a derivation whose answer changed with the machine it ran on.
- */
-
 import { Schema } from "effect"
 
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
@@ -51,303 +8,76 @@ import { keepingDated, type Selected } from "./filter.ts"
 import { type RegularNode, Status } from "./node.ts"
 import { type Dated, dayOf, timeOf } from "./occasion.ts"
 
-/**
- * Should this have happened by now?
- *
- * `overdue(n) ⇔ unfinishedWork(n) ∧ day(n.date) < today`, and the two halves
- * are both load-bearing. The MARK half is {@link unfinishedWork} — `todo` or
- * `doing`, the format's own Unfinished, asked of the node — rather
- * than `mark !== "done"`, which is the trap blockedness is written against
- * one file over: that spelling reads every plain dated bullet as work
- * somebody is late on, which is exactly what an occurrence is not. `doing` is
- * in (human, 2026-08-12: started-but-unfinished is the most honest yes to the
- * question this asks; the narrower todo-only reading was declined). The same
- * predicate decides which rows this page lists at all ({@link owedOn}): what
- * is owed and what is late are one spelling, not two.
- *
- * The DAY half is plain string comparison over the first ten characters, here
- * as everywhere — dates are text, and a `2026-08-10` put through an instant
- * comes back a datetime. BOTH SIDES go through {@link dayOf}, including the one
- * the caller supplies: this is the predicate the whole feature reads, so it
- * answers about a day whatever shape of ISO value it is handed rather than
- * relying on every caller to have trimmed one first. An instant for `today`
- * used to make work due TODAY read as late — `"2026-08-12" < "2026-08-12T09:00"`
- * is true, a prefix being less than what extends it — which is the one wrong
- * answer this comparison can give.
- *
- * Asked of the node's OWN record, which is what makes a mirror's row answer
- * with its target's date and its target's mark: a placement carries neither.
- */
 export const isOverdue = (node: RegularNode, today: string): boolean => {
   if (node.date === undefined) return false
   return unfinishedWork(node) && dayOf(node.date) < dayOf(today)
 }
 
-/** One day ahead, and what is on it. The date is a HEADING here rather than a
- *  page — the day's own page is where it is read in full, note and finished
- *  work and all — so it travels as the text it will be printed and linked as. */
 export const AgendaDay = Schema.Struct({
   date: Schema.String,
   groups: Schema.Array(DayGroup),
 })
 export type AgendaDay = typeof AgendaDay.Type
 
-/**
- * What is owed, as the three stretches of ONE LINE: what has gone, now, and
- * what is coming.
- *
- * Three fields and no sections, and the difference between those two words is
- * the whole of `agenda-spine` (ruled 2026-08-18). The page that reads this used
- * to draw a box per field, which gave a task seventy-three days out the same
- * claim on a reader as one due on Monday. It draws a SPINE now — one continuous
- * line of time with now marked on it — so these three are where a day sits
- * relative to that mark, and not three headings.
- *
- * Which is why what has SLIPPED arrives as days, exactly as what is coming
- * does. It used to arrive as one flat list grouped by outline, which is the
- * shape a box wants: a day is where a node goes on the line, so late work has
- * to bring the day it was owed on with it.
- */
 export const Agenda = Schema.Struct({
-  /** The days that have gone and still owe something, oldest first. Every node
-   *  on one of them is overdue, by construction ({@link behind}). */
   overdue: Schema.Array(AgendaDay),
-  /** Dated work due today that is not finished — GROUPS rather than a day,
-   *  because the page already knows which day today is and draws now on the
-   *  line whether or not anything is owed on it. Occurrences stay on the day
-   *  page; they are not work, so they are not here. */
   today: Schema.Array(DayGroup),
-  /** The next days that have anything. Days with nothing are absent. */
   upcoming: Schema.Array(AgendaDay),
 })
 export type Agenda = typeof Agenda.Type
 
-/**
- * How far ahead Upcoming looks: the next seven days that HAVE something, not
- * the next seven days.
- *
- * A count of populated days rather than a window of dates, and that is the
- * whole of the bound — a horizon in days would be date arithmetic, which this
- * package deliberately does not do (dates are text), and a horizon a reader
- * could configure would be a setting invented for a question nobody has asked
- * yet. What it costs is honest: a directory with something on every day shows a
- * week, and one with something once a month shows seven months. Both are "the
- * next few things", which is what an agenda is for.
- */
 export const UPCOMING_DAYS = 7
 
-/**
- * The agenda: one reading of the whole set, at `today`.
- *
- * The TRASH is out of it, and not by a rule of this module's: what is owed is
- * read out of the same bucketed walk a day page is (./dates.ts), and that walk
- * leaves archived nodes out for every reading built on it (ruled 2026-08-17,
- * human — what was put away is drawn on the trash page and nowhere else). It is
- * inherited rather than restated for the reason every other date question here
- * is: two spellings of "which nodes have days" would be two chances for the
- * agenda and the day page it links to to disagree about the same node.
- *
- * So a task put away after somebody scheduled it stops being owed. That is the
- * ruling in one sentence — archiving is a reader saying they are done looking
- * at something, and a page that went on asking them for it would be arguing.
- */
 export const agendaOf = (derived: Derived, today: string): Agenda => ({
   overdue: behind(derived, today),
   // TODAY'S BUCKET IS ASKED FOR BY THE VALUE THE CALLER HANDED OVER, which is
   // what the bucketed walk this replaced did (`days.get(today)`) and is
-  // deliberately not `dayOf(today)`. Every door sends a plain day (`@olai/web`'s
-  // `clock.ts` mints one; the `owed` procedure carries it verbatim), so the two
-  // spellings answer identically for everything anything sends — and where they
-  // could differ, this one is what the reading has always answered. Normalising
-  // it here would be a performance change quietly giving a different answer to a
-  // question, which is the one thing this diff may not do.
+  // deliberately not `dayOf(today)`. Normalising it here would be a performance
+  // change quietly giving a different answer to a question, which is the one
+  // thing this diff may not do.
   today: owedOn(derived, derived.byDay.get(today) ?? []),
   upcoming: aheadOf(derived, today),
 })
 
-/** Nothing to show, said once: an empty agenda is a page that says so, offers
- *  nothing to press and draws no line at all, and "empty" is the conjunction of
- *  the three halves rather than something a view should re-derive. */
 export const nothingDue = (agenda: Agenda): boolean =>
   agenda.overdue.length === 0 &&
   agenda.today.length === 0 &&
   agenda.upcoming.length === 0
 
-/**
- * How much is owed, in the two numbers a mark outside the page is drawn from.
- *
- * UPCOMING IS NOT COUNTED, and that is the whole of the shape: this answers
- * "is anything wrong as of today", and a task due next Tuesday is not news on
- * a Monday — a count that included it could never fall to nothing, which is a
- * mark nobody would read twice.
- */
 export const Owed = Schema.Struct({
-  /** Nodes in {@link Agenda.overdue}, across every outline it groups. */
   overdue: Schema.Number,
-  /** Nodes in {@link Agenda.today}, the same way — dated `todo` and `doing`
-   *  due today. Occurrences are not rows this section draws, so they are not
-   *  in the count: a birthday is on today's PAGE and is nobody's owed work. */
   today: Schema.Number,
 })
 export type Owed = typeof Owed.Type
 
-/**
- * ONE ROW of what is owed, as a list outside the page draws it.
- *
- * The count above answers "is anything wrong"; this answers WHICH, for the
- * column beside the page — a reader working in an outline should find out what
- * slipped without opening `/agenda`. Four facts and the mark, and nothing that
- * is only a page's business: no ancestry trail, no blockers, no rollup, no
- * line. What a reader presses is the NODE, so its id is here; what a row is
- * called is its title.
- *
- * A SECOND HALF OF THE READING rather than a second reading: {@link owedOf}'s
- * argument one shape over. A list that counted its rows its own way could
- * disagree with the number over it, so the two arrive together
- * ({@link OwedReading}) and are counted off one index.
- */
 export const OwedRow = Schema.Struct({
-  /** The node's id — what a press opens, and what a list says a row is. */
   id: Schema.String,
-  /** The outline it lives in, verbatim. A row drawn away from its outline is
-   *  the only place this is a fact a view can hold at all. */
   file: Schema.String,
-  /** Its title, verbatim. */
   title: Schema.String,
-  /** The day that made it owed, as stored — a bare day, or the instant a
-   *  datetime names. Which side of today it is on is the reader's arithmetic
-   *  (`feltOn`), not a second field here. */
   date: Schema.String,
-  /** Its mark, absent when it carries none — which an OWED row never is, since
-   *  {@link unfinishedWork} is what put it here; the field is optional for the
-   *  same reason `Situated.status` is, so one row shape reads the same in both
-   *  places. */
   status: Schema.optional(Status),
 })
 export type OwedRow = typeof OwedRow.Type
 
-/**
- * What is owed: the two counts, and the first rows behind them.
- *
- * THE SAME MESSAGE carries both, and that is the whole reason this shape
- * exists. A chip and a list fed by two subscriptions can disagree for a frame —
- * a count of two over one row, or a row under a door that says nothing is
- * wrong — and no amount of drawing carefully fixes a disagreement that arrives
- * already made. So the server answers once, from one read of one index, and
- * every face of the reading is a field of it.
- *
- * WIDENING `Owed` WAS THE OTHER OPTION and is the one declined: `Owed` is the
- * count itself, read by the rail, the phone's thumb bar and the reminder
- * circuit, and a `rows` field on it would put a list in the hands of three
- * readers that draw a dot or a number.
- */
 export const OwedReading = Schema.Struct({
   ...Owed.fields,
-  /** The first rows, oldest day first and today's after them — the spine's
-   *  own order, capped at what the asker asked for
-   *  ({@link OwedRequest.cap}). */
   rows: Schema.Array(OwedRow),
 })
 export type OwedReading = typeof OwedReading.Type
 
-/**
- * What a reader ASKS to be told this — the day they are standing on, and
- * nothing else.
- *
- * The one thing this reading needs that the set cannot give it is what day it
- * IS (this file's own header), and since `vault-in-browser`'s PR 4 the reading
- * happens on the far side of a wire from the clock that knows. So the day
- * TRAVELS, and it is the reader's local one rather than the server's: the dates
- * in the files are what a person wrote down, so what counts as late is late
- * where they are standing (`@olai/web`'s `clock.ts` makes the same argument
- * about the tab that keeps it true past midnight).
- */
 export const OwedRequest = Schema.Struct({
-  /** The reader's own today, as the ISO text this format stores. */
   today: Schema.String,
-  /** HOW MANY ROWS the asker can draw — the column's cap, sent rather than
-   *  assumed, because the answer is a list and a server guessing how long a
-   *  list somebody's sidebar can hold is a server deciding a layout.
-   *
-   *  It does not change what is COUNTED: the two numbers are the whole of what
-   *  is owed, whether the asker has room for five rows or none. */
   cap: Schema.Int,
 })
 export type OwedRequest = typeof OwedRequest.Type
 
-/**
- * When two readings owe the same thing, so the subscription carrying them can
- * stay quiet.
- *
- * It earns its place the way `./committing.ts`'s `samePending` does, one
- * member over: the server recomputes this on every published revision, and
- * almost every revision leaves the counts AND the rows exactly where they were
- * — somebody typing a character in an outline is not news about what is late.
- * DERIVED from the schema rather than written out, for that file's own reason:
- * a field added above would simply not be compared, and the failure mode of
- * that is a frame that is never sent.
- *
- * THE ROWS ARE COMPARED, and that is not a saving thrown away: a row's TITLE
- * can be edited while both counts stand still, and a list that kept the old
- * title until somebody's afternoon would be a list lying about a directory it
- * had been told had changed.
- */
 export const sameOwedReading: (a: OwedReading, b: OwedReading) => boolean = Schema.toEquivalence(OwedReading)
 
-/**
- * The counts, taken from an agenda that has already been read.
- *
- * It takes the ANSWER rather than the set, which is the point of it: a page
- * that counted its own rows a second way would be free to disagree with the
- * rows it had just drawn — the same argument {@link nothingDue} is spelled here
- * for, one predicate up.
- *
- * WHAT MARKS THE PAGE FROM OUTSIDE IT DOES NOT COME THROUGH HERE ANY MORE, and
- * that is {@link owedNow}'s whole subject: this one is for a caller with an
- * agenda in hand, and there is only one — the tests and the benchmark that hold
- * the two spellings to one answer. Nothing that ships reads an agenda for its
- * counts, because building one to count it is what `perf-agenda-history-walk`
- * was filed on.
- *
- * NODES rather than groups: a group is one outline's worth of them, and "3"
- * on a mark means three things are late, not three files are. The today
- * half is dated `todo` and `doing` only, the same as {@link Owed.today}:
- * occurrences are not rows this page draws, so they are not in the count.
- */
 export const owedOf = (agenda: Agenda): Owed => ({
   overdue: datedInDays(agenda.overdue),
   today: datedIn(agenda.today),
 })
 
-/**
- * The counts, WITHOUT reading an agenda: what the mark outside the page prints.
- *
- * The two numbers are the whole of what a subscriber wanted, and getting them
- * out of {@link agendaOf} meant DRESSING every overdue node in the directory to
- * throw the dressing away — {@link ./dates.ts}'s `groupedOn` situates each row,
- * which is an ancestry walk, a mirror resolution and a rollup per node, for two
- * integers, per subscriber, per published revision (roadmap
- * `perf-agenda-history-walk`). Both numbers are ADDITIONS over an index the
- * patcher keeps here ({@link Derived.owedByDay}): the days that have gone,
- * added up, and today's own tally read off a key.
- *
- * WHICH IS A SECOND READING OF THE DIRECTORY, and it is worth saying plainly
- * rather than leaving for somebody to notice. {@link owedOf} above declines to
- * be one on purpose — a count taken off the agenda cannot disagree with the
- * agenda — and this one gives that up, because the structure that made
- * disagreement impossible also made the answer cost the page. What replaces it
- * is not an argument but a GATE: the two spellings are held to each other over
- * generated corpora and over a corpus of real writes, at every boundary either
- * of them can move on (`./occasion.test.ts`, `olai-plugin-journal`'s `owed.index.test.ts`),
- * and `./dates.bench.ts` divides one by the other. A house that keeps one
- * reading gets agreement for free; a house that keeps two has to prove it, and
- * the proof is the reason this is allowed to exist.
- *
- * THE SAME TWO BOUNDARIES the page has, and they are the same two lines of code:
- * what is LATE is the days strictly before {@link dayOf} of today, and TODAY is
- * the key the caller's own value names — deliberately not `dayOf(today)`, which
- * is {@link agendaOf}'s standing decision for that bucket and is argued there.
- */
 export const owedNow = (derived: Derived, today: string): Owed => {
   const now = dayOf(today)
   let overdue = 0
@@ -358,43 +88,14 @@ export const owedNow = (derived: Derived, today: string): Owed => {
   return { overdue, today: derived.owedByDay.get(today) ?? 0 }
 }
 
-/**
- * The first `cap` owed rows — the same order the agenda's spine draws them in,
- * without building the page.
- *
- * OVERDUE FIRST, oldest day first, then today's: that is `behind`'s order and
- * `agendaOf`'s two halves, and it is the order a reader of the column is
- * reading time in. Within a day it is {@link ./dates.ts}'s `byDrawOrder` — the
- * agenda's own row order — so the two lists cannot disagree about which of two
- * rows on one day comes first.
- *
- * AN INDEX READ, and the bound is the cap rather than a promise. It walks
- * {@link Derived.owedByDay} — days that OWE something, in the index's order —
- * and each such day contributes at least one row, so it stops after at most
- * `cap` day lookups; today's bucket is read only while there is room left in
- * it. The days behind the answer are never visited, and no row is SITUATED: an
- * entry's ancestry, blockers and rollup cost an ancestry walk each, and this
- * list draws a title, a day and a dot (`perf-agenda-history-walk`'s reason for
- * the counts, read once more for the rows).
- *
- * THE ROWS ARE THE RAW RECORDS, so the one thing that is not here is anything
- * only a dressed entry has. `date` is the record's own — for an overdue row it
- * is always the `date` field, because a dated `done` belongs to finished work
- * and finished work is not owed ({@link unfinishedWork}).
- */
 export const owedRows = (
   derived: Derived,
   today: string,
   cap: number,
 ): ReadonlyArray<OwedRow> => {
   const rows: Array<OwedRow> = []
-  // A cap that is not a number draws nothing rather than everything: the
-  // failure mode of reading `NaN` into the bounds below is a list of the whole
-  // history, which is the one answer a cap exists to prevent.
   const want = Number.isFinite(cap) ? Math.max(0, Math.floor(cap)) : 0
   if (want === 0) return rows
-  /** Take what one day owes, up to the room left. Answers whether the list is
-   *  full, so the caller's walk stops rather than reading a day it cannot use. */
   const take = (date: string, own: ReadonlyArray<Dated> | undefined): boolean => {
     if (own === undefined) return false
     const owed: Array<Dated> = []
@@ -420,21 +121,10 @@ export const owedRows = (
     if (date >= now) break
     if (take(date, derived.byDay.get(date))) return rows
   }
-  // TODAY, BY THE VALUE THE CALLER HANDED OVER — {@link owedNow}'s own boundary,
-  // read the same way, so a count and its rows are about one day.
   take(today, derived.byDay.get(today))
   return rows
 }
 
-/**
- * THE WHOLE READING: the counts and the rows, from one pass of the index.
- *
- * The two are separate functions above because they answer separate questions
- * and their costs are separate promises; they are put together here because a
- * caller that had to ask twice could be handed two readings of two revisions,
- * and what this shape exists for is that it cannot
- * ({@link OwedReading}).
- */
 export const owedReading = (
   derived: Derived,
   today: string,
@@ -444,46 +134,9 @@ export const owedReading = (
   rows: owedRows(derived, today, cap),
 })
 
-/**
- * How many owed rows the answer did not carry — the other half of the cap.
- *
- * THE READING'S OWN ARITHMETIC, and here rather than in the column that prints
- * "N more on the agenda": it is a fact about this shape (`rows` is the first
- * {@link OwedRequest.cap} of exactly `overdue + today`), so a reader that had to
- * subtract for itself would be a second spelling of what `cap` means — and one
- * free to disagree with the counts beside it.
- *
- * No clamp: the rows ARE the first few of the two counts, so the difference is
- * nought at worst. A negative answer would mean a server that sent more rows
- * than it counted, which is the one thing this shape exists to make impossible.
- */
 export const owedMore = (reading: OwedReading): number =>
   reading.overdue + reading.today - reading.rows.length
 
-/**
- * The same agenda narrowed to what a query selected — every day of the line,
- * and today between them.
- *
- * The agenda is a page like the others, so the filter over it is
- * {@link keepingDated} applied to each of the three rather than a rule of its
- * own: one definition of what a filtered day-group list is, wherever one is
- * drawn (website/docs/search.md's "which pages filter").
- *
- * A DAY THAT HAS NOTHING LEFT LEAVES THE LINE, which is this module's own
- * standing rule read once more: a day is listed exactly when there is something
- * owed on it ({@link aheadOf}, {@link behind}), and a dot over no rows would be
- * the page promising a day the query found nothing on. THE SILENCES BETWEEN
- * DAYS ARE RECOMPUTED rather than narrowed, and they are recomputed because
- * they are not data: how long a wait is, is a fact about the days still drawn
- * (`@olai/web`'s spine), so taking a day out shortens the two gaps either side
- * of it into one longer one with no help from here.
- *
- * Nothing is re-derived: this is the answer {@link agendaOf} already gave, with
- * rows taken out of it. So what the mark beside the page counts (`owedOf`, over
- * the UNFILTERED reading) cannot be changed by somebody typing in a box — the
- * filter is a question about the open page, and what is owed is a fact about
- * the directory.
- */
 export const keepingOwed = (
   agenda: Agenda,
   matched: Selected,
@@ -493,11 +146,6 @@ export const keepingOwed = (
   upcoming: keepingDays(agenda.upcoming, matched),
 })
 
-/** One half of the line, narrowed: every day's rows filtered, and a day left
- *  with none dropped. Dropped rather than kept empty because a day IS its
- *  reason for being on the line — and because the silence either side of it is
- *  drawn from the days that remain, so a day with nothing on it would leave the
- *  page claiming a wait that has nothing at either end of it. */
 const keepingDays = (
   days: ReadonlyArray<AgendaDay>,
   matched: Selected,
@@ -507,58 +155,13 @@ const keepingDays = (
     return groups.length === 0 ? [] : [{ ...day, groups }]
   })
 
-/** How many ROWS an agenda draws, over the whole line — what a filter bar
- *  counts, where {@link owedOf} counts what is NEWS. Upcoming is in this one
- *  and out of that one for the same reason it is drawn on the page and absent
- *  from the mark: a reader counting the rows in front of them is counting every
- *  row in front of them. */
 export const owedIn = (agenda: Agenda): number =>
   datedInDays(agenda.overdue) + datedIn(agenda.today) +
   datedInDays(agenda.upcoming)
 
-/** How many rows a run of DAYS draws — {@link datedIn} over the two halves of
- *  the line that arrive as days, said once because both halves ask it and a
- *  second `reduce` would be a second chance to count a group instead of a row. */
 const datedInDays = (days: ReadonlyArray<AgendaDay>): number =>
   days.reduce((total, day) => total + datedIn(day.groups), 0)
 
-/**
- * The days that have GONE and still owe something, oldest first.
- *
- * The mirror of {@link aheadOf}, and written beside it for that reason: the
- * spine puts every day on one line by its date, so what has slipped arrives as
- * days exactly as what is coming does.
- *
- * UNBOUNDED, where the far half stops at {@link UPCOMING_DAYS}: a horizon on
- * what is late would be a page quietly dropping the one answer no day page can
- * give. What bounds it in practice is the work — a directory owes as many late
- * days as somebody has let slip.
- *
- * A MIRROR contributes none, and that is the bucketed walk's rule rather than
- * one restated here — a mirror is a placement, and the format gives it no field
- * to carry a date or a mark, so a task that is late is late once however many
- * places it is shown.
- *
- * ONE ROW PER NODE falls out rather than being deduplicated: a record's two
- * dates are its `date` and a dated `done`, and a node whose mark is `done` is
- * not overdue — so a node here is here for its `date` and can be on no other
- * day of this half.
- *
- * A WALK OF THE DAYS THAT OWE SOMETHING, in the index's own key order, and
- * stopping at today ({@link Derived.owedByDay}). Two indexes replaced two
- * different walks here. The first was sorting every day the set has per read,
- * which {@link Derived.byDay}'s promised key order took away
- * (`perf-dates-index`); the second was VISITING every day that has gone —
- * three and a half thousand of them for a directory ten years into a daily
- * habit — to discover that all but a handful had nothing owed on them
- * (`perf-agenda-history-walk`). A day is in `owedByDay` exactly when
- * {@link owedOn} has something for it, so this walks the days it draws and no
- * others, and the day's own list is one lookup away for dressing them.
- *
- * The COUNT beside this page does not come through here at all any more
- * ({@link owedNow}): situating a row is an ancestry walk and a rollup, and two
- * integers are not worth one per late node in the directory.
- */
 const behind = (
   derived: Derived,
   today: string,
@@ -567,60 +170,19 @@ const behind = (
   const now = dayOf(today)
   for (const date of derived.owedByDay.keys()) {
     if (date >= now) break
-    // NOT `?? []`: a key of `owedByDay` is a key of `byDay` by construction,
-    // and a day owing something whose bucket had gone would be an index the
-    // patcher had let drift — which the differential is what catches, not a
-    // fallback here that would draw an empty day instead.
+    // NOT `?? []`: a key of `owedByDay` is a key of `byDay` by construction.
     const groups = owedOn(derived, derived.byDay.get(date) as ReadonlyArray<Dated>)
     if (groups.length > 0) gone.push({ date, groups })
   }
   return gone
 }
 
-/**
- * What is OWED on one day: dated work that nobody has finished.
- *
- * {@link unfinishedWork} is the one spelling — so a dated bullet is not owed
- * any more than a finished task is. `done` never appears anywhere on this
- * page, and neither does an occurrence: the agenda answers what is owed, a
- * day page answers what is on the day (and what happened). A birthday on
- * today is on today's PAGE and not here; a node whose `done` is dated today
- * is on today's PAGE and not here either. The same filter draws every stretch
- * of the line, so the overdue count, the burning Agenda entry and the rows
- * one click away cannot disagree about what is owed.
- *
- * Filtered BEFORE the entries are situated, which is the cheap order: situating
- * is an ancestry walk and a rollup per node, and a day whose work is finished
- * would be paying both to have the answer thrown away.
- */
 const owedOn = (
   derived: Derived,
   dated: ReadonlyArray<Dated>,
 ): ReadonlyArray<DayGroup> =>
   groupedOn(derived, dated.filter((one) => unfinishedWork(one.at.node)))
 
-/**
- * The days after `today` that have something owed on them, ascending, bounded
- * by {@link UPCOMING_DAYS}.
- *
- * "Days with nothing do not appear" is asked with the SAME filter that draws
- * the day — a day is listed exactly when `owedOn` has something for it — rather
- * than with a nomination rule that could quietly disagree with it and leave a
- * heading over an empty section.
- *
- * IT STARTS AT TOMORROW rather than stepping there. This used to walk
- * {@link Derived.byDay} from its first key and `continue` over every day that
- * had already gone — a decade of daily notes skipped one at a time to reach the
- * seven days this answer is about, per subscriber, per published revision
- * (`perf-agenda-history-walk`). {@link Derived.days} is the same keys as an
- * array, so where to begin is a binary search ({@link dayAt}).
- *
- * THE GUARD STAYS, and it is not redundant: {@link dayAt} answers with the first
- * day NOT BEFORE `today`, which is `today` itself when the set has that day —
- * and today is not ahead. So the jump lands the walk at or just before its first
- * candidate and the comparison that was always here decides, unmoved, which is
- * what keeps this a change to where the walk STARTS and not to what it answers.
- */
 const aheadOf = (
   derived: Derived,
   today: string,
@@ -636,112 +198,27 @@ const aheadOf = (
   return ahead
 }
 
-// ── the spine: where a day SITS, and how far away it feels ─────────────
-//
-// The half of `agenda-spine` (ruled 2026-08-18) that is arithmetic. The page
-// draws one line of time with now marked on it, and everything it says about a
-// day past the day itself is counted here rather than in a component: how many
-// days away it is, what to call that distance, how faint the day has gone, and
-// how much silence lies between it and the day before it.
-//
-// HERE and not in ./calendar.ts, which is where a day is COUNTED, because these
-// are not questions about the calendar — they are questions about an agenda,
-// asked from today, and `today` is an argument at every entry point of this
-// module for the reason its header gives. What this asks of that one is a
-// subtraction (`daysBetween`) and the two lists of names.
-//
-// And here rather than in the badge that prints the words, which is the
-// standing rule this extends rather than breaks (`@olai/web`'s DateBadge.tsx:
-// printed verbatim, because the format stores it verbatim). A pill that read
-// "1 day late" would have been a component doing arithmetic on a date; a pill
-// handed "1 day late" is still printing what it was given.
-//
-// THE RUNTIME SHIPS TWO OF THESE AND NEITHER IS ADOPTED, which is worth saying
-// rather than leaving as an oversight. `Intl.RelativeTimeFormat` would give
-// "in 6 days" and "yesterday"; `Intl.DateTimeFormat` would give "Mon, Aug 24".
-// Both move with the MACHINE'S LOCALE, and this codebase already ruled the
-// other way for the words beside a date (`@olai/web`'s `monthLabel`: these sit
-// beside ISO dates somebody typed by hand, so they are words rather than
-// something that moves with a setting). Neither can say the other half of what
-// this module says at all — "2½ months", "1 day late", "two quiet weeks" are
-// not relative times, they are this page's sentences. Adopting one for the
-// third of the vocabulary it covers would be two spellings of the same ramp.
-
-/** Which side of NOW a day sits on. Three, because the line has three
- *  stretches and a dot is drawn differently in each — and it is a fact about
- *  the DAY rather than a section it was filed under, which is the whole of what
- *  changed. */
 export type Standing = "late" | "today" | "ahead"
 
-/** Which palette token the line and a day's dot take at that distance —
- *  NAMES, never values, so every palette follows (`@olai/web`'s
- *  theme/palettes.ts). The ramp is the flow of time: alarm above now, accent
- *  at it, then ink fading through muted to rule as the future recedes. */
 export type Tone = "alarm" | "accent" | "ink" | "muted" | "rule"
 
-/**
- * A day on the spine: where it sits, how far it is, and what to call that.
- *
- * TWO FIELDS ARE ABSENT TOGETHER or present together — the distance and the
- * words for it — and they are optional for one reason: this is total in both
- * its arguments, and text that names no calendar day can be COMPARED but not
- * COUNTED. Saying nothing is the only honest answer to "how far away"; the
- * shape is what stops the alternative, which is what this used to do — a `0`
- * standing for both "today" and "I could not count", read one line later as
- * "0 days ago" under a heading that had already said the day was late.
- *
- * The format's own parser makes that unreachable from a validated set: a date
- * is checked for CALENDAR REALITY and not merely for shape (./parse.ts —
- * `2026-02-30` is refused), so nothing on a page reaches here uncountable. The
- * optionality is therefore a statement about this function rather than a state
- * a view has to draw around, and a view that draws around it anyway costs one
- * `Show`.
- */
 export interface Felt {
   readonly standing: Standing
-  /** Whole calendar days from today — negative for a day that has gone. */
   readonly days: number | undefined
-  /** The day itself, in words: `Mon, Aug 24`. Always answerable: text that
-   *  names no day is printed back as it was written. */
   readonly calendar: string
-  /** How far away it FEELS: `Today`, `Tomorrow`, `Yesterday`, `in 6 days`,
-   *  `in 3 weeks`, `in 2½ months`, `7 years ago`. */
   readonly distance: string | undefined
-  /** How far the day has RECEDED, `1` near at hand down to {@link FURTHEST} —
-   *  what a row's whole entry is drawn at. */
   readonly fade: number
-  /** The ink the line and this day's dot take here. */
   readonly tone: Tone
 }
 
-/** How faint the far future gets. A floor rather than a fade to nothing: a row
- *  a reader cannot read is a row the page may as well not have drawn. */
 const FURTHEST = 0.5
 
-/** Within a week is NEAR — full ink, no fade. A week is the horizon a person
- *  actually plans against, and everything closer than one is equally present. */
 const NEAR = 7
 
-/** Past eight weeks the line is down to its faintest ink. Eight rather than a
- *  round number of days because the label is already counting in weeks by
- *  then, and a boundary a reader can feel is a boundary in the unit they are
- *  reading. */
 const FAR = 56
 
-/** How fast the fade rolls off, per natural log of the distance past
- *  {@link NEAR}. LOG-ISH for the reason the silences are: the difference
- *  between six days and thirteen is most of what a reader cares about, and the
- *  difference between two years and three is none of it. */
 const ROLLOFF = 5
 
-/**
- * A day, felt from today.
- *
- * Total in both arguments: a value naming no real calendar day still gets a
- * standing (plain string comparison, which is what the rest of this module
- * reads dates with) and simply says nothing about distance — no guess, and no
- * throw on a page whose whole content is derived.
- */
 export const feltOn = (date: string, today: string): Felt => {
   const day = dayOf(date)
   const now = dayOf(today)
@@ -752,40 +229,11 @@ export const feltOn = (date: string, today: string): Felt => {
     days,
     calendar: calendarOf(day),
     distance: days === undefined ? undefined : distanceOf(standing, days),
-    // An uncountable day is drawn at the near end of the ramp: the fade and the
-    // ink are how far away a day LOOKS, and looking as though it were at hand
-    // is the reading that hides nothing.
     fade: days === undefined ? 1 : fadeOf(standing, days),
     tone: days === undefined ? toneOf(standing, 0) : toneOf(standing, days),
   }
 }
 
-/**
- * What a row's date pill still has to say — or NOTHING, which is the answer
- * for most rows on the page.
- *
- * The chrome cut, as a function. A day on the spine says its own date once, in
- * its heading, so a pill under that heading repeating it is the fourth copy of
- * a fact nobody asked twice for. Two things the heading cannot say survive:
- *
- *   - HOW LATE a task is. The heading says which day has gone; "3 days late" is
- *     the sentence about the work, and it is where the alarm tone is already
- *     spent (`isOverdue`, one predicate read everywhere).
- *   - WHAT TIME a datetime names. `14:00` is a fact about the appointment and
- *     not about the day, and it is the one thing a day heading is not.
- *
- * It takes the DAY'S OWN reading rather than a second date to count from, and
- * that is two things at once. The subtraction happens once per day instead of
- * once per row — every row of a day is late by exactly that day's distance, by
- * construction ({@link behind} files a node under the day its `date` names) —
- * and the call site stops being two interchangeable ISO strings in a row, which
- * is a swap no type could have caught.
- *
- * `overdue` is passed rather than re-derived: the row has already asked
- * {@link isOverdue} of the node, and asking it again of a date alone would be a
- * second, weaker spelling of the predicate — a date in the past is not late
- * work unless somebody marked it work.
- */
 export const owedFact = (
   date: string,
   overdue: boolean,
@@ -795,84 +243,42 @@ export const owedFact = (
   return felt.days === undefined ? undefined : lateness(felt.days)
 }
 
-/** How late something is, said the way a pill says it: `1 day late`,
- *  `3 weeks late`. Takes the (negative) distance {@link Felt} counts. */
 const lateness = (days: number): string => `${said(spanOf(days))} late`
 
-/**
- * The silence between two consecutive days on the line.
- *
- * GAPS ARE CONTENT, which is the ruling this exists for: the stretch between
- * two listed days is a thing the page says rather than margin it happens to
- * have. A wait long enough to notice gets called what it is, and the room it
- * takes grows with it.
- */
 export interface Quiet {
-  /** Whole days waited. */
   readonly days: number
-  /** What the silence is CALLED — `two quiet weeks`, `6½ quiet years` — or
-   *  nothing at all where the wait is too short to be worth a word. */
   readonly label: string | undefined
-  /** How much room it takes, in rem, between {@link QUIET_LEAST} and
-   *  {@link QUIET_MOST}. */
   readonly space: number
 }
 
-/** The least room a gap ever takes, and the most. The ceiling is the half of
- *  "log-ish, never linear" that a logarithm alone does not buy: seven years of
- *  silence has to read as longer than two days without costing a screen. */
 const QUIET_LEAST = 1
 const QUIET_MOST = 5
 
-/** The silence before a day, counted from the one before it. */
 export const quietBetween = (from: string, to: string): Quiet => {
   const days = Math.max(daysBetween(dayOf(from), dayOf(to)) ?? 0, 0)
   return { days, label: quietLabel(days), space: spaceFor(days) }
 }
 
-/** What a wait is called, or nothing. Nothing under a fortnight, because "one
- *  quiet week" is not a silence anybody notices and a label per gap is the
- *  chrome this page was redrawn to be rid of — a gap that says nothing is
- *  still saying it, in the whitespace {@link spaceFor} gives it. */
 const quietLabel = (days: number): string | undefined => {
   const span = quietSpan(days)
   return span === undefined ? undefined : `${spelled(span)} quiet ${span.unit}s`
 }
 
-/** How much room a wait takes. Log base two, so every doubling of the wait
- *  costs the same fixed step, clamped at both ends. */
 const spaceFor = (days: number): number =>
   Math.min(
     Math.max(0.75 + Math.log2(Math.max(days, 1)) * 0.6, QUIET_LEAST),
     QUIET_MOST,
   )
 
-// ── the words ──────────────────────────────────────────────────────────
-
-/** A magnitude, in the largest unit that still reads: how many, of what, and
- *  whether it is one of them (which is the whole of English pluralisation
- *  here). `count` is text because half a month is `2½`. */
 interface Span {
   readonly count: string
   readonly unit: "day" | "week" | "month" | "year"
   readonly one: boolean
 }
 
-/** The average lengths a month and a year have when nobody says which one.
- *  Only ever divided BY — a distance is already an exact count of days
- *  ({@link daysBetween}), and these turn that count into the unit a person
- *  would have used. */
 const MONTH_DAYS = 30.436875
 const YEAR_DAYS = 365.2425
 
-/**
- * How far, in the unit a person would say it in: days under a fortnight, then
- * weeks, then months past two of them, then years — which is the phrasing the
- * design ruled ("under two weeks in days, then weeks, past ~2 months in
- * months-and-halves") with one band added past it, because a directory whose
- * fixtures are dated in 2019 will otherwise be told something is 2470 days
- * away.
- */
 const spanOf = (days: number): Span => {
   const away = Math.abs(days)
   if (away < 14) return counted(away, "day")
@@ -887,9 +293,6 @@ const counted = (count: number, unit: Span["unit"]): Span => ({
   one: count === 1,
 })
 
-/** The same, rounded to the nearest HALF and printed as one — `2½ months`.
- *  Halves because they are the resolution a person actually feels at this
- *  distance: "in two and a bit months" is what "in 73 days" means. */
 const halved = (value: number, unit: Span["unit"]): Span => {
   const rounded = Math.round(value * 2) / 2
   const whole = Math.floor(rounded)
@@ -900,14 +303,9 @@ const halved = (value: number, unit: Span["unit"]): Span => {
   }
 }
 
-/** A span, said: `1 day`, `6 days`, `2½ months`. */
 const said = (span: Span): string =>
   `${span.count} ${span.unit}${span.one ? "" : "s"}`
 
-/** How far away a day feels, in its own voice.
- *
- *  The three days either side of now are NAMED rather than counted, because
- *  that is what a person calls them — "in 1 day" is a sentence nobody says. */
 const distanceOf = (standing: Standing, days: number): string => {
   if (standing === "today") return "Today"
   if (days === 1) return "Tomorrow"
@@ -916,9 +314,6 @@ const distanceOf = (standing: Standing, days: number): string => {
   return days > 0 ? `in ${said(span)}` : `${said(span)} ago`
 }
 
-/** The day itself, in words: `Mon, Aug 24`. Three letters of each name — the
- *  most a day heading can spend before it starts reading as a date rather than
- *  as a place on a line. */
 const calendarOf = (day: string): string => {
   const weekday = weekdayOf(day)
   const month = MONTHS[Number(day.slice(5, 7)) - 1]
@@ -929,27 +324,12 @@ const calendarOf = (day: string): string => {
     .replace(/^./, (first) => first.toUpperCase())
 }
 
-/**
- * A wait's magnitude, or nothing under a fortnight.
- *
- * IT DIFFERS FROM {@link spanOf} IN EXACTLY ONE BAND, and says so by handing
- * every other one back to it: a THIRTEEN-day silence is two quiet weeks, where
- * a day thirteen days out is "in 13 days". A distance is counted from now and
- * somebody is planning against it; a wait is counted between two things and
- * nobody is, so it rounds to weeks sooner. Past two months the two agree
- * exactly, which is why the months and the years are not written here twice —
- * a second copy of a banding is a second chance for one of them to move.
- */
 const quietSpan = (days: number): Span | undefined => {
   const weeks = Math.round(days / 7)
   if (weeks < 2) return undefined
   return days < 60 ? counted(weeks, "week") : spanOf(days)
 }
 
-/** The numbers a quiet label writes as WORDS. A silence is prose beside the
- *  line — "two quiet weeks" — where a distance is a measurement, so the small
- *  counts are spelled and anything past them (or carrying a half) stays a
- *  numeral rather than becoming a paragraph. */
 const NUMBERS = [
   "",
   "one",
@@ -968,19 +348,12 @@ const NUMBERS = [
 
 const spelled = (span: Span): string => NUMBERS[Number(span.count)] ?? span.count
 
-/** How faint a day is drawn. Full ink out to a week, then a logarithmic
- *  roll-off to {@link FURTHEST} — so an item seventy-three days out no longer
- *  shouts as loudly as one due on Monday, which is the complaint the whole
- *  redraw answers. Rounded to two places: a fade is an inline style, and
- *  0.7834710 in the DOM is noise a reader of the markup has to skip. */
 const fadeOf = (standing: Standing, days: number): number => {
   if (standing !== "ahead" || days <= NEAR) return 1
   const faded = 1 - Math.log(days / NEAR) / ROLLOFF
   return Math.round(Math.max(faded, FURTHEST) * 100) / 100
 }
 
-/** The ink of the line and of the day's dot: alarm above now, accent at it,
- *  then the future receding through ink and muted to rule. */
 const toneOf = (standing: Standing, days: number): Tone => {
   if (standing === "late") return "alarm"
   if (standing === "today") return "accent"

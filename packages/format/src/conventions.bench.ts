@@ -1,48 +1,3 @@
-/**
- * WHAT THE TWO SIDEBAR READINGS COST PER PUBLISHED REVISION, before and after
- * `perf-filename-conventions` — both arms in one run, on one vault, on the
- * reader's own machine.
- *
- * The pinned shelf and the inbox door's count are re-answered on every
- * revision the store publishes, which is on every keystroke anybody makes in
- * the directory (`@olai/server`'s `runtime.ts`). Each of them began by asking
- * WHICH FILE it is about — every served basename sliced, folded and compared,
- * the matches collected and sorted (`./node.ts`) — for an answer that moves
- * only when a file is added, removed or renamed. That is a claim about COST
- * and this is the number for it.
- *
- * BOTH ARMS ARE IN THE TREE, which is what `./scope.bench.ts` says a pair of
- * figures has to be to be worth quoting: the "before" is `shelfOf` /
- * `inboxHeldOf`, the plain readings, kept as the differential's reference
- * implementations (`./conventions.test.ts`) rather than transcribed here. The
- * "after" is what the server runs — the carried convention (`./conventions.ts`)
- * and the same two readings with the walk lifted out of them.
- *
- * IT IS A LEG, NOT A CLAIM (`just bench`). What the equivalence rests on is
- * `./conventions.test.ts` — the same two arms, compared for their ANSWERS at
- * every revision of a scripted and a generated sequence, in the suite. Perf
- * numbers are reported artifacts and never gates.
- *
- * ONE THING HERE DOES FAIL THE RUN, and it is not a timing: if the two arms
- * do not answer the same shelf and the same count the ratio between them means
- * nothing, so the row throws rather than printing.
- *
- * THREE ROWS, because the shape of the revision is the whole claim:
- *
- * - a KEYSTROKE — one record retitled, no path moved. The commonest revision
- *   there is, and the one this lane is about;
- * - a `git pull` of twenty files edited, no path moved. Bigger delta, same
- *   answer to the only question the carrier asks;
- * - a FILE CREATED, every revision. The honest null: the path set moves every
- *   time, so the walk runs every time and this row is what the change did NOT
- *   buy.
- *
- * Its vault is `./fixtures.testlib.ts`'s `vaultOf` with a shelf and an inbox
- * put in beside the outlines — a directory with neither is one where both
- * readings answer `undefined` off the first mismatch and half of what is being
- * timed never happens.
- */
-
 const OUTLINE_EXT = mintExt(TEST_CLAIMS, [...TEST_CLAIMS.byKind.values()].find(claim => claim.holds === "nodes")!.kind)!
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { Result } from "effect"
@@ -64,21 +19,15 @@ import { type Reading, validate } from "./validate.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
-/** How many revisions each row is timed over. The unit is one revision, so
- *  this is only how long a row takes to say it. */
 const REVISIONS = Number(process.env["OLAI_BENCH_EDITS"] ?? 25)
 
 type Corpus = Record<string, string>
 
-/** The shelf the vault is given: rows addressing nodes in OTHER files, which
- *  is what makes drawing one a reading of the directory rather than of a file. */
 const PINS = Array.from(
   { length: 8 },
   (_, at) => JSON.stringify({ id: `pin${at}`, ord: `a${at}`, title: `/#f${at}r` }),
 ).join("\n")
 
-/** …and the inbox, deep enough that finding it is a walk rather than a hit on
- *  the first path. Every row a todo, so the count has something to count. */
 const CAPTURES = Array.from(
   { length: 12 },
   (_, at) =>
@@ -86,24 +35,16 @@ const CAPTURES = Array.from(
 ).join("\n")
 
 const vault = (): Corpus => ({
-  // SETTLED, because this leg PUBLISHES its revisions: `vaultOf` leaves a
-  // handful of placements naming files the generator skipped, and a directory
-  // with one finding in it is one nobody publishes
-  // ({@link ./fixtures.testlib.ts}'s `settled`).
   ...Object.fromEntries(settled(vaultOf({ files: FILES, records: RECORDS }))),
   "Pins.olai": PINS,
   "notes/Inbox.olai": CAPTURES,
 })
 
-/** One revision as the store publishes one: the reading, and the two lists it
- *  says moved to get there — which is what a carrier reads. */
 interface Revision {
   readonly read: Reading
   readonly moved: PathsMoved
 }
 
-/** One revision, built the way the store builds one (`@olai/ops`' `codec.ts`):
- *  assembled from the files, and the view PATCHED from the reading before it. */
 const revised = (files: Corpus, before?: readonly [Corpus, Reading]): Revision => {
   const outcome = validate(TEST_CLAIMS,
     assemble(TEST_CLAIMS, decodedOf(files)),
@@ -125,15 +66,8 @@ const revised = (files: Corpus, before?: readonly [Corpus, Reading]): Revision =
   }
 }
 
-/** One file's text with one record retitled — a keystroke, as
- *  `./patch.bench.ts` spells one. */
 const typed = (text: string, at: number): string => retitled(text, at)
 
-/**
- * The revisions of one shape, built OUTSIDE the timed region: what is being
- * measured is what the two readings cost a revision, not what the store cost
- * to make one.
- */
 const revisionsOf = (
   shape: (files: Corpus, revision: number) => Corpus,
 ): ReadonlyArray<Revision> => {
@@ -149,13 +83,6 @@ const revisionsOf = (
   return revisions
 }
 
-/** The paths of the vault, in the order it was generated — a row that edits
- *  "one file" has to name one, and naming the same one every revision would
- *  measure a delta the patcher has already seen.
- *
- *  The OUTLINES of it, asked of the registry rather than of a suffix spelled
- *  here ({@link ./kinds.ts}): a keystroke is a record edited, and a row that
- *  picked a document would be timing a delta with no records in it. */
 const edited = (files: Corpus, which: number): string => {
   const paths = Object.keys(files).filter((path) => TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, path) ?? "")?.holds === "nodes")
   return paths[which % paths.length] as string
@@ -193,8 +120,6 @@ const ROWS: ReadonlyArray<readonly [string, (files: Corpus, revision: number) =>
   ],
 ]
 
-/** THE BEFORE ARM: the two readings as they stood, each walking the directory
- *  for the file it is about. */
 const before = (revisions: ReadonlyArray<Revision>) => (): void => {
   for (const { read } of revisions) {
     shelfOf(read.derived)
@@ -202,10 +127,6 @@ const before = (revisions: ReadonlyArray<Revision>) => (): void => {
   }
 }
 
-/** THE AFTER ARM: the same two readings, over conventions CARRIED from the
- *  revision before — which is exactly what the two connectors do. The carriers
- *  start empty inside the arm, so a run pays the first walk the way a server
- *  that has just booted does. */
 const after = (revisions: ReadonlyArray<Revision>) => (): void => {
   let shelfFile: Convention | undefined
   let inboxFile: Convention | undefined
@@ -217,9 +138,6 @@ const after = (revisions: ReadonlyArray<Revision>) => (): void => {
   }
 }
 
-/** How many revisions of this row actually re-walked — the count the suite
- *  asserts, printed here beside the milliseconds so a row whose ratio is 1.0
- *  says WHY out loud rather than leaving it to be inferred. */
 const walksOf = (revisions: ReadonlyArray<Revision>): number => {
   let shelfFile: Convention | undefined
   let inboxFile: Convention | undefined
@@ -247,10 +165,6 @@ console.log(
 for (const [what, shape] of ROWS) {
   const revisions = revisionsOf(shape)
 
-  // THE TWO ARMS MUST ANSWER THE SAME THING, and the run fails where they do
-  // not — this repository's rule for a bench with two arms in it, not a
-  // flourish (`./scope.bench.ts` argues it). Asked once per revision, outside
-  // the timing, over the same carriers the after arm uses.
   let shelfFile: Convention | undefined
   let inboxFile: Convention | undefined
   for (const { read, moved } of revisions) {

@@ -1,34 +1,3 @@
-/**
- * THE DIFFERENTIAL: one scoped question, two implementations, and every way
- * they differ named.
- *
- * `file:` and `under:` used to be a PREDICATE run over the whole corpus, and
- * since `perf-filter-scope` they are a reading of the derivation's own indexes
- * — one file's records, or one subtree descended ({@link ./filter.ts}'s
- * `inScopeOf`). That is a change to how an answer is ARRIVED AT and to nothing
- * else, so the only test worth having is the one that says so: ask the same
- * question both ways and compare the answers, over corpora chosen to break the
- * equivalence rather than to demonstrate it.
- *
- * WHAT IS KEPT HERE IS THE OLD WALK ({@link walkedMatching}), which is what
- * makes this a differential rather than a fixture. A test that pinned the new
- * walk's answers against expectations written by hand would pin whatever the
- * new walk does, including the two ways it could quietly be wrong — a record
- * admitted through a placement, a record ordered by the tree it was descended
- * rather than by the corpus. The reference implementation cannot make either
- * mistake, because it is the code that shipped for a year.
- *
- * IT IS REUSABLE ON PURPOSE, and it has two callers because the seam it is
- * about has two sides. `./scope.test.ts` runs it over generated corpora, over
- * the corners no generator reaches ({@link TANGLED}) and over this
- * repository's own vault; `@olai/index`'s `scope.index.test.ts` runs the same
- * asks with the search index in front of them, which is the composition that
- * had to be proved rather than asserted — a scope narrows a corpus walk one
- * way and a candidate list another, and the two must select the same records.
- *
- * Nothing here has tests of its own — it is a helper module, not a suite, and
- * `bun test` collects only `*.test.ts`.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import * as fs from "node:fs"
 import * as path from "node:path"
@@ -53,24 +22,6 @@ import { parseOutline } from "./fixtures.testlib.ts"
 import { assemble } from "./set.ts"
 import { reading, type Reading } from "./validate.ts"
 
-// ── the walk this replaced ─────────────────────────────────────────────
-
-/**
- * `matching` AS IT WAS: every record in the directory, tested one at a time.
- *
- * Copied rather than imported, and it has to be — the point of a differential
- * is that the two sides cannot share the line under test. What it does share is
- * everything the change did not touch: `selecting` is the real one, so the
- * grammar, the archive rule and the score are the matcher's own on both sides
- * and the only difference between the two answers is which records were offered
- * to it.
- *
- * The `named` arm is here for the same reason even though the production path
- * still spells it this way: a differential that compared the corpus walks and
- * took the candidate walk on trust would go green on the day the two stopped
- * agreeing about membership, which is precisely the seam an index puts under
- * this.
- */
 export const walkedMatching = (
   derived: Derived,
   filter: Filter,
@@ -87,8 +38,6 @@ export const walkedMatching = (
   ),
 ]
 
-/** The predicate, as it was: a file comparison, and an ancestor walk per node
- *  for `under:`. */
 const walkedScoping = (
   derived: Derived,
   scope: Scope,
@@ -130,51 +79,19 @@ const walkedNamedInScope = (
   return found.sort(byCorpus)
 }
 
-// ── the comparison ─────────────────────────────────────────────────────
-
-/** One question the two walks are asked: the text somebody typed, and the
- *  corner of the set it was asked about. */
 export interface Ask {
   readonly text: string
   readonly scope: Scope
 }
 
-/**
- * WHAT A RUN OF THE HARNESS SAYS.
- *
- * `divergences` is the claim and everything else is the non-vacuity: a run that
- * asked nothing, matched nothing, or asked only scopes that happened to hold
- * the whole vault would have an empty divergence list and prove nothing, and
- * each of those three is a counter here rather than a thing a caller has to
- * remember to check for itself.
- */
 export interface Report {
-  /** Every way the two answers differed, in the words a reader needs to fix it
-   *  — which ask, which position, which record on each side. EMPTY is the gate. */
   readonly divergences: ReadonlyArray<string>
-  /** How many asks were made. */
   readonly asked: number
-  /** How many records the reference walk selected across all of them. */
   readonly hits: number
-  /** How many SCOPED asks selected something, and fewer records than the same
-   *  query unscoped — the count that says the scopes really are corners of the
-   *  set rather than the whole of it. */
   readonly narrowing: number
-  /** How many asks were answered off a candidate list rather than off the
-   *  corpus — zero unless the caller supplied one. */
   readonly candidates: number
 }
 
-/**
- * ASK EVERY QUESTION BOTH WAYS.
- *
- * `narrow` is the seam an index plugs into: hand it something that answers a
- * filter with the ids that MIGHT match (`@olai/index`'s `Index.narrow`, whose
- * `null` means "ask the corpus") and both walks are run over those candidates
- * instead of over the set. Both — which is the whole point: the scope must
- * select the same records off a candidate list as off the corpus, and a harness
- * that only compared the corpus walks would never look at the composition.
- */
 export const differential = (
   at: Reading,
   asks: Iterable<Ask>,
@@ -188,10 +105,6 @@ export const differential = (
   let candidates = 0
   for (const ask of asks) {
     const filter = parseFilter(ask.text, now)
-    // MATERIALISED, because it is iterated three times below and a caller may
-    // hand back a generator: the two walks and the unscoped control must each
-    // be offered the SAME candidates, and a list the first of them consumed
-    // would quietly make the other two answers about nothing.
     const answered = narrow?.(at, filter)
     const named = answered === null || answered === undefined ? undefined : [...answered]
     const walked = walkedMatching(at.derived, filter, ask.scope, named)
@@ -211,23 +124,9 @@ export const differential = (
 const isScoped = (scope: Scope): boolean =>
   scope.file !== undefined || scope.under !== undefined
 
-/** The same scope with the corner taken off it — what "the same query
- *  unscoped" means, keeping the archive rule so the comparison is about the
- *  corner and not about the trash. */
 const trashOnly = (scope: Scope): Scope =>
   scope.trashed === undefined ? {} : { trashed: scope.trashed }
 
-/**
- * The two answers, differenced — SET first and then ORDER, because they fail
- * for different reasons and a reader wants to be told which.
- *
- * A record missing from one side is a membership bug (a placement descended
- * through, a subtree the descent could not reach); the same records in another
- * order is the corpus order not being kept, which no `toContain`-shaped
- * assertion would ever notice. The position lines are CAPPED because a walk
- * that shifted by one diverges at every position after it, and forty thousand
- * lines is not a diagnostic.
- */
 const differing = (
   ask: Ask,
   walked: ReadonlyArray<Matched>,
@@ -260,8 +159,6 @@ const differing = (
   return out
 }
 
-/** How many out-of-order positions are worth printing before the point is
- *  made — one shifted record diverges at every position after it. */
 const ORDER_LINES = 5
 
 const askedAs = (ask: Ask): string => {
@@ -273,52 +170,13 @@ const askedAs = (ask: Ask): string => {
   return `${JSON.stringify(ask.text)}${corner.length === 0 ? "" : ` (${corner.join(" ")})`}`
 }
 
-/** A record as a reader has to be able to find it: the id, and where it is
- *  written. */
 const whereOf = (one: Matched): string =>
   `${one.at.node.id} @ ${one.at.file}:${one.at.line}`
 
-/** ...and the whole of what a position promises, the match included: the two
- *  walks run the same matcher, so a field or a score that differed would be a
- *  record admitted as a different hit and not merely in a different place. */
 const spelled = (one: Matched): string =>
   `${whereOf(one)} [${one.match.field ?? "-"} ${one.match.score}]`
 
-// ── the corpora ────────────────────────────────────────────────────────
-
-/**
- * THE CORNERS NO GENERATOR REACHES, written by hand because most of them are
- * sets the VALIDATOR would refuse — the ground both walks explicitly promise to
- * stand on, since `ancestorsOf`'s own header says its crumbs are drawn from sets
- * the validator's error messages describe — and a generator drawing one at
- * random would only sometimes produce it.
- *
- * Every one is a shape where the descent and the ancestor walk could disagree,
- * and the comment beside it is what it is here for:
- *
- *   - A RECORD BENEATH A PLACEMENT (`t-beneath`, and one under IT). This is the
- *     trap the whole change turns on: `ancestorsOf` stops at a parent that is a
- *     mirror, so neither is under `t-root`, and a descent that walked into a
- *     placement's children would admit both. Nothing else in this fixture can
- *     catch it, because the answer it produces is plausible.
- *   - A PLACEMENT AS THE SCOPE ITSELF (`under:t-place`), which names an empty
- *     corner rather than the subtree its target has.
- *   - A PLACEMENT OF A PLACEMENT (`t-chain`), so the mirror rule is asked of a
- *     record whose own target is one.
- *   - A CHILD IN ANOTHER FILE (`t-cross`), which `parent` being same-file
- *     placement says never happens and which the two walks must still agree
- *     about — it is what makes `file:` beside `under:` a real conjunction and
- *     not a formality.
- *   - A PARENT LOOP (`t-loop-a` / `t-loop-b`), where the cycle guards at the two
- *     ends have to admit the same records.
- *   - A PARENT NOTHING CLAIMS (`t-orphan`), which is the scope root that is not
- *     there read from below.
- *   - THE ARCHIVE, a subtree of it, so a scope and the trash rule meet.
- */
 export const TANGLED: Readonly<Record<string, string>> = {
-  // `far.olai` sorts BEFORE `tangled.olai`, which is what makes the order half
-  // of the comparison real: a descent of `t-root` reaches `t-cross` last and
-  // the corpus holds it first.
   "far.olai": [
     `{"id":"t-far","ord":"a0","title":"far kitchen root"}`,
     `{"id":"t-target","parent":"t-far","ord":"a1","title":"the kitchen target","todo":true}`,
@@ -343,23 +201,6 @@ export const TANGLED: Readonly<Record<string, string>> = {
   ].join("\n"),
 }
 
-/**
- * A GENERATED VAULT WITH DEPTH IN IT — `./fixtures.testlib.ts`'s `vaultOf` is
- * the shape the benches measure and every file in it is a root with a flat row
- * of children under it, which is the one shape an `under:` scope cannot be
- * wrong about.
- *
- * So this one nests: a record's parent is drawn from the records already
- * written in its file, biased toward the recent ones, which gives trees a few
- * levels deep with wide and narrow branches in the same corpus. On top of that
- * it plants the two shapes that make a descent and an ancestor walk disagree,
- * at rates high enough that a hundred files hold hundreds of each — a MIRROR
- * among the children, and every so often a record written BENEATH one.
- *
- * SEEDED, so a divergence is a fixture a reader can re-run rather than a
- * lottery, and the seed is a parameter so a caller can have a second vault of
- * the same shape.
- */
 export const deepVaultOf = (
   { files, records, seed = 20260824 }: {
     readonly files: number
@@ -378,32 +219,19 @@ export const deepVaultOf = (
   return corpus
 }
 
-/** One file's JSONL — a root, a tree under it, placements among the branches,
- *  and now and then a record written under a placement. */
 const deepFileOf = (random: () => number, at: number, records: number): string => {
   const root = `d${at}r`
   const lines = [
     JSON.stringify({ id: root, ord: "a0", title: `deep file ${at} kitchen` }),
   ]
-  /** What a new record may hang under: every REGULAR record written so far in
-   *  this file. A mirror is deliberately not in it — a placement is offered as
-   *  a parent by {@link beneath} alone, so the shape is generated at a rate
-   *  rather than at whatever the draw happens to do. */
   const parents: Array<string> = [root]
-  /** ...and the placements, which are what a record written beneath one hangs
-   *  under. */
   const placed: Array<string> = []
   for (let which = 1; which < records; which++) {
     const id = `d${at}n${which}`
-    // BIASED TOWARD THE RECENT, which is what makes this a tree rather than a
-    // bush: drawing uniformly from every record written so far puts nearly
-    // everything one level under the root once a file is more than a few rows
-    // long.
     const parent = parents[
       Math.min(parents.length - 1, Math.floor(parents.length * (1 - random() * random())))
     ] as string
     if (which % 9 === 0 && at > 0) {
-      // A PLACEMENT among the children, pointing into the file before this one.
       lines.push(
         JSON.stringify({ id, parent, ord: `a${which}`, mirror: `d${at - 1}n1` }),
       )
@@ -411,8 +239,6 @@ const deepFileOf = (random: () => number, at: number, records: number): string =
       continue
     }
     if (which % 11 === 0 && placed.length > 0) {
-      // ...and a record written BENEATH one, which is in no `under:` scope
-      // above that placement however deep the descent goes.
       lines.push(
         JSON.stringify({
           id,
@@ -442,24 +268,6 @@ const deepFileOf = (random: () => number, at: number, records: number): string =
   return lines.join("\n")
 }
 
-// ── what to ask of a corpus ────────────────────────────────────────────
-
-/**
- * THE ASKS, drawn off the corpus itself rather than written down beside it.
- *
- * A scope names a file or a record, and a table of them written by hand is a
- * table that stops naming anything the day a generator or a vault changes — so
- * the files are the set's own and the `under:` roots are records taken from it,
- * spread across the corpus rather than clustered at its front, with the shapes
- * that must also be asked put in beside them: a scope with both halves, a root
- * that is a placement, a root nothing claims — each of those two also WITH a
- * live file beside it, which is the half that makes an empty corner provable
- * rather than merely empty — and the archive.
- *
- * SEEDED for the same reason the corpora are, and CAPPED because the product of
- * every query with every file is a suite that takes minutes to say what a few
- * hundred asks say in a second.
- */
 export const asksOver = (
   derived: Derived,
   queries: ReadonlyArray<string>,
@@ -476,21 +284,8 @@ export const asksOver = (
   const regular = derived.nodes.filter((at) => !isMirror(at.node))
   for (const at of sampled(random, regular, roots)) {
     scopes.push({ under: at.node.id })
-    // The conjunction, with the file the root is actually written in — the
-    // half that must hold everything — and with one it is not, which must hold
-    // only what a cross-file child put there.
     scopes.push({ under: at.node.id, file: at.file })
   }
-  // AN EMPTY CORNER, and the same empty corner WITH A LIVE FILE BESIDE IT.
-  //
-  // The pair is the point rather than either half. A root that is a placement
-  // and a root nothing claims both name nothing, and the walk they are held to
-  // arrives at that by testing every record and finding no ancestor above it —
-  // so a narrowing that answered an empty `under:` by falling through to the
-  // FILE branch would be wrong in exactly one shape, and only a scope naming a
-  // file that really holds records can catch it. With the `under:` alone both
-  // sides are empty for two different reasons and the comparison proves
-  // nothing (pi's review of `5a07615`).
   const live = paths.find((file) => (derived.byFile.get(file) ?? []).length > 0)
   const placement = derived.nodes.find((at) => isMirror(at.node))
   for (
@@ -509,8 +304,6 @@ export const asksOver = (
   return queries.flatMap((text) => scopes.map((scope) => ({ text, scope })))
 }
 
-/** `count` of them, spread across the list rather than taken off the front: a
- *  sample of the first twelve files is a sample of one corner of the corpus. */
 const sampled = <T>(
   random: () => number,
   of: ReadonlyArray<T>,
@@ -524,18 +317,6 @@ const sampled = <T>(
   )
 }
 
-// ── corpora, as readings ───────────────────────────────────────────────
-
-/**
- * JSONL and markdown by path, DECODED — the map `assemble` takes, kept beside
- * {@link readingOfVault} because the invalidation test holds one and
- * re-assembles it with a file replaced.
- *
- * Which arm a path is on is asked of the REGISTRY and never of its spelling:
- * `./kinds.ts` is the one place that says what a file of the set is, and an
- * `endsWith` here would be a second answer to it — which the sweep in
- * `@olai/tests`' `kinds.test.ts` fails a run over.
- */
 export const decodedVault = (
   vault: ReadonlyMap<string, string>,
 ): Map<string, Result.Result<Document, Verdict>> => {
@@ -543,8 +324,6 @@ export const decodedVault = (
   for (const [file, text] of vault) {
     decoded.set(
       file,
-      // A file with no BODY KIND is an outline — the one kind that holds
-      // records rather than text, which is what makes it the else of this.
       bodyKind(TEST_CLAIMS, file) === null
         ? Result.mapError(parseOutline(file, text, TEST_CLAIMS), verdictOf)
         : Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, text)),
@@ -556,30 +335,6 @@ export const decodedVault = (
 export const readingOfVault = (vault: ReadonlyMap<string, string>): Reading =>
   reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decodedVault(vault)))
 
-/**
- * THE REAL VAULT: a directory on disk, read as the set it is.
- *
- * The orchestrator's own — the roadmap the item under test is written in, the
- * board, the inbox and the archive — and it is here because a generated corpus
- * is a corpus somebody designed. What a real one has that no generator draws is
- * history: trees people actually grew, ids people actually chose, a mirror
- * somebody placed for a reason, and an archive with a hundred records in it. It
- * also CHANGES, which is exactly why nothing asserted about it may be about its
- * contents — the differential compares two answers and holds no opinion about
- * what either says.
- *
- * It used to be this repository's `docs/` and is {@link pinnedVault} now: the
- * vault moved to https://github.com/juspay/oss.olai and is READ AT A PIN from
- * there, which is the only way a corpus stays real without living here.
- *
- * WHAT IS READ is what the set holds CONTENT for, asked of the REGISTRY
- * ({@link ./kinds.ts}) rather than of a suffix written out here — an `endsWith`
- * would be a second answer to the one place that says what a file of the set is,
- * and the sweep in `@olai/tests`' `kinds.test.ts` fails a run over one. A kind
- * the set keeps only the PATH of is not read (there is no text to hand over),
- * and a file no kind claims at all is not part of the set — neither is a record,
- * and neither is in any scope.
- */
 export const vaultAt = (dir: string): ReadonlyMap<string, string> => {
   const vault = new Map<string, string>()
   const walk = (at: string): void => {
@@ -595,23 +350,6 @@ export const vaultAt = (dir: string): ReadonlyMap<string, string> => {
   return vault
 }
 
-/**
- * WHERE THE REAL VAULT IS, as the shell says — the orchestrator's own, pinned.
- *
- * The vault left this repository with the board (it is
- * https://github.com/juspay/oss.olai now), and the legs that read a real corpus
- * did not want a fixture instead: `npins` pins the vault the way `kolu` and
- * `osfacts` are pinned, `shell.nix` puts the store path on `OSS_OLAI_VAULT`,
- * and every `bun test` — this machine's and CI's — runs inside that shell. The
- * pin is what makes the corpus REPRODUCIBLE as well as real: a revision in
- * `npins/sources.json`, moved by `just update-pins` and by nothing else.
- *
- * UNSET OR ABSENT IS A THROW, named. The alternative every harness reaches for
- * — fall back to a fixture, or skip the case — is a green run that checked
- * nothing, which is the single failure mode the sweeps in `@olai/tests` exist
- * to prevent; a leg whose corpus is missing has to say so in the words that fix
- * it.
- */
 export const pinnedVault = (): string => {
   const at = process.env["OSS_OLAI_VAULT"]
   if (at === undefined || at === "") {

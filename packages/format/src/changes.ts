@@ -1,55 +1,9 @@
-/**
- * Two readings of the same outlines, in olai's words.
- *
- * PURE, and with no git in it — which is the whole reason it is here rather
- * than beside the plumbing that fetches the two sides. It is handed records and
- * answers with records; what the two sides ARE is the caller's business, and
- * there are two callers by design: what is pending is HEAD against the working
- * tree, and a past change is a commit against its parent
- * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/git-commits.md).
- *
- * **Never a text diff.** A `.olai` diff is one enormous line per node with
- * everything on it changing at once, which is exactly the thing this format
- * bought line-based merges with — and exactly the thing nobody can read. The
- * unit here is a NODE, and what a reader is told is what CHANGED ABOUT IT:
- * marked done, note rewritten, moved, archived.
- *
- * The model stays small because the wording is not in it. A change carries the
- * FIELDS that differ and one {@link Sort} — the single thing it is mostly about
- * — and each consumer keeps its own vocabulary for that: the panel says "marked
- * done", the commit body says `done:`. One classification, two tables, neither
- * of them here.
- */
 import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import type { Custom } from "./custom.ts"
 import { isTrashed, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
 
-/**
- * Every field of a record that can differ between two readings, DERIVED from
- * the schemas rather than listed again.
- *
- * `id` is not one: it is what the two readings are matched BY. Everything else
- * on either shape is, and the schemas are where "what fields exist" is already
- * declared — `./node.ts` says so in as many words. A hand-kept copy is the one
- * mistake this comparison cannot survive: the next field the format grows would
- * simply never be compared, so a node whose only change was that field would
- * report as unchanged, show no row in the panel and put no line in the commit
- * body. A silent hole in the audit trail, with no test to fail.
- *
- * Declaration order is canonical order — the writer's, and the one a reader
- * sees in the file.
- *
- * THE TWO STAMPS ARE NOT FIELDS THIS COMPARES, and they are the exception the
- * paragraph above has to name rather than a hole in it. `created` and `changed`
- * are facts about the WRITE, put there by the write itself (`@olai/ops`'
- * `plan.ts`): every op stamps `changed`, so comparing it would report every
- * node as differing by it, name it in every commit line beside the field the
- * person actually changed, and — worse — make a write that changed nothing
- * report as a change, since the stamp would be the difference. What a reader is
- * owed is what they wrote; when they wrote it is the log's own answer.
- */
 const STAMPS: ReadonlySet<string> = new Set(["created", "changed"])
 
 const RECORD_FIELDS: ReadonlyArray<string> = [
@@ -59,28 +13,9 @@ const RECORD_FIELDS: ReadonlyArray<string> = [
   field !== "id" && !STAMPS.has(field) && all.indexOf(field) === at
 )
 
-/** A field that differs, or `file` — the one difference that is not a field of
- *  the record at all. A node's file changes when it is archived, which is the
- *  only op that moves one between outlines.
- *
- *  `Schema.String` rather than a literal union, because the members are the
- *  schemas' own field names: spelling them here would be the hand-kept list
- *  above exists to avoid, one level up. */
 export const Field = Schema.String
 export type Field = typeof Field.Type
 
-/**
- * What a change is mostly ABOUT.
- *
- * Derived from the fields AND the values, because two of them cannot be told
- * apart by name: a `done` that appeared and a `done` that was taken off are the
- * same field and opposite events. Carried on the change so every consumer
- * classifies identically and none of them re-derives it.
- *
- * The order of this list is the FIXED PRIORITY — first match wins when several
- * things changed at once, and the same order picks the one change a composed
- * commit subject names.
- */
 export const Sort = Schema.Literals([
   "created",
   "trashed",
@@ -103,32 +38,15 @@ export type Sort = typeof Sort.Type
 
 
 
-/**
- * One node, as it differs between the two readings.
- *
- * `file` is where the node is NOW — and where it WAS, for one that is gone,
- * since there is nowhere else to point. Same for `title`: as it reads now, or
- * as it read on the side that still had it.
- *
- * There is deliberately no added/removed/changed tag beside `sort`. It would be
- * a function of `sort` (`created` is an arrival, `gone` is a departure,
- * everything else is neither) said in a second vocabulary, and nothing reads it:
- * the panel, the commit body and the subject all switch on `sort`.
- */
 export const NodeChange = Schema.Struct({
-  /** Root-relative, the same spelling every `file:line` uses. */
   file: Schema.String,
   id: Schema.String,
   title: Schema.String,
-  /** Which fields differ. Empty for a node that arrived or left, where the
-   *  answer would be "all of them" and mean nothing. */
   fields: Schema.Array(Field),
   sort: Sort,
 })
 export type NodeChange = typeof NodeChange.Type
 
-/** One side of the comparison: each outline's records, keyed by its path. A
- *  file missing from the map is a file that side did not have. */
 export type Records = ReadonlyMap<string, ReadonlyArray<Node>>
 
 interface Placed {
@@ -136,18 +54,6 @@ interface Placed {
   readonly node: Node
 }
 
-/**
- * What changed between two readings of the same set of files.
- *
- * Matched by ID ACROSS FILES rather than within one, so archiving reads as one
- * change to one node rather than as a removal and an unrelated arrival: the
- * subtree left `roadmap.olai` and is in `_olai/Trash.olai`, which is what
- * happened. Both files are dirty in that case, so both sides are in hand.
- *
- * The answer is in file order — the `after` side's, then whatever only the
- * `before` side had — and within a file in record order, so a panel drawing it
- * reads down the outline.
- */
 export const changesOf = (
   claims: Claims,
   before: Records,
@@ -183,8 +89,6 @@ export const changesOf = (
     }
   }
 
-  // Only the ids the `after` side never mentioned. A node that moved file has
-  // already been reported, under the file it is in now.
   for (const [file, nodes] of before) {
     for (const node of nodes) {
       if (now.has(node.id)) continue
@@ -201,8 +105,6 @@ export const changesOf = (
   return changes
 }
 
-/** The change a composed subject should name: the biggest by the fixed
- *  priority, and among equals the first one read. `null` for nothing. */
 export const biggestOf = (
   changes: ReadonlyArray<NodeChange>,
 ): NodeChange | null => {
@@ -213,12 +115,8 @@ export const biggestOf = (
   return best
 }
 
-/** Where a sort sits in the fixed priority — its position in the declaration,
- *  which IS the order. */
 const rank = (sort: Sort): number => Sort.literals.indexOf(sort)
 
-/** Every record of every file, by id. Ids are unique across the SET, which is
- *  what lets one map hold them all and what makes a cross-file move visible. */
 const placed = (records: Records): ReadonlyMap<string, Placed> => {
   const by = new Map<string, Placed>()
   for (const [file, nodes] of records) {
@@ -227,9 +125,6 @@ const placed = (records: Records): ReadonlyMap<string, Placed> => {
   return by
 }
 
-/** What to call a node. A mirror has no title of its own — it is a second
- *  placement of a node that does — so it answers by the id it was named by,
- *  the same way a `move:` line does. */
 const nameOf = (node: Node): string => (isMirror(node) ? node.id : node.title)
 
 const differing = (before: Placed, after: Placed): ReadonlyArray<Field> => {
@@ -248,25 +143,6 @@ type Value = string | boolean | ReadonlyArray<string> | Custom | undefined
 const valueOf = (node: Node, field: (typeof RECORD_FIELDS)[number]): Value =>
   (node as Readonly<Record<string, Value>>)[field]
 
-/**
- * Are these two field values the same thing?
- *
- * BY CONTENT, all the way down, and each arm is here because a reading is a
- * PARSE: the two sides of a comparison are two objects however equal the bytes
- * were, so anything compared by identity reports every node carrying it as
- * changed on every write. The list arm has always been here for that reason;
- * the map arm was missing, and `custom` is the first map-valued field the
- * format has (found by Grok, review of #179).
- *
- * That miss was not one wrong field among many. The stamps are excluded from
- * {@link RECORD_FIELDS} precisely so a write whose only mark is `changed` says
- * nothing — and a `custom` compared by identity put that change straight back
- * in under another name, on exactly the nodes properties were built for.
- *
- * The recursion is one level and cannot be more: a map's values are text or a
- * list of text ({@link ./custom.ts}), which is what the two arms above it
- * already answer.
- */
 const same = (a: Value, b: Value): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
     return a.length === b.length && a.every((entry, at) => entry === b[at])
@@ -279,34 +155,18 @@ const same = (a: Value, b: Value): boolean => {
   return a === b
 }
 
-/** A `custom` map rather than the other three kinds of value — asked as a
- *  shape rather than by field name, so the comparison above stays a statement
- *  about VALUES and a second map-valued field needs nothing here. */
 const isMap = (value: Value): value is Custom =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
-/** Whether a field says something now. The three marks and `date` are all
- *  set-or-absent, and the difference between putting one on and taking it off
- *  is the only thing a field NAME cannot carry. */
 const set = (node: Node, field: "done" | "cancelled" | "doing" | "date"): boolean =>
   valueOf(node, field) !== undefined
 
-/** Which of the fields that differ is the one this change is ABOUT. Takes the
- *  `after` side because three of the arms turn on what the field BECAME, which
- *  is the one thing a field name cannot say. */
 const sortOf = (claims: Claims, fields: ReadonlyArray<Field>, after: Placed): Sort => {
   const changed = new Set(fields)
   if (changed.has("file")) {
     return isTrashed(claims, after.file) ? "trashed" : "moved"
   }
   if (changed.has("done")) return set(after.node, "done") ? "done" : "undone"
-  // THE FOURTH MARK HAS AN ARM AND `todo` STILL DOES NOT, which is a
-  // distinction rather than an oversight. What earns a `Sort` here is an EVENT
-  // the log is about, and a settling mark is one: it stamps an instant, lands
-  // on a day's page, and is the thing somebody will grep for in a year
-  // ("when did we drop that?"). Filing work is not an event in that sense, so a
-  // `todo` appearing goes on reading as `edited` — the same line it has always
-  // taken.
   if (changed.has("cancelled")) {
     return set(after.node, "cancelled") ? "cancelled" : "uncancelled"
   }

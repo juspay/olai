@@ -1,11 +1,3 @@
-/**
- * The words a commit gets when nobody wrote any.
- *
- * A table of sentences is worth a test of its own precisely because it is what
- * a person reads years later out of `git log`, and because nothing else in the
- * system will ever notice if it degrades: an ugly subject line commits exactly
- * as well as a good one.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
@@ -45,9 +37,6 @@ describe("a composed message", () => {
     ).toBe("olai: 2 edits — a node done")
   })
 
-  // The correction this feature carried: a date used to print as `move:`,
-  // which beside a real reparenting op read as a structural change that never
-  // happened.
   test("a date says it is a date, and a move says it is a move", () => {
     expect(composed(TEST_CLAIMS, [change({ sort: "scheduled", title: "pay the bill" })]))
       .toContain("date: pay the bill")
@@ -63,13 +52,6 @@ describe("a composed message", () => {
   })
 })
 
-/**
- * The OTHER files in the repository, which is what `commit-whole-repo` added.
- *
- * A commit that swept up a hand-edited `README.md` used to be impossible; a
- * commit that swept one up and said nothing about it in the log would be worse
- * than that. The subject counts them and the body names them.
- */
 describe("a message that also carries other files", () => {
   const other = (
     path: string,
@@ -85,28 +67,14 @@ describe("a message that also carries other files", () => {
     expect(message.split("\n")[0]).toBe(
       "olai: 1 edit to roadmap — Outlines as a collection done · 2 other files",
     )
-    // And they are NAMED, with what happened to each: a path-level row is all
-    // this feature ever shows of a file it cannot parse, so the log gets
-    // exactly what the panel got.
     expect(message).toContain("modified: README.md")
     expect(message).toContain("untracked: notes/todo.md")
   })
 
-  /**
-   * A RENAME names both halves, which is the one row where the status word on
-   * its own refuses to say the interesting part.
-   *
-   * `renamed: Kept.olai` is a line a person reads a year later and cannot act
-   * on: renamed from WHAT. The body is the permanent record of what a commit
-   * did, and `deleted: Reading.md` — which is what this said before both halves
-   * travelled together — was the log agreeing with the wrong half of the panel.
-   */
   test("a renamed file names the side it came from", () => {
     const message = composed(TEST_CLAIMS, [], [other("Kept.olai", "renamed", "Reading.md")])
     expect(message).toContain("renamed: Reading.md → Kept.olai")
     expect(message).not.toContain("deleted: Reading.md")
-    // The subject still names the file as it is NOW: what the commit recorded
-    // is a file at that path, and the arrow belongs to the line that has room.
     expect(message.split("\n")[0]).toBe("olai: 1 file — Kept.olai")
   })
 
@@ -115,10 +83,6 @@ describe("a message that also carries other files", () => {
       .toEndWith("· 1 other file")
   })
 
-  /** Files ALONE — a person edited two documents by hand and asked for a
-   *  commit. There is no node change to name, and `olai: nothing` (which is
-   *  what this used to say) would be a lie about a commit that recorded two
-   *  files. */
   test("files with no node changes still name themselves", () => {
     const message = composed(TEST_CLAIMS, [], [other("README.md"), other("docs/design.md")])
     expect(message.split("\n")[0]).toBe("olai: 2 files — README.md and 1 more")
@@ -129,8 +93,6 @@ describe("a message that also carries other files", () => {
       .toBe("olai: 1 file — README.md")
   })
 
-  /** The two lists have their own budgets: a hundred node changes must not be
-   *  able to push every filename out of the body. */
   test("each list stops on its own", () => {
     const many = Array.from({ length: 25 }, (_, at) => change({ id: `n${at}` }))
     const files = Array.from({ length: 25 }, (_, at) => other(`f${at}.md`))
@@ -145,18 +107,6 @@ describe("a message that also carries other files", () => {
   })
 })
 
-/**
- * The subject names a node the way a person reads it, not the way the file
- * stores it.
- *
- * The design's own example — `olai: 11 edits to roadmap — outlines-collection
- * done` — named the ID, and read perfectly well, because every id in that
- * roadmap is a slug somebody chose. `outlines_add` MINTS one when the caller does
- * not supply it, which is the ordinary case for an agent capturing nodes, and
- * the same subject then reads `olai: 2 edits to house — 1vax4izq created`. That
- * is a line in a permanent log that nobody can read and nobody can correct
- * afterwards, which is exactly what the `capture:`/`done:` convention is for.
- */
 test("the subject names the node's title, so a minted id never reaches the log", () => {
   const message = composed(TEST_CLAIMS, [
     change({ id: "1vax4izq", title: "measure the alcove", sort: "created" }),

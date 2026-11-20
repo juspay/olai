@@ -1,6 +1,3 @@
-/** The reading of `byFile`, under a name the fixture builder below has not
-   *  already taken — that one turns TEXT into records, this one asks a
-   *  derivation what one file holds. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -55,41 +52,25 @@ test("the nearest selected node may be the node itself or its closest ancestor",
   expect(nearestAtOrAbove(derived, "leaf", new Set(["elsewhere"]))).toBeNull()
 })
 
-/** A reverse index's members as a LIST — spread rather than compared as a set,
- *  because those indexes promise an order as well as a membership and
- *  `toEqual` over a `Set` would only read the second. */
 const members = (
   index: ReadonlyMap<string, ReadonlySet<string>>,
   id: string,
 ): ReadonlyArray<string> => [...(index.get(id) ?? [])]
 
-/** What `namedBy` says about an id, as `record field,field` per namer — one
- *  string rather than a nested literal, so what an assertion is about is the
- *  records and their reasons rather than the shape they arrive in. */
 const namers = (derived: Derived, id: string): ReadonlyArray<string> =>
   (derived.namedBy.get(id) ?? []).map((one) =>
     `${one.at.node.id} ${one.fields.join(",")}`
   )
 
-/** ...and what `taggedBy` says about a tag AS WRITTEN (`@x`, `#x`): the records
- *  that write it, which is all that index carries — where one of them wrote it
- *  is not a fact it keeps. */
 const taggers = (derived: Derived, tag: string): ReadonlyArray<string> =>
   (derived.taggedBy.get(tag) ?? []).map((at) => at.node.id)
 
-/** The regular records of a fixture, for the functions that read a node's own
- *  stored fields rather than a whole set. */
 const regulars = (contents: string): ReadonlyArray<RegularNode> =>
   nodesOf(contents).flatMap((located) => isMirror(located.node) ? [] : [located.node])
 
-/** A row's tree, flattened to `key kind` — the two facts a renderer switches
- *  on, and the two this file is about. */
 const shape = (rows: ReadonlyArray<Row>): ReadonlyArray<string> =>
   rows.flatMap((row) => [`${row.key} ${row.kind}`, ...shape(row.children)])
 
-/** The row at `index`, insisting it is one that draws a node. `shows` lives on
- *  those two kinds alone, so a test reading it has to say which it expected —
- *  and hears which stub it got instead when the walk disagrees. */
 const drawn = (
   rows: ReadonlyArray<Row>,
   index: number,
@@ -102,8 +83,6 @@ const drawn = (
   return row
 }
 
-/** What a stub row says, as one string per row: the id a dangling chain died
- *  on, the id a cycle closed on, or the kind that turned out not to be one. */
 const stubbed = (row: Row): string =>
   row.kind === "dangling"
     ? `dangling ${row.missing}`
@@ -111,10 +90,6 @@ const stubbed = (row: Row): string =>
     ? `cycle ${row.through}`
     : `drawn ${row.kind}`
 
-// ── the indexes ────────────────────────────────────────────────────────
-
-// A node's status is the mark it stores, and one carrying no mark is not a
-// task — which the index says by not holding it at all.
 test("a leaf reports what it stores, and an unmarked one reports nothing", () => {
   const status = statusesOf(
     `{"id":"a","ord":"a","title":"a","done":true}\n` +
@@ -124,13 +99,9 @@ test("a leaf reports what it stores, and an unmarked one reports nothing", () =>
   expect(status.get("a")).toBe("done")
   expect(status.get("b")).toBe("doing")
   expect(status.get("c")).toBeUndefined()
-  // ABSENT, not present-and-empty: "no status" has one spelling, the way an
-  // absent field does on disk.
   expect(status.has("c")).toBe(false)
 })
 
-// Which field a record actually carries, which is also its status — the ops
-// layer reads this to decide whether an undo has anything to take off.
 test("the stored marker is the field a record actually carries, or nothing", () => {
   expect(
     regulars(
@@ -141,24 +112,13 @@ test("the stored marker is the field a record actually carries, or nothing", () 
     ).map(storedMarker),
   ).toEqual(["done", "doing", "todo", undefined])
 
-  // Written by hand because the parser refuses these lines: the marks are
-  // exclusive on disk, so this only decides what a set the validator has
-  // already condemned looks like — and it looks as far along as it claims.
   expect(storedMarker({ id: "x", ord: "a", title: "x", done: true, doing: true }))
     .toBe("done")
   expect(storedMarker({ id: "x", ord: "a", title: "x", doing: true, todo: true }))
     .toBe("doing")
 })
 
-// A PARENT is what it stores too, and nothing about its children changes that.
-// This is the 2026-08-11 decision in one test: derivation read containment as
-// decomposition, so a parent of tasks became a task nobody had called one, and
-// a parent of notes could not be called one at all.
 test("a parent says what it stores, whatever hangs under it", () => {
-  // Children all done, parent unmarked: the parent is a BULLET. Nothing has
-  // made it a task, and the done toggle will not touch it — which is the whole
-  // bug this replaced, where those findings vanished with a parent nobody had
-  // finished.
   const unmarked = statusesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
@@ -166,8 +126,6 @@ test("a parent says what it stores, whatever hangs under it", () => {
   )
   expect(unmarked.get("p")).toBeUndefined()
 
-  // A parent whose children are all NOTES can be a task, which derivation had
-  // no way to express: the four findings under it are not four subtasks.
   const overNotes = statusesOf(
     `{"id":"p","ord":"a","title":"p","todo":"2026-08-11"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1"}\n` +
@@ -175,9 +133,6 @@ test("a parent says what it stores, whatever hangs under it", () => {
   )
   expect(overNotes.get("p")).toBe("todo")
 
-  // And a stored mark that disagrees with the arithmetic is simply the mark:
-  // `done` over an unfinished child is a claim about the branch, which somebody
-  // is allowed to make (the ops layer says so out loud — plan.ts's nudge).
   const disagreeing = statusesOf(
     `{"id":"p","ord":"a","title":"p","done":"2026-08-11"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","doing":true}`,
@@ -186,9 +141,6 @@ test("a parent says what it stores, whatever hangs under it", () => {
   expect(disagreeing.get("c1")).toBe("doing")
 })
 
-// What the children DO add up to, and the whole of it: an annotation. It is
-// beside the title, never in the checkbox, and nothing reads it to decide what
-// is hidden or what is blocked.
 test("the rollup counts the child tasks, and only the child tasks", () => {
   const progress = (contents: string, id: string): Progress | undefined =>
     progressOf(derive(TEST_CLAIMS, nodesOf(contents)), id)
@@ -201,13 +153,6 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
     "p",
   )).toEqual({ done: 1, total: 3 })
 
-  /*
-   * A CANCELLED CHILD LEAVES THE DENOMINATOR — the fourth mark's second open
-   * question, answered (2026-08-25). `3/5` counts what is HAPPENING: counting
-   * it as done would make the numerator a lie about how much got done, and
-   * leaving it in the denominator would make the rollup unfinishable, which is
-   * the reading a settling mark exists to end.
-   */
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
@@ -216,8 +161,6 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
     "p",
   )).toEqual({ done: 1, total: 2 })
 
-  // …so a branch whose remaining work is finished reaches its own total,
-  // which is the property the other two answers cannot hold.
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
@@ -225,9 +168,6 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
     "p",
   )).toEqual({ done: 1, total: 1 })
 
-  // And a parent whose every child was called off shows NO rollup: nothing
-  // under it is happening, which is the same sentence a subtree of notes gets
-  // three assertions down rather than a second rule.
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","cancelled":true}\n` +
@@ -235,8 +175,6 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
     "p",
   )).toBeUndefined()
 
-  // A note under an item is not a task, so it neither adds to the total nor
-  // holds it back — the same rule that keeps a bullet from blocking anything.
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
@@ -244,8 +182,6 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
     "p",
   )).toEqual({ done: 1, total: 1 })
 
-  // Nothing under it is a task: there is no progress to show, rather than
-  // progress of zero. A subtree of notes annotates nothing.
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1"}`,
@@ -253,8 +189,6 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
   )).toBeUndefined()
   expect(progress(`{"id":"p","ord":"a","title":"p","done":true}`, "p")).toBeUndefined()
 
-  // ITS OWN children, one level. A grandchild is counted by the row it hangs
-  // under, which is the row a reader is looking at when they want the number.
   expect(progress(
     `{"id":"top","ord":"a","title":"top"}\n` +
       `{"id":"mid","parent":"top","ord":"a","title":"mid","doing":true}\n` +
@@ -263,10 +197,6 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
   )).toEqual({ done: 0, total: 1 })
 })
 
-// The OTHER annotation, and the same sentence in another register: a span is
-// derived from the record's own fields, is never stored, and is absent rather
-// than zero when there is no span to tell. Fixed instants, so the arithmetic
-// is the assertion — local offsets included, because `stampOf` writes them.
 test("took is the settling instant minus the stored start, in whole seconds", () => {
   const took = (record: string): number | undefined => {
     const [located] = nodesOf(record)
@@ -274,101 +204,64 @@ test("took is the settling instant minus the stored start, in whole seconds", ()
     return tookOf(located.node)
   }
 
-  // 09:52 to 12:26:44 is 2h34m44s — the whole seconds, and only them.
   expect(took(
     `{"id":"a","ord":"a","title":"t","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00"}`,
   )).toBe(9284)
 
-  // A CALLED-OFF node is read the same way: the span is the time sunk, which
-  // is what the two settling marks share — read off the one pair of
-  // rules, never a second one for the fourth mark.
   expect(took(
     `{"id":"a","ord":"a","title":"t","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
   )).toBe(2460)
 
-  // A `done` that lands the same SECOND it started has a span worth saying:
-  // zero is not `undefined`, and the chip reads it.
   expect(took(
     `{"id":"a","ord":"a","title":"t","done":"2026-08-29T09:52:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
   )).toBe(0)
 
-  // THE THREE SILENCES, and each is a refused invention rather than a missing
-  // case. No `started` — the todo→done jump, and every node settled before
-  // olai stamped a start: there is no span, and `created` is never the
-  // fallback, because that measures the node's age rather than the work.
   expect(took(`{"id":"a","ord":"a","title":"t","done":"2026-08-29T12:26:44-04:00","created":"2026-08-01T09:52:00-04:00"}`))
     .toBeUndefined()
-  // Nothing settled yet: a `doing` node's span is the tick's own question,
-  // asked of a clock — this one answers when the wait is over.
   expect(took(
     `{"id":"a","ord":"a","title":"t","doing":true,"started":"2026-08-29T09:52:00-04:00"}`,
   )).toBeUndefined()
   expect(took(
     `{"id":"a","ord":"a","title":"t","todo":true,"started":"2026-08-29T09:52:00-04:00"}`,
   )).toBeUndefined()
-  // And an instant-free settle: the shape finished work written before olai
-  // stamped instants still has — it says the wait ended and declines to say
-  // when, so there is nothing to subtract from.
   expect(took(
     `{"id":"a","ord":"a","title":"t","done":true,"started":"2026-08-29T09:52:00-04:00"}`,
   )).toBeUndefined()
 })
 
-// The BANKED arm: a record carrying `worked` has its rounds closed for it
-// already, and the read answers the bank — NEVER a re-subtraction against
-// the last round's `started`, which the re-stamp rule makes a fresh round
-// the settle already counted.
 test("took is the bank when there is one — rounds summed, pauses never in it", () => {
   const took = (node: RegularNode): number | undefined => tookOf(node)
-  // Two rounds of 10m and 8m, 36m of pause between them: the bank is 1080,
-  // and a subtraction against the CURRENT `started` would read only the
-  // second round — 480s of the truth.
   expect(took({
     id: "a", ord: "a", title: "t",
     done: "2026-08-29T09:58:00-04:00",
     started: "2026-08-29T09:50:00-04:00",
     worked: 1080,
   })).toBe(1080)
-  // The bank answers WHOLE: a settled record with no `started` at all
-  // still says what was counted — nothing invents the rounds, and their
-  // sum never needed re-telling.
   expect(took({
     id: "a", ord: "a", title: "t",
     done: "2026-08-29T12:26:44-04:00",
     worked: 600,
   })).toBe(600)
-  // …over an instant-free settle too: the `true` a pre-stamps `done` still
-  // carries asks nothing, and the banked answer is not a span to
-  // re-derive.
   expect(took({ id: "a", ord: "a", title: "t", done: true, worked: 41 * 60 }))
     .toBe(2460)
-  // CALLED OFF reads the same: the bank that ground is the time sunk.
   expect(took({
     id: "a", ord: "a", title: "t",
     cancelled: "2026-08-29T10:33:00-04:00",
     started: "2026-08-29T09:52:00-04:00",
     worked: 1080,
   })).toBe(1080)
-  // The one SILENCE left, bank or no bank: a RUNNING node's figure is the
-  // tick's sum of bank and live round, asked of a clock — never an answer
-  // this read invents. (The sum itself is `@olai/web`'s `liveOf`, and its
-  // cases are its own test.)
   expect(took({
     id: "a", ord: "a", title: "t",
     doing: true,
     started: "2026-08-29T09:50:00-04:00",
     worked: 600,
   })).toBeUndefined()
-  // And a NEGATIVE bank is a record a hand wrote, read as nothing rather
-  // than as a debt — the clamp the one-round arm has, read once more.
   expect(took({ id: "a", ord: "a", title: "t", done: "2026-08-29T12:26:44-04:00", worked: -30 }))
     .toBe(0)
 })
 
 test("took says nothing the record cannot support, and never goes under zero", () => {
   const took = (node: RegularNode): number | undefined => tookOf(node)
-  // A value the parser would refuse still answers rather than throws — a set
-  // already condemned is still read ({@link drawingPath}'s reason).
   expect(took({
     id: "a", ord: "a", title: "t",
     done: "2026-08-29T12:26:44-04:00",
@@ -379,15 +272,11 @@ test("took says nothing the record cannot support, and never goes under zero", (
     done: "still not one",
     started: "2026-08-29T09:52:00-04:00",
   })).toBeUndefined()
-  // A start AFTER the settle is a record a hand or a merge wrote; a span of
-  // minus six minutes is a worse answer than none of the truth at all.
   expect(took({
     id: "a", ord: "a", title: "t",
     done: "2026-08-29T09:52:00-04:00",
     started: "2026-08-29T09:58:36-04:00",
   })).toBe(0)
-  // And a sub-second span is its whole seconds — rounded, because a stamp
-  // olai did not mint may carry the fractions its own writer never writes.
   expect(took({
     id: "a", ord: "a", title: "t",
     done: "2026-08-29T09:52:12.726Z",
@@ -395,10 +284,6 @@ test("took says nothing the record cannot support, and never goes under zero", (
   })).toBe(4)
 })
 
-// What a `done` on a node would be a claim about — and what the sweep that
-// honours it would take off the screen. The ops layer refuses a mark over this
-// list, so a second walk over the same edges would be a second answer to "is a
-// bullet unfinished".
 test("the unfinished ones are the tasks in the subtree that are not done", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
@@ -408,17 +293,10 @@ test("the unfinished ones are the tasks in the subtree that are not done", () =>
       `{"id":"aside","parent":"p","ord":"d","title":"a note about it"}\n` +
       `{"id":"m","parent":"p","ord":"e","mirror":"c3"}`,
   ))
-  // `doing` and `todo` alike — both are tasks that are not done. Never the
-  // note, which is not a task, and never the mirror, which is not a second
-  // obligation.
   expect(ids(unfinishedWithin(derived, "p"))).toEqual(["c2", "c3"])
   expect(unfinishedWithin(derived, "c1")).toEqual([])
 })
 
-// DEEP, and in outline order: hiding what is done drops the whole subtree, so
-// the question "what would this mark hide" is not a question about one level.
-// The bullet in the middle is walked THROUGH — it is not a task itself, and
-// the task under it is still a task.
 test("it descends the whole branch, through bullets and finished work alike", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"root","ord":"a","title":"root"}\n` +
@@ -428,15 +306,9 @@ test("it descends the whole branch, through bullets and finished work alike", ()
       `{"id":"shut","parent":"root","ord":"c","title":"shut","done":true}\n` +
       `{"id":"under","parent":"shut","ord":"a","title":"under a done one","todo":true}`,
   ))
-  // `under` is in the list even though the `done` on `shut` already hides it:
-  // a second mark above would hide it harder, and the state it is in is the
-  // one this gate exists to stop being made.
   expect(ids(unfinishedWithin(derived, "root"))).toEqual(["near", "deep", "under"])
 })
 
-// A placement is not containment. The work a mirror draws lives at its target,
-// where its own row keeps it on screen, so it neither counts here nor is
-// walked into — and that holds for a mirror of a whole BRANCH too.
 test("a mirror is never counted and never walked through", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"here","ord":"a","title":"here"}\n` +
@@ -448,8 +320,6 @@ test("a mirror is never counted and never walked through", () => {
   expect(ids(unfinishedWithin(derived, "there"))).toEqual(["below"])
 })
 
-// Every walk here answers over a set the validator would reject, this one
-// included: a parent loop must not hang the write that asks about it.
 test("a parent loop is walked once", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","parent":"b","ord":"a","title":"a","todo":true}\n` +
@@ -458,8 +328,6 @@ test("a parent loop is walked once", () => {
   expect(ids(unfinishedWithin(derived, "a"))).toEqual(["b"])
 })
 
-// A mirror shows a node, so it shows that node's mark; a checkbox that
-// disagreed with the one two lines up would make mirrors unusable.
 test("a mirror reports its target's mark, through as many hops as it takes", () => {
   const status = statusesOf(
     `{"id":"p","ord":"a","title":"p","done":"2026-08-03"}\n` +
@@ -471,14 +339,6 @@ test("a mirror reports its target's mark, through as many hops as it takes", () 
   expect(status.get("far")).toBe("done")
 })
 
-// EVERY mark, and the absence of one, because the report this locks down
-// (`mirror-status`, 2026-08-11) was that a mirror of a `doing` node drew a
-// plain bullet where the target drew the half-filled box. Read through the
-// ROWS rather than off the index, since the row is what a checkbox is drawn
-// from: a hop the map made and the walk then keyed by the placement's own id
-// would pass the test above and still leave the screen wrong. The unmarked
-// target is the case the other three are only meaningful against — a mirror of
-// a bullet has no box either, because there is no mark to show.
 test("a mirror row draws its target's mark, whichever of them it is", () => {
   const rows = rowsOf(
     derive(TEST_CLAIMS, nodesOfFiles({
@@ -486,8 +346,6 @@ test("a mirror row draws its target's mark, whichever of them it is", () => {
         `{"id":"waiting","ord":"b","title":"waiting","todo":"2026-08-11"}\n` +
         `{"id":"finished","ord":"c","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"note","ord":"d","title":"a note about all three"}`,
-      // In another file, which is where a mirror usually lives: the one
-      // relation that crosses files must not be the one that drops the mark.
       "b.olai": `{"id":"m-working","ord":"a","mirror":"working"}\n` +
         `{"id":"m-waiting","ord":"b","mirror":"waiting"}\n` +
         `{"id":"m-finished","ord":"c","mirror":"finished"}\n` +
@@ -503,9 +361,6 @@ test("a mirror row draws its target's mark, whichever of them it is", () => {
   ])
 })
 
-// A mirror is a placement, not a second obligation, so it is not counted in
-// the rollup: showing a node in a second place must not make an unrelated
-// parent read `1/2`.
 test("a mirror child does not count toward the rollup of the node it sits under", () => {
   const contents = `{"id":"elsewhere","ord":"z","title":"somewhere else","todo":true}\n` +
     `{"id":"p","ord":"a","title":"p"}\n` +
@@ -515,15 +370,10 @@ test("a mirror child does not count toward the rollup of the node it sits under"
   expect(derived.status.get("m")).toBe("todo")
   expect(progressOf(derived, "p")).toEqual({ done: 1, total: 1 })
 
-  // The mirror is still a child for *placement* — it renders under `p`…
   expect(ids(derived.children.get("p") ?? [])).toEqual(["c", "m"])
-  // …and still not one for the rollup, which is the set `countedChildren` is.
   expect(ids(countedChildren(derived, "p"))).toEqual(["c"])
 })
 
-// `ord` is a fractional index over base62, so plain string comparison IS the
-// sort. Anything that treated it as a number would put `a10` after `a2`, and
-// an insert between two siblings would land in the wrong place.
 test("siblings sort by string comparison of ord, never numerically", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
@@ -534,9 +384,6 @@ test("siblings sort by string comparison of ord, never numerically", () => {
   expect(ids(derived.children.get("p") ?? [])).toEqual(["upper", "ten", "two"])
 })
 
-// Two siblings can legitimately share an `ord` after a merge. File order
-// decides, rather than whatever the engine's sort happens to do, so two loads
-// of the same file render in the same order.
 test("equal ords break on line, not on sort stability", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
@@ -546,10 +393,6 @@ test("equal ords break on line, not on sort stability", () => {
   expect(ids(derived.children.get("p") ?? [])).toEqual(["later", "earlier"])
 })
 
-// The validator reports a duplicate id on the SECOND record and points back at
-// the first, which only reads as advice if every other reference still means
-// the first one. `byId` and that error therefore have to pick the same record,
-// or a set with one duplicate would report a second, invented dangling edge.
 test("a duplicated id resolves to the record that claimed it first", () => {
   const within = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"first"}\n{"id":"x","ord":"b","title":"second"}`,
@@ -561,14 +404,9 @@ test("a duplicated id resolves to the record that claimed it first", () => {
     "b.olai": `{"id":"x","ord":"a","title":"second"}`,
   }))
   expect([across.byId.get("x")?.file, across.byId.get("x")?.line]).toEqual(["a.olai", 1])
-  // One entry per id, not one per record: the map is an index, not a list.
   expect(across.byId.size).toBe(1)
 })
 
-// The set is flat and carries every file's records; `byFile` is that same list
-// read the other way. What it promises is DISK order, because the reader that
-// needs it most is a WRITER — a write re-emits the whole file, and a
-// reordering here would be a diff nobody asked for.
 test("a file's records come back in line order, whatever order the set is in", () => {
   const nodes = nodesOfFiles({
     "a.olai": `{"id":"a1","ord":"b","title":"one"}\n` +
@@ -576,36 +414,22 @@ test("a file's records come back in line order, whatever order the set is in", (
       `{"id":"m","parent":"a1","ord":"a","mirror":"b1"}`,
     "b.olai": `{"id":"b1","ord":"a","title":"elsewhere"}`,
   })
-  // Handed over backwards: the promise is about what the index MEANS, not
-  // about the order the caller happened to build its list in.
   const derived = derive(TEST_CLAIMS, [...nodes].reverse())
-  // A placement is a RECORD, so it is here — this index is about what the file
-  // holds, and `ord` order is a different list (`siblingsOf` sorts for that).
   expect(ids(recordsOf(derived, "a.olai"))).toEqual(["a1", "a2", "m"])
   expect(ids(recordsOf(derived, "b.olai"))).toEqual(["b1"])
-  // A file with nothing of its own is ABSENT rather than mapped to an empty
-  // list: which files exist is the set's answer, never this map's.
   expect(derived.byFile.has("c.olai")).toBe(false)
   expect(recordsOf(derived, "c.olai")).toEqual([])
 })
 
-// ── what cannot start yet ──────────────────────────────────────────────
-
-/** What one node is waiting on, as `id status` per blocker — the two facts a
- *  reader draws off a blocker, and the two this section is about. */
 const waiting = (
   derived: ReturnType<typeof derive>,
   id: string,
 ): ReadonlyArray<string> =>
   blockersOf(derived, id).map((one) => `${one.at.node.id} ${one.status}`)
 
-/** The same, for a set written as one file. */
 const waitingIn = (contents: string, id: string): ReadonlyArray<string> =>
   waiting(derive(TEST_CLAIMS, nodesOf(contents)), id)
 
-// The rule, and the whole of it: `a after b` holds `a` up while `b` is a task
-// nobody has SETTLED — with the four marks there are, while it is doing or
-// todo. The blocker travels with its reason, so a reader never re-derives why.
 test("an after target blocks while it is a task nobody has settled", () => {
   const of = (mark: string): ReadonlyArray<string> =>
     waitingIn(
@@ -615,60 +439,23 @@ test("an after target blocks while it is a task nobody has settled", () => {
     )
   expect(of(`,"doing":true`)).toEqual(["b doing"])
   expect(of(`,"todo":true`)).toEqual(["b todo"])
-  // Done is one of the two that clear the way: it has happened, so nothing is
-  // waiting.
   expect(of(`,"done":"2026-08-10"`)).toEqual([])
-  // AND CANCELLED IS THE OTHER (the human, 2026-08-25). "Not happening" ends
-  // the wait: nobody can finish a task somebody has called off, so a target
-  // that went on blocking after being cancelled would be an obstacle with no
-  // way past it — the exact shape of the bullet trap one test down, arrived at
-  // from the settled end instead of the unmarked one.
   expect(of(`,"cancelled":"2026-08-25T15:40:03-04:00"`)).toEqual([])
   expect(of(`,"cancelled":true`)).toEqual([])
 })
 
-/**
- * The same mark at the SOURCE end, which is the same predicate read the other
- * way: a cancelled node is waiting on nothing, whatever it points at.
- *
- * Both ends in one test because they are one function (`inPlay`) — and both
- * are asserted because "a node this can be said about" and "a node that stands
- * in the way" are exactly the pair two spellings of the rule would have let
- * disagree.
- */
 test("a cancelled node is waiting on nothing, and stands in nobody's way", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","cancelled":"2026-08-25T15:40:03-04:00","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +
       `{"id":"c","ord":"c","title":"c","todo":true,"after":["a"]}`,
   ))
-  // The SOURCE end: `a` is settled, so nothing is telling it that it cannot
-  // start — the same answer a `done` node gets, arrived at from the other
-  // direction ("it is not going to happen" instead of "it has happened").
   expect(waiting(derived, "a")).toEqual([])
-  // The TARGET end: `c` waits on `a`, and `a` is settled, so `c` is free.
   expect(waiting(derived, "c")).toEqual([])
-  // And the write-time reading of the target end agrees, which is what
-  // `outlines_doing` is gated on: `c` may start, because nothing its `after` names
-  // holds it up any more. (`a`'s own list is still `b` — `standingBefore` asks
-  // what a node's targets hold up regardless of the node's own mark, which is
-  // the one place it and `blockersOf` part, and it parts there for `done` too.)
   expect(standingBefore(derived, "c").map((one) => one.at.node.id)).toEqual([])
   expect(standingBefore(derived, "a").map((one) => one.at.node.id)).toEqual(["b"])
 })
 
-/**
- * WHAT A `done` MAY NOW BE WRITTEN OVER — the branch half of the ruling, pinned
- * where the walk is rather than where the refusal is (`@olai/ops`' `plan.ts`
- * holds that end).
- *
- * `unfinishedWithin` is what `outlines_done` is gated on, so a cancelled task
- * leaving this list IS "a parent's outlines_done is not refused over a cancelled
- * child". The refusal's own sentence has always said the way past it — clear
- * the marks on what is not happening — and the fourth mark is the honest
- * spelling of that: the row keeps a mark, an instant and a day, and stops
- * standing in the way.
- */
 test("a cancelled task is not unfinished work in the branch below a node", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"top","ord":"a","title":"top","todo":true}\n` +
@@ -677,14 +464,8 @@ test("a cancelled task is not unfinished work in the branch below a node", () =>
       `{"id":"deep","parent":"off","ord":"a","title":"deep","todo":true}\n` +
       `{"id":"note","parent":"top","ord":"c","title":"note"}`,
   ))
-  // `off` is settled and out. `deep` is NOT — it is `todo`, and nothing about
-  // cancelling its parent settles it: this walk reads each node's own stored
-  // mark, one level at a time, and a cascade is exactly what the format has
-  // never done ("a mark is a stored fact, never computed from what hangs
-  // below"). So `outlines_done` on `top` is still refused, naming `deep` alone.
   expect(unfinishedWithin(derived, "top").map((at) => at.node.id)).toEqual(["deep"])
 
-  // With the branch's own leaf settled too, nothing is left standing.
   const settled = derive(TEST_CLAIMS, nodesOf(
     `{"id":"top","ord":"a","title":"top","todo":true}\n` +
       `{"id":"off","parent":"top","ord":"a","title":"off","cancelled":"2026-08-25"}\n` +
@@ -693,11 +474,6 @@ test("a cancelled task is not unfinished work in the branch below a node", () =>
   expect(unfinishedWithin(settled, "top")).toEqual([])
 })
 
-// THE TRAP the rule is written against (website/docs/format.md): spelling it
-// `status !== "done"` reads every plain bullet as an obstacle that can never
-// be cleared, because nothing can ever finish a node that is not a task.
-// Adding `todo` did not narrow it by one case — the unmarked node is still the
-// one that must not block.
 test("a target nobody marked never blocks, however unfinished it looks", () => {
   expect(
     waitingIn(
@@ -707,8 +483,6 @@ test("a target nobody marked never blocks, however unfinished it looks", () => {
     ),
   ).toEqual([])
 
-  // Nor does a parent whose children are all bullets: a subtree of bullets
-  // adds up to a bullet, and this is where that answer earns its keep.
   expect(
     waitingIn(
       `{"id":"a","ord":"a","title":"a","todo":true,"after":["notes"]}\n` +
@@ -719,10 +493,6 @@ test("a target nobody marked never blocks, however unfinished it looks", () => {
   ).toEqual([])
 })
 
-// The same predicate at the other end of the arrow, which is the racket
-// reference's own shape: a done node has happened and the order it happened in
-// is no longer a question, and a bullet is not work, so neither is waiting on
-// anything however unfinished what they point at is.
 test("a node that is done or unmarked is waiting on nothing", () => {
   const set = (mark: string): string =>
     `{"id":"a","ord":"a","title":"a"${mark},"after":["b"]}\n` +
@@ -732,8 +502,6 @@ test("a node that is done or unmarked is waiting on nothing", () => {
   expect(waitingIn(set(""), "a")).toEqual([])
 })
 
-// `blocks` is sugar for the same edge written from the other end, normalised
-// in ONE place (`derive`) so the acyclicity rule and this read one graph.
 test("blocks is the same edge, and both halves land in one answer", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
@@ -741,20 +509,11 @@ test("blocks is the same edge, and both halves land in one answer", () => {
       `{"id":"c","ord":"c","title":"c","doing":true,"blocks":["a"]}`,
   ))
   expect(waiting(derived, "a")).toEqual(["b doing", "c doing"])
-  // The graph itself, as the validator's cycle check reads it.
   expect(derived.after.get("a")).toEqual(["b", "c"])
   expect(derived.blocked.has("b")).toBe(false)
 })
 
-// AN EDGE NAMED TWICE IS ONE EDGE — the last thing normalisation owes the
-// readers of this graph, and the three ways a set can say one arrow twice.
-// Nothing refuses any of them: a `.olai` is plain text, the validator asks
-// whether a target EXISTS, and both fields are legal spellings of the same
-// claim. What reads it takes it as a set — the `blocked by` row a page draws
-// keyed by the blocker's id, the tip, the walk the acyclicity rule shares —
-// and a repeat there says one node is in the way twice.
 test("an edge named twice, however it is spelled, is one edge", () => {
-  // The FIELD, repeating a target, which is what a hand or a merge writes.
   const repeated = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b","b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}`,
@@ -762,8 +521,6 @@ test("an edge named twice, however it is spelled, is one edge", () => {
   expect(repeated.after.get("a")).toEqual(["b"])
   expect(waiting(repeated, "a")).toEqual(["b doing"])
 
-  // BOTH SPELLINGS of one arrow, each written once. Neither record is wrong,
-  // and `a after b` is what the pair means.
   const both = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true,"blocks":["a"]}`,
@@ -771,9 +528,6 @@ test("an edge named twice, however it is spelled, is one edge", () => {
   expect(both.after.get("a")).toEqual(["b"])
   expect(waiting(both, "a")).toEqual(["b doing"])
 
-  // TWO IDS STANDING AT ONE NODE: naming a placement names the node it shows,
-  // so an `after` naming both is naming one target — and the pair is one edge
-  // only because both ends are resolved before they are compared.
   const mirrored = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b-here"]}\n` +
       `{"id":"b-here","ord":"b","mirror":"b"}`,
@@ -782,8 +536,6 @@ test("an edge named twice, however it is spelled, is one edge", () => {
   expect(mirrored.after.get("a")).toEqual(["b"])
   expect(waiting(mirrored, "a")).toEqual(["b doing"])
 
-  // The ORDER a repeat is dropped in is the order the set first named it:
-  // what survives is the whole list, minus the second saying of one thing.
   const ordered = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["c","b","c"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +
@@ -792,9 +544,6 @@ test("an edge named twice, however it is spelled, is one edge", () => {
   expect(ordered.after.get("a")).toEqual(["c", "b"])
 })
 
-// Work that was put away is over: it blocks nothing, because a node waiting on
-// it would wait forever, and it is not blocked either, because the archive is
-// read as history rather than as a plate. Both ends, one rule.
 test("archived work neither blocks nor is blocked", () => {
   const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
@@ -804,13 +553,9 @@ test("archived work neither blocks nor is blocked", () => {
   }))
   expect(waiting(derived, "a")).toEqual([])
   expect(waiting(derived, "old")).toEqual([])
-  // The status index still knows what they are; it is blocking they are out of.
   expect(derived.status.get("put-away")).toBe("doing")
 })
 
-// Leftover Archive.olai is the same exemption (human, 2026-08-19): orphaned
-// from live readings, so it neither blocks nor is blocked, and a leftover
-// mirror does not make a live node `is:mirrored`.
 test("leftover Archive.olai work neither blocks nor is blocked", () => {
   const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
@@ -831,16 +576,6 @@ test("a leftover Archive.olai mirror does not make a node is:mirrored", () => {
   expect(derived.mirrorsOf.has("herbs")).toBe(false)
 })
 
-/**
- * The other end of the arrow, asked of a node that is not work yet.
- *
- * `blockersOf` is what a node IS waiting on and it is empty for a bullet,
- * which is right for every drawing of blockedness — nothing is telling a
- * bullet it cannot start. `standingBefore` is what its `after` targets hold
- * up regardless, which is what a write about to MAKE it work has to ask
- * (`@olai/ops`' `outlines_doing` refusal). The two differ at exactly one end and
- * agree at the other, because they share one predicate.
- */
 test("standingBefore asks the same question of a node that is not work yet", () => {
   const before = (
     derived: ReturnType<typeof derive>,
@@ -848,8 +583,6 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   ): ReadonlyArray<string> =>
     standingBefore(derived, id).map((one) => `${one.at.node.id} ${one.status}`)
 
-  // The one place they part: an unmarked source. It is waiting on nothing, and
-  // there is unfinished work in front of it all the same.
   const bullet = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}`,
@@ -857,8 +590,6 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   expect(waiting(bullet, "a")).toEqual([])
   expect(before(bullet, "a")).toEqual(["b doing"])
 
-  // And everywhere else they agree, because the TARGET side is one function:
-  // a bullet, a done node and an archived one stand in nobody's way.
   const clear = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
       `{"id":"note","ord":"b","title":"a note"}\n` +
@@ -867,16 +598,8 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   }))
   expect(before(clear, "a")).toEqual([])
 
-  // The `blocks` sugar and the promised order are the graph's, so they are
-  // this reading's too — it is `derived.after` it walks.
-  //
   // THE ORDER HERE IS USER-VISIBLE, which is why it is asserted rather than
-  // sorted away: `@olai/ops`' `outlines_doing` refusal names its blockers in this
-  // sequence, so a regression that shuffled it would change the sentence a
-  // person and an agent both read ("comes after 2 unfinished tasks: `b` …,
-  // `c` …"). It is the same promise `Derived.blocked` makes for the one
-  // blocker a row has space to draw — a node's own `after` as it writes them,
-  // then whatever `blocks` points back at it.
+  // sorted away.
   const both = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +
@@ -884,12 +607,9 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   ))
   expect(before(both, "a")).toEqual(["b doing", "c todo"])
 
-  // Nothing named, nothing waiting — the answer for nearly every node.
   expect(before(both, "b")).toEqual([])
 })
 
-// An archive one directory down is the same archive: `archive` puts a subtree
-// beside the outline it left, wherever that outline lives.
 test("an archive beside any outline is an archive", () => {
   expect(
     waiting(
@@ -902,9 +622,6 @@ test("an archive beside any outline is an archive", () => {
   ).toEqual([])
 })
 
-// An edge may name a MIRROR — a placement is addressable like anything else —
-// and what it means is the node standing there. Followed at either end, so the
-// blocker a reader is handed is a node with a title to show.
 test("an edge naming a mirror means the node it shows", () => {
   const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["m"]}\n` +
@@ -914,20 +631,11 @@ test("an edge naming a mirror means the node it shows", () => {
       `{"id":"m2","ord":"e","mirror":"a"}`,
   }))
   expect(waiting(derived, "a")).toEqual(["b doing", "c doing"])
-  // Under the NODE's id, never the placement's: two records naming one node
-  // are one node waiting on both of them.
   expect(derived.blocked.has("m2")).toBe(false)
-  // And the graph they were read off is in terms of nodes at BOTH ends, which
-  // is what lets the acyclicity rule see the same edges this did.
   expect(derived.after.get("a")).toEqual(["b", "c"])
   expect(derived.after.has("m2")).toBe(false)
 })
 
-// A row has space for ONE blocker, so which one comes first is a promise: the
-// node's own `after` as it writes them, and only then whatever points back at
-// it. Built in one interleaved pass, `blocks` from a record written EARLIER in
-// the file landed first — so what a pill linked to depended on where in the
-// directory somebody had written an unrelated edge.
 test("a node's own after targets come before anything that blocks it", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
@@ -936,12 +644,6 @@ test("a node's own after targets come before anything that blocks it", () => {
   ))
   expect(waiting(derived, "subject")).toEqual(["own doing", "early doing"])
 
-  // AND THE PROMISE SURVIVES A PAIR THAT SAYS ONE EDGE BOTH WAYS. `own` is
-  // named twice here — by the subject's own `after` and by its own `blocks`,
-  // one file, both legal — so the second pass meets an edge the first already
-  // filed. That is where the two rules meet: the collapse keeps the position
-  // the FIRST saying earned, rather than moving the pair to where the `blocks`
-  // was read or naming `own` twice with `early` between the two.
   const paired = derive(TEST_CLAIMS, nodesOf(
     `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
       `{"id":"own","ord":"b","title":"own","doing":true,"blocks":["subject"]}\n` +
@@ -951,9 +653,6 @@ test("a node's own after targets come before anything that blocks it", () => {
   expect(waiting(paired, "subject")).toEqual(["own doing", "early doing"])
 })
 
-// Blockedness is read off the same index wherever a node is drawn: a row, a
-// mirror row (which says what its target says, the way its status does) and
-// the node's own page.
 test("a row, a mirror row and a page all say what the node is waiting on", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"first","ord":"a","title":"first","doing":true}\n` +
@@ -970,11 +669,6 @@ test("a row, a mirror row and a page all say what the node is waiting on", () =>
     .toEqual(["first"])
 })
 
-// The waiting glyph is drawn from TWO facts at once — the mark it is toned
-// with and the blockers it stands in for — so a mirror needs both of them from
-// its target or the column falls back to a box, or to nothing at all. `blocked`
-// is keyed by the node while `status` is keyed by every record, and the row is
-// where those two key domains have to meet.
 test("a mirror row carries both halves of the waiting glyph", () => {
   const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"first","ord":"a","title":"first","doing":true}\n` +
@@ -983,24 +677,17 @@ test("a mirror row carries both halves of the waiting glyph", () => {
   }))
   const mirror = drawn(rowsOf(derived, "b.olai"), 0)
   expect(mirror.kind).toBe("mirror")
-  // The mark the glyph is toned with…
   expect(mirror.status).toBe("todo")
-  // …and what it says the row is waiting on, with its reason.
   expect(mirror.blocked.map((one) => `${one.at.node.id} ${one.status}`)).toEqual([
     "first doing",
   ])
 })
 
-// A row that draws no node is waiting on nothing — there is no node there to
-// be held up — and asking is not an error.
 test("a dangling row is waiting on nothing", () => {
   const rows = rowsOf(derive(TEST_CLAIMS, nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)), FIXTURE_FILE)
   expect(rows[0]?.blocked).toEqual([])
 })
 
-// An `after` loop is a set the validator refuses — nothing in it can start
-// first — but the derivation still runs against it, because that report is
-// drawn over a tree. Each of them is waiting on the other, and nothing hangs.
 test("an after loop derives without hanging", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","doing":true,"after":["b"]}\n` +
@@ -1010,11 +697,6 @@ test("an after loop derives without hanging", () => {
   expect(waiting(derived, "b")).toEqual(["a doing"])
 })
 
-// A deadlock that closes THROUGH A PLACEMENT is a deadlock: `x` waits on a
-// mirror of `y` and `y` waits on `x`. The view draws both as blocked — it
-// resolves what an edge names — so the graph the validator refuses loops from
-// has to resolve it too, or a set nobody can start anywhere in loads clean and
-// says so on two rows for ever. `validate.test.ts` holds the other half.
 test("a loop closing through a mirror is one loop in the graph", () => {
   const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"x","ord":"a","title":"x","doing":true,"after":["m"]}\n` +
@@ -1023,20 +705,10 @@ test("a loop closing through a mirror is one loop in the graph", () => {
   }))
   expect(waiting(derived, "x")).toEqual(["y doing"])
   expect(waiting(derived, "y")).toEqual(["x doing"])
-  // Both edges in terms of nodes, so the loop is walkable rather than dying at
-  // a placement that carries no edges of its own.
   expect(derived.after.get("x")).toEqual(["y"])
   expect(derived.after.get("y")).toEqual(["x"])
 })
 
-// ── read backwards ─────────────────────────────────────────────────────
-
-// `mirrorsOf` is `follow` reversed, and following the CHAIN is what makes it
-// that rather than a reverse of the `mirror` field: a mirror of a mirror of
-// `x` shows `x`, so `x` is where it is filed, and the record in the middle
-// collects nothing. One walk builds both directions — a second would be a
-// second chance to disagree about where a chain ends, and a placement filed
-// under one node while it shows another is exactly what this exists to find.
 test("a mirror is filed under the node its chain ends at, not the hop before", () => {
   const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"x","ord":"a","title":"the real one"}`,
@@ -1046,9 +718,6 @@ test("a mirror is filed under the node its chain ends at, not the hop before", (
   expect(derived.mirrorsOf.has("m2")).toBe(false)
 })
 
-// The two ways a chain fails are the two ways it shows no node — and a node
-// that shows itself is not standing in for anything. `status` leaves all three
-// out; so does this, for the same reason.
 test("a chain that shows no node, and a node that shows itself, are filed nowhere", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"gone","ord":"a","mirror":"nobody"}\n` +
@@ -1058,7 +727,6 @@ test("a chain that shows no node, and a node that shows itself, are filed nowher
   expect(derived.mirrorsOf.size).toBe(0)
 })
 
-// A duplicated id is one node — `byId` says so — so it is one entry here too.
 test("a node's mirrors are listed once each", () => {
   const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"x","ord":"a","title":"x"}`,
@@ -1068,10 +736,6 @@ test("a node's mirrors are listed once each", () => {
   expect(members(derived.mirrorsOf, "x")).toEqual(["m"])
 })
 
-// `edgesTo` is `after` reversed, and reversed by the same act that built it:
-// both maps get their keys AFTER the edge has been resolved to nodes, so the
-// forward reading and the reverse one cannot disagree about whether two
-// records mean one edge.
 test("the ordering graph reversed says who was waiting on a node", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x","doing":true,"blocks":["e"]}\n` +
@@ -1081,19 +745,11 @@ test("the ordering graph reversed says who was waiting on a node", () => {
   ))
   expect(derived.after.get("a")).toEqual(["x"])
   expect(derived.after.get("e")).toEqual(["x"])
-  // Both spellings land at the NODE, in `after`'s own promised order — the
-  // node's own `after` first, then what points back at it — and the placement
-  // collects nothing.
   expect(members(derived.edgesTo, "x")).toEqual(["a", "e"])
   expect(derived.edgesTo.has("m")).toBe(false)
   expect(derived.edgesTo.has("a")).toBe(false)
 })
 
-// One relation written twice is one relation, and BOTH readings say so — which
-// is the point of filing the reverse as the edge is made rather than in a later
-// pass. #203 made the forward map a set per source; a reverse built separately
-// could have gone on counting the repeat, and then "who is waiting on x" and
-// "what is x waiting on" would disagree about how many edges two records mean.
 test("a target named twice is one edge, read forwards and backwards", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x","doing":true}\n` +
@@ -1103,13 +759,6 @@ test("a target named twice is one edge, read forwards and backwards", () => {
   expect(members(derived.edgesTo, "x")).toEqual(["a"])
 })
 
-// `namedBy` is the format's own `targetsOf` read backwards, and it is RAW —
-// what the records SAY, before a chain is followed or `blocks` is normalised
-// into `after`. That is the point of it being a third index rather than a
-// reading of the two above: the ops layer refuses to retire a placement
-// something still names, and the canonical maps have filed every one of those
-// edges at the node the placement shows, where a refusal about the PLACEMENT
-// could never find them.
 test("a record is filed under the id it wrote, not the node that id means", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n` +
@@ -1117,18 +766,11 @@ test("a record is filed under the id it wrote, not the node that id means", () =
       `{"id":"a","ord":"c","title":"a","after":["m"],"see":["m"]}\n` +
       `{"id":"b","ord":"d","title":"b","blocks":["m"]}`,
   ))
-  // One entry per RECORD, with the fields in declaration order: a node naming
-  // the same id twice is one dependent with two reasons, not two dependents.
   expect(namers(derived, "m")).toEqual(["a after,see", "b blocks"])
-  // `see` is in here and in nothing else — no derivation reads it, and a
-  // reverse index that left it out would let a write land that should not.
   expect(derived.edgesTo.has("m")).toBe(false)
-  // The placement's own claim on the node it shows is an entry like any other.
   expect(namers(derived, "x")).toEqual(["m mirror"])
 })
 
-// One field naming an id twice is still one field: a reader listing it twice
-// would be reporting the shape of the file rather than what it means.
 test("a field naming the same id twice is named once", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n` +
@@ -1137,11 +779,6 @@ test("a field naming the same id twice is named once", () => {
   expect(namers(derived, "x")).toEqual(["a after,see"])
 })
 
-// `taggedBy` is the fourth reverse index, and the one keyed by a TAG rather
-// than by an id: what a title or a note writes after a sigil, filed exactly as
-// it is written. Whether an `@` tag names a node — whether the mention is a
-// REFERENCE — is asked at the read (`./backlinks.ts`), so that minting a node
-// does not have to re-walk every note in the directory.
 test("a tag is filed under the tag as written, in prose of either kind", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n` +
@@ -1149,14 +786,9 @@ test("a tag is filed under the tag as written, in prose of either kind", () => {
       `{"id":"b","ord":"c","title":"b","desc":"and @x again, and @alice"}`,
   ))
   expect(taggers(derived, "@x")).toEqual(["a", "b"])
-  // A word nothing declares files exactly the same way: this index is about
-  // what the prose SAYS, and `@alice` is a tag until somebody is called that.
   expect(taggers(derived, "@alice")).toEqual(["b"])
 })
 
-// The re-key this index was rebuilt for (#techdebt, filed at PR #237): the keys
-// used to be sigil-stripped, so a topic and a mention spelled the same word
-// were one entry and neither reader could tell them apart.
 test("a `#topic` and an `@person` spelled alike are two keys", () => {
   const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
@@ -1165,7 +797,6 @@ test("a `#topic` and an `@person` spelled alike are two keys", () => {
   ))
   expect(taggers(derived, "@herbs")).toEqual(["a"])
   expect(taggers(derived, "#herbs")).toEqual(["b"])
-  // ...and the bare word is neither of them, which is what a stripped key was.
   expect(derived.taggedBy.has("herbs")).toBe(false)
 })
 
@@ -1190,20 +821,11 @@ test("the alphabet is the title's own, and a sigil inside a word starts nothing"
       `{"id":"b","ord":"b","title":"filed under #herbs"}\n` +
       `{"id":"c","ord":"c","title":"(@herbs) and @work/olai"}`,
   ))
-  // The bracket opens a word, the `.` ends one, and `/` is part of a tag name
-  // — `titleTagRe`'s rules, inherited rather than restated here. The `#` in the
-  // middle record is claimed wherever it is written, which is the asymmetry
-  // that regex owns and this index inherits whole.
   expect(taggers(derived, "@herbs")).toEqual(["c"])
   expect(taggers(derived, "#herbs")).toEqual(["b"])
   expect(taggers(derived, "@work/olai")).toEqual(["c"])
 })
 
-// ── the drawable tree ──────────────────────────────────────────────────
-
-// A mirror is expanded in place, because a pointer the reader has to go and
-// follow is not a second location — it is a footnote. So the row says it is a
-// mirror, and its children are the TARGET's, drawn under the mirror's own key.
 test("a mirror row is drawn with its target's children", () => {
   const nodes = nodesOf(
     `{"id":"p","ord":"b","title":"p","doing":true}\n` +
@@ -1213,27 +835,17 @@ test("a mirror row is drawn with its target's children", () => {
   const rows = rowsOf(derive(TEST_CLAIMS, nodes), "a.olai")
   const mirror = drawn(rows, 0)
   expect(mirror.kind).toBe("mirror")
-  // `at` is the record occupying the place; `shows` is what is drawn there —
-  // and it is known to be a regular node, so its title is a field read.
   expect(mirror.at.node.id).toBe("m")
   expect(mirror.shows.node.id).toBe("p")
   expect(mirror.shows.node.title).toBe("p")
   expect(mirror.children.map((row) => row.at.node.id)).toEqual(["c"])
-  // And it shows the target's mark and the target's rollup: the row draws that
-  // node's children, so it annotates that node's children.
   expect(mirror.status).toBe("doing")
   expect(mirror.progress).toEqual({ done: 1, total: 1 })
   const node = drawn(rows, 1)
   expect(node.kind).toBe("node")
-  // A regular node shows itself — the very record, not a copy of it.
   expect(node.at).toBe(node.shows)
 })
 
-// A mirror of a mirror is legal — nothing in the format forbids a second
-// pointer to a pointer — and following one hop would leave a row standing for
-// a record with no title and no children of its own: a legal set the reader
-// cannot draw. So the chain is followed to its end, and the row draws the
-// children of the node it ended at.
 test("a mirror of a mirror shows the node at the end of the chain, with its children", () => {
   const nodes = nodesOf(
     `{"id":"p","ord":"c","title":"the real one"}\n` +
@@ -1244,18 +856,11 @@ test("a mirror of a mirror shows the node at the end of the chain, with its chil
   const far = drawn(rowsOf(derive(TEST_CLAIMS, nodes), "a.olai"), 0)
   expect(far.at.node.id).toBe("far")
   expect(far.kind).toBe("mirror")
-  // Through both hops, to the node that actually carries a title…
   expect(far.shows.node.id).toBe("p")
   expect(far.shows.node.title).toBe("the real one")
-  // …and it draws THAT node's children, under this place's own key. The
-  // intermediate mirror has no children of its own, so a walk that stopped at
-  // it would draw an empty row.
   expect(shape([far])).toEqual(["/far mirror", "/far/kid node"])
 })
 
-// A row's key is the identity of the PLACE, not of the node. The same node
-// reached through two routes is two rows on screen, and folding one must not
-// fold the other — which is only true if their keys differ.
 test("one node reached through two places has two keys", () => {
   const nodes = nodesOf(
     `{"id":"p","ord":"b","title":"p"}\n` +
@@ -1267,22 +872,14 @@ test("one node reached through two places has two keys", () => {
   expect(new Set(rows).size).toBe(rows.length)
 })
 
-// A mirror whose target is not in the set is a place with nothing to show. It
-// is named as such rather than silently dropped — the validator has already
-// refused the set, and the reader is looking at it to find out why.
 test("a mirror with no target is a dangling row with no children", () => {
   const nodes = nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)
   const rows = rowsOf(derive(TEST_CLAIMS, nodes), "a.olai")
   expect(rows.map(stubbed)).toEqual(["dangling gone"])
-  // Nothing to draw, so the row carries no `shows` at all — a view switching
-  // on `kind` never has a placeholder to test for.
   expect(rows.map((row) => "shows" in row)).toEqual([false])
   expect(rows[0]?.children).toEqual([])
 })
 
-// The id a dangling row names is the one the CHAIN died on. `b` exists here,
-// so "a mirror of `b`, which no node declares" would be a lie — it is `b`'s own
-// target that is missing, and only the walk knows that.
 test("a dangling row names where the chain died, not the first hop", () => {
   const nodes = nodesOf(
     `{"id":"a","ord":"a","mirror":"b"}\n{"id":"b","ord":"b","mirror":"c"}`,
@@ -1292,15 +889,10 @@ test("a dangling row names where the chain died, not the first hop", () => {
   expect(rows.map((row) => row.at.node.id)).toEqual(["a", "b"])
 })
 
-// The other way a chain can fail to end: it comes back to a record it has
-// already followed. That is a cycle in the POINTERS, found before any tree is
-// drawn, and the row names the id it closed on rather than the first hop.
 test("a mirror chain that closes on itself is a cycle naming where it closed", () => {
   const itself = nodesOf(`{"id":"m","ord":"a","mirror":"m"}`)
   expect(rowsOf(derive(TEST_CLAIMS, itself), "a.olai").map(stubbed)).toEqual(["cycle m"])
 
-  // Two mirrors showing each other: from `m1` the chain runs m1 → m2 → m1, so
-  // that place closed on `m1`, and the place at `m2` on `m2`.
   const pair = nodesOf(
     `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
   )
@@ -1308,8 +900,6 @@ test("a mirror chain that closes on itself is a cycle naming where it closed", (
   expect(rows.map(stubbed)).toEqual(["cycle m1", "cycle m2"])
   expect(rows.every((row) => row.children.length === 0)).toBe(true)
 
-  // And the id it closed on is not the id it started from: `a` points into a
-  // loop it is not itself part of, so the honest answer is `b`.
   const into = nodesOf(
     `{"id":"a","ord":"a","mirror":"b"}\n` +
       `{"id":"b","ord":"b","mirror":"c"}\n` +
@@ -1319,23 +909,14 @@ test("a mirror chain that closes on itself is a cycle naming where it closed", (
     .toEqual(["cycle b", "cycle b", "cycle c"])
 })
 
-// The headline case for the cycle guard: a mirror of `a` placed inside `a`.
-// Drawing `a` draws the mirror, which draws `a`. The validator refuses this
-// set — and the rows are drawn anyway, because the browser shows the outline
-// beside the errors. A renderer that hung is a worse way to learn about a bug
-// than a marked stub, so this test failing looks like a timeout.
 test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
   const nodes = nodesOf(
     `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
   )
   const rows = rowsOf(derive(TEST_CLAIMS, nodes), "a.olai")
   expect(shape(rows)).toEqual(["/a node", "/a/m cycle"])
-  // And it says which ancestor it closed on, which is what a view would
-  // otherwise have to guess from the mirror's own id.
   expect(rows[0]?.children.map(stubbed)).toEqual(["cycle a"])
 
-  // Any depth, not just directly under the target: the guard is the ancestors
-  // of the place, not the parent of the mirror.
   const deep = nodesOf(
     `{"id":"a","ord":"a","title":"a"}\n` +
       `{"id":"b","parent":"a","ord":"a","title":"b"}\n` +
@@ -1346,9 +927,6 @@ test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
   expect(deepRows[0]?.children[0]?.children.map(stubbed)).toEqual(["cycle a"])
 })
 
-// Every `.olai` is an independent tree, so the rows of a file are its own
-// roots — the set is flat and carries every file's nodes, so the filtering is
-// what makes "the rows of this file" mean anything at all.
 test("roots are the requested file's own top-level nodes, in ord order", () => {
   const nodes = nodesOfFiles({
     "a.olai": `{"id":"second","ord":"b","title":"b"}\n` +
@@ -1356,17 +934,12 @@ test("roots are the requested file's own top-level nodes, in ord order", () => {
       `{"id":"kid","parent":"first","ord":"a","title":"kid"}`,
     "b.olai": `{"id":"elsewhere","ord":"a","title":"elsewhere"}`,
   })
-  // One `Derived` for every file: it carries the nodes it was built from, so
-  // the rows of two files cannot be drawn from two different revisions.
   const derived = derive(TEST_CLAIMS, nodes)
   expect(shape(rowsOf(derived, "a.olai")))
     .toEqual(["/first node", "/first/kid node", "/second node"])
   expect(shape(rowsOf(derived, "b.olai"))).toEqual(["/elsewhere node"])
-  // A file with no nodes of its own draws nothing, rather than everything.
   expect(rowsOf(derived, "c.olai")).toEqual([])
 })
-
-// ── hiding what is done ────────────────────────────────────────────────
 
 const HOUSEWORK = `{"id":"kitchen","ord":"a0","title":"kitchen","doing":true}\n` +
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"demo","done":true}\n` +
@@ -1388,9 +961,6 @@ test("hiding what is done drops the done rows and keeps the rest", () => {
   ])
 })
 
-// A node that STORES done takes its subtree with it, bullets included. That is
-// somebody's claim about the whole branch, made deliberately, so honouring it
-// is what the toggle is for.
 test("a stored done hides the whole subtree under it, bullets included", () => {
   const rows = rowsOf(
     derive(TEST_CLAIMS,
@@ -1406,11 +976,6 @@ test("a stored done hides the whole subtree under it, bullets included", () => {
   expect(withoutDone(rows)).toEqual([])
 })
 
-// The bug this whole change is named after. `agents` was a parent nobody had
-// marked, its task children all finished, and it DERIVED done — so the toggle
-// dropped it and took four unmarked findings, which nobody had finished or
-// even called work, off the screen with it. The view whose job is showing what
-// is left hid exactly what was left.
 test("a parent nobody marked is not hidden, however finished its children are", () => {
   const rows = rowsOf(
     derive(TEST_CLAIMS,
@@ -1423,24 +988,15 @@ test("a parent nobody marked is not hidden, however finished its children are", 
     ),
     FIXTURE_FILE,
   )
-  // The parent stays, the two done children go, and the finding — which is the
-  // thing worth reading — is still there.
   expect(shape(withoutDone(rows))).toEqual([
     "/agents node",
     "/agents/finding node",
   ])
-  // It reads as a bullet with a rollup beside it, not as a task: `2/2` is an
-  // annotation, and `status` is what a checkbox would be drawn from.
   const agents = drawn(rows, 0)
   expect(agents.status).toBeUndefined()
   expect(agents.progress).toEqual({ done: 2, total: 2 })
 })
 
-// Done-hiding reads the row's status, and a mirror's status is its target's —
-// so a mirror of a done node goes, and the subtree it was drawing goes with it,
-// which is the same sweep the target's own row gets. The rest of the mirroring
-// file stays: hiding is per row, and a placement being dropped says nothing
-// about the one written after it.
 test("done-hidden drops a mirror of a done node with the subtree it draws", () => {
   const rows = rowsOf(
     derive(TEST_CLAIMS, nodesOfFiles({
@@ -1452,8 +1008,6 @@ test("done-hidden drops a mirror of a done node with the subtree it draws", () =
     })),
     "b.olai",
   )
-  // Drawn, the mirror carries the target's subtree — the bullet under a done
-  // node is exactly what the sweep is about.
   expect(shape(rows)).toEqual([
     "/m-finished mirror",
     "/m-finished/how node",
@@ -1462,8 +1016,6 @@ test("done-hidden drops a mirror of a done node with the subtree it draws", () =
   expect(shape(withoutDone(rows))).toEqual(["/m-open mirror"])
 })
 
-// Hidden, never touched: the rows handed in are the same rows afterwards, so
-// the switch cannot be mistaken for an edit.
 test("hiding leaves the rows it was given alone", () => {
   const rows = rowsOf(derive(TEST_CLAIMS, nodesOf(HOUSEWORK)), FIXTURE_FILE)
   const before = shape(rows)
@@ -1471,19 +1023,15 @@ test("hiding leaves the rows it was given alone", () => {
   expect(shape(rows)).toEqual(before)
 })
 
-// The landing's reservation: a kept PLACE walks past the sweep, but the sweep
-// keeps asking the question of everything under and beside it — the courtesy
-// is the path, not the page.
 test("a kept place is drawn — and nothing the path did not name comes back with it", () => {
   const rows = rowsOf(derive(TEST_CLAIMS, nodesOf(HOUSEWORK)), FIXTURE_FILE)
-  const keep = new Set([rows[0]!.children[0]!.key]) // /kitchen/demo
+  const keep = new Set([rows[0]!.children[0]!.key])
   expect(shape(withoutDone(rows, keep))).toEqual([
     "/kitchen node",
     "/kitchen/demo node",
     "/kitchen/install node",
     "/kitchen/install/handles node",
   ])
-  // A key nothing drew keeps nothing: the sweep answers only places it meets.
   expect(shape(withoutDone(rows, new Set(["nobody/home"])))).toEqual(
     shape(withoutDone(rows)),
   )
@@ -1500,9 +1048,7 @@ test("a kept DONE ANCESTOR re-asks the question of every child — done children
     ),
     FIXTURE_FILE,
   )
-  const keep = new Set([rows[0]!.key, rows[0]!.children[1]!.key]) // /finished, /finished/two
-  // The whole branch used to go with the parent; the path re-opens exactly
-  // the two places the address named — the done sibling stays hidden.
+  const keep = new Set([rows[0]!.key, rows[0]!.children[1]!.key])
   expect(shape(withoutDone(rows, keep))).toEqual([
     "/finished node",
     "/finished/two node",
@@ -1519,33 +1065,21 @@ test("the reservation is keyed on the PLACE — a kept node leaves its other mir
     })),
     "b.olai",
   )
-  // The mirror's place key is the half of the name the landing scrolled to;
-  // keeping IT draws the mirror back — and says nothing about any other place
-  // the same node would stand.
   expect(shape(withoutDone(rows, new Set([rows[0]!.key])))).toEqual([
     "/m-finished mirror",
     "/m-open mirror",
   ])
 })
 
-// ── titles ─────────────────────────────────────────────────────────────
-
-/** The tags of a title AS WRITTEN, in reading order — what a filter runs on,
- *  assembled from the parts because the format stores no tag list. The sigil
- *  comes with them: `#alice` and `@alice` are two tags, so a list that dropped
- *  it would be a list that cannot tell them apart. */
 const tags = (title: string): ReadonlyArray<string> =>
   titleParts(title).flatMap((part) => (part.kind === "tag" ? [tagText(part)] : []))
 
-// Tags live inline in the title verbatim — the format stores no tag list — so
-// the split is what the view renders, and it has to keep the text intact.
 test("a title splits into text and tags, and rejoins to itself", () => {
   const parts = titleParts("call #alice about #work/olai now")
   expect(parts).toEqual([
     { kind: "text", text: "call " },
     { kind: "tag", sigil: "#", tag: "alice" },
     { kind: "text", text: " about " },
-    // A `/` is part of the tag, so `#work/olai` is one tag and not two.
     { kind: "tag", sigil: "#", tag: "work/olai" },
     { kind: "text", text: " now" },
   ])
@@ -1554,9 +1088,6 @@ test("a title splits into text and tags, and rejoins to itself", () => {
   ).toBe("call #alice about #work/olai now")
 })
 
-// The second sigil, and it rejoins to itself for the same reason: what a part
-// list is FOR is drawing the title back, so the character that started a tag
-// travels with it rather than being assumed to be a `#`.
 test("an @tag is a tag, and the sigil comes back out with it", () => {
   const parts = titleParts("ask @alice about #work")
   expect(parts).toEqual([
@@ -1570,40 +1101,28 @@ test("an @tag is a tag, and the sigil comes back out with it", () => {
   ).toBe("ask @alice about #work")
 })
 
-// The two are different tags, not two spellings of one — which is the point of
-// having both, and what the editor's two triggers complete over separately.
 test("the sigils are two namespaces", () => {
   expect(tags("@alice and #alice")).toEqual(["@alice", "#alice"])
 })
 
-// `@` mid-word is an email address or a handle quoted inside a word, and both
-// are things people put in titles. `#` keeps the alphabet it has always had.
 test("an @ inside a word is text, and a # inside one is still a tag", () => {
   expect(tags("mail srid@srid.ca about it")).toEqual([])
   expect(tags("(@alice) and [@bob]")).toEqual(["@alice", "@bob"])
   expect(tags("@carol first")).toEqual(["@carol"])
-  // Unchanged from the day the format shipped: narrowing `#` would restyle
-  // titles in sets that are already written.
   expect(tags("issue#42")).toEqual(["#42"])
 })
 
-// A bare sigil is punctuation people write ("issue #, see below"); treating it
-// as an empty tag would style the rest of the line as one.
 test("a bare sigil is text", () => {
   expect(titleParts("issue # 42")).toEqual([{ kind: "text", text: "issue # 42" }])
   expect(tags("issue # 42")).toEqual([])
   expect(tags("reply @ noon")).toEqual([])
 })
 
-// The tags come out in reading order, over the same alphabet ids use plus `/`,
-// so a filter reading them off the parts sees the title as written.
 test("tags come out in reading order, over the tag alphabet", () => {
   expect(tags("#b then #a then #b again")).toEqual(["#b", "#a", "#b"])
   expect(tags("#Tag-1 #tag_2")).toEqual(["#Tag-1", "#tag_2"])
 })
 
-// The web client styles tags with the same alphabet; it must not re-declare it.
-// A fresh regex each call so /g state cannot leak across walks.
 test("titleTagRe is the alphabet titleParts uses, fresh each call", () => {
   const one = titleTagRe()
   const other = titleTagRe()
@@ -1615,8 +1134,6 @@ test("titleTagRe is the alphabet titleParts uses, fresh each call", () => {
   ])
 })
 
-// The list the editor's triggers are built from, so a third sigil is one edit
-// in the format rather than one in the format and one in a widget.
 test("TAG_SIGILS is what titleTagRe matches", () => {
   expect([...TAG_SIGILS]).toEqual(["#", "@"])
   for (const sigil of TAG_SIGILS) {
@@ -1624,10 +1141,6 @@ test("TAG_SIGILS is what titleTagRe matches", () => {
   }
 })
 
-// The three questions a client COMPLETING a tag asks, held to the regex they
-// are about — which is the whole reason they are exported rather than written
-// again in a widget. If one of them drifts from the alphabet, this fails here
-// rather than as a popup that offers to rewrite the middle of a word.
 test("the tag predicates agree with the alphabet they are about", () => {
   for (const name of ["home", "work/olai", "Tag-1", "tag_2", ""]) {
     expect(isTagName(name)).toBe(true)
@@ -1637,7 +1150,6 @@ test("the tag predicates agree with the alphabet they are about", () => {
 })
 
 test("a sigil opens a tag at a word start and nowhere else", () => {
-  // The same positions `titleTagRe`'s `@` lookbehind accepts, asked directly.
   expect(tagOpensAt("@a", 0)).toBe(true)
   for (const before of [" ", "(", "[", "{"]) {
     expect(tagOpensAt(`x${before}@a`, 2)).toBe(true)
@@ -1647,28 +1159,17 @@ test("a sigil opens a tag at a word start and nowhere else", () => {
   expect(tags("srid@srid")).toEqual([])
 })
 
-// The cheap negative every walk takes first. Written three times before it was
-// exported, and two of those had already drifted.
 test("a title with no sigil in it cannot hold a tag", () => {
   expect(mayHoldTag("order the new cabinets")).toBe(false)
   expect(mayHoldTag("issue # 42")).toBe(true)
   expect(mayHoldTag("srid@srid.ca")).toBe(true)
-  // The guard is allowed to be generous — it only ever saves a walk.
   for (const title of ["a #home", "a @alice"]) {
     expect(mayHoldTag(title)).toBe(true)
     expect(tags(title).length).toBe(1)
   }
 })
 
-// ── loops ──────────────────────────────────────────────────────────────
-
-// Derivation runs against sets the validator has already condemned — the
-// browser draws the outline beside its errors — so a loop must produce a stub,
-// not a hung renderer. This test failing looks like a timeout, which is the
-// point.
 test("a cyclic set derives without hanging", () => {
-  // A parent loop no longer touches status at all: each node says what it
-  // stores. It is still walked for the rows, which is the guard below.
   const parents = statusesOf(
     `{"id":"a","parent":"b","ord":"a","title":"a","doing":true}\n` +
       `{"id":"b","parent":"a","ord":"b","title":"b"}`,
@@ -1686,18 +1187,8 @@ test("a cyclic set derives without hanging", () => {
   expect(mirrors.get("m1")).toBeUndefined()
   expect(mirrors.get("m2")).toBeUndefined()
 
-  // A mirror whose target was never declared is the other walk that could have
-  // gone looking for a node that is not there.
   expect(statusesOf(`{"id":"m","ord":"a","mirror":"gone"}`).get("m")).toBeUndefined()
 })
-
-// ── how much hangs under a node ────────────────────────────────────────
-//
-// The number an archive's confirm names — and the reason it is a fact about the
-// SET rather than about the rows drawn from it. It rides on every row
-// (`Row.under`) so a browser holding one page can say it without holding a
-// vault (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 10); it was the client's
-// own walk of its copy of the directory until then.
 
 const UNDER_HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
@@ -1716,7 +1207,6 @@ const UNDER = derive(TEST_CLAIMS,
   nodesOfFiles({ "house.olai": UNDER_HOUSE, "garden.olai": UNDER_GARDEN }),
 )
 
-/** One row of that fixture, by the id of the record it draws. */
 const underRow = (rows: ReadonlyArray<Row>, id: string): Row => {
   for (const row of rows) {
     if (row.at.node.id === id) return row
@@ -1735,10 +1225,6 @@ const underRowOrNone = (rows: ReadonlyArray<Row>, id: string): Row | undefined =
 }
 
 test("the count is the records an archive would move", () => {
-  // demo, order, install, handles, and the PLACEMENT of the herb bed — five.
-  // The herb bed's own child hangs under that placement on screen and is not
-  // among them: it lives in another file, and `archive` moves what a `parent`
-  // chain reaches.
   expect(under(UNDER, "kitchen")).toBe(5)
   expect(underRow(rowsOf(UNDER, "house.olai"), "kitchen").under).toBe(5)
 })
@@ -1749,33 +1235,16 @@ test("a leaf takes nothing with it", () => {
 })
 
 test("a mirror's row counts what its TARGET holds, which is what it draws", () => {
-  // The placement itself has no children in the set; the row draws the herb
-  // bed's, so what an archive of the herb bed would move is what its row says.
   expect(underRow(rowsOf(UNDER, "house.olai"), "kitchen-herbs").under).toBe(1)
 })
 
 test("hiding what is done does not shrink what an archive would take", () => {
-  // The whole reason this is counted in the set and not over the rows: with
-  // done hidden, `withoutDone` has already dropped `demo` from the tree, and a
-  // count taken from the drawn children would have promised four and moved
-  // five. The row carries the number it was built with.
   const showing = withoutDone(rowsOf(UNDER, "house.olai"))
   expect(underRow(showing, "kitchen").children.some((row) => row.at.node.id === "demo"))
     .toBe(false)
   expect(underRow(showing, "kitchen").under).toBe(5)
 })
 
-/**
- * THE ANCESTRY WALK OVER AN INDEX THAT IS NOT THE DERIVATION.
- *
- * `ancestorsOf` is `ancestryOver` with `byId.get` bound, so its own cases are
- * everything that reads a crumb list anywhere in this repository. What is left
- * to claim is the reason the lookup became a parameter: a plan asks where a
- * record WOULD hang once it lands, and an arriving record's ancestry is in
- * the plan's own records rather than in `byId`. These say that the same walk
- * answers that question, and that the stopping rules came with it rather than
- * staying behind with the derivation.
- */
 const walkOver = (records: ReadonlyArray<Located>): ((id: string) => Located | undefined) => {
   const byId = new Map(records.map((at) => [at.node.id, at]))
   return (id) => byId.get(id)
@@ -1791,24 +1260,16 @@ const HOUSE = [
 test("the ancestry walk climbs whatever index it is handed", () => {
   const standing = nodesOf(HOUSE)
   expect(ids(ancestryOver(walkOver(standing), "sink"))).toEqual(["house", "kitchen"])
-  // The same walk bound to the derivation is the export everything else uses,
-  // and it must answer identically about the set it was derived from.
   expect(ids(ancestorsOf(derive(TEST_CLAIMS, standing), "sink"))).toEqual(["house", "kitchen"])
 })
 
 test("…so a record that has not been written yet has an ancestry", () => {
-  // The after side of a `move`: nothing on disk says the sink hangs off the
-  // shed, and this is the only index that does.
   const planned = nodesOf(HOUSE.replace(`"parent":"kitchen"`, `"parent":"shed"`))
   expect(ids(ancestryOver(walkOver(planned), "sink"))).toEqual(["shed"])
-  // ...and the standing derivation still says what it always said, which is the
-  // whole reason the fence has to ask both sides.
   expect(ids(ancestorsOf(derive(TEST_CLAIMS, nodesOf(HOUSE)), "sink"))).toEqual(["house", "kitchen"])
 })
 
 test("the stopping rules travelled with the walk, not with the derivation", () => {
-  // A MIRROR is not climbed through — the rule that keeps a subtree walk from
-  // reaching whatever somebody else placed inside it.
   const mirrored = nodesOf([
     `{"id":"house","ord":"a0","title":"house"}`,
     `{"id":"ghost","parent":"house","ord":"a0","mirror":"shed"}`,
@@ -1816,28 +1277,14 @@ test("the stopping rules travelled with the walk, not with the derivation", () =
   ].join("\n"))
   expect(ids(ancestryOver(walkOver(mirrored), "sink"))).toEqual([])
 
-  // A PARENT LOOP terminates, and does so over this index the same way it does
-  // over `byId`: a set the validator refuses is still a set this walk is asked
-  // about while somebody is being told why.
   const looped = nodesOf([
     `{"id":"one","parent":"two","ord":"a0","title":"one"}`,
     `{"id":"two","parent":"one","ord":"a1","title":"two"}`,
   ].join("\n"))
   expect(ids(ancestryOver(walkOver(looped), "one"))).toEqual(["two"])
 
-  // An id NOTHING in the index claims has no ancestry rather than an error,
-  // which is what a plan that removed a record leaves behind.
   expect(ids(ancestryOver(walkOver(nodesOf(HOUSE)), "nobody"))).toEqual([])
 })
-/**
- * WHAT IS UNDER A NODE, SINCE WHEN — the walk a node agent's tidying pass asks
- * before it spends a turn (`olai-plugin-chat`'s `server/sleep.ts`).
- *
- * The whole of the reading is here rather than in that plugin because the
- * subtree is this package's, and because the rules that are easy to get wrong
- * are rules about THIS walk: the node's own record is not in any of the three
- * answers, and the count is of MOVED rows while `newest` is of every stamped one.
- */
 test("changesUnder counts what moved under a node, and never the node's own record", () => {
   const derived = derive(TEST_CLAIMS, nodesOf([
     `{"id":"health","ord":"a0","title":"health","created":"2026-08-01T09:00:00+00:00","changed":"2026-08-30T09:00:00+00:00"}`,
@@ -1845,27 +1292,15 @@ test("changesUnder counts what moved under a node, and never the node's own reco
     `{"id":"deep","parent":"old","ord":"a0","title":"deep","changed":"2026-08-10T09:00:00+00:00"}`,
   ].join("\n")))
 
-  // A stamp deeper than a child is still under the node, which is the whole
-  // point of walking rather than reading one level — and the count is of the
-  // rows past the memo, with the OLDEST of those.
   expect(changesUnder(derived, "health", "2026-08-09T00:00:00+00:00"))
     .toEqual({ rows: 1, newest: Date.parse("2026-08-10T09:00:00+00:00"), oldest: Date.parse("2026-08-10T09:00:00+00:00") })
-  // ... and NOTHING under it is newer than a stamp that outranks every one of
-  // them: the node's own record is excluded, so its own later `changed` — which
-  // is what writing the memo over it produced — is not news. THE NEWEST IS STILL
-  // THE NEWEST THING UNDER IT, which is the quiet window's question and not the
-  // count's.
   expect(changesUnder(derived, "health", "2026-08-30T09:00:00+00:00"))
     .toEqual({ rows: 0, newest: Date.parse("2026-08-10T09:00:00+00:00"), oldest: null })
-  // ... and a node that has never held a memo takes ANY stamp as moved, which is
-  // the whole difference between "never slept" and "slept at the beginning of
-  // time".
   expect(changesUnder(derived, "health", null)).toEqual({
     rows: 2,
     newest: Date.parse("2026-08-10T09:00:00+00:00"),
     oldest: Date.parse("2026-08-02T09:00:00+00:00"),
   })
-  // ...AND ONE LEVEL DOWN IS ITS OWN SUBTREE, asked the same way.
   expect(changesUnder(derived, "old", null)).toEqual({
     rows: 1,
     newest: Date.parse("2026-08-10T09:00:00+00:00"),
@@ -1873,27 +1308,13 @@ test("changesUnder counts what moved under a node, and never the node's own reco
   })
 })
 
-/**
- * STAMPS ARE COMPARED AS INSTANTS, not as text.
- *
- * A stamp carries the offset it was taken at ({@link ./stamp.ts}), so two
- * moments written in two zones order by their SPELLING: this edit's instant is
- * half past four in the afternoon UTC and the memo's is half past two, and the
- * text of the edit sorts BEFORE the memo's. Read as text, the walk would answer
- * "nothing has moved" about work that arrived after the last sleep — and the
- * other direction, a memo that only looks older, tidies a subtree under
- * somebody's hands.
- */
 test("a stamp in another zone is compared by its instant, not its spelling", () => {
   const derived = derive(TEST_CLAIMS, nodesOf([
     `{"id":"health","ord":"a0","title":"health"}`,
-    // 16:00 UTC, spelled so that it sorts BEFORE the memo below.
     `{"id":"note","parent":"health","ord":"a0","title":"synced","changed":"2026-10-12T09:00:00-07:00"}`,
   ].join("\n")))
 
-  // 14:30 UTC — earlier than the edit, and the text says the opposite.
   expect(changesUnder(derived, "health", "2026-10-12T20:00:00+05:30").rows).toBe(1)
-  // ...and a memo that really is later than it is not news, whatever it spells.
   expect(changesUnder(derived, "health", "2026-10-12T20:00:00+00:00").rows).toBe(0)
 })
 
@@ -1904,7 +1325,6 @@ test("changesUnder answers nothing at all for a subtree nothing has ever stamped
   ].join("\n")))
   expect(changesUnder(derived, "health", null)).toEqual({ rows: 0, newest: null, oldest: null })
   expect(changesUnder(derived, "health", "2026-01-01T00:00:00+00:00")).toEqual({ rows: 0, newest: null, oldest: null })
-  // ... and one level down asks the same question about its own subtree.
   expect(changesUnder(derived, "note", null).rows).toBe(0)
 })
 
@@ -1914,14 +1334,8 @@ test("changesUnder walks through a mirror and terminates on a loop", () => {
     `{"id":"placed","parent":"health","ord":"a0","mirror":"elsewhere"}`,
     `{"id":"deep","parent":"placed","ord":"a0","title":"deep","changed":"2026-09-01T09:00:00+00:00"}`,
   ].join("\n")))
-  // A placement carries no stamp of its own, and what hangs under it is still
-  // under the node that placed it.
   expect(changesUnder(derived, "health", "2026-08-01T00:00:00+00:00").rows).toBe(1)
 
-  // A parent loop is a set the validator refuses, and this walk still answers:
-  // from `two` the only descendant is the stamped `one`, and from `one` the only
-  // descendant is the unstamped `two` — which is the node's-own-record rule
-  // seen from the other side of a cycle.
   const looped = derive(TEST_CLAIMS, nodesOf([
     `{"id":"one","parent":"two","ord":"a0","title":"one","changed":"2026-09-01T09:00:00+00:00"}`,
     `{"id":"two","parent":"one","ord":"a1","title":"two"}`,
@@ -1931,14 +1345,6 @@ test("changesUnder walks through a mirror and terminates on a loop", () => {
   expect(changesUnder(looped, "two", "2026-09-01T09:00:00+00:00").rows).toBe(0)
 })
 
-/**
- * A NODE AGENT UNDER ANOTHER OWNS ITS OWN MEMORY.
- *
- * Agent B's memo is a write to B's own record, which is a DESCENDANT of A — so
- * without a stop, B's sleep re-stamps A, A's pass is told to tidy its whole
- * subtree (B's memory included), and B is due again. Two agents seated under one
- * another would wake each other for ever, and neither would ever be quiet.
- */
 test("a node agent under another is not part of its memory", () => {
   const derived = derive(TEST_CLAIMS, [
     ...nodesOf([
@@ -1955,8 +1361,6 @@ test("a node agent under another is not part of its memory", () => {
   expect(changesUnder(derived, "health", "2026-10-12T08:00:00+00:00", stop).rows).toBe(0)
   expect([...memoryFiles(derived, "health", stop)].sort()).toEqual(["Work.olai"])
 
-  // ...AND WITHOUT THE STOP BOTH ANSWERS ARE THE OTHER WAY ROUND, which is the
-  // bug this is written against.
   expect(changesUnder(derived, "health", "2026-10-12T08:00:00+00:00").rows).toBe(1)
   expect([...memoryFiles(derived, "health")].sort()).toEqual(["Helper.olai", "Work.olai"])
 })

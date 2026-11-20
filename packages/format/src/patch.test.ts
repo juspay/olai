@@ -1,47 +1,3 @@
-/**
- * The patcher against its oracle.
- *
- * `derive` IS the specification of what a view is, so this suite does not
- * assert what the patcher computes — it asserts that the patcher and the
- * rebuild cannot be told apart. Generated corpora, generated deltas, both views
- * built, compared whole:
- *
- *     patch(derive(before), delta) === derive(after)
- *
- * The generator writes the awkward sets on purpose — duplicate ids, mirrors of
- * mirrors, chains that dangle, edges that name a placement, parents in another
- * file, an `_olai/Trash.olai` — because those are exactly the corners where an
- * incremental index and a rebuilt one can quietly disagree, and because
- * `derive` itself is written to answer over sets the validator has condemned.
- * The corners it reaches only by luck are pinned by hand below, each with the
- * reason it could not be left to a seed.
- *
- * AND IT WRITES THE STRUCTURAL EDITS, which is the correction grok's review
- * forced: a generator that only ever changed a record's FIELDS could not reach
- * the case where the same ids arrive in a different order, and that was a real
- * bug in `byId`'s key order that these five hundred rounds went green over. It
- * swaps two records' lines, deletes one, and moves one from one file into
- * another verbatim — the three edits that change where a record IS without
- * changing which records there are.
- *
- * THE GENERATOR IS A MODULE NOW (`./corpora.testlib.ts`) and no longer this
- * file's private property, because `perf-validate-incremental` needed exactly
- * these corpora to hold the incremental validator to the full one. It moved
- * verbatim: the seeds below draw the same stream they always did, and the
- * floors this file asserts are the same counts they were.
- *
- * WHAT "the same" MEANS here is a decision, and it is made in {@link readable}
- * rather than left to a deep-equality helper: some of the indexes promise
- * an ORDER their keys are read in, and the rest are asked one key at a time.
- * Comparing them all by key order would hold the patcher to a promise no reader
- * spends; comparing none of them would let it silently reorder the ones a
- * reader does.
- *
- * AND IT MUST REALLY PATCH. A patcher that declined every time would satisfy
- * every assertion above and buy nothing, so {@link patched} — the incremental
- * answer with the fallback taken off — is what the property test calls, and a
- * decline is counted rather than tolerated.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -56,49 +12,8 @@ import { FIXTURE_FILE, nodesOf, recordsOf, seeded, setOf } from "./fixtures.test
 import { patch, patched, type SetDelta } from "./patch.ts"
 import { nearestId } from "./suggest.ts"
 
-/** The corpus, as one view of it — the arm of the comparison this file owns.
- *  The corpora themselves and the edits over them are `./corpora.testlib.ts`'s,
- *  shared with the differential that holds the incremental validator to the
- *  full one. */
 const viewOf = (corpus: Corpus): Derived => derive(TEST_CLAIMS, recordsOf(setOf(corpus)))
 
-/**
- * A whole view, in the shape the comparison is about.
- *
- * KEY ORDER IS KEPT for the three indexes something reads in order:
- * `byId`, because the did-you-mean behind every unknown-target error walks its
- * keys; `namedBy`, because the validator walks it to report ids nothing
- * declares, and two findings at one site come out in the order the corpus first
- * named them; `byFile`, because the flat list of records IS that map read in
- * order, so a key in the wrong place is a corpus in the wrong order.
- *
- * The rest are asked one key at a time — `derived.children.get(id)`,
- * `derived.status.get(id)` — and are sorted here so the comparison is about
- * what they ANSWER. Their values are compared in order all the same, including
- * the two that are sets: `mirrorsOf` and `edgesTo` promise corpus order to
- * whoever spreads them, and `toEqual` over a `Set` would only read membership.
- *
- * `taggedBy` is deliberately in the sorted half. It is the one reverse index
- * that promises its VALUES in corpus order and nothing about its keys, which is
- * exactly what lets the patcher add and drop keys in place — so comparing key
- * order here would be this test holding the patcher to a promise the index does
- * not make, and the two would have to be changed together to relax it.
- *
- * `byDay` is in the OTHER half, and it is the one index there that is not read
- * in order by the corpus: its keys are days, promised ascending, because the
- * calendar's month and the agenda's two directions all step them and none of
- * them may sort (`./derive.ts`). A patcher that added a day to the end of the
- * map would answer every one of those three correctly on the first read and
- * wrongly on the next, which is exactly the class of bug a key-order comparison
- * catches and a by-key one cannot.
- *
- * `owedByDay` is beside it for that reason and one more: what is LATE is its
- * keys added up to today, so a key in the wrong place is a count that stops at
- * the wrong day. And `days` is compared as the array it is — {@link
- * Derived.days} is `byDay`'s keys, so a patch that let the two part company
- * would have every binary search over it land somewhere the map does not agree
- * with (`perf-agenda-history-walk`).
- */
 const readable = (derived: Derived): unknown => ({
   nodes: derived.nodes,
   byId: [...derived.byId],
@@ -124,9 +39,6 @@ const spread = (
 ): ReadonlyMap<string, ReadonlyArray<string>> =>
   new Map([...index].map(([id, members]) => [id, [...members]]))
 
-/** The two views, compared — and, when they differ, the corpus that did it,
- *  because a property test that says only "not equal" over generated input is
- *  a test nobody can act on. */
 const same = (found: Derived, oracle: Derived, story: () => string): void => {
   try {
     expect(readable(found)).toEqual(readable(oracle) as never)
@@ -140,10 +52,6 @@ const ROUNDS = 500
 test("the patched view is the derived view, for any corpus and any delta", () => {
   const random = seeded(20260816)
   let declined = 0
-  /** Rounds whose corpus put anything on a day at all, and rounds whose edit
-   *  moved which DAYS exist — the two claims `byDay`'s comparison rests on.
-   *  Asserted below for `./vault.test.ts`'s reason: an index nothing exercises
-   *  compares equal on every round and says nothing while doing it. */
   let dated = 0
   let daysMoved = 0
   for (let round = 0; round < ROUNDS; round++) {
@@ -162,55 +70,19 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
     const incremental = patched(view, delta)
     if (incremental === undefined) declined++
     else same(incremental, oracle, story)
-    // The total function answers the same thing whichever way it got there.
     same(patch(view, delta), oracle, story)
-    // A REVISION IS ATOMIC: the view handed in is the view it was, still, with
-    // nothing of the patch showing through a shared map, array or set.
     same(view, viewOf(before), story)
   }
-  // Not a performance assertion — a claim that the assertions above are about
-  // the patcher at all. Left unchecked, a patcher that declined everything
-  // would pass this whole file.
-  // 83 of 500 as this is written, and BOTH bounds are the claim. The ceiling is
-  // what fails when the patcher stops patching — the whole suite would go on
-  // passing otherwise, since a decline is answered by `derive` and `derive` is
-  // the oracle. The floor is what fails when the generator stops writing the
-  // corners that decline (a duplicate id, a directory of one file), which is
-  // what would make the ceiling meaningless. The slack in each is for a
-  // generator that grows another arm, not for a patcher that loses one.
   expect(declined).toBeGreaterThan(ROUNDS / 20)
   expect(declined).toBeLessThan(ROUNDS / 4.5)
-  // ...and the same claim for the day index, which has one promise no other
-  // index here makes: its KEYS are compared in order. Both numbers are load
-  // bearing — the first says the corpora put something on a day at all, the
-  // second says the edits really added and emptied days, which is the only
-  // thing that can make the patcher's key order wrong.
-  // 381 and 131 of 500 as this is written.
   expect(dated).toBeGreaterThan(ROUNDS / 2)
   expect(daysMoved).toBeGreaterThan(ROUNDS / 5)
 })
 
-/** How many edits each chain below folds onto one carried view. */
 const DEEP = 12
 
 test("a view patched again and again is still the derived view", () => {
-  // THE SAME ORACLE, ON A VIEW THAT WAS ITSELF PATCHED — which is what both
-  // callers do and what the round above cannot see: it patches a freshly
-  // DERIVED view every time, so nothing an edit leaves behind is ever handed
-  // to the next one.
-  //
-  // What a patch leaves behind stopped being nothing. The indexes read by key
-  // are carried as layers (`./overlay.ts`), and a layer accumulates
-  // across a session: the keys this edit dropped, the ones it appended and the
-  // order they went in, all folded into whatever the next patch is handed,
-  // until the half rule flattens it and a new base is taken. `./overlay.test.ts`
-  // holds that structure against a map, and `./patch.bench.ts` carries a view
-  // forty edits deep — but the bench is a leg somebody runs rather than a lane,
-  // so the accumulation was pinned by nothing that fails a build.
   const random = seeded(20260821)
-  /** That the chains really are compounding — a chain whose every round
-   *  DECLINED would be this test patching a derived view twelve times over,
-   *  which is the round above with more steps. */
   let carried = 0
   for (let round = 0; round < ROUNDS / 5; round++) {
     const { files: first, used } = corpusOf(random)
@@ -228,25 +100,15 @@ test("a view patched again and again is still the derived view", () => {
         same(incremental, oracle, story)
         carried++
       }
-      // The view the NEXT edit is handed is the patcher's own answer, whether
-      // it patched or fell back — which is the whole point of the chain.
       const next = patch(view, delta)
       same(next, oracle, story)
-      // And the view it just replaced is untouched, twelve revisions deep.
       same(view, viewOf(before), story)
       view = next
       before = after
     }
   }
-  // 1,013 of 1,200 as this is written. The floor is what fails if the chains
-  // stop compounding — a run where nearly every edit declined would be the
-  // round above with more steps, and would say nothing about what a layer
-  // carries forward. There is no ceiling here: the declines are the round
-  // above's claim, and a chain is allowed to be luckier than a fresh corpus.
   expect(carried).toBeGreaterThan((ROUNDS / 5) * DEEP / 2)
 })
-
-// ── what the reverse indexes are for ───────────────────────────────────
 
 const KITCHEN: Corpus = {
   "a.olai": `{"id":"cook","ord":"a","title":"cook","todo":true}\n` +
@@ -255,8 +117,6 @@ const KITCHEN: Corpus = {
   "deep/c.olai": `{"id":"m2","ord":"a","mirror":"m"}`,
 }
 
-/** The delta one file's new text makes — the shape a probe tick produces for a
- *  single edited outline. */
 const editing = (file: string, text: string): SetDelta => ({
   upserts: [[file, { nodes: nodesOf(text, file) }]],
   removes: [],
@@ -269,33 +129,17 @@ test("a mark flips, and the placements standing for it two files away say so", (
   const next = patched(view, editing("a.olai", done))
   expect(next).toBeDefined()
   same(next as Derived, viewOf({ ...KITCHEN, "a.olai": done }), () => "mark flip")
-  // The whole point of the walk: a mirror OF A MIRROR, in a file the delta
-  // never named, shows the mark that moved.
   expect((next as Derived).status.get("m2")).toBe("done")
-  // And what was waiting on it is no longer waiting — the reverse edge index
-  // read as "who has to be looked at again".
   expect((next as Derived).blocked.has("eat")).toBe(false)
 })
 
 test("an edit keeps the files it did not touch, entry by entry", () => {
   const view = viewOf(KITCHEN)
   const next = patch(view, editing("a.olai", `{"id":"cook","ord":"a","title":"cook again"}`))
-  // Not equality — IDENTITY. What a patch does not touch is the very array the
-  // previous view was holding, which is what makes patching worth doing at all.
   expect(next.byFile.get("b.olai")).toBe(view.byFile.get("b.olai"))
   expect(next.byId.get("m")).toBe(view.byId.get("m"))
 })
 
-/**
- * SIX OF EVERYTHING, so that the edit below writes ONE key of each index and
- * the layer's half rule ({@link ./overlay.ts}) is nowhere near.
- *
- * Each group is a parent with one blocked task under it, the gate that task
- * waits on, and a placement standing for it — which between them give every one
- * of the seven by-key indexes six keys: `children` the parents, `status` the
- * marks, `after` the tasks, `edgesTo` the gates, `blocked` the tasks again,
- * `mirrorsOf` the tasks a placement stands for, and `byId` all of them.
- */
 const SIX: Corpus = {
   ...Object.fromEntries(
     Array.from({ length: 6 }, (_, which) => [
@@ -316,14 +160,6 @@ const SIX: Corpus = {
 }
 
 test("an edit layers the indexes read by key, and clones the ones read whole", () => {
-  // The economy of the patch, and the rule that decides it: an index a reader
-  // asks BY KEY is a layer over the map the last patch left standing, and an
-  // index a reader walks WHOLE stays a clone, because the layer's per-entry read
-  // would cost more than the copy it saved (`./overlay.ts`, `./patch.bench.ts`).
-  // Nothing else in the tree can tell a layer from a map — that is the whole
-  // contract, and every assertion above holds either way — so this is the one
-  // place the difference is visible, and it is asserted here rather than
-  // measured in a benchmark nobody runs on a lane.
   const typed = `{"id":"p0","ord":"a","title":"p0"}\n` +
     `{"id":"t0","ord":"b","parent":"p0","title":"t0 again","todo":true,"after":["g0"]}`
   const view = viewOf(SIX)
@@ -331,24 +167,14 @@ test("an edit layers the indexes read by key, and clones the ones read whole", (
   expect(next).toBeDefined()
   same(next as Derived, viewOf({ ...SIX, "f0.olai": typed }), () => "a title typed")
 
-  // EVERY index, against the table that decides it — read out of `READ` rather
-  // than listed again here, so a row that moves moves this assertion with it
-  // and an index added to `Derived` is covered the moment it is classified.
-  // Each of them holds six keys in this corpus and this edit writes one or two,
-  // so a flatten would be the half rule firing rather than the trade.
   for (const index of Object.keys(READ) as ReadonlyArray<Index>) {
     expect([index, (next as Derived)[index] instanceof Map])
       .toEqual([index, READ[index] === "whole"])
   }
-  // And the view a reader was already holding still answers with what it held.
   expect(view.byId.get("t0")?.node).toMatchObject({ title: "t0" })
 })
 
 test("the flat list is one value however often it is asked for", () => {
-  // {@link Derived.nodes} is {@link Derived.byFile} read the other way, and a
-  // patched view builds it when somebody asks rather than while it is being
-  // made — so what a caller must be able to count on is that asking twice is
-  // asking once. The validator reads it five times per write.
   const before: Corpus = {
     "a.olai": `{"id":"p","ord":"a","title":"p"}`,
     "b.olai": `{"id":"r","ord":"a","title":"r"}`,
@@ -361,20 +187,6 @@ test("the flat list is one value however often it is asked for", () => {
 })
 
 test("an index the edit says nothing about is the map the last view held", () => {
-  // COPY ON WRITE one level up: at the INDEX rather than at its values. Four of
-  // the reverse indexes are re-filed by one rule (`./patch.ts`'s `refiled`),
-  // and the first thing that rule asks is which of its keys this edit could
-  // have moved — so an edit that moves none of them hands back the map that
-  // stood, and the view being built shares it with the view it patched instead
-  // of cloning a map to answer everything the same way.
-  //
-  // A keystroke in an outline of plain rows is exactly that edit: the record it
-  // rewrites hangs under nothing, names nothing, tags nothing and is scheduled
-  // for nothing, so `children`, `namedBy`, `taggedBy` and `byDay` have no key
-  // in them it touches. `taggedBy` and `byDay` had this and it is a perf
-  // property worth pinning here rather than re-derived from a bench nobody runs
-  // on a lane; `children` and `namedBy` paid a clone for it until the rule was
-  // said once.
   const before: Corpus = {
     "a.olai": `{"id":"p","ord":"a","title":"p"}`,
     "b.olai": `{"id":"q","ord":"a","title":"q","after":["p"]}\n` +
@@ -383,11 +195,6 @@ test("an index the edit says nothing about is the map the last view held", () =>
   }
   const typed = `{"id":"p","ord":"a","title":"p again"}`
   const view = viewOf(before)
-  // The four hold something to begin with, so sharing them is a claim about
-  // this edit and not about four maps that were empty anyway — and so do the
-  // two the day index carries, which is why `r` is scheduled AND unfinished:
-  // a dated bullet nobody marked is on a day and owes nothing, so a corpus
-  // without the mark would compare two empty count maps and say nothing.
   expect([view.children.size, view.namedBy.size, view.taggedBy.size, view.byDay.size])
     .toEqual([1, 1, 1, 1])
   expect([view.owedByDay.size, view.days.length]).toEqual([1, 1])
@@ -399,18 +206,11 @@ test("an index the edit says nothing about is the map the last view held", () =>
   expect((next as Derived).namedBy).toBe(view.namedBy)
   expect((next as Derived).taggedBy).toBe(view.taggedBy)
   expect((next as Derived).byDay).toBe(view.byDay)
-  // ...and the two readings carried BESIDE the day index, which are the same
-  // claim one step on: an edit that names no day recounts none and re-lists
-  // none, so the count map and the day line are the very values that stood
-  // (`perf-agenda-history-walk`).
   expect((next as Derived).owedByDay).toBe(view.owedByDay)
   expect((next as Derived).days).toBe(view.days)
 })
 
 test("a mirror chain that dangled resolves the moment its target arrives", () => {
-  // `mirrorsOf` files a chain under the node it ENDS at, and this one ends
-  // nowhere — so nothing but the raw index can find these two placements when
-  // `far` turns up.
   const before: Corpus = {
     "a.olai": `{"id":"here","ord":"a","title":"here"}`,
     "b.olai": `{"id":"one","ord":"a","mirror":"two"}\n{"id":"two","ord":"b","mirror":"far"}`,
@@ -426,8 +226,6 @@ test("a mirror chain that dangled resolves the moment its target arrives", () =>
 })
 
 test("an edge written at a placement moves with the placement", () => {
-  // `wait after m`, where `m` mirrors `cook`, is an edge to COOK — so pointing
-  // the placement somewhere else re-points an edge in a file nothing touched.
   const before: Corpus = {
     "a.olai": `{"id":"cook","ord":"a","title":"cook","todo":true}\n` +
       `{"id":"wash","ord":"b","title":"wash","todo":true}`,
@@ -445,9 +243,6 @@ test("an edge written at a placement moves with the placement", () => {
 })
 
 test("a word typed into a note reaches the index, and taking it out empties the key", () => {
-  // The edit `backlinks` is for, at the size it really is: one `desc` rewritten
-  // in one file, and a key that has to appear in an index nothing else in the
-  // delta mentions.
   const before: Corpus = {
     "a.olai": `{"id":"cook","ord":"a","title":"cook"}`,
     "b.olai": `{"id":"note","ord":"a","title":"a note"}`,
@@ -461,8 +256,6 @@ test("a word typed into a note reaches the index, and taking it out empties the 
   same(next as Derived, viewOf({ ...before, "b.olai": said }), () => "a note names a node")
   expect((next as Derived).taggedBy.get("@cook")?.map((at) => at.node.id)).toEqual(["note"])
 
-  // ...and out again. A key nothing says any more GOES, rather than standing
-  // empty where a rebuild would have had no key at all.
   const quiet = patched(next as Derived, editing("b.olai", before["b.olai"] as string))
   expect(quiet).toBeDefined()
   same(quiet as Derived, viewOf(before), () => "the word is deleted")
@@ -482,11 +275,6 @@ test("one record writing a tag twice is one entry, in the title and in the note"
   expect((next as Derived).taggedBy.get("@cook")?.length).toBe(1)
 })
 
-// A patch that moved `#cook` and `@cook` as one key would answer both of these
-// with the same list, and the oracle would agree with it — `derive` would have
-// collided them too. So the assertion is on the KEYS, and it is here rather
-// than left to the generator because it is the whole reason this index is keyed
-// by the written form.
 test("the two sigils are two keys, and an edit moves only the one it wrote", () => {
   const before: Corpus = {
     "a.olai": `{"id":"cook","ord":"a","title":"cook"}`,
@@ -502,19 +290,8 @@ test("the two sigils are two keys, and an edit moves only the one it wrote", () 
   expect(next).toBeDefined()
   same(next as Derived, viewOf({ ...before, "b.olai": quiet }), () => "the topic goes")
   expect((next as Derived).taggedBy.has("#cook")).toBe(false)
-  // The mention is in a file the delta never named, and it is still filed.
   expect((next as Derived).taggedBy.get("@cook")?.map((at) => at.node.id)).toEqual(["note"])
 })
-
-// ── where the key ORDER is the answer ──────────────────────────────────
-//
-// Two cases grok reproduced on review, and they are here by hand because the
-// generator could not reach them: `byId`'s key order is READ — the did-you-mean
-// behind every unknown-target error walks it and promises that ties go to the
-// first candidate offered — and both of these move a key's place without
-// minting or dropping a single id, which is what the patcher used to treat as
-// "nothing to redo". The values were right, the order was the old one, and the
-// view was returned rather than declined.
 
 test("two records swapping lines are two keys swapping places", () => {
   const before: Corpus = {
@@ -530,8 +307,6 @@ test("two records swapping lines are two keys swapping places", () => {
 })
 
 test("a record moved to another file takes its key to the end of the corpus", () => {
-  // The id set does not change: nothing is minted, nothing is dropped. What
-  // changes is where the record IS — which is where its key is.
   const before: Corpus = {
     "a.olai": `{"id":"x","ord":"a","title":"x"}\n{"id":"keep","ord":"b","title":"keep"}`,
     "b.olai": `{"id":"y","ord":"a","title":"y"}`,
@@ -551,21 +326,11 @@ test("a record moved to another file takes its key to the end of the corpus", ()
   const after = { ...before, "a.olai": emptied, "c.olai": landed }
   same(next as Derived, viewOf(after), () => "a record moves file")
   expect([...(next as Derived).byId.keys()]).toEqual(["keep", "y", "z", "x"])
-  // What the order is FOR: an id nothing declares is answered with the first
-  // candidate within the budget, so a stale order is a different answer about
-  // the same bytes on disk.
   expect(nearestId("aa", (next as Derived).byId.keys()))
     .toBe(nearestId("aa", viewOf(after).byId.keys()))
 })
 
 test("siblings in two files with one `ord` and one line break the same way", () => {
-  // The tie `derive` never has to think about: it sorts a list already in
-  // corpus order, so two records with the same `ord` on the same LINE keep the
-  // order they were walked in. A patcher merges what STAYED with what ARRIVED
-  // and has to say that out loud (`bySibling`), which is why this is written by
-  // hand rather than left to a generator that reaches it three times in five
-  // hundred rounds. A parent in another file is a set the validator condemns
-  // and `derive` is written to answer over.
   const before: Corpus = {
     "a.olai": `{"id":"one","parent":"p","ord":"a","title":"first file"}`,
     "b.olai": `{"id":"two","parent":"p","ord":"a","title":"second file"}`,
@@ -574,10 +339,6 @@ test("siblings in two files with one `ord` and one line break the same way", () 
   const view = viewOf(before)
   expect(view.children.get("p")?.map((at) => at.node.id)).toEqual(["one", "two"])
 
-  // BOTH DIRECTIONS, and only the second one is the test — grok's note on the
-  // first pass at this. Editing the LATER file leaves the merge already in
-  // corpus order (what stayed is `a.olai`'s, what arrives is `b.olai`'s), so it
-  // passes for a comparator that never looks at the file at all.
   const later = `{"id":"two","parent":"p","ord":"a","title":"edited"}`
   const afterLater = patched(view, editing("b.olai", later))
   expect(afterLater).toBeDefined()
@@ -585,10 +346,6 @@ test("siblings in two files with one `ord` and one line break the same way", () 
   expect((afterLater as Derived).children.get("p")?.map((at) => at.node.id))
     .toEqual(["one", "two"])
 
-  // Editing the EARLIER file is the one that bites: what stayed is `b.olai`'s
-  // record and what arrives is `a.olai`'s, so the merge is `[two, one]` and the
-  // `ord` and the line are both ties. Nothing but corpus order puts it back,
-  // which is exactly what `bySibling` adds to `byOrd`.
   const earlier = `{"id":"one","parent":"p","ord":"a","title":"edited"}`
   const afterEarlier = patched(view, editing("a.olai", earlier))
   expect(afterEarlier).toBeDefined()
@@ -596,8 +353,6 @@ test("siblings in two files with one `ord` and one line break the same way", () 
   expect((afterEarlier as Derived).children.get("p")?.map((at) => at.node.id))
     .toEqual(["one", "two"])
 })
-
-// ── files coming and going ─────────────────────────────────────────────
 
 test("a file that arrives takes its place in path order", () => {
   const before: Corpus = {
@@ -612,13 +367,6 @@ test("a file that arrives takes its place in path order", () => {
 })
 
 test("a file arriving in a directory named after its neighbour lands where a walk puts it", () => {
-  // THE SLICE-4 LANDMINE, pinned. `a.olai` and `a/inner.olai` are the one pair
-  // of paths the two readings of "path order" disagree about: a plain string
-  // compare puts `a.olai` first (`.` is 0x2E, `/` is 0x2F), and a walk that
-  // descends into `a` when it meets it puts the nested file first. `assemble`
-  // and this patcher now answer with the walk's order (`byPath`) and so does
-  // the browser's sidebar — one order, three readers, and the assertion below
-  // is what says the patcher did not place an arriving file by the other one.
   const before: Corpus = {
     "a.olai": `{"id":"flat","ord":"a","title":"flat"}`,
     "b.olai": `{"id":"other","ord":"a","title":"other"}`,
@@ -643,42 +391,23 @@ test("a file that goes away takes its records with it", () => {
   const { "b.olai": _gone, ...after } = before
   const next = patch(view, { upserts: [], removes: ["b.olai"] })
   same(next, viewOf(after), () => "a file leaves")
-  // The edge is still written, so it is still in the graph — as the id it
-  // names, which nothing declares now. What changes is that nothing is in the
-  // way, because a target that is not there is not a task that is not done.
   expect(next.after.get("one")).toEqual(["two"])
   expect(next.blocked.has("one")).toBe(false)
   expect(next.status.has("three")).toBe(false)
 })
 
 test("a file arrives holding nothing, fills, empties, and goes", () => {
-  // THE WHOLE LIFE OF AN EMPTY FILE, and the one claim this file makes in its
-  // own words that nothing pinned: {@link SetDelta} says "an upsert carrying NO
-  // records leaves the file holding nothing, which is what `Derived.byFile`
-  // spells as absence". It was pinned client-side, by the reconstruction
-  // `deriving.test.ts` tested, and went with it (#263) — so it is pinned here,
-  // beside the docstring that makes it.
-  //
-  // Every step is a REAL frame rather than a corner: a probe tick publishes a
-  // new file's entry before anybody has typed into it, and selecting a file's
-  // records and deleting them empties one without removing it. The generator
-  // reaches neither — it writes files with records in them — which is why this
-  // is by hand.
   const before: Corpus = {
     "a.olai": `{"id":"one","ord":"a","title":"one","todo":true}`,
     "deep/c.olai": `{"id":"far","ord":"a","title":"far"}`,
   }
   const view = viewOf(before)
 
-  // ARRIVES holding nothing: the key is on the wire and no record is.
   const arrived = patched(view, editing("b.olai", ""))
   expect(arrived).toBeDefined()
   same(arrived as Derived, viewOf({ ...before, "b.olai": "" }), () => "an empty file arrives")
-  // ABSENCE, not an empty list — the two are different answers to "what does
-  // this file hold", and only one of them is the one a rebuild gives.
   expect((arrived as Derived).byFile.has("b.olai")).toBe(false)
 
-  // FILLS.
   const written = `{"id":"two","ord":"a","title":"two","after":["one"]}`
   const filled = patched(arrived as Derived, editing("b.olai", written))
   expect(filled).toBeDefined()
@@ -686,9 +415,6 @@ test("a file arrives holding nothing, fills, empties, and goes", () => {
   expect((filled as Derived).byFile.get("b.olai")?.map((at) => at.node.id)).toEqual(["two"])
   expect([...((filled as Derived).edgesTo.get("one") ?? [])]).toEqual(["two"])
 
-  // EMPTIES — the arm the arrival cannot reach, because this one has records to
-  // take back out: every index the file wrote into has to lose what it filed,
-  // and an upsert carrying nothing is the only frame that says so.
   const emptied = patched(filled as Derived, editing("b.olai", ""))
   expect(emptied).toBeDefined()
   same(emptied as Derived, viewOf({ ...before, "b.olai": "" }), () => "the file empties")
@@ -696,9 +422,6 @@ test("a file arrives holding nothing, fills, empties, and goes", () => {
   expect((emptied as Derived).byId.has("two")).toBe(false)
   expect((emptied as Derived).edgesTo.has("one")).toBe(false)
 
-  // AND GOES. The remove lands on a file the view already holds nothing for,
-  // which is the no-op the patcher promises for a key it has nothing filed
-  // under — and what it answers with is the directory as it stands.
   const gone = patch(emptied as Derived, { upserts: [], removes: ["b.olai"] })
   same(gone, viewOf(before), () => "the file goes")
 })
@@ -708,8 +431,6 @@ test("an empty delta is the same view, and says so by being it", () => {
   expect(patch(view, { upserts: [], removes: [] })).toBe(view)
 })
 
-// ── where it declines ──────────────────────────────────────────────────
-
 test("a duplicate id is handed back to the rebuild, and answered anyway", () => {
   const before: Corpus = {
     "a.olai": `{"id":"x","ord":"a","title":"first"}`,
@@ -717,16 +438,10 @@ test("a duplicate id is handed back to the rebuild, and answered anyway", () => 
     "deep/c.olai": `{"id":"z","ord":"a","title":"third"}`,
   }
   const view = viewOf(before)
-  // A second claim on an id a file the delta never named already holds: the
-  // patcher would have to know which record loses, and losers are what this
-  // index does not keep.
   const clash = `{"id":"x","ord":"a","title":"clash"}`
   expect(patched(view, editing("b.olai", clash))).toBeUndefined()
   same(patch(view, editing("b.olai", clash)), viewOf({ ...before, "b.olai": clash }), () => "clash")
 
-  // And once the corpus HOLDS a duplicate, no patch is attempted onto it: the
-  // first claim is a fact about corpus order, and promoting the next one is
-  // exactly what an index without the losers cannot do.
   const clashed = viewOf({ ...before, "b.olai": clash })
   expect(patched(clashed, editing("deep/c.olai", `{"id":"z","ord":"a","title":"other"}`)))
     .toBeUndefined()

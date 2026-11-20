@@ -1,4 +1,3 @@
-/** Missing relative targets are a reading of a revision, never a verdict. */
 import { Schema } from "effect"
 import { pathedOf, proseLinks } from "./documents.ts"
 import { isMirror, type Located } from "./node.ts"
@@ -12,7 +11,6 @@ export const DeadLink = Schema.Struct({
 })
 export type DeadLink = typeof DeadLink.Type
 
-/** Spell a served path beside the file whose prose names it. */
 export const relativeFrom = (from: string, path: string): string => {
   const directory = from.split("/").slice(0, -1)
   const target = path.split("/")
@@ -21,7 +19,6 @@ export const relativeFrom = (from: string, path: string): string => {
   return [...directory.slice(same).map(() => ".."), ...target.slice(same)].join("/")
 }
 
-/** File targets only. Queries and fragments belong to navigation, not membership. */
 export const deadLinkTarget = (from: string, written: string): string | null => {
   const path = written.split(/[?#]/, 1)[0] ?? ""
   const decoded = (() => { try { return decodeURIComponent(path) } catch { return path } })()
@@ -30,7 +27,6 @@ export const deadLinkTarget = (from: string, written: string): string | null => 
   return resolved === "" ? null : resolved
 }
 
-/** Scan fields independently: a title and note cannot complete each other's Markdown. */
 export const deadLinksIn = (from: string, text: string | ReadonlyArray<string>, served: ReadonlySet<string>): ReadonlyArray<DeadLink> => {
   const found: DeadLink[] = []
   const seen = new Set<string>()

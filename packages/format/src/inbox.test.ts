@@ -1,30 +1,3 @@
-/**
- * THE INBOX CONVENTION, both readings of it.
- *
- * WHAT A CAPTURE BECOMES ({@link captureInto}) is at the foot of the file, and
- * what is pinned there is the half only the HTTP door exercises: a capture is a
- * whole {@link Capturing} rather than a line, and everything on it has to reach
- * the file through BOTH arms. A field that survived one arm and not the other
- * would be a capture whose note vanished depending on whether the directory had
- * ever captured before, which is the least findable bug this convention could
- * have. Which FILE each arm picks is `@olai/server`'s `edit.test.ts` (the
- * palette section), where it has been held since the door that has been sending
- * captures the longest was written.
- *
- * HOW FULL THE INBOX IS is the rest, and it is the law in one sentence: the
- * badge counts the rows in the inbox marked `todo` or `doing — any depth,
- * full stop. There is no walk and no branch arithmetic left to pin: a record
- * answers for itself. What the cases below hold is the truth table of the
- * marks (todo counts, doing counts, done and cancelled do not, an unmarked
- * row — loose line or header — never did), the one clause that is still a
- * clause (a placement is not a node), and the two halves of the convention
- * meeting (a capture lands already counted, because its row was born `todo`).
- * Which FILE the count is asked of is found by name over the SET's paths —
- * the same list capture walks — so an empty or torn convention file is the
- * file the door names; a second matching path is ambiguous even if only
- * one of them holds records.
- */
-
 const INBOX = `_olai/${INBOX_STEM}.olai`
 import { Result } from "effect"
 import { TEST_CLAIMS } from "@olai/format/testlib"
@@ -73,7 +46,6 @@ test("the marked rows of whichever file the inbox is are the count", () => {
 })
 
 test("todo counts at any depth, and every marked row counts for itself", () => {
-  // Two levels down under furniture: the mark, nothing above it, is the one.
   expect(heldOf({
     "_olai/Inbox.olai": [
       `{"id":"h","ord":"a0","title":"Deferrals"}`,
@@ -83,7 +55,6 @@ test("todo counts at any depth, and every marked row counts for itself", () => {
     ].join("\n"),
   })).toEqual({ count: 1 })
 
-  // No walk, no dedup: two marks in one branch are two rows awaiting you.
   expect(heldOf({
     "_olai/Inbox.olai": [
       `{"id":"t","ord":"a0","title":"the remodel","todo":true}`,
@@ -103,11 +74,6 @@ test("done and cancelled settle a row — neither counts", () => {
   })).toEqual({ count: 1 })
 })
 
-// THE INCIDENT THIS LAW CLOSES. An emptied section header — "Awaiting the
-// human's word", a childless bare bullet — wore a badge of 1 over a page
-// showing nothing open, and the old top-level walk could only excuse it with
-// a special clause. Under the one sentence it wears 0 with none: an unmarked
-// row is furniture, bare bullet or branch-full header alike.
 test("a bare bullet is furniture — a childless one wears 0, and so does a whole branch of them", () => {
   expect(heldOf({
     "_olai/Inbox.olai": `{"id":"h","ord":"a0","title":"Awaiting the human's word"}`,
@@ -123,16 +89,11 @@ test("a bare bullet is furniture — a childless one wears 0, and so does a whol
 })
 
 test("a placement never counts — not even a mirror of a todo, at any depth", () => {
-  // A placement is not a node: the marked row lives in `garden.olai`, and the
-  // mirror standing in the inbox is a view of it, so the count excludes it
-  // without a clause of its own.
   expect(heldOf({
     "_olai/Inbox.olai": `{"id":"m","ord":"a0","mirror":"herbs"}`,
     "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
   })).toEqual(NO_INBOX)
 
-  // …and placed under a real row: the clause is depth-blind the way the
-  // count is, so this pins it at depth too.
   expect(heldOf({
     "_olai/Inbox.olai": [
       `{"id":"h","ord":"a0","title":"Awaiting the human's word"}`,
@@ -173,11 +134,8 @@ test("two answers that say the same number are the same reading", () => {
   expect(sameInboxHeld(a, { count: 2 })).toBe(false)
 })
 
-// ── what a capture becomes ─────────────────────────────────────────────
-
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`
 
-/** Everything a capture may carry, so neither assertion below is vacuous. */
 const WHOLE: Capturing = {
   title: "the thread about cabinets",
   desc: "worth a reply\n\n<message://%3Cabc@mail%3E>",
@@ -191,52 +149,21 @@ test("every field reaches the `add` — with the minted todo — when the direct
 })
 
 test("…and the identical fields reach the seed of the inbox it mints", () => {
-  // The same value, so the two arms cannot drift: a `create`'s seed IS an
-  // `add`'s capture (./writing.ts), which is what makes one resolution serve
-  // both doors.
   expect(Result.getOrThrow(captureInto(TEST_CLAIMS, "outline-olai", outlinePaths(setOf({ "house.olai": HOUSE })), WHOLE)))
     .toEqual({ op: "create", file: INBOX, seed: { ...WHOLE, mark: "todo" } })
 })
 
 test("a capture lands already counted — the row it mints is the row the badge reads", () => {
-  // The two halves of this convention meeting is the point of the law, so it
-  // is ONE case rather than two: the mark above is what the file holds after
-  // the write planner stores it (`todo` stores `true`, the way `outlines_todo`
-  // writes it), and a file holding that record counts it.
-  //
-  // The literal is hand-written and the case says so, because the join — a
-  // `captureInto` request THROUGH the planner, stored, and counted by this
-  // same function — is held end to end one package over, where the planner
-  // lives: `@olai/server`'s `mcp/tools.test.ts` ("a capture lands in a minted
-  // inbox, dated and attributed") runs the real tool door and then asserts
-  // `inboxHeldOf` over the set it left. A drift between the plan's spelling
-  // of a born mark and this literal would fail THERE, loudly.
   const landed = `{"id":"c1","ord":"a0","title":"the thread about cabinets","todo":true,"date":"2026-08-21T09:15:00-04:00"}`
   expect(heldOf({ "_olai/Inbox.olai": landed })).toEqual({ count: 1 })
 })
 
-// ── WHAT A CAPTURE IS on the way in ────────────────────────────────────
-//
-// These came down from `@olai/server`'s `capture.test.ts` when `POST /capture`
-// was retired and the verb became a tool. They used to be driven through a
-// real HTTP door because that was the only way to reach the composition; the
-// composition is a function here, so they are the same assertions asked
-// directly. What did NOT come with them is everything that was about the WIRE
-// — the status table, the CSRF gate, the method arm — because there is no wire
-// any more.
-
 const POSTED = { title: "the thread about cabinets" } as const
 
 test("the note is the text, and nothing when there is none", () => {
-  // A capture is a title and a note now (ruled, human 2026-08-23). It used to
-  // take a `url` as well, kept under the note as a markdown autolink, and a
-  // `props` map of the named facts a client already knew — both gone, along with
-  // the encoding rule the autolink needed and the guard the props map made
-  // necessary. What is left has one shape and no cases.
   expect([
     noteOf({ title: "a thought", text: "just this" }),
     noteOf({ title: "buy milk" }),
-    // An empty note is no note, so the row has no `desc` rather than a blank one.
     noteOf({ title: "buy milk", text: "" }),
   ]).toEqual(["just this", undefined, undefined])
 })
@@ -247,18 +174,11 @@ test("the identity the door has is written on, and the capture is dated", () => 
   ).toEqual({
     title: "the thread about cabinets",
     date: "2026-08-23T09:41:00+05:30",
-    // The one property a capture carries, and the door is the only thing that
-    // can supply it.
     props: { [CAPTURED_BY]: "someone@example.com" },
   })
 })
 
 test("a door that knows nobody writes no attribution, rather than a false one", () => {
-  // The ruling read literally: the property is OMITTED when the door has no
-  // identity, so `captured-by` means one thing wherever it appears — somebody
-  // the door actually knew. A capture with none is honest; a capture
-  // attributed to a process is not. And the key is absent rather than empty:
-  // `prop:captured-by` must not match a capture nobody was named on.
   const made = capturingOf(POSTED, null, "2026-08-23T09:41:00+05:30")
   expect(made).toEqual({
     title: "the thread about cabinets",
@@ -268,12 +188,6 @@ test("a door that knows nobody writes no attribution, rather than a false one", 
 })
 
 test("a client CANNOT say who captured this — there is nowhere to say it", () => {
-  // This used to be a guard: a check that the props map did not carry
-  // `captured-by`, sitting one line from the merge that would have overruled it,
-  // and a second case for a key that was only the same key after the write
-  // planner trimmed it. Both are gone with the map itself, which is the
-  // stronger arrangement — a rule that cannot be broken rather than one
-  // enforced. Asserted on the SCHEMA, because that is where the fact now lives.
   const fields = Object.keys(CaptureRequest.fields)
   expect(fields).toEqual(["title", "text"])
   expect(fields).not.toContain("props")

@@ -1,47 +1,3 @@
-/**
- * What a search ASKS and what one hit SAYS.
- *
- * Data, and nothing but: there is no matcher in this file and no way to reach
- * one from it. It is here for the reason `./committing.ts` is, and the argument
- * is that file's word for word — this package is the floor both the ops layer
- * and the wire spec stand on, and a vocabulary spelled in either of those would
- * have to be spelled again in the other. `@olai/ops` PRODUCES these values
- * (`Query.search`, over one reading of one snapshot), `@olai/surface` CARRIES
- * them (the `search.nodes` procedure the ⌘K palette calls), the browser DRAWS
- * them, an agent reads the identical value off `search_nodes`, and none of the
- * four has to agree with the others by memory.
- *
- * **It was spelled twice, and the two were free to drift.** The ops layer had
- * `Found`/`Hit`/`Search` as TypeScript, the wire spec had
- * `SearchHit`/`SearchAnswer` as Effect Schema, and `@olai/surface`'s own header
- * claimed a field added to one was a compile error on the other. It was not:
- * adding a field to the ops-side `Found` and producing it type-checked clean
- * across every package, after which `search_nodes` answered an agent with it
- * and the palette's procedure — encoding against a schema that had never heard
- * of it — dropped it. An agent and a person searching the same words in the
- * same directory, looking at different rows. One declaration is the fix; a
- * fence over two declarations was the fallback, and this package existing is
- * why it was not needed.
- *
- * **Why the SHAPE lives here and the SITUATING does not.** Every field of a hit
- * is a statement about records in this package's own vocabulary — an id, a
- * title, a `file:line`, a {@link Status}, the ancestor titles `ancestorsOf`
- * walks, the edge lists a record carries. What `@olai/ops` keeps is the act of
- * BUILDING one out of a set: the same division `./committing.ts` makes, where
- * the shape of what is pending is here and the survey that produces one is not.
- *
- * This paragraph used to say the ranking stayed up there too, "where the
- * matcher is". The matcher came down in the filter-in-place change and the
- * ranking followed it one door later (`./filter.ts`'s `ranked`), for the
- * same reason both times: a browser cannot call a procedure per keystroke, and
- * a second spelling of a rule is a second answer to it.
- *
- * **{@link Found} is next door**, in `./reading.ts`, and started here. It is
- * the atom of EVERY read — the node a detail, a subtree and a curated list's
- * row are each built out of, not only a hit — so the module named for the read
- * vocabulary is where it belongs, and this one imports it like any other
- * caller. What is left here is exactly what a QUERY adds to it.
- */
 import type { Claims } from "./kinds.ts"
 import { fileKind } from "./kinds.ts"
 import { Schema } from "effect"
@@ -52,153 +8,26 @@ import { DOCUMENT_FIELDS, DURATION_TEACHING, Refusal, SEARCH_FIELDS } from "./fi
 import { RegularNode } from "./node.ts"
 import { Found } from "./reading.ts"
 
-/**
- * ONE HIT ON A NODE: a situated record, its ADDRESS, and the only thing about
- * it that is a fact about the QUERY rather than about the record — which field
- * carried the strongest match, so a caller can say why this came back instead
- * of leaving a reader to guess.
- *
- * `at` is what a hit is FOR, once a search answers with two kinds of thing:
- * somewhere to go. It is the bare `#id` this format's node addresses are — the
- * id is global and outlives every move, so the address is right about where the
- * node is even after the file it is in has been renamed (`./address.ts`).
- */
 export const NodeHit = Schema.Struct({
   at: AtNode,
   ...Found.fields,
-  /** ABSENT when the query named no words at all: `is:done` selects a node by a
-   *  field test, and no title, id, tag or note carried it. Saying one of them
-   *  did would be an answer invented to fill a slot — the same rule `status`
-   *  above follows, rather than a fifth word meaning "nothing".
-   *
-   *  The four are `./filter.ts`'s own list, because which fields a word is
-   *  looked for in is the matcher's fact and this is only where it is reported. */
   matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),
-  /**
-   * The custom keys a `prop:` clause selected this node on, in the node's own
-   * spelling. ABSENT for every query that named no property.
-   *
-   * A SIBLING of `matched` rather than a fifth value of it, ruled on this PR
-   * and argued where the matcher produces it (`./filter.ts`'s `Match.props`).
-   * The short of it: the two can both be true at once — `cabinets
-   * prop:agent=claude-opus` matched on the title AND on the agent — so one slot
-   * would have to drop whichever a precedence rule nobody asked for preferred;
-   * `matched`'s four values are a CLOSED list of places a word is looked for,
-   * weighted against each other, where a property key is an open namespace
-   * somebody invented; and `matched` being absent already MEANS "the query
-   * named no words", which a fifth value would quietly stop meaning.
-   *
-   * What it is FOR is the row: a hit carries the whole `custom` map, and this
-   * says which of those keys is the answer to "why is this here" — so a reader
-   * sees the property they searched by first rather than hunting it in a line
-   * of others.
-   */
   matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
-  /**
-   * THE IDS of the ancestors `path` names, in the same order — outermost
-   * first, never including the node itself.
-   *
-   * A title is enough to SAY where a hit sits and not enough to DO anything
-   * about where it sits: a browser that wants to mark the ancestor holding a
-   * conversation needs the id, and walking the loaded set from a trip the
-   * answer already made would be a second answer to "where does this node
-   * hang" that could disagree with `path`. So the walk's ids travel beside its
-   * titles, and no caller reconstructs one from the other.
-   */
   pathIds: Schema.Array(Schema.String),
-  /**
-   * The node's NOTE, verbatim — present only when the query ASKED for it
-   * ({@link SearchRequest.withDesc}) and the node has one.
-   *
-   * The one field on a hit that is not carried by default, and the reason is
-   * its SIZE rather than its meaning. Every other record field here is bounded
-   * like a title — an id, a mark, a handful of edge ids, a map of named facts —
-   * so carrying it costs a row about what a row already is. A note is prose
-   * with no bound at all: this repository's own roadmap keeps whole forensics
-   * under a bug, and twelve of those is an answer many times the size of the
-   * question. So it is asked for, once, by the caller that is going to read it.
-   *
-   * WHOLE OR ABSENT, never cut. `outlines_desc` and `update`'s `was` both take the
-   * note as one text, so a hit carrying a shortened one would be a note an edit
-   * gets written against — which is the same reason `markdown_read` refuses a
-   * file it could not read rather than answering it empty. The dial is
-   * `withDesc` and `limit`, and both are exact.
-   *
-   * The RECORD's own declaration, like {@link Found}'s edge fields: what
-   * travels is the file's value handed back, so a second spelling here would be
-   * free to stop meaning what the file means. It is the same note a walk
-   * carries on every row ({@link Subtree}) and a node read carries once
-   * ({@link Detail}) — one field, three answers, no reconciling.
-   */
   desc: RegularNode.fields.desc,
 })
 export type NodeHit = typeof NodeHit.Type
 
-/**
- * ONE HIT ON A DOCUMENT — the half of every search this app could not answer.
- *
- * It carries what a row needs and nothing more: where to go, what the document
- * is CALLED, which of its places held the word, and the properties its
- * frontmatter writes. There is no `line`, no `status` and no `path` of
- * ancestors, because a document has none of those — an arm with them filled in
- * with zeroes and empty lists would be exactly the shape this whole arc exists
- * to stop, a document pretending to be a node badly.
- *
- * THE PROPERTIES ARE HERE, though, and that is the one field this arm gained
- * rather than declined: a `.md` writes named facts about itself in its
- * frontmatter (`./frontmatter.ts`), so `prop:agent=claude-opus` selects
- * documents now — and a row that answered a property query with a bare title
- * would make the reader open each hit to find the fact they had just searched
- * by, which is the argument {@link NodeHit}'s `custom` already won.
- *
- * WHAT IT DOES NOT CARRY YET, said rather than left to be noticed: an excerpt
- * of the line a `body` match landed on. `matched` says the word was in the
- * prose, which is enough for a reader to decide to open it, and quoting the
- * line is a design question (how much, from where, how highlighted) that
- * belongs with whatever draws it rather than riding in ahead of a caller.
- */
 export const DocumentHit = Schema.Struct({
   at: AtDocument,
-  /** The 1-based file line of the strongest body word match. Absent for
-   * title/path/tag/operator matches and files whose body is not kept. */
   line: Schema.optionalKey(Schema.Int),
-  /** What the document is called: its own face's title, so this row, the
-   *  palette, `markdown_index` and the page's own heading say one name. */
   title: Schema.String,
-  /** Which of `./filter.ts`'s three document fields carried the strongest
-   *  match — ABSENT for a query that named no words, on {@link NodeHit}'s own
-   *  rule. */
   matched: Schema.optionalKey(Schema.Literals(DOCUMENT_FIELDS)),
-  /** The named facts the file writes about itself — its frontmatter, read into
-   *  the same open map a record's `custom` is (`./frontmatter.ts`). Absent for
-   *  a document that carries none, which is the writer's own rule for absence
-   *  and is what keeps an empty map off every row of a vault that uses none. */
   props: Schema.optionalKey(Face.fields.props),
-  /** The keys a `prop:` clause selected this document on, in the file's own
-   *  spelling — {@link NodeHit.matchedProps} over the other arm, and the reason
-   *  the row can put the answer to "why is this here" first. ABSENT for every
-   *  query that named no property. */
   matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export type DocumentHit = typeof DocumentHit.Type
 
-/**
- * WHAT A SEARCH ANSWERS WITH — a node or a document, and nothing said about
- * either that is not true of it.
- *
- * A SUM rather than one shape with a `kind` and a run of optional fields, for
- * `./document.ts`'s reason and this file's own: the two arms genuinely differ,
- * and a reader that had to check whether `line` was filled in would be the
- * node-shaped path and the document-shaped path this arc replaced with a type.
- *
- * THE DISCRIMINANT IS THE ADDRESS, which is the grammar doing real work rather
- * than a tag beside it: an address already says whether it names a node or a
- * document, and a second field saying so would be free to disagree with it.
- * {@link isNodeHit} is how a reader narrows — the same move `isMirror` and
- * `isOutline` are, named once rather than spelled as a field test wherever a
- * door only draws one kind.
- */
-/** A file-name match on an outline; its contents and properties are not searched here. */
 export const OutlineHit = Schema.Struct({
   at: AtOutline,
   title: Schema.String,
@@ -211,47 +40,18 @@ export const isOutlineHit = (claims: Claims, hit: SearchHit): hit is OutlineHit 
 export const SearchHit = Schema.Union([NodeHit, DocumentHit, OutlineHit])
 export type SearchHit = typeof SearchHit.Type
 
-/** Whether a hit is on a record. The doors that only ever wanted a node — the
- *  edge panel picking something to `see`, the chat composer's `@` list —
- *  narrow through this, and the type is what makes them say so. */
 export const isNodeHit = (hit: SearchHit): hit is NodeHit => hit.at.kind === "node"
 
 export const SearchAnswer = Schema.Struct({
   hits: Schema.Array(SearchHit),
-  /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
-   *  of ninety" is sayable. */
   total: Schema.Int,
-  /** Uncapped totals by category, present when no kind was requested. */
   totals: Schema.optionalKey(Schema.Struct({ node: Schema.Int, file: Schema.Int })),
-  /** What the grammar could not read, in its own words — a known operator with
-   *  an unknown value (`is:open`). ABSENT for every query it could read.
-   *
-   *  It travels rather than being swallowed because a door that answered
-   *  `is:open` with an empty list and no reason is a silent failure:
-   *  the reader typed an operator, and the honest answer is
-   *  which values it takes. The filter over the tree draws its own because it
-   *  parses for itself; these are for the three doors that ask the server. */
   refusals: Schema.optionalKey(Schema.Array(Refusal)),
 })
 export type SearchAnswer = typeof SearchAnswer.Type
 
-/** How many hits an unasked-for limit means. Here rather than beside the
- *  matcher because it is part of what an absent `limit` MEANS, which is a fact
- *  about the request — and because the sentence below quotes it, so a number
- *  changed in one place would otherwise leave every agent's JSON Schema
- *  advertising the old one. */
 export const DEFAULT_SEARCH_LIMIT = 12
 
-/**
- * What a search asks.
- *
- * The field prose is agent-facing — it becomes the JSON Schema `search_nodes`
- * advertises — and it describes the matcher's own rule rather than a wire
- * convention, which is why it can be written once for a caller that is a model
- * and a caller that is a text box. `text` is the whole GRAMMAR
- * ({@link parseFilter}), so the sentence documenting it is the one place the
- * operators are spelled out for a reader who is not looking at the parser.
- */
 export const SearchRequest = Schema.Struct({
   text: Schema.String.annotate({
     description:
@@ -262,10 +62,6 @@ export const SearchRequest = Schema.Struct({
       "- `has:desc` / `has:date` / `has:created` / `has:changed` / `has:see` / `has:after` / `has:repeat` — a field the record carries. `has:repeat` is what COMES BACK: a repeat rule needs a date to repeat from, so it selects inside `has:date`, and `has:date -has:repeat` is everything dated once. `has:created -has:changed` is a node nothing has been written to since it was captured.\n" +
       "- `date:2026-08-10`, `date:2026-08`, `date:2026`, `date:2026-08-01..2026-08-14`, `date:..2026-08-10`, `date:2026-08-10..` — the two dates a journal reads: what the node is scheduled for, and when it was finished.\n" +
       "- `date:today`, `date:yesterday`, `date:tomorrow`, and `this-` / `last-` / `next-` with `week`, `month` or `year` (`date:last-week`) — the same operator, counted from the day the query is asked on, in the server's own time zone. A week runs MONDAY to Sunday. They go at either end of a range like any other value: `date:last-week..`, `date:..today`, `date:last-month..yesterday`.\n" +
-      // THE UNITS ARE THE GRAMMAR'S OWN SENTENCE, interpolated rather than
-      // re-listed: `@olai/format`'s `DURATION_TEACHING` is what the refusal
-      // says, built off the one table that names a unit, so this door and that
-      // refusal cannot come to describe different units.
       `- \`changed:1h\`, \`created:30m\`, \`changed:2d\`, \`created:1w\` — ${DURATION_TEACHING}, counted from the moment the query is asked. \`1mo\` and \`1y\` are REFUSED (month and year recency is already \`last-month..\` or \`2026\`), and values are case-folded, so \`1M\` is one minute. A bare duration is WITHIN THE LAST N — \`created:1h\` is \`created:1h..\`. At a range's END it is the moment itself: \`created:..1h\` is older than an hour, \`changed:2h..30m\` is a window (older bound first), and the ends mix with everything else (\`created:yesterday..3h\`). There are no comparison operators and no \`ago()\`; inequalities are spelled as ranges.\n` +
       "- A duration is ROLLING where a day word is CALENDAR, and both are worth having: `created:1d` is the last twenty-four hours, `created:today` is since midnight; `changed:1w` is the last seven days, `changed:this-week` starts on Monday. Durations reach the stamps exactly, since those carry seconds. Under `date:` they compare against whatever precision the node wrote: a bare `date:` day sorts before every moment on that day, so `date:1h` effectively selects work FINISHED inside the hour rather than the day's plans.\n" +
       "- `created:…` / `changed:…` — the STAMPS, and they take every value `date:` takes above, absolute, relative or a duration, with or without a range. `created` is when olai captured the node; `changed` is when olai last wrote to it. Neither is the same question as `date:`: one node can be scheduled for the 10th, captured on the 1st and last written today. Use them to find recent work (`changed:today`, `changed:1h`), what arrived in a stretch (`created:last-week`), or what has gone untouched (`-changed:last-month`, `-changed:1d`).\n" +
@@ -284,51 +80,12 @@ export const SearchRequest = Schema.Struct({
         `How many hits to return. Default ${DEFAULT_SEARCH_LIMIT}; the total is reported either way.`,
     }),
   ),
-  /**
-   * THE NOTES, WITH THE SELECTION — the second dial on an answer's size, and
-   * the only field of a record a hit does not carry by default.
-   *
-   * ASKED FOR RATHER THAN ALWAYS ON, which is the one decision on this request
-   * that goes the other way from `custom`'s. The map of named facts rides every
-   * hit because a property is a named fact smaller than the title beside it, so
-   * "every lane with `pr=…`" is one call. A NOTE is not that shape: it is
-   * unbounded prose, and a query that never reads one should not pay for twelve
-   * of them. Two callers make that concrete rather than hypothetical — this
-   * same request is what the ⌘K palette, the edge panel and the composer's `@`
-   * list ask over the wire on every settled keystroke, and none of them draws a
-   * note.
-   *
-   * SO IT IS ONE FLAG AND NOT A FIELD LIST. What a caller is choosing between
-   * is a shortlist and a shortlist with the notes in it; a `fields` vocabulary
-   * would be a projection language over an answer whose other fields are all
-   * cheap, invented for one field.
-   *
-   * NODES ONLY, and that is the grammar rather than a narrowing chosen here: a
-   * document's "note" is its whole body, which `markdown_read` answers as one
-   * text. A document hit is unchanged by this.
-   */
   withDesc: Schema.optionalKey(
     Schema.Boolean.annotate({
       description:
         "Carry each node hit's `desc` — its note, whole — so a selection arrives WITH its notes in one call. Off by default: a note is unbounded prose, and a query that will not read one should not pay for it. Documents are unaffected; a `.md`'s prose is `markdown_read`.",
     }),
   ),
-  /**
-   * The two scopes a tree page can BE — an AGENT's, now, and the sentence they
-   * arrived under is worth correcting rather than deleting.
-   *
-   * They were put here for the browser's filter, "so a door that could not ask
-   * for that narrowing would be answering a smaller question than the other
-   * one". The filter is a reading on the wire since `search-server-side` and
-   * does NOT use them, and could not: a page draws MIRRORS, and a mirror shows
-   * a node that lives in another outline, so a page filtered under `file` would
-   * lose every row a curated list is made of. What that door narrows by instead
-   * is the page's OWN records, which is a set only the side holding the reading
-   * has (`./narrowing.ts`). What is left here is what `search_nodes` documents
-   * them as — an agent asking exactly the question a person gets by filtering
-   * one page — which is why they stay on THIS request: a field nobody sends is
-   * a field nobody can be held to.
-   */
   file: Schema.optionalKey(
     Schema.String.annotate({
       description: "Only nodes in this outline, by its relative path.",
@@ -340,19 +97,6 @@ export const SearchRequest = Schema.Struct({
         "Only this node and everything beneath it, by id — the same scoping a person gets by filtering a zoomed page.",
     }),
   ),
-  /**
-   * ONE KIND OF THING, for a caller that can only use one.
-   *
-   * The third scope, and the one the sum made necessary: a search answers with
-   * records AND documents, and a door PICKING A RECORD to point at — the edge
-   * panel writing a `see`, the composer's `@` list, the move picker — cannot
-   * take a document, because a `see` names a node id and nothing else. Such a
-   * door filtering the answer itself would be a door whose list runs short
-   * exactly when a query matches enough documents to fill the limit, so the
-   * narrowing is on the REQUEST, where the cap is applied.
-   *
-   * Absent is both, which is what every reading door wants.
-   */
   kind: Schema.optionalKey(
     Schema.Literals(["node", "document", "outline", "file"]).annotate({
       description:
@@ -362,31 +106,6 @@ export const SearchRequest = Schema.Struct({
 })
 export type SearchRequest = typeof SearchRequest.Type
 
-// ── the other question a search answers ────────────────────────────────
-
-/**
- * One node A QUERY SELECTED, and why — the id, and the field that carried the
- * words. `matched` is ABSENT for a query that named none (`is:done` on its
- * own), which is {@link NodeHit}'s own rule for absence: nothing carried it,
- * and saying "title" would be inventing a reason.
- *
- * THE OTHER SHAPE a search answers in, beside {@link NodeHit}, and the
- * difference between them is the door. A SEARCH is a shortlist somebody reads:
- * ranked, capped, and every hit carrying what a row of results draws — the
- * title, the `file:line`, the ancestors, the properties. A page's FILTER is a
- * membership test over rows already on a screen: what it needs is the SET of
- * ids, whole, because the page prunes itself by it and counts itself against it
- * ("3 of 41" is a lie if the answer was capped at twelve), and what it needs
- * about each is one fact — which field carried the words, so a row found only
- * behind its ¶ can say so. A capped, ranked, situated answer would be the wrong
- * answer with more bytes in it.
- *
- * WHAT ASKS FOR THESE is `./narrowing.ts`, which is where the reading they
- * belong to is declared — and it is the reason there is no request shape beside
- * this one here. A filter narrows ONE PAGE, so what it asks about is a page and
- * a query rather than a corner of the directory, its answer is bounded by that
- * page, and it rides the same revision pulse the page does.
- */
 export const MatchedNode = Schema.Struct({
   id: NodeId,
   matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),

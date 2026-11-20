@@ -1,40 +1,7 @@
-/**
- * What a commit that has not happened yet looks like.
- *
- * Data, and nothing but: there is no git in this file and no way to reach one
- * from it. It is here for the same reason `./failure.ts` is — this package is
- * the floor both the ops layer and the wire spec stand on, and a vocabulary
- * spelled in either of those would have to be spelled again in the other. The
- * ops layer PRODUCES these values (`@olai/ops`), the surface CARRIES them
- * (`@olai/surface`), the browser DRAWS them, and none of the three has to agree
- * with the others by memory.
- *
- * The rule the whole feature is built on is one line long: **derive it from
- * git, store nothing** (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/git-commits.md). Same discipline as
- * node status and blockedness. Anything cached here would be a second answer to
- * a question git already answers, and it would be wrong the moment somebody
- * edits a file in vim.
- *
- * The one exception is `wrote`, and it is marked as what it is: a DECORATION on
- * the git-derived truth, allowed to be empty and never to be relied on.
- */
-
 import { Schema } from "effect"
 
 import { NodeChange } from "./changes.ts"
 
-/**
- * What happened to a file that moved, out of the porcelain XY letters.
- *
- * Five words rather than the letter pair, because what a reader wants is the
- * word — and because the pair says index-and-work-tree, a distinction olai
- * deliberately has no opinion about: it never touches the index.
- *
- * HERE rather than in the plugin that shells out, because it TRAVELS: a dirty
- * file's status is drawn as a chip in the commit panel, so the value crosses
- * the wire, and one declaration is what keeps the letters, the schema and the
- * chip from being kept in step by hand.
- */
 export const How = Schema.Literals([
   "modified",
   "added",
@@ -44,42 +11,9 @@ export const How = Schema.Literals([
 ])
 export type How = typeof How.Type
 
-/** Why the repository cannot take a commit right now. Nothing used to check
- *  for any of them, which is how an agent marking a node done mid-conflict
- *  could swallow a resolution — the hole that decided manual over automatic,
- *  and the reason this type exists. Every commit path now refuses when the
- *  answer is one of these. */
 export const Reason = Schema.Literals(["merge", "rebase", "cherry-pick", "detached"])
 export type Reason = typeof Reason.Type
 
-/**
- * Whether the served directory can be committed to.
- *
- * Five arms, and EVERY ONE OF THEM IS DRAWN. That is the decision the whole
- * control turns on: the commit feature exists to be an audit trail of what the
- * tool wrote, so "there is no audit trail here" is the single most important
- * thing it can say, and a pill that disappeared is exactly how a person would
- * never find that out. Same argument as the connection dot, which stays green
- * when it is healthy rather than vanishing.
- *
- * `Off` and `NoRepo` are SETTINGS, not faults — a directory of notes under
- * Dropbox is not this program's business, and neither is a server started with
- * the git row off. They are drawn dim and inert, with no warning colour.
- * `Blocked` and `Unusable` are the two a reader is owed an explanation for, and
- * `Blocked` is the one a person can act on.
- *
- * `Unusable` is #108's, and it is why this is five arms rather than four: git
- * RAN and could not answer — no binary on the PATH, dubious ownership, a
- * repository it refuses to use. Folding that into `NoRepo` would say "your
- * notes are not a repository" to somebody whose notes are, which is the exact
- * bug `git-invisible` was filed for. One state, one sentence, and git keeps its
- * own words.
- *
- * `Off` is the one arm the plumbing never produces: nothing there knows olai
- * has a commit policy. It is declared here anyway because the value is one union
- * on the wire, and splitting it across two packages by which of them mints each
- * arm would be splitting a type by its authors rather than by what it means.
- */
 export const RepoState = Schema.Union([
   Schema.Struct({ _tag: Schema.Literal("Off") }),
   Schema.Struct({ _tag: Schema.Literal("NoRepo") }),
@@ -90,170 +24,51 @@ export const RepoState = Schema.Union([
   Schema.Struct({
     _tag: Schema.Literal("Blocked"),
     reason: Reason,
-    /** Git's own words, kept as a field rather than folded into a sentence. */
     said: Schema.String,
   }),
   Schema.Struct({
     _tag: Schema.Literal("Unusable"),
-    /** Git's own words, for the same reason `Blocked` keeps them. */
     said: Schema.String,
   }),
 ])
 export type RepoState = typeof RepoState.Type
 
-/**
- * How writes reach git — the values of the `git.commit` property, and the one table of them.
- *
- * It lives on this floor rather than in `@olai/ops` because it TRAVELS now. The
- * mode used to be a fact the server kept to itself: `off` reached a browser as
- * {@link GitState}'s `off` status and the other two were indistinguishable from
- * out here. The policy now travels on GitState, so the vocabulary is declared
- * once, on the floor the wire spec and the ops layer both already stand on,
- * which is the argument `RepoState` is re-exported above by.
- *
- * `manual` is the point of the whole thing: a write lands on disk and WAITS,
- * and something asks for a commit. `auto` is the SERVER's quiet-window loop —
- * what is waiting records itself once writes stop arriving for fifteen seconds,
- * whoever made them (`./window.ts`). `off` is `commit: off`.
- *
- * `auto` used to mean one commit per write, made inside the write gate, and
- * that is retired: a train of thought arrived as a dozen commits, and the
- * browser had grown a quiet window of its own to avoid exactly that. There is
- * one window now and it belongs to the directory.
- */
 export const COMMIT_MODES = ["off", "manual", "auto"] as const
 export type CommitMode = (typeof COMMIT_MODES)[number]
 
-/** The schema default when the vault has no commit choice. */
 export const COMMIT_DEFAULT: CommitMode = "manual"
 
-/**
- * ... and the values of the `git.push` property, which has TWO modes.
- *
- * Deliberately not three. the `git.commit` property's `manual` and `off` are different facts
- * about a directory — one waits for somebody to ask, the other says olai never
- * touches git here — and pushing has no such pair: a branch that is not sent on
- * its own is sent by the Push button, and there is no third thing to be. A
- * `manual` beside this `off` would be two names for one behaviour.
- */
 export const PUSH_MODES = ["off", "auto"] as const
 export type PushMode = (typeof PUSH_MODES)[number]
 
-/** What the `git.push` property means when nobody gave it — spelled once beside
- *  {@link COMMIT_DEFAULT} and for the same reason: "nobody said" and "somebody
- *  said off" must not be able to come to disagree about what the server does. */
 export const PUSH_DEFAULT: PushMode = "off"
 
-/** Resolved policy for this activation, including schema defaults. */
 export const GitPolicy = Schema.Struct({
   commit: Schema.Literals(COMMIT_MODES),
   push: Schema.Literals(PUSH_MODES),
 })
 export type GitPolicy = typeof GitPolicy.Type
 
-/** The policy a server nobody has said anything to runs under — the two
- *  defaults, as the one value they come to. */
 export const DEFAULT_POLICY: GitPolicy = {
   commit: COMMIT_DEFAULT,
   push: PUSH_DEFAULT,
 }
 
-/**
- * A GIT LOCK FILE IN THE WAY — which file it is, and when it was left.
- *
- * `index.lock` is what git holds while it rewrites the index, and it REMOVES it
- * on the way out of every exit it controls — but not out of a killed process, a
- * full disk, or a machine that went down mid-write. What is left behind refuses
- * every write in that repository, with git's own words (`Unable to create
- * '…/index.lock': File exists`), until somebody removes the file by hand.
- *
- * THE MTIME IS ALL THERE IS TO GO ON: git's `index.lock` carries no pid, so
- * nothing can ask whether the process that left it is still alive. What olai
- * does with the age is `@olai/git`'s `unlock`.
- */
 export const Lock = Schema.Struct({
-  /** When the lock file was last written, in milliseconds since the epoch. */
   since: Schema.Number,
 })
 export type Lock = typeof Lock.Type
 
-/**
- * What git is doing for the served directory, for the git indicator in the app
- * header (`git-invisible`, #108) and for the agent that reads the same cell
- * over MCP.
- *
- * FLAT — a status, the words that go with it, the lock file that may be behind
- * them, the resolved policy, and what the loop last came to — because this value
- * TRAVELS:
- * the ops layer derives it from its own survey's `RepoState` (`gitOf`, which
- * owns the one-survey coherence argument), the surface declares it as the
- * `git` cell (which says how each of the four states is drawn), and the
- * browser draws it. It used to be declared once per layer — an interface in
- * `@olai/ops`, a schema in `@olai/surface`, "deliberately the same shape"
- * kept in step by a comment — which is exactly the hand-kept mirror this file
- * exists to retire. One declaration now, HERE, for the reason `RepoState` is
- * re-exported above: this package is the floor both of those stand on.
- */
 export const GitState = Schema.Struct({
   status: Schema.Literals(["off", "repo", "none", "error"]),
-  /** What git said, for the state that has something to quote — the reason a
-   *  reader gets rather than "something went wrong". `null` otherwise: a
-   *  healthy repository is not quoting anything. */
   said: Schema.NullOr(Schema.String),
-  /**
-   * The `index.lock` that stopped the last COMMIT, or `null` — the file, and
-   * how long ago it was left.
-   *
-   * Its own field beside {@link GitState.said} for the reason `pushSaid` has
-   * one: the words say what happened, and this says what a reader can do about
-   * it — a file to remove, rather than a path to parse out of git's prose.
-   * `null` on every refusal that was not about a lock, and on every state that
-   * is not a refusal at all.
-   */
   lock: Schema.NullOr(Lock),
-  /** What this activation does about commit and push, including defaults. */
   policy: GitPolicy,
-  /**
-   * What git said when it last refused a PUSH, or `null` when the last one
-   * worked (and for a directory nothing has ever been pushed from).
-   *
-   * THE WORDS OF THE PUSH, THE FETCH BEFORE IT, OR THE INTEGRATION BETWEEN
-   * THEM: any of the three can be what stopped the branch going out, and a
-   * person who is told only about the last of them is told the least useful
-   * half. Olai's own sentence about an overlap or a conflict rides in the
-   * same field, followed by git's words.
-   *
-   * Its own field beside {@link GitState.said} rather than folded into it, and
-   * the separation is the bug this feature was filed for: a refused push leaves
-   * a repository whose every commit still lands, so the status stays `repo` and
-   * the pill read `✓ committed · 13 unpushed` over a push that had been failing
-   * for an hour. One field per verb is what lets the chip say the true thing
-   * about both at once.
-   */
   pushSaid: Schema.NullOr(Schema.String),
-  /**
-   * WHY THE LOOP STOPPED, or `null` while it is running — git's own words, from
-   * whichever verb refused.
-   *
-   * A fact about the DIRECTORY now, which is the whole of the move: it used to
-   * be a signal in one tab's memory, so a reload was a silent retry and a second
-   * tab never knew. The loop does not go round again while this is set — a loop
-   * that un-paused itself is the blind retry wearing a different hat — and the
-   * one way out is the `git.resume` procedure, which the commit panel's
-   * Resume button calls.
-   */
   paused: Schema.NullOr(Schema.String),
 })
 export type GitState = typeof GitState.Type
 
-/** What a page reads before the first frame arrives, and what a `commit: off`
- *  serve stays in — beside its type for the reason {@link NOTHING_PENDING} is
- *  beside `Pending` below. `off` is the right default twice over: it is the
- *  calmest of the four, so a page cannot flash "git error" at a healthy
- *  repository on its way to the truth. (What the page says before it has heard
- *  ANYTHING is not this value — the pill has a face of its own for that,
- *  because "we have not been told" and "commits are off" are two different
- *  claims.) */
 export const GIT_OFF: GitState = {
   status: "off",
   said: null,
@@ -263,79 +78,9 @@ export const GIT_OFF: GitState = {
   paused: null,
 }
 
-/**
- * When two readings of what git is doing say the same thing.
- *
- * The same claim {@link samePending} makes below and for the same reason —
- * these two are the OTHER halves of one survey, recomputed by one statement on
- * one pair of clocks (`server/runtime.ts`'s `republishGit`), so a cell that
- * swallowed a repeat on one side and framed it on the other is one survey
- * arriving as two kinds of news. Without it a healthy repository put a fresh
- * `repo` on every open tab's wire twice a minute, which is a frame saying
- * exactly what the last one did.
- *
- * DERIVED from the schema, exactly as `samePending` is: written out by hand it
- * would be two field comparisons beside the declaration of those same two
- * fields, and the third field added to {@link GitState} would simply not be
- * compared — a frame that is never sent, which is the failure an `equals` is
- * here to prevent in the other direction.
- */
 export const sameGit: (a: GitState, b: GitState) => boolean = Schema
   .toEquivalence(GitState)
 
-/** Who asked for a write. Intent rather than identity — git only ever records
- *  the repository's own name and email, so without this an agent's edits are
- *  indistinguishable from the ones a person typed.
- *
- *  It stays HERE rather than travelling down to the ledger plugin with the
- *  repository state, and the difference is the point of that extraction: which
- *  writers olai has is a statement about olai. The plumbing hands back the
- *  trailer it read, verbatim, and the ledger classifies it against this list.
- *
- *  THERE ARE SEVEN, and they come in two parts. SIX are words olai writes
- *  today. `move` records the chat server's one-time move of a chat
- *  from a row onto the note it was about — nobody pressed anything, and that
- *  commit is the one a person may want to revert. `sleep` records the
- *  server's own pass over a node agent's subtree — a machine turn nobody asked
- *  for, kept apart from `auto` because the commit IS the feature (it is the
- *  thing a person reverts), while `auto` records whatever happened to be
- *  waiting. The rest retain their existing meanings.
- *
- *  THE SEVENTH, `filer`, is a word nothing writes any more: it recorded the
- *  server that filed conversations into the Inbox, and that server and that
- *  container are both gone. It stays because the trailer is READ back as well
- *  as written, and an installed olai has already signed commits with it.
- *  Dropping the word would not remove those commits; it would only make the
- *  ledger answer "writer not recorded" about history olai wrote itself.
- *
- *  That is the line, and it is where `capture` and `cli` fall on the other
- *  side of it. `capture` was the bespoke `POST /capture` door and went with
- *  it; a `cli` replaced it for one commit, for a terminal on a unix socket of
- *  its own, and went when that socket did. Neither is here because neither
- *  ever signed a commit in anybody's vault: a word no repository carries is
- *  dead vocabulary, while a word some repository DOES carry is compatibility,
- *  and only the second has a reader to be honest to.
- *
- *  **A TERMINAL HAS NO WORD OF ITS OWN, and that follows from the design rather
- *  than being an omission.** `olai surface` is a client of `/mcp` — the same
- *  protocol at the same path under the same rule as any other HTTP client
- *  (ruled, human 2026-08-23) — so its writes are recorded under whatever that
- *  door is served as, exactly as an agent's are. This word records a DOOR, and
- *  a terminal does not have one to itself any more. What it costs is real and
- *  worth saying: `git log` can no longer separate a line typed in a terminal
- *  from a tool call by an agent on the same listener. What it buys is that
- *  there is only one door to reason about at all.
- *
- *  WHO captured is a different question and IS answered, elsewhere: the
- *  identity that door has rides the captured node itself, as a property
- *  (`@olai/format`'s `inbox.ts`, which the `capture` tool composes through).
- *
- *  `auto` is the only one that never writes a FILE: it is the
- *  server's own quiet-window loop, which makes commits and nothing else
- *  (`./window.ts`, run by `@olai/ops`). It is here rather than reusing `web` because that
- *  would be a lie a headless serve tells in every commit it makes — there is no
- *  page, no button and possibly no browser anywhere — and the trailer is the
- *  permanent half of "who did this". */
 export const Writer = Schema.Literals([
   "chat-agent",
   "mcp",
@@ -343,95 +88,34 @@ export const Writer = Schema.Literals([
   "auto",
   "move",
   "sleep",
-  // Read-only vocabulary: see above. Last in the list because nothing
-  // produces it, and the order here is the order a reader meets them in.
   "filer",
 ])
 export type Writer = typeof Writer.Type
 
-/** The two doors a commit is ever asked through. Spelled once: `--help` and
- *  the sentence a write carries back are built from them, and renaming the
- *  button in one place and not the other is the kind of thing nothing fails
- *  on and everybody trips over. */
 export const COMMIT_BUTTON = "the Commit button"
 export const COMMIT_TOOL = "the `commit` tool"
 
-/** Whether a commit could be asked for at all. */
 export const isReady = (repo: RepoState): boolean => repo._tag === "Ready"
 
-/** Whether committing is a thing that could ever happen here. `false` is the
- *  two SETTINGS — no repository, or commits turned off — plus the git that could
- *  not be asked at all, which is a FAULT and is drawn as one (the header's git
- *  indicator wears it as `git error`, with git's own words), rather than
- *  something a Commit button can offer to do anything about. */
 export const isPossible = (repo: RepoState): boolean =>
   repo._tag === "Ready" || repo._tag === "Blocked"
 
-/**
- * The last commit OLAI made here — not the repository's HEAD.
- *
- * A person's own commits are not what this feature reports on, so it is HEAD as
- * seen through the same filter the audit view uses: the `olai` message prefix.
- * The trailer is what says WHO, and it is separate because a commit can carry
- * the prefix without one (a person typing it by hand, a trailer stripped by a
- * rebase) — reporting `null` there is more honest than guessing.
- */
 export const LastCommit = Schema.Struct({
   sha: Schema.String,
-  /** The subject line. The body is the per-node list, which is what the
-   *  pending panel draws for itself. */
   message: Schema.String,
   writer: Schema.NullOr(Writer),
-  /** ISO 8601, so "12m ago" is the reader's clock and their time zone rather
-   *  than the server's. */
   at: Schema.String,
 })
 export type LastCommit = typeof LastCommit.Type
 
-/** One writer's share of what is waiting. Counts, not messages: the messages
- *  are the changes, which come from git. */
 export const Wrote = Schema.Struct({
   writer: Writer,
   ops: Schema.Int,
 })
 export type Wrote = typeof Wrote.Type
 
-/**
- * Where a RENAMED row came from — repo-root-relative, and `null` on every row
- * that did not move.
- *
- * A rename is ONE thing that happened, so it is one row with two names on it
- * rather than an arrival beside a departure with nothing joining them. Both
- * kinds of row carry it, and for the reason they both spell their own name
- * `path`: a consumer reading either list writes `one.from` without having to
- * remember which list it is holding.
- *
- * It is what turns `Reading.md deleted` — a person's own vault, the morning
- * after the outline extension changed, with the file that actually holds their
- * notes nowhere on screen — into `Reading.md → Kept.olai`.
- *
- * Repo-root-relative on BOTH rows, like `path`, because that is the one name a
- * file has that cannot collide across a repository. A list that draws SERVED
- * names shortens it for the reader, which is a rendering question and belongs
- * where the drawing is.
- */
 const From = Schema.NullOr(Schema.String)
 
-/**
- * One dirty OUTLINE, as a file rather than as the nodes in it.
- *
- * The node-level `changes` are what a reader mostly wants, and this is the row
- * they hang under: the file is the unit git commits, so it is the unit a
- * selection ticks — an outline's node changes travel together, because a partial
- * `.olai` write is not a thing that exists.
- *
- * It carries BOTH spellings because both are needed and neither can be derived
- * from the other outside the server: `file` is what `changes` and `unreadable`
- * are keyed by (served-root-relative, the store's own key), and `path` is the
- * one unambiguous name for the file in the repository — which is what a commit
- * request names, so that an outline `roadmap.olai` under `docs/` and some other
- * dirty `roadmap.olai` at the repository root can never be the same tick.
- */
 export const DirtyOutline = Schema.Struct({
   file: Schema.String,
   path: Schema.String,
@@ -440,28 +124,6 @@ export const DirtyOutline = Schema.Struct({
 })
 export type DirtyOutline = typeof DirtyOutline.Type
 
-/**
- * One dirty file that is NOT an outline olai serves — the whole of what
- * `commit-whole-repo` adds to what is waiting.
- *
- * A person edits a `README.md` by hand and the git part of the UI used to show
- * nothing pending: `git status` had already surveyed the file and one line later
- * threw it away, because olai only writes `.olai` and only listed what it
- * writes. These are path-level rows and deliberately nothing more — no diff, no
- * parsing, no node list. What would be shown is a text diff, and this feature
- * has never shown one.
- *
- * Documents, source files, an outline OUTSIDE the served root (olai does not
- * serve it, so there is no working-side parse to compare against), and anything
- * else somebody's working tree holds. `.gitignore` is respected for free, since
- * this comes from `git status`.
- *
- * `path` is repo-root-relative — what a reader is shown, and the name a commit
- * request ticks. It is spelled the same as {@link DirtyOutline}'s `path` and
- * means the same thing, deliberately: the two lists are two kinds of ROW and one
- * namespace of keys, so a consumer collecting a selection out of both writes
- * `one.path` either way rather than remembering which list calls it what.
- */
 export const Other = Schema.Struct({
   path: Schema.String,
   how: How,
@@ -469,137 +131,33 @@ export const Other = Schema.Struct({
 })
 export type Other = typeof Other.Type
 
-/**
- * What is committed here and not shared anywhere.
- *
- * `null` when the branch has no upstream at all, and that is a different fact
- * from `commits: 0`: a branch nobody has ever pushed has nowhere to go, and
- * offering to push it would be offering to guess a remote. Picking one is a
- * conversation in a terminal, which is where resolving a divergence stays.
- *
- * BEHIND is deliberately absent for the same reason. This program has one push
- * verb; it has no pull, no fetch and no branch UI, because it is an audit-trail
- * recorder rather than a git client.
- */
 export const Unpushed = Schema.Struct({
-  /** Git's own name for the upstream — `origin/master`. */
   upstream: Schema.String,
-  /** Commits on this branch the upstream does not have. */
   commits: Schema.Int,
 })
 export type Unpushed = typeof Unpushed.Type
 
-/**
- * Everything a Commit button and a `commit` tool both need.
- *
- * All of it is derived from git every time it is asked for: `git status
- * --porcelain` names every dirty file in the REPOSITORY, the copy the current
- * commit holds is the committed side of each dirty outline, the codec parses
- * both, and the comparison is `./changes.ts`. Cost is bounded by what CHANGED:
- * a clean directory parses nothing at all, and a keystroke costs nothing per
- * file that was already waiting, since a commit's copy of a file cannot change
- * and is read once per commit (`@olai/ops`' `committed.ts`). What a revision
- * spends in subprocesses is counted where they are spent, in that layer's own
- * header, rather than quoted twice.
- *
- * TWO KINDS OF ROW, and the difference is what olai can say about a file rather
- * than what it is allowed to commit. An outline it serves gets node-level
- * detail, because both sides parse into records and the comparison is in hand.
- * Everything else gets a path and a status letter, because the only other thing
- * available is a text diff — and this feature has never shown one.
- *
- * `wrote` is the one thing that cannot come from git, so it is the one thing
- * that is allowed to be wrong: it is empty after a restart and knows nothing
- * about edits made in an editor. The panel then draws the changes with no
- * writer beside them, which is fine. **Nothing downstream may assume it is
- * complete.**
- */
 export const Pending = Schema.Struct({
   repo: RepoState,
   changes: Schema.Array(NodeChange),
   /**
-   * The dirty outlines olai serves, one row each — the GROUPS the node-level
-   * `changes` hang under, and the unit a selection ticks.
-   *
-   * Carried rather than derived from `changes` by grouping, and it earns that
-   * three times over: it names each file's repo-relative path (which a commit
-   * request needs and a node change has no room for), it says HOW the file
-   * moved (a brand-new outline is `untracked`, which no node comparison can
-   * tell you), and it holds an outline whose bytes moved without any node
-   * changing — a reformat, a reordered line — which would otherwise be dirty,
-   * committable, and invisible.
-   *
    * The invariant between the three lists, stated so it can be checked: every
-   * `changes[].file` and every `unreadable[]` is one of these `file`s. It is not
-   * the other way round, which is the reason `changes` is not simply NESTED in
-   * here — a node that was archived is ONE change that left one file and arrived
-   * in another (`./changes.ts` compares by id across files, deliberately), so a
-   * change is not owned by a single file and a nested list would have to
-   * duplicate it or drop half of it.
+   * `changes[].file` and every `unreadable[]` is one of these `file`s.
    */
   outlines: Schema.Array(DirtyOutline),
-  /** Every OTHER dirty file in the repository — see {@link Other}. */
   others: Schema.Array(Other),
-  /** Dirty outlines whose working copy does not parse. Listed rather than
-   *  dropped: a file that cannot be read is exactly the one a reader needs
-   *  told about, and committing it is still allowed — the bytes are the
-   *  bytes. */
   unreadable: Schema.Array(Schema.String),
-  /**
-   * Which part of the repository olai serves, from the repository root — `""`
-   * when it IS the root, `"docs/"` when it is a directory inside one.
-   *
-   * On the wire because the scope is now something a reader has to be TOLD: the
-   * panel reports on the whole repository, and a `README.md` two directories
-   * above the outlines is a row in it. "whole repository · olai serves docs/"
-   * is the sentence, and the second half of it is this.
-   */
   served: Schema.String,
-  /** What is committed and not pushed — see {@link Unpushed}. */
   unpushed: Schema.NullOr(Unpushed),
   wrote: Schema.Array(Wrote),
-  /** The message a commit gets when nobody supplies one. Composed here so the
-   *  panel can show it before it is used and a person can edit it. */
   message: Schema.String,
-  /**
-   * The last commit olai made here, or `null` for a directory it has never
-   * committed in.
-   *
-   * The `null` is load-bearing and not an absence to paper over. What is
-   * WAITING does not say whether anything was ever recorded, and those are two
-   * different facts about the same directory: a clean tree that just committed
-   * and a clean tree where olai has never written anything both have nothing
-   * pending, and telling the second one "✓ committed" would be a lie. Same
-   * reasoning as the manifest cell's `null` — "never" is a state that cannot be
-   * expressed by an empty value.
-   */
   last: Schema.NullOr(LastCommit),
 })
 export type Pending = typeof Pending.Type
 
-/**
- * When two readings say the same thing, so the cell carrying them can stay
- * quiet.
- *
- * It earns its place: this value is recomputed on a timer as well as on every
- * revision, and without it every open tab would get a frame every thirty
- * seconds saying exactly what it already knew. The equality has to be about
- * what is SAID rather than about identity — a fresh derivation is a fresh
- * object every time, so `===` would never hold.
- *
- * DERIVED from the schema, and that is the whole point: written out by hand it
- * was three levels of field-by-field comparison beside the declaration of those
- * same fields, and the next field added to any of them would simply not be
- * compared. The failure mode of that is a frame that is never sent — a browser
- * showing stale data, with nothing anywhere raising an error — which is exactly
- * what an `equals` is here to prevent, in the other direction.
- */
 export const samePending: (a: Pending, b: Pending) => boolean = Schema
   .toEquivalence(Pending)
 
-/** What a page holds before the first frame, and what a server with commits
- *  turned off keeps holding. A value a reader ends up looking at (which is
- *  nothing at all), not a placeholder for one. */
 export const NOTHING_PENDING: Pending = {
   repo: { _tag: "Off" },
   changes: [],
@@ -613,9 +171,6 @@ export const NOTHING_PENDING: Pending = {
   last: null,
 }
 
-/** Asking for a commit. An omitted message is the composed one — which is what
- *  the button sends back untouched, and what an agent that has nothing better
- *  to say leaves out. */
 export const CommitRequest = Schema.Struct({
   message: Schema.optionalKey(
     Schema.String.annotate({
@@ -624,20 +179,6 @@ export const CommitRequest = Schema.Struct({
         "An `olai` prefix is added if it is not already there.",
     }),
   ),
-  /**
-   * WHICH files to commit, if not all of them.
-   *
-   * Repo-root-relative paths, exactly as `pending` publishes them — `path` on
-   * both kinds of row, which is why the two are spelled alike. Omitted means
-   * everything waiting, which is what it always did and what the Commit button
-   * sends when nothing is unticked.
-   *
-   * A SELECTION, and never git's index: a path named here is added and
-   * committed in one breath, anything a person had staged by hand is left
-   * exactly as it was, and a commit that REFUSES puts the index back
-   * bit-identical rather than leaving its own staging behind. What is not named
-   * stays pending, for its own commit and its own message.
-   */
   paths: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
       description:
@@ -650,26 +191,11 @@ export const CommitRequest = Schema.Struct({
 })
 export type CommitRequest = typeof CommitRequest.Type
 
-/**
- * What asking for one answers with.
- *
- * Four arms rather than a boolean, because the four are four different things
- * to say to a person and to an agent: it happened, there was nothing to do, the
- * repository is busy, git said no.
- *
- * `Failed` carries git's words AND, when the words are about a lock file, the
- * file itself — the one refusal with a gesture behind it.
- */
 export const CommitResult = Schema.Union([
   Schema.Struct({
     _tag: Schema.Literal("Committed"),
     sha: Schema.String,
-    /** How many node-level changes went in. */
     changes: Schema.Int,
-    /** How many files went in that no node-level change describes — a
-     *  document, a source file, an outline olai does not serve. Both counts,
-     *  because a commit can be entirely one or entirely the other and
-     *  "committed 0 changes" would read as nothing having happened. */
     others: Schema.Int,
   }),
   Schema.Struct({ _tag: Schema.Literal("NothingToCommit") }),
@@ -677,64 +203,26 @@ export const CommitResult = Schema.Union([
   Schema.Struct({
     _tag: Schema.Literal("Failed"),
     said: Schema.String,
-    /** The `index.lock` the refusal was about, or `null` for a refusal about
-     *  anything else — see {@link Lock}. It rides the answer rather than being
-     *  looked up by the reader, because what a reader would be looking up is a
-     *  race: the file can go between the refusal and the press, and this is
-     *  what git had in its way at the moment it said no. */
     lock: Schema.NullOr(Lock),
   }),
 ])
 export type CommitResult = typeof CommitResult.Type
 
-/**
- * WHAT REMOVING A STALE LOCK FILE ANSWERED — three ways of the file not being
- * in the way any more, and the one where it still is.
- *
- * `Held` is the GUARD and the only refusal on this verb: a lock younger than a
- * git command's own budget may belong to a git that is still writing, and olai
- * does not remove somebody else's file out from under them. Past that budget
- * nothing on this machine can still be holding it for a reason, and the human
- * decides — the sentence tells them to check first.
- *
- * Its own union rather than a boolean, because `Removed` and `Absent` are the
- * two ways the retry is worth making and `Held` is the one where it is not;
- * collapsing them would make "I could not remove it" and "there was nothing to
- * remove" the same answer to the button.
- */
 export const UnlockResult = Schema.Union([
   Schema.Struct({ _tag: Schema.Literal("Removed") }),
   Schema.Struct({
     _tag: Schema.Literal("Held"),
-    /** When the lock still in the way was last written — the same stamp
-     *  {@link Lock} carries, so the sentence can say how young it is. */
     since: Schema.Number,
   }),
   Schema.Struct({ _tag: Schema.Literal("Absent") }),
 ])
 export type UnlockResult = typeof UnlockResult.Type
 
-/**
- * What asking for a PUSH answers with — the same four shapes as a commit, and
- * deliberately so: it is the same kind of act (something a person asks for,
- * which git may refuse) and a reader has already learnt to read these.
- *
- * `Pushed` names what went and where, because "pushed" on its own is not an
- * audit trail either. `NothingToPush` is a branch already in sync, which is an
- * answer rather than a fault. `Blocked` covers the two settings and the
- * directory that is not a repository. `Failed` is git's own words, whole:
- * authentication, a non-fast-forward, a branch with no upstream, a remote hook
- * that said no. Resolving any of those stays a conversation in a terminal, and
- * the words are how it starts.
- */
 export const PushResult = Schema.Union([
   Schema.Struct({
     _tag: Schema.Literal("Pushed"),
     upstream: Schema.String,
     commits: Schema.Int,
-    /** Commits taken in from the upstream before pushing — `0` when the
-     *  branch was already up to date. What the push DID, so a divergence that
-     *  was integrated is told apart from one that simply did not exist. */
     integrated: Schema.Int,
   }),
   Schema.Struct({ _tag: Schema.Literal("NothingToPush") }),

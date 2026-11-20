@@ -1,6 +1,3 @@
-/** The one property that matters: whatever comes back sorts strictly between
- *  its neighbours, by PLAIN STRING COMPARISON — which is the sort the format
- *  promises and `derive` performs. */
 import { describe, expect, test } from "bun:test"
 
 import { ordBetween } from "./ord.ts"
@@ -28,7 +25,6 @@ describe("ordBetween", () => {
       last = between(last, null)
       minted.push(last)
     }
-    // Sorted, and nowhere near one character per insert.
     expect([...minted].sort()).toEqual(minted)
     expect(last.length).toBeLessThanOrEqual(4)
   })
@@ -46,16 +42,12 @@ describe("ordBetween", () => {
   })
 
   test("existing files' spellings are neighbours it can work with", () => {
-    // The `ord`s website/docs/format.md prints in its example.
     between("a0", "a1")
     between("a1", null)
     between(null, "a0")
   })
 
   test("a hand-written neighbour still admits an insert", () => {
-    // Nothing here is a key this encoding would mint: no integer part, wrong
-    // length, a trailing zero. Every one of them still has to work — `ord` is
-    // validated as a string and a person may type one.
     for (const [before, after] of [
       ["zzz", null],
       [null, "zzz"],
@@ -74,10 +66,7 @@ describe("ordBetween", () => {
   })
 
   test("no room is `null`, never a key in the wrong place", () => {
-    // `after` sorts below `before` — a caller mistake.
     expect(ordBetween("b", "a")).toBe(null)
-    // And the arithmetic case: every string above `b` starts with `b`, and the
-    // least of those IS `b0`. The caller renumbers rather than guessing.
     expect(ordBetween("b", "b0")).toBe(null)
     expect(ordBetween("hello", "hello000")).toBe(null)
   })

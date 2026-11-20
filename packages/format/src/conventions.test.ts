@@ -1,39 +1,3 @@
-/**
- * A BY-NAME ANSWER CARRIED ACROSS REVISIONS, held to the walk it replaces.
- *
- * `./conventions.ts` makes one claim with two halves, so this file has two
- * kinds of assertion in it:
- *
- * - THE ANSWER IS THE SAME ANSWER. At every revision of a scripted sequence
- *   the carried convention equals the one the plain walk gives — the REFERENCE
- *   ARM being `./node.ts`'s own `pinsIn` / `inboxIn` over the list each reader
- *   used to build for itself — and so do the READINGS above it, `shelfOf` and
- *   `inboxHeldOf` held against their lifted twins.
- * - AND IT REALLY WAS CARRIED. The walk runs once per PATH-SET CHANGE and not
- *   once per revision, counted over the same sequence against an oracle
- *   computed from the corpus rather than from the thing under test.
- *
- * The count is read off IDENTITY, which is the carrier's own contract rather
- * than an instrument bolted onto it: a convention that is carried is handed
- * back as the same object, so `next !== held` is exactly "the walk ran".
- * Nothing in `./conventions.ts` counts anything — which is what
- * `perf-git-per-write`'s counting wrapper was for, measuring what is spent
- * from outside whatever spends it.
- *
- * THE REVISIONS ARE BUILT THE WAY THE STORE BUILDS THEM (`@olai/ops`'
- * `codec.ts`): the set is `assemble`d from the files, the view is PATCHED from
- * the one before it, and the carrier is handed the same two lists the store
- * publishes beside a snapshot. A harness that re-derived the whole corpus per
- * step, or that compared path sets instead of reading a delta, would exercise
- * the same comparisons and would not be the shape the claim is about.
- *
- * AND THE BROKEN CARRIERS, because a differential that cannot fail is not
- * evidence: one that never re-walks, one that reads the delta and skips the
- * COUNT (which is what catches a departure the store did not name), one that
- * checks the count and skips the DELTA (which a rename walks straight
- * through), and one that re-walks every revision — the first three caught by
- * the answers, the last by the count.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
@@ -57,20 +21,11 @@ import { assemble, documentAt, type OutlineSet, outlinePaths } from "./set.ts"
 import { shelfIn, shelfOf } from "./shelf.ts"
 import { type Reading, validate } from "./validate.ts"
 
-// ── the corpus, and the revisions it is read in ────────────────────────
-
-/** A corpus as the fixtures spell one: path → the file's JSONL. */
 type Corpus = Record<string, string>
 
-/** One capture, so an inbox file has something in it to count. A todo, which
- *  is what `inboxHeldOf` counts, so a step that moves WHICH file the inbox is
- *  moves the NUMBER as well — a carried answer gone stale shows up in the
- *  reading and not only in the path. */
 const capture = (which: string): string =>
   `{"id":"c-${which}","ord":"a0","title":"the ${which} capture","todo":true}`
 
-/** One pin, addressed at a node another file holds — so the shelf's rows are a
- *  reading of the whole directory and not of one file. */
 const pin = (which: string): string => `{"id":"p-${which}","ord":"a0","title":"/#herbs"}`
 
 const GARDEN = [
@@ -84,21 +39,6 @@ const START: Corpus = {
   "_olai/Pins.olai": pin("deep"),
 }
 
-/**
- * The corpus decoded the way the store's codec decodes one: a file whose
- * content is a BODY decodes to its bytes and everything else is an outline to
- * parse (`@olai/ops`' `codec.ts`, the same branch in the same words).
- *
- * WHICH IS WHICH IS THE REGISTRY'S, never a suffix spelled here
- * ({@link ./kinds.ts}'s `bodyKind`): a harness that decided by name would be
- * a second answer to what a served file IS, which is the one thing that file
- * exists to prevent.
- *
- * Spelled at all rather than taken from `./fixtures.testlib.ts`'s `decodedOf`,
- * which parses every file as an outline: the whole reason a document is in
- * this harness is that the set SERVES it and the grouping never sees it, which
- * is the difference the two carriers are built on.
- */
 const decoded = (
   files: Corpus,
 ): Map<string, Result.Result<Document, Verdict>> =>
@@ -111,9 +51,6 @@ const decoded = (
     ]),
   )
 
-/** …and what moved between two of them, in the patcher's own vocabulary. A
- *  bodied file contributes no records, which is what the codec's `nodesIn`
- *  answers for one. */
 const deltaOf = (before: Corpus, after: Corpus): SetDelta => ({
   upserts: Object.entries(after)
     .filter(([file, text]) => before[file] !== text)
@@ -123,28 +60,16 @@ const deltaOf = (before: Corpus, after: Corpus): SetDelta => ({
   removes: Object.keys(before).filter((file) => !(file in after)),
 })
 
-/** One revision as the store publishes one: the reading, and the two lists it
- *  says moved to get there. */
 interface Revision {
   readonly read: Reading
   readonly moved: PathsMoved
 }
 
-/** What the store would say moved between two corpora — the same diff
- *  `./corpora.testlib.ts`'s `deltaOf` takes, said as paths. */
 const movedOf = (before: Corpus, after: Corpus): PathsMoved => ({
   changed: Object.keys(after).filter((file) => before[file] !== after[file]),
   removed: Object.keys(before).filter((file) => !(file in after)),
 })
 
-/**
- * The next revision, built the way the store builds one — `assemble` over the
- * files, and the view PATCHED from the reading this one follows.
- *
- * It throws on a refusal rather than answering one: every corpus here is a
- * directory that validates, and a script step that quietly stopped publishing
- * would be a sequence with fewer revisions in it than it says it has.
- */
 const revised = (files: Corpus, before?: readonly [Corpus, Reading]): Revision => {
   const outcome = validate(TEST_CLAIMS,
     assemble(TEST_CLAIMS, decoded(files)),
@@ -174,15 +99,9 @@ const without = (files: Corpus, file: string): Corpus => {
   return rest
 }
 
-// ── the arms ───────────────────────────────────────────────────────────
-
-/** THE REFERENCE ARM, one convention each: the walk the reader ran for itself
- *  before there was anything to carry, kept verbatim. */
 const walkedShelf = (derived: Derived): string | undefined => pinsIn(TEST_CLAIMS, derived.byFile.keys())
 const walkedInbox = (set: OutlineSet): string | undefined => inboxIn(TEST_CLAIMS, outlinePaths(set))
 
-/** A carrier, as this harness drives one — the real ones and the broken ones
- *  wear the same two shapes, so nothing here knows which it is holding. */
 interface Carrier {
   readonly shelf: (
     derived: Derived,
@@ -201,26 +120,11 @@ const CARRIED: Carrier = {
   inbox: (set, moved, held) => conventionServed(TEST_CLAIMS, inboxIn, set, moved, held),
 }
 
-// ── the script ─────────────────────────────────────────────────────────
-
-/** One step: what it does to the corpus, and what it is here to cover. */
 interface Step {
   readonly what: string
   readonly to: (files: Corpus) => Corpus
 }
 
-/**
- * THE SEQUENCE THE GATE IS SPELLED OVER, and every clause of it is a case the
- * lane's brief names: an edit that moves no path (the HOT one — the walk must
- * not run), an add, a remove, a rename, and a rename that changes nothing but
- * the CASE of a name.
- *
- * Three more are here because they are the shapes where the two carriers must
- * DISAGREE with each other and each still be right: a file emptied and filled
- * again (which leaves the set serving it while taking it out of `byFile`, so
- * the shelf's list moves and the inbox's does not), and a count that moves
- * with no path moving at all.
- */
 const SCRIPT: ReadonlyArray<Step> = [
   {
     what: "a title edited — no path moves (the hot case)",
@@ -291,16 +195,10 @@ const SCRIPT: ReadonlyArray<Step> = [
   },
 ]
 
-// ── the run ────────────────────────────────────────────────────────────
-
-/** What one revision of a run says about itself. */
 interface Round {
   readonly what: string
-  /** The walk ran — read off identity, which is the carrier's contract. */
   readonly shelfWalked: boolean
   readonly inboxWalked: boolean
-  /** THE ORACLE, computed from the revision rather than from the carrier: the
-   *  path set this reader is found in is not the one the last revision had. */
   readonly shelfMoved: boolean
   readonly inboxMoved: boolean
   readonly wrong: ReadonlyArray<string>
@@ -311,19 +209,10 @@ const sameMembers = (
   after: ReadonlySet<string>,
 ): boolean => before.size === after.size && [...after].every((path) => before.has(path))
 
-/** The two path sets a revision is judged by, read off the revision itself. */
 const servedIn = (read: Reading): ReadonlySet<string> =>
   new Set(read.set.documents.map((document) => document.path))
 const recordedIn = (read: Reading): ReadonlySet<string> => new Set(read.derived.byFile.keys())
 
-/**
- * The whole script through one carrier, with the answers compared and the
- * walks counted at every revision.
- *
- * The oracle's two path sets are read as MEMBERSHIP: a revision that serves
- * the same files answers the same convention however its grouping happens to
- * iterate them, which is why the carrier never looks at an order.
- */
 const run = (carrier: Carrier): ReadonlyArray<Round> => {
   let files = START
   let revision = revised(files)
@@ -354,9 +243,6 @@ const run = (carrier: Carrier): ReadonlyArray<Round> => {
     shelfPaths = shelfNow
     inboxPaths = inboxNow
 
-    // THE ANSWERS, at the convention and at the reading above it. Both,
-    // because a convention that is right and a reading that was handed it are
-    // two claims: `shelfIn` is what the server actually calls.
     const wrong: Array<string> = []
     const walkedShelfFile = walkedShelf(read.derived)
     const walkedInboxFile = walkedInbox(read.set)
@@ -383,8 +269,6 @@ const run = (carrier: Carrier): ReadonlyArray<Round> => {
   return rounds
 }
 
-// ── the differential ───────────────────────────────────────────────────
-
 const CARRIED_ROUNDS = run(CARRIED)
 
 test("the carried answer is the walked answer, at every step of the script", () => {
@@ -392,9 +276,6 @@ test("the carried answer is the walked answer, at every step of the script", () 
 })
 
 test("the walk runs once per path-set change, and never per revision", () => {
-  // Per ROUND rather than as two totals: two counts that happen to add up
-  // while firing on different revisions is precisely the mistake a total
-  // cannot see.
   expect(
     CARRIED_ROUNDS.map((round) => [round.what, round.shelfWalked, round.inboxWalked]),
   ).toEqual(
@@ -403,26 +284,14 @@ test("the walk runs once per path-set change, and never per revision", () => {
 })
 
 test("the hot case is covered, and the two lists really do disagree", () => {
-  // The count assertion above is vacuous over a script where every step moves
-  // a path, so the coverage is floored rather than hoped for.
   const quiet = CARRIED_ROUNDS.filter((round) => !round.shelfMoved && !round.inboxMoved)
   expect(quiet.length).toBeGreaterThanOrEqual(4)
-  // …and a file emptied is served still while holding no records, which is why
-  // there are two carriers and not one.
   expect(CARRIED_ROUNDS.some((round) => round.shelfMoved !== round.inboxMoved)).toBe(true)
-  // …and the script really does reach the convention answers it names.
   expect(CARRIED_ROUNDS.filter((round) => round.shelfMoved || round.inboxMoved).length)
     .toBeGreaterThanOrEqual(8)
 })
 
-// ── the departure the store did not name ───────────────────────────────
-
 test("a departure the delta never names is caught by the count", () => {
-  // `removed` is the weaker of the store's two lists: a `resync` used to forget
-  // the stamp table the listing diff is taken against, so a file that went away
-  // could be in neither list (the store keeps membership now; this is the belt) (`@olai/surface`'s `projection.ts` says so and mints the
-  // remove itself). The carrier must not take an empty delta as "nothing
-  // moved", and this is the case that says it does not.
   const files: Corpus = { ...START, "_olai/pins.olai": pin("root"), "_olai/inbox.olai": capture("root") }
   const first = revised(files)
   const shelfHeld = conventionRecorded(pinsIn, first.read.derived, first.moved, undefined)
@@ -440,17 +309,12 @@ test("a departure the delta never names is caught by the count", () => {
   expect(inboxNext.file).toBe("_olai/Inbox.olai")
 })
 
-// ── the mutation proof ─────────────────────────────────────────────────
-
-/** A carrier that walks once and then never again — the whole claim, denied. */
 const NEVER: Carrier = {
   shelf: (derived, moved, held) =>
     held ?? conventionRecorded(pinsIn, derived, moved, undefined),
   inbox: (set, moved, held) => held ?? conventionServed(TEST_CLAIMS, inboxIn, set, moved, undefined),
 }
 
-/** A carrier that reads the delta and skips the COUNT — right about everything
- *  the store names, and blind to the departure it does not. */
 const DELTA_ONLY: Carrier = {
   shelf: (derived, moved, held) => {
     if (held !== undefined && !namedMoved(held.paths, moved, (path) => derived.byFile.has(path))) {
@@ -477,9 +341,6 @@ const namedMoved = (
   return false
 }
 
-/** A carrier that checks the COUNT and skips the delta — which a RENAME walks
- *  straight through, because a rename keeps the number of files and moves
- *  which one a convention means. */
 const COUNT_ONLY: Carrier = {
   shelf: (derived, moved, held) =>
     held !== undefined && held.paths.size === derived.byFile.size
@@ -491,7 +352,6 @@ const COUNT_ONLY: Carrier = {
       : conventionServed(TEST_CLAIMS, inboxIn, set, moved, undefined),
 }
 
-/** A carrier that carries nothing — right at every step, and paying for it. */
 const ALWAYS: Carrier = {
   shelf: (derived, moved) => conventionRecorded(pinsIn, derived, moved, undefined),
   inbox: (set, moved) => conventionServed(TEST_CLAIMS, inboxIn, set, moved, undefined),
@@ -502,9 +362,6 @@ test("a carrier that never re-walks is caught by the answers", () => {
 })
 
 test("a carrier that skips the count is caught by the unnamed departure", () => {
-  // Not by the script — every step of it names what it moved — but by the case
-  // above, run through the broken arm. Which is the point of having both: the
-  // count is not there for the sequences a generator writes.
   const files: Corpus = { ...START, "_olai/pins.olai": pin("root") }
   const first = revised(files)
   const held = DELTA_ONLY.shelf(first.read.derived, first.moved, undefined)
@@ -527,18 +384,6 @@ test("a carrier that re-walks every revision answers correctly and fails the cou
   expect(rounds.some((round) => !round.shelfMoved && !round.inboxMoved)).toBe(true)
 })
 
-// ── the same claim over generated sequences ────────────────────────────
-
-/**
- * The path pool the generated round draws from — every shape the convention
- * walk has an opinion about, so a sequence really does exercise the rule and
- * not just the check in front of it.
- *
- * `Pins.olai` and `pins.olai` are both here on purpose: they are two paths of
- * one depth a directory can serve at once, which is the TIE the walk breaks on
- * path order (`P` sorts before `p`), and a carrier that got the tie-break
- * wrong would have to be caught by the reference arm.
- */
 const POOL = [
   "a.olai",
   "b.olai",
@@ -555,24 +400,11 @@ const POOL = [
   "_olai/InBoX.olai",
 ] as const
 
-/** One file's records — its own id space, so a path may come and go without
- *  ever colliding with another's claim. A file whose content is a BODY holds
- *  prose instead ({@link ./kinds.ts}'s `bodyKind`, the decode's own question):
- *  the set serves it and the grouping never sees it. */
 const holding = (at: number, revision: number): string =>
   bodyKind(TEST_CLAIMS, POOL[at] as string) !== null
     ? `a note, revised ${revision}`
     : `{"id":"g${at}","ord":"a0","title":"file ${at} at ${revision}","todo":true}`
 
-/**
- * A sequence of corpora: add a file, remove one, edit one without moving a
- * path, or empty one.
- *
- * EMPTY IS A CASE OF ITS OWN and is a fifth of the rolls, because it is the
- * one edit that moves one of the two path sets and not the other — the file
- * goes on being served and stops holding records — and a generator without it
- * would never put the two carriers in disagreement.
- */
 const sequenceOf = (seed: number, steps: number): ReadonlyArray<Corpus> => {
   const random = seeded(seed)
   const corpora: Array<Corpus> = []
@@ -586,10 +418,6 @@ const sequenceOf = (seed: number, steps: number): ReadonlyArray<Corpus> => {
     else if (roll < 0.3) delete next[path]
     else if (roll < 0.5) next[path] = ""
     else next[path] = holding(at, revision)
-    // A directory with nothing in it is a set the store cannot publish
-    // (nothing to validate is not the case under test), so a step that would
-    // empty it is spent as a no-op revision instead — which is itself the hot
-    // case and is counted like any other.
     files = Object.keys(next).length === 0 ? files : next
     corpora.push(files)
   }
@@ -642,16 +470,8 @@ test("over generated sequences: same answers, and the walks are the path-set cha
       if (shelfMoved !== inboxMoved) disagreed++
     }
   }
-  // COUNTED AND FLOORED, so a generator that quietly stopped producing one of
-  // the shapes is a failure rather than a run that says nothing. The headline
-  // is the middle one: most revisions of a real directory move no path at all,
-  // and those are the ones that used to pay for the walk.
   expect(revisions).toBe(480)
   expect(quiet).toBeGreaterThan(revisions / 4)
   expect(disagreed).toBeGreaterThan(20)
-  // What the old shape spent is two walks per revision, one per reader. The
-  // generator moves a path far oftener than a directory somebody is typing
-  // into does, which is why the margin here is modest and the bench is where
-  // the real ratio is read.
   expect(walked).toBeLessThan(revisions * 2)
 })
