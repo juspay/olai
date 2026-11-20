@@ -118,18 +118,11 @@
 .box.doing { border-color: var(--accent); background: linear-gradient(to right, var(--accent) 50%, transparent 50%); }
 .row .t { min-width: 0; }
 .strike { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); color: var(--muted); }
-.rollup, .pill { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.rollup { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
 .tagchip { color: color-mix(in srgb, var(--muted) 80%, transparent); }
 .hit { background: color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 2px; padding: 0 1px; color: var(--ink); }
 .dimrow { opacity: 0.6; }
 .noteline { padding-left: 1.6rem; font-size: 0.85em; color: var(--muted); }
-.pill {
-  line-height: 1.5; border: 1px solid var(--rule); border-radius: 999px;
-  padding: 0 0.5em; white-space: nowrap; flex: none;
-}
-.pill.late { border-color: var(--alarm); color: var(--alarm); }
-.row .pill { margin-left: auto; }
-.pilcrow { color: var(--muted); font-size: 0.8rem; padding-left: 2.7rem; opacity: 0.7; }
 
 main { counter-reset: chap; }
 section { padding: 4.2rem 0; counter-increment: chap; }
@@ -152,49 +145,6 @@ section .lead { color: var(--muted); margin-top: 0.7rem; max-width: 44rem; }
 
 .caption { font-size: 0.82rem; color: var(--muted); margin-top: 0.55rem; }
 
-table.keys { border-collapse: collapse; width: 100%; }
-table.keys td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.55rem 0.5rem 0.55rem 0; vertical-align: baseline; font-size: 0.92rem; }
-table.keys tr:first-child td { border-top: none; }
-table.keys td:first-child { white-space: nowrap; width: 1%; padding-right: 1.25rem; }
-kbd {
-  font-size: 0.76rem; background: var(--panel);
-  border-radius: 5px; padding: 0.12em 0.45em;
-  box-shadow: 0 1px 0 var(--rule);
-}
-
-.spine { position: relative; padding-left: 2.5rem; }
-.spine .line {
-  position: absolute; left: calc(1.25rem - 1px); top: 0; bottom: 0; width: 2px;
-  background: linear-gradient(to bottom,
-    transparent 0, var(--alarm) 1.5rem, var(--alarm) 5rem,
-    var(--accent) 8.5rem, var(--ink) 12rem, var(--muted) 17rem,
-    var(--rule) 22rem, transparent 26rem);
-}
-.day { position: relative; margin-top: 1.4rem; }
-.panel .file + .spine .day:first-child { margin-top: 0; }
-.day .dot {
-  position: absolute; left: calc(-1.25rem - 3.5px); top: 0.35rem;
-  width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
-}
-.day.gone .dot { background: var(--alarm); }
-.day.near .dot { background: var(--ink); }
-.day.far .dot { background: var(--rule); }
-.day.now .dot {
-  left: calc(-1.25rem - 5.5px); top: 0.2rem; width: 11px; height: 11px;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--panel), 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
-}
-.dayname { font-size: 0.78rem; font-weight: 700; }
-.dayname .away { font-family: var(--mono); font-size: 0.7rem; font-weight: 400; color: var(--muted); margin-left: 0.45rem; }
-.day.gone .dayname { color: var(--alarm); }
-.day.now .dayname { color: var(--accent); font-size: 0.68rem; }
-.day.now .dayname .lead { text-transform: uppercase; letter-spacing: 0.07em; }
-.day.far { opacity: 0.62; }
-.quiet { font-size: 0.68rem; font-style: italic; color: var(--muted); opacity: 0.7; margin-left: 0.6rem; }
-.quiet.short { margin-top: 1.2rem; margin-bottom: 1.2rem; }
-.trail { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; padding-left: 1.4rem; }
-.spine .row .pill { margin-left: 0; }
-
 .chat .msg { max-width: 85%; border-radius: 12px; padding: 0.55rem 0.85rem; margin-top: 0.7rem; }
 .chat .you { margin-left: auto; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
 .chat .op { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-top: 0.7rem; }
@@ -203,23 +153,6 @@ kbd {
 .chat .ctx { display: inline-flex; gap: 0.35rem; align-items: baseline; margin-top: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 6px; font-size: 0.72rem; color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, var(--rule)); }
 .chat .wrote { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.82rem; margin-top: 0.35rem; padding-left: 1.1rem; }
 .chat .wrote .said { margin-left: auto; color: var(--muted); font-size: 0.78rem; }
-.chat .in { padding-left: 1.1rem; margin-top: 0.15rem; color: var(--muted); font-family: var(--mono); font-size: 0.7rem; }
-.fdiff { border-radius: 8px; margin-top: 0.4rem; overflow: hidden; font-family: var(--mono); font-size: 0.72rem; line-height: 1.6; box-shadow: 0 0 0 1px var(--rule); }
-.fdiff .path { display: flex; gap: 0.6rem; padding: 0.2rem 0.5rem; color: var(--muted); background: var(--desk); }
-.fdiff .path .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.fdiff .path .plus { color: var(--done); }
-.fdiff .path .minus { color: var(--alarm); }
-.fdiff .body { overflow-x: auto; }
-.fdiff .ln { display: flex; gap: 0.35rem; padding: 0 0.5rem; }
-.fdiff .ln .no { width: 1.4rem; flex: none; text-align: right; color: var(--muted); opacity: 0.7; }
-.fdiff .ln .mk { flex: none; }
-.fdiff .ln .src { white-space: pre; }
-.fdiff .ln.add { background: color-mix(in srgb, var(--done) 12%, transparent); }
-.fdiff .ln.add .mk { color: var(--done); }
-.fdiff .ln.del { background: color-mix(in srgb, var(--alarm) 12%, transparent); }
-.fdiff .ln.del .mk { color: var(--alarm); }
-.fdiff .ln.gap, .fdiff .more { color: var(--muted); }
-.fdiff .more { padding: 0.2rem 0.5rem; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.7rem; --ring: var(--accent); --ring-gap: var(--panel); }
 .chip {
@@ -231,49 +164,19 @@ kbd {
 }
 .chip.on { box-shadow: 0 0 0 1px var(--ring-gap), 0 0 0 3px var(--ring); }
 
-.tablewrap { overflow-x: auto; margin-top: 1.8rem; }
-.allplugins summary { cursor: pointer; font-weight: 700; padding: 0.6rem 0; }
-.allplugins summary::marker { color: var(--accent); }
-table.cmp { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
-table.cmp th, table.cmp td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.7rem 1.1rem 0.7rem 0; text-align: left; vertical-align: baseline; }
-table.cmp thead th { border-top: none; font-size: 0.78rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-table.cmp td:first-child { color: var(--muted); white-space: nowrap; padding-right: 1.5rem; }
-table.cmp td:last-child { font-weight: 500; }
+.shot.small { margin-top: 0; }
+.small h3 {
+  font-size: 0.74rem; color: var(--muted); font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 0.4rem;
+}
 
-table.plug { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
-table.plug td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.45rem 1rem 0.45rem 0; text-align: left; vertical-align: baseline; }
-table.plug tr:first-child td { border-top: none; }
-table.plug td:first-child { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; padding-right: 1.2rem; width: 1%; }
-table.plug td:first-child a { color: var(--ink); text-decoration: none; }
-table.plug td:first-child a:hover { color: var(--accent); }
-table.plug td:last-child { color: var(--muted); }
-.allplugins h3 { font-size: 0.72rem; color: var(--muted); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 1.4rem 0 0.4rem; }
-
-.plugmock { width: 100%; max-width: 480px; margin: 0 auto 2rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); font-size: 14px; overflow: hidden; }
-.plughead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 18px 10px; }
-.plughead strong { font-size: 16px; }
-.plughead a { color: var(--muted); font-size: 12px; }
-.plugbody { padding: 0 10px 12px; }
-.pluggroup { border-radius: 8px; }
-.pluggroup + .pluggroup { margin-top: 2px; }
-.pluggroup.plugneeds { background: color-mix(in srgb, var(--doing) 10%, var(--panel)); padding-bottom: 4px; }
-.pluggroup summary { display: flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; padding: 8px; font-weight: 600; }
-.pluggroup summary::-webkit-details-marker { display: none; }
-.pluggroup summary span:last-child { margin-left: auto; font-weight: 400; font-size: 12px; color: var(--muted); }
-.plugchev { display: inline-block; width: 12px; color: var(--muted); font-size: 10px; transition: transform .15s; }
-details[open] > summary .plugchev, .plugrow.plugopen .plugchev { transform: rotate(90deg); }
-.plugrow { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 26px; }
-.plugrow .plugname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plugstate { font-size: 12px; color: var(--doing); }
-.plugdetail { margin: 0 8px 6px 44px; padding: 6px 0 2px; font-size: 13px; color: var(--muted); }
-.plugdetail button { font: inherit; font-size: 12px; margin-top: 6px; padding: 3px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
-.plugswitch { flex: none; display: inline-block; position: relative; width: 30px; height: 17px; border-radius: 10px; background: var(--done); }
-.plugswitch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--panel); }
-.plugoff .plugswitch { background: var(--rule); }
-.plugoff .plugswitch::after { right: auto; left: 2px; }
-.plugoff .plugname { color: var(--muted); }
-.tree { margin-top: 0; }
-.tree i { font-style: normal; color: var(--muted); }
+.agentmark { margin-left: 0.5rem; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+.agentmark::before { content: "✳ "; }
+.agentmark.needs { color: var(--doing); font-weight: 700; }
+.agentmark.works { color: var(--done); }
+.steps3 { display: grid; gap: 1.1rem; }
+.steps3 h3 { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 1.18rem; }
+.steps3 p { margin-top: 0.2rem; }
 
 #agent {
   background: #0D1120; color: #D7E7F6;
@@ -282,7 +185,7 @@ details[open] > summary .plugchev, .plugrow.plugopen .plugchev { transform: rota
   --accent: #51E0C5; --done: #7EE0A8; --doing: #F0C04A; --alarm: #F07090;
   --well: color-mix(in srgb, var(--rule) 40%, var(--paper));
 }
-
+#agent .steps3 p { color: #A9BAD4; }
 
 @media (max-width: 48rem) {
   pre { font-size: 0.72rem; max-width: 100%; }

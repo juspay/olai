@@ -1,35 +1,14 @@
 ---
-/**
- * The pitch: why to try olai, and pictures of what a person sees. How to do
- * a thing belongs on a docs page; each section here ends with a link to it.
- */
-import { markdownToHtml } from "satteri"
-
 import { DEFAULT_THEME, PALETTES } from "../../../packages/appearance/src/palettes.ts"
+import { agentList } from "../agents.ts"
 import Base from "../layouts/Base.astro"
 import { siteMap } from "../sitemap.ts"
 import "../styles/home.css"
 
-// Every plugin olai ships, as the docs index lists them (a test holds the
-// index to the registry), so this list cannot fall behind the build.
 const plugins = (await siteMap()).groups.find((group) => group.title === "Plugins")
 if (plugins === undefined) throw new Error('docs/index.md has no "## Plugins" group')
-
-// The plugin pitch, with its side facts as footnotes, written the way a docs
-// page writes them so the same renderer draws markers and notes alike. The
-// notes go to the foot of the page.
-const { html } = markdownToHtml(
-  `**Ask for one.** Press ⌘K, say in one sentence what it should do, and an agent writes it while you watch.[^agenda] Read what it does, press **Turn on**, and it starts drawing in the page you are on. No reload, no install, no build.[^folder] Your settings travel with your notes.[^settings]
-
-[^agenda]: The worked example is a morning agenda: from 7 in the morning it sends the rows that are overdue or due today into each node agent's conversation, once a day. [Read the morning agenda](/docs/dynamic-plugins-examples/#the-morning-agenda).
-
-[^folder]: What you are left with is a folder in your own directory: a README anybody can read, and the code. Git records every line of it. Copy the folder into another directory and it arrives switched off, until a person there turns it on.
-
-[^settings]: A plugin you asked for keeps its settings in the same file as the plugins olai ships. A top-level row in \`_olai/Settings.olai\` names each plugin; its properties choose how it behaves and whether it runs. The **Plugins** panel writes the same file. See the [settings docs](/docs/settings/).
-`,
-  { features: { gfm: true } },
-)
-const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
+const light = PALETTES.filter((palette) => palette.scheme === "light").length
+const dark = PALETTES.length - light
 ---
 
 <Base
@@ -70,7 +49,7 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
       <li><b>Your notes are plain files.</b>
         <span>olai keeps them in a directory, which is a folder on your computer. An outline is a text file with one item per line, written as JSON. A document is a Markdown file. If you stop using olai, the files stay where they are.</span></li>
       <li><b>You choose the AI agent.</b>
-        <span>olai has no AI of its own. It runs Claude Code, Codex, OpenCode, Pi, or Oh My Pi with the account that you already have. You pick the agent each time you start a chat.</span></li>
+        <span>olai has no AI of its own. It runs {agentList} with the account that you already have. You pick the agent each time you start a chat.</span></li>
       <li><b>You see every change.</b>
         <span>The agent works in a chat beside the outline. Each change appears on the page when the agent makes it. olai records your changes and the agent's changes in git, so you can read them later.</span></li>
     </ul>
@@ -78,7 +57,7 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
 
     <nav class="chapters" aria-label="On this page">
       <a href="#agent">AI agents</a>
-      <a href="#compare">comparison</a>
+      <a href="#history">git history</a>
       <a href="#agenda">what is due</a>
       <a href="#find">filter and search</a>
       <a href="#plugins">plugins</a>
@@ -87,82 +66,107 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
   </div>
 </div>
 
-<section id="compare">
+<section id="agent">
   <div class="wrap">
-    <h2>Compared to Workflowy and Dynalist</h2>
-    <p class="lead">Same outlining model — indent, move, mirror, check off.
-    The difference is where the data lives.</p>
-    <div class="tablewrap">
-      <table class="cmp">
-        <thead>
-          <tr><th></th><th>Workflowy, Dynalist</th><th>olai</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Storage</td><td>A hosted database</td><td>Plain files in a directory you choose</td></tr>
-          <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
-          <tr><td>History</td><td>In-app version history</td><td>git log</td></tr>
-          <tr><td>Search</td><td>Keyword, in their app</td><td>Filter the page you’re on, or search the whole directory</td></tr>
-          <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
-        </tbody>
-      </table>
+    <h2>Bring your own AI agent</h2>
+    <p class="lead">olai has no AI of its own, and it sells none. It runs an
+    agent that you already use: {agentList}. The agent signs in with your
+    account.</p>
+    <div class="cols">
+      <div class="steps3">
+        <div>
+          <h3>Ask on any item or document</h3>
+          <p>Start a chat on an item or on a document, and write what you want.
+          The agent can add items, mark them done, move them, give them dates,
+          search your outlines, and write documents.</p>
+        </div>
+        <div>
+          <h3>Keep working while the agent works</h3>
+          <p>Each item shows what its agent is doing. When an agent needs an
+          answer from you, its item shows <strong>Needs you</strong>. The
+          sidebar lists those items under <strong>Needs you</strong> too.</p>
+        </div>
+        <div>
+          <h3>Change the agent, or leave olai</h3>
+          <p>You pick the agent each time you start a chat. If you stop using
+          olai, your outlines and documents are still files in your directory.</p>
+        </div>
+        <div>
+          <h3>What an agent needs</h3>
+          <p>These agents are made for programmers. Each agent needs an account
+          with the company that makes it. olai includes what it needs to run
+          Claude Code and Codex. You install OpenCode, Pi, or Oh My Pi
+          yourself. A program that uses MCP can connect to the same outlines.
+          MCP is a standard way for AI programs to call tools.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="panel chat">
+          <div class="file">chat</div>
+          <div class="ctx"><span>◦</span><span>Book the plumber</span></div>
+          <div class="msg you">The plumber is booked. Mark it done.</div>
+          <div class="op"><b>✓</b> Mark done · house.olai</div>
+          <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">Done</span></div>
+          <div class="msg agent">Done. I marked Book the plumber done.</div>
+        </div>
+        <div class="panel">
+          <div class="file">house.olai</div>
+          <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">3/5</span></span></div>
+          <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span><span class="agentmark needs">Needs you</span></span></div>
+          <div class="row d1"><span class="box done"></span><span class="t"><span class="strike">Book the plumber</span><span class="agentmark">Idle</span></span></div>
+          <div class="row d1"><span class="box"></span><span class="t">Meet the tiler on site<span class="agentmark works">Working…</span></span></div>
+          <p class="caption">Three items have agents. One agent waits for you.</p>
+        </div>
+      </div>
     </div>
-    <p class="caption">Outlines are ordinary files. The
-    <a href="/docs/format/">format spec</a>
-    is there if you want it.</p>
+  </div>
+</section>
+
+<section id="history">
+  <div class="wrap">
+    <h2>olai records every change in git</h2>
+    <p class="lead">olai saves each edit to your files at once. olai also
+    records the changes in git. Programmers use git to keep the history of
+    their files.</p>
+    <div class="cols">
+      <figure>
+        <div class="shot small"><img src="/tour/commit-panel.png" width="2880" height="1800" loading="lazy" alt="The commit panel, open over an outline and a chat. It lists four items in house.olai marked done and one item edited, and a button that reads Commit 5 changes."></div>
+        <figcaption class="caption">The real app. The commit panel lists each change in plain words, such as <strong>Done</strong>. The agent in this picture is scripted.</figcaption>
+      </figure>
+      <div>
+        <p>The commit panel lists the changes that wait to be recorded. It
+        describes each change in plain words, such as <em>done</em> or
+        <em>created</em>.</p>
+        <p>You record the changes when you choose. You can also set olai to
+        record them 15 seconds after the last change.</p>
+        <p>Each recorded change names what wrote it: the page that you typed
+        in, or an agent's chat.</p>
+        <p>To keep a copy on another computer, push the git history to GitHub
+        or to another git server.</p>
+        <p>You set git up one time, with one command on the
+        <a href="/docs/start/">Start page</a>.</p>
+      </div>
+    </div>
   </div>
 </section>
 
 <section id="agenda">
   <div class="wrap">
-    <h2>What’s due</h2>
-    <p class="lead">Dated work from every outline, on one page. Late things
-    sit above today. A birthday isn’t a task — it stays on its day and never
-    turns red. The calendar is a
-    <a href="#plugins">plugin</a>.</p>
+    <h2>See what is due</h2>
+    <p class="lead">The <strong>Agenda</strong> page lists the dated items from
+    every outline. Late items are at the top.</p>
     <div class="cols">
-      <div class="panel">
-        <div class="file">/agenda · 2026-08-12</div>
-
-        <div class="spine">
-          <span class="line"></span>
-
-          <div class="day gone">
-            <span class="dot"></span>
-            <p class="dayname">5 days ago · Fri, Aug 7</p>
-            <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">5 days late</span></div>
-            <p class="trail">Kitchen renovation</p>
-          </div>
-
-          <div class="day now">
-            <span class="dot"></span>
-            <p class="dayname"><span class="lead">Today</span> · Wed, Aug 12</p>
-            <div class="row"><span class="box"></span><span class="t">Book the plumber</span></div>
-            <p class="trail">Kitchen renovation</p>
-          </div>
-
-          <div class="day near">
-            <span class="dot"></span>
-            <p class="dayname">Sat, Aug 15<span class="away">in 3 days</span></p>
-            <div class="row"><span class="box"></span><span class="t">Template the countertop</span></div>
-            <p class="trail">Kitchen renovation</p>
-          </div>
-
-          <p class="quiet short">two quiet weeks</p>
-
-          <div class="day far">
-            <span class="dot"></span>
-            <p class="dayname">Fri, Aug 28<span class="away">in 2 weeks</span></p>
-            <div class="row"><span class="box"></span><span class="t">Meet the tiler on site</span><span class="pill">14:00</span></div>
-            <p class="trail">Kitchen renovation</p>
-          </div>
-        </div>
-      </div>
+      <figure>
+        <div class="shot small"><img src="/tour/agenda.png" width="2880" height="1800" loading="lazy" alt="The Agenda page. Order the new cabinets is 5 days late. Book the plumber is due today. Pay the deposit is due in 3 days, and Meet the tiler on site is due in 2 weeks."></div>
+        <figcaption class="caption">The real app. One item is late, one is due today, and two are due on later days.</figcaption>
+      </figure>
       <div>
-        <p>A file named for the day — 2026-08-12.md, anywhere in
-        the directory — is that day’s note. Open the day and the note is on
-        top, with everything dated that day underneath it.</p>
-        <p>Weekly chores come back as a fresh row on the next date, so eleven
-        Mondays are eleven rows, not one row whose date kept moving.</p>
+        <p>A birthday is not a task. It stays on its day, and olai never marks
+        it late.</p>
+        <p>Each day has a page of its own. A document named for the day, such
+        as <code>2026-08-12.md</code>, appears at the top of that day's page.</p>
+        <p>An item that repeats every week comes back as a new item on its next
+        date.</p>
       </div>
     </div>
   </div>
@@ -170,230 +174,50 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
 
 <section id="find">
   <div class="wrap">
-    <h2>Filter the page you are on</h2>
-    <p class="lead">Type in the box above the outline and the rows that don’t
-    match are hidden. Clicking a tag does the same. The query is in the page’s
-    address, so you can send the filtered page to someone as a link.</p>
+    <h2>Filter an outline, or search every file</h2>
+    <p class="lead">Type in the <strong>Filter</strong> box above an outline.
+    olai hides the items that do not match. A click on a tag filters the same
+    way.</p>
     <div class="cols">
       <div class="panel">
-        <div class="file">/house.olai?q=%23home+OR+alcove</div>
+        <div class="file">house.olai · filter: #home OR alcove</div>
         <div class="row"><span class="bullet">●</span><span class="t"><strong>kitchen remodel</strong> <span class="tagchip"><span class="hit">#home</span></span></span></div>
         <div class="row d1"><span class="bullet">●</span><span class="t">order the new cabinets</span></div>
         <div class="noteline">…measure the <span class="hit">alcove</span> before ordering.</div>
         <div class="row d1 dimrow"><span class="bullet">●</span><span class="t">install the cabinets</span></div>
         <div class="row d2"><span class="box"></span><span class="t">pick the hinges <span class="tagchip"><span class="hit">#home</span></span></span></div>
-        <p class="caption">Matches stay where they live. Ancestors stay so a
-        bare title still makes sense.</p>
+        <p class="caption">An item that matches stays under the items that it belongs to.</p>
       </div>
       <div>
-        <p>Done, last week, a quoted phrase — the rest of the query language
-        is in the
-        <a href="/docs/search/">search docs</a>.</p>
+        <p>The filter is part of the page's address. You can send the address
+        to someone, or pin it in the sidebar.</p>
+        <p>The <strong>Search</strong> box in the header searches every
+        outline and document. Read <a href="/docs/search/">how to write a search</a>.</p>
       </div>
     </div>
-  </div>
-</section>
-
-<section id="type">
-  <div class="wrap">
-    <h2>Type like an outliner</h2>
-    <p class="lead">Click a title to edit it in place. Enter makes the next
-    line. Tab indents. The rest is the usual outliner muscle memory.</p>
-    <div class="cols">
-      <table class="keys">
-        <tr><td><kbd>Enter</kbd></td><td>commit, and open the next line</td></tr>
-        <tr><td><kbd>Enter</kbd> mid-line</td><td>split the row in two, there</td></tr>
-        <tr><td><kbd>Backspace</kbd> at the start</td><td>join this row onto the one above</td></tr>
-        <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>indent, or out again</td></tr>
-        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td><td>move a row among its siblings</td></tr>
-        <tr><td><kbd>⌘</kbd>+<kbd>Z</kbd></td><td>take back your last edit here</td></tr>
-      </table>
-      <table class="keys">
-        <tr><td><kbd>⌘</kbd>+<kbd>Enter</kbd></td><td>tick it off, or take that back</td></tr>
-        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Enter</kbd></td><td>walk the mark on: to do, then doing, then none</td></tr>
-        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>D</kbd></td><td>duplicate the row, and everything under it</td></tr>
-        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>M</kbd></td><td>move it under a row you search for, anywhere</td></tr>
-        <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>write the note under it</td></tr>
-        <tr><td><kbd>Esc</kbd></td><td>drop what you were typing</td></tr>
-      </table>
-    </div>
-    <p class="caption">Off a Mac, ⌘ is Ctrl. The full map — dragging, the
-    palette, pins, the inbox — is in the
-    <a href="/docs/editing/">editing docs</a>.</p>
-  </div>
-</section>
-
-<section id="prefs">
-  <div class="wrap">
-    <h2>How it looks</h2>
-    <p class="lead">Four palettes — two by day, two by night — and an unpicked page follows your OS. Press a chip; this page follows.</p>
-    <div class="chips" role="list">
-      {PALETTES.map((palette) => (
-        <span class:list={["chip", { on: palette.name === DEFAULT_THEME }]} data-theme={palette.name} role="listitem">{palette.name}</span>
-      ))}
-    </div>
-    <div class="cols">
-      <div class="panel" data-theme="basalt">
-        <div class="file">kitchen.olai · basalt</div>
-        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
-        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
-        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
-        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
-      </div>
-      <div class="panel" data-theme="reef">
-        <div class="file">kitchen.olai · reef</div>
-        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
-        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
-        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
-        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="agent">
-  <div class="wrap">
-    <h2>A coding agent edits your outlines with you</h2>
-    <p class="lead">A chat opens on the row it is about, beside that row’s
-    page. You keep typing while it works. It ticks off tasks and rewrites
-    Markdown files, and you watch the page change. Git records both of you.</p>
-    <div class="cols">
-      <div class="panel chat">
-        <div class="file">chat</div>
-        <div class="ctx"><span>◦</span><span>Book the plumber</span></div>
-        <div class="msg you">plumber's booked — tick it off</div>
-        <div class="op"><b>✓</b> marked done · Book the plumber</div>
-        <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">Done</span></div>
-        <div class="in">kitchen.olai</div>
-        <div class="msg agent">Done. Marked “Book the plumber” as done.</div>
-
-        <div class="msg you">the base units are carcass-only — say so in the doc</div>
-        <div class="op"><b>✓</b> cabinets.md</div>
-        <div class="fdiff">
-          <p class="path"><span class="name">cabinets.md</span><span class="plus">+3</span><span class="minus">−2</span></p>
-          <div class="body">
-            <div class="ln"><span class="no">1</span><span class="mk">&nbsp;</span><span class="src"># Cabinet specs</span></div>
-            <div class="ln gap"><span class="no"></span><span class="src">⋯ 3 unchanged</span></div>
-            <div class="ln del"><span class="no">6</span><span class="mk">-</span><span class="src">- 600&#8239;mm base × 4</span></div>
-            <div class="ln add"><span class="no">6</span><span class="mk">+</span><span class="src">- 600&#8239;mm base × 4, carcass only</span></div>
-            <div class="ln add"><span class="no">7</span><span class="mk">+</span><span class="src">- filler strip × 2</span></div>
-            <div class="ln"><span class="no">8</span><span class="mk">&nbsp;</span><span class="src">- corner carousel × 1</span></div>
-          </div>
-          <p class="more">+4 more lines</p>
-        </div>
-        <div class="msg agent">Added the carcass note and the filler strips.</div>
-      </div>
-      <div class="panel">
-        <div class="file">kitchen.olai · live</div>
-        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">3/4</span></span></div>
-        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span></div>
-        <div class="row d1"><span class="box done"></span><span class="t strike">Book the plumber</span></div>
-        <p class="caption">The page updates because the file on disk
-        changed.</p>
-      </div>
-    </div>
-    <p class="caption">How to point an agent at a running olai is in the
-    <a href="/docs/chat/">chat docs</a>.</p>
   </div>
 </section>
 
 <section id="plugins">
   <div class="wrap">
-    <h2>Plugins</h2>
-    <p class="lead">The outline editor, the Markdown reader, the shell, chat,
-    git, search — they are plugins. They show on one panel. Switch one off
-    while olai is running; the rest keep going. The runtime is
-    <a href="https://github.com/cordiverse/cordis">Cordis</a>, a meta-framework
-    of spatiotemporal composability. The paper is on
-    <a href="https://arxiv.org/abs/2608.25512" title="A Programming Paradigm for Spatiotemporal Composability">arXiv</a>.</p>
-    <div class="plugmock" aria-label="The plugins panel: one line per plugin, grouped, each with its switch">
-      <div class="plughead"><strong>Plugins</strong><a href="/docs/settings/">Settings.olai ↗</a></div>
-      <div class="plugbody">
-<details class="pluggroup plugneeds" open><summary><span class="plugchev">▶</span><span>Needs attention</span><span>1</span></summary>
-<div class="plugrow plugopen"><span class="plugchev">▶</span><span class="plugname">Mail</span><span class="plugstate">Needs setup</span><span class="plugswitch" aria-label="Enable mail"></span></div>
-<div class="plugdetail">No Gmail account connected.<br><button type="button" tabindex="-1">Connect Gmail</button></div>
-</details>
-<details class="pluggroup" open><summary><span class="plugchev">▶</span><span>Agents</span><span>4 on · 2 off</span></summary>
-<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Chat</span><span class="plugswitch" aria-label="Enable chat"></span></div>
-<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Claude Code</span><span class="plugswitch" aria-label="Enable claude"></span></div>
-<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Codex</span><span class="plugswitch" aria-label="Enable codex"></span></div>
-<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">OpenCode</span><span class="plugswitch" aria-label="Enable opencode"></span></div>
-<div class="plugrow plugoff"><span class="plugchev">▶</span><span class="plugname">Pi</span><span class="plugswitch" aria-label="Enable pi"></span></div>
-<div class="plugrow plugoff"><span class="plugchev">▶</span><span class="plugname">Oh My Pi</span><span class="plugswitch" aria-label="Enable omp"></span></div>
-</details>
-<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Notes</span><span>19 on</span></summary></details>
-<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Connections</span><span>6 on · 1 off</span></summary></details>
-<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Interface</span><span>10 on</span></summary></details>
-<details class="pluggroup" open><summary><span class="plugchev">▶</span><span>Your plugins</span><span>2 on</span></summary>
-<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Hex swatch</span><span class="plugswitch" aria-label="Enable hex-swatch"></span></div>
-<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Morning agenda</span><span class="plugswitch" aria-label="Enable morning-agenda"></span></div>
-</details>
-<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Server</span><span>laptop</span></summary></details>
-      </div>
-    </div>
+    <h2>Ask an agent for a plugin of your own</h2>
+    <p class="lead">Describe the plugin in one sentence. An agent writes it
+    while you watch. Read what the plugin does, and then click
+    <strong>Turn on</strong>.</p>
     <div class="cols">
+      <figure>
+        <div class="shot small"><img src="/tour/plugins-panel.png" width="2880" height="1800" loading="lazy" alt="The Plugins panel. In the Agents group, Chat and Claude Code are switched on, and Codex, OpenCode, Pi, and Oh My Pi are switched off."></div>
+        <figcaption class="caption">The real app. The <strong>Plugins</strong> panel, with the <strong>Agents</strong> group open. Each plugin has a switch.</figcaption>
+      </figure>
       <div>
-        <Fragment set:html={pitch} />
-      </div>
-      <pre class="tree" aria-label="A plugin in your directory: a folder holding a README, the server half and the browser half">my-notes/
-├── plugins/
-│   └── hex-swatch/
-│       ├── README.md     <i>what it does, for people</i>
-│       ├── server.ts     <i>what runs on the server</i>
-│       └── browser.tsx   <i>what draws in the page</i>
-├── _olai/
-│   └── Settings.olai     <i>hex-swatch: on, approved</i>
-├── colours.olai
-└── kitchen.olai</pre>
-    </div>
-    <details class="tablewrap allplugins">
-      <summary>Every plugin olai ships, and what each one does</summary>
-      {plugins.groups.map((group) => (
-        <>
-          <h3>{group.title}</h3>
-          <table class="plug">
-            <tbody>
-              {group.links.map((link) => (
-                <tr><td><a href={link.href}>{link.id.slice("plugins/".length)}</a></td><td set:html={link.summary} /></tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      ))}
-    </details>
-  </div>
-</section>
-
-<section id="commit">
-  <div class="wrap">
-    <h2>Git records your edits</h2>
-    <p class="lead">Every edit is written to disk at once. Commit from the panel
-    when you are ready, or turn on Auto-commit and olai makes one commit after
-    fifteen quiet seconds.</p>
-    <div class="cols">
-      <div>
-        <pre><code>┌─ Changes ─────────────────────────────────┐
-│ olai: Outlines as a collection done       │
-│   · chat agent · 12m ago · 1a2b3c4        │
-│                                           │
-│ OUTLINES ─────────────────────────────    │
-│ ☑ roadmap.olai                            │
-│   ✓  Outlines as a collection    done     │
-│   ✎  Notes: one state, same line  note    │
-│   +  Kolu integration: auto-…    created  │
-│                                           │
-│ OTHER FILES ──────────────────────────    │
-│ ☑ README.md                    modified   │
-│ ☐ notes/scratch.md            untracked   │
-│                                           │
-│ 2 commits not on origin/master   [ Push ] │
-│         [ Commit 3 changes · 1 file ]     │
-└───────────────────────────────────────────┘</code></pre>
-      </div>
-      <div>
-        <p>Commit messages start with olai, so the trail is easy to find.
-        The rest is in the
-        <a href="/docs/git/">git docs</a>.</p>
+        <p>A plugin can do everything that olai can do on your computer. olai
+        does not run a plugin until you click <strong>Turn on</strong>.</p>
+        <p>Most parts of olai are plugins with a switch, such as the calendar,
+        search, and each agent. Switch off the parts that you do not use.</p>
+        <p>A plugin that you asked for is a folder in your directory, so it
+        moves with your notes. Its page says in plain words what the plugin
+        does.</p>
+        <p>The docs list <a href={`/docs/#${plugins.slug}`}>every plugin that olai includes</a>.</p>
       </div>
     </div>
   </div>
@@ -410,7 +234,7 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
           <li>A Mac or a Linux computer. olai does not run on Windows.</li>
           <li>A terminal.</li>
           <li><a href="https://nixos.org/download/">Nix</a>, a free program that downloads olai and runs it.</li>
-          <li>An account with Claude Code, Codex, OpenCode, Pi, or Oh My Pi, if you want an agent.</li>
+          <li>An account with {agentList}, if you want an agent.</li>
         </ul>
         <p class="next"><a class="go" href="/docs/start/">Set up olai and write your first line</a></p>
       </div>
@@ -421,10 +245,26 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
         <p class="caption">olai has no installer for people who do not use a terminal, and no hosted version. A new olai release can break things. Keep your notes in git, as the Start page shows.</p>
       </div>
     </div>
+    <div class="cols small">
+      <div>
+        <h3>Keys</h3>
+        <p>olai uses the keys of other outliners. <code>Enter</code> starts the
+        next item, and <code>Tab</code> indents it. The editing docs list
+        <a href="/docs/editing/">every key</a>.</p>
+      </div>
+      <div>
+        <h3>Colours</h3>
+        <p>olai has {PALETTES.length} colour palettes, {light} light and {dark}
+        dark. Click a palette name, and this page changes to it.</p>
+        <div class="chips" role="list">
+          {PALETTES.map((palette) => (
+            <span class:list={["chip", { on: palette.name === DEFAULT_THEME }]} data-theme={palette.name} role="listitem">{palette.name}</span>
+          ))}
+        </div>
+      </div>
+    </div>
   </div>
 </section>
-
-<div class="wrap"><Fragment set:html={notes} /></div>
 
 </main>
 
