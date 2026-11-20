@@ -154,7 +154,6 @@ test("with olai's browser, the probe stays disposable and the handoff attaches o
     at: "/browser",
   })
   expect(asked).toBe(1)
-  // The disposable interrogation itself never attached: it ran isolated.
   const probes = readFileSync(join(dir, "browser-probes.log"), "utf8").trim().split("\n").map(line => JSON.parse(line))
   expect(probes.map(one => one.args)).toEqual([["--headless", "--isolated"]])
 })

@@ -25,8 +25,6 @@ test("CDP calls frame with or without a session; answers, refusals and events de
   expect(() => decodeMessage("{}")).toThrow()
 })
 
-/** A browser double: a launch the test settles, and a CDP connection that
- *  records every call and lets the test speak events. */
 const double = () => {
   const calls: Array<{ method: string; params: Record<string, unknown>; sessionId?: string }> = []
   const listeners = new Set<(event: CdpEvent) => void>()
@@ -185,7 +183,6 @@ test("one screencast per tab however many panes watch it; every frame acked; the
   const first = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast(ask), 2)))
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 1))
-  // A pane joining a still page is handed the last picture at once.
   const second = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast(ask), 2)))
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 2))
@@ -200,7 +197,6 @@ test("one screencast per tab however many panes watch it; every frame acked; the
   ])
   expect(methods("Page.screencastFrameAck").map((call) => call.params["sessionId"])).toEqual([1, 2])
   expect(methods("Page.stopScreencast").length).toBe(1)
-  // A tab nobody is watching runs no screencast, and a new pane starts one.
   const third = yield* Effect.forkChild(Stream.runHead(live.screencast(ask)))
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 3))
@@ -274,7 +270,6 @@ test("forgetting sign-ins stops a running browser first, then removes its profil
       expect(existsSync(profile)).toBe(false)
       expect(live.standing()).toEqual({ kind: "down" })
       expect(options.seen.map((standing) => standing.kind)).toEqual(["down", "starting", "up", "down", "down"])
-      // ...and forgetting while down only removes the profile.
       yield* live.forget
       expect(browser.launches.length).toBe(1)
     }))
@@ -288,13 +283,11 @@ test("a tab's title is read again after its loads and its new pictures, which Ch
   const live = yield* openLive(browser.options({ titleEveryMs: 20 }))
   yield* live.start
   yield* Effect.sleep("10 millis")
-  // Every page is attached as it appears, so its loads reach the strip.
   expect(browser.calls.filter((call) => call.method === "Target.attachToTarget").map((call) => call.params["targetId"])).toEqual(["T1"])
   browser.retitle("T1", "Loaded")
   browser.emit({ method: "Page.loadEventFired", sessionId: "S-T1", params: {} })
   yield* Effect.sleep("10 millis")
   expect(live.tabs().get("T1")?.title).toBe("Loaded")
-  // A sub-frame's navigation is not the tab's.
   const asked = browser.calls.filter((call) => call.method === "Target.getTargetInfo").length
   browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F2", parentId: "F1" } } })
   yield* Effect.sleep("10 millis")
@@ -303,7 +296,6 @@ test("a tab's title is read again after its loads and its new pictures, which Ch
   browser.emit(frame("S-T1", 1))
   yield* Effect.sleep("40 millis")
   expect(live.tabs().get("T1")?.title).toBe("clicked")
-  // A tab that appears later is followed too.
   browser.emit({ method: "Target.targetCreated", sessionId: null, params: { targetInfo: { targetId: "T2", type: "page", title: "", url: "about:blank" } } })
   yield* Effect.sleep("10 millis")
   expect(browser.calls.filter((call) => call.method === "Target.attachToTarget").map((call) => call.params["targetId"])).toEqual(["T1", "T2"])
@@ -321,7 +313,6 @@ test("over the pipe, calls answer by id, events reach listeners, and a closed pi
   const refusing = yield* Effect.forkChild(Effect.flip(cdp.send("Page.navigate", { url: "x" }, "S")))
   yield* Effect.sleep("5 millis")
   expect(written.join("")).toBe('{"id":1,"method":"Target.getTargets","params":{}}\0{"id":2,"method":"Page.navigate","params":{"url":"x"},"sessionId":"S"}\0')
-  // Split mid-frame, and two frames in one chunk.
   answers.write('{"method":"Target.targetCreated","params":{}}\0{"id":2,"error":{"mess')
   answers.write('age":"No target"}}\0{"id":1,"result":{"targetInfos":[]}}\0')
   expect(yield* Fiber.join(asking)).toEqual({ targetInfos: [] })
@@ -337,9 +328,6 @@ test("over the pipe, calls answer by id, events reach listeners, and a closed pi
 
 test("a stream of pictures asks for the title at most once per interval, and once more after the last", () => run(Effect.gen(function*() {
   const browser = double()
-  // The interval is far longer than the burst, so a loaded box stretching the
-  // burst's 5ms sleeps cannot carry it past the trailing read (CI saw 2 reads
-  // mid-burst with a 200ms interval).
   const live = yield* openLive(browser.options({ titleEveryMs: 1_000 }))
   yield* live.start
   yield* Effect.sleep("10 millis")
@@ -349,7 +337,6 @@ test("a stream of pictures asks for the title at most once per interval, and onc
     browser.emit(frame("S-T1", n))
     yield* Effect.sleep("5 millis")
   }
-  // ~150ms of frames: the first asks at once, the rest wait for one trailing read.
   expect(reads() - before).toBe(1)
   browser.retitle("T1", "after the burst")
   for (let waited = 0; reads() - before < 2 && waited < 3_000; waited += 20) yield* Effect.sleep("20 millis")
@@ -362,7 +349,6 @@ test("a pane's box becomes a viewport of whole CSS px within the bounds", () => 
   expect(clampViewport({ width: 600.4, height: 999.6 })).toEqual({ width: 600, height: 1000 })
   expect(clampViewport({ width: 10, height: 99999 })).toEqual({ width: 320, height: 2160 })
   expect(clampViewport({ width: 99999, height: 1 })).toEqual({ width: 3840, height: 240 })
-  // A box that measured nothing usable asks for the least, not the most.
   expect(clampViewport({ width: Number.NaN, height: Number.POSITIVE_INFINITY })).toEqual({ width: 320, height: 240 })
 })
 
@@ -372,7 +358,6 @@ test("a resize sizes the tab's own viewport, once per size, and restarts a runni
   expect((yield* Effect.flip(live.resize("T1", { width: 600, height: 1000 }))).says).toBe("The browser is not running. Start it from this pane.")
   yield* live.start
   yield* live.resize("T1", { width: 600.4, height: 1000 })
-  // The same size again: nothing to do.
   yield* live.resize("T1", { width: 600, height: 1000 })
   const watching = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast({ targetId: "T1", quality: 60 }), 1)))
   yield* Effect.sleep("10 millis")
@@ -388,8 +373,6 @@ test("a resize sizes the tab's own viewport, once per size, and restarts a runni
     { method: "Page.stopScreencast", params: {} },
     { method: "Page.startScreencast", params: { format: "jpeg", quality: 60, maxWidth: 3840, maxHeight: 2160, everyNthFrame: 1 } },
   ])
-  // At the size that was just asked for: a frame of the old viewport is not
-  // this pane's picture (the test below).
   browser.emit(frame("S-T1", 1, { width: 320, height: 2160 }))
   yield* Fiber.join(watching)
 })))
@@ -402,12 +385,7 @@ test("every frame is drawn, and the one of the viewport a resize replaced is not
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 1))
   yield* live.resize("T1", { width: 640, height: 400 })
-  // The compositor has not caught up: this is the surface it already had, and
-  // `Page.startScreencast`'s reply does not wait for a new one. The pane
-  // watching is shown it anyway — a withheld picture is a blank pane.
   browser.emit(frame("S-T1", 2))
-  // One at a time: a pane's queue slides, so a burst nobody drained would
-  // lose the middle picture for a reason that is not this test's subject.
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 3, { width: 640, height: 400 }))
   const seen = [...(yield* Fiber.join(watching))].map((got) => got._tag === "frame" ? [got.jpeg, got.meta.deviceWidth] : got.says)
@@ -418,8 +396,6 @@ test("a pane joining after a resize is handed a picture of the viewport this tab
   const browser = double()
   const live = yield* openLive(browser.options())
   yield* live.start
-  // Four, so this pane is still watching when the second one joins: the last
-  // pane to leave stops the screencast, and a stopped one remembers nothing.
   const watching = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast({ targetId: "T1", quality: 60 }), 4)))
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 1))
@@ -428,9 +404,6 @@ test("a pane joining after a resize is handed a picture of the viewport this tab
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 3, { width: 640, height: 400 }))
   yield* Effect.sleep("10 millis")
-  // JPEG2 is of the viewport the resize replaced, so it was never remembered:
-  // the pane joining here is handed JPEG3, the picture of the size this tab
-  // now has, rather than a still page at the wrong aspect.
   const joining = yield* Effect.forkChild(Stream.runHead(live.screencast({ targetId: "T1", quality: 60 })))
   expect(Option.map(yield* Fiber.join(joining), (got) => got._tag === "frame" ? got.jpeg : got.says)).toEqual(Option.some("JPEG3"))
   browser.emit(frame("S-T1", 4, { width: 640, height: 400 }))
@@ -443,12 +416,10 @@ test("a sized tab is sized again once each of its own new pages has loaded, whic
   const live = yield* openLive(browser.options())
   yield* live.start
   const overrides = () => browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").length
-  // A tab nobody sized is left as it is.
   browser.emit({ method: "Page.domContentEventFired", sessionId: "S-T1", params: { timestamp: 1 } })
   yield* Effect.sleep("10 millis")
   expect(overrides()).toBe(0)
   yield* live.resize("T1", { width: 400, height: 900 })
-  // The commit is too early: the page being replaced may still take it.
   browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F1" } } })
   yield* Effect.sleep("10 millis")
   expect(overrides()).toBe(1)

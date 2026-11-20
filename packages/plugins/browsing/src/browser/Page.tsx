@@ -1,17 +1,3 @@
-/**
- * THE BROWSER PANE — the person's own browser, live, under their hand.
- *
- * A tab strip, an address bar, the page as a picture, and the gestures that
- * go back to it. The picture is the row's CDP screencast of that tab; a press,
- * a wheel, a key or a paste on it becomes CDP input on the same tab, in page
- * CSS px read off the frame it landed on (`./gestures.ts`). Keys go to the
- * page only while the viewer holds focus, which it says on its face; Escape
- * hands them back to the app.
- *
- * Every call is queued in order per pane, because a release that overtook its
- * press would be a different gesture. A refusal is shown in the pane's own
- * words line and is never thrown.
- */
 import { Effect, Fiber, Stream } from "effect"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { useGo, useShown } from "olai-plugin-navigation/routing"
@@ -26,17 +12,12 @@ export interface Shown {
   readonly targetId: string | null
 }
 
-/** A quality that keeps a busy 1280-wide page near 300 KB a frame. The
- *  frame's size is the viewport's, which follows this pane's box. */
 const ASK = { quality: 60 } as const
 
-/** How long a box must hold still before the viewport follows it: a drag of
- *  a split asks once, at the end, rather than once a frame. */
 const SETTLE_MS = 150
 
 const BUTTON = "rounded border border-rule px-2 py-0.5 text-caption hover:bg-ink/5 disabled:opacity-50"
 
-/** One frame's JPEG as an object URL the page's image policy admits. */
 const pictureOf = (base64: string): string => {
   const text = atob(base64)
   const bytes = new Uint8Array(text.length)
@@ -66,20 +47,9 @@ export function BrowserPage(props: {
   const up = createMemo(() => { const now = standing(); return now.kind === "up" ? now.pid : null })
   const shown = createMemo(() => props.browsing.shown(props.value.targetId))
   const tab = () => { const id = shown(); return id === null ? undefined : props.browsing.tab(id) }
-  // A memo, so a retitled tab is not a reason to reopen its screencast.
   const present = createMemo(() => tab() !== undefined)
-  // Whether this pane is on screen at all: a retained tab or a pane hidden by
-  // the layout keeps its last picture but watches nothing and asks for no size.
   const visible = useShown()
 
-  // ONE SCREENCAST SUBSCRIPTION per pane, reopened when the shown tab, its
-  // being open or the running browser changes, closed while the pane is hidden
-  // (keeping its last picture, so a return does not flash empty), and closed
-  // with the pane.
-  //
-  // Each picture is an OBJECT URL: the shell's image policy admits `blob:`
-  // and, on purpose, not `data:`. A frame's URL is revoked as soon as the
-  // next one replaces it, and the last one with the pane.
   const [frame, setFrame] = createSignal<{ readonly src: string; readonly meta: FrameMeta } | null>(null)
   const show = (next: { readonly src: string; readonly meta: FrameMeta } | null) => {
     const before = frame()
@@ -93,9 +63,6 @@ export function BrowserPage(props: {
     const fiber = Effect.runFork(Stream.runForEach(props.browsing.watch({ targetId, ...ASK }), (got) => Effect.sync(() => {
       if (got._tag === "frame") {
         show({ src: pictureOf(got.jpeg), meta: got.meta })
-        // The first frame AT THE SIZE ASKED, once the row has answered, is the
-        // new layout. Not merely the first one after the answer: frames the
-        // pane had not yet taken can still be on their way at the old size.
         if (answered && fits(got.meta)) { answered = false; settle(false) }
       }
       else say(got.says)
@@ -103,7 +70,6 @@ export function BrowserPage(props: {
     onCleanup(() => { void Effect.runPromise(Fiber.interrupt(fiber)) })
   }))
 
-  // THE INPUT QUEUE: one chain per pane, in the order the gestures happened.
   let chain: Promise<unknown> = Promise.resolve()
   const send = (event: InputEvent) => {
     const targetId = shown()
@@ -122,8 +88,6 @@ export function BrowserPage(props: {
   const onMove = (event: PointerEvent) => {
     const point = at(event)
     if (point === null || moving !== 0) return
-    // At most one move per animation frame: the page needs where the pointer
-    // is, not every pixel it crossed.
     moving = requestAnimationFrame(() => { moving = 0; send(mouseOf("mouseMoved", point, event)) })
   }
   onCleanup(() => cancelAnimationFrame(moving))
@@ -135,23 +99,8 @@ export function BrowserPage(props: {
     send(mouseOf("mouseWheel", point, event, { deltaX: event.deltaX * scale, deltaY: event.deltaY * scale }))
   }
 
-  // THE VIEWPORT FOLLOWS THIS PANE'S BOX, so a tall pane gets a tall page
-  // rather than a 16:10 picture with nothing under it. Per tab: two panes on
-  // one tab, the box asked last wins.
   const [box, setBox] = createSignal<{ readonly width: number; readonly height: number } | null>(null)
-  // WHILE THE BOX IS STILL MOVING — from the first change the observer sees
-  // until it has held still and been asked for — the page is about to change
-  // size under a press mapped through the current picture, so presses are
-  // dropped then too, and the picture does not say it is sized.
   const [reshaping, reshape] = createSignal(false)
-  // WHILE A RESIZE IS IN FLIGHT the picture is the old layout and the page is
-  // the new one, so a press mapped through the picture would land somewhere
-  // the person never pointed. From asking until the first frame of the asked
-  // size after the row answers, pointer presses are dropped (keys do not
-  // depend on geometry and still go). `asked` is what this pane last asked
-  // for, so it can say when its picture is the size it wanted (`data-sized`).
-  // Two panes on one tab: the one asked last wins, and the other's frames
-  // never fit it, so it settles on the clock instead.
   const [settling, settle] = createSignal(false)
   const [asked, setAsked] = createSignal<{ readonly width: number; readonly height: number } | null>(null)
   const fits = (meta: FrameMeta) => {
@@ -176,10 +125,6 @@ export function BrowserPage(props: {
     const now = box()
     return !settling() && !reshaping() && want !== null && now !== null && want.width === now.width && want.height === now.height
   }
-  // A hidden pane's box is no size anyone sees (a `display: none` one reads
-  // 0×0, which would clamp to the smallest viewport and, asked last, win the
-  // tab from a pane on screen), so only a shown pane's box counts, and it is
-  // read again as the pane comes back.
   const measure = (element: HTMLElement) => {
     let quiet = 0
     let latest: { readonly width: number; readonly height: number } | undefined
@@ -191,7 +136,6 @@ export function BrowserPage(props: {
       const changed = held === null || held.width !== next.width || held.height !== next.height
       reshape(changed)
       if (!changed) return
-      // One batch, so the resize's own settling begins as the move ends.
       quiet = window.setTimeout(() => batch(() => { reshape(false); setBox(next) }), SETTLE_MS)
     }
     const observer = new ResizeObserver(([entry]) => {
@@ -201,7 +145,6 @@ export function BrowserPage(props: {
     })
     observer.observe(element)
     createEffect(on(visible, (seen) => {
-      // The content box, as the observer reports it: inside the border.
       if (seen) latest = { width: element.clientWidth, height: element.clientHeight }
       consider()
     }, { defer: true }))
@@ -226,7 +169,6 @@ export function BrowserPage(props: {
     if (text !== "") send({ kind: "text", text })
   }
 
-  // THE ADDRESS BAR shows the live URL until somebody types in it.
   const [typing, type] = createSignal<string | null>(null)
   createEffect(on(shown, () => type(null)))
   const navigate = () => {
@@ -242,7 +184,6 @@ export function BrowserPage(props: {
   return (
     <section class="flex h-full min-h-0 flex-col gap-2 p-3" aria-label="Browser" data-testid={TESTID.browserPage}
       data-standing={standing().kind} data-target={shown() ?? undefined} data-pid={up() ?? undefined}>
-      {/* A failed start is the banner's to say: it is the standing. */}
       <Banner standing={standing()} start={() => void Effect.runPromise(Effect.ignore(calls.browser.start({}))).then(() => say(null))} />
       <Show when={up() !== null}>
         <nav class="flex flex-wrap items-center gap-1" aria-label="Browser tabs">
@@ -252,11 +193,6 @@ export function BrowserPage(props: {
             <span class="flex max-w-[14rem] items-center gap-1 rounded border border-rule px-1.5 py-0.5 text-caption data-[active=true]:bg-ink/10"
               data-testid={TESTID.browserTab} data-target={one.id} data-active={one.id === shown() ? "true" : "false"}
               data-title={one.title}>
-              {/* WHERE THE TAB GOES, which its own words only say when it has
-                  none of its own. It was the anchor's `title`, read by a
-                  pointer and nobody else; the tip is the pointer's copy and
-                  the link's NAME is everybody else's. The name opens with the
-                  words the link draws, so the two cannot come apart. */}
               <Tip text={one.url}>
                 <a href={props.href(one.id)} class="min-w-0 truncate"
                   aria-label={face === one.url ? undefined : `${face}, ${one.url}`}>
@@ -276,26 +212,6 @@ export function BrowserPage(props: {
         </p>}>
           {(open) => (
             <>
-              {/* THE KEYBOARD THIS BOX ASKS FOR. `inputmode="url"` puts the
-                  slash and the `.com` key under a thumb and takes the space
-                  bar's width back, and `enterkeyhint="go"` labels the return
-                  key with what it does here (`onKeyDown` below: Enter
-                  navigates the tab and gives the caret back). Both are
-                  labels — nothing about the navigation is on them.
-
-                  `type` stays TEXT on purpose. `type="url"` would make the
-                  browser judge what is typed against its own idea of an
-                  absolute URL, and `example.com` — which `addressOf` is
-                  written to accept and complete — is not one; a box that
-                  refuses the shortest thing somebody types would be a
-                  regression bought with a validation nobody asked for.
-
-                  An address is an IDENTIFIER, not prose, so the three
-                  corrections go off: a capitalised host, an autocorrected
-                  path segment or a red underline under a domain are all
-                  wrong here. `spellcheck` already said so; the other two
-                  were missing, which on a phone is the one that bites —
-                  iOS capitalises the first letter of an empty box. */}
               <input class="w-full rounded border border-rule bg-paper px-2 py-1 font-mono text-caption" aria-label="Address"
                 data-testid={TESTID.browserAddress} spellcheck={false} autocorrect="off" autocapitalize="none"
                 inputmode="url" enterkeyhint="go"
@@ -304,21 +220,6 @@ export function BrowserPage(props: {
                 onInput={(event) => type(event.currentTarget.value)}
                 onBlur={() => type(null)}
                 onKeyDown={(event) => {
-                  // NO `isComposing` GUARD HERE, and that is a claim about
-                  // WHO DRAWS THIS BOX rather than about the key. An IME's
-                  // confirming key reads `Enter`, so a handler that acts on
-                  // one must either check `isComposing`/`keyCode === 229` or
-                  // be certain it never sees one. This page is certain: it is
-                  // registered at `app.route`, navigation's OWN slot
-                  // contract, so nothing draws it unless navigation is
-                  // activated — and navigation's activation is what starts
-                  // `protectComposition`, the window-capture listener that
-                  // stops a composing key before it reaches any handler on
-                  // the page. Navigation withdrawn, this box is not on screen
-                  // to be typed in. The composer, the new-file box and the
-                  // property box each carry the check locally, because each
-                  // of them IS drawn under owners that name navigation
-                  // nowhere.
                   if (event.key === "Enter") { event.preventDefault(); navigate(); event.currentTarget.blur() }
                   if (event.key === "Escape") { type(null); event.currentTarget.blur() }
                 }} />
@@ -337,17 +238,6 @@ export function BrowserPage(props: {
                   {(held) => (
                     <img ref={picture} src={held().src} alt={open().title || "The page"} draggable={false}
                       class="mx-auto block h-auto max-h-full max-w-full select-none"
-                      /* The frame IS the page, and it is a NEW one several
-                         times a second: an object URL over the JPEG the
-                         screencast just handed us, revoked as soon as the next
-                         one lands. `lazy` on this would be the pane deferring
-                         the only thing it draws — and deferring a picture whose
-                         URL is about to be revoked is how you get a blank where
-                         a live page was. There is no `fetchpriority` to argue
-                         about: a blob URL is bytes this tab already holds, so
-                         there is no request to put in front of anything. The
-                         decode is the real cost here and it is handed off, so a
-                         frame arriving does not stall the one being drawn. */
                       loading="eager"
                       decoding="async"
                       data-testid={TESTID.browserFrame}

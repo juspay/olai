@@ -1,33 +1,3 @@
-/**
- * THE BROWSER THIS ROW OWNS — one Chromium per serve, launched lazily, shared
- * by every conversation's Playwright MCP over CDP and shown to the person in
- * the `/browser` pane.
- *
- * ## Who owns what
- *
- * The ROW SCOPE owns everything here. Each launch runs in a child scope forked
- * off it — the process, its DevTools connection, the sessions attached to its
- * tabs and the screencasts running on them — so a crash, a "forget sign-ins",
- * a switched-off row and olai stopping all end the same way: that scope
- * closes, the process group is stopped and reaped, and every pane watching it
- * is told in a sentence before its stream ends.
- *
- * Concurrent demands share ONE launch: the first forks it into the row scope
- * and the rest join its result. A failure is the `failed` standing and the
- * next demand tries again. Lifecycle TRANSITIONS — deciding to launch, and
- * stopping — take one permit, so a "forget" cannot interleave with a launch
- * that would reopen the profile it is removing.
- *
- * ## Screencasts are refcounted per tab
- *
- * The first pane on a tab starts CDP's screencast on that tab's session, every
- * frame is acknowledged once and fanned out, and the last pane to leave stops
- * it. A pane joining a running screencast is handed the last frame at once: a
- * still page paints nothing new, so without it a second pane would wait for a
- * change that may never come. A pane's parameters are its own request, but a
- * tab carries one screencast, so the first pane's size and quality hold until
- * the screencast stops; every pane scales the picture it is handed.
- */
 import { Cause, Deferred, Effect, Exit, Fiber, Queue, Result, Scope, Semaphore, Stream } from "effect"
 import { rm } from "node:fs/promises"
 import { launchChromium, type Launched, LaunchFailure } from "./chromium.ts"
@@ -35,21 +5,15 @@ import { type Cdp, CdpFailure, type CdpEvent, openCdp } from "./cdp.ts"
 import { BrowserRefused, clampViewport, DOWN, type Frame, type InputEvent, type ScreencastAsk, type Standing, type Tab, VIEWPORT } from "./wire.ts"
 
 export interface LiveOptions {
-  /** The Chromium executable, or `null` for a serve with none configured. */
   readonly chromium: string | null
-  /** Why there is no browser when `chromium` is `null`, in a sentence. */
   readonly absentWhy: string
-  /** The profile directory, asked at each launch (core's local directory). */
   readonly profile: Effect.Effect<string, { readonly why: string }>
   readonly now: () => string
-  /** Where the standing and tabs are published — the surface's write face,
-   *  once core has minted it. */
   readonly publish: {
     readonly standing: (standing: Standing) => void
     readonly tab: (tab: Tab) => void
     readonly untab: (id: string) => void
   }
-  /** The least time between two picture-driven title reads of one tab. */
   readonly titleEveryMs?: number
   readonly launch?: typeof launchChromium
   readonly connect?: (launched: Launched) => Effect.Effect<Cdp, never, Scope.Scope>
@@ -58,11 +22,8 @@ export interface LiveOptions {
 export interface Live {
   readonly standing: () => Standing
   readonly tabs: () => ReadonlyMap<string, Tab>
-  /** What an MCP needs to attach — the DevTools endpoint and the profile it
-   *  is serving — launching the browser if nothing has yet. */
   readonly attach: Effect.Effect<Attach, BrowserRefused>
   readonly start: Effect.Effect<void, BrowserRefused>
-  /** Stop the browser if it is up and remove its profile. */
   readonly forget: Effect.Effect<void, BrowserRefused>
   readonly screencast: (ask: ScreencastAsk) => Stream.Stream<Frame>
   readonly input: (targetId: string, event: InputEvent) => Effect.Effect<void, BrowserRefused>
@@ -77,15 +38,12 @@ export interface Attach {
   readonly profile: string
 }
 
-/** One running screencast on one tab, and the quality it was started at. */
 interface Cast {
   readonly subscribers: Set<Queue.Queue<Frame, Cause.Done>>
   readonly quality: number
   last: Frame | null
 }
 
-/** A screencast's parameters. The size is the ceiling, not a size: frames
- *  come at the tab's own viewport, which follows its pane (`resize`). */
 const castOf = (quality: number) => ({
   format: "jpeg",
   quality: Math.max(1, Math.min(100, Math.round(quality))),
@@ -94,29 +52,21 @@ const castOf = (quality: number) => ({
   everyNthFrame: 1,
 })
 
-/** One launch, alive. */
 interface Instance {
   readonly scope: Scope.Closeable
   readonly launched: Launched
   readonly profile: string
   readonly cdp: Cdp
-  /** Each tab's flattened session, attached as the tab appears. */
   readonly sessions: Map<string, Deferred.Deferred<string, BrowserRefused>>
-  /** ...and back, from a session to its tab, for the events it carries. */
   readonly targets: Map<string, string>
   readonly casts: Map<string, Cast>
-  /** The viewport each tab was last sized to by a pane. */
   readonly sizes: Map<string, { readonly width: number; readonly height: number }>
-  /** When each tab's info was last asked for, and which tabs have a
-   *  picture-driven ask already waiting. */
   readonly lastRead: Map<string, number>
   readonly soon: Set<string>
 }
 
 const refused = (says: string) => new BrowserRefused({ says })
-/** A tab's own session events after which its title may have moved. */
 const REREAD_ON = new Set(["Page.domContentEventFired", "Page.loadEventFired", "Page.frameNavigated", "Page.navigatedWithinDocument"])
-/** A failure's own sentence, whichever kind of failure it was. */
 const whyOf = (cause: Cause.Cause<unknown>, interrupted: string): string => {
   if (Cause.hasInterruptsOnly(cause)) return interrupted
   const squashed = Cause.squash(cause)
@@ -143,8 +93,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   }
   options.publish.standing(standing)
 
-  /** Take one target's info; answers whether it is a page this row had not
-   *  seen, which the caller then attaches to. */
   const upsertTab = (info: Record<string, unknown>): boolean => {
     if (info["type"] !== "page" || typeof info["targetId"] !== "string") return false
     const tab: Tab = { id: info["targetId"], title: String(info["title"] ?? ""), url: String(info["url"] ?? "") }
@@ -155,24 +103,17 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     return held === undefined
   }
 
-  /** Work on one launch's behalf, owned by its scope: whatever is in flight
-   *  when it closes is interrupted with it. */
   const own = (instance: Instance, effect: Effect.Effect<unknown, unknown>) => {
     Effect.runFork(Effect.forkIn(Effect.ignore(effect), instance.scope))
   }
 
   /**
-   * RE-READ ONE TAB'S INFO. Measured against the pinned Chromium (1228,
-   * `--headless=new`): `Target.targetInfoChanged` carries a tab's URL changes,
-   * and its title only once, for the foreground tab's first load. A background
-   * tab's `<title>` and every `document.title =` arrive on no event at all,
-   * and the protocol has no other title event. So the strip asks again when
-   * the tab's own session says something happened. A load or navigation asks
-   * at once; a new picture — the one sign a script retitled the page — asks at
-   * most once per {@link LiveOptions.titleEveryMs}, trailing, so a page
-   * streaming frames costs one call a second, not one a frame. Reads need no
-   * coalescing: the pipe answers in order, so the last read to land is the
-   * newest.
+   * Measured against the pinned Chromium (1228, `--headless=new`):
+   * `Target.targetInfoChanged` carries a tab's URL changes, and its title only
+   * once, for the foreground tab's first load. A background tab's `<title>`
+   * and every `document.title =` arrive on no event at all, and the protocol
+   * has no other title event — so a tab's info is re-read when its own session
+   * says something happened.
    */
   const reread = (instance: Instance, targetId: string) => {
     instance.lastRead.set(targetId, Date.now())
@@ -182,8 +123,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     }))
   }
 
-  /** ...and the throttled ask a new picture makes: now if the last read was
-   *  long enough ago, otherwise once, when it will have been. */
   const glance = (instance: Instance, targetId: string) => {
     if (instance.soon.has(targetId)) return
     const wait = (instance.lastRead.get(targetId) ?? -Infinity) + titleEveryMs - Date.now()
@@ -196,37 +135,21 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   }
 
   /**
-   * SIZE ONE TAB'S VIEWPORT to the box its pane last asked for, with
-   * `Emulation.setDeviceMetricsOverride` on that tab's own session. Measured
-   * on the pinned Chromium: resizing the shared headless window reaches only
-   * the tab in front, so a background tab never followed its pane, while the
-   * override sizes exactly this tab, front or not. A running screencast sends
-   * no frame for the change, so it is restarted.
-   *
-   * **THE RESTART'S FIRST FRAME IS NOT NECESSARILY AT THE NEW SIZE**, and
-   * this file used to say it was. The override's reply means Chromium took
-   * the instruction, not that its compositor has produced a surface at that
-   * size: a screencast started in the gap sends the surface it has, whose
-   * `metadata` is the OLD viewport. The plugin's own packaged check caught it
-   * on a loaded machine (`surface.check.ts`, "the viewport did not follow the
-   * resize"), and it is why that check now waits for a frame of the size it
-   * asked for instead of reading the first one that arrives. Every frame is
-   * still DRAWN — a pane withholding pictures is a pane that goes blank — but
-   * the remembered one is dropped here, because {@link screencast} hands it
-   * to the next pane to join and it describes a viewport that no longer
-   * exists ({@link ofThisViewport}).
+   * Measured on the pinned Chromium: resizing the shared headless window
+   * reaches only the tab in front, while `Emulation.setDeviceMetricsOverride`
+   * sizes exactly this tab, front or not. A running screencast sends no frame
+   * for the change, so it is restarted — and the restart's first frame is not
+   * necessarily at the new size, because the override's reply means Chromium
+   * took the instruction, not that its compositor has produced a surface at
+   * that size ({@link ofThisViewport}).
    *
    * A cross-process navigation keeps the override for the page's layout but
-   * not for its screencast: measured on the pinned Chromium, a tab whose
-   * `innerWidth` still answered 361 went on sending 1280×657 frames — the
-   * whole headless window, the page drawn in its corner — until the override
-   * was set again once the new page was in place. `Page.frameNavigated` comes
-   * too early for that: set again there, it came before the new page showed
-   * (`Page.screencastVisibilityChanged`) about half the time under load, and
-   * a still page then streamed the window's size for good (the e2e's
-   * tall-pane flake). The main frame's `Page.domContentEventFired` is said by
-   * the new page itself, so it comes after: every one sizes a sized tab
-   * again.
+   * not for its screencast: a tab whose `innerWidth` answered 361 went on
+   * sending whole-window frames until the override was set again once the new
+   * page was in place. `Page.frameNavigated` comes too early for that — it
+   * arrived before the new page showed about half the time under load — while
+   * the main frame's `Page.domContentEventFired` is said by the new page
+   * itself.
    */
   const sizeTab = (instance: Instance, targetId: string, sessionId: string): Effect.Effect<void, CdpFailure> => Effect.gen(function*() {
     const want = instance.sizes.get(targetId)
@@ -239,30 +162,17 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     yield* instance.cdp.send("Page.startScreencast", castOf(cast.quality), sessionId)
   })
 
-  /**
-   * IS THIS A PICTURE OF A VIEWPORT THIS TAB NO LONGER HAS — a frame whose
-   * `metadata` disagrees with the size the tab was last asked for.
-   *
-   * It is still DRAWN: a pane watching this tab is shown every frame that
-   * arrives, because withholding one is a pane that goes blank, and a picture
-   * of the wrong size is something a reader can see and act on while a blank
-   * one is not. What it may not become is {@link Cast.last} — the picture a
-   * pane joining later is handed at once, which would otherwise be a still,
-   * wrong-sized page for as long as nothing repaints.
-   */
   const ofThisViewport = (instance: Instance, targetId: string, frame: Extract<Frame, { readonly _tag: "frame" }>): boolean => {
     const want = instance.sizes.get(targetId)
     return want === undefined || (frame.meta.deviceWidth === want.width && frame.meta.deviceHeight === want.height)
   }
 
-  /** Attach to a tab as soon as it appears, so its loads reach `reread`. */
   const follow = (instance: Instance, targetId: string) => own(instance, sessionFor(instance, targetId))
   const dropTab = (id: string) => {
     if (!tabs.delete(id)) return
     options.publish.untab(id)
   }
 
-  /** Tell every pane on a tab why its picture stopped, and end their streams. */
   const endCast = (instance: Instance, targetId: string, says: string) => {
     const cast = instance.casts.get(targetId)
     if (cast === undefined) return
@@ -273,8 +183,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     }
   }
 
-  /** Close one instance, if it is still the current one: panes first, then
-   *  the scope (the process and its connection), then the standing. */
   const teardown = (instance: Instance, next: Standing, says: string): Effect.Effect<void> => Effect.suspend(() => {
     if (current !== instance) return Effect.void
     current = null
@@ -288,7 +196,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       const targetId = instance.targets.get(event.sessionId)
       if (targetId === undefined) return
       if (REREAD_ON.has(event.method)) {
-        // A sub-frame's navigation is not the tab's.
         const frame = event.params["frame"] as { readonly parentId?: unknown } | undefined
         if (frame?.parentId !== undefined) return
         reread(instance, targetId)
@@ -343,7 +250,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     }
   }
 
-  /** One launch, start to up, in its own scope off the row's. */
   const bringUp = (chromium: string): Effect.Effect<Instance, BrowserRefused> => Effect.gen(function*() {
     const scope = yield* Scope.fork(row)
     const opened = yield* Effect.exit(Effect.gen(function*() {
@@ -370,9 +276,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     current = instance
     for (const targetId of seeded.value) follow(instance, targetId)
     stand({ kind: "up", pid: instance.launched.pid, since: options.now() })
-    // A crash, or a DevTools socket that went away under a live process,
-    // takes the instance down; the watcher forks the teardown onto the row so
-    // closing the instance's scope does not interrupt the teardown itself.
     yield* Effect.forkIn(
       Effect.flatMap(
         Effect.raceFirst(instance.launched.exited, Effect.as(instance.cdp.closed, "The browser's DevTools connection closed.")),
@@ -383,8 +286,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     return instance
   })
 
-  // The fork happens INSIDE the permit, so a stop that takes the permit next
-  // always finds the launch fiber it has to interrupt.
   const demand: Effect.Effect<Instance, BrowserRefused> = Effect.flatten(transitions.withPermit(Effect.suspend(() => {
     if (options.chromium === null) return Effect.succeed(Effect.fail(refused(options.absentWhy)))
     if (current !== null) return Effect.succeed(Effect.succeed(current))
@@ -405,13 +306,10 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     })
   })))
 
-  /** Stop whatever is running or launching; the standing goes `down`. */
   const stop: Effect.Effect<void> = Effect.gen(function*() {
     const pending = launching
     if (pending !== null) {
       if (pending.fiber !== null) yield* Fiber.interrupt(pending.fiber)
-      // A launch interrupted before its first step never reaches the line
-      // that settles its waiters, so settle them here.
       yield* Deferred.interrupt(pending.result)
       if (launching === pending) launching = null
       if (current === null && standing.kind === "starting") stand(DOWN)
@@ -452,13 +350,11 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     for (const [sessionId, held] of instance.targets) if (held === targetId) instance.targets.delete(sessionId)
   }
 
-  /** Run one call on the running browser, refusing when nothing is up. */
   const onBrowser = <A>(use: (instance: Instance) => Effect.Effect<A, CdpFailure | BrowserRefused>) => Effect.suspend(() => {
     const instance = current
     if (instance === null) return Effect.fail(refused(NOT_UP))
     return Effect.mapError(use(instance), (failure) => failure._tag === "CdpFailure" ? refused(`The browser refused: ${failure.why}.`) : failure)
   })
-  /** ...or on one tab's session. */
   const onTab = <A>(targetId: string, use: (instance: Instance, sessionId: string) => Effect.Effect<A, CdpFailure>) =>
     onBrowser((instance) => Effect.flatMap(sessionFor(instance, targetId), (sessionId) => use(instance, sessionId)))
 
@@ -468,8 +364,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     const session = yield* Effect.result(sessionFor(instance, ask.targetId))
     if (Result.isFailure(session)) return refusing(session.failure.says)
     const sessionId = session.success
-    // Sliding: a pane that falls behind skips to the newest frame rather than
-    // queueing a backlog of pictures nobody will look at.
     const queue = yield* Queue.sliding<Frame, Cause.Done>(2)
     yield* Effect.acquireRelease(
       Effect.gen(function*() {
@@ -539,8 +433,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
         typeof answer["errorText"] === "string" && answer["errorText"] !== ""
           ? Effect.fail(new CdpFailure({ why: `${url} did not open (${answer["errorText"]})` }))
           : Effect.void)),
-    /** Size one tab's viewport to a pane's box ({@link sizeTab}); the
-     *  most recent ask wins. */
     resize: (targetId, size) => onTab(targetId, (instance, sessionId) => Effect.gen(function*() {
       const want = clampViewport(size)
       const held = instance.sizes.get(targetId)

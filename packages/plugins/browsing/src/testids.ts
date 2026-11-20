@@ -1,5 +1,3 @@
-/** The browser pane's own DOM names, on a door of their own so a scenario can
- *  assert on them without pulling a component into a suite with no browser. */
 export const TESTID = {
   browserHeader: "browser-header",
   browserPage: "browser-page",

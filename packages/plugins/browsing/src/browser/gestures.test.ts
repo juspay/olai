@@ -9,7 +9,6 @@ test("a point on the drawn picture is the same fraction of the page's viewport",
   expect(pagePoint(box, meta, 100, 50)).toEqual({ x: 0, y: 0 })
   expect(pagePoint(box, meta, 420, 250)).toEqual({ x: 640, y: 400 })
   expect(pagePoint(box, meta, 740, 450)).toEqual({ x: 1280, y: 800 })
-  // A pointer captured past the edge stays on the page.
   expect(pagePoint(box, meta, 2000, -10)).toEqual({ x: 1280, y: 0 })
 })
 

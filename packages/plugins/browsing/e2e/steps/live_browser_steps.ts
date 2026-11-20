@@ -1,13 +1,3 @@
-/**
- * The scenario's hand on the `/browser` pane and on the real Chromium behind
- * it (`@browsing-live`): read where the browser stands, drive the page through
- * the picture the way a person does, and serve the loopback pages it browses.
- *
- * The pages are built so a step can aim without knowing the browser's
- * viewport: the button fills the top-left of the page and the box the
- * middle-left, in viewport units, so a press at a fraction of the drawn
- * picture lands on them whatever size the frame is.
- */
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { createServer, type Server } from "node:http"
@@ -24,9 +14,6 @@ const paneAt = (world: OlaiWorld, index: number) =>
   world.frontLane().locator(`[data-testid="pane"]${attr("data-pane", String(index))}`)
 const pageIn = (world: OlaiWorld, index: number) => paneAt(world, index).locator(id(TESTID.browserPage))
 
-/** The pages a scenario drives: a button that renames the tab, and a box
- *  whose words become the tab's title. Each name has its own titles, so two
- *  tabs watched at once can be told apart. */
 const DRIVEN: Readonly<Record<string, readonly [title: string, pressed: string, typed: string]>> = {
   fixture: ["Fixture", "clicked", "typed:"],
   second: ["Second", "second clicked", "second typed:"],
@@ -38,14 +25,11 @@ const drivenPage = ([title, pressed, typed]: readonly [string, string, string]) 
 <input style="position:fixed;left:0;top:40vh;width:50vw;height:20vh;font-size:32px" oninput="document.title='${typed}'+this.value">
 <button style="position:fixed;left:0;bottom:0;width:50vw;height:12vh;font-size:32px" onclick="document.title='bottom'">Bottom</button>`
 
-/** ...and one that remembers a choice in its origin's storage, which is the
- *  stand-in for a sign-in: the title says what the browser kept. */
 const REMEMBERING = `<!doctype html><title>loading</title><body style="margin:0">
 <button style="position:fixed;left:0;top:0;width:50vw;height:30vh;font-size:32px"
   onclick="localStorage.setItem('olai','signed-in');document.title='kept:'+localStorage.getItem('olai')">Sign in</button>
 <script>document.title='kept:'+(localStorage.getItem('olai')||'nothing')</script>`
 
-/** Its title is the user agent the page sees. */
 const UA_PAGE = "<!doctype html><title>loading</title><script>document.title='ua:'+navigator.userAgent</script>"
 
 const sites = new WeakMap<OlaiWorld, { readonly server: Server; readonly origin: string; readonly agents: Array<string> }>()
@@ -57,7 +41,6 @@ After(async function (this: OlaiWorld) {
 })
 
 Given("a web site the browser can visit", async function (this: OlaiWorld) {
-  // Every request's User-Agent header, so a scenario can ask what the site saw.
   const agents: Array<string> = []
   const server = createServer((request, response) => {
     agents.push(request.headers["user-agent"] ?? "")
@@ -162,36 +145,20 @@ Then("the browser's address bar shows the site's {string} page", async function 
   await this.waitUntil(async () => (await address(this).inputValue().catch(() => "")) === want, `the address bar to show ${want}`, HYDRATION_TIMEOUT)
 })
 
-/**
- * WHAT KEYBOARD THE ADDRESS BAR ASKS FOR — the whole of what a phone has to go
- * on when it draws one. Read off the element, because the element is where the
- * platform reads it; asserted in a scenario that then NAVIGATES with the same
- * return key (`I go to the site's … page`, which presses Enter), so the Go cap
- * and the thing the key does are checked together.
- *
- * `type` is asserted too, and it is the interesting one: `text` is deliberate
- * here. A `type="url"` box would refuse `example.com` — which this bar accepts
- * and completes — so an innocent-looking tightening of the markup is a real
- * regression, and this is the line that would catch it.
- */
 Then("the browser's address bar asks for a URL keyboard and a Go key", async function (this: OlaiWorld) {
   const box = address(this)
   await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   assert.equal(await box.getAttribute("inputmode"), "url", "the address bar's inputmode")
   assert.equal(await box.getAttribute("enterkeyhint"), "go", "the address bar's enterkeyhint")
   assert.equal(await box.getAttribute("type"), null, "the address bar must stay an ordinary text box")
-  // An address is an identifier: nothing a phone would capitalise or correct.
   assert.equal(await box.getAttribute("autocapitalize"), "none", "the address bar's autocapitalize")
   assert.equal(await box.getAttribute("autocorrect"), "off", "the address bar's autocorrect")
   assert.equal(await box.getAttribute("spellcheck"), "false", "the address bar's spellcheck")
 })
 
-/** A press on the picture at a fraction of its drawn box. */
 const pressAt = async (world: OlaiWorld, index: number, fx: number, fy: number, modifiers: Array<"Alt"> = []) => {
   const frame = frameIn(world, index)
   await frame.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
-  // As a person waits for the picture to settle after a pane changes size:
-  // a press while the page is being resized is dropped by the pane.
   await pageIn(world, index).locator(`${id(TESTID.browserViewer)}${attr("data-sized", "true")}`)
     .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT })
   const box = await frame.boundingBox()
@@ -260,8 +227,6 @@ Then("the remembered browser process is {word}", async function (this: OlaiWorld
 
 Then("the browser runs {word} its own sandbox", async function (this: OlaiWorld, how: string) {
   const pid = await pidShown(this)
-  // Chromium rewrites its process title into one space-joined string, so the
-  // flags are split on either separator.
   const argv = readFileSync(`/proc/${pid}/cmdline`, "utf8").split(/[\0 ]/)
   assert.equal(argv.includes("--no-sandbox"), how === "without", `Chromium ${pid} was started with: ${argv.join(" ")}`)
 })

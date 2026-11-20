@@ -1,15 +1,3 @@
-/**
- * THE PINNED PAIR, END TO END — run by `default.nix`'s `surface` check with the
- * packaged MCP and Chromium, and by hand with any two executables.
- *
- * The disposable probe still never opens a page; then the row's own owner
- * launches Chromium headless on a temp profile — without Chromium's own
- * sandbox, which a build sandbox may not allow and olai's runtime never
- * drops — the handed-over MCP attaches over CDP and navigates to
- * `about:blank`, two MCPs prove they share one cookie jar, `browser_close` leaves the browser and the person's tab
- * standing, and the plugin's own CDP client receives a screencast frame. It
- * prints the frame sizes against the surface's frame cap. No network.
- */
 import { callStdioMcp } from "@olai/plugin-kit/stdio-mcp"
 import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
 import { Effect, Option, Stream } from "effect"
@@ -35,8 +23,6 @@ const program = Effect.scoped(Effect.gen(function*() {
     profile: Effect.succeed(join(home, "profile")),
     now: () => new Date().toISOString(),
     publish: { standing: () => {}, tab: () => {}, untab: () => {} },
-    // A build sandbox may have no user namespaces for Chromium's own sandbox
-    // (`./chromium.ts`); the check's alone.
     launch: (executable, profile) => launchChromium(executable, profile, { extraFlags: WITHOUT_ITS_OWN_SANDBOX }),
   })
   const answer = yield* probing({ ...process.env, OLAI_BROWSER_MCP: mcp }, output, 15_000, live.attach)
@@ -48,8 +34,6 @@ const program = Effect.scoped(Effect.gen(function*() {
   const env = { ...process.env, ...server.env }
   const session = (calls: Parameters<typeof callStdioMcp>[0]["calls"]) =>
     Effect.scoped(callStdioMcp({ command: server.command, args: server.args, env, timeout: 60_000, calls }))
-  // A loopback origin, because `data:` pages have no storage: what one
-  // conversation's page keeps, the next conversation's page must read.
   const site = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response(
     "<title>check</title><h1 style='font:48px serif'>olai</h1><p>" + "lorem ipsum ".repeat(400) + "</p>",
     { headers: { "content-type": "text/html" } },
@@ -61,7 +45,6 @@ const program = Effect.scoped(Effect.gen(function*() {
     { name: "browser_evaluate", arguments: { function: "() => { localStorage.setItem('olai', 'kept'); return document.title }" } },
   ])
   if (first._tag === "failed") fail(`the attached MCP could not navigate: ${first.cause}\n${first.stderr}`)
-  // A second conversation, after the first has gone: the same jar.
   const second = yield* session([
     { name: "browser_navigate", arguments: { url: page } },
     { name: "browser_evaluate", arguments: { function: "() => localStorage.getItem('olai')" } },
@@ -71,7 +54,6 @@ const program = Effect.scoped(Effect.gen(function*() {
   if (second._tag === "failed") return fail(`the second MCP could not attach: ${second.cause}\n${second.stderr}`)
   const read = JSON.stringify(second.results[1]?.["content"] ?? null)
   if (!read.includes("kept")) fail(`the second conversation did not share the first's storage: ${read}`)
-  // A headed Chrome's user agent, not headless's, on the MCP's own page.
   const agent = JSON.stringify(second.results[2]?.["content"] ?? null)
   if (!agent.includes("Chrome/") || agent.includes("Headless")) fail(`the MCP's page does not see a headed Chrome's user agent: ${agent}`)
   try { process.kill(pid, 0) } catch { fail("browser_close stopped the shared browser") }
@@ -79,14 +61,6 @@ const program = Effect.scoped(Effect.gen(function*() {
   const shown = tabs.find((tab) => tab.title === "check") ?? fail(`no tab carries the navigated page: ${JSON.stringify(tabs)}`)
   for (const [width, quality] of [[1280, 80], [1280, 60], [640, 50]] as const) {
     yield* live.resize(shown.id, { width, height: Math.round(width * 0.625) })
-    // THE FIRST FRAME IS NOT THE ANSWER. `Emulation.setDeviceMetricsOverride`
-    // replying means Chromium took the instruction, not that its compositor
-    // has drawn at that size, so a screencast started in the gap sends the
-    // surface it already had — the old viewport, and this check read it as a
-    // resize that did not land (`live.ts`'s `sizeTab`). What the plugin
-    // promises is that a frame of the new size ARRIVES; that is what this
-    // waits for, and a viewport that never follows spends the timeout
-    // rather than the first frame's luck.
     const atSize = live.screencast({ targetId: shown.id, quality }).pipe(
       Stream.filter((frame) => frame._tag !== "frame" || frame.meta.deviceWidth === width),
       Stream.runHead,

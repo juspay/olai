@@ -1,8 +1,3 @@
-/**
- * WHAT THE PANE READS OF ITS OWN SIBLING, declared structurally against
- * `../wire.ts` — the shape `@kolu/surface/solid`'s client hands back for it.
- * Held once per activation, under one reactive root the activation disposes.
- */
 import { unenrolledStreamCall } from "@kolu/surface/client"
 import type { Effect, Stream } from "effect"
 import { type Accessor, createMemo } from "solid-js"
@@ -38,18 +33,15 @@ export interface BrowsingClient {
   }
 }
 
-/** The pane's readings, one subscription each however many panes draw. */
 export interface Browsing {
   readonly standing: Accessor<Standing>
   readonly tabs: Accessor<ReadonlyArray<Tab>>
   readonly tab: (id: string) => Tab | undefined
-  /** The tab an address shows: its own, or `/browser`'s first. */
   readonly shown: (targetId: string | null) => string | null
   readonly watch: (ask: ScreencastAsk) => Stream.Stream<Frame, unknown>
   readonly calls: BrowsingClient["procedures"]
 }
 
-/** Must run under a reactive owner (the activation's root). */
 export const createBrowsing = (client: BrowsingClient): Browsing => {
   const standing = client.cells.standing.use().value
   const folded = client.collections.tabs.use().fold<ReadonlyMap<string, Tab>>({
@@ -67,10 +59,6 @@ export const createBrowsing = (client: BrowsingClient): Browsing => {
     tabs,
     tab: (id) => folded()?.get(id),
     shown: (targetId) => targetId ?? tabs()[0]?.id ?? null,
-    // Un-enrolled: a pane's screencast ends and reopens for ordinary reasons
-    // (a tab closed, the browser stopped), and must not raise the app's
-    // Disconnected overlay. The framework's retry fence still replays it
-    // across a dropped socket.
     watch: (ask) => unenrolledStreamCall(client.streams.screencast.unenrolled as never, ask) as Stream.Stream<Frame, unknown>,
     calls: client.procedures,
   }

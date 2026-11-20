@@ -1,13 +1,3 @@
-/**
- * THE BROWSING ROW'S BROWSER HALF — the `/browser` page, its row in the bar's
- * health popover, its door in the sidebar column and rail (the way there on a
- * phone), and a palette row that opens it.
- *
- * One reactive root per activation holds the row's readings — the standing
- * and the tab set, one subscription each however many panes draw them — and
- * is disposed with the activation, so a switched-off row leaves nothing
- * subscribed. Each pane opens its own screencast and closes it with itself.
- */
 import { Bar, definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { defineSelfDrawnPage, defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
@@ -39,9 +29,6 @@ export default definePlugin({
     )
     const browsing = owned.browsing
 
-    // `/browser` is the first tab (or the standing and its Start); a tab's
-    // own address is `/browser/<target id>`. The breadcrumb is that tab's
-    // title, read live, so a tab and its pane are named as the page is.
     const route = defineSelfDrawnRoute<Shown>({
       claims: [{ kind: "exact", path: BROWSER_PATH }, { kind: "prefix", path: PREFIX }],
       parse: (pathname) => {

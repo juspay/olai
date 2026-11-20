@@ -1,5 +1,3 @@
-/** What the browser's standing looks like in the bar's health popover. A
- *  browser nobody has started is not a fault, so only `failed` raises the dot. */
 import type { Standing } from "../wire.ts"
 
 export type Tone = "healthy" | "quiet" | "notice" | "alarm"

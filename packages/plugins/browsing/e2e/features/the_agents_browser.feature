@@ -62,8 +62,6 @@ Feature: The person sees and uses the browser their agents use
 
   @phone
   Scenario: On a phone the drawer's Browser door is the way to the pane
-    # The health popover's rows leave the phone's bar, and the palette wants a
-    # keyboard: the drawer is how a phone reaches the browser.
     When I tap the burger
     And I tap the drawer's Browser door
     Then pane 0 draws the browser page
@@ -71,8 +69,6 @@ Feature: The person sees and uses the browser their agents use
     When I tap Start in the browser pane
     Then the browser pane says the browser is up
     And the browser pane shows 1 tab
-    # The bar a thumb types an address into: a URL keyboard and a Go key, and
-    # the step below then navigates with that very key.
     And the browser's address bar asks for a URL keyboard and a Go key
     When I go to the site's "fixture" page in the browser's address bar
     Then pane 0 draws a picture of the page
@@ -81,8 +77,6 @@ Feature: The person sees and uses the browser their agents use
 
   @phone
   Scenario: A tall pane gets a tall page, and a press near its bottom lands
-    # The viewport follows the pane's box rather than Chromium's first
-    # 1280x800 window, so a pane taller than 16:10 is filled, not letterboxed.
     When I open the address "/browser"
     And I tap Start in the browser pane
     And I go to the site's "fixture" page in the browser's address bar
@@ -120,9 +114,6 @@ Feature: The person sees and uses the browser their agents use
     And there should be no page errors
 
   Scenario: Two panes on two different tabs both stay live, whichever was used last
-    # Every tab lives in one headless window, where only the front tab is
-    # visible and a background tab paints nothing. Each pane must keep its
-    # own tab's picture moving anyway, in either order of use.
     When I open the address "/browser"
     And I start the browser from the pane
     And I go to the site's "fixture" page in the browser's address bar
@@ -161,8 +152,6 @@ Feature: The person sees and uses the browser their agents use
     Then the agent's answer mentions "Agent page"
     When I press the chat's browser chip
     Then pane 0 draws the browser page
-    # The agent's MCP took the browser's first, blank tab; the person opens
-    # one of their own beside it.
     And the browser pane shows 1 tab
     When I open a new browser tab from the pane
     Then the browser pane shows 2 tabs
@@ -189,9 +178,6 @@ Feature: The person sees and uses the browser their agents use
 
   @browsing-live-unsandboxed
   Scenario: When the container is the sandbox, the browser starts without its own and streams
-    # The container-is-the-sandbox deployment: OLAI_BROWSER_CHROMIUM_SANDBOX
-    # is `container`, so Chromium is launched with the flags the hermetic check uses.
-    # Everywhere else in this file it runs inside its own sandbox.
     When I open the address "/browser"
     And I start the browser from the pane
     Then the browser pane says the browser is up
@@ -206,9 +192,6 @@ Feature: The person sees and uses the browser their agents use
     And there should be no page errors
 
   Scenario: Pages see a headed Chrome's user agent, the person's and an agent's alike
-    # Headless Chromium announces itself as `HeadlessChrome`, which sites
-    # refuse; olai's presents the same version's headed Chrome string, and
-    # every page carries it — the HTTP header and navigator.userAgent both.
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     And I ask the agent to open the site's "ua" page with its browser tools
@@ -222,9 +205,6 @@ Feature: The person sees and uses the browser their agents use
     And there should be no page errors
 
   Scenario: An agent's browser tools attach to the person's browser, and the roster chip leads to it
-    # The agent's own Playwright MCP is the real one, handed `--cdp-endpoint`
-    # at session open: its page lands in the person's tab strip, and its
-    # `browser_close` lets go of the browser without closing it.
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     Then the panel says this conversation has "browser"

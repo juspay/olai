@@ -5,7 +5,6 @@ import { Given, Then } from "@olai/tests/harness/runner.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 import { TESTID } from "olai-plugin-chat/testids"
 
-// The harness places each scratch serve's XDG directories beside its vault.
 const runtime = (world: OlaiWorld) => join(`${world.scratch()}.xdg`, "runtime")
 const probes = (world: OlaiWorld): Array<{ args: string[]; pid: number }> =>
   readFileSync(join(runtime(world), "browser-probes.log"), "utf8").trim().split("\n").map(line => JSON.parse(line))

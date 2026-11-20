@@ -14,13 +14,10 @@ export { faces, surface } from "./wire.ts"
 
 type Ctx = SurfaceCtx<typeof surface.spec>
 
-/** What the pane says when this serve has no Chromium to show. */
 export const ABSENT_WHY =
   "No browser is configured for olai: OLAI_BROWSER_CHROMIUM is empty, so each conversation's browser tools launch an isolated browser of their own that olai cannot show."
 
 /**
- * THE BROWSING ROW, which now OWNS the browser its agents use.
- *
  * Teardown runs in the reverse of the order below, and that order is the
  * point: the session-start registration goes first so no new conversation
  * asks; the probe gate then refuses late callers and joins running probes
@@ -44,11 +41,8 @@ export default definePlugin({
     const surfaces = yield* Surfaces
     const output = yield* openScratch(env.vars["XDG_RUNTIME_DIR"])
     const chromium = env.vars["OLAI_BROWSER_CHROMIUM"]?.trim() || null
-    // Read as the person set it, never inferred from the host.
     const sandbox = sandboxFlags(env.vars[SANDBOX_KNOB])
 
-    // Filled the moment core mints this sibling's write face. Until then the
-    // members answer from the owner's own state, which is what they read.
     let mine: Ctx | undefined
     const live = yield* openLive({
       chromium,
@@ -95,7 +89,6 @@ export default definePlugin({
         mine = bound as Ctx
       },
     })
-    // Env supplies runtime placement, as it does for mail; it is not a row knob.
     const ask = yield* ownProbe(Effect.scoped(probing(env.vars, output, 5_000, chromium === null ? null : live.attach)))
     yield* opening.ask(ask)
   }),

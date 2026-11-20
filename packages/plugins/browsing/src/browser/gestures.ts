@@ -1,13 +1,3 @@
-/**
- * FROM A GESTURE ON THE PICTURE TO A GESTURE ON THE PAGE — pure arithmetic and
- * spelling, so a unit test holds it without a DOM.
- *
- * The picture is a JPEG of the page's viewport, scaled to fit the pane. A
- * pointer's offset into the drawn picture, as a fraction of its drawn size, is
- * the same fraction of the viewport the frame was painted at — which the frame
- * carries as `deviceWidth` × `deviceHeight` CSS px — and CDP takes mouse
- * coordinates in exactly those CSS px.
- */
 import type { FrameMeta, InputEvent } from "../wire.ts"
 
 export interface Box {
@@ -31,7 +21,6 @@ interface Mods {
   readonly shiftKey: boolean
 }
 
-/** CDP's modifier bits: Alt 1, Ctrl 2, Meta 4, Shift 8. */
 export const modifiersOf = (event: Mods): number =>
   (event.altKey ? 1 : 0) | (event.ctrlKey ? 2 : 0) | (event.metaKey ? 4 : 0) | (event.shiftKey ? 8 : 0)
 
@@ -55,9 +44,6 @@ export const mouseOf = (
   deltaY: delta.deltaY,
 })
 
-/** What a key TYPES, for CDP's `text`: the printable key itself, Enter's
- *  carriage return, nothing for the rest — and nothing at all while Ctrl or
- *  Meta is held, because those chords are commands rather than characters. */
 export const textOf = (event: Mods & { readonly key: string }): string => {
   if (event.ctrlKey || event.metaKey) return ""
   if (event.key === "Enter") return "\r"
@@ -77,18 +63,12 @@ export const keyOf = (
   modifiers: modifiersOf(event),
 })
 
-/** Is this key the pane's own rather than the page's? Escape hands the keys
- *  back, and a paste chord is left to the browser so its `paste` event can
- *  carry the clipboard as text. */
 export const keptByPane = (event: Mods & { readonly key: string }): "release" | "paste" | null => {
   if (event.key === "Escape") return "release"
   if ((event.ctrlKey || event.metaKey) && (event.key === "v" || event.key === "V")) return "paste"
   return null
 }
 
-/** The address bar is a gesture too: make an absolute URL out of what a
- *  person typed. Words that are not one are searched (`browsing.md` names
- *  the engine). The server navigates to exactly what it is handed. */
 export const addressOf = (typed: string): string => {
   const text = typed.trim()
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(text) || /^(about|data|blob|javascript|view-source|mailto):/i.test(text)) return text

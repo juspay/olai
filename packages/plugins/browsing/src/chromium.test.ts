@@ -12,8 +12,6 @@ test("a Chromium that aborts is reported with its FATAL line, however long the t
   const dir = mkdtempSync(join(tmpdir(), "chromium-test-"))
   dirs.push(dir)
   const exe = join(dir, "chrome")
-  // The shape GitHub's builder produced: the reason first, then kilobytes of
-  // stack trace and registers, then SIGABRT.
   writeFileSync(exe, `#!/bin/sh
 if [ "$1" = "--version" ]; then echo "Chromium 149.0.7827.55"; exit 0; fi
 echo "[1:1:FATAL:zygote_host_impl_linux.cc(132)] No usable sandbox! Update your kernel or see the docs." >&2
@@ -25,7 +23,6 @@ kill -ABRT $$
   expect(failure.why).toContain("Chromium was stopped by SIGABRT before opening DevTools.")
   expect(failure.why).toContain("FATAL:zygote_host_impl_linux.cc(132)] No usable sandbox!")
   expect(failure.why).toContain("[end of stack trace]")
-  // ...and names the one switch that answers it.
   expect(failure.why).toContain("set OLAI_BROWSER_CHROMIUM_SANDBOX=container")
   expect(failure.why.length).toBeLessThan(1500)
 })
@@ -37,7 +34,6 @@ test("olai's own launch keeps Chromium's sandbox; only the check's option drops 
 test("the sandbox knob is chromium unless it says container, and anything else is a sentence", () => {
   for (const value of [undefined, "", " chromium "]) expect(sandboxFlags(value)).toEqual([])
   expect(sandboxFlags("container")).toEqual(WITHOUT_ITS_OWN_SANDBOX)
-  // The YAML 1.1 booleans are refused by name, never read as either word.
   for (const value of ["on", "off", "yes", "no", "true", "false", "Container"]) {
     const answer = sandboxFlags(value)
     expect("why" in answer).toBe(true)
@@ -64,7 +60,6 @@ test("the version is read from what --version prints, whichever build printed it
 })
 
 test("the user agent is a headed Chrome's, in the reduced format, for each platform", () => {
-  // Measured: what the pinned Chromium announces headless on Linux.
   const headless = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36"
   expect(headedUserAgent(149, "linux")).toBe(headless.replace("HeadlessChrome/", "Chrome/"))
   expect(headedUserAgent(149, "darwin")).toBe("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36")
