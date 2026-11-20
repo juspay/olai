@@ -23,7 +23,7 @@ export const openServerSection = async (world: OlaiWorld): Promise<Locator> => {
   return section
 }
 
-export const shownLine = async (world: OlaiWorld, name: string): Promise<Locator> => {
+export const rowWithGroupOpen = async (world: OlaiWorld, name: string): Promise<Locator> => {
   const row = world.pluginsPanel().locator(`[data-testid="prefs-row"]${attr("data-pref", `plugin-${name}`)}`)
   await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT })
   const opened = await row.evaluate((el) => {
@@ -38,22 +38,22 @@ export const shownLine = async (world: OlaiWorld, name: string): Promise<Locator
   return row
 }
 
-export const expandedRow = async (world: OlaiWorld, name: string): Promise<Locator> => {
+export const rowWithDetailOpen = async (world: OlaiWorld, name: string): Promise<Locator> => {
   if (name === "olai") return openServerSection(world)
   await world.waitUntil(async () => {
-    const toggle = (await shownLine(world, name)).locator(ROW_TOGGLE)
+    const toggle = (await rowWithGroupOpen(world, name)).locator(ROW_TOGGLE)
     if (await toggle.count() === 0) return true
     if (await toggle.getAttribute("aria-expanded") === "true") return true
     await toggle.click({ timeout: 2000 }).catch(() => undefined)
     return await toggle.getAttribute("aria-expanded").catch(() => null) === "true"
   }, `the ${name} row to show its detail`)
-  return shownLine(world, name)
+  return rowWithGroupOpen(world, name)
 }
 
 const SESSION_SAID = "Resets when olai restarts"
 
 const control = async (world: OlaiWorld, name: string, key: string): Promise<Locator> =>
-  (await expandedRow(world, name)).locator(`${selector(TESTID.pluginKnob)}${attr("data-config", key)}`)
+  (await rowWithDetailOpen(world, name)).locator(`${selector(TESTID.pluginKnob)}${attr("data-config", key)}`)
 const held = new WeakMap<OlaiWorld, { file: string; contents: string; pid: number | undefined }>()
 
 When("I remember the settings file {string}", function(this: OlaiWorld, file: string) {
@@ -71,7 +71,7 @@ Then("the same serve process is running", function(this: OlaiWorld) {
   assert.equal(this.ownServer?.exitCode, null)
 })
 Then("the plugin {string} line reads {string} beside its labelled enable switch", async function(this: OlaiWorld, name: string, label: string) {
-  const row = await shownLine(this, name)
+  const row = await rowWithGroupOpen(this, name)
   const line = row.locator(".plugins-line")
   await this.waitUntil(async () => (await line.locator(".plugins-name-text").innerText()).trim() === label,
     `the ${name} line to read ${JSON.stringify(label)}`)
@@ -185,7 +185,7 @@ Then("the plugin {string} has a session-only switch ring", async function(this: 
   await this.waitUntil(async () => (await toggle.getAttribute("aria-label") ?? "").endsWith(SESSION_SAID), "the session switch")
   assert.equal(await toggle.evaluate(el => getComputedStyle(el, "::before").borderTopStyle), "dashed")
   assert.ok(!(await row.locator(".plugins-line").innerText()).includes("restarts"))
-  const opened = await expandedRow(this, name)
+  const opened = await rowWithDetailOpen(this, name)
   await this.waitUntil(async () => (await opened.locator(".plugins-note").allInnerTexts()).includes("This switch resets when olai restarts."),
     `the ${name} detail to say its switch is session-only`)
 })
@@ -283,7 +283,7 @@ Given("the roster includes wrapper and operator environment readings", async fun
   })
 })
 Then("the panel hides wrapper defaults and shows operator environment readings", async function(this: OlaiWorld) {
-  const row = await expandedRow(this, "codex")
+  const row = await rowWithDetailOpen(this, "codex")
   await this.waitUntil(async () => (await row.innerText()).includes("/nix/store/operator/bin/tool"), "the operator reading")
   assert.equal(await row.locator('[data-config="WRAPPED_BIN"]').count(), 0)
   assert.ok(!(await row.innerText()).includes("/nix/store/build-default"))

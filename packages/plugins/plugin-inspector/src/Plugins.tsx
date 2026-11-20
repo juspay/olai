@@ -1,5 +1,5 @@
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
-import { BarDoor } from "olai-plugin-layout/bar-door"
+import { createBarDoor } from "olai-plugin-layout/bar-door"
 import type { ToolWhere } from "olai-plugin-layout/contract"
 
 
@@ -14,13 +14,13 @@ export function Plugins(props: {
   readonly rows: () => ReadonlyMap<string, PluginsRowFace>
   readonly where?: ToolWhere
 }) {
+  const Door = createBarDoor(props.state.door)
   return (
-    <BarDoor
+    <Door
       where={props.where}
       glyph="⧉"
       name="Plugins"
       testid={TESTID.pluginsTrigger}
-      held={props.state.door}
       panel={(_at, inside) => <Panel inside={inside} state={props.state} management={props.management} rows={props.rows} />}
     />
   )

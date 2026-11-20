@@ -3,7 +3,7 @@ import { NO_ROSTER } from "@olai/surface"
 import type { BrowserManagement } from "@olai/surface/management"
 import { Row } from "@olai/ui-primitives/SettingRow.tsx"
 import { Control } from "./contracts/Control.tsx"
-import { configurationFrozen, labelOf, promotedValues, rowValues } from "./rows.ts"
+import { knobFrozen, labelOf, promotedValues, rowValues } from "./rows.ts"
 
 export function PromotedRows(props: {
   readonly plugin: string
@@ -15,7 +15,7 @@ export function PromotedRows(props: {
     const row = plugin()
     return row === undefined ? [] : promotedValues(rowValues(row))
   }
-  const frozen = () => configurationFrozen(roster() ?? NO_ROSTER, props.management.changing())
+  const frozen = () => knobFrozen(roster() ?? NO_ROSTER, props.management.changing())
   return (
     <Show when={plugin()?.running === true}>
       <For each={values().map((one) => one.key)}>{key => {

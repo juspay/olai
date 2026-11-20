@@ -5,7 +5,7 @@ import { BOX_NAME } from "@olai/tests/harness/hooks.ts"
 import { selector } from "@olai/web/testlib"
 import { attr, POLL_TIMEOUT, PREFS_ROW, type OlaiWorld } from "@olai/tests/harness/world.ts"
 import type { Locator } from "@olai/tests/harness/playwright.ts"
-import { expandedRow, openServerSection, ROW_TOGGLE, serverSection, shownLine } from "./settings_panel_steps.ts"
+import { openServerSection, ROW_TOGGLE, rowWithDetailOpen, rowWithGroupOpen, serverSection } from "./settings_panel_steps.ts"
 
 const NEEDS_ATTENTION = "Needs attention"
 
@@ -18,14 +18,14 @@ const groupAt = (world: OlaiWorld, section: string): Locator =>
 const detailOf = (row: Locator): Locator => row.locator(".plugins-detail-wrap")
 
 When("I expand the plugin {string}", async function (this: OlaiWorld, name: string) {
-  const row = await expandedRow(this, name)
+  const row = await rowWithDetailOpen(this, name)
   assert.equal(await row.locator(ROW_TOGGLE).count(), 1, `the ${name} row has no chevron to press`)
   await detailOf(row).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 })
 
 When("I collapse the plugin {string}", async function (this: OlaiWorld, name: string) {
   await this.waitUntil(async () => {
-    const toggle = (await shownLine(this, name)).locator(ROW_TOGGLE)
+    const toggle = (await rowWithGroupOpen(this, name)).locator(ROW_TOGGLE)
     if (await toggle.getAttribute("aria-expanded") === "false") return true
     await toggle.click({ timeout: 2000 }).catch(() => undefined)
     return await toggle.getAttribute("aria-expanded").catch(() => null) === "false"
@@ -51,7 +51,7 @@ Then("the plugin {string} is collapsed", async function (this: OlaiWorld, name: 
 })
 
 Then("the plugin {string} has nothing to reveal", async function (this: OlaiWorld, name: string) {
-  const row = await shownLine(this, name)
+  const row = await rowWithGroupOpen(this, name)
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   await this.waitUntil(async () => await row.locator(ROW_TOGGLE).count() === 0, `the ${name} row to draw no chevron button`)
   assert.equal(await row.locator(".plugins-line button.plugins-name").count(), 0)

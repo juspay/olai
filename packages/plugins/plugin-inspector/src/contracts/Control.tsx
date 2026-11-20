@@ -1,7 +1,7 @@
 import { createEffect, createSignal, For, onCleanup, Show, Switch, Match } from "solid-js"
 import type { BrowserManagement } from "@olai/surface/management"
 import { run } from "@olai/web/client/run.ts"
-import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
+import { takingOfflineFocus as appTakingFocus } from "@olai/web/client/connection/focus.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { TESTID } from "../testids.ts"
 import { configurationAuthored, controlOf, labelOf, knobLabel, knobUnit, knobWidth, knobAuthored, type PolicyReading } from "./knobs.ts"
@@ -44,10 +44,10 @@ export function Control(props: {
     })
   }
   const saveDraft = () => { if (edited() !== undefined) save(draft()) }
-  const leaving = (event: FocusEvent) =>
-    event.relatedTarget !== reset && !takingOfflineFocus()
-  // Bound natively on the input: Solid's delegated listener runs at document,
-  // where the popover's Escape dismissal would already have spent the key.
+  const userLeaving = (event: FocusEvent) =>
+    event.relatedTarget !== reset && !appTakingFocus()
+  // Bound natively (`on:`) because solid-js delegates keydown at document,
+  // where @kobalte/core's createEscapeKeyDown dismissal already spent Escape.
   const keyboard = (event: KeyboardEvent) => {
     if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); saveDraft() }
     if (event.key === "Escape") {
@@ -96,7 +96,7 @@ export function Control(props: {
                 step={metadata()?.kind === "number" && (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).integer ? 1 : "any"}
                 placeholder={metadata()?.kind === "text" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "text" }>).expected : undefined}
                 onInput={event => { setDraft(event.currentTarget.value); setRefused(undefined) }}
-                onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
+                onBlur={event => { if (userLeaving(event)) saveDraft() }} on:keydown={keyboard} />
             </Tip>
             <Show when={metadata()?.kind === "number" && knobUnit(props.value.key)}>{unit => <span class="plugins-knob-key">{unit()}</span>}</Show>
           </Match>

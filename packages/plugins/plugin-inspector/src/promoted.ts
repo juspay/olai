@@ -15,43 +15,52 @@ export interface HeldHeadings {
 
 type Owner = Pick<LocationOwner, "contribute">
 
+interface HeldHeading {
+  readonly release: Effect.Effect<void>
+}
+
+const holdHeading = (
+  slots: Owner,
+  sections: Location<Section>,
+  plugin: string,
+  of: HeadingOf,
+): Effect.Effect<HeldHeading | undefined> => Effect.gen(function*() {
+  const scope = yield* Scope.make()
+  const claimed = yield* Scope.provide(
+    slots.contribute(sections, {
+      heading: of.heading(plugin),
+      order: 0,
+      scope: "shared",
+      body: of.body(plugin),
+    }, { key: plugin }),
+    scope,
+  ).pipe(Effect.exit)
+  if (Exit.isFailure(claimed)) {
+    yield* Scope.close(scope, claimed)
+    yield* Effect.logError(`olai: the heading for "${plugin}" could not be claimed; the next frame tries it again`, claimed.cause)
+    return undefined
+  }
+  return { release: Scope.close(scope, Exit.void) }
+})
+
 export const heldHeadings = (slots: Owner, sections: Location<Section>): HeldHeadings => {
-  const held = new Map<string, Scope.Closeable>()
-  /** A claim that failed may not keep its scope (nothing would ever close it) and
-   *  may not enter `held` (the plugin would never be retried). */
-  const claim = (plugin: string, of: HeadingOf): Effect.Effect<void> => Effect.gen(function*() {
-    const scope = yield* Scope.make()
-    const claimed = yield* Scope.provide(
-      slots.contribute(sections, {
-        heading: of.heading(plugin),
-        order: 0,
-        scope: "shared",
-        body: of.body(plugin),
-      }, { key: plugin }),
-      scope,
-    ).pipe(Effect.exit)
-    if (Exit.isFailure(claimed)) {
-      yield* Scope.close(scope, claimed)
-      yield* Effect.logError(`olai: the heading for "${plugin}" could not be claimed; the next frame tries it again`, claimed.cause)
-      return
-    }
-    held.set(plugin, scope)
-  })
+  const held = new Map<string, HeldHeading>()
   return {
     reconcile: (wanted, of) => Effect.gen(function*() {
-      for (const [plugin, scope] of [...held]) {
+      for (const [plugin, heading] of [...held]) {
         if (wanted.includes(plugin)) continue
         held.delete(plugin)
-        yield* Scope.close(scope, Exit.void)
+        yield* heading.release
       }
       for (const plugin of wanted) {
         if (held.has(plugin)) continue
-        yield* claim(plugin, of)
+        const heading = yield* holdHeading(slots, sections, plugin, of)
+        if (heading !== undefined) held.set(plugin, heading)
       }
     }),
     close: Effect.suspend(() => Effect.forEach(
-      [...held].map(([, scope]) => scope),
-      (scope) => Scope.close(scope, Exit.void),
+      [...held.values()],
+      (heading) => heading.release,
       { discard: true },
     )),
   }

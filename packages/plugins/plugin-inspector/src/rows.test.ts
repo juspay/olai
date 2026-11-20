@@ -483,13 +483,13 @@ test("a promoted leaf leaves the row's controls only while Preferences can draw 
   expect(rowSettings(git, there).link).toBe(true)
   expect(rowSettings(git, undefined).link).toBe(false)
   const promoted: BuiltPlugin = { ...git, configurationValues: [git.configurationValues![0]!] }
-  expect(rowSettings(promoted, there).allAway).toBe(true)
-  expect(rowSettings(git, there).allAway).toBe(false)
-  expect(rowSettings(promoted, undefined).allAway).toBe(false)
+  expect(rowSettings(promoted, there).nothingLeftHere).toBe(true)
+  expect(rowSettings(git, there).nothingLeftHere).toBe(false)
+  expect(rowSettings(promoted, undefined).nothingLeftHere).toBe(false)
   const plain: BuiltPlugin = { name: "kolu", running: true, state: "running",
     configurationValues: [{ key: "watch", value: "1m", setBy: "default", says: "how often" }] }
   expect(rowSettings(plain, there).knobs.map(one => one.key)).toEqual(["watch"])
-  expect(rowSettings(plain, there)).toMatchObject({ link: false, allAway: false })
+  expect(rowSettings(plain, there)).toMatchObject({ link: false, nothingLeftHere: false })
   expect(rowSettings({ ...git, running: false, state: "off" }, there).knobs.map(one => one.key)).toEqual(["commit", "log"])
   expect(promotedValues(rowValues({ name: "off", running: false, state: "off" }))).toEqual([])
 })

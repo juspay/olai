@@ -12,10 +12,10 @@ export type PluginPick = "on" | "off"
 
 export const pluginSwitch = (
   plugin: BuiltPlugin,
-  flipping: boolean,
+  frozen: boolean,
 ): { readonly value: PluginPick; readonly frozen: boolean } => ({
   value: plugin.running ? "on" : "off",
-  frozen: flipping,
+  frozen,
 })
 
 export type TabPart = { readonly component: string | undefined; readonly report: RowReport }
@@ -106,17 +106,17 @@ const CONDITION_SAID: { readonly [K in ConditionKind]: (condition: Extract<RowCo
 export const conditionSaid = (condition: RowCondition): string | null =>
   (CONDITION_SAID[condition.kind] as (condition: RowCondition) => string | null)(condition)
 
-const carries = (plugin: BuiltPlugin, named: (name: string) => string): string | undefined =>
-  plugin.carrying === undefined || plugin.carrying.length === 0
-    ? undefined
-    : plugin.carrying.map(named).join(", ")
+const carriedRowsPhrase = (plugin: BuiltPlugin, named: (name: string) => string): string | undefined => {
+  const carried = (plugin.carrying ?? []).map(named)
+  return carried.length === 0 ? undefined : carried.join(", ")
+}
 
 export const pluginConfirm = (
   plugin: BuiltPlugin,
   look: (name: string) => PluginLook = () => ({}),
   roster: PluginRoster = { built: [] },
 ): string | null => {
-  const carry = carries(plugin, (name) => displayName(roster.built.find((one) => one.name === name) ?? { name, running: false }, look(name)))
+  const carry = carriedRowsPhrase(plugin, (name) => displayName(roster.built.find((one) => one.name === name) ?? { name, running: false }, look(name)))
   if (carry !== undefined) return `Turning it off also stops ${carry}.`
   return look(plugin.name).switchHint ?? null
 }
@@ -239,12 +239,10 @@ export const promotedValues = (values: ReadonlyArray<PolicyReading>): ReadonlyAr
 export const promotingPlugins = (roster: PluginRoster): ReadonlyArray<string> =>
   pluginRows(roster).filter((plugin) => plugin.running && promotedValues(rowValues(plugin)).length > 0).map((plugin) => plugin.name)
 
-/** ONE reading — two places ask it (the row itself and the inspector's own
- *  `open(name)`) and they may not disagree. */
 export interface RowSettings {
   readonly knobs: ReadonlyArray<PolicyReading>
   readonly link: boolean
-  readonly allAway: boolean
+  readonly nothingLeftHere: boolean
 }
 
 export const rowSettings = (plugin: BuiltPlugin, preferences: PreferencesPanel | undefined): RowSettings => {
@@ -252,10 +250,15 @@ export const rowSettings = (plugin: BuiltPlugin, preferences: PreferencesPanel |
   const promoted = promotedValues(values)
   const away = plugin.running && preferences !== undefined && promoted.length > 0
   const knobs = away ? values.filter((one) => one.preference !== true) : values
-  return { knobs, link: away, allAway: away && knobs.length === 0 }
+  return { knobs, link: away, nothingLeftHere: away && knobs.length === 0 }
 }
 
-export const configurationFrozen = (roster: PluginRoster, changing: boolean): string | undefined =>
+const configurationUnwritable = (roster: PluginRoster): string | undefined =>
   roster.configurationAvailable !== true ? configurationUnavailable
     : roster.configurationError !== undefined ? configurationBroken(roster.configurationFile)
-    : changing ? "Applying the change…" : undefined
+    : undefined
+
+const ROSTER_SWAPPING = "Applying the change…"
+
+export const knobFrozen = (roster: PluginRoster, rosterSwapping: boolean): string | undefined =>
+  configurationUnwritable(roster) ?? (rosterSwapping ? ROSTER_SWAPPING : undefined)

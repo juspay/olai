@@ -1,7 +1,7 @@
-import { heldFaces } from "@olai/plugin-api"
+import { singleConsumerFaces } from "@olai/plugin-api"
 import type { PluginsRowFace } from "./slots.ts"
 
-const faces = heldFaces()
+const faces = singleConsumerFaces()
 
 export const holdRowFaces = faces.hold
 

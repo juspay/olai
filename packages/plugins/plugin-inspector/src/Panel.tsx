@@ -30,7 +30,7 @@ import {
   CONDITION_TONE,
   CONDITION_WORDS,
   conditionSaid,
-  configurationFrozen,
+  knobFrozen,
   configurationLinkLabel,
   displayName,
   enableLabel,
@@ -52,7 +52,6 @@ import {
 } from "./rows.ts"
 import { preferencesPanel } from "./preferences-door.ts"
 
-/** The reveal that calls this must DEFER it: it runs while this panel is being mounted. */
 const intoPreferences = (state: InspectorState): void => {
   state.door.setOpen(false)
   preferencesPanel()?.open()
@@ -67,7 +66,7 @@ export function Panel(props: {
   const roster = props.management.roster()
   const plugins = (): PluginRoster => roster() ?? NO_ROSTER
   const rows = createMemo(() => pluginRows(plugins()))
-  const frozen = () => configurationFrozen(plugins(), props.management.changing())
+  const frozen = () => knobFrozen(plugins(), props.management.changing())
   const rowFaces = createMemo(() => props.rows(), undefined, { equals: (a, b) => a.size === b.size && [...a].every(([key, value]) => b.get(key) === value) })
   const groups = createMemo(() => pluginGroups(
     plugins(),
@@ -84,13 +83,13 @@ export function Panel(props: {
     props.state.setGroupOpen(label, open)
   }
 
-  const [flipping, setFlipping] = createSignal<string | null>(null)
+  const [pressInFlight, setPressInFlight] = createSignal<string | null>(null)
   const [confirming, setConfirming] = createSignal<string | null>(null)
 
   const [refused, setRefused] = createSignal<string | null>(null)
 
   const set = (name: string, pick: PluginPick): void => {
-    if (flipping() !== null || props.management.changing()) return
+    if (pressInFlight() !== null || props.management.changing()) return
     const group = groups().find((one) => one.rows.some((row) => row.name === name))
     if (group !== undefined) props.state.setGroupOpen(group.label, true)
     if (pick === "off") {
@@ -103,15 +102,15 @@ export function Panel(props: {
       }
     }
     setConfirming(null)
-    setFlipping(name)
+    setPressInFlight(name)
     setRefused(null)
     run(
       props.management.set(name, pick === "on"),
       (failure) => {
-        setFlipping(null)
+        setPressInFlight(null)
         setRefused(failure.message)
       },
-      () => setFlipping(null),
+      () => setPressInFlight(null),
     )
   }
 
@@ -171,7 +170,7 @@ export function Panel(props: {
                 <For each={group.rows}>{plugin => <PluginRow plugin={plugin}
                   face={rowFaces().get(plugin.name)} needs={group.needs}
                   requested={requested(plugin.name)} group={group.label}
-                  panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}</For>
+                  panel={props} plugins={plugins} pressInFlight={pressInFlight} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}</For>
               </div>
             </details>
           </section>
@@ -245,7 +244,7 @@ function PluginRow(props: {
     readonly management: BrowserManagement
   }
   readonly plugins: () => PluginRoster
-  readonly flipping: () => string | null
+  readonly pressInFlight: () => string | null
   readonly confirming: () => string | null
   readonly dismissConfirm: () => void
   readonly set: (name: string, pick: PluginPick) => void
@@ -253,9 +252,9 @@ function PluginRow(props: {
   readonly approving: () => string | null
 }) {
   const plugin = (): BuiltPlugin => props.plugin
-  const drawn = createMemo((): RowSettings => rowSettings(plugin(), preferencesPanel()))
+  const shownSettings = createMemo((): RowSettings => rowSettings(plugin(), preferencesPanel()))
   const look = () => props.panel.management.look(plugin().name)
-  const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
+  const strip = () => pluginSwitch(plugin(), props.pressInFlight() === plugin().name || props.panel.management.changing())
   const shown = () => displayName(plugin(), look())
   const condition = createMemo(() => rowCondition(plugin(), props.panel.management.reports(), props.face?.needs() === true))
   const copy = () => { const now = condition(); return now === null ? null : conditionSaid(now) }
@@ -265,7 +264,7 @@ function PluginRow(props: {
   const environment = createMemo(() => (plugin().environment ?? []).filter(environmentVisible))
   const broken = () => condition()?.kind === "tabFailed"
   const reveals = createMemo(() => copy() !== null || props.face !== undefined || broken() || plugin().source !== undefined ||
-    drawn().knobs.length > 0 || drawn().link || environment().length > 0 || session() ||
+    shownSettings().knobs.length > 0 || shownSettings().link || environment().length > 0 || session() ||
     (plugin().configurationNode !== undefined && Boolean(props.panel.state.file())))
   const open = () => reveals() && (props.panel.state.expanded()[plugin().name] ?? props.needs)
   let row: HTMLDivElement | undefined
@@ -274,15 +273,15 @@ function PluginRow(props: {
     const name = plugin().name
     let active = true
     onCleanup(() => { active = false })
-    const away = drawn().allAway
-    if (!away) {
+    const nothingLeftHere = shownSettings().nothingLeftHere
+    if (!nothingLeftHere) {
       props.panel.state.setGroupOpen(props.group, true)
       props.panel.state.setExpanded(name, true)
     }
     queueMicrotask(() => {
       if (!active || props.panel.state.requested() !== name) return
       props.panel.state.revealed(name)
-      if (away) { intoPreferences(props.panel.state); return }
+      if (nothingLeftHere) { intoPreferences(props.panel.state); return }
       row?.scrollIntoView({ block: "nearest" })
       ;(row?.querySelector<HTMLElement>(".plugins-detail :is(input, select, button)") ?? row?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true })
     })
@@ -353,8 +352,8 @@ function PluginRow(props: {
           />
         </Show>
         <dl class="plugins-detail">
-          <Controls name={plugin().name} values={drawn().knobs} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
-          <Show when={drawn().link}>
+          <Controls name={plugin().name} values={shownSettings().knobs} configure={props.panel.management.configure} frozen={knobFrozen(props.plugins(), props.panel.management.changing())} />
+          <Show when={shownSettings().link}>
             <dt>Preferences</dt>
             <dd>
               <button type="button" class="plugins-link" data-testid={TESTID.pluginPreferenceLink}
