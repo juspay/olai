@@ -113,8 +113,66 @@ const stills = async (): Promise<void> => {
   await browser.close()
 }
 
+const recording = async (): Promise<void> => {
+  const base = env("BASE")
+  const raw = env("RAW")
+  const plumber = EXCHANGES.find((exchange) => exchange.line === "done plumber")
+  if (plumber === undefined) throw new Error("tour-agent.ts has no exchange for the plumber")
+  const viewport = { width: 1280, height: 800 }
+  const browser = await chromium.launch({ args: [...BROWSER_ARGS] })
+  const context = await browser.newContext({ viewport, recordVideo: { dir: raw, size: { width: 1024, height: 640 } } })
+  const started = Date.now()
+  const page = await context.newPage()
+
+  await page.goto(`${base}/house.olai`)
+  await page.locator('[data-testid="outline-list"]').waitFor()
+  await page.mouse.move(1260, 780)
+  await page.waitForTimeout(800)
+  writeFileSync(join(raw, "lead"), String((Date.now() - started) / 1000))
+  await page.waitForTimeout(1200)
+
+  await page.getByRole("button", { name: "Collapse sidebar" }).click()
+  await page.waitForTimeout(800)
+  await page.getByRole("checkbox", { name: "Show finished" }).check()
+  await page.waitForTimeout(1200)
+
+  await page.getByText("Paint samples on the north wall", { exact: true }).click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("Choose the wall paint", { delay: 70 })
+  await page.mouse.click(900, 600)
+  await page.waitForTimeout(1500)
+
+  await page.getByRole("button", { name: "Start an agent" }).first().click()
+  await page.locator('[data-testid="chat-input"]').waitFor()
+  await page.waitForTimeout(2500)
+  await page.getByRole("button", { name: /Open beside/ }).first().click()
+  await page.waitForTimeout(2500)
+  const input = page.locator('[data-testid="chat-input"]').last()
+  await input.click()
+  await input.pressSequentially(plumber.said, { delay: 60 })
+  await page.waitForTimeout(500)
+  await page.keyboard.press("Enter")
+  await page.getByText(plumber.replyAs).first().waitFor({ timeout: 20_000 })
+  await page.mouse.move(1260, 780)
+  await page.waitForTimeout(3000)
+
+  await page.locator("header [data-health]").first().click()
+  await page.getByText(/uncommitted$/).first().click()
+  await page.getByText("Choose the wall paint").last().waitFor()
+  await page.mouse.move(1260, 780)
+  await page.waitForTimeout(4000)
+
+  const video = page.video()
+  await context.close()
+  if (video === null) throw new Error("Playwright recorded no video")
+  await video.saveAs(join(raw, "take.webm"))
+  await browser.close()
+}
+
 const [mode, ...rest] = process.argv.slice(2)
 if (mode === "shift" && rest[0] !== undefined) shiftDates(rest[0])
 else if (mode === "card" && rest[0] !== undefined && rest[1] !== undefined) await card(rest[0], rest[1])
 else if (mode === "stills") await stills()
-else throw new Error("usage: bun tour.ts shift <dir> | card <html> <png> | stills")
+else if (mode === "recording") await recording()
+else throw new Error("usage: bun tour.ts shift <dir> | card <html> <png> | stills | recording")

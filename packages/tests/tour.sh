@@ -39,7 +39,7 @@ under_root() {
 tour() {
   local mode=$1
   root=$(mktemp -d /tmp/olai-tour.XXXXXX)
-  mkdir -p "$root"/{vault,home,state,config,data,cache,out}
+  mkdir -p "$root"/{vault,home,state,config,data,cache,out,raw}
   mkdir -m 700 "$root/runtime"
 
   cp -R fixtures/tour/. "$root/vault"
@@ -77,21 +77,47 @@ tour() {
     olai_serve "$repo" "$root/vault" "$root/server.log"
   echo "server:  $OLAI_URL"
 
-  BASE="$OLAI_URL" OUT="$root/out" bun tour.ts "$mode"
+  BASE="$OLAI_URL" OUT="$root/out" RAW="$root/raw" bun tour.ts "$mode"
+  if [ "$mode" = recording ]; then encode "$root/raw" "$root/out"; fi
   mkdir -p "$public/tour"
   cp "$root/out"/* "$public/tour/"
   stop
 }
 
+within() {
+  local size
+  size=$(wc -c < "$1")
+  echo "$(basename "$1"): $size bytes"
+  if [ "$size" -gt "$2" ]; then
+    echo "$(basename "$1") is over the limit of $2 bytes" >&2
+    return 1
+  fi
+}
+
+encode() {
+  local raw=$1 out=$2 lead ffmpeg
+  ffmpeg=$(nix build --impure --expr "(import $repo/nix/nixpkgs.nix { }).ffmpeg.bin" --no-link --print-out-paths --accept-flake-config)/bin/ffmpeg
+  lead=$(cat "$raw/lead")
+  "$ffmpeg" -loglevel error -y -ss "$lead" -i "$raw/take.webm" -an \
+    -c:v libvpx-vp9 -b:v 0 -crf 36 -row-mt 1 "$out/tour.webm"
+  "$ffmpeg" -loglevel error -y -ss "$lead" -i "$raw/take.webm" -an \
+    -c:v libx264 -preset slow -crf 24 -pix_fmt yuv420p -movflags +faststart "$out/tour.mp4"
+  "$ffmpeg" -loglevel error -y -ss "$lead" -i "$raw/take.webm" -frames:v 1 "$out/tour-poster.png"
+  within "$out/tour.webm" 1048576
+  within "$out/tour.mp4" 1048576
+  within "$out/tour-poster.png" 204800
+}
+
 case $what in
   card) bun tour.ts card "$public/og.html" "$public/og.png" ;;
-  stills) tour stills ;;
+  stills | recording) tour "$what" ;;
   all)
     bun tour.ts card "$public/og.html" "$public/og.png"
     tour stills
+    tour recording
     ;;
   *)
-    echo "usage: tour.sh [card|stills]" >&2
+    echo "usage: tour.sh [card|stills|recording]" >&2
     exit 2
     ;;
 esac
