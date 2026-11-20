@@ -26,7 +26,7 @@ export const createNarrowing = (source: {
   readonly query: Accessor<Filter>
   readonly text: Accessor<string>
   readonly all: Accessor<Drawn>
-  readonly visible: Accessor<Drawn>
+  readonly afterDone: Accessor<Drawn>
   readonly matched: Accessor<Matches | undefined>
   readonly answering: Accessor<string | null>
 }): Narrowing => {
@@ -39,11 +39,11 @@ export const createNarrowing = (source: {
     return source.matched() ?? null
   })
 
-  const treeRows = createMemo(() => { const shown = source.visible(); return shown.kind === "tree" ? shown.rows : [] })
+  const treeRows = createMemo(() => { const shown = source.afterDone(); return shown.kind === "tree" ? shown.rows : [] })
   const matches = createMatchedRows(treeRows, selected)
   const drawn = createMemo(() => {
     const found = selected()
-    const shown = source.visible()
+    const shown = source.afterDone()
     return shown.kind === "tree" ? { ...shown, rows: matches() } : found === null ? shown : narrowed(shown, found)
   })
 
@@ -71,7 +71,7 @@ export const createNarrowing = (source: {
       return {
         shown,
         held: held(),
-        hiddenAsDone: source.all() === source.visible()
+        hiddenAsDone: source.all() === source.afterDone()
           ? 0
           : matchesIn(source.all(), found) - shown,
       }

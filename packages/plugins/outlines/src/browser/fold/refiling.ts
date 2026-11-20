@@ -16,12 +16,12 @@ export interface Asking {
 }
 
 export const createRefiling = (wire: Asking): void => {
-  let latest = 0
+  let newestAsked = 0
 
   const put = (memory: Memory): void => {
-    const mine = ++latest
+    const asked = ++newestAsked
     void wire.ask(askingOf(memory)).then((outcome) => {
-      if (mine !== latest) return
+      if (asked !== newestAsked) return
       if (Result.isFailure(outcome)) {
         console.warn(
           "olai: could not ask where the folded nodes now live, so this browser's fold memory is not being tidied —",

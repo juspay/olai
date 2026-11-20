@@ -1,17 +1,14 @@
 import { createRenderEffect, onCleanup } from "solid-js"
 import { useShown } from "olai-plugin-navigation/routing"
-/**
- * Kobalte's popper is `strategy: "absolute"` and cannot be talked out of it.
- * Mounted on `document.body`, that absolute box is positioned against the
- * document, so a scrolled page puts the menu a scroll-height below its
- * trigger. Mounted HERE, the same numbers are viewport coordinates.
- */
-
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 const socket = heldService<HTMLDivElement>()
 
+// Kobalte's popper is `strategy: "absolute"` and cannot be configured away.
+// Mounted on `document.body` that box is positioned against the document, so a
+// scrolled page puts the menu a scroll-height below its trigger; mounted on
+// this fixed socket the same numbers are viewport coordinates.
 export const openOverlaySocket = (): (() => void) => {
   const root = document.createElement("div")
   root.dataset.olaiOverlay = ""

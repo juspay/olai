@@ -1,3 +1,4 @@
+import type { Kind } from "../licences.ts"
 import type { JSX } from "solid-js"
 
 import type { Entry } from "olai-plugin-outlines/property-values"
@@ -32,9 +33,9 @@ export interface Dressing {
   readonly Block?: PropBlock
 }
 
-export type Dressings = (word: string) => Dressing | undefined
+export type Dressings = (word: Kind) => Dressing | undefined
 
-export type Licensed = (key: string, value: string) => string | undefined
+export type Licensed = (key: string, value: string) => Kind | undefined
 
 export const dressingFor = (
   entry: Entry,

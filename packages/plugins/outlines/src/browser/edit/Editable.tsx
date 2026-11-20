@@ -9,15 +9,6 @@ import type { Landing } from "../drag/plan.ts"
 import { anchorFor, nodeText } from "../drag/landing.ts"
 import { applying } from "../writes.ts"
 import { useUndo } from "./undoing.ts"
-/**
- * THE ORDER THE FIVE ARE MADE IN IS THE DEPENDENCY between them, and it is
- * one way: the selection and the move picker know nothing about the caret, the
- * editor hands the caret over to them for the four keys that leave a row (three
- * that pick, and `⌘⇧M`, which opens the picker), the drag reads the selection
- * to find out whether it is carrying one row or all of them, and the sweep
- * writes a run into it.
- */
-
 import { printAddress, type Row } from "@olai/format"
 import { type Accessor, createMemo, type JSX, onCleanup, onMount, Show } from "solid-js"
 
@@ -90,7 +81,7 @@ function EditablePage(props: EditableProps) {
     collapsed: page.collapsed,
     element: () => surface,
   }
-  useFields().join(field)
+  onCleanup(useFields().join(field))
   const undo = useUndo()
   const [foreign, setForeign] = createSignal<{ readonly kind: "drop"; readonly landing: Landing } | null>(null)
   createEffect(() => {

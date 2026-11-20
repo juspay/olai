@@ -1,5 +1,5 @@
 import type { Row } from "@olai/format"
-import { type Accessor, createContext, createSignal, onCleanup, useContext } from "solid-js"
+import { type Accessor, createContext, createSignal, useContext } from "solid-js"
 
 export interface Field {
   readonly file: string
@@ -10,7 +10,7 @@ export interface Field {
 }
 
 export interface Fields {
-  readonly join: (field: Field) => void
+  readonly join: (field: Field) => () => void
   readonly all: () => ReadonlyArray<Field>
 }
 
@@ -24,16 +24,12 @@ export const useFields = (): Fields => {
 
 export const FieldsProvider = FieldsContext.Provider
 
-/**
- * {@link Fields.join} MUST be called during a component's setup, because that is
- * where its `onCleanup` finds an owner.
- */
 export const createFields = (): Fields => {
   const [joined, setJoined] = createSignal<ReadonlyArray<Field>>([])
   return {
     join: (field) => {
       setJoined((were) => [...were, field])
-      onCleanup(() => setJoined((were) => were.filter((one) => one !== field)))
+      return () => setJoined((were) => were.filter((one) => one !== field))
     },
     all: joined,
   }

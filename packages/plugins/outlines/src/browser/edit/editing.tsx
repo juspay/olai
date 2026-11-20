@@ -175,27 +175,25 @@ export const createEditor = (
   }
   const undo = useUndo()
 
-  // Keep the write anchor authoritative, but retain its prior visual seat until
-  // the new anchor row is present.
-  const noAnchors = new Set<string>()
-  const present = createMemo(() => {
-    if (memory.placements().size === 0) return noAnchors
+  const NOTHING_DRAWN: ReadonlySet<string> = new Set()
+  const drawnIds = createMemo((): ReadonlySet<string> => {
+    if (memory.placements().size === 0) return NOTHING_DRAWN
     page.frames()
     return new Set(flatten(page.rows(), new Set()).map((row) => row.at.node.id))
   })
-  const displayAt = (at: Anchor): Anchor => walked(at, placements(), present())
-  const placements = createMemo(() => new Map([...memory.placements()].filter(([id]) => !present().has(id))))
+  const awaitedSeats = createMemo(() => new Map([...memory.placements()].filter(([id]) => !drawnIds().has(id))))
+  const displayAt = (at: Anchor): Anchor => walked(at, awaitedSeats(), drawnIds())
 
 
   const where = createMemo<Where>(() => {
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return { place: null, pending: seatOf(held, placements(), present()), field: null }
+      return { place: null, pending: seatOf(held, awaitedSeats(), drawnIds()), field: null }
     }
     const blank = ghostOf(held)
     if (blank === null) return { place: held.place, pending: null, field: held.field }
-    const at = seatKept(held.row, placements()) ?? { kind: "after", id: held.row }
+    const at = seatKept(held.row, awaitedSeats()) ?? { kind: "after", id: held.row }
     return { place: null, pending: besideOf(at), field: held.field }
   }, NOWHERE, {
     equals: (a, b) =>
@@ -273,7 +271,7 @@ export const createEditor = (
     if (done === null) return false
     batch(() => {
     if (current.kind === "new") {
-      memory.setPlacements((held) => new Map(placements()).set(done.id, current.at))
+      memory.setPlacements(() => new Map(awaitedSeats()).set(done.id, current.at))
     }
     setDraft((held) => (held === current ? landed(current, done.id, done.nudge) : held))
     if (current.kind === "new") {

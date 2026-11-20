@@ -8,6 +8,10 @@ import { HIT_CLASS, type Run } from "@olai/markdown-ui/lit.ts"
 import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 
+// Keyboard and assistive-technology activation reaches a click handler as a
+// synthesized `click` whose `detail` and `clientX` are both 0.
+const fromKeyboard = (event: MouseEvent): boolean => event.detail === 0
+
 export function NoteLine(props: {
   readonly runs: ReadonlyArray<Run>
   readonly hit?: boolean
@@ -23,12 +27,7 @@ export function NoteLine(props: {
         data-open="false"
         onClick={(event) => {
           event.stopPropagation()
-          // Keyboard and screen-reader activation has no x to measure: the
-          // synthesized click arrives with detail 0 and clientX 0, which
-          // would measure as offset 0 and land a keyboard reader at the head
-          // of a textarea instead of in the note they asked for. Their door
-          // stays the old gesture — the caller's `undefined` answer.
-          if (event.detail === 0) {
+          if (fromKeyboard(event)) {
             props.onOpen?.(undefined)
             return
           }

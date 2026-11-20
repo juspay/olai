@@ -31,6 +31,11 @@ const FOLDS_PAST = 56
 
 const SUMMARISED_AT = 40
 
+// Kobalte moves focus onto the pressed `•••` menu item as that menu closes,
+// after any microtask, so a microtask-scheduled focus is taken away one beat
+// later. A macrotask lands after it.
+const afterMicrotasks = (task: () => void): void => { setTimeout(task, 0) }
+
 export type SetProp = (key: string, value: string, was: string | null) => Promise<Said | undefined>
 
 export function PropsDrawer(props: {
@@ -446,15 +451,12 @@ function Box(props: {
       value={props.value}
       ref={(element) => {
         props.ref?.(element)
-        // A macrotask, not a microtask: Kobalte moves focus onto the pressed
-        // `•••` menu item as that menu closes, after any microtask, so a
-        // microtask focus is taken away one beat later.
-        setTimeout(() => {
+        afterMicrotasks(() => {
           if (props.focus === true) {
             element.focus()
             element.select()
           }
-        }, 0)
+        })
       }}
       onClick={(event) => event.stopPropagation()}
       onInput={(event) => {

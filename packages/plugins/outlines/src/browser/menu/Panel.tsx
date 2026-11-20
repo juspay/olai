@@ -53,11 +53,8 @@ export function Panel(props: {
         <RetainedContent draw={content => <DropdownMenu.SubContent
           {...{ [PAGE_SUBJECT]: String(here()) }}
           ref={(el: HTMLElement) => {
-            // Kobalte preventDefault's its own focus of the first row, and the
+            // Kobalte preventDefaults its own focus of the first row, and the
             // list's deferred autofocus is a timer the next key can beat.
-            // Focusing the row runs its own onFocus, which is what makes the
-            // following arrow move off it. A caret already inside the submenu
-            // is left where the arrows put it.
             const remembered = lastFocused
             focusMenuAfterMount(el, shown, () => {
               if (remembered?.isConnected) return remembered
@@ -77,9 +74,8 @@ export function Panel(props: {
           }}
           onFocusOutside={event => {
             event.preventDefault()
-            // Kobalte's SubContent calls close even after preventDefault.
-            // Keep that synchronous request from closing a retained submenu
-            // while its parent content shell restores focus on show.
+            // Kobalte's `SubContent` closes on a focus-outside even after the
+            // event has been prevented.
             focusOutside = true
             queueMicrotask(() => { focusOutside = false })
           }}

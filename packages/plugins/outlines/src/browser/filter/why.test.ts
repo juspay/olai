@@ -39,7 +39,7 @@ const page = (text: string): Narrowed =>
       query: () => parseFilter(text, TODAY),
       text: () => text,
       all: () => tree,
-      visible: () => tree,
+      afterDone: () => tree,
       matched: () => answered(derived, house, text, TODAY),
       answering: () => text.trim(),
     })

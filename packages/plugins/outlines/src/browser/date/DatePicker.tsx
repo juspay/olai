@@ -8,15 +8,18 @@ import type { Said } from "@olai/web/client/saying.ts"
 
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { PANEL_OUT } from "@olai/web/client/pill.ts"
-import { createSignal, Show } from "solid-js"
+import { Show } from "solid-js"
+import { createStore } from "solid-js/store"
 import { browserInstantAt, type Chosen, noticeOf, pressOf, valueOf } from "./pick.ts"
 
 const NO_TIME = "No time"
 
-const UNFINISHED = {
+type Box = keyof Chosen
+
+const UNFINISHED: Record<Box, string> = {
   day: "The day is not finished. Finish it, or empty it.",
   time: `The time is not finished. Finish it, or press ${NO_TIME}.`,
-} as const
+}
 
 const IDS = {
   panel: TESTID.datePicker,
@@ -34,17 +37,12 @@ export function DatePicker(props: {
   readonly onPick: (value: string) => Promise<Said | undefined>
   readonly onClose: () => void
 }) {
-  /**
-   * The platform reports a half-typed date/time box as having no value at all
-   * (`validity.badInput`), so it is read off the element instead, on every
-   * event a half-typed segment can arrive by: `input` where the engine sends
-   * one, and `keyup` for the arrow and digit keys that fill one segment
-   * without changing the value.
-   */
-  const [unfinishedDay, setUnfinishedDay] = createSignal(false)
-  const [unfinishedTime, setUnfinishedTime] = createSignal(false)
-  const incomplete = (): keyof typeof UNFINISHED | null =>
-    unfinishedDay() ? "day" : unfinishedTime() ? "time" : null
+  // `<input type="date">` and `type="time"` report a half-typed box as having
+  // no value at all, so what is typed is read off the element's
+  // `validity.badInput` on `input` and on `keyup` — the arrow and digit keys
+  // fill a segment without changing the value.
+  const [unfinished, setUnfinished] = createStore<Record<Box, boolean>>({ day: false, time: false })
+  const incomplete = (): Box | null => unfinished.day ? "day" : unfinished.time ? "time" : null
   let dayBox: HTMLInputElement | undefined
   let lastFocused: HTMLElement | undefined
   const shown = useShown()
@@ -53,15 +51,10 @@ export function DatePicker(props: {
     queueMicrotask(() => { if (shown()) (lastFocused ?? dayBox)?.focus({ preventScroll: true }) })
   })
   let timeBox: HTMLInputElement | undefined
-  const readDay = (element: HTMLInputElement): void => {
+  const read = (which: Box, element: HTMLInputElement): void => {
     const partial = element.validity.badInput
-    setUnfinishedDay(partial)
-    if (!partial) props.onChange({ ...props.chosen, day: element.value })
-  }
-  const readTime = (element: HTMLInputElement): void => {
-    const partial = element.validity.badInput
-    setUnfinishedTime(partial)
-    if (!partial) props.onChange({ ...props.chosen, time: element.value })
+    setUnfinished(which, partial)
+    if (!partial) props.onChange({ ...props.chosen, [which]: element.value })
   }
 
   const value = (): string | null =>
@@ -92,8 +85,8 @@ export function DatePicker(props: {
           value={props.chosen.day}
           ref={element => { dayBox = element }}
           onFocus={event => { lastFocused = event.currentTarget }}
-          onInput={(event) => readDay(event.currentTarget)}
-          onKeyUp={(event) => readDay(event.currentTarget)}
+          onInput={(event) => read("day", event.currentTarget)}
+          onKeyUp={(event) => read("day", event.currentTarget)}
         />
       </label>
       <label class="flex max-w-full flex-wrap items-center gap-2 text-label text-muted">
@@ -105,13 +98,11 @@ export function DatePicker(props: {
           value={props.chosen.time}
           ref={(element) => { timeBox = element }}
           onFocus={event => { lastFocused = event.currentTarget }}
-          onInput={(event) => readTime(event.currentTarget)}
-          onKeyUp={(event) => readTime(event.currentTarget)}
+          onInput={(event) => read("time", event.currentTarget)}
+          onKeyUp={(event) => read("time", event.currentTarget)}
         />
       </label>
-      {/* The platform's own time control has no clear affordance on most
-          engines — its fields are emptied one at a time with Backspace. */}
-      <Show when={props.chosen.time !== "" || unfinishedTime()}>
+      <Show when={props.chosen.time !== "" || unfinished.time}>
         <button
           type="button"
           class={PANEL_OUT}
@@ -119,7 +110,7 @@ export function DatePicker(props: {
           onClick={() => {
             if (timeBox !== undefined) timeBox.value = ""
             props.onChange({ ...props.chosen, time: "" })
-            setUnfinishedTime(false)
+            setUnfinished("time", false)
           }}
         >
           {NO_TIME}

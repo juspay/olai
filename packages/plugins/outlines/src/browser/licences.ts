@@ -3,10 +3,12 @@ import { createStore, reconcile } from "solid-js/store"
 import type { Licence, PageReading } from "@olai/format"
 import { type Accessor, createMemo, createRenderEffect } from "solid-js"
 
-export type Licences = (from: string, key: string, value: string) => string | undefined
+declare const declaredKind: unique symbol
+export type Kind = string & { readonly [declaredKind]: true }
 
-const at = (from: string, key: string, value: string): string =>
-  `${from}\u0000${key}\u0000${value}`
+export type Licences = (from: string, key: string, value: string) => Kind | undefined
+
+type Worded = Record<string, Record<string, Record<string, string>> | undefined>
 
 export const createLicences = (
   reading: Accessor<PageReading | undefined>,
@@ -22,12 +24,13 @@ export const createLicences = (
     undefined,
     { equals: sameLicences },
   )
-  const [table, setTable] = createStore<Record<string, string | undefined>>({})
+  const [table, setTable] = createStore<Worded>({})
   createRenderEffect(() => {
-    const next = Object.fromEntries(held().map(one => [at(one.from, one.prop, one.value), one.word]))
+    const next: Record<string, Record<string, Record<string, string>>> = {}
+    for (const one of held()) ((next[one.from] ??= {})[one.prop] ??= {})[one.value] = one.word
     setTable(reconcile(next))
   })
-  const lookup: Licences = (from, key, value) => table[at(from, key, value)]
+  const lookup: Licences = (from, key, value) => table[from]?.[key]?.[value] as Kind | undefined
   return () => lookup
 }
 

@@ -2,8 +2,6 @@ import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/
 import type { Ops as Gate } from "@olai/ops"
 import { Effect } from "effect"
 import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
-import type { Reading } from "@olai/format"
-import type { Snapshot } from "@olai/store"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
 import { surface, faces, resources } from "./surface.ts"
 import { tools } from "./tools.ts"
@@ -25,7 +23,7 @@ export default definePlugin({
     let held: Projection<OutlineEntry> | undefined
     const empty = new Map<string, OutlineEntry>()
     const revisions = inMemoryChannel<void>()
-    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.sync(() => {
+    yield* vault.revision(snapshot => Effect.sync(() => {
       const next = outlineProjection(snapshot, held)
       held = next
       for (const [key, value] of next.change.upserts) ctx?.collections.outlines.upsert(key, value)

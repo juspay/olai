@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test"
 
 import { dressingFor, type Dressing, type Dressings, layOut, type Licensed } from "./seam.ts"
 import type { Entry } from "olai-plugin-outlines/property-values"
+import type { Kind } from "../licences.ts"
 
 const entry = (over: Partial<Entry> = {}): Entry => ({
   key: "k",
@@ -21,7 +22,8 @@ const dressing = (table: Readonly<Record<string, Dressing>>): Dressings => (word
 
 const DRESSED = dressing({ built: BUILT, running: RUNNING })
 
-const claiming = (answers: Readonly<Record<string, string>>): Licensed => (key) => answers[key]
+const claiming = (answers: Readonly<Record<string, string>>): Licensed =>
+  (key) => answers[key] as Kind | undefined
 
 const DECLARED: Licensed = claiming({ pty: "built", checkout: "running" })
 
@@ -53,7 +55,7 @@ describe("which properties are live", () => {
 
   it("looks the licence up by the VALUE it is about, so two rows can differ", () => {
     const perValue: Licensed = (key, value) =>
-      key === "pty" && value === "c56b6183" ? "built" : undefined
+      key === "pty" && value === "c56b6183" ? "built" as Kind : undefined
     const naming = (value: string) => entry({ key: "pty", value, values: [value] })
     expect(dressingFor(naming("c56b6183"), perValue, DRESSED)).toBe(BUILT)
     expect(dressingFor(naming("a note about it"), perValue, DRESSED)).toBeUndefined()

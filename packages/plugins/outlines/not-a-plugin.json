@@ -1,8 +1,4 @@
 {
-  "//files": "The empty page says olai can't open some `files`: the word, not the files row.",
-  "//preferences": "browser.tsx registers this plugin's rows with the preferences panel through its declared contract.",
-  "//search": "The outline's filter box asks a phone keyboard for a Search return key (`enterkeyhint=\"search\"`): the gesture, not the search row.",
-  "//trash": "A write's story reads `Moved to Trash`: the Trash a person sees, not the trash row.",
   "capture": {
     "src/browser/drag/Handle.tsx": 1,
     "src/browser/palette/adapter.tsx": 1,

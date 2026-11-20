@@ -35,9 +35,8 @@ test("a verb's own sentence is drawn verbatim, in the mood it chose", async () =
 })
 
 test("a verb that THROWS is worded from its own label, and the cause is kept", async () => {
-  // The clipboard's ordinary path: `navigator.clipboard` is refused outside a
-  // secure context, which is every LAN reader on plain http. Swallowed, a copy
-  // that never happened looked exactly like one that did.
+  // `navigator.clipboard` is refused outside a secure context, which is every
+  // LAN reader on plain http.
   const warned = spyOn(console, "warn").mockImplementation(() => {})
   const cause = new Error("the clipboard is not available")
   try {

@@ -61,15 +61,15 @@ export interface Verb {
 }
 
 const MARK_MENU = {
-  todo: { at: 0, label: "To do" },
-  doing: { at: 1, label: "Doing" },
-  done: { at: 2, label: "Done" },
-  cancelled: { at: 3, label: "Cancelled" },
-} as const satisfies Record<Status, { readonly at: number; readonly label: string }>
+  todo: { menuOrder: 0, label: "To do" },
+  doing: { menuOrder: 1, label: "Doing" },
+  done: { menuOrder: 2, label: "Done" },
+  cancelled: { menuOrder: 3, label: "Cancelled" },
+} as const satisfies Record<Status, { readonly menuOrder: number; readonly label: string }>
 
 const MARK_LABEL: ReadonlyArray<readonly [Status, string]> = MARKS
   .map((mark) => [mark, MARK_MENU[mark]] as const)
-  .sort(([, a], [, b]) => a.at - b.at)
+  .sort(([, a], [, b]) => a.menuOrder - b.menuOrder)
   .map(([mark, entry]) => [mark, entry.label] as const)
 
 export const writeVerbs = (

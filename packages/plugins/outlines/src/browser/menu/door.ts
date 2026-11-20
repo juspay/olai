@@ -12,7 +12,6 @@ export interface MenuDoor {
   readonly at: () => HTMLElement | undefined
   readonly armed: Accessor<boolean>
   readonly open: Accessor<boolean>
-  readonly show: () => void
   readonly setOpen: (open: boolean) => void
 }
 
@@ -23,10 +22,8 @@ const onTheHandle = (event: PointerEvent): boolean =>
 
 export const createMenuDoor = (): MenuDoor => {
   const [door, setDoor] = createSignal<Door>("unasked")
-  const show = (): void => {
-    setDoor("open")
-  }
-  const press = longPressOn(show, swallowGhost)
+  const setOpen = (next: boolean): void => { setDoor(next ? "open" : "shut") }
+  const press = longPressOn(() => setOpen(true), swallowGhost)
   let line: HTMLElement | undefined
 
   return {
@@ -41,9 +38,8 @@ export const createMenuDoor = (): MenuDoor => {
       line = el
     },
     at: () => line,
-    show,
     armed: () => door() !== "unasked",
     open: () => door() === "open",
-    setOpen: (next) => setDoor(next ? "open" : "shut"),
+    setOpen,
   }
 }

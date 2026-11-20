@@ -34,12 +34,6 @@ export interface Choice {
 }
 
 export interface Completion {
-  /**
-   * The arrows, Enter and Escape all mean something in a row's editor already
-   * (`../keys.ts`), so the order matters and it is this way round for the
-   * reason every editor with a completion in it chooses: while a list is up,
-   * those keys are the list's.
-   */
   readonly key: (event: KeyboardEvent) => boolean
   readonly Panel: () => JSX.Element
 }

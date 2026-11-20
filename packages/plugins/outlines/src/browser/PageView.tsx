@@ -94,7 +94,7 @@ function PageAt(props: { readonly source: MountedNodePage | null; readonly rende
   const doneRows = createDoneRows(treeRows,
     () => { const file = pageFileOf(page()); return file !== undefined && doneHiddenOn(file) },
     () => { const file = pageFileOf(page()); return file === undefined ? undefined : landingReveal(file, paneId()) })
-  const shownDrawn = createMemo(() => {
+  const afterDoneHidden = createMemo(() => {
     const drawn = allDrawn()
     return drawn.kind === "tree" ? { ...drawn, rows: doneRows() } : drawn
   })
@@ -109,7 +109,7 @@ function PageAt(props: { readonly source: MountedNodePage | null; readonly rende
     query,
     text: () => filterOf(route()),
     all: allDrawn,
-    visible: shownDrawn,
+    afterDone: afterDoneHidden,
     matched: () => (together() ? asked.matched() : undefined),
     answering: () => (together() ? asked.answering() : null),
   })

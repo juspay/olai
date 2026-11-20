@@ -14,6 +14,11 @@ const GATHER_MS = 0
 type Named = NamedAnswer["named"][number]
 type Told = ReadonlyMap<string, Named>
 
+const MISSING = "missing" as const
+type Knowing = Named | typeof MISSING
+const namedOf = (knowing: Knowing | undefined): Named | undefined =>
+  knowing === undefined || knowing === MISSING ? undefined : knowing
+
 interface Batch {
   readonly seq: number
   readonly ids: Set<string>
@@ -66,11 +71,11 @@ const askAll = (ids: ReadonlyArray<string>): Batch => {
 const [failed, setFailed] = createSignal<string | null>(null)
 const declaringFailure: Accessor<string | null> = failed
 
-let reported = 0
+let saidForBatch = 0
 
 const said = (seq: number, message: string | null): void => {
-  if (seq < reported) return
-  reported = seq
+  if (seq < saidForBatch) return
+  saidForBatch = seq
   setFailed(message)
 }
 
@@ -81,15 +86,15 @@ const createDeclared = (
   let alive = true
   const mine = generation
   onCleanup(() => { alive = false })
-  const [known, setKnown] = createSignal<ReadonlyMap<string, Named | null>>(new Map())
+  const [known, setKnown] = createSignal<ReadonlyMap<string, Knowing>>(new Map())
   const asking = new Set<string>()
   const [wanted, setWanted] = createSignal<ReadonlyArray<string>>([])
 
   createEffect(() => {
     const ids = wanted()
     if (!reachable(connectionReadout())) return
-    const told = untrack(known)
-    const fresh = ids.filter((id) => !told.has(id) && !asking.has(id))
+    const knew = untrack(known)
+    const fresh = ids.filter((id) => !knew.has(id) && !asking.has(id))
     if (fresh.length === 0) return
     for (const id of fresh) asking.add(id)
     const { seq, answer } = askAll(fresh)
@@ -103,7 +108,7 @@ const createDeclared = (
         }
         said(seq, null)
         const next = new Map(untrack(known))
-        for (const id of fresh) next.set(id, outcome.success.get(id) ?? null)
+        for (const id of fresh) next.set(id, outcome.success.get(id) ?? MISSING)
         setKnown(next)
       })
       .finally(() => {
@@ -112,12 +117,15 @@ const createDeclared = (
   })
 
   return {
-    title: (id) => known().get(id)?.title ?? null,
-    named: (id) => known().get(id)?.id ?? null,
+    title: (id) => namedOf(known().get(id))?.title ?? null,
+    named: (id) => namedOf(known().get(id))?.id ?? null,
     want: (ids) => {
       setWanted(ids)
     },
-    told: (id) => { const node = known().get(id); return node === undefined ? undefined : node?.id ?? null },
+    told: (id) => {
+      const knowing = known().get(id)
+      return knowing === undefined ? undefined : namedOf(knowing)?.id ?? null
+    },
   }
 }
 

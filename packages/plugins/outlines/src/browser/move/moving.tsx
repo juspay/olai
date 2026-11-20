@@ -35,9 +35,8 @@ export const createMoving = (...args: Parameters<typeof createGesture>): Moving 
                 moved={at()}
                 query={query}
                 refusals={refusals()}
-                // The accessor, held as a VALUE — Solid reads a function passed
-                // to a setter as an updater, so a signal whose value is a
-                // function is set through one that answers with it.
+                // Solid reads a function passed to a setter as an updater, so a
+                // signal whose value is a function is set through a wrapper.
                 onAimed={aim}
                 onWrite={write}
                 onClose={close}

@@ -97,12 +97,6 @@ const merged = (folds: Folds): ReadonlySet<string> => {
   return out
 }
 
-/**
- * So a write reads the entry back, unions it with what this tab holds, and
- * applies its own change on top — which is why the change goes on LAST and why
- * this is a union rather than a merge with rules: an unfold is a removal, and a
- * removal that ran before the union would be undone by it.
- */
 export const combined = (stored: Folds, held: Folds): Folds => {
   const out = new Map<string, Set<string>>()
   for (const source of [stored, held]) {

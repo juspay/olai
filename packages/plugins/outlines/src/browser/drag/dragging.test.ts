@@ -20,7 +20,7 @@ test("createDragging aims at a receiver before the page gap at the same point", 
   const row = (id: string): Row => ({ kind: "node", key: `/${id}`, at: { file: "house.olai", line: 1, node: { id, ord: "a0", title: id } }, shows: { file: "house.olai", line: 1, node: { id, ord: "a0", title: id } }, children: [], blocked: [], under: 0 })
   const table = createLandings()
   let aims = 0, leaves = 0
-  const releases = [holdLandings(table), holdAir(createAir()), holdFields({ join: () => {}, all: () => [{ file: "house.olai", within: [], rows: () => [row("target")], collapsed: () => new Set(), element: () => element }] }), holdUndo(createUndo(async () => { throw new Error("cancelled carries must not write") }))]
+  const releases = [holdLandings(table), holdAir(createAir()), holdFields({ join: () => () => {}, all: () => [{ file: "house.olai", within: [], rows: () => [row("target")], collapsed: () => new Set(), element: () => element }] }), holdUndo(createUndo(async () => { throw new Error("cancelled carries must not write") }))]
   table.register({ lift: () => ({ left: 100, right: 200, top: 100, bottom: 140 }), aim: () => { aims++ }, leave: () => { leaves++ }, drop: async () => null })
   try {
     createRoot(dispose => {

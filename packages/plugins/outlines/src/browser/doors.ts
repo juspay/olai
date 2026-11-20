@@ -5,8 +5,7 @@ import { type Accessor, createMemo, createRenderEffect } from "solid-js"
 
 export type Doors = (from: string, key: string, value: string) => Meaning | undefined
 
-const at = (from: string, key: string, value: string): string =>
-  `${from}\u0000${key}\u0000${value}`
+type Opened = Record<string, Record<string, Record<string, Meaning>> | undefined>
 
 export const createDoors = (
   reading: Accessor<PageReading | undefined>,
@@ -22,12 +21,13 @@ export const createDoors = (
     undefined,
     { equals: sameDoors },
   )
-  const [table, setTable] = createStore<Record<string, Meaning | undefined>>({})
+  const [table, setTable] = createStore<Opened>({})
   createRenderEffect(() => {
-    const next = Object.fromEntries(held().map(one => [at(one.from, one.prop, one.value), one.opens]))
+    const next: Record<string, Record<string, Record<string, Meaning>>> = {}
+    for (const one of held()) ((next[one.from] ??= {})[one.prop] ??= {})[one.value] = one.opens
     setTable(reconcile(next))
   })
-  const lookup: Doors = (from, key, value) => table[at(from, key, value)]
+  const lookup: Doors = (from, key, value) => table[from]?.[key]?.[value]
   return () => lookup
 }
 

@@ -52,7 +52,7 @@ const narrowing = (shows: Shown, text: string, hideDone = false): Narrowing => {
       query: () => parseFilter(text, TODAY),
       text: () => text,
       all: () => drawn,
-      visible: () =>
+      afterDone: () =>
         hideDone && drawn.kind === "tree"
           ? { kind: "tree", rows: withoutDone(drawn.rows) }
           : drawn,
@@ -286,7 +286,7 @@ const waiting = (
       query: () => parseFilter(text, TODAY),
       text: () => text,
       all: () => drawn,
-      visible: () => drawn,
+      afterDone: () => drawn,
       matched: () => said.matched,
       answering: () => said.answering,
     })
@@ -350,7 +350,7 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
       query: () => parseFilter("#home", TODAY),
       text: () => "#home",
       all: () => drawnBy(whole),
-      visible: () => ({ kind: "tree", rows: withoutDone(rows) }),
+      afterDone: () => ({ kind: "tree", rows: withoutDone(rows) }),
       matched: () => said(whole, "#home", FINISHED),
       answering: () => "#home",
     })

@@ -45,12 +45,6 @@ const editor = () => {
   return {
     sent,
     carried,
-    /**
-     * And the ORDER of the two locks is worth keeping straight (Opus, review
-     * 2 of 2): BROWSER first, this double second — the scenario failing at
-     * its `editor is closed` step under a keep-alive editor is the claim;
-     * this sequence is the reading of it.
-     */
     open: (on: Editing | null = null) => {
       answeredBy = null
       snapshot = on

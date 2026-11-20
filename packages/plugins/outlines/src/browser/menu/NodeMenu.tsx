@@ -27,7 +27,7 @@ export function NodeMenu(props: {
     <div class="absolute inset-y-0 left-0 w-0 shrink-0 md:relative md:w-auto">
       <Show
         when={props.door.armed() && menuReady()}
-        fallback={<Dots onArm={props.door.show} />}
+        fallback={<Dots onArm={() => props.door.setOpen(true)} />}
       >
         <Dynamic
           component={dropdownNow()}

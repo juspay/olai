@@ -9,17 +9,12 @@ export interface Picking {
   readonly pick: (action: MenuAction) => Promise<void>
 }
 
-/** Call it in the ROW's own owner, not the panel's: the line is still on
- *  screen after the menu that started it has gone. */
 export const createPicking = (): Picking => {
   const saying = createSaying()
 
   return {
     said: saying.said,
     pick: async (action) => {
-      // Cleared BEFORE the attempt rather than after it: a verb that takes a
-      // moment would otherwise run under the last one's sentence, which reads
-      // as this one's answer.
       saying.say(null)
       try {
         saying.say(await action.run())

@@ -6,6 +6,38 @@ import { FiledPageRequest, FiledPageReading } from "@olai/format"
 import { OutlineEntry } from "./wire.ts"
 import { MovingAnswer, MovingRequest, NarrowingAnswer, NarrowingRequest } from "@olai/format"
 import { MARKS } from "@olai/format"
+import type { WriteRequest } from "@olai/format"
+import type { Edit } from "@olai/surface"
+
+const procedures = {
+  edit: editProcedures,
+  vocabulary: {
+    tags: {
+      input: TagsRequest,
+      output: TagsAnswer,
+      error: OpFailure,
+    },
+  },
+  nodes: {
+    named: {
+      input: NamedRequest,
+      output: NamedAnswer,
+      error: OpFailure,
+    },
+    homes: {
+      input: HomesRequest,
+      output: HomesAnswer,
+      error: OpFailure,
+    },
+  },
+  ops: {
+    outlines: { output: OutlineAnswer, error: OpFailure },
+    node: { input: NodeRequest, output: NodeAnswer, error: OpFailure },
+    subtree: { input: SubtreeRequest, output: SubtreeAnswer, error: OpFailure },
+    run: writeProcedure,
+  },
+}
+
 export const surface = defineSurface({
 collections: {
     outlines: {
@@ -33,44 +65,20 @@ page: {
       outputSchema: MovingAnswer,
     }
 },
-procedures: {
-edit: editProcedures,
-    vocabulary: {
-      tags: {
-        input: TagsRequest,
-        output: TagsAnswer,
-        error: OpFailure,
-      },
-    },
-    nodes: {
-      named: {
-        input: NamedRequest,
-        output: NamedAnswer,
-        error: OpFailure,
-      },
-      homes: {
-        input: HomesRequest,
-        output: HomesAnswer,
-        error: OpFailure,
-      },
-    },
-ops: {
-  outlines: { output: OutlineAnswer, error: OpFailure },
-  node: { input: NodeRequest, output: NodeAnswer, error: OpFailure },
-  subtree: { input: SubtreeRequest, output: SubtreeAnswer, error: OpFailure }, run: writeProcedure }
-}
+procedures,
 })
-/**
- * IT MUST STAY EXHAUSTIVE AND DISJOINT ACROSS THE BUNDLE. A verb no row claims
- * reaches `writeEdit` with no writer and fails at runtime with "the capability
- * for X is not active" (`@olai/edit-history`'s `writing.ts`); two rows claiming
- * one verb makes the second `registerWriter` throw at mount. `@olai/server`'s
- * `capability-dispatch.test.ts` holds both halves over the whole catalog.
- */
+
+type MemberPath = {
+  [Group in keyof typeof procedures]: `${Group & string}.${keyof (typeof procedures)[Group] & string}`
+}[keyof typeof procedures]
+
 export const dispatch = {
   "edit.apply": ["add", "move", "under", "toggle", "walk", "title", "desc", "date", "repeat", "prop", "split", "merge", "unmirror", "mirror", "trash", "duplicate", "see", "after", "place", "mark", "remove"],
   "ops.run": [...MARKS, "add", "title", "desc", "date", "repeat", "prop", "move", "split", "merge", "trash", "duplicate", "see", "mirror", "unmirror", "after", "update", "apply"],
-} as const
+} as const satisfies Partial<Record<MemberPath, ReadonlyArray<string>>> & {
+  readonly "edit.apply": ReadonlyArray<Edit["verb"]>
+  readonly "ops.run": ReadonlyArray<WriteRequest["op"]>
+}
 export const resources = {
   outlines: "resource",
 } as const

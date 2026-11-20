@@ -12,8 +12,7 @@ export function RetainedContent(props: {
   </Show>
 }
 
-/** Kobalte defers list autofocus. Restore afterwards, under the visible shell's
- * owner, while each menu decides which of its own entries should receive focus. */
+/** Kobalte defers its list's autofocus by a timer, so a restore must come after it. */
 export function focusMenuAfterMount(element: HTMLElement, shown: () => boolean, target: () => HTMLElement | undefined) {
   onMount(() => {
     const timer = setTimeout(() => {

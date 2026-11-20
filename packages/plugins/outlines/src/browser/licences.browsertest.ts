@@ -3,7 +3,7 @@ import { createRoot, createSignal } from "solid-js"
 
 import type { Licence, PageReading } from "@olai/format"
 
-import { createLicences, type Licences } from "./licences.ts"
+import { createLicences, type Kind, type Licences } from "./licences.ts"
 
 const frame = (...licences: ReadonlyArray<Licence>): PageReading =>
   ({ licences }) as unknown as PageReading
@@ -36,10 +36,12 @@ const driving = <A>(
 const asked = (table: Licences, prop: string, value: string) =>
   table("roadmap/lanes.olai", prop, value)
 
+const word = (said: string) => said as Kind
+
 test("an identical frame is not a new table", () =>
   driving(frame(pty("terminal")), (write, table) => {
     const held = table()
-    expect(asked(held, "pty", "c56b6183")).toBe("terminal")
+    expect(asked(held, "pty", "c56b6183")).toBe(word("terminal"))
     write(frame(pty("terminal")))
     expect(table()).toBe(held)
   }))
@@ -49,7 +51,7 @@ test("a WORD that changed updates the same table", () =>
     const held = table()
     write(frame(pty("worktree")))
     expect(table()).toBe(held)
-    expect(asked(table(), "pty", "c56b6183")).toBe("worktree")
+    expect(asked(table(), "pty", "c56b6183")).toBe(word("worktree"))
   }))
 
 test("a licence arriving or leaving updates the same table", () =>
@@ -58,7 +60,7 @@ test("a licence arriving or leaving updates the same table", () =>
     write(frame(pty("terminal"), checkout))
     const two = table()
     expect(two).toBe(one)
-    expect(asked(two, "checkout", ".worktrees/tp")).toBe("worktree")
+    expect(asked(two, "checkout", ".worktrees/tp")).toBe(word("worktree"))
     write(frame(pty("terminal")))
     const three = table()
     expect(three).toBe(two)
