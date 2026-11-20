@@ -152,7 +152,9 @@ const spec = padiSurfaceSibling.spec as {
 const floor = <T,>(keys: Iterable<string>, one: (key: string) => T): Record<string, T> =>
   Object.fromEntries([...keys].map((key) => [key, one(key)]))
 
-const silent = () => Stream.never
+const unservedStream = () => Stream.never
+
+const refusingProcedure = () => Effect.fail(new Error("this fake padi does not serve that verb"))
 
 const EMPTY_URGENCY = {
   awaitingIds: [],
@@ -181,7 +183,7 @@ const padi = implementSurface(padiSurfaceSibling, {
     },
   },
   streams: {
-    ...floor(Object.keys(spec.streams ?? {}), () => ({ source: silent })),
+    ...floor(Object.keys(spec.streams ?? {}), () => ({ source: unservedStream })),
     watchStates: { source: (input: WatchInput) => watchStates(input) },
     terminalAttach: {
       source: ({ id }: { readonly id: string }) => {
@@ -199,13 +201,11 @@ const padi = implementSurface(padiSurfaceSibling, {
       },
     },
   },
-  events: floor(Object.keys(spec.events ?? {}), () => ({ source: silent })),
+  events: floor(Object.keys(spec.events ?? {}), () => ({ source: unservedStream })),
   procedures: {
     ...floor(
       Object.keys(spec.procedures ?? {}),
-      (group) =>
-        floor(Object.keys(spec.procedures?.[group] ?? {}), () => () =>
-          Effect.fail(new Error("this fake padi does not serve that verb"))),
+      (group) => floor(Object.keys(spec.procedures?.[group] ?? {}), () => refusingProcedure),
     ),
     screen: {
       state: () => Effect.fail(new TerminalNotFound({ id: "" })),

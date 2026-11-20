@@ -1,11 +1,12 @@
 import { TESTID as appliance } from "./contracts/appliance-testids.ts"
+import { testIds } from "./contracts/testIds.ts"
 
-const CHROME = {
+const CHROME = testIds({
   padi: "padi",
   padiFeed: "padi-feed",
   padiFeedFoot: "padi-feed-foot",
   padiFeedWrench: "padi-feed-wrench",
-} as const
+})
 
 /**
  * `as const` on both halves is
@@ -25,7 +26,7 @@ type _NoSharedValue = Assert<[SharedValue] extends [never] ? true : SharedValue>
 
 /** The `as const` is load-bearing rather
  *  than habitual — see the value assertion's measured limit above. */
-export const TESTID = { ...appliance, ...CHROME } as const
+export const TESTID = { ...appliance, ...CHROME }
 
 import type {} from "@olai/ui-primitives/testids.ts"
 type OwnedTestIds = typeof TESTID

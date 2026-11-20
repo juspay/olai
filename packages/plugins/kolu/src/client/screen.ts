@@ -14,12 +14,12 @@ import { Effect } from "effect"
 
 export const DEFAULT_LINES = 120
 
-export type ScreenReader =
+export type TailOnlyScreenReader =
   | null
   | ((input: { id: string }) => Effect.Effect<string, unknown>)
 
 export const screenText = (
-  read: ScreenReader,
+  read: TailOnlyScreenReader,
   terminal: string,
   lines: number | undefined,
   now: () => string,

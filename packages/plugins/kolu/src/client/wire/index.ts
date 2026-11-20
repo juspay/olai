@@ -1,50 +1,7 @@
-/**
- * KOLU'S SLICE OF OLAI'S WIRE — the vocabulary and the members, here
- * rather than in `@olai/surface`.
- *
- * ## Why the spec moved
- *
- * The human's ruling, the sixth sitting: *"everything kolu-named leaves the
- * non-kolu packages, spec included."* `@olai/surface` is the one package the
- * browser always bundles and the one every other package reads its vocabulary
- * from — and it carried five hundred lines of `FleetTerminal`, `TerminalFrame`,
- * `KoluLink` and the rest. That is kolu-domain content sitting in the package
- * whose whole job is to be domain-neutral.
- *
- * ## Design B: a NAMED SPREAD, not a generic slot
- *
- * `@olai/surface` imports `koluMembers` from here and spreads it into its own
- * `defineSurface` call, then re-exports these types in the place its old
- * `./kolu.ts` re-export tail stood. So **no consumer rewrites an import**: the
- * composed spec still exports `FleetTerminal`, `TERMINAL_KEY`, `resolveTerminal`
- * and the rest, and every reader outside this package keeps writing
- * `from "@olai/surface"`.
- *
- * A generic extension mechanism was considered and killed 3-0. The framework
- * already owns that axis, and there is no second foreign slice anywhere in git
- * or the roadmap — a plug-in system with a population of one is speculative
- * generality, and the named spread is legible where a registry would not be.
- *
- * ## THE ENTRY'S OWN FENCE, which is the cost of the inversion
- *
- * `@olai/surface` now depends on this package, and every listener that reads
- * the surface pulls this module in statically. So this entry may import
- * `effect` and `anyforge/schemas` and NOTHING ELSE — no `solid-js`, no
- * `@kolu/padi-client`, no `@olai/format`. Schemas and types only.
- *
- * That is not a preference: `@kolu/padi-client` would put the daemon's whole
- * contract on the browser's bundle graph, and `solid-js` would put a UI runtime
- * in the server's. `../../plugin-api/src/fence.test.ts` walks this door's
- * closure and asserts it rather than trusting this paragraph — it absorbed the
- * sweep `scripts/check-kolu-deps.sh` used to make, which is now
- * `check-hydrated-deps.sh` and asks about manifests rather than imports.
- */
-
-
 export * from "./kolu.ts"
 export { type Resolved, resolveTerminal, whoOf } from "./terminals.ts"
 
-// The member declarations need the vocabulary above, and one schema of their own.
+
 import { Schema } from "effect"
 import {
   FleetTerminal,
@@ -61,15 +18,6 @@ import {
   WatchPulse,
 } from "./kolu.ts"
 
-/**
- * THE FOUR MEMBERS, as `@olai/surface` spreads them.
- *
- * One object per section rather than a flat list, because the sections are the
- * surface's own kinds and a spread has to land in the right one: the link is a
- * CELL, the fleet a COLLECTION, the pane's frames a STREAM, and the screen read
- * a PROCEDURE. Each doc block travelled with its member unchanged — they argue
- * things a reader of the composed spec still needs.
- */
 export const koluMembers = {
   cells: {
     /**

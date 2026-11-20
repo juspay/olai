@@ -1,68 +1,55 @@
+import { createMemo } from "solid-js"
 import { render } from "solid-js/web"
 
 import { DockRow, DockSection } from "@kolu/solid-dockrow"
 import {
-  bindStatePip,
+  narrowAgentState,
+  narrowRowVocab,
   rowRecency,
-
-  paintDockRow,
-
-  rowSubline,
 } from "@kolu/solid-dockrow/rowValues"
+import type { TerminalMetadata } from "@kolu/padi-client/surface"
 import { StatePip } from "@kolu/solid-statepip"
-import { activePr } from "@kolu/padi-client/surface"
 
+import { rowOf } from "../../src/client/fleet.ts"
+import { type FleetTerminal, UNOWNED } from "../../src/client/wire/index.ts"
 import RECORDS from "../../src/client/testlib/fixtures/lanes.json"
 
-const RECORD = (RECORDS as { terminals: Record<string, unknown> })
-  .terminals["22222222-2222-4222-8222-222222222222"] as Parameters<typeof rowSubline>[0]
+const NOW = 1_700_000_000_000
 
-const QUIET = (RECORDS as { terminals: Record<string, unknown> })
-  .terminals["11111111-1111-4111-8111-111111111111"] as Parameters<typeof rowSubline>[0]
+const RECORDED = (RECORDS as { terminals: Record<string, unknown> }).terminals
 
-const bagFor = (record: Parameters<typeof rowSubline>[0], klass: "asking" | "working") => {
-  const pip = bindStatePip({
-    meta: record,
-    attention: { klass, live: true },
-    unread: false,
-  })
-  const at = record.lastActivityAt ?? null
-  const NOW = 1_700_000_000_000
-  const recency = rowRecency({ asking: pip.asking, active: pip.active }, { window: at, own: at }, {
-    counting: () => NOW,
-    glancing: () => NOW,
-  })
-  return {
-    pip,
-    bucket: paintDockRow(record, klass),
-    agentState: record.state === "active" ? (record.agent?.state ?? undefined) : undefined,
-    subline: rowSubline(record),
-    pr: activePr(record),
-    recency,
-    label: record.state === "active" ? (record.intent ?? "") : "",
-    labelColor: "var(--color-fg-3)",
-  }
+const rowFor = (id: string, klass: "asking" | "working"): FleetTerminal => {
+  const record = RECORDED[id]
+  if (record === undefined) throw new Error(`the harness fixture has no terminal ${id}`)
+  return rowOf(id, record as TerminalMetadata, UNOWNED, { klass, live: true })
 }
 
-const LOUD = bagFor(RECORD, "asking")
-const CALM = bagFor(QUIET, "working")
+const LOUD = rowFor("22222222-2222-4222-8222-222222222222", "asking")
+const CALM = rowFor("11111111-1111-4111-8111-111111111111", "working")
 
-function Row(props: { readonly bag: ReturnType<typeof bagFor>; readonly id: string }) {
+const vocabOf = (row: FleetTerminal) => narrowRowVocab({ pip: row.pip, bucket: row.bucket })
+
+function Row(props: { readonly row: FleetTerminal }) {
+  const vocab = createMemo(() => vocabOf(props.row))
+  const at = props.row.recencyAt
   return (
     <DockSection surface="desktop" repoColor="#7aa2f7">
       <DockRow
-        id={props.id as never}
+        id={props.row.id as never}
         surface="desktop"
-        pip={props.bag.pip}
-        bucket={props.bag.bucket}
-        agentState={props.bag.agentState}
+        pip={vocab().pip}
+        bucket={vocab().bucket}
+        agentState={narrowAgentState(props.row.agentState).attr}
         model={undefined}
-        label={props.bag.label}
-        labelColor={props.bag.labelColor}
+        label={props.row.label}
+        labelColor={props.row.labelColor}
         renderLabel={(md) => md}
-        subline={props.bag.subline}
-        pr={props.bag.pr}
-        recency={props.bag.recency}
+        subline={props.row.subline}
+        pr={props.row.pr}
+        recency={rowRecency(vocab().pip, { window: at, own: at }, {
+          counting: () => NOW,
+          glancing: () => NOW,
+        })}
         onSelect={() => {}}
       />
     </DockSection>
@@ -99,11 +86,11 @@ function NodeRow(props: {
   )
 }
 
-const PipChip = (bag: ReturnType<typeof bagFor>, value: string) => (
+const PipChip = (row: FleetTerminal, value: string) => (
   <span class={`${CHIP} items-baseline`}>
     <span class="font-mono text-muted">terminal</span>
     <span class="inline-flex items-center gap-1">
-      <StatePip {...bag.pip} />
+      <StatePip {...vocabOf(row).pip} />
       <span>{value}</span>
     </span>
   </span>
@@ -144,7 +131,7 @@ function App() {
             under={() => (
               <div class="olai-snapshot mt-1 mb-1 w-full p-2">
                 <div class="mb-1 -mx-2 -mt-2 border-b border-rule pb-1">
-                  <Row bag={LOUD} id="22222222-2222-4222-8222-222222222222" />
+                  <Row row={LOUD} />
                 </div>
                 <div class="mb-1 font-mono text-[0.6875rem] text-muted">
                   snapshot · just now
@@ -182,7 +169,7 @@ function App() {
               <span class="text-[0.8125rem] text-muted">22222222</span>
             </div>
             <div class="mb-1 pl-6">
-              <Row bag={LOUD} id="22222222-2222-4222-8222-222222222222" />
+              <Row row={LOUD} />
             </div>
           </div>
           <div class="py-1">
@@ -195,7 +182,7 @@ function App() {
               <span class="text-[0.8125rem] text-muted">11111111</span>
             </div>
             <div class="mb-1 pl-6">
-              <Row bag={CALM} id="11111111-1111-4111-8111-111111111111" />
+              <Row row={CALM} />
             </div>
           </div>
         </Variant>
@@ -211,7 +198,7 @@ function App() {
             terminalChip={() => PipChip(LOUD, "22222222")} />
           <div class="relative pl-6">
             <div class="absolute top-1 left-[6rem] z-10 w-[32rem] border border-rule bg-panel shadow-lg">
-              <Row bag={LOUD} id="22222222-2222-4222-8222-222222222222" />
+              <Row row={LOUD} />
             </div>
           </div>
           <div class="mt-24">

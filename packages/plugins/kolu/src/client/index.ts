@@ -9,6 +9,7 @@ import {
   type Snapshot,
   type TerminalFrame,
   SnapshotRefused,
+  type SnapshotRequest,
   type WatchPulse,
 } from "./wire/index.ts"
 import { makeWatch, type Watch, type WatchConfig } from "./watch.ts"
@@ -88,7 +89,7 @@ export interface KoluHandlers {
   readonly procedures: {
     readonly screen: {
       readonly text: (
-        args: { readonly input: { readonly terminal: string; readonly lines?: number } },
+        args: { readonly input: SnapshotRequest },
       ) => Effect.Effect<Snapshot, SnapshotRefused>
     }
   }
@@ -112,8 +113,8 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
         deps.rang?.(event)
       },
       evict: (id) => deps.events()?.remove(id),
-      beat: (at, everyMs) => {
-        pulse = { at, everyMs }
+      beat: (receivedAt, everyMs) => {
+        pulse = { at: receivedAt, everyMs }
         deps.pulse()?.set(pulse)
         deps.beating?.(everyMs)
       },
@@ -237,7 +238,7 @@ const handlersOf = (verbs: {
   },
   procedures: {
     screen: {
-      text: ({ input }) => verbs.screen(input.terminal, input.lines),
+      text: ({ input }) => verbs.screen(input.terminal, input.tailLines),
     },
   },
 })

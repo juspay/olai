@@ -94,7 +94,7 @@ export const SnapshotRequest = Schema.Struct({
    * scrollback, so passing this count as `startLine` returns the empty string
    * for any terminal shorter than `lines`.
    */
-  lines: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThan(0))),
+  tailLines: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThan(0))),
 })
 export type SnapshotRequest = typeof SnapshotRequest.Type
 

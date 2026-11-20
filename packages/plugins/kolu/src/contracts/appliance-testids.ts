@@ -3,7 +3,9 @@
  * pulled a component would put SolidJS and an emulator on the graph of a
  * cucumber process with no browser in it.
  */
-export const TESTID = {
+import { testIds } from "./testIds.ts"
+
+export const TESTID = testIds({
   terminalBlock: "terminal-block",
   terminalSays: "terminal-says",
   terminalPane: "terminal-pane",
@@ -14,4 +16,4 @@ export const TESTID = {
   eventsRow: "events-row",
   eventsWords: "events-words",
   eventsEmpty: "events-empty",
-} as const
+})

@@ -114,6 +114,12 @@ interface Under {
 
 const NOTHING_UNDER: Under = { deepest: undefined, live: false }
 
+const liveUnder = (
+  own: Status | undefined,
+  live: boolean,
+  leaf: boolean,
+): Why | null => live ? null : leaf && own === undefined ? "unmarked-leaf" : "not-live"
+
 const claiming = (
   declarations: PropDeclarations,
   derived: Derived,
@@ -142,19 +148,18 @@ const claiming = (
     if (under.deepest !== undefined) deepest = under.deepest
     if (under.live) live = true
   }
-  if (claimed !== undefined && live) {
-    claims.push({
-      rank,
-      value: claimed,
-      node: at.node.id,
-      ...owning(at, deepest, leaf ? own : undefined),
-    })
-  } else if (claimed !== undefined) {
-    excluded.push({
-      value: claimed,
-      node: at.node.id,
-      why: leaf && own === undefined ? "unmarked-leaf" : "not-live",
-    })
+  if (claimed !== undefined) {
+    const why = liveUnder(own, live, leaf)
+    if (why === null) {
+      claims.push({
+        rank,
+        value: claimed,
+        node: at.node.id,
+        ...owning(at, deepest, leaf ? own : undefined),
+      })
+    } else {
+      excluded.push({ value: claimed, node: at.node.id, why })
+    }
   }
   return {
     live,

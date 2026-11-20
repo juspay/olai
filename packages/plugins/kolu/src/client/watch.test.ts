@@ -100,8 +100,8 @@ const collected = () => {
       evict: (id: string) => {
         ring.delete(id)
       },
-      beat: (at: string, everyMs: number) => {
-        beats.push({ at, everyMs })
+      beat: (receivedAt: string, everyMs: number) => {
+        beats.push({ at: receivedAt, everyMs })
       },
     },
   }

@@ -38,7 +38,7 @@ const cap = <K, V>(map: Map<K, V>, bound: number): void => {
 export interface WatchSink {
   readonly emit: (event: KoluEvent) => void
   readonly evict: (id: string) => void
-  readonly beat: (at: string, everyMs: number) => void
+  readonly beat: (receivedAt: string, everyMs: number) => void
 }
 
 export interface Watch {
