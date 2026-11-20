@@ -152,9 +152,8 @@ mark.olai-hit {
   margin-top: var(--olai-md-space-block);
 }
 
-/* The checkbox IS the marker, so a task item takes no bullet; the box is
- * pulled back into the space the marker vacated. The classes are
- * `remark-gfm`'s own, through the sanitiser's allowlist. */
+/* `.task-list-item` is minted by `mdast-util-to-hast` for a GFM task item, not
+ * by anything here. */
 .olai-md .task-list-item {
   list-style: none;
 }
@@ -307,8 +306,8 @@ a[data-node-chip] code:hover {
   white-space: nowrap;
 }
 
-/* Highlighted code. The classes are `rehype-highlight`'s (highlight.js's
- * names, bundled with the client — never a CDN). */
+/* `.hljs-*` are highlight.js's own class names, emitted by lowlight through
+ * `rehype-highlight`. */
 .olai-md .hljs-comment,
 .olai-md .hljs-quote {
   color: var(--color-muted);

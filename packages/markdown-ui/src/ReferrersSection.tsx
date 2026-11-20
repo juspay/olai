@@ -75,22 +75,28 @@ export interface ReferrersSectionProps {
 const said = (total: number): string =>
   `Referenced by ${total} ${total === 1 ? "thing" : "things"}`
 
+const forgetOnLeave = (
+  memory: () => ReferrerMemory | undefined,
+  key: () => string,
+  stillShown: () => boolean,
+): void => {
+  onCleanup(() => {
+    if (!stillShown()) memory()?.forget(key())
+  })
+}
+
 export function ReferrersSection(props: ReferrersSectionProps) {
   const [open, setOpen] = createSignal(false)
-  /** `<details>` reads its `open` attribute at parse time, so the element must
-   *  be BORN open rather than opened a frame later by a command. */
   const initiallyOpen = () => props.memory?.opened?.get(props.memoryKey) ?? false
-  onCleanup(() => {
-    if (!props.stillShown()) props.memory?.forget(props.memoryKey)
-  })
+  forgetOnLeave(() => props.memory, () => props.memoryKey, props.stillShown)
   return (
     <details
       ref={(element) => { element.open = initiallyOpen() }}
       class="mt-3 border-t border-rule pt-2"
       data-testid={props.testid}
       data-count={props.found.length}
-      // `<details>` opens itself on a press, on a keyboard activation and on a
-      // browser's find-in-page, so its state is read back, never commanded.
+      // `<details>` toggles itself on a press, on a keyboard activation and on
+      // a browser's find-in-page, so its state is read back, never commanded.
       onToggle={(event) => {
         const now = event.currentTarget.open
         setOpen(now)

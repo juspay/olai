@@ -1,20 +1,11 @@
-/**
- * Ordering matters: inline markdown first (`renderToTree` + `toInline`), then
- * `#tags`.
- *
- * Peeling tags *before* markdown would split constructs across two parser runs
- * (`**urgent #home**` loses its bold; `[spec](…#home)` shreds the link). Tags
- * after markdown keeps every construct whole.
- */
-
 import type { Claims } from "@olai/format"
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
 import { NO_NEEDLES } from "@olai/markdown-ui/lit.ts"
-import { markdownReady, markdownWaiting } from "./chunk.ts"
+import { markdownArrival } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree, sourceText } from "./render.ts"
-import { escapeHtml, styleTags } from "./tags.ts"
+import { escapeSource, styleTags } from "./tags.ts"
 
 export interface TitleRender {
   readonly links?: boolean
@@ -64,8 +55,9 @@ export const renderTitle = (
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  if (!markdownReady()) {
-    return { html: escapeHtml(title), waiting: markdownWaiting() }
+  const arrival = markdownArrival()
+  if (arrival.kind !== "ready") {
+    return { html: escapeSource(title), waiting: arrival.kind === "waiting" }
   }
 
   return remember(rendered, key, build(claims, title, from, links, needles))
@@ -94,7 +86,7 @@ const build = (
   if (!links) unwrapAnchors(tree)
 
   if (title.trim() !== "" && lostText(title, tree)) {
-    return escapeHtml(title)
+    return escapeSource(title)
   }
   return hastToHtml(tree)
 }
@@ -102,7 +94,8 @@ const build = (
 const lostText = (title: string, tree: Root): boolean => {
   const drawn = collapse(renderedText(tree))
   if (drawn === "") return true
-  return drawn.length < collapse(sourceText(title)).length
+  const accounted = collapse(sourceText(title))
+  return drawn.length < accounted.length
 }
 
 const collapse = (value: string): string => value.replace(/\s+/g, " ").trim()

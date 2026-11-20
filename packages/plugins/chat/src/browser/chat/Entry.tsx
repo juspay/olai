@@ -10,7 +10,7 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { Attachments } from "./Attachments.tsx"
 import { Rang } from "./Rang.tsx"
 import { ContextChips } from "./ContextChips.tsx"
-import { markdownReady } from "@olai/markdown-ui/chunk.ts"
+import { markdownArrival } from "@olai/markdown-ui/chunk.ts"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { TESTID } from "../../testids.ts"
 

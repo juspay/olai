@@ -1,12 +1,13 @@
 import { intentOf } from "@olai/surface"
-import { deadLinkSaid, type Claims } from "@olai/format"
+import type { Claims } from "@olai/format"
 import { createEffect, createMemo, Show } from "solid-js"
 
-import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
+import { markdownArrival } from "./chunk.ts"
+import { nameDeadLinks } from "./dead-links.ts"
 import { renderMarkdown, renderStreaming, renderLineLanding } from "./render.ts"
 import { markdownExcerpt } from "./excerpt.ts"
-import { escapeHtml } from "./tags.ts"
-import { busyMark, waitingMark } from "./waiting.ts"
+import { escapeSource } from "./tags.ts"
+import { waitingFace } from "./waiting.ts"
 
 export function Markdown(props: {
   readonly claims: Claims | undefined
@@ -20,8 +21,9 @@ export function Markdown(props: {
   readonly landing?: { readonly line: number; readonly needles: ReadonlyArray<string> }
 }) {
   let container: HTMLDivElement | undefined
+  const arrival = createMemo(markdownArrival)
   const rendered = createMemo(() =>
-    markdownReady()
+    arrival().kind === "ready"
       ? props.live === true
         ? renderStreaming(props.claims, props.source, props.from)
         : props.landing !== undefined
@@ -35,35 +37,25 @@ export function Markdown(props: {
   })
   createEffect(() => {
     html()
-    const members = props.members
-    for (const link of container?.querySelectorAll<HTMLAnchorElement>("a[data-link-path]") ?? []) {
-      const path = link.dataset["linkPath"]!
-      const dead = members !== undefined && !members.has(path)
-      link.classList.toggle("olai-dead-link", dead)
-      if (dead) link.setAttribute("data-dead", "true")
-      else link.removeAttribute("data-dead")
-      const authored = link.dataset["linkTitle"] ?? ""
-      if (authored) link.title = authored
-      else link.removeAttribute("title")
-      if (dead) {
-        const warning = deadLinkSaid({ written: link.dataset["linkWritten"]!, resolved: path, suggest: [] })
-        const words = (link.textContent ?? "").trim()
-        link.setAttribute("aria-label", words === "" ? warning : `${words} — ${warning}`)
-      } else link.removeAttribute("aria-label")
-    }
+    const within = container
+    if (within !== undefined) nameDeadLinks(within, props.members)
   })
-  const waiting = markdownWaiting
+  const face = () => waitingFace(arrival().kind === "waiting")
+  const failed = () => {
+    const now = arrival()
+    return now.kind === "failed" ? now.error : undefined
+  }
   const classes = (): string => `olai-md ${props.class ?? ""}`
 
   return (
     <Show
-      when={markdownFailure()}
+      when={failed()}
       fallback={
         <div ref={container}
           class={classes()}
           data-testid={props.testid}
-          data-markdown={waitingMark(waiting())}
-          aria-busy={busyMark(waiting())}
+          data-markdown={face().mark}
+          aria-busy={face().busy}
           onClick={event => {
             if (intentOf(event) === null || !(event.target instanceof Element)) return
             const href = event.target.closest("a[href]")?.getAttribute("href")
@@ -71,15 +63,15 @@ export function Markdown(props: {
             event.preventDefault()
             try { container?.querySelector(`#${CSS.escape(decodeURIComponent(href.slice(1)))}`)?.scrollIntoView({ block: "nearest" }) } catch { }
           }}
-          innerHTML={html() ?? escapeHtml(props.source)}
+          innerHTML={html() ?? escapeSource(props.source)}
         />
       }
     >
-      {(failed) => (
+      {(error) => (
         <div class={classes()} data-testid={props.testid} data-markdown="failed">
           <p class="text-alarm">
             Couldn't format this file, so it's shown as plain text. Reload to
-            try again. ({failed().message})
+            try again. ({error().message})
           </p>
           <div class="whitespace-pre-wrap">{props.source}</div>
         </div>

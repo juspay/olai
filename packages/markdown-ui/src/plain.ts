@@ -6,22 +6,25 @@ export const plainTitle = (
   needles: ReadonlyArray<string> = NO_NEEDLES,
 ): string | null => (isPlain(title) ? taggedHtml(title, needles) : null)
 
-const isPlain = (title: string): boolean => {
-  if (title === "" || title !== title.trim()) return false
-  if (/[\n\r\t]/.test(title)) return false
+const LINE_BREAK_OR_TAB = /[\n\r\t]/
+const INLINE_MARKUP = /[*_`[\]<>\\~|]/
+const CHARACTER_REFERENCE = /&(?=[A-Za-z0-9#])/
+const HASH_THAT_IS_NOT_A_TAG = /#(?![A-Za-z0-9_/-])/
+const LIST_MARKER = /^(?:[-+]|\d{1,9}[.)])(?:\s|$)/
+const RULE_OR_SETEXT = /^[-=\s]+$/
+const URL = /(?::\/\/|\bwww\.|\bmailto:|\bxmpp:)/i
+const EMAIL = /[\w.+-]+@[\w-]+\.[\w-]/
 
-  if (/[*_`[\]<>\\~|]/.test(title)) return false
+const REFUSED = [
+  LINE_BREAK_OR_TAB,
+  INLINE_MARKUP,
+  CHARACTER_REFERENCE,
+  HASH_THAT_IS_NOT_A_TAG,
+  LIST_MARKER,
+  RULE_OR_SETEXT,
+  URL,
+  EMAIL,
+]
 
-  if (/&(?=[A-Za-z0-9#])/.test(title)) return false
-
-  if (/#(?![A-Za-z0-9_/-])/.test(title)) return false
-
-  if (/^(?:[-+]|\d{1,9}[.)])(?:\s|$)/.test(title)) return false
-
-  if (/^[-=\s]+$/.test(title)) return false
-
-  if (/(?::\/\/|\bwww\.|\bmailto:|\bxmpp:)/i.test(title)) return false
-  if (/[\w.+-]+@[\w-]+\.[\w-]/.test(title)) return false
-
-  return true
-}
+const isPlain = (title: string): boolean =>
+  title !== "" && title === title.trim() && !REFUSED.some((refusal) => refusal.test(title))

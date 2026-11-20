@@ -4,6 +4,7 @@ import type { Element } from "hast"
 import type { Root } from "hast"
 
 import { pipelineNow } from "./chunk.ts"
+import { idIn, namespaceOf } from "./ids.ts"
 import { toInline } from "./inline.ts"
 import type { Heading } from "./outline.ts"
 import { rewrite } from "./rewrite.ts"
@@ -13,7 +14,7 @@ interface Rendered {
   readonly headings: readonly Heading[]
 }
 
-const renderings = new WeakMap<Claims, WeakMap<object, Map<string, Rendered>>>()
+const renderings = new WeakMap<Claims, Map<string, Rendered>>()
 const CACHE_LIMIT = 512
 
 const keyFor = (
@@ -27,33 +28,25 @@ const renderingOf = (
   source: string,
   from: string,
   shape: "block" | "inline",
-  members?: ReadonlySet<string>,
 ): Rendered => {
-  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape, members)
-  let revisions = renderings.get(claims)
-  if (revisions === undefined) {
-    revisions = new WeakMap()
-    renderings.set(claims, revisions)
-  }
-  // Membership identity scopes the cache; it must not move heading IDs.
-  const namespace = members ?? claims
-  let rendered = revisions.get(namespace)
+  const key = keyFor(shape, from, source)
+  if (claims === undefined) return render(claims, source, from, key, shape)
+  let rendered = renderings.get(claims)
   if (rendered === undefined) {
     rendered = new Map()
-    revisions.set(namespace, rendered)
+    renderings.set(claims, rendered)
   }
-  const key = keyFor(shape, from, source)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(claims, source, from, key, shape, members)
+  const result = render(claims, source, from, key, shape)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
-export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, members?: ReadonlySet<string>): string =>
-  renderingOf(claims, source, from, "block", members).html
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string): string =>
+  renderingOf(claims, source, from, "block").html
 
 export const renderInlineMarkdown = (claims: Claims | undefined, source: string, from: string): string =>
   renderingOf(claims, source, from, "inline").html
@@ -61,9 +54,6 @@ export const renderInlineMarkdown = (claims: Claims | undefined, source: string,
 export const outlineOf = (claims: Claims | undefined, source: string, from: string): readonly Heading[] =>
   renderingOf(claims, source, from, "block").headings
 
-// Same key shape as {@link renderingOf} for "block": footnote ids are minted
-// from the key, so a streamed answer and its final render must agree or
-// every `href="#md-…-fn-1"` breaks the instant streaming ends.
 export const renderStreaming = (claims: Claims | undefined, source: string, from: string): string =>
   render(claims, source, from, keyFor("block", from, source), "block").html
 
@@ -72,12 +62,10 @@ export const renderToTree = (
   source: string,
   from: string,
   shape: "block" | "inline",
-  members?: ReadonlySet<string>,
 ): Root => {
-  const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, { claims, from, ids: idsFor(key), ...(members === undefined ? {} : { members }) })
+  rewrite(tree, { claims, from, ids: namespaceOf(keyFor(shape, from, source)) })
   return tree
 }
 
@@ -85,7 +73,7 @@ export const sourceText = (source: string): string =>
   pipelineNow().sourceTextOf(source)
 
 export const landingId = (source: string, from: string, at: string): string =>
-  `${idsFor(keyFor("block", from, source))}-${at}`
+  idIn(namespaceOf(keyFor("block", from, source)), at)
 
 export const hastToHtml = (tree: Root): string => pipelineNow().htmlOf(tree)
 
@@ -95,26 +83,16 @@ const render = (
   from: string,
   key: string,
   shape: "block" | "inline",
-  members?: ReadonlySet<string>,
 ): Rendered => {
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, { claims, from, ids: idsFor(key), ...(members === undefined ? {} : { members }) })
+  const headings = rewrite(tree, { claims, from, ids: namespaceOf(key) })
   return { html: pipeline.htmlOf(tree), headings }
 }
 
-const idsFor = (key: string): string => {
-  let hash = 0x811c9dc5
-  for (let at = 0; at < key.length; at++) {
-    hash ^= key.charCodeAt(at)
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return `md-${(hash >>> 0).toString(36)}`
-}
-
-export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, members?: ReadonlySet<string>): string => {
-  const tree = renderToTree(claims, source, from, "block", members)
+export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>): string => {
+  const tree = renderToTree(claims, source, from, "block")
   if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
   const lines = source.split("\n")
   const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])

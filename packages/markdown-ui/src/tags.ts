@@ -1,8 +1,3 @@
-/**
- * Two renderings of the same pill live here ({@link styleTags} and
- * {@link taggedHtml}), and they must agree.
- */
-
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { litBy, type Lit, mayHoldTag, tagText, titleParts } from "@olai/format"
 import type { Element, ElementContent, Root } from "hast"
@@ -16,10 +11,10 @@ import { isAnchor } from "./anchors.ts"
 export const TAG_CLASS =
   "olai-tag inline whitespace-nowrap text-[0.8125rem] font-normal leading-snug"
 
-const NO_TAGS_IN = new Set(["code", "a"])
+const LITERAL_MARKUP = new Set(["code", "a"])
 
-const tagsIn = (element: Element, outer: boolean): boolean =>
-  outer && !NO_TAGS_IN.has(element.tagName)
+const taggableIn = (element: Element, outer: boolean): boolean =>
+  outer && !LITERAL_MARKUP.has(element.tagName)
 
 export const styleTags = (
   parent: Root | Element,
@@ -34,7 +29,7 @@ export const styleTags = (
   let at = 0
   for (const rec of records) {
     const to = at + rec.value.length
-    const nodes = splitTags(haystack, landed, at, to, rec.tags)
+    const nodes = splitTags(haystack, landed, at, to, rec.taggable)
     let slots = replacements.get(rec.parent)
     if (slots === undefined) {
       slots = new Map()
@@ -62,22 +57,22 @@ type Slot = {
   parent: Root | Element
   index: number
   value: string
-  tags: boolean
+  taggable: boolean
 }
 
 const visitText = (
   parent: Root | Element,
-  tags: boolean,
+  taggable: boolean,
   out: Slot[],
 ): void => {
   parent.children.forEach((child, index) => {
     if (child.type === "text") {
-      out.push({ parent, index, value: child.value, tags })
+      out.push({ parent, index, value: child.value, taggable })
       return
     }
     if (child.type !== "element") return
     if (isAnchor(child)) return
-    visitText(child, tagsIn(child, tags), out)
+    visitText(child, taggableIn(child, taggable), out)
   })
 }
 
@@ -86,13 +81,11 @@ const splitTags = (
   landed: ReadonlyArray<Lit>,
   from: number,
   to: number,
-  tags: boolean,
+  taggable: boolean,
 ): ElementContent[] => {
   const piece = haystack.slice(from, to)
 
-  if (!tags) return marked(haystack, landed, from, to)
-
-  if (!mayHoldTag(piece)) return marked(haystack, landed, from, to)
+  if (!taggable || !mayHoldTag(piece)) return marked(haystack, landed, from, to)
 
   const out: ElementContent[] = []
   let at = from
@@ -141,7 +134,7 @@ export const taggedHtml = (
     if (part.kind !== "tag") html += markedHtml(text, landed, at, to)
     else {
       html += `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${
-        escapeText(written)
+        escapeLikePipeline(written)
       }" style="${tagStyle(written)}">${markedHtml(text, landed, at, to)}</span>`
     }
     at = to
@@ -155,14 +148,14 @@ const markedHtml = (
   from: number,
   to: number,
 ): string => {
-  if (landed.length === 0) return escapeText(text.slice(from, to))
+  if (landed.length === 0) return escapeLikePipeline(text.slice(from, to))
   return runsIn(text, landed, from, to)
     .map((run) =>
       run.lit
         ? `<mark class="${HIT_CLASS}" data-testid="${TESTID.hit}">${
-          escapeText(run.text)
+          escapeLikePipeline(run.text)
         }</mark>`
-        : escapeText(run.text),
+        : escapeLikePipeline(run.text),
     )
     .join("")
 }
@@ -180,23 +173,18 @@ const pill = (
     className: TAG_CLASS.split(" "),
     dataTestid: TESTID.tag,
     dataTag: written,
-    // Last, and in the
-    // same position on the string-written pill above — `hast-util-to-html`
-    // emits properties in order, and the two paths promising byte-identity
-    // (./plain.test.ts) includes this.
     style: tagStyle(written),
   },
   children: marked(text, landed, from, to),
 })
 
-/** Text, escaped EXACTLY the way `hast-util-to-html` escapes it: the two
- *  characters in its subset, `&` and `<`, each written as the numeric
- *  reference it writes rather than the named one a person would. ./plain.ts
- *  writes titles to HTML without the pipeline and must produce its bytes. */
-export const escapeText = (value: string): string =>
+/** `hast-util-to-html` escapes exactly `&` and `<` in text, each as the numeric
+ *  reference rather than the named one, and ./plain.ts writes titles to HTML
+ *  without the pipeline. */
+export const escapeLikePipeline = (value: string): string =>
   value.replace(/&/g, "&#x26;").replace(/</g, "&#x3C;")
 
-export const escapeHtml = (value: string): string =>
+export const escapeSource = (value: string): string =>
   value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

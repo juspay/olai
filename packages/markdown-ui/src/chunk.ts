@@ -1,14 +1,22 @@
 import { createArrival } from "@olai/web/client/arriving.ts"
 
-// The specifier is a literal because the bundler READS it: that is what gets
-// ./pipeline.ts's graph out of `main-*.js` and into a chunk of its own.
+// Bun's bundler reads this specifier to split ./pipeline.ts's graph into a
+// chunk of its own; a computed one is inlined into the entry instead.
 const pipeline = createArrival("the markdown renderer", () => import("./pipeline.ts"))
 
-export const markdownReady = pipeline.ready
+export type MarkdownArrival =
+  | { readonly kind: "waiting" }
+  | { readonly kind: "ready" }
+  | { readonly kind: "failed"; readonly error: Error }
 
-export const markdownWaiting = pipeline.waiting
+const WAITING: MarkdownArrival = { kind: "waiting" }
+const READY: MarkdownArrival = { kind: "ready" }
 
-export const markdownFailure = pipeline.failure
+export const markdownArrival = (): MarkdownArrival => {
+  const error = pipeline.failure()
+  if (error !== undefined) return { kind: "failed", error }
+  return pipeline.ready() ? READY : WAITING
+}
 
 export const pipelineNow = pipeline.now
 

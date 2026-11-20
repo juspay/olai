@@ -17,15 +17,9 @@ import { SANITISE } from "./sanitise.ts"
 import { rehypeSlugs } from "./slugs.ts"
 
 /** `rehype-highlight` builds its lowlight from whatever `languages` says, so
- *  the option REPLACES the common set rather than adding to it: `{ nix }`
- *  alone would be a client that had forgotten TypeScript. */
+ *  the option REPLACES the common set rather than adding to it. */
 const languages = { ...common, nix }
 
-// Before the sanitiser, not after: the id is
-// made out of a heading somebody WROTE, so what it produces is checked by
-// the allowlist rather than trusted for having arrived late.
-// Highlighting runs AFTER the sanitiser deliberately: the `hljs-` spans are
-// ours, produced from the code's own text, so they need no allowlist entry.
 const pipeline = unified()
   .use(remarkParse)
   .use(remarkGfm)
@@ -47,11 +41,8 @@ const asRead = (source: string): string => bracketSpacedLinks(source)
 export const treeOf = (source: string): Root =>
   pipeline.runSync(pipeline.parse(asRead(source))) as Root
 
-/** `mdast-util-to-string`'s defaults are the two decisions this needs, which
- *  is why they are not spelled: `includeHtml` keeps a raw `<Component>`'s
- *  characters, and `includeImageAlt` keeps a picture's words. */
 export const sourceTextOf = (source: string): string =>
-  toString(pipeline.parse(asRead(source)))
+  toString(pipeline.parse(asRead(source)), { includeHtml: true, includeImageAlt: true })
 
 export const htmlOf = (tree: Root): string => pipeline.stringify(tree)
 

@@ -35,6 +35,8 @@ const PHRASING = new Set([
   "wbr",
 ])
 
+const WORDLESS = new Set(["img", "input"])
+
 export const toInline = (tree: Root): void => {
   tree.children = phrasingOf(tree.children)
 }
@@ -66,6 +68,11 @@ const phrasingOf = (
         continue
       }
       if (node.type !== "element") continue
+
+      if (WORDLESS.has(node.tagName)) {
+        gap = true
+        continue
+      }
 
       if (PHRASING.has(node.tagName)) {
         push(node)
