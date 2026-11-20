@@ -164,6 +164,33 @@ section .lead { color: var(--muted); margin-top: 0.7rem; max-width: 44rem; }
 }
 .chip.on { box-shadow: 0 0 0 1px var(--ring-gap), 0 0 0 3px var(--ring); }
 
+.tablewrap { overflow-x: auto; margin-top: 1.8rem; }
+table.cmp { border-collapse: collapse; width: 100%; min-width: 58rem; font-size: 0.9rem; }
+table.cmp th, table.cmp td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.7rem 1.3rem 0.7rem 0; text-align: left; vertical-align: baseline; }
+table.cmp thead th { border-top: none; font-size: 0.78rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+table.cmp td:first-child { color: var(--muted); white-space: nowrap; padding-right: 1.5rem; }
+table.cmp td:nth-child(2), table.cmp th:nth-child(2) {
+  font-weight: 500; color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  padding-left: 0.8rem; min-width: 15rem;
+}
+table.cmp thead th:nth-child(2) { color: var(--accent); }
+@media (max-width: 40rem) {
+  table.cmp td:first-child { white-space: normal; width: 6.5rem; padding-right: 0.8rem; }
+  table.cmp td:nth-child(2), table.cmp th:nth-child(2) { min-width: 0; width: 11.5rem; }
+}
+.sources { margin-top: 0.6rem; font-size: 0.82rem; color: var(--muted); }
+.sources summary { cursor: pointer; }
+.sources ul { padding-left: 1.2rem; margin-top: 0.4rem; }
+.fit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.2rem; margin-top: 2.2rem; }
+@media (max-width: 56rem) { .fit { grid-template-columns: minmax(0, 1fr); } }
+.fit h3 { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 1.3rem; }
+.fit p { margin-top: 0.5rem; color: var(--muted); font-size: 0.95rem; }
+.fit ul { margin-top: 0.7rem; padding-left: 1.2rem; display: grid; gap: 0.45rem; }
+.fit li { font-size: 0.97rem; }
+.fit .no li::marker { color: var(--alarm); }
+.fit .yes li::marker { color: var(--done); }
+
 .shot.small { margin-top: 0; }
 .small h3 {
   font-size: 0.74rem; color: var(--muted); font-weight: 700; letter-spacing: 0.08em;

@@ -1,6 +1,7 @@
 ---
 import { DEFAULT_THEME, PALETTES } from "../../../packages/appearance/src/palettes.ts"
 import { agentList } from "../agents.ts"
+import { OTHERS, READ_ON, ROWS, sourcesOf } from "../compare.ts"
 import Base from "../layouts/Base.astro"
 import { siteMap } from "../sitemap.ts"
 import "../styles/home.css"
@@ -57,6 +58,7 @@ const dark = PALETTES.length - light
 
     <nav class="chapters" aria-label="On this page">
       <a href="#agent">AI agents</a>
+      <a href="#compare">comparison</a>
       <a href="#history">git history</a>
       <a href="#agenda">what is due</a>
       <a href="#find">filter and search</a>
@@ -117,6 +119,64 @@ const dark = PALETTES.length - light
           <div class="row d1"><span class="box"></span><span class="t">Meet the tiler on site<span class="agentmark works">Working…</span></span></div>
           <p class="caption">Three items have agents. One agent waits for you.</p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="compare">
+  <div class="wrap">
+    <h2>How olai compares with Obsidian, Logseq, Roam Research, and Workflowy</h2>
+    <p class="lead">Where olai is behind, the table says so.</p>
+    <div class="tablewrap">
+      <table class="cmp">
+        <thead>
+          <tr><th></th><th>olai</th>{OTHERS.map((other) => <th>{other.name}</th>)}</tr>
+        </thead>
+        <tbody>
+          {ROWS.map((row) => (
+            <tr><td>{row.label}</td><td>{row.olai.text}</td>{OTHERS.map((other) => <td>{row[other.key].text}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="caption only-narrow">Swipe the table sideways to see Obsidian, Logseq, Roam Research, and Workflowy.</p>
+    <p class="caption">Each fact about another product comes from that product's own website or repository, read on {READ_ON}. The sources are listed under the table.</p>
+    <details class="sources">
+      <summary>Sources for the table</summary>
+      <ul>
+        {OTHERS.map((other) => (
+          <li>{other.name}: {sourcesOf(other.key).map((url, i) => (
+            <>{i > 0 && ", "}<a href={url}>{url.replace(/^https:\/\//, "").replace(/\/$/, "")}</a></>
+          ))}</li>
+        ))}
+      </ul>
+    </details>
+
+    <div class="fit">
+      <div class="no">
+        <h3>When olai is the wrong choice</h3>
+        <p>olai is the wrong choice today if one of these is true.</p>
+        <ul>
+          <li>You want an app on your phone.</li>
+          <li>You do not want to use a terminal.</li>
+          <li>You use Windows.</li>
+          <li>Your notes use <code>[[wikilinks]]</code>. olai shows them as plain text.</li>
+          <li>You depend on Obsidian's Canvas or on its community plugins.</li>
+          <li>You need your notes to sync between devices without git.</li>
+          <li>You need software that rarely changes. A new olai release can break things.</li>
+        </ul>
+      </div>
+      <div class="yes">
+        <h3>When olai may suit you</h3>
+        <p>olai may suit you if one of these is true.</p>
+        <ul>
+          <li>You organize projects, plans, and daily notes as lists.</li>
+          <li>You want an AI agent to edit your notes, and you want to choose the agent.</li>
+          <li>You want files that you can open without olai.</li>
+          <li>You want a record of every change.</li>
+          <li>You can follow a setup that uses a terminal one time.</li>
+        </ul>
       </div>
     </div>
   </div>
