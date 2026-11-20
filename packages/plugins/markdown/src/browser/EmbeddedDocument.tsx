@@ -1,4 +1,3 @@
-/** Body-only document rendering, used by providers such as the journal. */
 import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
 import { proseIn } from "@olai/format"

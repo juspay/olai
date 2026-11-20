@@ -1,8 +1,5 @@
 import { linkPreviews } from "olai-plugin-navigation/contract"
 import { MarkdownLinkPreview } from "./browser/LinkPreview.tsx"
-/** Markdown owns body subscriptions, document drafts and edit history. Its
- * provider is independent of outlines and of presentation; content and file
- * creation integrations wait only for the actual locations they consume. */
 import { fileKindKey } from "@olai/plugin-api/file-kinds"
 import { fileKinds } from "olai-plugin-files/contract"
 import { pages } from "olai-plugin-navigation/contract"
@@ -48,10 +45,6 @@ import { propertyRoutes } from "olai-plugin-outlines/contract"
 export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
-  // `Edits` rather than pushed into a module-scope map in a general package
-  // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
-  // beside it is how this row's faces spend the same table (`./browser/writes.ts`).
   const edits = yield* Edits
   yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
@@ -65,21 +58,11 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
       dispose: () => { dispose(); for (const stop of release) stop(); clearMinted() },
     }
   })), state => Effect.sync(state.dispose))
-  // THE SECTION'S OPEN-STATE MEMORY, minted on THIS activation's scope and
-  // withdrawn with it — held here (the activation that owns it) and offered
-  // behind `markdown.referrer-memory` below, so a flip that removes this row
-  // takes every section's memory off the screen with it
-  // (`./browser/memory.ts`, `./index.ts`'s `referrerMemory`).
   const memory = createReferrerMemory()
   yield* Effect.acquireRelease(Effect.sync(() => referrersMemory.hold(memory)), stop => Effect.sync(stop))
   const offers = yield* Offers
   yield* offers.own("browser-state", () => state.value)
-  // WHAT A ROW THAT MINTS A DOCUMENT DOES WITH THE ANSWER — offered rather than
-  // pushed into a module signal the journal read across the wall
-  // (`./index.ts`'s `DocumentActions`).
   yield* offers.own("editing", () => state.value.editing)
-  // ...AND THE SECTION'S MEMORY, for every page that draws the shared section — this
-  // row's own documents, the outline's backlinks, and the four body-page hosts.
   yield* offers.own("referrer-memory", () => memory)
 }) })
 export const components = {
@@ -107,15 +90,10 @@ export const components = {
     const by = { kind: "markdown" } as const
     yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "document", article: "a", testid: KIND_IDS.documentLink }, { key: fileKindKey(by) })
   }) }),
-  /** The file controls this row draws, DECLARED — a component of its own so a
-   *  page with no files row mounted is a whole page (`./browser/files.tsx`). */
   "file-controls": definePlugin({ name: "file-controls", needs: [fileState], apply: Effect.gen(function*() {
     const controls = yield* fileState
     yield* Effect.acquireRelease(Effect.sync(() => holdFileControls(controls)), stop => Effect.sync(stop))
   }) }),
-  /** The shell's geometry, DECLARED — a component of its own because content
-   *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
-   *  that waited for this one could not (`./browser/shell.ts`). */
   shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
     const geometry = yield* appShell
     yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
@@ -143,15 +121,9 @@ export const components = {
     const slots = yield* rendererSlots
     const clocks = yield* Clocks
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clocks)), stop => Effect.sync(stop))
-    // The walks a document's property run makes over other rows' locations,
-    // from the renderer this component already names (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
-    // ...and which revision a served file is at, which is what a hypertext
-    // preview watches (`./browser/vault.ts`).
     const served = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
-    // ...and the app's URL grammar, for the routes a property run prints
-    // (`./browser/routing.ts`).
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     yield* slots.contribute(pages, { by: { kind: "markdown" }, edits: true, page: () => <MarkdownPageView /> }, {key:fileKindKey({kind:"markdown"}),children:[documentBodies, properties, noteLine]})

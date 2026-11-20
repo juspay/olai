@@ -1,10 +1,3 @@
-/**
- * Whether a document entry is one a writer or a renderer can open.
- *
- * A refusal is not a body. Folding `refused` into `text ?? ""` is how a document
- * reader goes blank for a file that had something to say.
- */
-
 import type { DocumentEntry } from "../../wire.ts"
 
 export type Served = DocumentEntry & {

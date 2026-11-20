@@ -1,5 +1,3 @@
-/** A document route reads only document metadata/body. Outline absence does not
- * create an outline page subscription, editor context, filter or drag register. */
 import { servedDirectory } from "./vault.ts"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"

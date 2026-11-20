@@ -7,10 +7,7 @@ import { outlineOf, landingId } from "@olai/markdown-ui/render.ts"
 import { isServed, useDocument } from "./document/documents.tsx"
 import { servedDirectory } from "./vault.ts"
 
-/** Heading metadata comes from the shared rendering; Markdown alone slices
- * the excerpt and owns its decoration, waiting and failure states. */
 export function MarkdownLinkPreview(props: { readonly route: Route }) {
-  // A Preview route is immutable for this mount; the document remains live.
   const address = props.route.kind === "at" && props.route.address?.kind !== "node" ? props.route.address : null
   const file = address?.path ?? ""
   const entry = useDocument(() => file)

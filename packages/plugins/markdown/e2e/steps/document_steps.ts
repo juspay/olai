@@ -1,14 +1,3 @@
-/**
- * Documents: the page, the reference on a node, and the two things a rendered
- * document reaches for that a note never had to — a picture, and a highlighter.
- *
- * The picture is asked TWICE on purpose, and the two questions are different.
- * `naturalWidth` is the browser's answer: it decoded bytes, so the route
- * served a real file to a real `<img>`. The direct request is the route's own
- * answer, status and content type included, which is also the only way to ask
- * what it does with a URL a page would never write — the traversal attempts.
- */
-
 import { TESTID } from "@olai/tests/harness/testids.ts";
 import * as assert from "node:assert";
 import { defineParameterType, Given, Then, When } from "@olai/tests/harness/runner.ts";
@@ -38,11 +27,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── documents in the file tree ─────────────────────────────────────────
-
-// Order is document-link order in the tree (path order of the walk), not a
-// separate section. The waiting and the comparison are the world's
-// (`expectListed`), shared with the same question asked about `.html` files.
 Then(
   "the documents listed are {string}",
   async function (this: OlaiWorld, expected: string) {
@@ -65,8 +49,6 @@ When(
     await this.waitForFrame();
   },
 );
-
-// ── the page ───────────────────────────────────────────────────────────
 
 When(
   "I open the document {string}",
@@ -97,18 +79,10 @@ defineParameterType({
 Then(
   "the main pane says there is no {documentKind} {string}",
   async function (this: OlaiWorld, kind: string, file: string) {
-    // THE ANSWER, not two frames of Reading…. settle waits for the docked
-    // header (the directory is in hand). The nothing sentence is the page
-    // stream's first frame, a round trip later. Sampling `main` the tick the
-    // header docks is how this scenario stuck on "Reading…" under load
-    // (documents.feature:340, #375's first CI run).
     const said = this.page.locator(NOTHING);
     try {
       await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     } catch {
-      // TimeoutError names the locator that never came. Re-read main so
-      // a hang logs the face that stayed (`stuck on "Reading…"`) in the
-      // step error itself, the way the assert below names pane text.
       const stuck = oneLine(
         await this.page.locator("main").innerText().catch(() => ""),
       );
@@ -116,8 +90,6 @@ Then(
         `timed out waiting for the pane to say there is no document ${JSON.stringify(file)}: stuck on ${JSON.stringify(stuck)}`,
       );
     }
-    // `Page not found`, and under it the plain line naming what was asked for
-    // by the kind's own noun (a csv is a `table`).
     const text = oneLine(await said.innerText());
     assert.strictEqual(text, "Page not found");
     const detail = oneLine(await said.locator("xpath=..").innerText());
@@ -134,12 +106,6 @@ Then(
   },
 );
 
-/** The rendered body, DRAWN — `world.documentBody()` and the wait a caller
- *  would otherwise have to remember. The wait is folded in because every step
- *  below needs it and none of them wants a different one: a rendered body is
- *  only a thing to assert about once it is on the page, and "each new step
- *  remembers to wait" is the kind of rule a step gets wrong once and then
- *  flakes on somebody else's machine. */
 const body = async (world: OlaiWorld) => {
   const rendered = world.documentBody();
   await rendered.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -154,18 +120,6 @@ Then(
   },
 );
 
-/**
- * THE ABSENCE a rendered document has to have, and the one thing a step about
- * frontmatter can honestly ask of a page.
- *
- * Over the rendered BODY's text rather than the page's, because the source is
- * on the page in one state a reader can reach — the editor — and a step that
- * looked at the whole pane would be green for the wrong reason the moment
- * somebody opens it.
- *
- * `oneLine` on both sides, so a claim about text is not a claim about where
- * the renderer put its newlines.
- */
 Then(
   "the document does not draw the text {string}",
   async function (this: OlaiWorld, text: string) {
@@ -178,8 +132,6 @@ Then(
   },
 );
 
-/** No thematic break at all — the other half of what a `---` block used to
- *  leave behind, and the half no text assertion can see. */
 Then("the document draws no rule", async function (this: OlaiWorld) {
   const rendered = await body(this);
   assert.strictEqual(
@@ -189,10 +141,6 @@ Then("the document draws no rule", async function (this: OlaiWorld) {
   );
 });
 
-/** One line of the document page's properties run, by KEY — never by
- *  position, so a scenario says which fact it is reading. Scoped to the
- *  PAGE, not the body: the run sits under the path heading, and a step that
- *  looked at the rendered markdown would be asking the wrong surface. */
 const documentLine = (world: OlaiWorld, key: string) =>
   world.page.locator(`${DOCUMENT_PAGE} ${PROP}${attr("data-key", key)}`);
 
@@ -205,16 +153,6 @@ Then(
   },
 );
 
-/**
- * ...AND ONE KEY THE RUN MUST NOT DRAW, which is a different claim from "no
- * properties": the block HAS keys, and this one is left out of the run
- * because the plugin that taught the word draws the fact somewhere better
- * (`outline.row.placement`'s `inRows: false`).
- *
- * A scenario reads a key that IS drawn first, so the run is on screen before
- * this asks what is missing from it — absence waited for is absence on the
- * frame before the reading landed.
- */
 Then("the document shows no property {string}", async function (this: OlaiWorld, key: string) {
   await this.frontLane().locator(`${DOCUMENT_PAGE}:visible`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.strictEqual(
@@ -225,10 +163,6 @@ Then("the document shows no property {string}", async function (this: OlaiWorld,
 });
 
 Then("the document shows no properties", async function (this: OlaiWorld) {
-  // The page is drawn from a reading that already carries `props`, so once
-  // this section is on screen the run is either there or it is not — waiting
-  // for absence to become true would be green on the frame before the
-  // reading landed.
   await this.frontLane().locator(`${DOCUMENT_PAGE}:visible`).waitFor({
     state: "visible",
     timeout: HYDRATION_TIMEOUT,
@@ -240,15 +174,11 @@ Then("the document shows no properties", async function (this: OlaiWorld) {
   );
 });
 
-// ── the pipeline's own promises ────────────────────────────────────────
-
 Then(
   "the document highlights a code block as {string}",
   async function (this: OlaiWorld, language: string) {
     const code = (await body(this)).locator(`pre code.language-${language}`).first();
     await code.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // The tokens are the point: a `language-ts` class with no spans under it is
-    // a block that was labelled and never highlighted.
     assert.ok(
       (await code.locator("span[class^='hljs-']").count()) > 0,
       "the code block carries its language class but no highlighted tokens",
@@ -256,27 +186,11 @@ Then(
   },
 );
 
-/**
- * Two things a rendered document does that are invisible in its HTML: the tags
- * are right in both cases and the damage is in how they are SET, so each is
- * read off the browser's own geometry — the only witness that a rule in
- * `styles.css` is doing what its comment says. Both filter IN THE PAGE and
- * bring back the offenders, so a failure names the lines that are wrong rather
- * than every line that was looked at.
- *
- * The third of the set — that no part of this widens the pane — is a whole-app
- * invariant rather than a document's (a note and an agent's reply go through
- * the same pipeline), and lives in `app_steps.ts`.
- */
-
 Then(
   "the task list is drawn with checkboxes and no bullets",
   async function (this: OlaiWorld) {
     const items = (await body(this)).locator("li.task-list-item");
     await items.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // The checkbox IS the marker. A list-style left in place draws both, which
-    // reads as two marks about one line — and it is invisible in the HTML,
-    // because the item is a correct `<li>` either way.
     const wrong = await items.evaluateAll((nodes) =>
       nodes
         .filter(
@@ -299,10 +213,6 @@ Then(
   async function (this: OlaiWorld) {
     const spans = (await body(this)).locator("td code, th code");
     await spans.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-    // A path or an identifier wrapped mid-token inside a column reads as two
-    // values. `getClientRects` is the question asked directly: one rect is one
-    // line. A cell too wide for the column is the table's own scrollbar's
-    // problem, which is a recoverable thing to be — a mis-read value is not.
     const broken = await spans.evaluateAll((nodes) =>
       nodes
         .filter((node) => node.getClientRects().length > 1)
@@ -325,8 +235,8 @@ Then(
   async function (this: OlaiWorld, src: string) {
     const picture = (await body(this)).locator(`img${attr("src", src)}`).first();
     await picture.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // Decoded, not merely present: an `<img>` whose fetch 404'd is on screen
-    // too, and reports a natural width of zero.
+    // An `<img>` whose fetch 404'd is on screen too, and reports a natural width
+    // of zero.
     await this.waitUntil(
       async () =>
         await picture.evaluate((node) => (node as HTMLImageElement).naturalWidth > 0),
@@ -335,10 +245,6 @@ Then(
   },
 );
 
-// ── what the route itself answers ──────────────────────────────────────
-
-/** Ask the server directly, as the browser's own `<img>` would — one place, so
- *  the two steps below cannot start asking differently. */
 const requested = async (world: OlaiWorld, path: string, status: number) => {
   const answer = await world.page.request.get(`${world.baseUrl}${path}`);
   assert.strictEqual(
@@ -367,7 +273,6 @@ Then(
   },
 );
 
-// Follow the selected occurrence's own note, excluding nested rows.
 When("I follow the document link on {string}", async function(this: OlaiWorld, id: string) {
   const zoomed = await this.page.locator(`${ZOOM_TITLE}${attr("data-node-id", id)}`).count() > 0;
   const row = this.visibleNode(id).first();
@@ -378,12 +283,6 @@ When("I follow the document link on {string}", async function(this: OlaiWorld, i
   await this.waitForFrame();
 });
 
-// ── what points at a document, read backwards ──────────────────────────
-
-// The section is COLLAPSED, exactly as a node's backlinks are, so opening it
-// is part of the question rather than a setup step somebody could forget: a
-// `<details>` renders its children whether or not it is open, and the rows are
-// deliberately not built while it is shut.
 When(
   "I open what points at the document",
   async function (this: OlaiWorld) {
@@ -393,9 +292,6 @@ When(
   },
 );
 
-// By the words a READER sees on the row — the record's title, or the
-// document's own — because that is what the section is for: telling somebody
-// what is talking about the file they are reading.
 Then(
   "what points at the document is {string}",
   async function (this: OlaiWorld, expected: string) {
@@ -412,9 +308,6 @@ Then(
   },
 );
 
-// Asked of the COUNT rather than of the rows, because that is the whole of
-// what a shut section says — and it is the number a reader sees before they
-// decide to open it.
 Then(
   "the document is pointed at by {int} thing(s)",
   async function (this: OlaiWorld, total: number) {
@@ -428,8 +321,6 @@ Then(
   },
 );
 
-// The same `<details>` answer the node page's section carries: shut is the
-// default, and "still open" is the claim a rebuild owes the reader.
 Then(
   "the what-points-at section is still open",
   async function (this: OlaiWorld) {
@@ -442,8 +333,6 @@ Then(
   },
 );
 
-// The absence half: a document nobody points at draws nothing, the same rule
-// every relation row on a node's page follows.
 Then(
   "the document's page draws no what-points-at section",
   async function (this: OlaiWorld) {
@@ -454,19 +343,6 @@ Then(
   },
 );
 
-// ── when a document's pictures are fetched ─────────────────────────────
-
-/**
- * A document long enough that its second picture is nowhere near the screen,
- * written here rather than kept in the corpus because the SHAPE is the
- * fixture: two pictures with several screens of prose between them, which is
- * the one arrangement where "the first does not wait and the rest do" is
- * visible at all. A corpus document everything else also reads could not be
- * lengthened to this without changing what those scenarios see.
- *
- * The two files are the corpus's own pictures, so this writes a document and
- * no bytes: `art/handle.png` at the top, `art/tall.png` past the fold.
- */
 Given(
   "a document whose second picture is far below the fold",
   function (this: OlaiWorld) {
@@ -481,16 +357,8 @@ Given(
   },
 );
 
-/** The pictures of the document on screen, in the order they were written —
- *  which is the order the rewrite decides priority in (`@olai/markdown-ui`'s
- *  `rewrite.ts`: the first may not be deferred, every later one is). */
 const pictures = async (world: OlaiWorld) => (await body(world)).locator("img");
 
-// WHAT THE READER GETS AT ONCE. Three facts about one element, because
-// separately none of them is the promise: the attribute says the decision was
-// made, the request log says the browser acted on it, and `naturalWidth` says
-// bytes came back. An `<img>` can carry `loading="eager"` and still be a
-// broken box.
 Then(
   "the document's first picture is fetched at once",
   async function (this: OlaiWorld) {
@@ -505,10 +373,6 @@ Then(
   },
 );
 
-// …AND WHAT IT DOES NOT. The attribute is the decision; `requests` is the
-// outcome a person pays for, which is the one worth asserting: three hundred
-// paragraphs above it, the picture is far outside the distance a browser
-// pre-fetches a deferred image from, so this is the fetch that never happened.
 Then(
   "the document's second picture has not been fetched",
   async function (this: OlaiWorld) {
@@ -523,9 +387,6 @@ Then(
   },
 );
 
-// The other half of the same promise, and the half that makes deferral safe
-// to ship: scrolling to it draws it. A `lazy` that never resolved would be a
-// hole in the document at exactly the moment the reader arrived.
 When(
   "I scroll to the document's second picture",
   async function (this: OlaiWorld) {

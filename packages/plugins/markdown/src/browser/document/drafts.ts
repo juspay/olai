@@ -1,6 +1,3 @@
-/** Editors belong to the documents activation, keyed by the pane and file.
- * Page presentation may withdraw independently; the baseline stays with the
- * document owner until that owner stops. No Route object is used as storage. */
 import { createSignal, onCleanup } from "solid-js"
 
 const draftOf = (base: string) => {
@@ -19,8 +16,6 @@ const editorOf = () => {
     open: () => setEditing(true),
     draft: (base: string) => held ??= draftOf(base),
     close: (draft: DocumentDraft) => {
-      // A dispatched save may settle after Cancel and another edit. Its
-      // completion belongs to the old draft, not the newly opened editor.
       if (held !== draft) return
       held = null
       setEditing(false)

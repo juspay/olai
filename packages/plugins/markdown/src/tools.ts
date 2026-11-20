@@ -1,28 +1,3 @@
-/**
- * THE DOCUMENT ROW'S AGENT VERBS — the four tools that name a whole `.md`.
- *
- * They were entries in `@olai/ops`' one closed `TOOLS` table, which meant a
- * general package spelled this row's vocabulary and a serve without this row
- * still advertised `markdown_read` to an agent nothing would answer. A tool
- * leaves with the row that owns it now (juspay/olai#546).
- *
- * THE UNIT IS A WHOLE DOCUMENT, and it is the closest this surface comes to
- * file access while deliberately not being it: these four name a `.md` the SET
- * serves and carry its text ENTIRELY — `markdown_write` through the same plan →
- * validate → stage → rename → commit gate every other write goes through,
- * `markdown_read` out of the same snapshot every other read answers from — so
- * there is no offset, no range and nothing for a caller to splice at either
- * end. `markdown_index` is that closure said out loud: what an agent may read
- * is what the served set holds, so the listing IS the namespace and there is no
- * directory walk under it.
- *
- * THE READS CAME LATE (`md-second-class`) and their absence was not a policy:
- * an agent could `markdown_create` a file it could never read back, and
- * `markdown_write`'s `was` — the conditional write that refuses to land on
- * words nobody saw — asked callers for text no tool of theirs could fetch. A
- * surface with a write and no read is not a narrow surface, it is a broken one.
- */
-
 import {
   CreateDocumentRequest,
   DocumentAnswer,

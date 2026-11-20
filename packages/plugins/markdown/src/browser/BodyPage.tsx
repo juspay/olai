@@ -1,5 +1,3 @@
-/** Shared read-only page chrome. Every live value is handed in by the page
- * component that declared it; this module owns no client or directory holder. */
 import { createMemo, Show, Switch, Match, type JSX } from "solid-js"
 import type { Directory } from "olai-plugin-vault/file-state"
 import { useHere, useRouter } from "olai-plugin-navigation/routing"
@@ -16,13 +14,6 @@ import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
 export function BodyPage(props: {
   readonly directory: Directory
-  /** The referrers section's open-state memory — this page draws the shared
-   *  section under its body, and the memory is the declared browser service
-   *  this plugin offers (`./index.ts`'s `referrerMemory`). The four body-page
-   *  hosts read it through their own private holder and hand it in here, the
-   *  same way they hand in `directory`. `undefined` is a
-   *  serve with no markdown row mounted: the section draws collapsed, which
-   *  is the same nothing the memory had to say. */
   readonly memory: ReferrerMemory | undefined
   readonly Body: (props: { readonly file: string }) => JSX.Element
 }) {

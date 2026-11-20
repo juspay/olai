@@ -51,7 +51,5 @@ Feature: Alt-click on a link inside a document opens that heading on the right
     When I click the in-page link "the last section"
     Then there are 1 panes
     And the address names the heading "Last section"
-    # Where the reader ended up, not a pixel budget for the jump: the heading
-    # starts forty paragraphs down, so being at the top means the page moved.
     And the document is scrolled to the heading "Last section"
     And the page has not reloaded

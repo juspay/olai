@@ -14,7 +14,6 @@ Feature: Documents
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so
     When I open the app
-    # Folders start collapsed; open `notes` so the nested document is listed.
     When I expand the reference section
     And I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md"
@@ -22,19 +21,9 @@ Feature: Documents
     When I click the document "notes/palette.md"
     Then the document open is "notes/palette.md"
     And the address is "/notes/palette.md"
-    # A route, not a reload: the page answered in place.
     And the page has not reloaded
     And there should be no page errors
 
-  # The ⌘K row of the `.olai`/`.md` parity table. The palette streamed node
-  # hits and captured a line to the inbox, and offered no way to a document at
-  # all: a reader who knew the file existed had to leave the modal, find the
-  # sidebar and open the folder it lives in.
-  #
-  # What a row is keyed on is the whole of the promise, and it is deliberately
-  # narrow: the file's NAME and the folder it sits in. Nothing here reads a
-  # body — searching what is INSIDE a document is a different question with an
-  # item of its own, and the grammar in this box still selects nodes.
   @corpus:good
   Scenario: The ⌘K palette opens a document by name
     Given I open the outline "house.olai"
@@ -45,13 +34,9 @@ Feature: Documents
     When I pick the palette item "palette.md"
     Then the document open is "notes/palette.md"
     And the address is "/notes/palette.md"
-    # A route, not a reload: the same page the sidebar's row opens.
     And the page has not reloaded
     And there should be no page errors
 
-  # One reading, two doors — the rule the node hits already keep. A box that
-  # found a document while the chord beside it did not would be the same drift
-  # inside one client.
   @corpus:good
   Scenario: The header's box finds the same document, drawn the same way
     Given I open the outline "house.olai"
@@ -62,7 +47,6 @@ Feature: Documents
     And the address is "/notes/palette.md"
     And there should be no page errors
 
-  # File rows include both rendered documents and whole outlines.
   @corpus:good
   Scenario: The palette finds document paths and whole outline names
     Given I open the outline "house.olai"
@@ -79,47 +63,25 @@ Feature: Documents
     And the document renders bold text "matte"
     And there should be no page errors
 
-  # `kitchen-sink.md` is the page a person changing how markdown is SET opens in
-  # both themes — every mark the pipeline claims, once each. Most of what it is
-  # for cannot be asserted (whether an `h4` reads as a heading is a question for
-  # an eye), so what is pinned here is the handful that can go silently wrong
-  # and stay wrong: the page pushed sideways by one unbreakable word, a task
-  # list drawn with two markers, and a value in a table split into two words.
   @corpus:good
   Scenario: The whole markdown surface is drawn without breaking the page
     When I open the document "kitchen-sink.md"
     Then nothing overflows the pane
     And the task list is drawn with checkboxes and no bullets
     And no code span in a table is broken across lines
-    # Nix, because this repository is built with it and its own docs are full of
-    # `nix` fences: an unregistered language is grey text, not an error.
     And the document highlights a code block as "nix"
     And the document highlights a code block as "ts"
     And there should be no page errors
 
-  # Survey and jump. A document long enough to be worth opening is long enough
-  # to be lost in, and the two halves of the answer are one feature: an id and a
-  # link on every heading, and a contents derived from them at view time. There
-  # is nothing stored to go stale — what a line of the contents points at is an
-  # id the rendered page is carrying.
   @corpus:good
   Scenario: A document opens with a contents of its own headings
     When I open the document "kitchen-sink.md"
     Then the contents is open
     And the contents lists every heading in the document
-    # A survey you cannot put away is furniture. The collapse is the
-    # platform's, so this is the element's own state and not a flag beside it.
     When I shut the contents
     Then the contents is shut
     And there should be no page errors
 
-  # `open` is an attribute the BROWSER owns once a reader has touched it, so
-  # "open by default" is only true of a document that gets its own `<details>`.
-  # This pins the PROMISE rather than either mechanism that keeps it (the
-  # keyed block in `Toc.tsx`, and the frame a new body has not arrived in yet)
-  # — it stays green while at least one of them holds, and says so when
-  # neither does. Asked in both directions, because coming BACK to the document
-  # you shut is the sharp half.
   @scratch:good
   Scenario: A contents shut on one document does not follow you to the next
     Given I open the document "kitchen-sink.md"
@@ -149,50 +111,27 @@ Feature: Documents
   Scenario: A line of the contents lands on its heading
     When I open the document "kitchen-sink.md"
     And I follow the contents line "Footnotes"
-    # The address, because the whole point of an anchor is that it can be
-    # copied and handed to somebody — and it is asked against the HEADING,
-    # because a fragment that names nothing changes the address too.
     Then the address names the heading "Footnotes"
     And the heading "Footnotes" is at the top of the pane
 
-  # A `.md` may open with a `---` block, and the block is the document's own
-  # RECORD rather than the first thing it says. It was neither: the parser had
-  # no frontmatter extension, so the fence came out as a thematic break and
-  # `agent: claude-opus` as a setext `<h2>` — with an anchor on it, and a line
-  # in the contents naming a section the document does not have.
-  #
-  # `notes/palette.md` carries one now, and the contents is asked for its LINES
-  # rather than held to the headings the page drew: a phantom heading is in
-  # both, so the comparison next door is satisfied by it.
   @corpus:good
   Scenario: A document's frontmatter is the page's run, not its prose
     When I open the document "notes/palette.md"
     Then the document does not draw the text "agent: claude-opus"
     And the document draws no rule
     And the contents lines are "Palette, What the block above has to do"
-    # THE RECORD, as the same run a node's own page draws — under the path,
-    # above the body. Hiding the block from the render (#302) left this page
-    # drawing the facts nowhere; the run is where they live now. A list value
-    # is drawn joined, the way a node's is.
     And the document shows the property "agent" holding "claude-opus"
     And the document shows the property "date" holding "2026-09-01"
     And the document shows the property "owners" holding "alice, bob"
     And the document shows the property "tags" holding "#swatches"
     And there should be no page errors
 
-  # The other half of the same ruling: a file that wrote no block looks the
-  # way it did before there were properties. An empty run is not drawn, which
-  # is the node's own rule over the same map — inventing a "no properties"
-  # line would be a second spelling of absence.
   @corpus:good
   Scenario: A document with no frontmatter shows no properties
     When I open the document "finishes.md"
     Then the document shows no properties
     And there should be no page errors
 
-  # The third state of the same run: off while the editor is open, because
-  # the editor is the YAML, and two spellings of one block on one screen is
-  # what the drawer exists not to be. Cancel puts it back; nothing is written.
   @corpus:good
   Scenario: A document's properties are hidden while editing
     When I open the document "notes/palette.md"
@@ -202,14 +141,6 @@ Feature: Documents
     When I cancel the document editor
     Then the document shows the property "agent" holding "claude-opus"
 
-  # The other half of the same block: what the document is CALLED. The title is
-  # the first line of its PROSE — the sidebar, the palette and every row that
-  # names a document said `---` before, because the fence was the first line
-  # with anything on it.
-  #
-  # …and the door this whole item is. A document's frontmatter keys are the
-  # same open namespace a node's properties are, so `prop:` selects one, and
-  # the row says which key was the reason exactly as a node's row does.
   @corpus:good
   Scenario: A document is found by a property its frontmatter writes
     Given I open the outline "house.olai"
@@ -220,9 +151,6 @@ Feature: Documents
     And the header search result "Palette" marks "agent" as why it matched
     And there should be no page errors
 
-  # A property is a property and NOT a record. The block carries a `date:` and a
-  # `#`-looking value on purpose: neither becomes the thing it resembles, and
-  # both are still findable by the name they actually have.
   @corpus:good
   Scenario: A frontmatter key is not a tag and not a day
     Given I open the outline "house.olai"
@@ -234,10 +162,6 @@ Feature: Documents
     When I type "prop:date=2026-09-01" into the palette
     Then the palette lists the document "notes/palette.md"
 
-  # A note is a tree row, not a page: it is drawn under a title the page owns,
-  # three of them on screen at once. `catch-up`'s note has two headings, so a
-  # contents WOULD be drawn here if this were decided by the markdown rather
-  # than by what kind of thing is being read.
   @corpus:good
   Scenario: A note has headings and no contents
     When I open the node "catch-up"
@@ -245,7 +169,6 @@ Feature: Documents
     And there is no contents on the page
     And there should be no page errors
 
-  # A node links to a document on its own page.
   @corpus:good
   Scenario: A linked document is reached on its own page
     Given I open the outline "house.olai"
@@ -257,21 +180,9 @@ Feature: Documents
     When I open the document "finishes.md"
     Then the picture "/media/art/handle.png" is drawn in the document
     And requesting "/media/art/handle.png" answers 200 with type "image/png"
-    # `notes/palette.md` names the same picture through `../`, so it is
-    # resolved against the document's own directory rather than the root.
     When I open the document "notes/palette.md"
     Then the picture "/media/art/handle.png" is drawn in the document
 
-  # WHAT A LONG DOCUMENT COSTS TO OPEN. A vault's documents carry screenshots,
-  # and a reader who opens one pays for every picture in it before they have
-  # read a line — unless the pictures below the fold wait for them. They do
-  # (`@olai/markdown-ui`'s `rewrite.ts`), and the exception is the FIRST
-  # picture, which is left eager because deferring the image a page is painted
-  # by is the one thing that makes a page slower rather than faster.
-  #
-  # The second half of the scenario is the half that makes the first safe: a
-  # deferral that never resolved would be a hole in the document at exactly
-  # the moment the reader arrived at it.
   @scratch:good
   Scenario: A picture below the fold waits for the reader, and the first one does not
     Given a document whose second picture is far below the fold
@@ -285,20 +196,7 @@ Feature: Documents
 
   @corpus:good
   Scenario: Nothing outside the served directory is reachable through it
-    # `outside.png` is a real picture one directory above the served root, so
-    # these are refused because they climb and not because there is nothing
-    # there.
-    #
-    # The spelling is the point. A plain `/media/../outside.png` never leaves a
-    # client at all: every URL parser — the browser's, curl's — collapses the
-    # `..` (and a `%2e%2e`, which the URL standard also reads as a dot) before
-    # anything is sent, so it arrives as `/outside.png` and this route is not
-    # even asked. An ENCODED separator is the one climbing spelling that
-    # survives the parser and reaches the server, which makes it the one worth
-    # asking a browser about. The rest are `mediaTarget`'s own unit tests, in
-    # `packages/surface`, where a URL nobody can send can still be tried.
     Then requesting "/media/..%2foutside.png" answers 404
-    # Only pictures, whatever else is in the directory.
     And requesting "/media/garden.olai" answers 404
     And requesting "/media/finishes.md" answers 404
     And requesting "/media/art/handle.png" answers 200 with type "image/png"
@@ -336,7 +234,6 @@ Feature: Documents
   Scenario: A document names no node, so nothing in the tree lights up
     When I open the document "notes/palette.md"
     Then no outline tree is shown
-    # Not a dead end: the sidebar is still the way on.
     And the outline list is shown
 
   @corpus:good
@@ -374,12 +271,6 @@ Feature: Documents
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And the page has not reloaded
 
-  # A filename with a space in it is still a document a vault can point at.
-  # The three spellings are the ones markdown actually writes: a percent-
-  # encoded destination, the angle-bracketed form that lets the space sit
-  # in the source, and the space left raw. What earns the browser is the
-  # click: the parser has to emit a link, the click has to stay in this
-  # app, and the address bar has to name the file.
   @scratch:good @own-scratch
   Scenario Outline: A markdown link to a document whose name has spaces opens it
     Given I open the app
@@ -409,42 +300,21 @@ Feature: Documents
       | <the brief.md>  |
       | the brief.md    |
 
-  # ── the half a document could not have ───────────────────────────────
-  #
-  # Every reference in this vault points ONE way on disk: `install` writes
-  # `doc: finishes.md` and the file itself says nothing about the node. Until a
-  # document travelled with the addresses it points AT — and every other file
-  # did too — "what is talking about this?" was a question nothing could answer
-  # (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md).
-
   @corpus:good
   Scenario: A document's page says what points at it
     When I open the document "finishes.md"
     Then the document is pointed at by 1 thing
     When I open what points at the document
-    # The RECORD that attached it, not merely the outline it sits in: a link is
-    # always some record's, and naming the file would be the coarser answer
-    # offered because it was the easier one.
     Then what points at the document is "install the cabinets"
     And there should be no page errors
 
-  # A `[…](…)` in a body is a reference the same way a link in a note is, which is
-  # what makes one rule for both worth having: `finishes.md` links the saved
-  # quote, so the quote's page knows who sent a reader to it.
   @corpus:good
   Scenario: A link written in one document's prose is a reference from it
     When I open the document "report.html"
     Then the document is pointed at by 1 thing
     When I open what points at the document
-    # No "no page errors" here, unlike its neighbour: this fixture is a saved
-    # page that deliberately reaches for the outside world, and the console
-    # errors are the sandbox REFUSING it (features/html_preview.feature).
     Then what points at the document is "Finishes"
 
-  # A document is a source exactly as a record is, which is the half this
-  # section exists for: a second `.md` linking `finishes.md` arrives LIVE (a
-  # private scratch copy, since these scenarios write the files they serve)
-  # and leaves when the prose drops it.
   @scratch:good
   Scenario: A link in another document's prose arrives and leaves live
     Given I open the document "finishes.md"
@@ -457,7 +327,6 @@ Feature: Documents
       """
     Then the document is pointed at by 2 things
     When I open what points at the document
-    # PATH ORDER, as every referrer list is: house.olai before notes/.
     Then what points at the document is "install the cabinets, Palette"
     When I rewrite "notes/palette.md" as:
       """
@@ -469,9 +338,6 @@ Feature: Documents
     And the page has not reloaded
     And there should be no page errors
 
-  # A link ONTO ONE HEADING is a reference to the whole document: what points
-  # at `finishes.md#finishes` is pointing at the page a reader opens, so the
-  # section names the source once instead of splitting the question per slug.
   @scratch:good
   Scenario: A heading link is a reference to the whole document
     Given I open the document "finishes.md"
@@ -486,9 +352,6 @@ Feature: Documents
     Then what points at the document is "install the cabinets, Palette"
     And there should be no page errors
 
-  # The section is the browser's own `<details>` answer, so it survives a
-  # rebuild the way the node page's does — the promise `website/docs/format.md` made
-  # for both pages, and the half that was only ever tested on one.
   @scratch:good
   Scenario: A plugin rebuild keeps the document's referrers open
     Given I open the document "finishes.md"
@@ -504,17 +367,11 @@ Feature: Documents
     And what points at the document is "install the cabinets"
     And there should be no page errors
 
-  # A `.pdf` and a picture are BODY pages, and the section rides the same
-  # bodyPage that draws them: a picture's page lists the documents that show
-  # it (an embed is a reference, the item-3 ruling), and a `.pdf` nobody
-  # names at first picks its one referrer up live.
   @corpus:good
   Scenario: A picture's page says which documents show it
     When I open the document "art/handle.png"
     Then the document is pointed at by 3 things
     When I open what points at the document
-    # PATH ORDER: finishes.md, kitchen-sink.md, notes/palette.md — the three
-    # bodies that draw the handle, each naming its own first line.
     Then what points at the document is "Finishes, Kitchen sink — every mark the pipeline claims, Palette"
     And there should be no page errors
 
@@ -531,9 +388,6 @@ Feature: Documents
     When I open what points at the document
     Then what points at the document is "Palette"
     And there should be no page errors
-  # The BODY pages draw the same section under the same `<BodyPage>`, and the
-  # memory is the same declared service — so the rebuild promise holds there
-  # too: a journal flip leaves a pdf's open section open (item 1's half).
   @scratch:good
   Scenario: A plugin rebuild keeps a pdf page's referrers open
     Given I rewrite "notes/palette.md" as:
@@ -555,9 +409,6 @@ Feature: Documents
     And what points at the document is "Palette"
     And there should be no page errors
 
-  # Trash is the one place a reference is NOT — the ruling the node page's
-  # section already obeys, and this section keeps: a record put away still
-  # holds its link, but the page hears only the live half.
   @scratch:good
   Scenario: A referrer put away is on the Trash and nowhere else
     Given I open the document "finishes.md"
@@ -570,7 +421,6 @@ Feature: Documents
     Then what points at the document is "install the cabinets"
     And there should be no page errors
 
-  # The last referrer going takes the whole section with it — a document
   @scratch:good
   Scenario: The last document referrer going takes the section with it
     Given I open the document "finishes.md"
@@ -581,11 +431,6 @@ Feature: Documents
       """
     And the document's page draws no what-points-at section
 
-  # ── search reaches a body ────────────────────────────────────────────
-  #
-  # `cabinetmaker` is written in `finishes.md`'s prose and in no node's title,
-  # note or id. This is the roadmap's `search-document-bodies`, and before it a
-  # word inside a document was invisible to every door in this app.
   @corpus:good
   Scenario: A word in a document's prose is something a search finds
     Given I open the outline "house.olai"
@@ -594,8 +439,6 @@ Feature: Documents
     Then the palette lists the document "finishes.md"
     And there should be no page errors
 
-  # …and the same word through the other door, over the same reading: two doors
-  # that found different things would be the drift the one index exists against.
   @corpus:good
   Scenario: The header's box finds a body too
     Given I open the outline "house.olai"

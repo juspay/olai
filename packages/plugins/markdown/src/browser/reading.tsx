@@ -1,4 +1,3 @@
-/** Document-page metadata context. No outline editor or outline reading owns it. */
 import { createContext, useContext, type Accessor, type JSX } from "solid-js"
 import type { PageReading } from "@olai/format"
 const Context = createContext<Accessor<PageReading | undefined>>()

@@ -1,13 +1,3 @@
-/**
- * Editing documents: the editor a document page becomes, the two creation
- * doors, and the conflict a save meets when the file moved underneath it.
- *
- * Everything here drives the UI — the Edit control, the textarea, Save — and
- * asserts what came BACK on the wire: a rendered body that changed, a second
- * tab that followed, a refusal drawn in the ops layer's own words. Nothing
- * reads the disk directly, because nothing in the client does either.
- */
-
 import * as assert from "node:assert";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { isoDayOf } from "@olai/web/testlib";
@@ -36,12 +26,8 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── the editor ─────────────────────────────────────────────────────────
-
 When("I start editing the document", async function (this: OlaiWorld) {
   const edit = this.frontLane().locator(`${DOCUMENT_EDIT}:visible`);
-  // The hydration wait is its own: the control appears when the page has a
-  // body to edit. `press` is the click and the frame after it.
   await edit.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.press(edit);
   await this.frontLane()
@@ -108,8 +94,6 @@ Then("the document editor is gone", async function (this: OlaiWorld) {
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 
-// ── the conflict story ─────────────────────────────────────────────────
-
 Then("the editor notices the file changed on disk", async function (this: OlaiWorld) {
   await this.frontLane()
     .locator(`${DOCUMENT_DRIFTED}:visible`)
@@ -131,11 +115,6 @@ Then(
   },
 );
 
-// ── a second tab is just another reader ────────────────────────────────
-
-/** The other tab of this scenario. Module state, reset by the Given that opens
- *  one: only the scenario that opened it reads it, and the browser context it
- *  belongs to is torn down with the scenario either way. */
 let other: Page | undefined;
 
 When("I switch to the other document tab", async function (this: OlaiWorld) {
@@ -183,14 +162,6 @@ Then(
   },
 );
 
-// ── the two creation doors ─────────────────────────────────────────────
-//
-// The sidebar half of them is `./new_file_steps.ts`, shared with the outline's
-// own door: one control (`file/NewFile.tsx`) drawn twice, so one pair of steps
-// over the kind. What stays here is the door that is only a DOCUMENT's — the
-// day page's + day note, which mints that day's note. The calendar cell never
-// writes: clicking a day navigates, and this button is the mint.
-
 When("I press + day note", async function (this: OlaiWorld) {
   const mint = this.page.locator(DAY_MINT);
   await mint.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -233,10 +204,6 @@ Then(
   },
 );
 
-/** Where the vault's own convention puts today's note: the newest existing
- *  daily note's directory with its date segments re-spelled, which for this
- *  fixture is `<root>/<yyyy>/<mm>/`. Computed rather than written out, since
- *  what day it is is not a thing a feature file can spell. */
 Then(
   "the document open is today's note under {string}",
   async function (this: OlaiWorld, root: string) {

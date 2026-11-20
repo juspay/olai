@@ -41,19 +41,6 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     Then "house.olai" holds a node titled "outline without Markdown"
     And there should be no page errors
 
-  # THE RECONNECTION CONTRACT, as a person can see it.
-  #
-  # A roster change replaces the tab's wire and keeps its connection. Every open
-  # subscription is failed by the supersession fence and re-opens itself about a
-  # second later — so the page must go on hearing about a file that changes
-  # underneath it, and must go on being able to WRITE. The contract is written
-  # down in `website/docs/architecture/plugin-system.md`.
-  #
-  # `no member of this page has gone silent` cannot prove this on its own: a
-  # re-subscribing member reads `pending`, and pending does not degrade the
-  # readout. Only a VALUE arriving after the toggle proves frames are flowing,
-  # which is why this scenario rewrites the file from outside rather than
-  # asserting the readout and stopping there.
   Scenario: A live document keeps hearing and keeps saving across an unrelated roster change
     Given I open the document "finishes.md"
     And I mark the page
@@ -62,7 +49,6 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     And I switch the plugin "journal" off
     And I use the original browser tab
     Then no member of this page has gone silent
-    # THE SUBSCRIPTION CAME BACK: this file changed on disk after the redial.
     When I rewrite "finishes.md" as:
       """
       # Finishes
@@ -70,7 +56,6 @@ Feature: Outline and Markdown capabilities have independent lifetimes
       Handles: **arrived after the roster moved**.
       """
     Then the document renders bold text "arrived after the roster moved"
-    # ...and so did the CALL half, on the same client.
     When I start editing the document
     And I retype the document as:
       """
@@ -171,8 +156,6 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     And the document renders bold text "updated independently"
     And there should be no page errors
 
-  # A kind owns membership as well as its face. Withdrawing markdown removes
-  # its files from Reference; restoring it republishes them on the same page.
   Scenario: Markdown files leave the tree with their row and return without reload
     Given I open the outline "house.olai"
     And I expand the reference section

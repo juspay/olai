@@ -26,13 +26,7 @@ Feature: The markdown pipeline arrives before it is needed
   Scenario: The shell fetches the pipeline, and the outline does not wait for it
     Given the markdown pipeline is held up
     When I open the outline "house.olai"
-    # `demo` is among them — finished — so the pick is said before the rows
-    # are counted: the claim is the bundle draws what it draws, not a
-    # default.
     And I show the done nodes
-    # Not "nothing was drawn": the tags and the marks are on the page, drawn
-    # from the bundle that was already there, while the parser is still in the
-    # air.
     Then the title of "kitchen" styles the tag "home"
     And the node "demo" has the title "take out the old counters"
     And the shell asked for the markdown pipeline
@@ -42,11 +36,7 @@ Feature: The markdown pipeline arrives before it is needed
   Scenario: A document fetches it, once, and renders
     When I open the document "finishes.md"
     Then the document renders bold text "matte"
-    # ONE request for it on the whole page: the shell's preload is what the
-    # `import()` then finds, rather than a second trip for the same bytes.
     And the markdown pipeline was fetched once
-    # Same claim the highlighter has always made, now that it travels in its
-    # own file: this server shipped it, and no CDN was asked.
     And the page requested nothing off this server
     And there should be no page errors
 
@@ -60,13 +50,6 @@ Feature: The markdown pipeline arrives before it is needed
     Then the document renders bold text "matte"
     And there should be no page errors
 
-  # A renderer that never comes is a page that must still be readable, and must
-  # say what happened. There ARE page errors in this one — the failed fetch is
-  # reported in the console, deliberately — so the usual step is absent.
-  #
-  # The source is LEGIBLE here, and that is the rule working rather than an
-  # exception to it: blurring is what a page does while an answer is coming,
-  # and once none is coming the text somebody wrote is the answer.
   @corpus:good
   Scenario: If it never comes, the page says so and keeps the text
     Given the markdown pipeline never arrives
@@ -75,10 +58,6 @@ Feature: The markdown pipeline arrives before it is needed
     And the document shows its own markdown source
     And the document is not waiting
 
-  # ...and the same for a TITLE, which is where the two halves of "not here"
-  # are easiest to confuse: a title that read "the chunk is not ready" would
-  # be blurred forever on this page, because nothing is ever going to make it
-  # ready. There are page errors here for the reason above.
   @scratch:good
   Scenario: If it never comes, a title's marks are legible too
     Given the markdown pipeline never arrives
@@ -91,9 +70,6 @@ Feature: The markdown pipeline arrives before it is needed
     Then the title of "demo" shows its markdown source
     And the title of "demo" is not waiting
 
-  # Titles are the case that decides whether an outline pays for markdown at
-  # all: a plain one is drawn immediately, and one with marks in it shows what
-  # was written — illegibly — until the pipeline can say better.
   @scratch:good
   Scenario: A title with markdown in it shows its source, then renders
     Given the markdown pipeline is held up
@@ -110,17 +86,9 @@ Feature: The markdown pipeline arrives before it is needed
     And the markdown pipeline arrives
     Then the title of "demo" renders bold text "take out"
     And the title of "demo" is not waiting
-    # A title is ONE LINE either way, which is what lets its source be drawn at
-    # all: a waiting face that let it wrap would open the row under a reader.
     And the row of "demo" is the same height
     And there should be no page errors
 
-  # THE CLAIM THE FIX IS: not that the source is gone — it is deliberately
-  # still there, because its box is the truthful one — but that no reader could
-  # read it, at any surface, in any frame. The document watches itself for
-  # every element that enters the waiting state and asks what it looked like at
-  # that moment, which is a question only the page can answer: by the time a
-  # step can look, the rendering has landed.
   @scratch:good @markdown-paints
   Scenario: No frame of legible raw markdown is ever painted
     Given the markdown pipeline is held up
@@ -130,21 +98,14 @@ Feature: The markdown pipeline arrives before it is needed
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old counters","desc":"Doors: **matte**, not gloss."}
       """
-    # A title in a tree row...
     Then the title of "demo" is waiting illegibly
-    # ...the `¶` note under it...
     When I open the note of "demo"
     Then the description of "demo" is waiting illegibly
-    # ...and a search row, which draws the same title through the same ladder.
     When I press the palette shortcut
     And I type "counters" into the palette
     Then the palette item for node "demo" is waiting illegibly
-    # Every frame this TAB has painted so far, asked of the page itself. Asked
-    # here as well as at the end so a failure says which surface lost it: the
-    # record spans the whole tab, so the last one covers these four too.
     And no frame of legible raw markdown was painted
     When I close the palette
-    # ...and the document body, on its own page.
     And I open the document "finishes.md"
     Then the document is waiting illegibly
     When the markdown pipeline arrives
@@ -152,10 +113,6 @@ Feature: The markdown pipeline arrives before it is needed
     And no frame of legible raw markdown was painted
     And there should be no page errors
 
-  # ...and the swap itself is a DE-BLUR. The same element throughout — nothing
-  # remounts — so the block does not jump when the words arrive. Its HEIGHT can
-  # change, and that is honest: a rendering of the text is not the same shape as
-  # the text, and the alternative is inventing one.
   @scratch:good
   Scenario: The rendering replaces the source without moving the block
     Given the markdown pipeline is held up

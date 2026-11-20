@@ -1,5 +1,3 @@
-/** A document's metadata is keyed by its file. A fragment remains on the
- * navigation route for landing and history, never on the metadata request. */
 import { type Claims, bodyKind, DocumentPath } from "@olai/format"
 import type { DocumentPageRequest } from "@olai/format"
 import type { Route } from "olai-plugin-navigation/contract"
