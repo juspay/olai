@@ -1,14 +1,3 @@
-/**
- * THE INTERFACE SCALE is small on purpose, and this holds it small.
- *
- * Chrome picks a type size, a corner and a shadow from `./tokens.css`'s
- * `@theme` by the JOB they do (`text-label`, `rounded-surface`,
- * `shadow-overlay`), never by how big they happen to be. A sixth size or a
- * third custom corner added "just for this one panel" is how a scale becomes
- * a list again, so the names are an equality here and growing one is a
- * deliberate edit of this file and of the README that states the rule.
- */
-
 import { expect, test } from "bun:test"
 
 const themeBlock = async (): Promise<string> => {
@@ -18,8 +7,6 @@ const themeBlock = async (): Promise<string> => {
   return theme!
 }
 
-/** The token names of one namespace, without their `--…--line-height`
- *  companions. */
 const names = (theme: string, namespace: string): ReadonlyArray<string> =>
   [...theme.matchAll(new RegExp(`--${namespace}-([a-z]+)(--[a-z-]+)?\\s*:`, "g"))]
     .filter((hit) => hit[2] === undefined)

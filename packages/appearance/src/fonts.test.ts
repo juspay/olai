@@ -1,12 +1,3 @@
-/**
- * What this client's own two hand-written files owe the catalog.
- *
- * The table and its generator are `@olai/fonts`, and they are tested there.
- * What is left here is the pair of places a name is spelled by hand and could
- * silently stop matching: the shell's pre-paint boot script, and the `@theme`
- * block Tailwind reads its `--font-*` namespace out of.
- */
-
 import { describe, expect, test } from "bun:test"
 
 import {

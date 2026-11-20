@@ -1,7 +1,3 @@
-/** The preference is read at the moment it is asked for, and answered in the
- *  platform's own words. The reading that matters is the SECOND one: a reader
- *  who changes the system switch mid-session gets the new answer without
- *  reloading the tab, which a module-scope constant could never do. */
 import { afterEach, expect, test } from "bun:test"
 
 import { motionIsReduced, scrollManner } from "./motion.ts"

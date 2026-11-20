@@ -1,31 +1,12 @@
-/* The typefaces themselves — `@font-face` and every `:root[data-font]`
- * block — are generated from `@olai/fonts`'s catalog and appended by the
- * build. What stays here is the TOKEN NAMES and the default row's stacks, so
- * Tailwind emits `font-sans` / `font-serif` / `font-mono`. The values must
- * match the default row; `theme/fonts.test.ts` holds them. */
-
 @theme {
+  /* The values must match the default row; `theme/fonts.test.ts` holds
+   * them. */
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: Literata, ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
   --font-mono: "iA Writer Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Named for their job, not their hue, so a palette is the same eleven names
-   * with different values and no utility has to know which one is in force.
-   *
-   * These eleven are the LIGHT DEFAULT's — `chalk` — and they are the one
-   * place the table is spelled twice. Tailwind needs the NAMES here or it will
-   * not emit `text-muted` at all; what it does with the VALUES is bake the
-   * literal fallback beside every opacity utility (`.bg-alarm/5` gets both
-   * `#c133490d` and, inside `@supports (color-mix…)`, the theme-aware form).
-   * So on any browser this app runs in they are inert — the generated
-   * unlayered `:root` block always wins — and on one too old for `color-mix`
-   * they are what an opacity utility falls back to. Which is exactly why they
-   * must be the DEFAULT's rather than any palette's, and why
-   * `theme/css.test.ts` holds them to that row.
-   *
-   * The other palettes are generated from the table into blocks
-   * appended to this sheet at build time (`src/client/theme/`,
-   * `src/build.ts`). */
+  /* These must be the DEFAULT's rather than any palette's, and
+   * `theme/css.test.ts` holds them to that row. */
   --color-ink: #1B1B18;
   --color-paper: #FBFBF9;
   --color-desk: #F3F3EF;
@@ -38,76 +19,29 @@
   --color-doing: #8A5800;
   --color-alarm: #C0313F;
 
-  /* Column widths. The reader owns the live value: layout/css.ts writes a
-   * pixel length onto `:root` from the stored preference, and both the sidebar
-   * column and the padding the app reserves for it read the same custom
-   * property so they cannot drift. The rail is not a preference — it is the
-   * fixed collapsed face of the sidebar. The sidebar is 17rem: a column of
-   * names and counts, not a second page. */
   --width-sidebar: 17rem;
   --width-rail: 3rem;
 
-  /* The app header's height, and the ONLY spelling of it. The bar WEARS this
-   * (`h-[var(--height-header)]`); everything that sits under the bar subtracts
-   * it — the sidebar column, the rail and the page sheet. Main-column
-   * sticky rows use --height-chrome below. No consumer carries a fallback
-   * literal: a `4rem` beside every `var()` is a second spelling of this line,
-   * and it can only fire on a page where this sheet failed to load, which has
-   * no styling for it to save. (`--visible-h` and friends DO keep fallbacks —
-   * those are written by JS at runtime, so the fallback is what the first
-   * paint reads.) */
   --height-header: 2.75rem;
 
-  /* The tab strip's height, when a row fills the seat above the panes
-   * (`olai-plugin-layout`'s `layout.strip`). The pane sheet does not read this
-   * directly: layout publishes `--height-strip` as this token while the seat is
-   * filled on a desktop, and `0px` otherwise, and the sheet subtracts that. */
   --height-tabs: 2.25rem;
 
-  /* The phone's thumb bar, when a row fills it (`olai-plugin-layout`'s
-   * `layout.thumbs`). The frame publishes `--height-bottom-chrome` as this
-   * token while the bar is drawn and `0px` otherwise; a page's bottom
-   * clearance adds that to what it reserves. 3.25rem clears a 44px target
-   * with its label under it. */
   --height-thumbs: 3.25rem;
 
-  /* THE INTERFACE SCALE. Five type sizes, three corners and two shadows for
-   * everything that is chrome rather than document content, named for the
-   * job they do so a call site says what a thing IS and never how big it
-   * happens to be. The markdown content scale (`./scale.ts`) is a separate,
-   * deliberate system for what a reader wrote; it does not read these.
-   *
-   * All `rem`, so the Size preference (`./sizes.ts`) moves every one of them
-   * with the root: at the default Large a caption is about 12px, at Medium
-   * exactly 11px, and nothing in chrome is set smaller than a caption. */
-
-  /* Counts, small-caps section headings, the smallest labels. */
   --text-caption: 0.6875rem;
   --text-caption--line-height: 1.4;
-  /* Secondary text beside a control: hints, notes, a status word. */
   --text-label: 0.75rem;
   --text-label--line-height: 1.4;
-  /* The default for controls, menu items and sidebar rows. */
   --text-body: 0.875rem;
   --text-body--line-height: 1.45;
-  /* A panel's or dialog's own name. */
   --text-title: 1.125rem;
   --text-title--line-height: 1.35;
-  /* A page's own name: Agenda, a day, the Trash. */
   --text-display: 2.5rem;
   --text-display--line-height: 1.1;
 
-  /* Corners. `control` for anything a pointer presses or a row a list is made
-   * of; `surface` for anything that floats or holds controls (menus,
-   * popovers, panels, cards, dialogs). The third is Tailwind's own
-   * `rounded-full`, for pills, dots, round buttons and switches. */
   --radius-control: 0.375rem;
   --radius-surface: 0.625rem;
 
-  /* Elevation. `raised` for what hangs off a control (menus, popovers,
-   * tooltips); `overlay` for what covers the page (the palette, dialogs, a
-   * phone sheet). Black at low alpha rather than a palette ink: ink inverts
-   * in the dark palettes, and a shadow that glowed would not be one. */
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -8px rgb(0 0 0 / 0.18);
   --shadow-overlay: 0 2px 8px rgb(0 0 0 / 0.06), 0 24px 64px -12px rgb(0 0 0 / 0.32);
 }

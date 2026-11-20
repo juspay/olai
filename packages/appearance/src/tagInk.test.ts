@@ -5,10 +5,6 @@ import { PALETTES } from "./palettes.ts"
 import { TAG_HUE_PROPERTY, TAG_INK, tagHue, tagInkHex, tagStyle } from "./tagInk.ts"
 
 describe("the hue a tag is handed", () => {
-  // "One input, one hue — every time" was asked as `tagHue(x)` against
-  // `tagHue(x)`, which is true of every function of its argument and false of
-  // nothing. The claim with content in it — that two WRITINGS of one tag land
-  // on one hue — is the case-folding test below, and it can go red.
   test("it is on the wheel", () => {
     for (const hue of ["#now", "#home", "@alice", "#work/olai", "#a", "#z-9"]
       .map(tagHue)) {
@@ -19,19 +15,12 @@ describe("the hue a tag is handed", () => {
   })
 
   test("case folds: `#Now` and `#now` are one tag, one hue", () => {
-    // The promise a colour can keep: the search fold and the index already
-    // read casing apart as the same tag (`filter.ts`), so the ink may not
-    // tell them apart.
     expect(tagHue("#Now")).toBe(tagHue("#now"))
     expect(tagHue("#NOW")).toBe(tagHue("#now"))
     expect(tagHue("@MiXeD")).toBe(tagHue("@mixed"))
   })
 
   test("the sigil is in the string: `#alice` and `@alice` are two tags", () => {
-    // website/docs/format.md: two namespaces, two tags — so the hue never claims the
-    // sameness the format refuses. (This is one assertion about THIS pair,
-    // not a claim that no two tags share a hue: collisions are accepted at
-    // real vocabulary sizes.)
     expect(tagHue("#alice")).not.toBe(tagHue("@alice"))
   })
 
@@ -42,11 +31,6 @@ describe("the hue a tag is handed", () => {
   })
 
   test("the gold samples are THE hash", () => {
-    // Hash change that still spreads and case-folds would leave the
-    // contract standing but the vocabulary remapped — a remap no reader
-    // asked for. The wheel itself is the map's stable fact, so these five
-    // PIN it: a change of hash trips here, on the same day the faces' tests
-    // would still find tags spread and signed.
     expect(tagHue("#now")).toBe(119)
     expect(tagHue("#home")).toBe(216)
     expect(tagHue("@bob")).toBe(46)
@@ -55,9 +39,6 @@ describe("the hue a tag is handed", () => {
   })
 
   test("neighbours spread apart", () => {
-    // Two tags one code point apart, which is what a real vocabulary is —
-    // `#a`/`#b`, `#errand`/`#errands` — must not sit NEXT to each other on
-    // the wheel, or a row carrying both reads as one mark again.
     const degrees = (one: string, other: string): number => {
       const raw = Math.abs(tagHue(one) - tagHue(other))
       return Math.min(raw, 360 - raw)
@@ -68,25 +49,18 @@ describe("the hue a tag is handed", () => {
   })
 
   test("a real vocabulary covers the wheel", () => {
-    // Names the fixture vaults and the lab notes actually use. The claim is
-    // SPREAD, not uniqueness: no slice of the wheel may be empty enough to
-    // let a page full of tags collapse back into looking like one colour.
     const vocabulary = [
       "now", "home", "work", "errand", "review", "bug", "chore", "idea",
       "reading", "household", "school", "garden", "kitchen", "outdoors",
       "later", "someday", "today", "week", "month", "year", "a", "b", "c", "z",
     ]
     const hues = new Set(vocabulary.map((name) => tagHue(`#${name}`)))
-    // Every 60° sector holds at least one: a palette of one sector is the
-    // smearing this shipped to remove.
     for (let sector = 0; sector < 6; sector += 1) {
       const inside = [...hues].filter(
         (hue) => hue >= sector * 60 && hue < (sector + 1) * 60,
       )
       expect(inside.length).toBeGreaterThan(0)
     }
-    // And the spaces BETWEEN landings stay bounded: no gap between two
-    // nearest hues wider than 90°.
     const ordered = [...hues].sort((one, other) => one - other)
     let widest = 0
     for (let at = 0; at < ordered.length; at += 1) {
@@ -101,8 +75,6 @@ describe("the hue a tag is handed", () => {
 
 describe("the ink is legible everywhere a title can sit", () => {
   test("the rendered colours are inside sRGB", () => {
-    // The bound below is computed from these: a hex that cannot be written is
-    // a ratio that means nothing.
     for (const scheme of ["light", "dark"] as const) {
       for (const hue of [0, 90, 180, 270, 359]) {
         expect(tagInkHex(scheme, hue)).toMatch(/^#[0-9a-f]{6}$/)
@@ -111,16 +83,10 @@ describe("the ink is legible everywhere a title can sit", () => {
   })
 
   test("the mapping the test grades is the mapping the sheet paints", () => {
-    // gamut-mapped, not raw-oklch-to-clamped: a spot check against colours
-    // pinned by hand from the conversion, so a drift in the arithmetic fails
-    // here rather than mis-grading the bound.
     expect(tagInkHex("light", tagHue("#now"))).toMatch(/^#[0-9a-f]{6}$/)
   })
 
   test("every hue clears AA on every palette's paper and panel", () => {
-    // The two grounds a title is drawn on: the outline sheet, and the
-    // popovers (⌘K palette, the header's box, the row's `((` and `#`
-    // widgets). Dark and light alike; measured, not eyeballed.
     const under: Array<string> = []
     for (const palette of PALETTES) {
       const ink = TAG_INK[palette.scheme]
