@@ -160,7 +160,8 @@ section .lead { color: var(--muted); margin-top: var(--space-xs); max-width: 44r
 
 .caption { font-size: 0.82rem; color: var(--muted); max-width: 64rem; }
 * + .caption { margin-top: var(--space-xs); }
-.caption + .caption { margin-top: var(--space-2xs); }
+.caption + .caption { margin-top: var(--space-xs); }
+.run + .caption { margin-top: var(--space-s); }
 
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); --ring: var(--accent); --ring-gap: var(--panel); }
 .chip {
