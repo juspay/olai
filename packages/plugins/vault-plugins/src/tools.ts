@@ -1,50 +1,11 @@
-/**
- * THIS ROW'S AGENT VERBS — what a plugin AUTHOR reaches for, and the reason
- * this file exists at all.
- *
- * ## The hole they fill, which was a whole section of the doc
- *
- * A grant on this row's agent face decides what a caller may CALL and says
- * nothing about what it is OFFERED: an ACP engine is handed a tool list, and a
- * member with no tool over it is a member no agent knows is there. So the first
- * instruction in `website/docs/dynamic-plugins.md` — *read the guide before writing
- * code* — named something no agent could reach, and `run`, the author's only
- * feedback loop, went with it. A node agent working on this branch found both
- * by trying (juspay/olai#506).
- *
- * ## Why they are HERE, and where they were
- *
- * They were hand-written `BespokeTool`s inside `olai-plugin-mcp`, with a
- * name-to-member map beside them deciding when to advertise them — one row's
- * vocabulary held by another row. They could not live in `@olai/ops` either,
- * and that reason still stands: its table is the OPERATIONS ON A VAULT, and a
- * plugin is not an operation on a vault, it is a thing this SERVE mounts.
- *
- * `calls` is the arm that reaches a row's OWN surface (see `@olai/ops`' `Tool`),
- * so these five dispatch to the same procedures the page reaches, and an agent
- * asking what became of its plugin and a person looking at the page read one
- * answer.
- *
- * ## What each of them is, in the agent's own words
- *
- * The descriptions below are the ones an engine reads in `tools/list`, and they
- * are written for somebody about to write a plugin rather than for somebody
- * reading this file. They say what the boundary is, because an author who does
- * not know that a person has to turn the thing on will read `pending` as a
- * failure.
- */
 import { calls, landed, NoArgs, type Tool } from "@olai/ops"
 import type { SurfaceClient } from "@olai/surface/client"
 import { PLUGIN_BROWSER_FILE, PLUGIN_FOLDER, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
 import { Schema } from "effect"
 import { surface } from "./surface.ts"
 
-/** This row's own client — the members below are compiler-checked against the
- *  spec one file over, which is the whole reason `calls` infers this type from
- *  the callback rather than naming it in a general package. */
 type Client = SurfaceClient<typeof surface.spec>
 
-/** The plugin's word — the name of its folder under `plugins/`. */
 const Named = Schema.Struct({
   name: Schema.String.annotate({
     description: `The plugin's word — the name of its folder under \`${PLUGIN_FOLDER}\`.`,

@@ -42,10 +42,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: Nobody has approved it, so nothing has been imported
-    # A FOLDER IS A ROW AND NOT A FIBER until somebody decides. Nothing of it
-    # has been compiled, imported or run — which is the state the whole phase is
-    # arranged around, and the one a person is looking at when they open the
-    # page.
     Given I open the outline "colours.olai"
     Then no row wears a swatch
     And the Plugins section lists "greeting, swatch"
@@ -55,32 +51,19 @@ Feature: A plugin the vault defines
     Then the plugin page is about "swatch"
     And the plugin page is "review"
     And the plugin page's status says "nobody has read it yet"
-    # WORDS BEFORE CODE: the README's own heading and sentence, then what the
-    # code reaches for — read off its own imports rather than off anything the
-    # author wrote in prose.
     And the plugin page's README says "A colour swatch beside any hex colour."
     And the plugin page says it uses "Adds a property kind to this vault: hex"
     And the plugin page says it uses "Draws on anything wearing"
-    # ...AND THEN THE SOURCE, in full, one tab per file, with the folder named
-    # over it. Approving is READING, and a page that asked somebody to say yes
-    # to a content hash would be asking them to approve something they cannot
-    # see.
     And the plugin page's folder is "plugins/swatch/"
     And the plugin page's code tabs are "README.md, server.ts, browser.tsx"
     And the plugin page's code names "kinds.register"
     And the plugin page says what running it costs
     And the plugin page's verb is "turn-on"
-    # ...AND THE VAULT HAS SAID NOTHING ABOUT IT. The folder is on disk and the
-    # consent is not, which is the whole of why a copied folder is safe.
     And the vault has recorded nothing about the plugin "swatch"
     And there should be no page errors
 
   @scratch:plugins
   Scenario: A plugin with no face is a whole plugin
-    # `browser.tsx` is optional, and the ABSENCE is asserted beside the presence
-    # because a page that quietly drew an empty second tab would be inventing a
-    # file the author did not write, in the one place a person is being asked to
-    # say yes to what they can see.
     Given I open the app
     When I go to the plugin "greeting"
     Then the plugin page's code tabs are "README.md, server.ts"
@@ -93,85 +76,45 @@ Feature: A plugin the vault defines
     And I mark the page
     When I go to the plugin "swatch"
     And I press the plugin page verb
-    # ONE PRESS, TWO PROPERTIES, ONE WRITE. They were one gesture when the
-    # switch was a set in this process's memory and the approval was the only
-    # durable thing about a plugin; they are both durable now and they land
-    # together, so a press cannot leave half of itself behind.
     Then the plugin page is "on"
     And file "_olai/Settings.olai" has namespace "swatch" setting "on" as "yes"
     And the Plugins row "swatch" wears no mark
 
     When I click sidebar file "colours.olai"
-    # WHAT HAPPENED BETWEEN THE PRESS AND THIS LINE, and none of it is a reload:
-    # the approval is an ordinary property write, the write publishes a revision,
-    # the revision is followed, both halves are compiled, the server half is
-    # mounted as a fiber on the same registry the bundle's rows are on, the
-    # roster moves, the tab redials, and it fetches a chunk this serve built out
-    # of a folder thirty milliseconds ago.
-    #
-    # ...AND THE FACE DRAWS. The value on that row is `swatch-hex`, which is the
-    # plugin's bare word composed with the plugin's own name — claimed by the
-    # registration, so it is held to the kind with no declarations file in this
-    # vault at all.
     Then the row "amber" wears a swatch for "#ff8800"
     And the page has not reloaded
     And there should be no page errors
-    # ...AND NOTHING ELSE WENT QUIET. A plugin arriving must not take a
-    # neighbour's streams down with it, which is the assertion the switch's own
-    # feature made its strongest.
     And no member of this page has gone silent
 
   @scratch:plugins
   Scenario: An edit is a fresh decision, and it does not happen under the reader
-    # THE VERSION IS A HASH OF BOTH HALVES, so an edit to either one is a version
-    # nobody has approved — which is what stops "approve once" meaning "approve
-    # whatever this becomes".
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
 
     When I go to the plugin "swatch"
     And the plugin's face is edited
-    # PAUSED, not merely pending: the person's switch is still up and what was
-    # running stopped. The chip the approved version drew is gone, because the
-    # plugin that drew it is gone.
     Then the plugin page is "paused"
     And the plugin page's status says "changed since you turned it on"
     And the plugin page's banner says "changed"
     And no row wears a swatch
-    # WHAT CHANGED, rather than the whole file again. The person already read
-    # this plugin and has been running it; what moved is one class name, and
-    # that is the whole of the new decision. A page that re-presented eighty
-    # lines would be asking a question whose answer it has already been given.
     And the plugin page's diff removes "w-3 rounded"
     And the plugin page's diff adds "w-3 rounded-full"
     And the plugin page's diff keeps "export default definePlugin({"
-    # ...AND THE VERBS ARE NOT ARMED. This is the case the serve's own guard was
-    # written for and could never see: the roster is live, so the page now holds
-    # source this reader has not read, and a button that stayed pressable across
-    # that would approve what is there NOW rather than what was read.
     And the plugin page has disarmed its verbs
 
     When I read the plugin "swatch" again
-    # READING AGAIN IS A PRESS OF ITS OWN, which is the whole of the protection:
-    # a person cannot approve a version that arrived after the render they were
-    # looking at without saying that they have seen it.
     Then the plugin page's verb is "turn-on-version"
 
     When I press the plugin page verb
     Then the plugin page is "on"
     When I click sidebar file "colours.olai"
-    # ...AND WHAT MOUNTS IS THE EDITED HALF. A round chip rather than a square
-    # one, so this cannot pass on the version that was already running.
     Then the row "amber" wears a swatch for "#ff8800"
     And that swatch is round
     And there should be no page errors
 
   @scratch:plugins
   Scenario: The README is not in the version, so improving the prose pauses nothing
-    # A plugin that paused itself every time its description improved would
-    # teach people to press Turn on without looking, which is the one habit
-    # this whole lane exists to prevent.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -181,24 +124,18 @@ Feature: A plugin the vault defines
     Then the plugin page's README says "never instead of it"
     And the plugin page is "on"
     And the plugin page draws no diff
-    # ...and back where the plugin draws, the chip never went away.
     When I open the outline "colours.olai"
     Then the row "amber" wears a swatch for "#ff8800"
     And there should be no page errors
 
   @scratch:plugins
   Scenario: Always trust changes, for a plugin somebody is iterating on
-    # The escape hatch, under `•••`, and the argument for it is honest: a person
-    # re-approving every edit an agent makes stops reading after the third time,
-    # and a decision nobody reads is worse than one they made on purpose once.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     And I always trust changes to the plugin "swatch"
     Then file "_olai/Settings.olai" has namespace "swatch" setting "approved" as "always"
 
     When the plugin's face is edited
-    # NO SECOND DECISION: the edited half mounts itself, which is what `always`
-    # means and the only thing it means.
     Then the plugin page is "on"
     When I click sidebar file "colours.olai"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -213,8 +150,6 @@ Feature: A plugin the vault defines
 
     When I open the plugins panel
     And I switch the plugin "swatch" off on its page
-    # OFF, BUT STILL APPROVED — two facts, kept apart, because somebody who
-    # read this code once should not have to read it again to turn it back on.
     Then the plugin page is "off"
     And the plugin page's status says "approved, switched off"
     And file "_olai/Settings.olai" has namespace "swatch" setting "on" as "no"
@@ -224,10 +159,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: The panel's switch and the page's are one fact
-    # The plugins panel still lists every row this serve has, and a vault
-    # plugin's switch there is CORE's switch — the same property, in the same
-    # file, read by the same reader. Two faces onto one fact is fine; two facts
-    # would not be, and this is the scenario that says which it is.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -248,9 +179,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: An edit to the SERVER half is a fresh decision too
-    # The version is a hash of BOTH halves. A page that only noticed the face
-    # moving would let an agent rewrite everything that actually runs under an
-    # approval somebody gave to something else.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -281,23 +209,12 @@ Feature: A plugin the vault defines
     When I read the plugin "swatch" again
     And I press the plugin page verb
     Then the plugin page is "on"
-    # ...and what is in force is the edited half: the vault's own colour is no
-    # longer one this plugin admits. The outline is open again for it, because
-    # a prop write names a node in the set a reader has loaded.
-    # ...and what is in force is the EDITED half, felt where a rule is felt:
-    # the colour already in the vault is no longer one this plugin admits, so
-    # the file carrying it is refused — with the plugin's own sentence about
-    # what the kind takes. A tightened rule is not retroactive consent.
     When I open the address "/colours.olai"
     Then the outline "colours.olai" is refused for "got \"#ff8800\""
     And there should be no page errors
 
   @scratch:plugins
   Scenario: Only a folder directly under plugins/ is a plugin
-    # `plugins/notes.md` is somebody's note about their plugins and
-    # `plugins/swatch/src/helper.ts` is a file an agent left in a folder. The
-    # folder IS the plugin, so neither is one — and neither is swept into the
-    # one that is.
     Given I open the app
     Then the Plugins section lists "greeting, swatch"
 
@@ -318,12 +235,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: A folder whose name is not a word is drawn with a sentence saying so
-    # The folder's name IS the word — the row's id, the settings namespace, the
-    # slot key and the address — so a name that is not one is a fact about the
-    # FOLDER, and the sentence is core's own rather than the author's: what is
-    # wrong is the shape of the thing rather than the code in it. (The other
-    # fault of this kind, a word this build already ships, is refused before a
-    # folder exists — `asking_for_a_plugin.feature`.)
     Given I open the app
     When I rewrite "plugins/Mixed/server.ts" as:
       """
@@ -336,26 +247,14 @@ Feature: A plugin the vault defines
     Then the plugins panel says "Mixed" is "is not a plugin word"
 
     When I close the plugins panel
-    # ...AND THE SIDEBAR LISTS IT WITHOUT OFFERING TO OPEN IT. The row is there,
-    # wearing the mark that says somebody has to do something, with the fault in
-    # its tip — and NO `href`, because `/plugins/Mixed` names no page and an
-    # address navigation does not recognise is read as the default outline. A
-    # row that linked there would answer a press about this folder by showing
-    # an unrelated one.
     Then the Plugins row "Mixed" is marked "problem"
     And the Plugins row "Mixed" is "broken"
     And the Plugins row "Mixed" says "is not a plugin word"
-    # The address itself is nobody's — the page is reachable for a WORD only —
-    # so there is nothing to navigate to and the row does not pretend otherwise.
     And the Plugins row "Mixed" is not a link
     And there should be no page errors
 
   @scratch:good
   Scenario: A folder copied in from another vault arrives off and unapproved
-    # THE CODE TRAVELS AND THE CONSENT DOES NOT, which is the whole argument for
-    # keeping `approved` and `on` in the settings file rather than in the folder.
-    # A plugin that carried its own yes would be a plugin that approved itself by
-    # being copied, and copying is exactly how a plugin is meant to travel.
     Given I open the app
     Then the Plugins section lists ""
 
@@ -372,10 +271,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: Both halves of the decision survive a restart
-    # ENABLEMENT USED TO BE A SET IN THIS PROCESS'S MEMORY, so a plugin somebody
-    # turned off came back on at the next boot and an approval was the only
-    # durable thing about a plugin. Both are in a file now, and this is the
-    # scenario that says so in the only way that counts: by killing the server.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -383,8 +278,6 @@ Feature: A plugin the vault defines
     When the server stops
     And the server starts again on the same port
     And I open the outline "colours.olai"
-    # NO SECOND APPROVAL AND NO SECOND PRESS: the fiber was mounted out of what
-    # the settings file already said.
     Then the row "amber" wears a swatch for "#ff8800"
     When I go to the plugin "swatch"
     Then the plugin page is "on"
@@ -393,8 +286,6 @@ Feature: A plugin the vault defines
     And the server stops
     And the server starts again on the same port
     And I open the outline "colours.olai"
-    # ...AND SO DOES THE STOP, which is the half the old shape got wrong: `on:
-    # no` is in a file, so a restart comes back to it rather than past it.
     Then no row wears a swatch
     When I go to the plugin "swatch"
     Then the plugin page is "off"
@@ -403,10 +294,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: Retracting one is deleting its folder, and the decision is left where it was
-    # There is no second gesture and no tombstone: the row goes on the next
-    # revision and the fiber unwinds every registration it made. The settings
-    # node is LEFT, which is the honest behaviour — a folder that comes back
-    # comes back to the decision somebody already made about it.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -415,10 +302,6 @@ Feature: A plugin the vault defines
     And the folder "plugins/swatch" is deleted
     Then there is no plugin called "swatch"
     And the Plugins section does not list "swatch"
-    # ...AND THE DECISION IS STILL WRITTEN DOWN, which is what the title of
-    # this scenario claims and what the comment above says: olai does not edit
-    # somebody's settings behind their back, and a folder that comes back comes
-    # back to the decision they already made about it.
     And file "_olai/Settings.olai" has namespace "swatch" setting "on" as "yes"
     When I open the plugins panel
     Then the plugins panel does not list "swatch"
@@ -429,10 +312,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: Renaming the folder renames the plugin, and the old page says so
-    # THE FOLDER'S NAME IS THE WORD — the row's id, the settings namespace, the
-    # slot key and the address — so a rename is a different plugin arriving and
-    # the old one leaving, and the page somebody had open says that rather than
-    # quietly following the rename to a plugin they never read.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -441,8 +320,6 @@ Feature: A plugin the vault defines
     And the folder "plugins/swatch" is renamed to "plugins/swatches"
     Then there is no plugin called "swatch"
     And the Plugins section lists "greeting, swatches"
-    # ...and the new word is a plugin nobody has approved, because the approval
-    # named the old one.
     When I go to the plugin "swatches"
     Then the plugin page is "review"
     And no row wears a swatch
@@ -450,10 +327,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins
   Scenario: A half deleted under an open page is a folder that is no longer a plugin
-    # `server.ts` is the one file a plugin cannot be without. Taking it away is
-    # what a person's own delete through the file controls does, and what a
-    # half-finished folder looks like from the outside — so the page says what
-    # is wrong rather than drawing a plugin that cannot exist.
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
@@ -467,14 +340,6 @@ Feature: A plugin the vault defines
 
   @scratch:plugins @git:repo
   Scenario: The three files and the decision are ordinary changes in the ledger
-    # WHAT THAT BUYS IS NOT TIDINESS. A plugin is a thing you can show somebody:
-    # a folder, with a README at the top of it, that travels by being copied,
-    # that git records line by line, and that a pull request can review. The
-    # commit panel listing the halves BY PATH is that claim, said where a person
-    # meets it.
-    # THE CORPUS IS ALREADY COMMITTED, so the plugin this scenario is about is
-    # one that ARRIVES — copied in from another vault, which is the gesture the
-    # folder shape exists for and the one that leaves three files waiting.
     Given I open the outline "colours.olai"
     When a plugin folder "borrowed" is copied in
     And I open the commit panel
@@ -484,7 +349,5 @@ Feature: A plugin the vault defines
     When I press the commit pill
     And I approve the plugin "swatch"
     And I open the commit panel
-    # ...AND SO IS THE YES. An approval is an ordinary property write through the
-    # ordinary gate, so it is in the ledger beside the code it is about.
     Then the commit ledger includes the "swatch" settings namespace
     And there should be no page errors

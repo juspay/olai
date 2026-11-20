@@ -1,13 +1,3 @@
-/**
- * THIS ROW'S OWN SIBLING CLIENT — PRIVATE to this package.
- *
- * It was a declared contract (`./client`) and `olai-plugin-plugin-inspector`
- * opened it for one verb, which is one plugin holding another plugin's wire
- * through a module variable. That reach is a declared service now
- * (`./index.ts`'s `Approvals`), so this module publishes nothing across a
- * package boundary and `maybeClient` — the optional read that existed only for
- * that consumer — is gone with it.
- */
 import type { SurfaceClient } from "@kolu/surface/solid"
 import type { surface } from "./surface.ts"
 export type Client = SurfaceClient<typeof surface.spec>

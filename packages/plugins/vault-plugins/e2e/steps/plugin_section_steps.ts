@@ -1,27 +1,3 @@
-/**
- * THE SIDEBAR'S PLUGINS SECTION — beside Chats and Outlines, and only where a
- * vault has plugins of its own.
- *
- * ## Absence is the first claim, not an edge case
- *
- * Most vaults define no plugins and never will. A section standing there empty
- * would be the app advertising a feature at somebody who did not ask for one,
- * in the one piece of furniture that is on screen all day. So the section is
- * drawn by the roster having a plugin the VAULT defines in it, and the steps
- * below assert its absence as carefully as its contents — with no plugin, with
- * the last one deleted, with the sidebar row switched off, and with this row
- * switched off.
- *
- * ## The mark is the three states somebody has to DO something about
- *
- * A working dot while an agent is still writing the folder, `Review` while a
- * version is waiting to be read, `Problem` when it would not start — and
- * NOTHING at all when a plugin is simply on or simply off, which is the design
- * rather than an omission: a row that always wears a badge is a row whose badge
- * nobody reads. So "no mark" is asserted as the absence of the node, and the
- * off state is read off the row's own `data-stage` instead.
- */
-
 import * as assert from "node:assert/strict"
 
 import { Then, When } from "@olai/tests/harness/runner.ts"
@@ -35,13 +11,6 @@ Then("the sidebar has a Plugins section", async function (this: OlaiWorld) {
   await this.page.locator(SECTION).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
 })
 
-/**
- * ...AND IT IS NOT THERE AT ALL — detached, rather than empty or hidden.
- *
- * Waited for, because every use of this step but the first is asked across a
- * transition: the last folder was deleted, or a row went off, and the roster
- * has to reach this tab before the furniture can follow it.
- */
 Then("the sidebar has no Plugins section", async function (this: OlaiWorld) {
   await this.showSidebar()
   await this.waitUntil(
@@ -50,15 +19,6 @@ Then("the sidebar has no Plugins section", async function (this: OlaiWorld) {
   )
 })
 
-/**
- * ...AND NEITHER IS THE PAGE, for an address that spells one.
- *
- * The grammar at `/plugins/<word>` belongs to this row's BROWSER half, so with
- * the row off there is nothing to parse it and nothing to mount. What a pane
- * draws for an address nobody claims is navigation's own business — the same
- * answer it gives any unclaimed path — so this asserts the absence of THIS
- * page rather than the presence of some other one.
- */
 Then("no plugin page is drawn", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator(PAGE).count()) === 0,
@@ -66,8 +26,6 @@ Then("no plugin page is drawn", async function (this: OlaiWorld) {
   )
 })
 
-/** Every row of it, in the order the roster lists them — which is folder
- *  order, so the sidebar agrees with the page, the panel and `ls`. */
 Then("the Plugins section lists {string}", async function (this: OlaiWorld, words: string) {
   await this.showSidebar()
   const wanted = words.trim() === "" ? [] : words.split(",").map((word) => word.trim())
@@ -78,17 +36,11 @@ Then("the Plugins section lists {string}", async function (this: OlaiWorld, word
   }, `the Plugins section to list ${words}`)
 })
 
-/** The README's own first sentence, as the row's tip — the one place in the
- *  sidebar where a person finds out what a word they chose months ago does. */
 Then("the Plugins row {string} says {string}", async function (this: OlaiWorld, word: string, said: string) {
   const row = sectionRowFor(this, word)
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   await this.waitUntil(async () => {
     const text = await row.innerText()
-    // THE ROW'S DESCRIPTION, which is where this app puts a sentence about a
-    // control rather than in a `title=`: that attribute is a tooltip a touch
-    // screen never shows and a screen reader never reads, and the client
-    // sweeps it out of its faces.
     const described = (await row.getAttribute("aria-description")) ?? ""
     const label = (await row.getAttribute("aria-label")) ?? ""
     return text.includes(said) || described.includes(said) || label.includes(said)
@@ -104,8 +56,6 @@ Then("the Plugins row {string} is marked {string}", async function (this: OlaiWo
   )
 })
 
-/** Nothing to do about this one — which is a row that is simply on, or simply
- *  off, and says it with its ink. */
 Then("the Plugins row {string} wears no mark", async function (this: OlaiWorld, word: string) {
   const row = sectionRowFor(this, word)
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
@@ -115,8 +65,6 @@ Then("the Plugins row {string} wears no mark", async function (this: OlaiWorld, 
   )
 })
 
-/** The row's own state, which is what dims a plugin somebody has switched off
- *  without putting a word beside it. */
 Then("the Plugins row {string} is {string}", async function (this: OlaiWorld, word: string, stage: string) {
   const row = sectionRowFor(this, word)
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
@@ -126,9 +74,6 @@ Then("the Plugins row {string} is {string}", async function (this: OlaiWorld, wo
   )
 })
 
-/** Whether the person's own switch is up, drawn beside the state because the
- *  two are different facts: a plugin can be approved and switched off, and an
- *  approved plugin whose code moved is paused with the switch still up. */
 Then("the Plugins row {string} is switched {word}", async function (this: OlaiWorld, word: string, on: string) {
   await this.waitUntil(
     async () => (await sectionRowFor(this, word).getAttribute("data-on")) === (on === "on" ? "yes" : "no"),
@@ -144,8 +89,6 @@ Then("the Plugins section does not list {string}", async function (this: OlaiWor
   )
 })
 
-/** The section's own `+`, which is ⌘K → New plugin by another door — and is
- *  drawn only where the palette is there to open. */
 Then("the Plugins section offers a new plugin", async function (this: OlaiWorld) {
   await this.showSidebar()
   await this.page.locator(`${SECTION} ${SECTION_NEW}`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
@@ -156,15 +99,6 @@ When("I press the Plugins section's plus", async function (this: OlaiWorld) {
   await this.press(this.page.locator(`${SECTION} ${SECTION_NEW}`))
 })
 
-/**
- * THE ONE ROW AN EMPTY VAULT GETS, asserted by its WORDS — the test id says
- * which element, the string in the scenario says what a person reads, and the
- * whole point of this row is what it says. A row drawn with the right id and
- * the wrong sentence is the failure that matters here.
- *
- * It is a BUTTON, and that is the second half of the claim: where there is a
- * palette to open, this is a press and not a line of prose.
- */
 Then("the Plugins section invites a first plugin saying {string}", async function (this: OlaiWorld, said: string) {
   await this.showSidebar()
   const row = this.page.locator(`${SECTION} ${SECTION_EMPTY}`)
@@ -173,8 +107,6 @@ Then("the Plugins section invites a first plugin saying {string}", async functio
   assert.equal(await row.evaluate((one) => one.tagName.toLowerCase()), "button")
 })
 
-/** ...and it is gone the moment there is a real row to draw, which is what
- *  keeps the column honest once somebody has a plugin. */
 Then("the Plugins section invites no first plugin", async function (this: OlaiWorld) {
   await this.showSidebar()
   await this.waitUntil(
@@ -188,23 +120,11 @@ When("I press the Plugins section's first plugin row", async function (this: Ola
   await this.press(this.page.locator(`${SECTION} ${SECTION_EMPTY}`))
 })
 
-/**
- * THE SECOND DOOR — the plugins panel's own.
- *
- * The panel is the inspector's and the verb is this row's
- * (`../../src/index.ts`'s `NewPlugin`), so the id below is the inspector's
- * while the scenario lives here: what is being proved is that the two doors
- * open the same thing, and that the one in the panel is absent on a serve
- * where nothing offers the verb.
- */
 Then("the plugins panel offers a new plugin", async function (this: OlaiWorld) {
   await this.pluginsPanel().locator(PANEL_NEW).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
 })
 
 Then("the plugins panel offers no new plugin", async function (this: OlaiWorld) {
-  // Waited for rather than counted once: the panel is drawn before the row
-  // that would hang a door in it has had its answer, so an immediate count
-  // would pass for the wrong reason as well as the right one.
   await this.waitUntil(
     async () => (await this.pluginsPanel().locator(PANEL_NEW).count()) === 0,
     "the plugins panel to offer no new plugin",
@@ -217,8 +137,6 @@ When("I press the plugins panel's new plugin door", async function (this: OlaiWo
   await this.press(this.pluginsPanel().locator(PANEL_NEW))
 })
 
-/** A row is an ANCHOR, which is what makes the page linkable and the sidebar
- *  navigable with the keyboard — rather than a div that calls a router. */
 Then("the Plugins row {string} is a link to its page", async function (this: OlaiWorld, word: string) {
   const row = sectionRowFor(this, word)
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
@@ -229,16 +147,6 @@ Then("the Plugins row {string} is a link to its page", async function (this: Ola
   )
 })
 
-/**
- * ...AND A ROW WITH NOWHERE TO GO HAS NO `href` AT ALL.
- *
- * A folder whose name is not a word is on the roster — faulted, so a person
- * can see what is wrong with it — but `/plugins/<that>` does not parse, and an
- * address navigation does not recognise is read as the default outline. A row
- * that linked there would carry the reader to an unrelated page for a press
- * they made on this one. An `<a>` with no `href` is neither focusable nor
- * pressable, which is the honest drawing of *there is nothing to open*.
- */
 Then("the Plugins row {string} is not a link", async function (this: OlaiWorld, word: string) {
   const row = sectionRowFor(this, word)
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
@@ -249,8 +157,6 @@ Then("the Plugins row {string} is not a link", async function (this: OlaiWorld, 
   )
 })
 
-/** The row that is open, which a sidebar says with `aria-current` rather than
- *  with ink alone. */
 Then("the Plugins row {string} is current", async function (this: OlaiWorld, word: string) {
   await this.waitUntil(
     async () =>
@@ -261,8 +167,6 @@ Then("the Plugins row {string} is current", async function (this: OlaiWorld, wor
   )
 })
 
-/** ...and exactly one row is, which is the half a careless `aria-current` on
- *  every row of a list would pass without. */
 Then("the Plugins row {string} is not current", async function (this: OlaiWorld, word: string) {
   const marked = await sectionRowFor(this, word).evaluate((element) =>
     element.closest("a")?.getAttribute("aria-current") ?? element.getAttribute("aria-current")
@@ -270,8 +174,6 @@ Then("the Plugins row {string} is not current", async function (this: OlaiWorld,
   assert.notEqual(marked, "page", `the ${word} row is marked current beside the page that is actually open`)
 })
 
-/** The section carries its own heading, so a reader meets the word *Plugins*
- *  rather than a list of words they chose. */
 Then("the Plugins section is headed {string}", async function (this: OlaiWorld, heading: string) {
   await this.showSidebar()
   await this.page.locator(SECTION).getByRole("heading", { name: heading, exact: true })

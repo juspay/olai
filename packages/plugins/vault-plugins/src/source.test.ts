@@ -1,17 +1,8 @@
-/**
- * WHAT THE VAULT DEFINES, read — the pure half of this row.
- *
- * A reading is a function of a revision, so every claim here is made against a
- * vault written out as text and nothing else: no host, no compiler, no mount.
- */
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { describe, expect, test } from "bun:test"
 
 import { ALWAYS, definedIn, isApproved, isBuilding, isOn, refusalFor, toldBy, versionOf } from "./source.ts"
 
-/** One vault, as its files. A plugin is three of them in a folder; the settings
- *  file is an outline, a record per line, which is what the settings reader and
- *  every other row's consent already is. */
 const vault = (files: Readonly<Record<string, string>>) =>
   readingOfVault(new Map(Object.entries(files)))
 
@@ -82,8 +73,6 @@ describe("a plugin is a folder under plugins/", () => {
       vault({ "plugins/swatch/server.ts": SERVER, "plugins/swatch/lib/helper.ts": "export const x = 1" }),
       NOTHING_BUILT,
     )
-    // The helper is vault content this row passes over — the folder holds three
-    // files and everything else in it is the author's own business.
     expect(one?.server).toBe(SERVER)
   })
 
@@ -121,9 +110,6 @@ describe("consent is in the settings file, and does not travel with the folder",
       NOTHING_BUILT,
     )
     expect(isApproved(edited!)).toBe(false)
-    // ...AND THE SWITCH IS STILL UP, which is the whole of what "paused" means:
-    // the person still wants it, and the code it would run is not the code they
-    // read.
     expect(isOn(edited!)).toBe(true)
   })
 
@@ -143,10 +129,6 @@ describe("consent is in the settings file, and does not travel with the folder",
     expect(one?.checked).toBe("abc123")
   })
 
-  /** A `builder` property is what this row used to write to bind a chat to a
-   *  plugin. Nothing writes it and nothing reads it now — the chat is the one
-   *  at the plugin's own address — so one left on a node is a custom property
-   *  like any other, and the reading is the same reading without it. */
   test("a `builder` left over from before is read as nothing at all", () => {
     const stale = definedIn(
       vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"builder":"chat-7","on":"yes"}}`) }),
@@ -162,16 +144,6 @@ describe("consent is in the settings file, and does not travel with the folder",
   })
 })
 
-/**
- * WHETHER AN AGENT IS STILL WRITING THE FOLDER — the serve's answer, because
- * the protocol it encodes is the serve's: which call means *done*, and in what
- * order a build writes its files.
- *
- * THE CHAT IS ASKED FOR, not read off the folder: a plugin is being built by
- * the chat at its own page's address, which is a row in the vault and not a
- * word on the plugin's node, so the caller passes the answer in
- * (`./runtime.ts`).
- */
 describe("a folder an agent is still writing", () => {
   const SETTINGS = (custom: string) => settings(`{"id":"s","ord":"a0","title":"swatch","custom":${custom}}`)
   const one = (custom: string, files: Readonly<Record<string, string>> = { "plugins/swatch/server.ts": SERVER }) =>
@@ -202,12 +174,6 @@ describe("a folder an agent is still writing", () => {
   })
 })
 
-/**
- * EVERY VERB THAT WRITES `approved` ASKS THE SAME DOOR, which is the point of
- * reading it here rather than in each handler: *Always trust changes* used to
- * take no version at all, so on a **Ready for you** page it approved this
- * version and every later one with the stale-source refusal skipped.
- */
 describe("what may be decided about a plugin's code", () => {
   const one = (custom: string, server: string = SERVER) =>
     definedIn(
@@ -232,8 +198,6 @@ describe("what may be decided about a plugin's code", () => {
   })
 
   test("trusting a plugin that cannot start is refused, as approving one is", () => {
-    // A FOLDER WITH NO `server.ts` is the fault a reading can produce on its
-    // own, and the only one this pure test can stand up.
     const broken = definedIn(vault({ "plugins/swatch/README.md": "# S\n" }), NOTHING_BUILT)[0]!
     const refusal = refusalFor(broken, "trust", broken.version)
     expect(refusal?.kind).toBe("usage")

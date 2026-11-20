@@ -1,15 +1,3 @@
-/**
- * THE SIX WORDS, PINNED — what a plugin's page, the sidebar's mark and the
- * alert all read off one row.
- *
- * These are the distinctions a roster cannot make on its own, and every one of
- * them was drawn wrongly on this branch before it was tested: *paused* told
- * from *ready* by the switch rather than by whether anybody had ever approved
- * anything, and *being built* ended at a file landing rather than at the agent
- * saying it was done. Both read as a sentence about a different plugin than
- * the one on screen, which is the kind of wrong a type cannot catch.
- */
-
 import { describe, expect, test } from "bun:test"
 
 import type { BuiltPlugin } from "@olai/surface"
@@ -37,8 +25,6 @@ const plugin = (source: Partial<BuiltPlugin["source"] & object>, row: Partial<Bu
 
 describe("which of the six", () => {
   test("a folder nobody has decided about is ready to be read, whatever its switch says", () => {
-    // A folder COPIED IN carries no approval and may well carry `on: yes` from
-    // the vault it came from; it is still a plugin nobody here has read.
     expect(stageOf(plugin({}))).toBe("review")
     expect(stageOf(plugin({ on: true }))).toBe("review")
   })
@@ -49,10 +35,6 @@ describe("which of the six", () => {
     expect(metaOf(plugin({ decided: true, on: true }), "paused")).toBe("changed since you turned it on")
   })
 
-  // WHETHER A FOLDER IS STILL BEING WRITTEN is the serve's answer now
-  // (`source.ts`'s `isBuilding`, tested there against real folders); what is
-  // the page's, and what these cases are about, is what it DRAWS for that
-  // answer and the reader's way past it.
   test("a folder the serve says is being built is being built", () => {
     expect(stageOf(plugin({ building: true }))).toBe("building")
   })
@@ -76,15 +58,6 @@ describe("which of the six", () => {
   })
 })
 
-/**
- * WHAT THE BANNER SAYS ABOUT HOW IT GOT THERE — the one line in this row that
- * is a sentence about the plugin's history rather than its state.
- *
- * "An agent finished building it" is true of a plugin somebody asked for in
- * the palette and false of a folder they copied in or wrote by hand, and the
- * two reach the same screen. The chat at the plugin's own address is what
- * tells them apart.
- */
 describe("what the notice says about a plugin that is ready", () => {
   test("a chat at its address is an agent having finished it", () => {
     expect(noticeOf(plugin({ chat: true }), "review").body).toContain("An agent finished building it")

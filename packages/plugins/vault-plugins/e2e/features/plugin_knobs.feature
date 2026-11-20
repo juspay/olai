@@ -43,26 +43,17 @@ Feature: A plugin the vault defines reads its own schema knobs
       """
     And I approve the plugin "greeting"
     And I always trust changes to the plugin "greeting"
-    # The row is waited for where it is a SENTENCE before it is read as a set
-    # of controls: approving moves the roster, and the panel is opened on the
-    # other side of that move.
     Then the Plugins row "greeting" is "on"
     When I open the plugins panel
     And I expand the plugin "greeting"
     Then the plugins panel shows "greeting" configured "tone" as "blue"
     And the plugin "greeting" marks "tone" as authored by "default"
 
-    # THE AGENT IS TOLD THE LAYOUT rather than left to remember it: the folder's
-    # three names, the file consent lives in, and the three words a `Config` may
-    # not declare.
     Then the plugin layout names the folder, the settings file and the reserved words
     When the terminal agent runs the plugin "greeting"
     Then the plugin run reports "tone" as "blue" from "default"
 
     When I pick "red" for "greeting" setting "tone"
-    # THE ROW IS RE-APPLIED, with the new value, and the plugin's own `apply`
-    # dies on it — so the panel says the plugin's own sentence. The approval was
-    # never consulted, which is the claim: a setting is not a version.
     Then the plugins panel says "greeting" is "tone=red"
     And file "_olai/Settings.olai" has namespace "greeting" setting "tone" as "red"
     And the plugin "greeting" marks "tone" as authored by "vault"
@@ -97,24 +88,10 @@ Feature: A plugin the vault defines reads its own schema knobs
     Then file "_olai/Settings.olai" has namespace "greeting" setting "tone" as "<absent>"
     And the plugins panel shows "greeting" configured "tone" as "blue"
     And the plugin "greeting" marks "tone" as authored by "default"
-    # ...AND THE APPROVAL IS WHERE IT WAS. Four writes to the plugin's node, and
-    # not one of them touched the two properties that decide whether code runs.
     And file "_olai/Settings.olai" has namespace "greeting" setting "on" as "yes"
     And there should be no page errors
 
   Scenario Outline: The browser configure procedure refuses a reserved word
-    # `approved` is the person's approval of code, `on` is their switch, and
-    # `checked` is the signal that the agent building it has finished. A
-    # `Config` that declared any of them would be a plugin whose settings
-    # control its own consent — or one that could declare itself finished and
-    # ring *Ready for you* at a folder its author is halfway through — so the
-    # door refuses the write before anything reaches the file, with the same
-    # sentence either way.
-    # CONSENT IS IN THE FILE BEFORE THE SERVE READS IT, rather than pressed:
-    # approving is itself a write through the door this scenario is stubbing,
-    # so a press would spend the stub on consent instead of on the knob — and
-    # a plugin that comes up already running leaves the knobs unfrozen, which
-    # is what this scenario needs to reach them.
     Given I rewrite "_olai/Settings.olai" as:
       """
       {"id":"greeting-consent","ord":"a0","title":"greeting","custom":{"approved":"always","on":"yes"}}

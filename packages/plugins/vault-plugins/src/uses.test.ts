@@ -1,12 +1,3 @@
-/**
- * WHAT A PLUGIN REACHES FOR, read off its own first lines.
- *
- * The claims here are about what a PERSON is shown on the plugin's page while
- * they decide whether to run somebody's code, so each one is written as that
- * reader: the words have to be true, the technical name has to be the thing an
- * author would recognise, and a door this build has never heard of has to be
- * listed rather than swallowed.
- */
 import { expect, test } from "bun:test"
 
 import { usesOf } from "./uses.ts"
@@ -82,9 +73,6 @@ test("the doc's own worked example reads as the page draws it", () => {
 })
 
 test("a key whose shape is spelled out over a dozen lines is still a key it names", () => {
-  // THE SHIPPED EXAMPLE'S OWN SHAPE: a consumer of a plugin-owned door cannot
-  // import the format, so it writes the fields it reads by hand — and the
-  // `serviceTag<…>` that follows them runs well past one line.
   const half = [
     `interface Row { readonly title: string }`,
     `const Agenda = serviceTag<{`,

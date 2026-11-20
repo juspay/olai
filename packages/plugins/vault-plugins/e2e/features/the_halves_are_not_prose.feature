@@ -31,9 +31,6 @@ Feature: A plugin's halves are kept, and they are not prose
   Scenario: A `#`-word in a half's code is nobody's tag
     Given I open the outline "colours.olai"
     When I press the palette shortcut
-    # `#rrggbb` is in `server.ts`, in the sentence that says what the `hex`
-    # kind takes. It is the shape of a colour and not a topic anybody writes
-    # about, and before the claim said so it was a tag this vault held.
     And I type "#rrggbb" into the palette
     Then the palette lists no plugin half
     And the palette lists no document "plugins/swatch/server.ts"
@@ -43,11 +40,6 @@ Feature: A plugin's halves are kept, and they are not prose
   Scenario: The halves are in no document list, and the README beside them is
     Given I open the outline "colours.olai"
     When I press the palette shortcut
-    # One word, three files, one folder: the two halves hold it in their PATHS
-    # and the README holds it in its path and its heading. The README is a row
-    # — a `.md` in a plugin's folder is prose like any other — and that is what
-    # makes the two absences a claim about the claim rather than a search that
-    # has stopped answering.
     And I type "swatch" into the palette
     Then the palette lists the document "plugins/swatch/README.md"
     And the palette lists no plugin half
@@ -59,11 +51,6 @@ Feature: A plugin's halves are kept, and they are not prose
   Scenario: A half's code is not words anybody searched
     Given I open the outline "colours.olai"
     When I press the palette shortcut
-    # `definePlugin` is written in both halves of both plugins in this vault
-    # and nowhere a person wrote a sentence. A body that is folded into the
-    # search index is a body whose every identifier is a hit, which is how a
-    # vault with plugins in it came to answer a query about its notes with
-    # somebody's import list.
     And I type "definePlugin" into the palette
     Then the palette lists no plugin half
     And there should be no page errors

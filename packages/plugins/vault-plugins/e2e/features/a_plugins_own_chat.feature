@@ -27,20 +27,12 @@ Feature: A plugin's chat is the chat of its README
     And I accept the name
     Then the address is "/plugins/bar-beside"
 
-    # THE CHAT IS THE README'S, written in that note's own front matter — and
-    # the plugin's settings node says nothing about it.
     And the plugin "bar-beside" is being built by a conversation called "Bar beside"
     And the plugin page is "building"
 
-    # ...AND THAT BLOCK IS NOT PROSE. The page renders what a person wrote and
-    # cuts the front matter off it, or the tie would be drawn as a line of
-    # text above the plugin's own title.
     And the plugin page's README says "Bar beside"
     And the plugin page's README does not say "chat-agent-session"
 
-    # ...AND THE PAGE FINDS IT BY THAT NOTE. It opens in the pane beside the
-    # page because this plugin is being built, and the menu offers the way back
-    # to it once the reader has closed that pane.
     And the conversation building "bar-beside" is beside the page
     And the plugin page offers to ask for a change
 
@@ -50,10 +42,6 @@ Feature: A plugin's chat is the chat of its README
 
   @scratch:plugins
   Scenario: A plugin whose node still carries a builder property behaves exactly as it did
-    # `builder` is a word nothing writes and nothing reads now. One left over
-    # from a vault written before that is an ordinary custom property: it is
-    # not a knob, it is not a fault, and it is not a conversation — so the
-    # plugin turns on, runs, and says nobody is building it.
     Given I rewrite "_olai/Settings.olai" as:
       """
       {"id":"swatch-consent","ord":"a0","title":"swatch","custom":{"builder":"a-chat-that-is-gone"}}
@@ -64,15 +52,11 @@ Feature: A plugin's chat is the chat of its README
     When I press the plugin page verb
     Then the plugin page is "on"
     And file "_olai/Settings.olai" has namespace "swatch" setting "on" as "yes"
-    # ...and the page offers no conversation, because there is no chat at this
-    # plugin's address — the stale word is not one.
     And the plugin page does not say "Ask for a change"
     And there should be no page errors
 
   @phone @scratch:plugins
   Scenario: On a handset the new plugin's conversation opens as its own page
-    # A phone has no room for two panes side by side, so the same press opens
-    # the same chat page — full screen, in the strip beside the plugin's.
     Given I open the app
     When I press the palette shortcut
     And I open New plugin from the palette
@@ -85,12 +69,6 @@ Feature: A plugin's chat is the chat of its README
     Then the conversation building "hours" is beside the page
     And there should be no page errors
 
-  # A RELOAD IS WHERE "FIND IT BY THE ADDRESS" IS ACTUALLY TESTED. Nothing is
-  # written down about which conversation builds this plugin, so a fresh tab
-  # has to ask chat what is at `/plugins/bar-beside` — and it asks while
-  # chat's roster is still arriving, which is the race the column has to
-  # survive: it opens at once and docks the chat the moment the answer is
-  # there, rather than giving up and docking nothing.
   @scratch:plugins
   Scenario: A reload on the page of a plugin being built docks its chat again
     Given I open the outline "colours.olai"
