@@ -1,13 +1,3 @@
-/**
- * The two orders a `custom` map has, and the difference between them.
- *
- * A WRITER spends `customKeys`, which is canonical and alphabetical, because
- * two files that mean the same thing must not differ byte for byte. A DRAWER
- * spends `customOrder`, which is the order the map itself holds — and for a
- * record read off disk that is the order the bytes have it, which is the whole
- * claim worth pinning: the file's own order survives the parse, so a view that
- * does not sort is a view showing what was written.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
@@ -17,7 +7,6 @@ import { isMirror } from "@olai/format"
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import { serializeNode } from "olai-plugin-outline-olai/format"
 
-/** A map built in an order no sort would produce. */
 const LANE = withCustom(
   withCustom(withCustom({}, "worktree", ".worktrees/pda"), "agent", "claude-opus"),
   "brief",

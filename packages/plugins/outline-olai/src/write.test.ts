@@ -34,15 +34,6 @@ describe("serializeNode", () => {
     expect(serializeNode(regular({}))).toBe(`{"id":"n","ord":"a0","title":"a node"}`)
   })
 
-  /**
-   * The four ways to spell "this node has no note and no edges" produce ONE
-   * file. `undefined` is the schema's; `null`, `[]` and `""` are the three a
-   * writer can reach for by accident, and website/docs/format.md's Writing section
-   * says none of them may reach a file.
-   *
-   * The stake is the format's own bet: two files that mean the same thing must
-   * not differ byte-for-byte, or a line-based git merge conflicts over nothing.
-   */
   test("an optional field holding nothing is not written at all", () => {
     const empty = serializeNode(
       regular({
@@ -50,8 +41,6 @@ describe("serializeNode", () => {
         blocks: [],
         see: [],
         desc: "",
-        // `null` is not in the schema's type, but it is exactly what a writer
-        // reaching for "clear this" produces, and it must not reach a file.
         date: null as unknown as string,
       }),
     )
@@ -65,14 +54,6 @@ describe("serializeNode", () => {
     )
   })
 
-  /**
-   * The asymmetry, stated: a REQUIRED field is emitted whatever it holds.
-   *
-   * Dropping one makes a line the reader rejects outright — `\`title\` is
-   * required and missing` — which is strictly worse than handing an odd value
-   * to the validator that is about to see it anyway. The write gate validates
-   * the whole set before any of these bytes are renamed into place.
-   */
   test("a required field is never dropped, however empty it is", () => {
     expect(serializeNode(regular({ title: "" }))).toBe(
       `{"id":"n","ord":"a0","title":""}`,
@@ -93,15 +74,6 @@ describe("serializeNode", () => {
     expect(line.includes("\n")).toBe(false)
   })
 
-  /**
-   * `custom` is the one field whose value has an INSIDE, so both writing rules
-   * have to hold one level in as well: canonical order, and one spelling of
-   * absence.
-   *
-   * A map straight from JSON carries whatever order somebody's editor left, and
-   * two files that mean the same thing must not differ byte for byte — the
-   * whole reason the fields above have a canonical order at all.
-   */
   test("custom keys are written alphabetically, whatever order the map holds", () => {
     expect(
       serializeNode(regular({ custom: { pr: "https://x/1", agent: "opus", terminal: "485c" } })),
@@ -112,8 +84,6 @@ describe("serializeNode", () => {
   })
 
   test("a custom key holding nothing is not written, and an empty map is no field", () => {
-    // The `{"after":[]}` conflict-about-nothing, one level in: a key emptied
-    // and a key removed are one file, so they cannot be two maps on disk.
     expect(serializeNode(regular({ custom: { pr: "", tags: [] } })))
       .toBe(`{"id":"n","ord":"a0","title":"a node"}`)
     expect(serializeNode(regular({ custom: {} })))
@@ -147,13 +117,6 @@ describe("serializeOutline", () => {
     expect(serializeOutline([])).toBe("")
   })
 
-  /**
-   * The 2026-08-09 incident, as a test: a multi-record write produced two
-   * records glued onto one line, and the file that came out was one no reader
-   * could parse. The assertion is not "the string looks right" — it is that
-   * every line of what came out parses back to the record that went in, for
-   * every shape of record the format has.
-   */
   test("a multi-record write can never glue or split a line", () => {
     const nodes: ReadonlyArray<Node> = [
       regular({ id: "root", title: "Kitchen #home" }),
@@ -170,9 +133,6 @@ describe("serializeOutline", () => {
       { id: "mirrored", parent: "root", ord: "a1", mirror: "child" },
       regular({ id: "quotes", parent: "root", ord: "a2", title: `he said "no"` }),
       regular({ id: "unicode", parent: "root", ord: "a3", title: "café — naïve 日本語" }),
-      // Every empty spelling, in the middle of a real write: the record that
-      // comes back has none of these keys, so the round-trip below compares it
-      // against the one WITHOUT them.
       regular({
         id: "hollow",
         parent: "root",
@@ -184,7 +144,6 @@ describe("serializeOutline", () => {
       }),
     ]
 
-    /** The same records as they will read back — the empty fields gone. */
     const expected: ReadonlyArray<Node> = nodes.map((node) =>
       node.id === "hollow"
         ? { id: "hollow", parent: "root", ord: "a4", title: "nothing on it" }
@@ -212,14 +171,6 @@ describe("serializeOutline", () => {
     )
   })
 
-  /**
-   * The writer emits the fields it has an ORDER for, so a field the record
-   * schema gained and that list did not would be dropped on the next write —
-   * data that parsed, lost, by a writer every layer above believes. Which
-   * fields EXIST now comes from the schema, so only the order is hand-written;
-   * this is what makes forgetting to place a new one loud instead of lossy.
-   * `todo` was exactly that edit.
-   */
   test("every field of both record shapes has a place in the canonical order", () => {
     const ordered = new Set(orderOf(serializeNode(EVERY_REGULAR_FIELD)))
     for (const field of Object.keys(RegularNode.fields)) {
@@ -233,13 +184,9 @@ describe("serializeOutline", () => {
   })
 })
 
-/** The keys of a serialized record, in the order the writer wrote them. */
 const orderOf = (line: string): ReadonlyArray<string> =>
   Object.keys(JSON.parse(line) as Record<string, unknown>)
 
-/** Every optional field carrying something, so nothing is omitted for being
- *  empty and what comes back is the writer's whole vocabulary. A field added
- *  to the schema without a value here fails the test above by its absence. */
 const EVERY_REGULAR_FIELD: RegularNode = {
   id: "n",
   parent: "p",
