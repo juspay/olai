@@ -1,6 +1,3 @@
-/** One upstream handshake, then one claim per kind. Pending presses belong to
- * this activation, not storage: the newest unclaimed press replaces its kind's
- * previous one. Removing a claim never disturbs another claimant's identity. */
 import type { Channel, NotifyClick } from "./contract.ts"
 
 type Claim = { readonly name: string; readonly deliver: (value: NotifyClick) => void }

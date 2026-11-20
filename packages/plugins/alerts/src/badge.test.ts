@@ -29,8 +29,6 @@ test("each attention owner starts fresh and cleanup uses its captured badge sink
     oldBadge(1)
     const nextBadge = createBadge(value => second.push(value))
     nextBadge(1)
-    // Clearing a departed attention instance must neither look up a removed
-    // global settings provider nor clear the replacement instance's badge.
     oldBadge(0)
     expect(first).toEqual([true, false])
     expect(second).toEqual([true])

@@ -1,9 +1,3 @@
-/**
- * The alerts rows own both controls; preferences supplies their location.
- * Two independent choices shared by chat and journal: being told, and being
- * told audibly. Sound sits under Alerts and is frozen, rather than hidden,
- * with Alerts off — the switch above it says why.
- */
 import { TESTID } from "./testids.ts"
 import { Show } from "solid-js"
 import type { Channel } from "./contract.ts"
@@ -25,27 +19,11 @@ export function AlertRows(props: { readonly channel: Channel }) {
   </>
 }
 
-/**
- * THE ONE GESTURE THAT CAN RAISE THE PERMISSION PROMPT, on the row it belongs
- * to. Alerts are on by default, so there is no "first enable" press for the
- * browser's prompt to ride, and Firefox and Safari refuse a prompt raised from
- * a background event (`./notify.ts`). So this is the door that always works —
- * drawn only while it can help: alerts on, and a browser that has neither
- * granted nor refused. Once refused, only the browser's own settings can undo
- * it, and a button here would do nothing.
- */
 function AllowNotify(props: { readonly channel: Channel }) {
   return (
     <Show when={props.channel.alertsOn() && props.channel.consent() === "default"}>
       <button
         type="button"
-        // No focus treatment of its own. The ring this used to spell
-        // (`focus-visible:ring-2`) was a `box-shadow` drawn UNDER the app's
-        // real one — the `outline-none` beside it never stood that down,
-        // because `@olai/appearance/chrome.css` is unlayered — and a
-        // box-shadow is what forced colours removes first.
-        // `[--olai-ring-radius:9999px]` because this one is a pill and the
-        // sheet's default ring is `--radius-control`-shaped.
         class={`${TARGET} mb-1 mt-1.5 rounded-full border border-rule px-3 text-label text-ink hover:border-accent [--olai-ring-radius:9999px] md:min-h-0 md:py-1`}
         data-testid={TESTID.prefsAllowNotify}
         onClick={() => void props.channel.ask(true)}
@@ -56,8 +34,6 @@ function AllowNotify(props: { readonly channel: Channel }) {
   )
 }
 
-/** The one line under Alerts: what it is for, or — only while it applies —
- *  why the browser will not show the banner. */
 const alertsHint = ({ alertsOn, consent: notifyConsent }: Channel): string => {
   if (alertsOn()) {
     switch (notifyConsent()) {

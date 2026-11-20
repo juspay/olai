@@ -1,31 +1,8 @@
-/**
- * The alerts row owns notification permission state and the single framework
- * click listener. Each channel activation reads current permission; disposal
- * removes listeners and prevents delayed permission responses from delivering
- * a departed activation's notice. The framework owns service-worker delivery
- * and the durable click handshake.
- *
- * This seam moved from `@olai/web`'s `client/notify.ts` into chat in #557,
- * because chat was then its only consumer. Journal became a second consumer,
- * so the seam now belongs to the alerts row. Chat's attention component and
- * journal's reminders component acquire `alerts.channel`; neither reads this
- * provider's module state. The channel dispatches presses by kind and holds
- * an unclaimed press until its consumer arrives within this activation.
- */
 import { createSignal } from "solid-js"
 import { createPresses } from "./presses.ts"
 import { createNotify } from "@kolu/surface-app/notify"
 
 import type { Consent, Notice, NotifyClick } from "./contract.ts"
-/** Read a click envelope the worker relayed, or `undefined` for anything that
- *  is not one of ours. Handed to `createNotify` as its validator, so a stale
- *  or malformed payload is dropped loudly rather than routed.
- *
- *  The `plugin` arm is the one that carries a field, so it is the one that can
- *  arrive HALF right — a kind this build knows beside a name a degraded worker
- *  dropped. That is refused rather than narrowed to the kind: a press that
- *  reached its claimant with no word would be asking the plugins row to pick a
- *  plugin, which is exactly what naming it exists to prevent. */
 export const notifyClick = (data: unknown): NotifyClick | undefined => {
   if (typeof data !== "object" || data === null) return undefined
   const { kind, name } = data as { kind?: unknown; name?: unknown }
@@ -45,8 +22,6 @@ export interface NotificationOptions {
 export const createNotifications = (options: NotificationOptions = {}) => {
   const seam = options.seam ?? createNotify<NotifyClick>(notifyClick)
   const presses = createPresses()
-  // The framework consumes cold-start payloads synchronously here. Hold them
-  // before publishing the channel, until their kind has a consumer.
   const stopPresses = seam.onClick(presses.receive)
   const permission = options.permission ?? asked
   const [consent, setConsent] = createSignal<Consent>(permission())

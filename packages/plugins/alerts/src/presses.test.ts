@@ -26,7 +26,7 @@ test("one upstream listener holds the newest cold press, delivers once, and surv
   release()
   const stop = stage.channel.onPress("ask", value => seen.push(value))
   expect(seen).toHaveLength(1)
-  release() // An old release cannot remove the replacement.
+  release()
   stage.emit(old)
   expect(seen).toHaveLength(2)
   stop()
@@ -79,13 +79,6 @@ for (const order of [["ask", "due"], ["due", "ask"]] as const) {
   })
 }
 
-/**
- * THE THIRD KIND IS ROUTED LIKE THE OTHER TWO, and carries its word all the
- * way. The hold is per KIND, so a plugin press that waits for its claimant must
- * come out of the wait still naming the plugin it was raised for — a held press
- * that lost its name would open a page nobody asked about, which is the one
- * thing this arm's field exists to stop.
- */
 test("a plugin press waits for its own claimant and arrives still named", () => {
   const stage = setup({ kind: "plugin", name: "hex-swatch" })
   const seen: NotifyClick[] = []

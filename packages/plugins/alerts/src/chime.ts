@@ -1,41 +1,9 @@
-/**
- * Moved from chat when journal became a second consumer. The alerts row
- * owns the channel; consumers acquire alerts.channel on their components.
- *
- * One short chime — two notes, a third of a second, and no file.
- *
- * SYNTHESISED rather than shipped, and that is a dependency decision as much as
- * an aesthetic one: olai requires nothing outside Nix, and an
- * audio asset is a binary in the bundle, a second content type for the static
- * layer to negotiate, and a thing to license. Two oscillator notes are eleven
- * lines and are the same sound in every browser.
- *
- * THE UNLOCK is the whole of the complexity here, and it is the platform's
- * rule rather than ours: an `AudioContext` created without a user gesture
- * starts suspended and stays that way, so a chime armed at boot would be
- * silent for exactly as long as the tab had never been touched. Nothing can be
- * done about that from here except to take the FIRST gesture there is —
- * whatever it was for — and open the context on it. By the time an agent is
- * waiting on an answer, somebody has pressed something to start the
- * conversation, so that context is usually open already. A reminder can
- * arrive at boot before any gesture; its sound is skipped and never replayed.
- *
- * A tab that has never been touched and is chimed at anyway says so on the
- * console, once, and does not throw — `@olai/web/client/grumble.ts` is where
- * that argument lives. Notification delivery and chat's badge are independent
- * of sound; a strip over somebody's outline saying their browser would not
- * make a noise is worse than the silence it reports.
- */
-
 import { grumble } from "@olai/web/client/grumble.ts"
 
-/** Audio and first-gesture listeners belong to one alerts channel activation. */
 export const createChime = (target: EventTarget = window, open: () => AudioContext = () => new AudioContext()) => {
 let audio: AudioContext | undefined
 let active = true
 
-/** The one key this module grumbles under: whatever went wrong, what a reader
- *  has lost is the same thing, and the first reason is the useful one. */
 const NO_CHIME = "chime"
 
 const noChime = (why: string, cause?: unknown): void => {
@@ -59,32 +27,18 @@ const unlock = (): void => {
   })
 }
 
-/**
- * Take the first gesture this page gets, whatever it was for, and open the
- * audio context on it.
- *
- * `capture` so the listener runs before anything that stops propagation, and
- * on the WINDOW so it hears every press in the document. Removed by the first
- * one that fires — both of them, so a keyboard user does not leave a pointer
- * listener behind and the other way round.
- */
 const arm = (): void => {
   target.addEventListener("pointerdown", unlock, true)
   target.addEventListener("keydown", unlock, true)
 }
 
-/** The two notes, as a fifth: A5 up to E6. Named because they are the sound. */
 const NOTES = [880, 1318.5]
 
-/** How long each note is held, and the gap between their starts. */
 const NOTE = 0.28
 const APART = 0.1
 
-/** Loud enough to hear across a room, quiet enough not to be an alarm. */
 const PEAK = 0.12
 
-/** Ring, once. Never throws: a caller is telling somebody something, and the
- *  notification can still be delivered when sound is unavailable. */
 const chime = (): void => {
   if (!active) return
   const ctx = audio
@@ -100,9 +54,6 @@ const chime = (): void => {
       const level = ctx.createGain()
       note.type = "sine"
       note.frequency.setValueAtTime(hz, start)
-      // An exponential ramp cannot touch zero, so the envelope runs between
-      // near-silence and the peak — the shape that makes this a chime rather
-      // than a click at each end.
       level.gain.setValueAtTime(0.0001, start)
       level.gain.exponentialRampToValueAtTime(PEAK, start + 0.012)
       level.gain.exponentialRampToValueAtTime(0.0001, start + NOTE)

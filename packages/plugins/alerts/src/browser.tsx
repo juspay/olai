@@ -1,5 +1,3 @@
-/** Offer withdrawal drains consumers while the devices still exist. Each
- * acquisition has its release; preferences UI and theme are optional consumers. */
 import { definePlugin, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createEffect, createRoot } from "solid-js"
