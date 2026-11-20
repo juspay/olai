@@ -1,18 +1,3 @@
-/**
- * The day page's way to a note that does not exist yet.
- *
- * Clicking a calendar cell never writes — every day is a link to `/d/<date>`,
- * and an empty day is the page that says so. THIS is the creation affordance
- * that used to live on a bare cell. It now crosses journal's own `note.mint`
- * procedure and hands the returned file to the shell's editor hand-off.
- *
- * The button sends the DATE and nothing else — where the vault keeps its daily
- * notes is the server's to read off the set, so the path comes back on the
- * answer and is the one thing this page cannot know in advance. A refusal
- * (two mints racing, a note arriving from another writer between frames, a
- * `/d/<anything>` that is not a day) is drawn beside the button, verbatim.
- */
-
 import { createSignal, Show } from "solid-js"
 
 import { useDocumentActions } from "../editing.ts"
@@ -50,9 +35,6 @@ export function DayMint(props: { readonly date: string }) {
 
   return (
     <Show when={useDocumentActions()}><div class="flex flex-col items-end gap-2">
-      {/* The tip repeats the button's own name — what the press makes, and
-          for which day — so the sentence a pointer gets is the one a reader
-          who never hovers already has. */}
       <Tip text={`Create a note for ${props.date}`}>
         <button
           type="button"

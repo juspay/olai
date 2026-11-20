@@ -18,7 +18,7 @@ const stage = (boot?: Owed) => createRoot(dispose => {
   const channel: Pick<Channel, "alertsOn" | "notify" | "chime" | "onPress"> = {
     alertsOn,
     notify: async notice => { expect(said()).toBe(day()); calls.push(`notify:${notice.body}`) },
-    chime: () => { calls.push("chime") }, // No oscillator: skipped sounds still spend the day.
+    chime: () => { calls.push("chime") },
     onPress: (kind, action) => {
       expect(String(kind)).toBe("due")
       press = () => action({ kind } as Parameters<typeof action>[0])

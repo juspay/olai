@@ -1,5 +1,5 @@
-/** One effect over the day, its owed reading and the stored choices. Nothing
- * replays a skipped sound: the day is recorded before either device is asked. */
+/** Nothing replays a skipped sound: the day is recorded before either device
+ * is asked. */
 import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 import type { Owed } from "@olai/format"
 import type { Channel } from "olai-plugin-alerts/contract"

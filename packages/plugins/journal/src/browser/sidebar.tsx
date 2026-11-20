@@ -22,37 +22,12 @@ const createAgendaMark = (today: () => string) => {
   return createMemo(() => markOf(owed()), undefined, { equals: unchanged })
 }
 
-/**
- * THE `Agenda` DOOR, and what is owed folded under it.
- *
- * The door is the chip and the way to the page; the list under it is the same
- * reading as rows, so a reader working in an outline sees WHAT slipped without
- * leaving the page (`./agenda/rows.tsx`). Three things decide whether the list
- * is drawn, and each is a different fact:
- *
- *   - IS ANYTHING OWED — nothing late and nothing on today is the plain door it
- *     has always been, with no list and no chevron;
- *   - IS THE AGENDA IN FRONT — the page is the fuller answer to the same
- *     question, so the column does not repeat it; the count stays, because the
- *     door is still a door;
- *   - HAS THE READER FOLDED IT — this browser's preference
- *     (`./agenda/fold.ts`), followed across tabs by the activation. Folding
- *     never stops the reading, which is what keeps the count live while shut.
- *
- * The chevron is a control of its own, beside the link rather than inside it,
- * for the reason the month's is: "go to the agenda" and "put the list away" are
- * two wishes, and a row that did both would spend the second on everybody who
- * wanted the first.
- */
 export function AgendaEntry() {
   const router = useRouter()
   const today = useToday()
   const mark = createAgendaMark(today)
   const reading = owedToday
   const current = () => agenda.value(router.route()) !== null
-  /** The list is drawn exactly when the mark is not quiet and the page is not
-   *  the one in front — one condition, before the fold, so the chevron and the
-   *  region it controls cannot come apart. */
   const shown = () => mark().face !== "quiet" && !current()
   return (
     <div
@@ -78,9 +53,6 @@ export function AgendaEntry() {
           <AgendaFold />
         </Show>
       </div>
-      {/* The list is drawn exactly when the reading exists and the two facts
-          above allow it; `shown()` cannot be true without one, so the
-          condition is also what makes the prop a reading rather than a maybe. */}
       <Show when={shown() && !agendaRowsFolded() ? reading() : undefined}>
         {(owed) => <AgendaRows reading={owed()} today={today()} />}
       </Show>
@@ -88,20 +60,6 @@ export function AgendaEntry() {
   )
 }
 
-/**
- * THE `Today` ROW, and the month folded under it.
- *
- * One row in the column's first doors, under Agenda: `Today` on the left and
- * the date on the right, a link to today's page — where today's cell in the
- * month goes. The chevron beside it is a separate button that opens the month
- * in place below the row and shuts it again; whether it is open is this
- * browser's preference (`./calendar/fold.ts`), shut by default.
- *
- * Two controls rather than one row that does both, because they are two
- * different wishes — go to today, or look at the month — and a row that
- * navigated AND unfolded would do the second to everybody who wanted only the
- * first.
- */
 export function TodayEntry() {
   const router = useRouter()
   const today = useToday()
@@ -119,10 +77,6 @@ export function TodayEntry() {
           testid={TESTID.calendarToday}
           current={open() === today()}
           tip={today()}
-          // WHICH DAY TODAY IS, in full. The row draws `Today` and the short
-          // day; the date itself was the anchor's `title`, which answered a
-          // pointer and nothing else. The name keeps both drawn words and
-          // adds the date, so the tip stays a convenience.
           label={`Today, ${shortDay(today())}, ${today()}`}
         >
           Today
@@ -139,8 +93,6 @@ export function TodayEntry() {
             aria-controls={grid}
             aria-label={calendarOpen() ? "Hide month" : "Show month"}
             onClick={(event) => {
-              // The sidebar body puts the phone drawer away on any click that
-              // bubbles to it; unfolding the month is not leaving.
               event.stopPropagation()
               setCalendarOpen(!calendarOpen())
             }}
@@ -166,9 +118,6 @@ export function JournalRail() {
   const mark = createAgendaMark(today)
   return (
     <>
-      {/* The rail is glyphs alone, so each tip is where the word is drawn —
-          and each `label` beside it is the same door said to a reader who is
-          not hovering, which is what keeps a tip a convenience. */}
       <Tip text="Today">
         <RailButton
           testid={TESTID.railCalendar}

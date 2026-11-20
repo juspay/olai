@@ -1,12 +1,3 @@
-/**
- * THE JOURNAL'S TWO THUMBS — today's page and the agenda — in the phone's
- * bottom bar (`olai-plugin-layout`'s `layout.thumbs`).
- *
- * The same two doors the sidebar's first rows are, reached with a thumb
- * instead of a drawer. The agenda's thumb carries the owed count the entry
- * carries (`./agenda/owed.ts`), and only while something is late or on
- * today: a bar that counted zero would be a bar that nagged.
- */
 import { Show } from "solid-js"
 
 import { Thumb } from "olai-plugin-layout/thumb"

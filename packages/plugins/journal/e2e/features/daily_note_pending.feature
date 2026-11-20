@@ -23,8 +23,6 @@ Feature: Daily-note creation respects later user actions
     And the file "Daily/2019/11/2019-11-20.md" has been created
     When I follow the outline "work.olai" while updates are delayed
     And I release incoming updates to the original browser tab
-    # A subsequent browser query observes the released replies before we
-    # assert the page: an immediate URL read could beat the late navigation.
     When I filter the page by "deck"
     Then the node "deck" is a match
     And the document editor is gone

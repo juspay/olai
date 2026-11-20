@@ -1,5 +1,3 @@
-/** Claims over production code, with comments stripped: a new speller fails
- * with its filename. Tests quote these spellings to assert the vocabulary. */
 import { expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join, relative } from "node:path"

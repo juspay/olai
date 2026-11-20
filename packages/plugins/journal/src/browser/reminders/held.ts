@@ -1,5 +1,3 @@
-/** Consumer-owned holds, each cleared by its acquisition token. The controls
- * share this row's preference state; services are acquired by reminders itself. */
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { Accessor } from "solid-js"
 import type { Channel } from "olai-plugin-alerts/contract"

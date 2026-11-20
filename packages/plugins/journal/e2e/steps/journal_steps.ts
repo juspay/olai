@@ -1,19 +1,3 @@
-/**
- * The month in the sidebar, and one day as a page.
- *
- * Two things these steps are careful about. What a day cell IS — something on
- * it, a note of its own, today, the one being read — is read off `data-`
- * attributes rather than off the colour it is painted, because the marks are a
- * promise and the palette is a styling decision a refactor may change; the
- * cell's four facts are asked through the world's own `expectDayMark`, which
- * is what keeps this file and `daily_notes_steps.ts` asking one widget one
- * way. And "today" is asked of
- * the clock with the same function the client uses (`client/clock.ts`),
- * imported rather than re-spelled: a suite that computed the day its own way
- * would disagree with the browser at exactly midnight, in one time zone, on
- * somebody else's machine.
- */
-
 import * as assert from "node:assert";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -50,11 +34,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── opening a day ──────────────────────────────────────────────────────
-
-/** A day's own page, cold. Registered once and read as either keyword —
- *  Cucumber matches on the text — because a day is either what a scenario is
- *  about or where it starts from, and the sentence says the same thing. */
 Given("I open the day {string}", async function (this: OlaiWorld, date: string) {
   await this.openDayPage(date);
 });
@@ -73,9 +52,6 @@ Then("the day is empty", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** The plugin's whole shell contribution, absent together when its row was not
- * composed. Wait for core's sidebar before counting so an undrawn app cannot
- * satisfy an absence assertion. */
 Then("the journal chrome is absent", async function (this: OlaiWorld) {
   await this.showSidebar();
   await this.page
@@ -87,8 +63,6 @@ Then("the journal chrome is absent", async function (this: OlaiWorld) {
     [CALENDAR, "calendar"],
     [AGENDA_LINK, "Agenda entry"],
     [AGENDA_OWED, "owed badge"],
-    // ...and the rows under it, with the chevron that folds them: the whole
-    // contribution leaves together, which is this row's promise.
     [AGENDA_ROWS, "owed rows"],
     [AGENDA_FOLD, "fold's chevron"],
   ] as const) {
@@ -100,9 +74,6 @@ Then("the journal chrome is absent", async function (this: OlaiWorld) {
   }
 });
 
-/** `/today`, `/d/...` and `/agenda` fall through to core's home route when the
- * tenant is absent. Require the outliner before checking that neither plugin
- * page appeared. */
 Then("no journal page is drawn", async function (this: OlaiWorld) {
   await this.frontLane()
     .locator(OUTLINE_TREE)
@@ -111,9 +82,6 @@ Then("no journal page is drawn", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.locator(AGENDA_PAGE).count(), 0);
 });
 
-// ── what a day holds ───────────────────────────────────────────────────
-
-/** The outlines that had something on this day, in the order they are drawn. */
 Then(
   "the day groups are {string}",
   async function (this: OlaiWorld, expected: string) {
@@ -121,8 +89,6 @@ Then(
   },
 );
 
-/** Every node on the day, in DOM order — across the groups, because the order
- *  within a group and the order of the groups are one reading. */
 Then(
   "the day lists {string}",
   async function (this: OlaiWorld, expected: string) {
@@ -135,18 +101,9 @@ Then(
   },
 );
 
-/** WHY a node is on the day being read: the date badge says which of the
- *  node's dates put it there — the `date` field it is scheduled for, or the
- *  mark that is dated it. A `data-` fact, like the day cell's marks, because
- *  what the badge PRINTS is a styling decision and which date it is about is
- *  the promise. */
 Then(
   "the node {string} is on the day for its {string}",
   async function (this: OlaiWorld, id: string, occasion: string) {
-    // `expectAttribute` rather than one `getAttribute`: it waits on a selector
-    // that only matches once the badge says so, which is what survives the
-    // render between clicking a day and that day's rows arriving — a one-shot
-    // read is free to answer with the day before's badge.
     await this.expectAttribute(
       `${nodeSelector(id)} ${DATE}`,
       "data-occasion",
@@ -156,10 +113,6 @@ Then(
   },
 );
 
-/** The context a day gives a node: its canonical ancestry, root first. Text
- *  rather than an attribute, because what a crumb promises is what it READS —
- *  and the file is not among these: the group heading has already said it, and
- *  saying it twice on one screen is what the optional crumb exists to avoid. */
 Then(
   "the ancestors of {string} are {string}",
   async function (this: OlaiWorld, id: string, expected: string) {
@@ -171,15 +124,11 @@ Then(
   },
 );
 
-// ── the month ──────────────────────────────────────────────────────────
-
 Then("the month shown is {string}", async function (this: OlaiWorld, month: string) {
   await this.openCalendar();
   await this.expectChromeAttribute(CALENDAR, "data-month", month, "the calendar");
 });
 
-/** Today's month, asked of the clock — the month the calendar falls back to
- *  when the page it is chrome for names no day of its own. */
 Then("the month shown is this month", async function (this: OlaiWorld) {
   await this.openCalendar();
   await this.expectChromeAttribute(
@@ -202,17 +151,9 @@ Then(
   },
 );
 
-/** Unmarked is NEITHER of the first two marks, and both halves are asked: a
- *  day bearing a note has nothing dated it either, and a step that only
- *  counted the nodes would call it unmarked while it sat there wearing a
- *  fold (`packages/plugins/journal/e2e/features/daily_notes.feature`). Every unmarked cell is still a
- *  link — quiet, not inert. */
 Then("the day {string} is unmarked", async function (this: OlaiWorld, date: string) {
   await this.expectDayMark(date, "data-dated", false);
   await this.expectDayMark(date, "data-noted", false);
-  // Quiet marks, not a missing link: every day goes to `/d/<date>`, and an
-  // empty one is the page that says so. Creating the note is that page's
-  // (`document_editing.feature`), not this cell's.
   assert.strictEqual(
     await this.dayLink(date).count(),
     1,
@@ -237,19 +178,12 @@ Then(
 Then("today wears the ring", async function (this: OlaiWorld) {
   const today = isoDayOf(new Date());
   await this.expectDayMark(today, "data-today", true);
-  // And nothing else does: a ring on two days is a calendar that has stopped
-  // saying which day it is.
   const rung = await this.page
     .locator(`${CALENDAR} [data-today="true"]`)
     .evaluateAll((found) => found.map((day) => day.getAttribute("data-date")));
   assert.deepStrictEqual(rung, [today]);
 });
 
-/** Today AND open — the one cell that has to carry both marks at once. Asked
- *  as two facts of the same `[data-date]` cell rather than as one combined
- *  attribute: they are two different things stacking (the ring says which day
- *  it is, the fill says you are on it), and a cell that lost either one is a
- *  different failure. */
 Then("today is the one being read", async function (this: OlaiWorld) {
   const today = isoDayOf(new Date());
   await this.expectDayMark(today, "data-today", true);
@@ -260,9 +194,6 @@ Then("today is not the one being read", async function (this: OlaiWorld) {
   await this.expectDayMark(isoDayOf(new Date()), "data-open", false);
 });
 
-/** Today, with something on it — asked of the clock rather than written down,
- *  because the only way a fixture has something on TODAY is that a write put
- *  it there while the scenario was running. */
 Then("today has something on it", async function (this: OlaiWorld) {
   await this.expectDayMark(isoDayOf(new Date()), "data-dated", true);
 });
@@ -273,9 +204,6 @@ When("I click the day {string}", async function (this: OlaiWorld, date: string) 
   await this.press(this.dayLink(date));
 });
 
-/** Today, in the month the calendar is showing — asked of the clock the same
- *  way the client asks it, so the two cannot disagree about which day it is
- *  at a local midnight. */
 When("I click today", async function (this: OlaiWorld) {
   await this.showSidebar();
   await this.openCalendar();
@@ -301,11 +229,6 @@ When("I page the calendar forward", async function (this: OlaiWorld) {
   await pageMonth(this, CALENDAR_NEXT);
 });
 
-// ── the Today row the month folds under ──────────────────────────────
-
-/** Whether the month is unfolded, read off the chevron's own `aria-expanded`
- *  AND off the grid being there — a chevron that turned while the grid stayed
- *  is the failure the two halves exist to catch. */
 const calendarFolded = async (world: OlaiWorld, open: boolean): Promise<void> => {
   await world.showSidebar();
   await world.page.locator(CALENDAR_TOGGLE).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -325,8 +248,6 @@ Given("the calendar is open", async function (this: OlaiWorld) {
   await this.openCalendar();
 });
 
-/** The row's own words: `Today`, and the date the clock says, in the row's
- *  short form — asked of the same clock the client reads. */
 Then("the Today row names today", async function (this: OlaiWorld) {
   await this.showSidebar();
   const today = isoDayOf(new Date());
@@ -358,8 +279,6 @@ Then("the Today row is the current page", async function (this: OlaiWorld) {
   await this.expectChromeAttribute(CALENDAR_TODAY, "aria-current", "page", "the Today row");
 });
 
-/** By keyboard, the way a reader without a pointer reaches it: focus the
- *  chevron and press the key a button answers to. */
 When("I press {string} on the month's chevron", async function (this: OlaiWorld, key: string) {
   await this.showSidebar();
   const toggle = this.page.locator(CALENDAR_TOGGLE);
@@ -372,7 +291,6 @@ When("I press the month's chevron", async function (this: OlaiWorld) {
   await this.page.locator(CALENDAR_TOGGLE).click();
 });
 
-/** Directly under Agenda, before any other door or heading of the column. */
 Then("the Today row sits directly under Agenda", async function (this: OlaiWorld) {
   await this.showSidebar();
   await this.page.locator(CALENDAR_ROW).waitFor({ state: "visible", timeout: POLL_TIMEOUT });

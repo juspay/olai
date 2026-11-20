@@ -106,8 +106,6 @@ Feature: The day reminds you, and only once
     When I reload the page
     Then the address is "/agenda"
     And the reminder handoff is gone from the address
-    # Re-delivery at another page proves that the id is spent, beyond merely
-    # observing the same agenda route twice after a reload.
     When the same reminder press is delivered again at the outline
     Then the address is "/work.olai"
     And the reminder handoff is gone from the address

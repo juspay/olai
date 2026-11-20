@@ -1,5 +1,5 @@
-/** Test ids drawn by the journal's browser half. Values stay unchanged across
- * the ownership move so existing scenarios remain the contract. */
+/** Values stay unchanged across the ownership move so existing scenarios
+ * remain the contract. */
 export const TESTID = {
   calendar: "calendar",
   calendarRow: "calendar-row",
@@ -24,18 +24,12 @@ export const TESTID = {
   agendaLink: "agenda-link",
   agendaOwed: "agenda-owed",
   agendaCount: "agenda-count",
-  /** The owed rows under the door, the list's own box; `data-node-id` names a
-   *  row and `data-when` is which side of now its day is on. */
   agendaRows: "agenda-rows",
   agendaRow: "agenda-row",
-  /** "N more on the agenda" — drawn only when the cap left rows behind. */
   agendaMore: "agenda-more",
-  /** The chevron that folds the list away, beside the door. */
   agendaFold: "agenda-fold",
   railAgenda: "rail-agenda",
   railCalendar: "rail-calendar",
-  /** The phone's thumb bar doors: today's page, and the agenda with its owed
-   *  count (`data-owed` is the mark's face, as the sidebar entry's is). */
   thumbToday: "thumb-today",
   thumbAgenda: "thumb-agenda",
 } as const

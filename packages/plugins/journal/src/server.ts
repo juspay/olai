@@ -1,6 +1,3 @@
-/** The part of a published vault revision this plugin keeps. The Vault door
- * deliberately lets each tenant narrow its opaque payload at its own edge. */
-
 import { type ImplementSurfaceDeps, inMemoryChannel } from "@kolu/surface/server"
 import {
   definePlugin,
@@ -47,10 +44,6 @@ export default definePlugin({
     const surfaces = yield* Surfaces
     const vault = yield* Vault
 
-    // One retained revision and one pulse for the two small derived readings.
-    // Keeping the Reading object whole keeps its incrementally patched owed
-    // index with the set it describes; day and agenda pages go through core's
-    // one standing page cache below.
     let current: Reading | undefined
     const revisions = inMemoryChannel<void>()
     const replace = (next: Reading | undefined): void => {
@@ -72,16 +65,6 @@ export default definePlugin({
         Effect.mapError(ops.page(request), (failure) => failure as OpFailure),
         (answer) => answer as PageReading,
       )
-    /**
-     * THE READINGS, OFFERED TO OTHER PLUGINS — `journal.agenda` ({@link ./agenda.ts}).
-     *
-     * The bare word, because the runtime composes it with this fiber's own
-     * name: a plugin cannot spell another's namespace and this file does not
-     * spell its own. It carries no state and takes the reading in, so there is
-     * nothing here to acquire and nothing to release beyond the offer itself —
-     * which the row's scope revokes when it leaves, taking the key off
-     * `plugins.inspect` and putting every consumer back to `waiting`.
-     */
     yield* offers.own(AGENDA_WORD, () => agendaDoor)
 
     yield* surfaces.register({

@@ -1,8 +1,3 @@
-/**
- * THIS PLUGIN'S OWN SIBLING CLIENT, as the tab reads it — a holder of the READ
- * rather than the client, and an acquisition on the activation's own scope.
- * `olai-plugin-chat`'s `browser/wire.ts` carries both arguments.
- */
 import type { SurfaceClient } from "@kolu/surface/solid"
 import { Effect, type Scope } from "effect"
 

@@ -1,5 +1,3 @@
-/** Browser choices and the daily record belong to the reminders activation.
- * Followers leave with it; the stored day survives withdrawal and reconnection. */
 import { Effect } from "effect"
 import { isDay } from "@olai/format"
 import { boolCodec, createPreference, type PreferenceCodec } from "@olai/web/client/preference.ts"

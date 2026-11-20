@@ -1,5 +1,3 @@
-/** The journal-owned readings, pinned beside the plugin that serves them. */
-
 import type { Derived, OutlineSet } from "@olai/format"
 import { readingOf, setOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
@@ -35,8 +33,6 @@ describe("the journal's two derived readings", () => {
   })
 
   test("what is owed counts journal work at the reader's day", () => {
-    // The counts, which are the whole of what is owed whatever the asker has
-    // room to draw — the rows below are a capped projection of them.
     expect(owed(derivedOf(DAYS()), { today: "2026-08-09", cap: 5 }))
       .toMatchObject({ overdue: 2, today: 1 })
     expect(owed(derivedOf(DAYS()), { today: "2026-08-04", cap: 5 }))
@@ -48,15 +44,11 @@ describe("the journal's two derived readings", () => {
   })
 
   test("the rows ride the same answer: oldest day first, then today's", () => {
-    // Across both outlines, because the order is TIME's and not the files':
-    // `permit` is in work.olai and `visas` in life.olai.
     expect(owed(derivedOf(DAYS()), { today: "2026-08-09", cap: 5 }).rows).toEqual([
       { id: "permit", file: "work.olai", title: "file the permit", date: "2026-08-03", status: "todo" },
       { id: "visas", file: "life.olai", title: "send the visa forms", date: "2026-08-05", status: "todo" },
       { id: "posts", file: "work.olai", title: "dig the post holes", date: "2026-08-09", status: "doing" },
     ])
-    // The cap bounds the LIST and not the counts, which is what the column's
-    // "N more" line is arithmetic over.
     expect(owed(derivedOf(DAYS()), { today: "2026-08-09", cap: 2 })).toEqual({
       overdue: 2,
       today: 1,
@@ -65,8 +57,6 @@ describe("the journal's two derived readings", () => {
         { id: "visas", file: "life.olai", title: "send the visa forms", date: "2026-08-05", status: "todo" },
       ],
     })
-    // Nothing owed is no rows rather than an empty row, and an occurrence —
-    // `mum` — is never one of them.
     expect(owed(derivedOf(DAYS()), { today: "2026-08-01", cap: 5 }))
       .toEqual({ overdue: 0, today: 0, rows: [] })
   })

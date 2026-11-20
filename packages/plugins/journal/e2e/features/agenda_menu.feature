@@ -101,8 +101,6 @@ Feature: The ••• menu on the agenda and a day's page
 
   @scratch:agenda
   Scenario: A refusal is said beside the row, in the ops layer's own words
-    # `visas` waits on `photos`, which is not finished: starting it is the one
-    # instruction the order forbids, and the agenda hears it verbatim.
     Given I open the agenda
     When I open the node menu of "visas"
     And I choose "Mark › Doing" from the node menu

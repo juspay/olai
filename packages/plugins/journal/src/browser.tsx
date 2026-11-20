@@ -65,15 +65,10 @@ export default definePlugin({
   needs: [Slots, Wired, fileAccess, Clocks, rendererSlots],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
-    // A day row and a day's note are other rows' contributions; this row walks
-    // their locations through the renderer it already names
-    // (`./browser/locations.ts`).
     const locations = yield* rendererSlots
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(locations.read)), stop => Effect.sync(stop))
-    // The served directory, held for this activation (`./browser/vault.ts`).
     const served = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
-    // ...and the clock a day is drawn against (`./browser/clock.ts`).
     const clock = yield* Clocks
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))
     const wired = yield* Wired
@@ -92,20 +87,10 @@ export default definePlugin({
       body: AgendaEntry,
       rail: JournalRail,
     })
-    // TODAY, directly under Agenda: one row that goes to today's page, with the
-    // month folded under a chevron (`./browser/sidebar.tsx`). A `top` entry and
-    // not a section, so it stands among the column's first doors rather than
-    // after the plugin sections. Whether the month is open is this browser's
-    // preference, followed for as long as this activation stands.
     yield* slots.register("sidebar.entry", { place: "top", body: TodayEntry })
-    // ...AND THE SAME TWO DOORS UNDER A THUMB, on a phone (`./browser/thumbs.tsx`).
     yield* locations.contribute(thumbs, { order: 10, body: TodayThumb })
     yield* locations.contribute(thumbs, { order: 20, body: AgendaThumb })
     yield* Effect.acquireRelease(Effect.sync(followCalendar), stop => Effect.sync(stop))
-    // ...and whether the owed rows under Agenda are folded away
-    // (`./browser/agenda/fold.ts`), followed across this browser's tabs for as
-    // long as this activation stands. Folding is drawing, never the reading:
-    // the owed stream above keeps running either way.
     yield* Effect.acquireRelease(Effect.sync(followAgendaRows), stop => Effect.sync(stop))
     yield* slots.register("app.palette", {
       id: "nav-today",
@@ -135,7 +120,6 @@ import { reminderServices, reminderState } from "./browser/reminders/held.ts"
 import { createReminders } from "./browser/reminders/circuit.ts"
 import { ReminderRow } from "./browser/reminders/ReminderRow.tsx"
 
-/** Date-property navigation is an integration, independent of journal readings. */
 export const components = {
   reminders: definePlugin({ name: "reminders", needs: [alertsChannel, navigation, deployment], apply: Effect.gen(function*() {
     const channel = yield* alertsChannel
@@ -147,9 +131,6 @@ export const components = {
     yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const ready = createMemo(() => !!journalReady() && !!route.routes.face(agendaRoute))
       createEffect(() => {
-        // Registration finishes before navigation publishes the route face.
-        // Leave a cold press with alerts until go can name the agenda; an
-        // unknown plugin route otherwise prints as the home address.
         if (!ready()) return
         untrack(() => {
           const services = reminderServices.read()!
@@ -166,19 +147,11 @@ export const components = {
     yield* (yield* rendererSlots).contribute(sections, { heading: "notifications" as const, order: 1, scope: "browser" as const, body: () =>
       <Show when={reminderState.read()}>{state => <ReminderRow channel={channel} state={state()} />}</Show> })
   }) }),
-  /** Where a minted note is opened, DECLARED — a component of its own so the
-   *  calendar, the agenda and every day page keep working with no document row
-   *  mounted (`./browser/editing.ts`). */
   editing: definePlugin({ name: "editing", needs: [documentEditing], apply: Effect.gen(function*() {
     const actions = yield* documentEditing
     yield* Effect.acquireRelease(Effect.sync(() => holdDocumentActions(actions)), stop => Effect.sync(stop))
   }) }),
   properties: definePlugin({ name: "properties", needs: [rendererSlots], apply: Effect.gen(function*() {
-    // THE ROW'S OWN CONSTRUCTOR, not a round trip through the app's live URL
-    // parser: `day.to` is `defineAppRoute`'s pure answer for this row's own
-    // page (`./browser/routes.ts`), and asking the grammar to parse a URL this
-    // row had just spelled made the answer depend on whether this row's own
-    // claim had settled in the renderer yet.
     yield* (yield* rendererSlots).contribute(propertyRoutes, meaning => meaning.kind === "day" ? dayRoute(meaning.date) : undefined)
   }) }),
 }

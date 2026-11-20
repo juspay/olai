@@ -1,5 +1,3 @@
-/** Daily reminders use the existing alerts recorder. The gesture is a real
- * pointer press; the cold URL is the worker's handoff, not a second stage. */
 import * as assert from "node:assert";
 import { When, Then } from "@olai/tests/harness/runner.ts";
 import { isoDayOf } from "@olai/web/testlib";
@@ -13,7 +11,6 @@ const coldPresses = new WeakMap<OlaiWorld, string>();
 const reminders = `${PREFS_ROW}${attr("data-pref", "reminders")}`;
 
 When("I click the page", async function (this: OlaiWorld) {
-  // The main region's padding supplies a real gesture away from header links.
   await this.page.getByRole("main").click({ position: { x: 8, y: 8 } });
 });
 
@@ -34,7 +31,6 @@ When("I remember the reminder", async function (this: OlaiWorld) {
 Then("no second reminder has been raised", async function (this: OlaiWorld) {
   const before = remembered.get(this);
   assert.ok(before, "remember the first reminder before checking for another");
-  // Compare the count with the first ring, without knowing the chime's tune.
   assert.deepStrictEqual(await alertsOn(this.page), before);
 });
 
@@ -98,8 +94,6 @@ Then("the Reminders row explains {string}", async function (this: OlaiWorld, sai
 
 Then("Reminders cannot be set", async function (this: OlaiWorld) {
   await showPreferences(this.page);
-  // Drawn as set and frozen rather than hidden: the Alerts switch above it
-  // says why. `aria-disabled`, not `disabled`, so a keyboard still reaches it.
   const toggle = this.page.locator(reminders).locator(PREFS_SWITCH);
   await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await toggle.getAttribute("aria-disabled"), "true");

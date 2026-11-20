@@ -1,4 +1,3 @@
-/** Two counts, in the entry's own words; the click asks for today's agenda. */
 import type { Owed } from "@olai/format"
 import type { Notice } from "olai-plugin-alerts/contract"
 import { phraseOf } from "../agenda/owed.ts"

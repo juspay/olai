@@ -1,54 +1,34 @@
-/** The grid's days, with the padding dropped — what the month actually holds. */
 import { expect, test } from "bun:test"
 
 import { dayNumber, monthGrid, monthLabel, shortDay, WEEKDAY_HEADINGS } from "./month.ts"
 
-// The arithmetic these are drawn from is tested where it now lives
-// (`@olai/format`'s `calendar.test.ts`) — what is left here is the grid.
 const days = (month: string): ReadonlyArray<string> =>
   monthGrid(month).filter((cell): cell is string => cell !== null)
 
-/** How many blank cells the grid opens with: which column the 1st lands in. */
 const lead = (month: string): number =>
   monthGrid(month).findIndex((cell) => cell !== null)
 
-// ── the shape of the grid ──────────────────────────────────────────────
-
-// Whole weeks, both ends padded — so the columns line up under their headings
-// however the month falls.
 test("a month is laid out as whole weeks", () => {
   for (const month of ["2026-01", "2026-02", "2026-08", "2027-02", "2028-02"]) {
     expect(monthGrid(month).length % WEEKDAY_HEADINGS.length).toBe(0)
   }
 })
 
-// The week starts on Monday, so a month starting on a Saturday opens with five
-// blanks and a month starting on a Monday with none. Both are real: 1 August
-// 2026 is a Saturday, 1 June 2026 a Monday.
 test("the 1st lands in the column its weekday names", () => {
   expect(lead("2026-08")).toBe(5)
   expect(lead("2026-06")).toBe(0)
-  // A Sunday is the LAST column, not the first: 1 March 2026 is a Sunday.
   expect(lead("2026-03")).toBe(6)
 })
 
-// The grid draws every day the month holds and none it does not. HOW LONG a
-// month is belongs to `@olai/format`'s `calendar.test.ts` now, leap rule and
-// all — asserting it here too would pin one Gregorian rule in two packages.
 test("a month runs from its 1st to its last day", () => {
   expect(days("2026-08")[0]).toBe("2026-08-01")
   expect(days("2026-08").at(-1)).toBe("2026-08-31")
   expect(days("2026-08").length).toBe(31)
 })
 
-// A day of a month is that month's, and no cell of the grid belongs to
-// another: the padding is `null` rather than a neighbouring date, so a dot can
-// never be drawn on a day the reader is not looking at.
 test("every cell that is not padding is a day of this month", () => {
   for (const day of days("2026-08")) expect(day.startsWith("2026-08-")).toBe(true)
 })
-
-// ── text this file did not mint ────────────────────────────────────────
 
 test("text that names no month draws no grid", () => {
   expect(monthGrid("hello")).toEqual([])
@@ -56,8 +36,6 @@ test("text that names no month draws no grid", () => {
   expect(monthGrid("2026-13")).toEqual([])
   expect(monthLabel("")).toBe("")
 })
-
-// ── what a cell prints ─────────────────────────────────────────────────
 
 test("a heading is printed for each column of the week", () => {
   expect(WEEKDAY_HEADINGS.length).toBe(7)
