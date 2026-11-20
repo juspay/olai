@@ -29,11 +29,7 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: The row is kolu's own, on an ordinary outline
-    # Three lanes, three states, one page — and the reader never went anywhere
-    # special to see them.
     Given I open the outline "lanes.olai"
-    # A lane that finished IS content here — the sleeping row is the third
-    # state being read off the page — so the board is asked to keep it drawn.
     And I show the done nodes
     Then the terminal row on "door-implement" is working
     And the terminal row on "door-review" is awaiting
@@ -44,18 +40,6 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: The DECLARATION opens the door, and the key's name opens nothing
-    # What licenses this face is one row in `_olai/Properties.olai` saying which
-    # of your columns holds a terminal — never the fact that a column happens to
-    # be spelled `terminal`. The board here calls its column `pty` and declares
-    # it, so it wears kolu's row like any other; the column beside it holds a
-    # terminal id that is really in the fleet and is declared nothing, so it is
-    # the text somebody wrote and no more.
-    #
-    # This is the half that could not be drawn at all until the page began
-    # carrying the licence per value. The server followed the declared KIND and
-    # the tab followed the key, so the two agreed only for a vault that named its
-    # column after the kind — and this fixture's `pty` row was walked, probed and
-    # gated while drawing nothing.
     Given I open the outline "lanes.olai"
     Then the terminal row on "named-implement" is working
     And "named-review" wears no terminal door at all
@@ -63,12 +47,7 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: A terminal the fleet no longer holds says so, and is not drawn as idle
-    # The property is still a true record of where the work happened. A gray
-    # live row would claim the terminal is sitting there doing nothing, which is a
-    # different and wrong fact.
     Given I open the outline "lanes.olai"
-    # `old-implement` is finished: the sentence that says the fleet lost it
-    # hangs on its row, so that row has to be on the page.
     And I show the done nodes
     Then the terminal on "old-implement" has no row
     And the terminal on "old-implement" says "This terminal was closed"
@@ -76,15 +55,6 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: An enabled plugin declares its own key — nothing to edit, nothing written
-    # THE DEFAULT, and the whole of it: `kolu-terminal` is the key kolu claims by
-    # convention, so a lane carrying one wears the door with NO row in
-    # `_olai/Properties.olai` about it — and olai wrote nothing to this vault to
-    # make that true.
-    #
-    # The name carries `kolu-` on purpose, and the second assertion is why: a
-    # column somebody calls `terminal-of-mine` is theirs, holding a real fleet id,
-    # and turning a plugin on may not reinterpret it. A plugin can only ever
-    # auto-declare a key carrying its own name.
     Given I open the outline "lanes.olai"
     Then the terminal row on "claimed-implement" is working
     And "claimed-mine" wears no terminal door at all
@@ -92,39 +62,15 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes @rows:vault,olai,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that did not compose kolu is the machine that never had it
-    # THE DISABLED STATE, and it is not the same picture as the one below. There
-    # a padi is missing and the page says so, which is news. Here an operator
-    # ran a policy selecting only odu, and a page that complained about a daemon somebody
-    # deliberately turned off would be reporting on a decision rather than on a
-    # fact. So: no door, no pill, and nothing amber.
-    #
-    # The padi in this scenario is REAL and RUNNING — the `@padi:` tag beside
-    # the `@rows:` one is deliberate. What is absent is absent because the
-    # SERVE did not compose the plugin, not because there was nothing to reach.
-    #
-    # `the connection is "live"` is the assertion the whole thing turns on. A
-    # tab registers what the BUILD has, so it would subscribe kolu's five
-    # members over a wire that carries none of them — and an unknown tag is a
-    # TERMINAL failure, so the readout would sit at `degraded` naming
-    # `kolu/link` for the life of the page. Nothing subscribes until the roster
-    # says the plugin is on (`web/src/client/plugins/Mounted.tsx`), and this is
-    # what says so.
     Given I open the outline "lanes.olai"
     Then "door-implement" wears no terminal door at all
     And the padi indicator is not drawn at all
     And the connection is "live"
-    # ...and the vault is untouched underneath: the value is still on the row,
-    # still greppable, drawn as the text it always was.
     And the terminal on "door-implement" shows no door but keeps its value
     And there should be no page errors
 
   @scratch:lanes
   Scenario: With no padi there are no rows and the page SAYS why, and is fine
-    # No `@padi:` tag, so this server derives the rendezvous path and finds
-    # nothing — a laptop that is not running kolu, which is most of them. The
-    # vault opens, every row draws, and the chips are honest about what they
-    # cannot see. This is the scenario that would catch "nothing to report" drawn
-    # as "we looked and it is quiet", which is the one confusion the design refuses.
     Given I open the outline "lanes.olai"
     Then the terminal on "door-implement" has no row
     And the terminal on "door-implement" says "kolu isn't running"
@@ -132,13 +78,6 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: Pressing the row opens a LIVE window on the terminal
-    # Rung 2, and it is a window rather than a photograph: the pane says LIVE
-    # two ways — the solid border and the tag — because the promise it makes is
-    # that what is in the box is what is in the terminal, now.
-    #
-    # THE BROWSER DOES NOT DIAL PADI to do it. What this page subscribes to is
-    # an ordinary member of olai's own surface; the server holds padi's attach
-    # on the one connection the fleet already rides.
     Given I open the outline "lanes.olai"
     When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"
@@ -148,10 +87,6 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: A second press closes the window, and closing drops the attach
-    # The restraint kept on the way out as well as in. Closing UNMOUNTS the
-    # terminal, so there is no attach behind a pane nobody is looking at —
-    # twelve lanes on a page are twelve rows and zero attached terminals until
-    # somebody presses one.
     Given I open the outline "lanes.olai"
     When I watch the terminal on "door-review"
     Then a snapshot pane opens on "door-review"
@@ -162,13 +97,7 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: A terminal with no live screen says so, rather than sitting blank
-    # A sleeping terminal has no live mirror to serialize, so padi refuses the
-    # attach at once and the pane says so at once.
-    #
-    # A sentence IN PLACE OF the terminal — not a fault, not an empty box, and
-    # not a frozen screen under a tag still claiming to be live.
     Given I open the outline "lanes.olai"
-    # Watching is a press on the row, and `quiet-implement` is finished.
     And I show the done nodes
     When I watch the terminal on "quiet-implement"
     Then a snapshot pane opens on "quiet-implement"
@@ -177,14 +106,6 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:ahead
   Scenario: A padi this build cannot speak to is a SKEW, and says which two versions
-    # The other half of the silence. "Start kolu" and "these two builds
-    # disagree" have opposite fixes, which is why the link cell has three
-    # states rather than a boolean — and a skew reported as absent would tell a
-    # reader to start a kolu that is already running.
-    #
-    # The control core answers even here: its schemas never move, so the
-    # refusal is a judgement on a readable hello rather than a decode failure
-    # three calls later.
     Given I open the outline "lanes.olai"
     Then the terminal on "door-implement" has no row
     And the terminal on "door-implement" says "99.0"
@@ -193,14 +114,6 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: A value naming a terminal by its EIGHT-CHARACTER PREFIX draws the live row
-    # THE PRODUCTION DEFECT, and the shape the board actually writes: seventy-
-    # eight of the vault's bare `terminal` values are an eight-character
-    # prefix and nine are whole uuids. padi keys its fleet by the uuid, so an
-    # exact lookup answered nothing for the ordinary case — a working terminal
-    # drawn as retired, on the human's own board.
-    #
-    # `door-implement` names its terminal by prefix, `door-review` by the whole
-    # id, and both must light.
     Given I open the outline "lanes.olai"
     Then the terminal row on "door-implement" is working
     And the terminal row on "door-review" is awaiting
@@ -208,19 +121,10 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: Pressing a PREFIX row reads the screen instead of breaking the page
-    # THE SECOND HALF of the same defect, and the worse half: the chip sent the
-    # prefix, padi's `screen.text` declares its id a uuid, and the schema
-    # refusal went down the wire as a DEFECT — which threw during render and
-    # took the whole page with it ("This page broke", nothing updates again).
-    #
-    # So this scenario is as much about the page as about the pane: the read
-    # lands, AND the page is still alive afterwards, which is what the last two
-    # steps are for.
     Given I open the outline "lanes.olai"
     When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"
     And the live screen shows "just check"
-    # ...and the page still works: a row still answers, and nothing was thrown.
     When I watch the terminal on "door-implement"
     Then no snapshot pane is open
     And the terminal row on "door-review" is awaiting
@@ -228,9 +132,6 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: The header says kolu is connected — one place, not one per chip
-    # A per-property sentence cannot tell "this terminal is gone" from "there is no
-    # fleet", and a page with no `terminal` property anywhere says nothing at
-    # all. So the link gets a chrome readout beside the connection pill.
     Given I open the outline "lanes.olai"
     Then the padi indicator says "connected"
     And the health dot is "healthy"
@@ -238,45 +139,24 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes
   Scenario: The header says there is no kolu, and where it looked
-    # No `@padi:` tag, so this server dials the rendezvous path and finds
-    # nothing — a laptop that is not running kolu, which is most of them.
     Given I open the outline "lanes.olai"
     Then the padi indicator says "absent"
     And the padi indicator explains "kolu isn't running"
-    # No padi is nothing wrong with this serve: the row is quiet and the bar's
-    # one dot stays green.
     And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:lanes @padi:ahead
   Scenario: The header says the two builds disagree, and names both versions
-    # The loud face, and the one nothing else on the page will ever say: two
-    # builds that cannot speak to each other is a fact somebody has to act on,
-    # and the sentence names both versions so the reader knows which way to
-    # move.
     Given I open the outline "lanes.olai"
     Then the padi indicator says "skew"
     And the padi indicator explains "99.0"
     And the padi indicator explains "Update one of them"
-    # ...and no terminal can be read, so the bar's one dot is red and names it
-    # with the popover shut.
     And the health dot is "alarm"
     And the health dot names "kolu: update needed"
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
   Scenario: A pane resized more than its whole budget is STILL LIVE
-    # THE DEFECT THIS FENCES, which reached the human's board: every grid
-    # change re-attaches and every re-attach spent from a budget nothing ever
-    # refilled, so `attempts` was really "how long has this pane been open".
-    # Eight resizes is past `ATTEMPT_BUDGET`; before the refill this pane was
-    # armed, and the next ordinary stream end printed "this terminal stopped
-    # answering — it has probably closed." over a working terminal.
-    #
-    # kolu's rule is that a delivered frame refills the budget — a pane that
-    # painted has proved the whole chain, so the next stumble is a fresh
-    # episode rather than an old one's accounting. This lane had copied the
-    # re-attach and not the refill.
     Given I open the outline "lanes.olai"
     When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"

@@ -1,64 +1,15 @@
-/**
- * WHAT THIS PLUGIN READS OF THE APP — declared here, structurally, and nothing
- * else about `@olai/web` is known on this side of the wall.
- *
- * ## Why a re-declaration rather than an import
- *
- * `@olai/plugin-api` declares the whole furniture and `@olai/plugin-api` imports THIS
- * package, so importing it back would be the cycle the manifests cannot express
- * — the direction argued in that package's `plugin.ts` and held by its
- * `fence.test.ts` rather than by a reviewer's memory. The agreement is proved at
- * the registry's `satisfies` instead: the same pin `./appliance/props/block.ts`
- * already keeps with the drawer's entry, one floor down.
- *
- * ## What the pill actually borrows, and why every item is the APP'S
- *
- * The padi readout is the third standing promise in the app's header, beside
- * the connection pill and the Commit pill, and *standing beside them* is most of
- * what it is. So the things it borrows are the things that make it one of the
- * three rather than a chip that looks a bit like them:
- *
- *   - the PILL'S GEOMETRY, because the bar is a fixed height and a wrap inside
- *     it pushes the first row off the top of a 390pt phone — a second copy of
- *     that geometry is one place for it to be fixed and another to stay broken;
- *   - the DESKTOP breakpoint, because the pills leave the phone bar together;
- *   - the POPOVER, because the panel this pill opens has to share ONE focus
- *     cycle with the panels the other two open, sit at the app's own layer, and
- *     be placed by the app's own anchor arithmetic (a computed `top`/`bottom`
- *     key compiles away silently in Solid and leaves a panel below the fold —
- *     it cost the Commit panel its placement once).
- *
- * The feed reaches its configuration editor through a separate declared service.
- *
- * Every one of those is a contract whose breakage is SILENT — the app's own
- * suite stays green, because the face that broke is in another package. That is
- * `BlockChrome`'s argument, and it is this file.
- */
-
 import type { JSX } from "solid-js"
 
-/** The chrome pill's look — classes rather than a component, because what the
- *  readout draws INSIDE the pill (a dot, a word, a warning word beside it) is
- *  this plugin's and only the box is the bar's. The dot's colour is the
- *  state's tone, painted from the layout contract's one table. */
 export interface PillLook {
   readonly PILL: string
   readonly DOT: string
 }
 
-/** The panel that hangs off the pill — whether it is up, where it sits, and the
- *  one focus cycle the trigger and the panel make between them. Handed WHOLE
- *  rather than as its parts: see the header on the three contracts a plugin
- *  would otherwise restate. */
 export interface AppPopover {
   readonly open: () => boolean
   readonly toggle: () => void
-  /** Put it away WITHOUT the caret walking back to the trigger — the wrench's
-   *  press opens another panel, which owns the next focus. */
   readonly close: () => void
   readonly setTrigger: (el: HTMLElement | undefined) => void
-  /** Portalled, placed, layered, focusable-but-not-tabbable, and drawn only
-   *  while open. What goes IN it is this plugin's; the box is the bar's. */
   readonly Panel: (props: {
     readonly testid: string
     readonly label: string
@@ -66,23 +17,6 @@ export interface AppPopover {
   }) => JSX.Element
 }
 
-/*
- * THE CLOCK IS NOT ON THIS RECORD, and it used to be — a `KoluClocks` with the
- * two facts the mount spends, on a `KoluApp.clocks` beside the rest.
- *
- * Nothing ever read it out of here. The mount spends the `Clocks` service DIRECTLY at
- * `../browser.tsx`, which is where the cadence is decided, and every `app.*`
- * read in this package is one of the three below. The field was the record
- * carrying a service reference past every face that wanted it, to nobody.
- *
- * Its comment also said the cadence "crosses rather than being decided in this
- * package", which the branch that made the mount a fiber reversed in as many
- * words: `../browser.tsx` now says THE CADENCE IS THIS PACKAGE'S JUDGEMENT, and
- * what the app owns is the LADDER and the LIFETIME. Deleting the dead half
- * takes the stale argument with it and leaves the live one standing.
- */
-
-/** THE WHOLE OF WHAT THIS PLUGIN IS HANDED — three facts, and each is spent. */
 export interface KoluApp {
   readonly desktop: () => boolean
   readonly pill: PillLook

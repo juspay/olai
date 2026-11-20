@@ -1,4 +1,3 @@
-/** The watcher policy declaration; the appliance still receives milliseconds. */
 import { Effect, Schema } from "effect"
 import { DEFAULT_WATCH, parseDuration, parseNag, type WatchConfig } from "./client/index.ts"
 
@@ -11,7 +10,6 @@ const duration = (key: "held-for" | "heartbeat", value: string) => parseDuration
 )
 export type WatchKey = "held-for" | "nag" | "heartbeat"
 
-/** Shared by schema validation and the file adapter's warning sentence. */
 export const watchProblem = (key: WatchKey, value: string): string | undefined => {
   const raw = value.trim()
   if (/^\d+$/.test(raw)) return "spell a number and a unit (500ms, 30s, 10m, 2h, 1d)"

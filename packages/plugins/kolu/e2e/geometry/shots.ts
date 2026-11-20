@@ -1,9 +1,3 @@
-/** Photograph the three chip geometries — see `./harness.tsx`.
- *  `bun packages/plugins/kolu/e2e/geometry/shots.ts <builtdir> <outdir>`
- *
- *  Served over http rather than opened as a `file://`: the harness is an ES
- *  module, and a module script from a `file://` origin is a cross-origin
- *  request every browser refuses. */
 import { chromium } from "playwright"
 import { join, resolve } from "node:path"
 import { mkdirSync } from "node:fs"
@@ -23,9 +17,6 @@ const server = Bun.serve({
 })
 
 const browser = await chromium.launch({ channel: "chromium", args: [...BROWSER_ARGS] })
-// A realistic reading width and a 2× pixel ratio: the point of the shot is
-// whether a pip and a two-line row are legible AT CHIP SCALE, and a 1× capture
-// of 13px type is not what anybody's screen shows them.
 const page = await browser.newPage({
   viewport: { width: 900, height: 560 },
   deviceScaleFactor: 2,

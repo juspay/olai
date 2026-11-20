@@ -1,10 +1,3 @@
-/** Resolve the kolu command to hand to a conversation, without launching it.
- *
- * The session's real MCP connection is responsible for initialization and
- * daemon errors. A disposable connection delayed every chat and could not
- * guarantee that the next connection would work. `probe` retains the existing
- * session-start registration API, but performs only executable discovery.
- */
 import { access, stat } from "node:fs/promises"
 import { constants } from "node:fs"
 import { delimiter, resolve } from "node:path"

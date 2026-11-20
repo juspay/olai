@@ -1,10 +1,3 @@
-/**
- * A BUSY TERMINAL, on a padi of our own — the far end of the recovery clip.
- *
- * `bun makeBusyTerminal.ts <socket> <intent>` creates a terminal and starts
- * something that keeps printing, so the recording has a stream to show rather
- * than a still screen. A one-off driver; never pointed at a production padi.
- */
 import { connectPadi } from "@kolu/padi-client/dial"
 import { Effect } from "effect"
 
@@ -20,8 +13,6 @@ const id = await Effect.runPromise(
       intent: intent ?? "the recovery clip",
     })
     const terminal = (made as { id: string }).id
-    // Something that keeps the screen moving and WRAPS — a resize is only
-    // visible in output that has to re-flow.
     yield* padi.lifecycle.sendInput({
       id: terminal,
       data:

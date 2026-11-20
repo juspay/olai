@@ -1,32 +1,4 @@
 #!/usr/bin/env bun
-/**
- * A `kolu` on PATH, for the suite's servers to find.
- *
- * Every server this harness spawns gets this directory FIRST on its PATH, so
- * what "is kolu running here?" answers is a property of the scenario rather
- * than of the laptop the run is on. A developer whose machine really is running
- * kolu would otherwise get a different suite than CI does — and the interesting
- * case is not "was a binary found" but "did a padi answer it", which no real
- * machine can be relied on to have either way.
- *
- * `OLAI_FAKE_KOLU` says which kolu this is, and the DEFAULT is the unhelpful
- * one:
- *
- *   stale (or unset) — speaks the protocol, reaches no daemon. This is what a
- *     wrong build looks like (juspay/kolu#2146: a padi-spawned terminal
- *     prepends its own bundled copy, and one of those was an older build
- *     reporting the same version while missing most of the verbs). Detection
- *     must refuse it, so every scenario that says nothing about kolu gets it:
- *     the identity read AND every tool call refuse with "padi transport
- *     down", because the tools and the identity cell are the DAEMON's — a
- *     process that reached nobody has neither.
- *   live — a daemon answers, which is the whole of "kolu is running here":
- *     the identity read is healthy and a tool call is answered.
- *
- * It serves no terminals and holds no state. When LIVE, and only then, it
- * answers a tool call with a deliberately olai-shaped foreign payload so the
- * transcript can prove that display ownership comes from the catalogue.
- */
 
 import { readMessages } from "@olai/tests/harness/ndjson.ts";
 
@@ -50,8 +22,6 @@ const answer = (id: unknown, method: string): void => {
     return;
   }
   if (method === "resources/read") {
-    // The one that decides it. A kolu that reached no padi answers exactly
-    // this way — the daemon is what the identity cell belongs to.
     emit(
       LIVE
         ? { jsonrpc: "2.0", id, result: { contents: [] } }
@@ -64,11 +34,6 @@ const answer = (id: unknown, method: string): void => {
     return;
   }
   if (method === "tools/call") {
-    // THE DAEMON'S PROPERTY, not this process's: every tool a `kolu` serves is
-    // padi's surface, so a build that reached no daemon has NO tools to
-    // answer with. Refusing here is what the header's first clause ("reaches
-    // no daemon") MEANS on the wire; a stale build answering `outlines_done`
-    // with success is precisely the lie juspay/kolu#2146 shipped for a week.
     if (!LIVE) {
       emit({ jsonrpc: "2.0", id, error: { code: -32603, message: "surface-mcp: padi transport down" } });
       return;
@@ -87,7 +52,5 @@ readMessages<{ id?: unknown; method?: unknown }>(
   (message) => {
     if (typeof message.method === "string") answer(message.id, message.method);
   },
-  // A client that wrote something that is not a message gets silence, the same
-  // as the real one gives it.
   () => {},
 );

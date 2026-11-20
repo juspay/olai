@@ -1,7 +1,3 @@
-/**
- * The configurations. One node per record, properties under `custom`
- * (the outline codec maps `-- foo: bar` to that).
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { DEFAULT_WATCH } from "olai-plugin-kolu/appliance"
 import { readingOf, setOf as vaultSet, nodesOfFiles } from "@olai/format/testlib"
@@ -20,17 +16,11 @@ const rec = (
       : `,"custom":${JSON.stringify(fields)}`
   }}`
 
-/** The documents. Each test hands its whole vault as JSONL the parser itself
- *  accepts, and the walk the file the convention named — the finder's
- *  answer over the SAME keys, which is what the runtime hands it off
- *  the served outlines. */
 const setOf = (files: Record<string, string>, file?: string) =>
   watchConfigIn(
     nodesOfFiles(files),
     file === undefined ? (configurationFileIn(TEST_CLAIMS, Object.keys(files)) ?? null) : file,
   )
-
-// ── The convention's door ─────────────────────────────────────────────────
 
 test("the finder names the file by basename and case-folded, shallowest first", () => {
   expect(
@@ -53,13 +43,7 @@ test("a set with no `settings.olai` says the defaults", () => {
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })
 
-// Empty configuration still uses the same watch defaults.
-
 test("a config that parses to nothing reads the defaults", () => {
-  // An unparsed `_olai/Settings.olai` contributes no records: this is the
-  // walk's empty-inside answer. WHICH file it was is deliberately not this
-  // walk's to answer — the caller found it off the served PATHS and keeps
-  // its own answer even when the codec withheld the file's nodes.
   const reading = setOf({ "_olai/Settings.olai": "" })
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })
@@ -70,8 +54,6 @@ test("the knobs' defaults stand where the file says nothing", () => {
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })
-
-// ── Durations ────────────────────────────────────────────────────────────
 
 test("the three durations parse the vault's grammar", () => {
   const reading = setOf({
@@ -134,9 +116,6 @@ test("an orphaned or off-grammar cap is the malformed nag, not a negotiated half
 })
 
 test("a BARE number is refused: the CLI's default-to-ms is for flags, and a file is not a flag", () => {
-  // `nag: 10` as milliseconds is a 10ms re-fire spin — the argv-consistency
-  // leniency kolu's parser carries reads the other way in a property file:
-  // the vault says rather than doing.
   const reading = setOf({
     "_olai/Settings.olai": [
       rec("watch", { nag: "10", heartbeat: "30" }),
@@ -147,9 +126,6 @@ test("a BARE number is refused: the CLI's default-to-ms is for flags, and a file
 })
 
 test("a bare number trailing WHITESPACE is still the bare number: the gate looks at what the parser would", () => {
-  // Kolu's parsers trim before judging, so `10 ` without a gate that trims
-  // too parses to 10ms — the spin the refusal exists to stop, dressed as
-  // a typo. The sentence quotes the file's own spelling, paper included.
   const reading = setOf({
     "_olai/Settings.olai": [
       rec("watch", { nag: "10 ", "held-for": " 5" }),
@@ -159,10 +135,7 @@ test("a bare number trailing WHITESPACE is still the bare number: the gate looks
   expect(reading.config.heldForMs).toEqual(DEFAULT_WATCH.heldForMs)
 })
 
-// ── ONE file decides — including a silent one ─────────────────────────────
-
 test("nodes hanging in another file answer on their own, as not the file's", () => {
-  // `mocca.olai`'s `watch` is not the convention file's.
   const reading = setOf({
     "mocca.olai": [rec("watch", { nag: "10m" })].join("\n"),
   })
@@ -178,13 +151,6 @@ test("the deepest duplicate loses by convention while sharing the name", () => {
 })
 
 test("the convention is by NAME, the way the shelf's is: a silent front-runner decides, and deeper said ones do not", () => {
-  // The one behaviour this PR changed on purpose and the rule every
-  // convention file already keeps (`inboxIn`, `pinsIn`): a root
-  // `Settings.olai` of notes DECIDES — it is the shallowest file holding the
-  // name — so the knobs say defaults from the ROOT file. The reader's note file is not vetoed by a correctly-shaped
-  // config sitting deeper: the answer is the name, and a reader keeping
-  // one there finds it, not a layout the code knew to skip. Before
-  // `configurationFileIn` the walk dodged the silent one, silently.
   expect(
     configurationFileIn(TEST_CLAIMS, ["Settings.olai", "_olai/Settings.olai"]),
   ).toBe("Settings.olai")

@@ -1,13 +1,3 @@
-/**
- * A SECOND VIEWER, for the video's sake — attach to a terminal at a different
- * size and hold it, which is exactly what another kolu window does.
- *
- * `bun foreignResize.ts <socket> <terminal-id> <cols> <rows> <seconds>`
- *
- * A one-off driver, not part of any suite. It exists so the resize-recovery
- * clip is driven by the REAL mechanism — last-attach-wins on a shared pty —
- * rather than by a fixture pretending to be one.
- */
 import { connectPadi } from "@kolu/padi-client/dial"
 import { Effect, Stream } from "effect"
 

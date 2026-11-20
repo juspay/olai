@@ -1,5 +1,3 @@
-/** The live watch reads its own namespace from the same decoded revision.
- * Malformed-value warnings belong to the shared reader, never a second log. */
 import { isRegular, type Located, type Reading } from "@olai/format"
 import { configurationNode, configurationNodes, decodePolicy } from "@olai/plugin-api/configuration"
 import { DEFAULT_WATCH, type WatchConfig } from "olai-plugin-kolu/appliance"
@@ -18,7 +16,6 @@ export const watchConfigIn = (nodes: ReadonlyArray<Located>, file: string | null
   return { config: configuredWatch(parsed.config as typeof Config.Type) }
 }
 
-/** Live policy uses the same broken-file gate as the shared reader. */
 export const watchReadingIn = (reading: Pick<Reading, "set" | "derived">): WatchReading => {
   const { nodes, file } = configurationNodes(reading)
   return watchConfigIn(nodes, file ?? null)

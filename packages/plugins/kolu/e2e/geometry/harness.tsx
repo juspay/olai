@@ -1,23 +1,3 @@
-/**
- * THE CHIP-GEOMETRY HARNESS — three ways the Dock row can meet a property chip,
- * photographed side by side so the choice is SEEN rather than argued.
- *
- * Not part of any suite and not shipped: a one-off driver for #405's evidence,
- * in the shape `../doorShots.ts` already established. The human's word was "I
- * need to see these choices, not read words", and this is what that costs.
- *
- * WHAT IS REAL HERE: kolu's own `DockRow` and `StatePip` components, kolu's own
- * three stylesheets, olai's own tokens and chip markup, and the row values
- * folded by kolu's own pure functions (`bindStatePip`, `rowSubline`,
- * `paintDockRow`, `activePr`, `rowRecency`) from a REAL padi record — the
- * `active` arm of `packages/tests/fixtures/padi/lanes.json`, the same record
- * the e2e's fake padi serves.
- *
- * WHAT IS NOT: `label` and `labelColor`. Their folds (`annotationLine`,
- * `assignColors`) stayed in kolu's app and are not exported — finding 3 to
- * #2217 — so they are placeholders here and the shots say so. The human is
- * choosing GEOMETRY, not hues.
- */
 import { render } from "solid-js/web"
 
 import { DockRow, DockSection } from "@kolu/solid-dockrow"
@@ -34,30 +14,18 @@ import { activePr } from "@kolu/padi-client/surface"
 
 import RECORDS from "../../src/client/testlib/fixtures/lanes.json"
 
-/** The LOUD row — padi's `active` arm with an agent BLOCKED ON YOU, which is
- *  the one face worth choosing a geometry around: the violet wash and the wait
- *  chip only exist for it. */
 const RECORD = (RECORDS as { terminals: Record<string, unknown> })
   .terminals["22222222-2222-4222-8222-222222222222"] as Parameters<typeof rowSubline>[0]
 
-/** The CALM row — an agent thinking away in its own terminal, so a reader sees
- *  what the ordinary case costs in each geometry as well as the loud one. */
 const QUIET = (RECORDS as { terminals: Record<string, unknown> })
   .terminals["11111111-1111-4111-8111-111111111111"] as Parameters<typeof rowSubline>[0]
 
-/** padi's attention feeds are mirrored in the real thing; here the class is
- *  handed in, which is what the fold would have produced for a thinking agent. */
 const bagFor = (record: Parameters<typeof rowSubline>[0], klass: "asking" | "working") => {
   const pip = bindStatePip({
     meta: record,
     attention: { klass, live: true },
     unread: false,
   })
-  // THE ROW'S OWN DOOR, the same one the app calls: `rowRecency` holds the
-  // mode branch, the two-channel seam and the clock pairing together, so a
-  // harness that assembled them by hand would be photographing a row nobody
-  // ships. The window channel carries the own instant because this row, like
-  // every row olai draws, is a degenerate window — see `TerminalDoor.tsx`.
   const at = record.lastActivityAt ?? null
   const NOW = 1_700_000_000_000
   const recency = rowRecency({ asking: pip.asking, active: pip.active }, { window: at, own: at }, {
@@ -71,8 +39,6 @@ const bagFor = (record: Parameters<typeof rowSubline>[0], klass: "asking" | "wor
     subline: rowSubline(record),
     pr: activePr(record),
     recency,
-    // PLACEHOLDERS — see the header. `label` is what `annotationLine` would
-    // return (intent line 1, else the branch) and the ink is a fixed token.
     label: record.state === "active" ? (record.intent ?? "") : "",
     labelColor: "var(--color-fg-3)",
   }
@@ -81,8 +47,6 @@ const bagFor = (record: Parameters<typeof rowSubline>[0], klass: "asking" | "wor
 const LOUD = bagFor(RECORD, "asking")
 const CALM = bagFor(QUIET, "working")
 
-/** kolu's row, in the container its README requires: the section declares the
- *  subgrid tracks and sets `--repo-color`, or the row has no columns to sit in. */
 function Row(props: { readonly bag: ReturnType<typeof bagFor>; readonly id: string }) {
   return (
     <DockSection surface="desktop" repoColor="#7aa2f7">
@@ -92,7 +56,6 @@ function Row(props: { readonly bag: ReturnType<typeof bagFor>; readonly id: stri
         pip={props.bag.pip}
         bucket={props.bag.bucket}
         agentState={props.bag.agentState}
-        // The same absence `TerminalDoor.tsx` passes: olai's row carries no model.
         model={undefined}
         label={props.bag.label}
         labelColor={props.bag.labelColor}
@@ -108,8 +71,6 @@ function Row(props: { readonly bag: ReturnType<typeof bagFor>; readonly id: stri
 
 const CHIP = "inline-flex min-w-0 max-w-full gap-1.5 border border-rule bg-panel px-2 py-px"
 
-/** olai's own row: the title line, then the run of property chips under it —
- *  the markup `../../web/src/client/props/PropsDrawer.tsx` emits, verbatim. */
 function NodeRow(props: {
   readonly title: string
   readonly agent: string
@@ -138,7 +99,6 @@ function NodeRow(props: {
   )
 }
 
-/** The chip as it is TODAY, one glyph over: kolu's pip where olai's dot was. */
 const PipChip = (bag: ReturnType<typeof bagFor>, value: string) => (
   <span class={`${CHIP} items-baseline`}>
     <span class="font-mono text-muted">terminal</span>
@@ -249,7 +209,6 @@ function App() {
           <NodeRow title="review: grok"
             agent="grok"
             terminalChip={() => PipChip(LOUD, "22222222")} />
-          {/* The overlay, drawn open — a screenshot cannot hover. */}
           <div class="relative pl-6">
             <div class="absolute top-1 left-[6rem] z-10 w-[32rem] border border-rule bg-panel shadow-lg">
               <Row bag={LOUD} id="22222222-2222-4222-8222-222222222222" />

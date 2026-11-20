@@ -1,24 +1,9 @@
-/**
- * WHAT ONE EVENT LINE SAYS — the fold as the words.
- *
- * The tests name the one module's three shapes and one vocabulary discipline:
- *
- *   - the three sentences of `transition`, `nag` and `heartbeat`, each
- *     spelled in words that CANNOT drift from kolu's own; and
- *   - the durations, which are `recencyText`'s phrases rather than a second
- *     calendar: the AGE is the `ago` arm's "4m ago", and the HELD FOR is the
- *     wait-chip's "38m".
- */
-
 import { expect, test } from "bun:test"
 
 import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
 import { eventLine } from "./events.ts"
 
-/** One frozen draw, structurally — what `./watch.ts` freezes a row into.
- *  `holdMs` is the span the hold had at the fire time, and the two are
- *  distance-paraphrased onto the one clock the tests stand on. */
 const T0 = 1_700_000_000_000
 
 const heldEvent = (
@@ -65,8 +50,6 @@ const heldEvent = (
 }
 
 test("a `nag` is a hold made louder, not one made new", () => {
-  // The additive-decode arm: a ring served from before the field arrives
-  // without `nag`, and folds the count-less suffix away.
   const line = eventLine(heldEvent("nag"), T0)
   expect(line.words).toBe("still waiting for input for 38m")
   expect(line.asking).toBe(true)
@@ -82,9 +65,6 @@ test("a carrying nag's sentence is the account the wire spelled", () => {
 })
 
 test("a count on a kind that is not a nag does not become a reminder", () => {
-  // The flat schema CAN decode `transition` + `nag`; translate strips the
-  // pairing before olai — and the fold ALSO refuses it, so the sentence a
-  // language-count cannot disagree with itself about keeps "has been".
   expect(eventLine(heldEvent("transition", { nag: { index: 2, left: 1 } }), T0).words)
     .toBe("has been waiting for input for 38m")
 })
@@ -94,7 +74,6 @@ test("a `transition` says has been", () => {
   expect(line.label).toBe("panel-step")
   expect(line.who).toBe("olai·panel-step")
   expect(line.words).toBe("has been waiting for input for 38m")
-  // The AGE is kolu's own ago-phrase.
   expect(line.age).toBe("4m ago")
 })
 
@@ -111,16 +90,11 @@ test("the `who` is the Dock's own spelling — `repo·label`, or the label alone
     .toBe("olai·kolu-events-feed")
   expect(eventLine(heldEvent("transition", { repo: "nixos-config", label: "master" }), T0).who)
     .toBe("nixos-config·master")
-  // And the no-repo case answers what the Dock's group answers: nothing
-  // extra, the plain label.
   expect(eventLine(heldEvent("transition", { repo: null, label: "the lane the evidence rides" }), T0).who)
     .toBe("the lane the evidence rides")
 })
 
 test("an event younger than one tick is `just now`, never a dash", () => {
-  // The tab's clock ticks per minute and an event lands ahead of it,
-  // briefly, every minute — the fold clamps at the seam rather than letting
-  // a dash reach the one reader the age phrase was made for.
   const fresh: KoluEvent = {
     id: "ev-9",
     kind: "heartbeat",
@@ -140,7 +114,5 @@ test("a heartbeat is not a sentence — the drawer folds it out before this door
   const line = eventLine(heartbeat, T0)
   expect(line.about).toBeNull()
   expect(line.label).toBe("")
-  // And the fold's answer is SILENCE — never "the watcher is alive", which
-  // is the pill's register's to say.
   expect(line.words).toBe("")
 })

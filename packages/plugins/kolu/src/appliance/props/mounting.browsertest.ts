@@ -1,30 +1,8 @@
-/**
- * A MOUNT THAT WAITS FOR A CHUNK — the two closes, and they are two different
- * failures.
- *
- * `.browsertest.ts` and not `.test.ts`, which is the whole reason this file has
- * a suffix: under bun's default resolution SolidJS is the SERVER build, where an
- * effect never runs at all — so a `.test.ts` here would be green having mounted
- * nothing and released nothing, which is the exact shape of the bug it is
- * supposed to be watching.
- *
- * The claims:
- *
- *   1. CLOSED AFTER THE CHUNK ARRIVED — what was made is released. This is the
- *      one that regressed: the release was registered on a later microtask, in
- *      a frame Solid had already left, so it was an empty statement.
- *   2. CLOSED WHILE THE CHUNK WAS IN FLIGHT — nothing is made at all. This is
- *      the one a `runWithOwner` rescue does NOT reach, because `onCleanup` on a
- *      disposed owner is a no-op too, and it is the case with the longest
- *      window: the first open of a pane pays a real network fetch.
- */
-
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import { mountLater } from "./mounting.ts"
 
-/** A load that has not come back yet, and the hand that decides when it does. */
 const pending = <A>(): { readonly load: () => Promise<A>; readonly arrive: (value: A) => Promise<void> } => {
   const { promise, resolve } = Promise.withResolvers<A>()
   return { load: () => promise, arrive: async (value) => { resolve(value); await promise } }

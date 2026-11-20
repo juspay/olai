@@ -1,11 +1,3 @@
-/**
- * THE PADI READOUT AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
- * `BarStatus`) — the same `padiSaid` reading the row draws, from the same fleet
- * this activation owns, so the dot and the row cannot disagree.
- *
- * The tone is `padiSaid`'s own; what is composed here is only the label, which
- * carries the quiet beat's words as the row's rider does.
- */
 import type { BarStatus } from "olai-plugin-layout/slots"
 
 import { padiSaid } from "../appliance/index.ts"

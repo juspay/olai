@@ -1,24 +1,3 @@
-/**
- * THE MIRROR — one connection for N readers, and what a machine with no kolu
- * on it sees.
- *
- * Two claims, and they are the two the brief names:
- *
- *   1. **N subscribers, ONE mirror — counted.** The economy of rung 1 is that
- *      ten lane chips on a page are ten lookups into a map the server already
- *      holds and exactly one connection to padi. That is true today because the
- *      link is started once, on the runtime's scope, and it would stop being
- *      true the moment somebody moved the start into a per-reader path — with
- *      nothing anywhere noticing, because the screen would look identical. So
- *      the dial is counted and the count is asserted.
- *
- *   2. **Padi absent is a STATE.** A laptop with no kolu running is the
- *      ordinary case, and every page has to draw on it. So a dial that finds
- *      nothing must produce a `KoluLink` and an empty fleet — never a failed
- *      effect, never a log at error level, and never a fleet that has simply
- *      stopped moving with its last good rows still on screen.
- */
-
 import { describe, expect, it } from "bun:test"
 import { Effect, Fiber, Schedule, Stream } from "effect"
 
@@ -28,8 +7,6 @@ import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor/dial"
 import { type Dial, type PadiSurfaceClient, SPEAKS } from "./link.ts"
 import { frameOf, makeMirror } from "./mirror.ts"
 
-/** What the mirror pushes, collected — the server's cell and collection,
- *  played by two arrays. */
 const recorder = () => {
   const links: KoluLink[] = []
   const rows = new Map<string, FleetTerminal>()
@@ -53,14 +30,10 @@ const recorder = () => {
         rows.delete(id)
         removed.push(id)
       },
-      // The flap's own door — kept apart the way `./mirror.ts`'s sink
-      // declares it: a reader of ITS list only ever means “the LINK went.”
       clearedRow: (id: string) => {
         rows.delete(id)
         cleared.push(id)
       },
-      // THE DIAL'S own push, recorded — the face's attach/detach edges are
-      // separate news from the rows'.
       face: (padi: PadiSurfaceClient | null) => {
         faces.push(padi)
       },
@@ -69,30 +42,9 @@ const recorder = () => {
   }
 }
 
-/**
- * A padi face the MIRROR can actually live on — an empty `terminals`
- * collection that stays open.
- *
- * `mirrorRemoteSurface` subscribes to `terminals.keys` and opens a per-key
- * `get`; a face without them faults on the first frame and the link ends
- * before any of these cases has looked. An empty key set followed by
- * `Stream.never` is the smallest far end that is HEALTHY: it says "no
- * terminals" and then holds, which is a real state (a kolu with nothing open)
- * rather than a stub that happens not to crash.
- */
 const liveFace = () => ({
   padi: {
     surface: {
-      /* THE ATTENTION FEEDS, quiet. A fake that announced the collection and
-         not these would be a padi the mirror subscribes to and never hears
-         from — the mirror unwinds on the FIRST subscription failure, so a
-         missing member here reads as a dead link rather than as a missing
-         feed. Empty and never-ending is the honest "nothing is asking of you":
-         `Stream.never` after the seed is what every member here does. */
-      /* The live-attach member. A fake that omitted it would be a padi whose
-         `terminalAttach` is `undefined` — and the dial reads that member off
-         the face on every connect, so the omission reads as a dead link rather
-         than as a pane nobody opened. */
       terminalAttach: { get: () => Stream.never },
       urgency: {
         get: () =>
@@ -120,30 +72,12 @@ const liveFace = () => ({
 
 const NO_KEYS: ReadonlyArray<string> = []
 
-/**
- * A padi face holding `ids` — `keys` announces them and `get` DELIVERS a
- * record for each, which is what makes the mirror actually hold an id.
- *
- * The delivery half matters: `keys` alone announces a membership the mirror
- * cannot resolve a prefix against, because what it keeps is the records. A
- * fake that announced without delivering was a fake padi with an empty fleet.
- */
 const faceWith = (
   ids: ReadonlyArray<string>,
   screen: (input: { id: string }) => Effect.Effect<string> = () => Effect.succeed(""),
 ) => ({
   padi: {
     surface: {
-      /* THE ATTENTION FEEDS, quiet. A fake that announced the collection and
-         not these would be a padi the mirror subscribes to and never hears
-         from — the mirror unwinds on the FIRST subscription failure, so a
-         missing member here reads as a dead link rather than as a missing
-         feed. Empty and never-ending is the honest "nothing is asking of you":
-         `Stream.never` after the seed is what every member here does. */
-      /* The live-attach member. A fake that omitted it would be a padi whose
-         `terminalAttach` is `undefined` — and the dial reads that member off
-         the face on every connect, so the omission reads as a dead link rather
-         than as a pane nobody opened. */
       terminalAttach: { get: () => Stream.never },
       urgency: {
         get: () =>
@@ -166,13 +100,9 @@ const faceWith = (
           Stream.concat(
             Stream.make({
               state: "active",
-              // The forge axis a real record always carries — `activePr` reads it
-              // without guarding, so omitting it is a record padi never sends.
               pr: { kind: "absent" },
               agent: null,
               cwd: `/tmp/${input.key}`,
-              // The pin's `GitFact`: `null` no longer decodes. `unresolved`
-              // is the honest "sensor has not answered" a fresh record holds.
               git: { kind: "unresolved" },
               lastActivityAt: null,
             }),
@@ -184,7 +114,6 @@ const faceWith = (
   },
 })
 
-/** A dial that hands back {@link faceWith}'s far end, healthy and holding. */
 const holding = (
   ids: ReadonlyArray<string>,
   screen?: (input: { id: string }) => Effect.Effect<string>,
@@ -198,20 +127,16 @@ const holding = (
     onClose: () => {},
   } as never)
 
-/** A dial that never finds anything — the machine with no kolu on it. */
 const noPadi: Dial = () => Effect.fail(new Error("ENOENT: no such file or directory"))
 
 const AT = "2026-08-25T12:00:00-04:00"
 
-/** A terminal id as padi keys it — whole. The board names it `cb9dcd13`. */
 const FULL_ID = "cb9dcd13-1e2e-4f7a-9c3d-2b5a7e8f1a44"
 
 describe("the padi mirror", () => {
   it("dials ONCE however many readers there are — the one-connection claim", async () => {
     const seen = recorder()
     let dials = 0
-    // A dial that connects and then holds forever: the healthy case, where a
-    // second dial would only ever come from a second subscriber.
     const holding: Dial = () => {
       dials += 1
       return Effect.succeed({
@@ -219,20 +144,14 @@ describe("the padi mirror", () => {
         identity: { stateRoot: "/run/padi", surfaceVersion: "5.4" },
         startedAt: 0,
         dispose: () => {},
-        // Never fires — the link stays up, which is what makes a second dial
-        // unambiguously a bug rather than a reconnect.
         onClose: () => {},
       } as never)
     }
     const mirror = makeMirror(seen.sink, { env: {}, now: () => AT, dial: holding })
 
     const fiber = Effect.runFork(Effect.scoped(mirror.run))
-    // Let the dial land and the mirror settle.
     await Effect.runPromise(Effect.sleep("50 millis"))
 
-    // TEN READERS. Each one is what a tab does: read the rows it was
-    // snapshotted from and look its own terminal up. Not one of them may cost
-    // a connection.
     for (let reader = 0; reader < 10; reader += 1) {
       expect(mirror.rows()).toBeDefined()
       mirror.rows().get(`terminal-${reader}`)
@@ -251,16 +170,11 @@ describe("the padi mirror", () => {
     await Effect.runPromise(Effect.sleep("50 millis"))
     await Effect.runPromise(Fiber.interrupt(fiber))
 
-    // The link SAID something — the hollow chip is drawn from this and not
-    // from an empty fleet, which is the distinction that must not blur.
     const last = seen.links.at(-1)
     expect(last?.status).toBe("absent")
     expect(last?.since).toBe(AT)
-    // And it says WHERE it looked, which is the whole of what makes a hollow
-    // chip actionable.
     expect(last?.socket).not.toBe("")
     expect(last?.told).toBe(false)
-    // Nothing was published as a row.
     expect(mirror.rows().size).toBe(0)
   })
 
@@ -277,19 +191,11 @@ describe("the padi mirror", () => {
 
     const last = seen.links.at(-1)
     expect(last?.socket).toBe("/tmp/somebody-elses-padi.sock")
-    // `told` is what lets the hollow state say "your variable points nowhere"
-    // rather than "no padi is running", which are two different things to fix.
     expect(last?.told).toBe(true)
   })
 
 
   it("reports a padi it cannot SPEAK to as skew, not as absent", async () => {
-    // The two arms have opposite fixes — "start kolu" and "these two builds
-    // disagree, here are the versions" — which is the whole reason the cell has
-    // three states instead of a boolean. Nothing asserted the fold until pi's
-    // review: the renderer's skew arm was unit-tested and the LINK's was not,
-    // so a skew that landed on `absent` would have told a reader to start a
-    // kolu that was already running.
     const seen = recorder()
     const skewed: Dial = () =>
       Effect.fail(
@@ -306,24 +212,12 @@ describe("the padi mirror", () => {
 
     const last = seen.links.at(-1)
     expect(last?.status).toBe("skew")
-    // BOTH versions, because one of the two has to move and a reader cannot
-    // know which without seeing the pair.
     expect(last?.surfaceVersion).toBe("9.0")
     expect(last?.speaks).toBe(SPEAKS)
   })
 
 
   it("survives a padi it cannot speak to — a skew must not fault the runtime", async () => {
-    // THE ONE THAT MATTERED. `connectPadi`'s compatibility gate THROWS, so a
-    // padi a major ahead arrives as a DEFECT rather than a typed failure —
-    // and a handler that caught only the error channel let it escape, kill the
-    // connector's fiber and fault the whole surface runtime. A skewed kolu
-    // took olai's server down with it, on a machine where every page would
-    // otherwise have opened fine.
-    //
-    // So this case dies the way the real dial dies, and asserts the two things
-    // that make it survivable: the effect does not fail, and the reader is
-    // told which two versions disagree.
     const seen = recorder()
     const throwing: Dial = () =>
       Effect.suspend(() => {
@@ -336,9 +230,6 @@ describe("the padi mirror", () => {
     const mirror = makeMirror(seen.sink, { env: {}, now: () => AT, dial: throwing })
     const fiber = Effect.runFork(Effect.scoped(mirror.run))
     await Effect.runPromise(Effect.sleep("50 millis"))
-    // STILL RUNNING — the assertion the crash would fail. An interrupt of a
-    // fiber that already died on a defect is not the same thing, so the link
-    // state below is what proves it kept going.
     await Effect.runPromise(Fiber.interrupt(fiber))
 
     const last = seen.links.at(-1)
@@ -348,11 +239,6 @@ describe("the padi mirror", () => {
   })
 
   it("goes back to ABSENT when a healthy link drops, and drops the rows with it", async () => {
-    // The socket closing is the ordinary end of a connection — kolu restarted,
-    // padi exited — and it has to reach a reader, or the dots freeze at their
-    // last good value with nothing anywhere saying the fleet is no longer a
-    // reading of anything. `onClose` never fired in this file until pi asked
-    // for it.
     const seen = recorder()
     let close: (() => void) | undefined
     const dropping: Dial = () =>
@@ -369,7 +255,6 @@ describe("the padi mirror", () => {
     const fiber = Effect.runFork(Effect.scoped(mirror.run))
     await Effect.runPromise(Effect.sleep("50 millis"))
     expect(seen.links.at(-1)?.status).toBe("connected")
-    // ...and the snapshot verb is live while it is.
     expect(mirror.screen).toBeDefined()
 
     close?.()
@@ -377,11 +262,7 @@ describe("the padi mirror", () => {
     await Effect.runPromise(Fiber.interrupt(fiber))
 
     expect(seen.links.at(-1)?.status).toBe("absent")
-    // EVERY row went with it: the fleet is not a reading of anything now, and
-    // a chip that kept drawing a green dot would be reporting on a terminal
-    // nobody can see.
     expect(mirror.rows().size).toBe(0)
-    // ...and the snapshot refuses rather than reaching a dead face.
     const refused = await Effect.runPromise(
       Effect.flip(mirror.screen("t1", undefined, () => AT)),
     )
@@ -389,9 +270,6 @@ describe("the padi mirror", () => {
   })
 
   it("a LINK closing empties the rows on `clearedRow` — never on `remove`", async () => {
-    // The separation the watcher braces on: a flap must not look like a
-    // fleet closing, or every standing hold gets re-dated (`./watch.ts`'s
-    // "A link drop is not a closing fleet").
     const seen = recorder()
     let close: (() => void) | undefined
     const dropping: Dial = () =>
@@ -420,11 +298,6 @@ describe("the padi mirror", () => {
 
 
   it("reads a screen named by an EIGHT-CHARACTER PREFIX — the board's own spelling", async () => {
-    // THE SECOND PRODUCTION DEFECT. The chip sent what the property holds; the
-    // property holds a prefix; padi's `screen.text` declares its id a uuid, so
-    // the call failed at ENCODE and the schema refusal went down the wire as a
-    // DEFECT — which took the whole page with it. Resolving here means the
-    // wire only ever sees a whole id.
     const seen = recorder()
     const asked: string[] = []
     const mirror = makeMirror(seen.sink, {
@@ -440,7 +313,6 @@ describe("the padi mirror", () => {
 
     const answer = await Effect.runPromise(mirror.screen("cb9dcd13", undefined, () => AT))
     expect(answer.text).toContain("just check")
-    // THE WHOLE ID reached padi, never the prefix.
     expect(asked).toEqual([FULL_ID])
     await Effect.runPromise(Fiber.interrupt(fiber))
   })
@@ -460,7 +332,6 @@ describe("the padi mirror", () => {
       Effect.flip(mirror.screen("cb9dcd13", undefined, () => AT)),
     )
     expect(refused.reason).toBe("ambiguous")
-    // THE COUNT, because it is what makes the next move obvious.
     expect(refused.says).toContain("2 terminals")
     await Effect.runPromise(Fiber.interrupt(fiber))
   })
@@ -488,23 +359,6 @@ describe("the frame projection", () => {
   })
 })
 
-/**
- * THE FOREIGN RESIZE — the arm kolu designed for it, exercised end to end on
- * this side.
- *
- * Attaching is a WRITE on a shared pty and the policy is last-attach-wins, so a
- * second viewer's terminal is reflowed under it with no event in the byte
- * stream. kolu's answer (5.6) puts the pty's current grid on the terminals
- * RECORD, "because that is the channel a mirror already watches" — so the
- * detector is the collection's own reactivity, and the response is a re-attach
- * whose fresh snapshot names the new size.
- *
- * What this pins is the part that is olai's: that a record arriving with a
- * different grid re-opens the attach, and that the re-attach does NOT re-assert
- * this viewer's size. The second half is the one worth a test — two viewers
- * each answering the other's resize is a war that would look, from either
- * screen, exactly like the bug this fixes.
- */
 const resizingFace = (id: string, grids: ReadonlyArray<{ cols: number; rows: number }>) => {
   const attaches: Array<{ id: string; resizeTo?: { cols: number; rows: number } }> = []
   return {
@@ -542,9 +396,6 @@ const resizingFace = (id: string, grids: ReadonlyArray<{ cols: number; rows: num
           },
           terminals: {
             keys: () => Stream.concat(Stream.make([id]), Stream.never),
-            // THE RESIZE, as padi delivers it: the same terminal, published
-            // again, with a different grid on it. A quarter second apart so the
-            // first attach is unambiguously open before the second record lands.
             get: () =>
               Stream.concat(
                 Stream.fromIterable(
@@ -587,12 +438,8 @@ describe("a foreign resize", () => {
         } as never),
     })
     const fiber = Effect.runFork(Effect.scoped(mirror.run))
-    // The first record lands a beat in (the fixture spaces them), so the pane
-    // opens once there is a terminal to open on.
     await Effect.runPromise(Effect.sleep("400 millis"))
 
-    // A pane opens, asking at ITS size — attaching is a write, and the ruled
-    // semantic is that every client sees the same size.
     const frames: string[] = []
     const watching = Effect.runFork(
       Stream.runForEach(mirror.attach(ID, { cols: 100, rows: 30 }), (frame) =>
@@ -604,28 +451,12 @@ describe("a foreign resize", () => {
     await Effect.runPromise(Fiber.interrupt(watching))
     await Effect.runPromise(Fiber.interrupt(fiber))
 
-    // TWO ATTACHES: the pane's own, and the one the record's moving grid drove.
     expect(resizing.attaches.length).toBeGreaterThanOrEqual(2)
     expect(resizing.attaches[0]?.resizeTo).toEqual({ cols: 100, rows: 30 })
-    // ...AND THE SECOND ASSERTS NOTHING. Re-sending this viewer's grid would
-    // answer the other viewer's resize with a resize, and two clients each
-    // answering the other is a war whose symptom on both screens is the garble
-    // this whole arm exists to end.
     expect(resizing.attaches[1]?.resizeTo).toBeUndefined()
-    // The pane saw the fresh snapshot, which is what carries the new size.
     expect(frames.length).toBeGreaterThanOrEqual(2)
   })
 
-  /**
-   * THE CONTROL FRAME DOES NOT CROSS, and this is the fence that says so.
-   *
-   * padi 7.5 sends a `resized` frame whose only content is a grid — no bytes.
-   * olai's record-driven re-attach above is how this pane learns of a foreign
-   * resize, so the frame is filtered at the projection seam (`./mirror.ts`).
-   * What must never happen is the other thing a widening union invites: the
-   * frame reaching a pane as a delta, which would paint nothing and, worse,
-   * make the NEXT arm upstream arrive the same way.
-   */
   it("never projects padi's `resized` control frame as bytes", async () => {
     const seen = recorder()
     const resizing = resizingFace(ID, [{ cols: 80, rows: 24 }])
@@ -666,7 +497,6 @@ describe("a foreign resize", () => {
     await Effect.runPromise(Fiber.interrupt(watching))
     await Effect.runPromise(Fiber.interrupt(fiber))
 
-    // The bytes on both sides of it are delivered; the control frame is not.
     expect(kinds).toEqual(["snapshot", "delta"])
   })
 })

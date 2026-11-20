@@ -1,23 +1,3 @@
-/**
- * THE TERMINAL DOOR — kolu's row where the property is, and the live pane it
- * opens.
- *
- * Every assertion here is on an ATTRIBUTE or on WORDS, never on a colour — and
- * the attributes are KOLU'S OWN. `data-dock-row`, `data-bucket`,
- * `data-agent-state` and `data-asking` are the row package's published contract
- * (`@kolu/solid-dockrow`'s `rowAttrs.ts`), so a scenario here asserts the same
- * facts kolu's own tests assert about the same component. That is the point of
- * drawing kolu's row rather than one of olai's: when the two surfaces disagree
- * about a fleet, one of these breaks.
- *
- * WHAT IS OLAI'S is the wrapper and the sentence: `terminal-block` is the
- * property's own row, `data-terminal` is the value the record holds, and
- * `terminal-says` is what is drawn IN THE ROW'S PLACE when there is none. That
- * last one is the whole of what olai still says for itself, and the reason it
- * is asserted by presence as well as by words: a row and a reason must never be
- * on screen together.
- */
-
 import * as assert from "node:assert";
 
 import { Then, When } from "@olai/tests/harness/runner.ts";
@@ -32,9 +12,6 @@ const SAYS = `[data-testid="terminal-says"]`;
 const PANE = `[data-testid="terminal-pane"]`;
 const SCREEN = `[data-testid="terminal-screen"]`;
 
-/** The block on ONE node's `terminal` property. Scoped through the row rather
- *  than found globally: a page draws several, and a bare `terminal-block` would
- *  assert about whichever one happened to be first. */
 const blockOn = (world: OlaiWorld, id: string) => world.node(id).locator(BLOCK).first();
 
 const rowOn = (world: OlaiWorld, id: string) => blockOn(world, id).locator(ROW).first();
@@ -42,18 +19,10 @@ const rowOn = (world: OlaiWorld, id: string) => blockOn(world, id).locator(ROW).
 Then(
   "the terminal row on {string} is {word}",
   async function (this: OlaiWorld, id: string, bucket: string) {
-    // WAIT for the bucket rather than read it once. The block draws the moment
-    // the outline row does and the fleet arrives on its own frame a beat later,
-    // so a single read races the frame — the discipline every other step here
-    // keeps (`outline_tree_steps.ts`'s note on reading a count once).
     await blockOn(this, id)
       .locator(`${ROW}${attr("data-bucket", bucket)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // A ROW AND A REASON ARE NEVER BOTH ON SCREEN, and asserting it here is
-    // what keeps the two from drifting into one: a block that drew a live row
-    // AND a sentence about having none would pass the line above and be
-    // nonsense to read.
     assert.equal(await blockOn(this, id).locator(SAYS).count(), 0);
   },
 );
@@ -61,11 +30,6 @@ Then(
 Then(
   "the terminal row on {string} is asking for you",
   async function (this: OlaiWorld, id: string) {
-    // `data-asking` is the row's own emphasis flag and the ONE test every kolu
-    // surface reads for "blocked on you" — the wash, the wait chip and the
-    // section count all come off it rather than each re-testing the bucket.
-    // Asserted apart from the bucket because they are different folds (paint
-    // against order) that agreed by luck once and stopped.
     await blockOn(this, id)
       .locator(`${ROW}[data-asking]`)
       .first()
@@ -89,10 +53,6 @@ Then(
 Then(
   "the terminal on {string} says {string}",
   async function (this: OlaiWorld, id: string, says: string) {
-    // THE SENTENCE, as text on the page rather than in a tooltip a mouse has to
-    // find: a status glyph with no words is the thing this whole design
-    // replaces, so the words have to be readable by anything that reads the
-    // page.
     const said = await blockOn(this, id).locator(SAYS).first().textContent();
     assert.ok(
       said?.includes(says),
@@ -104,14 +64,6 @@ Then(
 Then(
   "{string} wears no terminal door at all",
   async function (this: OlaiWorld, id: string) {
-    // THE ABSENT STATE, and it is not "has no row": a block with no row is a
-    // door that LOOKED and found nothing, which is a sentence on the page. This
-    // is the state of a property nothing licensed — no block, no sentence, the
-    // plain chip every undressed property has always drawn.
-    //
-    // Asserted by waiting for the node's own props to be on screen FIRST, so a
-    // count of zero cannot pass on a row that had not drawn yet. That is the
-    // failure a bare count would have here, and it would pass forever.
     await this.node(id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal(
       await this.node(id).locator(BLOCK).count(),
@@ -124,9 +76,6 @@ Then(
 Then(
   "the terminal on {string} shows no door but keeps its value",
   async function (this: OlaiWorld, id: string) {
-    // THE OTHER HALF OF THE ABSENT STATE, and the half a reader of a disabled
-    // serve actually cares about: the record is untouched. A value that vanished
-    // with the plugin would be the display deciding a fact stopped being one.
     const chip = this.node(id).locator(`[data-testid="prop"][data-key="terminal"]`).first();
     await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const drawn = await chip.locator(`[data-testid="prop-value"]`).first().textContent();
@@ -141,9 +90,6 @@ Then(
 Then(
   "the terminal on {string} shows the stored value",
   async function (this: OlaiWorld, id: string) {
-    // The record's own id, on the page beside the row. Two statements, not one:
-    // the row is kolu's reading of a terminal and this is olai's record of
-    // WHICH — and the value is what a `outlines_prop` is written with.
     const value = await blockOn(this, id).getAttribute("data-terminal");
     assert.ok(value !== null && value !== "", `the ${id} block should name its terminal`);
     const drawn = await blockOn(this, id)
@@ -157,9 +103,6 @@ Then(
 When(
   "I watch the terminal on {string}",
   async function (this: OlaiWorld, id: string) {
-    // THE ROW ITSELF is the door — `onSelect`, which in kolu's Dock focuses the
-    // terminal and here reads its screen. There is no separate button, which is
-    // the geometry the human chose.
     await rowOn(this, id).click();
   },
 );
@@ -187,14 +130,6 @@ Then("no snapshot pane is open", async function (this: OlaiWorld) {
 Then(
   "the pane refuses with {string}",
   async function (this: OlaiWorld, says: string) {
-    // A REFUSAL IS PROSE, in its own state — not an empty screen and not a
-    // fault.
-    //
-    // A CONVERGENCE, not an instant: a terminal with no live screen ends its
-    // attach, rule 3 says an end is recoverable, and the pane spends its whole
-    // budget before concluding. Six attaches a quarter second apart is inside
-    // the suite's ordinary bound — it was not, while the backoff was an
-    // argument with no code under it.
     const refused = this.page
       .locator(`${SCREEN}[data-state="refused"]`)
       .first();
@@ -208,20 +143,14 @@ Then(
 );
 
 
-// ── the header's padi readout ────────────────────────────────────────────
-
 const PADI = `[data-testid="padi"]`;
 
 Then(
   "the padi indicator says {string}",
   async function (this: OlaiWorld, status: string) {
-    // A row of the health popover on a desktop, read with it up.
     await this.readStatus(async () => {
       const pill = this.page.locator(PADI).first();
       await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-      // The STATE as an attribute rather than the label's words: the closed set
-      // is the contract, and a label that changed wording would fail a scenario
-      // about a state that had not moved.
       await this.waitUntil(
         async () => (await pill.getAttribute("data-padi")) === status,
         `the padi indicator to say ${JSON.stringify(status)}`,
@@ -233,21 +162,10 @@ Then(
 Then(
   "the padi indicator is not drawn at all",
   async function (this: OlaiWorld) {
-    // THE ABSENT STATE, and it is not the pill's own "no padi is running" arm:
-    // there is no pill. That distinction is the whole of what a disabled plugin
-    // means — a machine that never had the tool has no chip in its bar, where a
-    // pill saying the daemon is missing is a complaint about a tool somebody
-    // deliberately turned off.
-    //
-    // Waited through the HEADER, so a count of zero cannot pass on a bar that
-    // had not drawn yet — which is the failure a bare count would have here,
-    // and it would pass forever.
     await this.page.locator(APP_HEADER).first().waitFor({
       state: "visible",
       timeout: POLL_TIMEOUT,
     });
-    // ...and counted with the health popover UP, where the row would be: shut,
-    // it draws no readout rows at all, and zero would prove nothing.
     const rows = await this.readStatus(() => this.page.locator(PADI).count());
     assert.equal(
       rows,
@@ -260,9 +178,6 @@ Then(
 Then(
   "the padi indicator explains {string}",
   async function (this: OlaiWorld, says: string) {
-    // The SENTENCE, off `aria-label` rather than a tooltip a mouse has to
-    // find. A skew that did not name both versions would leave a reader
-    // knowing something is wrong and not which way to move.
     const said = await this.readStatus(() => this.page.locator(PADI).first().getAttribute("aria-label"));
     assert.ok(
       said?.includes(says),
@@ -274,9 +189,6 @@ Then(
   "the pane is a live window rather than a snapshot",
   async function (this: OlaiWorld) {
     const pane = this.frontLane().locator(PANE).first();
-    // THE TWO WAYS IT SAYS SO, asserted together because either alone would let
-    // the pane make a promise it cannot keep. The solid border is the class the
-    // still-frame pane deliberately does NOT have; the tag is the word.
     assert.ok(
       (await pane.getAttribute("class"))?.includes("olai-live"),
       "the pane should wear the solid live border",
@@ -288,9 +200,6 @@ Then(
 Then(
   "the live screen shows {string}",
   async function (this: OlaiWorld, text: string) {
-    // READ OFF THE TERMINAL'S OWN ROWS. xterm draws into its DOM, so what a
-    // person can see is what the emulator laid out — an assertion against the
-    // bytes olai sent would pass on a pane that never painted them.
     const screen = this.page.locator(`${SCREEN}[data-state="attached"]`).first();
     await screen.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
@@ -303,14 +212,6 @@ Then(
 When(
   "I resize the window {int} times",
   async function (this: OlaiWorld, times: number) {
-    // EACH RESIZE THAT MOVES THE GRID RE-ATTACHES, which is the lane the
-    // budget defect lived in: the pane spent an attempt per resize and nothing
-    // ever put one back, so a pane that had been open a while was already out
-    // of budget when the next ordinary stream end arrived.
-    //
-    // The widths step in real jumps so every one of them crosses a column
-    // boundary — a resize that leaves the grid where it was is not the case
-    // under test and would make this pass for the wrong reason.
     const { height } = this.page.viewportSize() ?? { width: 1280, height: 900 };
     for (let i = 0; i < times; i += 1) {
       await this.page.setViewportSize({ width: 1280 - i * 60, height });
@@ -322,7 +223,6 @@ When(
 Then(
   "the pane on {string} is still live",
   async function (this: OlaiWorld, id: string) {
-    // THE WHOLE POINT: still attached, and NOT wearing the budget's sentence.
     const screen = this.node(id).locator(SCREEN).first();
     await screen.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const state = await screen.getAttribute("data-state");
