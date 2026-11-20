@@ -1,21 +1,3 @@
-/**
- * A real olai as a CHILD PROCESS: how to start one, how to read its address,
- * and how to ask whether it stopped.
- *
- * Two tests in this package cannot use the in-process `withServe`
- * (`./serve.testlib.ts`), because what they are about IS the process boundary:
- * `shutdown.test.ts` (a signal must actually exit it, and name itself on
- * stderr first) and `lock.test.ts` (a SECOND olai over one directory must
- * refuse to boot). What they need of a child is the same three answers —
- * where did it bind, is it gone, and what did it say — and they are here so
- * two copies cannot drift onto different events.
- *
- * The subprocess itself is `@kolu/child`'s. What remains here is READINESS:
- * the `serving` line, which is this server's own interface and not a fact
- * about subprocesses. The wait discipline — listeners at spawn, wait on the
- * event, a clock that throws with what the child said — is the socket's
- * default, so these tests stop re-earning it.
- */
 import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 import { type Child, start } from "@kolu/child"
 import { findLogfmt } from "@olai/log/testlib"
@@ -27,11 +9,6 @@ import { DIE_WITH_PARENT } from "./dieWithParent.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 
-/** A stand-in for the built browser bundle, which the entry point refuses to
- *  start without. One per test process rather than one per child: the content
- *  is a constant and nobody writes to it, and a directory per spawn is a dozen
- *  identical temp directories left behind by a file that starts a dozen
- *  servers. */
 let dist: string | undefined
 const clientDist = (): string =>
   (dist ??= (() => {
@@ -40,37 +17,14 @@ const clientDist = (): string =>
     return made
   })())
 
-/** How long a boot may take before it is a hang rather than a slow machine.
- *  Generous by the same argument as the bounds above: what is being told apart
- *  is "under a second" from "never". */
 export const BOOT_TIMEOUT = 10_000
 
 export interface WebChild {
   readonly pid: number | undefined
   readonly exitCode: number | null
-  /** Everything it has said, both streams, for the life of the process. The
-   *  boot wait fills the same box an assertion afterwards reads, so there is no
-   *  gap between the two and no second listener to attach. */
   readonly said: () => string
-  /** The `url=` field of the `serving` line — read off the child because that
-   *  IS the interface: the default port is `0`, so the process is the only
-   *  thing that knows which one it got. Read as a FIELD, through the decoder
-   *  belonging to the package that owns the format, rather than through a
-   *  regex this file would be alone in maintaining.
-   *
-   *  The wait is that line, not a deadline: a late caller is answered from
-   *  the box, an early one from the chunk that carries it. Rejects if the
-   *  child exits first, or after {@link BOOT_TIMEOUT} — with everything it
-   *  said, because "never bound" and "would not boot, and here is why" look
-   *  identical from out here otherwise. */
   readonly address: () => Promise<string>
-  /** Its exit code, once its pipes have drained. */
   readonly exited: () => Promise<number | null>
-  /**
-   * The close, or a throw after `ms` with what the child said. The listener
-   * is the one `@kolu/child` attached at spawn — attaching after kill is the
-   * hazard the socket exists to not have.
-   */
   readonly wait: (ms: number, why: string) => Promise<number | null>
   readonly kill: (signal?: NodeJS.Signals) => void
   readonly stop: (opts?: {
@@ -79,22 +33,9 @@ export interface WebChild {
   }) => Promise<number | null>
 }
 
-/**
- * `olai web <root> …`, spawned the way a person's shell does — the packaged
- * artefact's own entry point, not this package's modules. No `--port`: the
- * process default is 0 (OS-assigned), and that is a fact these callers
- * rely on rather than re-spell. Pass `--port N` in `extra` to pin one.
- *
- * A file fixture defaults commits off because most callers are not about git.
- * Pass `policy: {}` to exercise the schema defaults.
- */
 export const startWeb = (options: {
   readonly root: string
-  /** Merged over the defaults below. For a test that needs two children to
-   *  meet somewhere the environment decides they do — said explicitly rather
-   *  than left to what this process happens to have inherited. */
   readonly env?: NodeJS.ProcessEnv
-  /** Process arguments after `web <root>`; policy belongs in the file fixture. */
   readonly extra?: ReadonlyArray<string>
   readonly policy?: FixturePolicy
 }): WebChild => {
@@ -103,33 +44,13 @@ export const startWeb = (options: {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     OLAI_DIST_DIR: clientDist(),
-    // No agent: none of these tests is about the chat panel, and a real one
-    // would make them depend on a model and a network.
     KOLU_ACP_AGENT: "",
     OLAI_ACP_CODEX: "",
     OLAI_ACP_PI: "",
     OLAI_AGENT_PATH: "",
-    // Same isolation as the in-process helper: omitting this env is not
-    // "derived and absent". odu defaults to `127.0.0.1:18440`.
     ODU_WEB_ORIGIN: "http://127.0.0.1:1",
-    // TIED TO THIS TEST PROCESS: a server arms the kernel's parent-death
-    // signal only for a spawner that tied it, and this one does — `bun test`
-    // killed mid-file is exactly the runner death #355 stopped leaking
-    // servers from. The tie is the ASKER's pid, which is also how the child
-    // tells "my runner died before I armed" from "my wrapper exited on
-    // purpose" (`./dieWithParent.ts`).
     [DIE_WITH_PARENT]: String(process.pid),
-    // A private runtime directory, so a unit test that starts a server does
-    // not drop a lock into the developer's `$XDG_RUNTIME_DIR/olai`. An
-    // explicit `env.XDG_RUNTIME_DIR` still wins — lock tests point two
-    // children at one directory of their own.
     XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-run-")),
-    // ... and a private STATE home, for the sharper version of the same
-    // reason: every boot prunes the state's records whose directories died
-    // (`@olai/state`'s `pruneGone`), and the developer's
-    // `~/.local/state/olai` is full of exactly those. `./statehome.test.ts`
-    // pins this default. An explicit `env.XDG_STATE_HOME` still wins —
-    // headless tests assert on what one child wrote.
     XDG_STATE_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-state-")),
     ...options.env,
   }
@@ -139,17 +60,10 @@ export const startWeb = (options: {
     {
       env,
       stdio: ["ignore", "pipe", "pipe"],
-      // Both streams: a server says where it bound on stdout and why it
-      // would not boot on stderr, and a caller asserting on either wants
-      // whichever arrived.
       drain: { stdout: true, stderr: true },
     },
   )
 
-  // Readiness is this file's residue: the `serving` line is olai's interface,
-  // not a fact about subprocesses. Waiters sit on these `data` events (the
-  // socket already drains them into the box) rather than on a poll, because
-  // a wall-clock interval is what load blows through.
   const notice = new Set<() => void>()
   const consider = () => {
     for (const fn of notice) fn()

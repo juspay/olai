@@ -1,8 +1,3 @@
-/** CORE'S OWN SURFACE, which is all this dial addresses: `plugins.set` is the
- *  HOST ROOT's member and its tag stays bare. It read `@olai/bundle`'s flat
- *  aggregate of every row until #546 deleted that door — a group with every
- *  row's members in it was never what this call needed, and the aggregate
- *  described a wire nothing serves once a member carried its owner. */
 import { writeFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { expect, test } from "bun:test"
@@ -25,8 +20,6 @@ for (const profile of ["web", "surface"] as const) {
       const client = new Client({ name: "mcp-startup-regression", version: "1" })
       try {
         await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`)))
-        // #548: initialization and HTTP 200 succeeded, but the production
-        // catalogue omitted inputSchema. The SDK validates every listed tool.
         const { tools } = await client.listTools()
         expect(tools.map(tool => tool.name)).toContain("outlines_read")
         const read = await client.callTool({ name: "outlines_read", arguments: { id: "a" } })
@@ -137,8 +130,6 @@ test("an MCP-only profile falls back when its requested port is busy", async () 
 
 test("switching ws off through its own socket leaves MCP serving on the same port", async () => {
   await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app"] }, async (url) => {
-    // The request's connection is deliberately withdrawn by the switch. Its
-    // response may be lost, but teardown must finish and the other face stay up.
     await flip(url, "ws", false).catch(() => {})
     expect((await request(url)).status).toBe(200)
     expect((await fetch(url + "/olai/who")).status).toBe(404)
@@ -158,18 +149,6 @@ test("vault withdrawal removes content tools and resync, then a new activation r
       const rejected = await request(url, "tools/call", { name: "outlines_title", arguments: { id: "a", title: "must not land" } })
       const refused = (await rejected.json()).result
       expect(refused.isError).toBe(true)
-      // THE ADAPTER'S WORDS, and they used to be olai's. A departed row's verb
-      // was in the record for the connection's whole life and a filter merely
-      // hid it from `tools/list`, so calling it reached olai's own handler and
-      // got "The capability for … is not active." A verb rides its row's sibling
-      // entry since juspay/kolu#2234 and `reroster` takes the whole entry away,
-      // so there is no handler left to word a refusal — which is the change:
-      // absence is structural rather than filtered.
-      // NAMED, and that is the point of the wording: an agent holding a tool
-      // list from before the flip made a reasonable call against a name that
-      // WAS real, so it is told the sibling was dropped and to re-read the
-      // list — not "unknown tool", which tells it to doubt itself about a name
-      // it did not invent.
       expect(JSON.stringify(refused)).toContain("is no longer served")
       expect(JSON.stringify(refused)).toContain("outlines")
       expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(404)
@@ -271,30 +250,6 @@ test("a non-notebook MCP host remains available after its vault is stopped", asy
   } finally { expect(await child.stop()).toBe(130) }
 }, 15000)
 
-/**
- * A ROW'S VERBS LEAVE WITH THE ROW — asked of the three that no ops-layer door
- * can answer, because they are the case that proves the mechanism rather than
- * the schema.
- *
- * `vault-plugins_inspect`, `vault-plugins_run` and `vault-plugins_stop` were three hand-written
- * `BespokeTool`s inside `olai-plugin-mcp`, advertised or withheld by a
- * `management` name-to-tag map in a `catalog.ts` beside them — one row's
- * vocabulary held by another row, and a map somebody had to keep in step.
- * #546 sent them home: they are `olai-plugin-vault-plugins`' own `tools.ts`
- * now, handed to the host beside that row's `faces.agent`, and the reason they
- * are offered is that the row is HERE.
- *
- * WHICH IS EXACTLY THE CLAIM NOTHING ELSE MAKES. The content rows' withdrawal
- * is covered above, but every one of those verbs lands on an `ops.*` member, so
- * a filter that had rotted into "is the ops door open" would still pass. These
- * three land on `plugins.*`, which no other row serves and no ops door
- * reaches — so if the tool list did not actually follow the roster, this is
- * where it shows.
- *
- * THE CALL IS ASKED TOO, and not only the listing. A name missing from
- * `tools/list` while its handler went on answering would be a tool an agent
- * cannot discover and can still invoke, which is worse than either half alone.
- */
 test("the plugin author's three verbs leave with the row that owns them", async () => {
   await withServing({ root: served(), plugins: ["vault", "vault-plugins", "ws", "mcp"] }, async url => {
     const names = async () => (await (await request(url)).json()).result.tools.map((tool: { name: string }) => tool.name) as string[]
@@ -308,12 +263,6 @@ test("the plugin author's three verbs leave with the row that owns them", async 
     const refused = await request(url, "tools/call", { name: "vault-plugins_inspect", arguments: {} })
     const said = (await refused.json()).result
     expect(said.isError).toBe(true)
-    // THE ADAPTER'S WORDS, and they name the ROW. It was olai's "The capability
-    // for … is not active." — a filter hid the verb from `tools/list` while its
-    // handler stayed in the record and went on answering. A verb rides its row's
-    // sibling entry since juspay/kolu#2234, so `reroster` takes the handler away
-    // with the entry and the refusal can say which sibling left, which is a
-    // sentence a filter could not have written.
     expect(JSON.stringify(said)).toContain("no longer served")
     expect(JSON.stringify(said)).toContain("vault-plugins")
     await flip(url, "vault-plugins", true)
@@ -364,24 +313,6 @@ test("mail advertises exactly eleven tools while running and withdraws them on e
   })
 }, 30_000)
 
-/**
- * A ROW'S SENTENCE LEAVES WITH THE ROW — the prose twin of the three verbs
- * above, asked of the one paragraph that is about a panel.
- *
- * "A person reads your answer in olai's chat panel" was a static string in
- * `@olai/surface` for one PR, so a serve with `mcp` and no `chat` told every
- * host about a panel nobody had, and so did an external host dialling `/mcp`
- * from a terminal. It rides `olai-plugin-chat`'s `Sibling.charter` now, and the
- * mcp row composes `initialize`'s `instructions` from the rows STANDING at
- * each host connection — so the claim is that the sentence is on the wire
- * exactly when the panel is, read here through the same `initialize` a real
- * host sends. The mcp row's own paragraphs are there in both states.
- *
- * AND THE WHOLE STAYS UNDER 2000 BYTES WITH EVERY ROW STANDING, held here
- * rather than in `mcp/tools.test.ts` because that bench mounts a subset: Claude
- * Code truncates server instructions at 2 KB silently, so the ceiling is only
- * a ceiling over the text the full bundle actually composes.
- */
 const initialize = async (url: string): Promise<string> => {
   const response = await request(url, "initialize", {
     protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "profiles.test", version: "0" },
@@ -390,9 +321,6 @@ const initialize = async (url: string): Promise<string> => {
   return (await response.json()).result.instructions as string
 }
 
-/** The charter's opening clause — `olai-plugin-chat`'s `charter.ts`, which no
- *  longer says "chat panel" at all: the sentence now names the note or outline
- *  the chat is beside, so this is the phrase both states are read by. */
 const BESIDE = "A person reads your answer in olai, beside the note or the outline this chat is about"
 
 test("the chat panel's sentence to an agent is on the wire exactly while chat is standing", async () => {

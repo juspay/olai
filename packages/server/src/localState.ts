@@ -1,20 +1,3 @@
-/**
- * THE LOCAL-STATE DOOR — one opaque record per plugin per vault.
- *
- * Core owns the file and the ordering. The plugin owns the record's fields.
- * One permit contains both the first read and every write, so a returning
- * plugin sees the same snapshot a restart will see and a failed save is visible
- * to the effect that asked for it.
- *
- * The caller mints this door once per plugin name. Two doors would mean two
- * chains writing the same path; `openPlugins` keeps the name-to-door map.
- *
- * The DIRECTORY beside the record is opened on each read rather than once:
- * the open is idempotent and re-asserts the owner-only mode, and a home
- * somebody cleaned out mid-serve comes back on the next ask instead of being a
- * path that no longer exists.
- */
-
 import { Effect, Semaphore } from "effect"
 
 import type { LocalState } from "@olai/plugin-api/services"
@@ -44,8 +27,6 @@ export const localStateFor = (
   let loaded = false
   let record: Record<string, unknown> | null = null
 
-  // There is one current path. Missing and unreadable both load as absence;
-  // the warning distinguishes a failed read without adding a cache state.
   const readOnce = Effect.match(readLocal(at, cwd), {
     onFailure: (failure) => {
       warn(`plugin ${plugin}: ${failure.why}`)

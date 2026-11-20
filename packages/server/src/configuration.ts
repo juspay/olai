@@ -1,6 +1,3 @@
-/** Serve-owned serialization of live policy publications and loader updates.
- * The provider only publishes. Losing it cancels the subscription, never a
- * patch already accepted by this worker, and never rolls row options back. */
 import { Config as ProcessConfig } from "./process-policy.ts"
 import { ROWS } from "@olai/bundle"
 import { BUNDLE_NAMES, configsOf, offered, patchBundleRow, patchBundleRows, profilePatch, serviceChanges } from "@olai/bundle/bundle"

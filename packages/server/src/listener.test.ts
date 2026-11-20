@@ -1,25 +1,3 @@
-/**
- * What the listener says, and where it says it.
- *
- * This file used to fence the frame cap, and it pinned the NUMBER on purpose.
- * There is no number here to pin any more — `listener.ts`'s header has why —
- * and kolu's own `serve.test.ts` carries both the fence and the end-to-end
- * carriage. A copy here would be a test of somebody else's constant, failing in
- * the wrong repository the day it changed.
- *
- * What did NOT move upstream is the SINK (`./report.ts`), and the way that
- * wiring breaks is silent: a `console.warn` still reaches a terminal, just not
- * the logfmt read by the e2e harness and systemd journal, subject to the serve’s log level.
- * So these drive real sockets at a real server and assert on what the LOGGER
- * heard.
- *
- * Two arms, and they are the two the mapping actually decides between: a tab
- * left over from a restart is ordinary (`Info`, and worth a line only because
- * it explains a page that stopped updating), while a cross-site upgrade refused
- * before it became a socket is not (`Warn`). Everything the primitive reports
- * lands on one of those two levels, so proving both proves the switch.
- */
-
 import { STALE_PROCESS_CLOSE_CODE } from "@kolu/surface-app"
 import { findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
@@ -28,29 +6,17 @@ import * as http from "node:http"
 
 import { served, withServing } from "./serve.testlib.ts"
 
-/** How long a socket may take to be answered, and a line to be said, before
- *  either is a hang. Generous: what is being told apart is "refused" from
- *  "never", not a fast refusal from a slow one. */
 const BOUND_MS = 10_000
 
-/** A real server on an OS-chosen port, and everything it said — the package's
- *  own helper (`./serve.testlib.ts`), which owns where the address comes from:
- *  the port is asked for as `0`, so the process is the only thing that knows
- *  which one it got, and it says so on the `serving` line. A directory with
- *  something valid in it is all this test asks of the one it serves. */
 const withServer = (
   body: (url: string, said: ReadonlyArray<Logged>) => Promise<void>,
 ): Promise<void> => withServing({ root: served() }, body)
 
-/** Where the listener serves the surface. Its own copy on purpose: a test that
- *  imported the path would agree with the server by construction, and this one
- *  is meant to speak to it the way a browser does. */
 const WS_PATH = "/rpc/ws"
 
 const wsUrl = (url: string, query = ""): string =>
   `${url.replace("http://", "ws://")}${WS_PATH}${query}`
 
-/** Dial as a browser does, and answer with the code the server closed with. */
 const dial = (url: string): Promise<number> =>
   new Promise((resolve, reject) => {
     const timer = setTimeout(
@@ -64,20 +30,8 @@ const dial = (url: string): Promise<number> =>
     })
   })
 
-/** How a handshake ended: as a websocket, or not at all. */
 type Handshake = "upgraded" | "refused"
 
-/**
- * Offer the handshake by hand, from an `Origin` of our choosing.
- *
- * By hand for both halves of that sentence. The refusal under test happens
- * BEFORE the upgrade — the raw socket is destroyed, with nothing said, because
- * there is nothing to say to a page that should not have asked — so what is
- * being observed is the absence of an upgrade rather than any close code a
- * websocket client could report. And `Origin` is a header a browser sets and a
- * `WebSocket` constructor does not take: forging it is the whole point, since
- * an attacker page is a browser that has been told to lie about who it is.
- */
 const handshake = (url: string, origin: string): Promise<Handshake> =>
   new Promise((resolve, reject) => {
     const timer = setTimeout(
@@ -94,8 +48,6 @@ const handshake = (url: string, origin: string): Promise<Handshake> =>
         Upgrade: "websocket",
         Origin: origin,
         "Sec-WebSocket-Version": "13",
-        // Sixteen bytes, base64. Any sixteen: the server hashes them back into
-        // its answer and this test never reads the answer.
         "Sec-WebSocket-Key": Buffer.from("0123456789abcdef").toString("base64"),
       },
     })
@@ -103,9 +55,6 @@ const handshake = (url: string, origin: string): Promise<Handshake> =>
       socket.destroy()
       settle("upgraded")
     })
-    // An ordinary HTTP answer to an upgrade request is a refusal too — this
-    // gate does not give one, and asserting only on the destroyed socket would
-    // make the test agree with today's spelling rather than with the property.
     request.on("response", () => {
       request.destroy()
       settle("refused")
@@ -114,10 +63,6 @@ const handshake = (url: string, origin: string): Promise<Handshake> =>
     request.end()
   })
 
-/** The line whose message contains `phrase`, waited for. A line the listener
- *  logs is emitted from a Node callback, on a fiber of its own — so a test that
- *  read `said` the instant its socket closed would be racing the line it came
- *  to hear. */
 const heard = async (
   said: ReadonlyArray<Logged>,
   phrase: string,
@@ -135,16 +80,9 @@ const heard = async (
   }
 }
 
-// A tab that presents a process id this server does not answer to is bound to a
-// process that is gone. It is closed rather than served — the whole of the
-// stale-tab gate — and the line is what tells whoever is looking at a page that
-// stopped updating why it did.
 test("a tab from a previous process is closed, and the log says which", async () => {
   await withServer(async (url, said) => {
     const gone = "a-process-that-is-gone"
-    // The framework's own code, not a `4001` retyped here: this half of the
-    // handshake is the framework's to decide, and the browser recognises it by
-    // the same constant.
     expect(await dial(wsUrl(url, `?pid=${gone}`))).toBe(STALE_PROCESS_CLOSE_CODE)
 
     const line = await heard(said, "stale tab rejected")
@@ -153,9 +91,6 @@ test("a tab from a previous process is closed, and the log says which", async ()
   })
 }, BOUND_MS * 3)
 
-// Cross-site websocket hijacking, refused on the raw socket BEFORE the upgrade.
-// Nobody's browser does this by accident, which is the whole reason the level
-// is the one an operator has asked to be shown.
 test("a cross-site origin never becomes a socket, and that is a warning", async () => {
   await withServer(async (url, said) => {
     const origin = "http://evil.example"

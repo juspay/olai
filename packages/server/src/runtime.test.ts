@@ -1,22 +1,3 @@
-/**
- * One runtime, several faces, several writers — the rebinding, as a fence.
- *
- * `writerAt` is what lets an `olai web` serve its own websocket as `web` and,
- * over the same store and the same cells, an HTTP `/mcp` client as `mcp`. The
- * END of that is proven where it can be seen from outside — a commit's
- * `X-Olai-Writer` trailer, from a face composed under a writer that is not
- * this process's own door.
- *
- * What that cannot see is the MECHANISM, and the mechanism has one way to rot
- * quietly: a member that records who asked, added to the surface and bound in
- * `bind`, and never added to `writing` — so it answers under this process's
- * writer on every face, forever, with nothing anywhere saying so. A bridged
- * agent's work would go into the log under the browser's name.
- *
- * So this asserts the rebinding is EXACT in both directions: the tags it
- * replaces are the ones that record a writer, and every other handler in the
- * record is the same value it was.
- */
 import { selectFixtureRows } from "@olai/bundle/testlib"
 import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS } from "./capabilities.testlib.ts"
@@ -65,42 +46,19 @@ import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
 
-/** A known start instant, so `app.get` is asserted against a mint rather
- *  than against whatever clock the suite happened to read. */
 const STARTED = "2026-08-29T09:31:00.000Z"
 
-/** One bound runtime over a directory of `files`, torn down with the scope —
- *  the boot every test here needs and neither one is about. `watchFault` is
- *  not ceremony: the runtime's `done` REJECTS when it is closed, so something
- *  has to hold that catch or the teardown is an unhandled rejection the runner
- *  attributes to whichever test happened to be running.
- *
- *  It yields the OPS layer beside the runtime because one test rebinds the
- *  handlers against it; nothing else about the boot differs between them, and
- *  the `reads` list because one of them is about a read that must not happen. */
 const withRuntime = <A>(
   files: Readonly<Record<string, string>>,
   use: (bound: {
-    // `bind`'s own return type, read off the function rather than named: the
-    // gate pair used to be typed by `@olai/bundle`'s `facesOf`, which is one of
-    // the three hand-written face tables #546 deleted. There is nothing left to
-    // import — a face's grant is composed from the rows' own `faces` maps now —
-    // and the composer is the only thing that knows the shape.
     readonly wired: { readonly bound: Bound; readonly faces: Effect.Success<ReturnType<typeof bind>>["faces"] }
     readonly ops: Ops
     readonly store: OutlineStore
-    /** The directory this runtime is serving, for the one test that rewrites a
-     *  file underneath it. */
     readonly root: string
-    /** Every path whose BODY was read off the disk for a reader, in order —
-     *  `@olai/store`.s `body`, which is the one door `./bodies.ts` may use.
-     *  Recorded rather than mocked: the real read still happens. */
     readonly reads: ReadonlyArray<string>
     readonly attached: Effect.Effect<string>
-    /** The live host, including the vault row and any test doubles. */
     readonly plugins: Plugins
   }) => Effect.Effect<A, unknown>,
-  /** Additional rows mounted beside the test-minimal vault provider. */
   extra: {
     readonly plugins?: ReadonlyArray<{
       readonly name: string
@@ -143,37 +101,17 @@ const withRuntime = <A>(
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: STARTED,
-      // Actual notebook providers supply the wire. Additional rows below are
-      // scoped doubles used only by registry/recomposition cases.
       plugins: {
-        // These cases drive registration changes through onChange and read
-        // fiber reports directly. Status notifications also force verified
-        // store refreshes; keep that independent background stream out of the
-        // fixture so exact body-frame assertions have one revision producer.
-        // Live status reconciliation is covered by the serve/profile tests.
         plugins: { ...mounted, changes: Stream.empty },
         onChange,
         built: extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name),
-        // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
-        // These runtimes mount doubles directly rather than through the loader,
-        // so `reportBundle` (which walks `BUNDLE_NAMES`) has nothing to say
-        // about them — but the reading underneath it takes the ids it is given,
-        // and asking it here is what makes these cases exercise the same
-        // derivation a real boot does rather than a hand-made map.
         report: yield* Effect.map(
           rowReport(mounted.host, extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name)),
           (read) => () => read,
         ),
-        // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
-        // nothing to flip. The join that reads `names()` answers "carries
-        // nobody" for every row, which is what these cases are about anyway; the
-        // flip is benched where the loader is (`@olai/bundle`'s `flip.test.ts`)
-        // and end to end, because what it is FOR is a real bundle settling.
         names: () => new Map(),
         configs: () => new Map(),
         set: () => Effect.succeed(false),
-        // NOTHING MOVES A FIBER IN THESE CASES beyond the mount above, so a
-        // re-read would answer what `report` already holds.
         reread: Effect.void,
         switched: () => new Set(),
       },
@@ -185,55 +123,19 @@ const withRuntime = <A>(
   }).pipe(
     Effect.scoped,
     Effect.provide(NodeServices.layer),
-    // These connector tests advance disk through explicit refreshes. The vault
-    // row also starts a watcher and backstop; hold their timers so an incidental
-    // probe cannot add a revision between the exact frames asserted below.
     Effect.provide(TestClock.layer()),
     Effect.runPromise,
   )
 }
 
-/**
- * ONE ENTRY PER WRITING ROW, under that row's own name.
- *
- * The harness mounts the six content owners; four of them declare `writes:
- * ["surface/ops/run"]` (`olai-plugin-{outlines,markdown,files,trash}`'s
- * `server.ts`) and `pins` and `capture` declare none — they write through
- * `edit.apply`, which is a browser door and carries the browser's writer.
- *
- * There was a FIFTH entry here, the bare `surface/ops/run`, and it was the root
- * mount's alias rather than a fifth writer: while those rows registered `root:
- * true`, `./composition.ts` emitted the bare tag beside the scoped one so
- * attribution held on whichever door a caller used. #546 left one tag per
- * member, so the alias is not served and there is no second name left to
- * launder a write through. Keep the set literal: a row that grows a write and
- * forgets to declare it is invisible any other way.
- */
 const RECORDS_THE_WRITER = [
   "surface/files/ops/run", "surface/markdown/ops/run",
   "surface/outlines/ops/run", "surface/trash/ops/run",
 ]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
-/** A row whose parent nothing declares — a MEANING error rather than a syntax
- *  one. It used to be the way to leave the store with no snapshot at all; since
- *  the per-file ruling it is not, and that is the point of keeping it: the set
- *  publishes with `a.olai` withheld, its head carries its rows, and every other
- *  file of the directory is served. */
 const REFUSED = `{"id":"a","parent":"nowhere","ord":"a0","title":"a"}\n`
 
-/**
- * Drain a stream onto a queue, and do not return until the subscription is
- * attached.
- *
- * `forkChild` without `startImmediately` only SCHEDULES the consumer, so a
- * publish on this fiber can land on zero subscribers: the stream's snapshot is
- * then already the post-publish value, and a wait for two frames hangs on a
- * second one that will never come. Starting the child on this stack runs it
- * until it parks on the next frame — subscribe, then the snapshot — which is
- * the same barrier taking a frame is, and the only one a not-yet-born key has
- * (there is no snapshot to take).
- */
 const watching = <A>(
   stream: Stream.Stream<A>,
 ): Effect.Effect<{
@@ -249,8 +151,6 @@ const watching = <A>(
     return { take: Queue.take(frames), reader }
   })
 
-/** The browser's two reads: watch a head, then request its current body.
- * Cancelling the stream releases both the head and any in-flight request. */
 const opening = (bound: Bound, key: string) => Effect.gen(function*() {
   const heads = bound.handlers["surface/vault/heads/get"]
   const body = bound.handlers["surface/vault/bodies/get"]
@@ -276,9 +176,6 @@ test("a face served under another writer differs by exactly the members that rec
     Effect.gen(function*() {
       const agent = writerAt(wired.bound, ops, { writer: "mcp" })
 
-      // The RECORD is the group's, exactly — which is also what `restrictHandlers`
-      // asserts before any face binds, so a mis-derived tag is a boot crash rather
-      // than a hole. Said here too because this is where the tags are derived.
       expect(Object.keys(agent).sort()).toEqual(Object.keys(wired.bound.handlers).sort())
 
       const rebound = Object.keys(wired.bound.handlers).filter(
@@ -287,18 +184,6 @@ test("a face served under another writer differs by exactly the members that rec
       expect(rebound.sort()).toEqual(RECORDS_THE_WRITER)
     })))
 
-/**
- * A body the set does not keep, from the outside: the same `get` a browser
- * opens, driven through the bound handler.
- *
- * ONE frame is the whole contract, and which one it is matters. The projection
- * holds a `null` for this file — the server has its path and not its bytes —
- * and that is NOT what a reader is handed: the subscription is held open, the
- * file is read BECAUSE this subscription asked, and the first thing to arrive
- * is the body. A reader gets what it always got (a one-shot reader included,
- * which takes the first frame and leaves), and the process does not go on
- * holding it.
- */
 test("a fetched body is refused by the browser body procedure", () =>
   withRuntime(
     { "a.olai": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
@@ -309,8 +194,6 @@ test("a fetched body is refused by the browser body procedure", () =>
         expect(yield* (get({ path: "report.html" }) as Effect.Effect<unknown>))
           .toEqual({ text: null, refused: true })
 
-        // …and the projection is where it was: a path, and no bytes. This is the
-        // assertion the whole change is for.
         const keys = yield* Stream.runCollect(
           Stream.take(
             wired.bound.handlers["surface/markdown/documents/keys"]?.({}) as Stream.Stream<
@@ -326,16 +209,6 @@ test("a fetched body is refused by the browser body procedure", () =>
       }),
   ))
 
-/**
- * The other way to watch one file, and the reason it exists: a reader learns
- * the file MOVED and the file is never opened.
- *
- * This is the browser's shape for a `.html` since the preview stopped reading a
- * body it does not draw. The frame fetches the file over HTTP from `/media/`,
- * so what the socket owes this reader is a number — and the assertion that
- * matters is the negative one: the store's `body` is not called at all, which
- * is what says the bytes were neither read from the disk nor sent.
- */
 test("a reader watching a head is told the file moved, and no body is read", () =>
   withRuntime(
     { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
@@ -351,32 +224,16 @@ test("a reader watching a head is told the file moved, and no body is read", () 
         yield* store.refresh("cheap")
         const second = yield* open.take
 
-        // A revision, a face and whether the file parsed — and NO BODY, no
-        // `text` key at all, not even a `null`. That is the whole of what this
-        // member is for: what the file IS and when it moved, without the
-        // megabytes of a saved page.
         expect([first, second].map((frame) => Object.keys(frame))).toEqual([
           ["rev", "face", "broken"],
           ["rev", "face", "broken"],
         ])
         expect(first.rev).toBeLessThan(second.rev)
 
-        // THE POINT. The file changed under a reader who is watching it, and
-        // nothing opened it: no body was read, so none was sent, and nobody
-        // holds the path at all (`./bodies.ts`).
         expect(reads).toEqual([])
       }),
   ))
 
-/**
- * The live half of a held body: the file is rewritten under a reader who has it
- * open, and that reader is handed the new bytes.
- *
- * This is what the refcount buys over the bound it replaced. There is no
- * capacity here to age the path out of and no number that decides whether this
- * reader is still one — the subscription is open, so the body is re-read, and
- * that is true of the seventeenth open page exactly as of the first.
- */
 test("a file a reader is holding is re-read for them when it moves", () =>
   withRuntime(
     { "a.olai": OUTLINE, "report.csv": "<h1>Before</h1>\n" },
@@ -401,17 +258,6 @@ test("a file a reader is holding is re-read for them when it moves", () =>
       }),
   ))
 
-/**
- * And the half that could not be said before: the reader LEFT, so the file
- * stops being read.
- *
- * The negative is proven the way `./bodies.test.ts` proves its own — the body
- * reader is serial, so a read the revision should not have made would land
- * BEFORE the barrier read this test waits for. The head subscription is the
- * other half of the barrier: its second frame says the revision has been
- * published, which is the same statement that hands the moved paths to the body
- * reader.
- */
 test("a file whose reader has gone is not re-read on a later revision", () =>
   withRuntime(
     { "a.olai": OUTLINE, "report.csv": "<h1>Before</h1>\n" },
@@ -424,8 +270,6 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
           refused: false,
         })
 
-        // The reader goes away — a closed tab, a dropped socket, an agent that
-        // took its frame and exited.
         yield* Fiber.interrupt(open.reader)
 
         const heads = wired.bound.handlers["surface/vault/heads/get"]
@@ -436,11 +280,6 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
         yield* store.refresh("cheap")
         yield* moved.take
 
-        // The barrier: a body asked for by a reader who IS here, which the
-        // serial reader cannot answer before anything the revision asked for.
-        // The write and the cheap refresh can land as one revision or two, so
-        // the number is not the claim — the body is, and that there were only
-        // the two reads a holder asked for.
         const again = yield* opening(wired.bound, "report.csv")
         const body = yield* again.take
         expect(body.text).toBe("<h1>After</h1>\n")
@@ -450,50 +289,21 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
       }),
   ))
 
-/**
- * The birth-announce edge, closed by the same change (`olai-plugin-markdown`'s `projection.ts`).
- *
- * A reader may hold a `get` open on a key the directory does not hold yet — the
- * framework allows it, and a file appearing is what used to leave such a reader
- * with the announce frame's `null` and no body until it asked again. The hold is
- * taken by the SUBSCRIPTION rather than by a successful read, so the newborn
- * path has a holder the moment the revision names it, and the body follows the
- * announcement on the same key.
- */
 test("a reader holding a key across a file's birth is handed the body", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root, attached }) =>
     Effect.gen(function*() {
       const open = yield* opening(wired.bound, "report.csv")
-      // A scoped sibling handler can yield before its subscription attaches.
-      // Wait for the actual snapshot read before creating the absent key.
       expect(yield* attached).toBe("report.csv")
 
       fs.writeFileSync(path.join(root, "report.csv"), "<h1>Born</h1>\n")
       yield* store.refresh("cheap")
 
-      // The new head prompts one procedure read, whose only frame is the body.
-      //
-      // THE REVISION IS NOT THE CLAIM, and the test beside this one says so in
-      // as many words: a birth and the cheap refresh that follows it may land as
-      // one revision or as two, so the number is a count of frames the store
-      // happened to cut. What is being pinned is the edge this test is named
-      // for — the holder was handed the body rather than the announce frame's
-      // `null` — so the count is asserted as a floor.
       const born = yield* open.take
       expect(born.text).toBe("<h1>Born</h1>\n")
       expect(born.refused).toBe(false)
       expect(born.rev).toBeGreaterThanOrEqual(2)
     })))
 
-/**
- * A `.html` that is THERE and will not open. The subscription used to be held
- * open on the absent path until a body that would never come — a one-shot
- * `resources/read` hung. The refusal is a FRAME, so the reader is handed
- * the third state and leaves.
- *
- * Root can read a 0000 file, so the assertion is skipped there rather than
- * inverted (`olai-plugin-chat`'s `memory.test.ts` makes the same call).
- */
 test("an unreadable `.html` is refused rather than held open", () => {
   if (typeof process.getuid === "function" && process.getuid() === 0) return
   return withRuntime(
@@ -515,35 +325,6 @@ test("an unreadable `.html` is refused rather than held open", () => {
   )
 })
 
-/**
- * THE INVARIANT THE BROWSER'S SKEW RULE RESTS ON — pinned here, where it is
- * true, and not only in the client that depends on it.
- *
- * `@olai/web`'s `directory.ts` answers a `null` manifest beside a fold holding
- * files with "a directory": a tab holding files is holding a directory, because
- * a head only ever reaches the wire out of a published revision
- * (`manifest-fold-skew`). That is a fact about THIS file — `apply(collections?.heads,
- * revision.heads)` lives inside the manifest connector's `snapshot !== null`
- * arm — and a head published from any other path would turn the browser's rule
- * into a lie it has no way to catch.
- *
- * THE OTHER HALF OF THIS TEST IS GONE, and the per-file ruling of 2026-08-29 is
- * why. It used to start from a directory holding one outline the validator
- * refused, watch the manifest settle at `null` with not one head published, and
- * then fix the file. There is no such directory any more: a file the validator
- * finds something in is published with that file WITHHELD, so a served
- * directory always has a revision — and the one state that has none, a root
- * nothing can list, fails `Store.make` and takes the whole serve down with it
- * rather than reaching a browser. The `null` manifest remains a state of the
- * WIRE, which is why the client still resolves it, and the skew rule itself is
- * asserted where frames can be driven by hand (`@olai/web`'s
- * `directory.browsertest.ts`).
- *
- * So what is left here is the positive half, said over the directory that used
- * to produce the negative one: the broken outline's head ARRIVES, in the
- * opening snapshot, carrying its own rows — and its healthy neighbour arrives
- * beside it as though nothing were wrong, which it is not.
- */
 test("a broken outline publishes its head, with its own rows on it", () =>
   withRuntime(
     { "a.olai": REFUSED, "b.olai": `{"id":"b","ord":"a0","title":"b"}\n` },
@@ -559,8 +340,6 @@ test("a broken outline publishes its head, with its own rows on it", () =>
         )
         const manifest = yield* watching(said({}) as Stream.Stream<Manifest>)
         const opened = yield* heads.take
-        // A SET, from the first frame — never the `null` a refused directory
-        // used to settle at.
         expect(yield* manifest.take).toEqual({})
 
         if (opened?.kind !== "snapshot") throw new Error("expected the opening snapshot")
@@ -568,27 +347,10 @@ test("a broken outline publishes its head, with its own rows on it", () =>
         expect([...entries.keys()]).toEqual(["a.olai", "b.olai"])
         expect(entries.get("a.olai")?.broken?.errors.map((one) => one.code))
           .toEqual(["unknown-parent"])
-        // …and the healthy neighbour is exactly what it would be in a directory
-        // with nothing wrong with it at all.
         expect(entries.get("b.olai")?.broken).toBeNull()
       }),
   ))
 
-/**
- * THE PINNED SHELF, published: the resolution happens here, and it happens
- * again when the directory moves.
- *
- * The claim is `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s mechanism sentence
- * made concrete for the one member that carries a reading rather than a file: a
- * pin stores an ADDRESS and no name, so what the shelf says a node is called is
- * true of the revision it was answered at — and a rename in some OTHER file
- * has to reach the sidebar with no reload and nothing asked.
- *
- * Proven from OUTSIDE the reading (`@olai/format`'s `shelf.test.ts` has that
- * function's own suite) and without a browser, which is what makes it a unit
- * test: what is under test is the wiring — that the cell is recomputed per
- * published revision, over the set that revision holds.
- */
 test("the shelf is answered per revision, so a rename elsewhere renames the pin", () =>
   withRuntime(
     {
@@ -603,9 +365,6 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
         const open = yield* watching(get({}) as Stream.Stream<Shelf>)
         const first = yield* open.take
 
-        // The pinned node is retitled in the file it lives in — which is not
-        // the shelf's file, and is the whole point: nothing about `Pins.olai`
-        // changed.
         fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
         yield* store.refresh("cheap")
         const second = yield* open.take
@@ -617,22 +376,6 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
       }),
   ))
 
-/**
- * …and a revision that moved no pin sends NOTHING, which is what the cell's
- * `equals` is for (`@olai/surface`'s spec).
- *
- * The shelf is recomputed on every revision — that is what the test above buys
- * — and the reading mints a fresh array each time, so without the guard every
- * open tab would get a frame for every keystroke anybody makes anywhere in the
- * vault, saying exactly what it already knew.
- *
- * PROVEN BY ORDER rather than by waiting, because there is nothing to wait for:
- * a frame that is never sent has no arrival to miss, and the shelf's own
- * connector is not the fiber any other barrier here synchronises with. So two
- * revisions are published — one that cannot change the shelf, then one that
- * must — and the NEXT frame is read: if the neutral revision had sent one, this
- * take would hand back the shelf as it already was.
- */
 test("a revision that changes no pin sends no frame", () =>
   withRuntime(
     {
@@ -649,10 +392,8 @@ test("a revision that changes no pin sends no frame", () =>
           { id: "p", title: "/zoom/#a", shows: { id: "a", name: "a" } },
         ])
 
-        // A revision the shelf has nothing to say about: another file's bytes.
         fs.writeFileSync(path.join(root, "report.csv"), "<h1>After</h1>\n")
         yield* store.refresh("cheap")
-        // …and one it does: the pinned node, retitled where it lives.
         fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
         yield* store.refresh("cheap")
 
@@ -662,31 +403,10 @@ test("a revision that changes no pin sends no frame", () =>
       }),
   ))
 
-// ── which plugins this build has, and which this serve runs ────────────
-
-/**
- * WHAT A COMPOSITION ROOT HANDS THE ROSTER — the two facts a browser is told,
- * with an inert runtime behind them.
- *
- * `plugins` is a runtime with nothing mounted on it, because these cases are
- * about the ROSTER's arithmetic and never about a plugin: what is running is the
- * second argument, handed in, so a case can say "the file enables it and nothing
- * mounted" — which is a real state and the one the old derivation could not
- * express.
- *
- * ONE for the file rather than one per case, on a `standing` scope: nothing is
- * mounted on it, so there is nothing for a case to leave behind.
- */
 const EMPTY_PLUGINS: Plugins = await standing()(
   openPlugins({ vars: {}, now: () => STARTED, served: "/tmp" }),
 )
 
-/** A REPORT SAYING THESE FIBERS ARE UP, which is what `running` is read off.
- *
- *  The roster asks the FIBER (through `@olai/bundle`'s `reportBundle`) rather
- *  than guessing from what a plugin happened to register. It guessed twice
- *  before — from startup selection, then from sibling and engine tables — and each
- *  guess was wrong for the first plugin that did not fit it. */
 const mounted = (names: ReadonlyArray<string>): ReadonlyMap<string, RowReport> =>
   new Map(names.map((name) => [name, { state: "running" as const }]))
 
@@ -699,15 +419,10 @@ const offering = (
   built: PLUGIN_NAMES,
   offByDefault,
   report: () => report,
-  // NOTHING NAMES ANYTHING in these cases, so no row carries another — which is
-  // the state every row of a real bundle but the chat row is in. The `carrying`
-  // sentence has its own case below, where both halves of the join are supplied.
   names: () => new Map(),
   configs: () => new Map(),
   set: () => Effect.succeed(false),
   reread: Effect.void,
-  // NOBODY PRESSED ANYTHING in these cases, which is the state every serve is
-  // in until somebody does. The word a press produces has its own case below.
   switched: () => new Set(),
 })
 
@@ -716,9 +431,6 @@ test("each running row carries the serve's mount generation", () => {
   const first = PLUGIN_NAMES[0]
   const second = PLUGIN_NAMES[1]
   if (first === undefined || second === undefined) throw new Error("this build has too few plugins to pin")
-  // The counter is the composition root's: a row it has mounted says which
-  // mount the roster describes, and a row that is not running says nothing —
-  // there is no mount for the number to be about.
   const roster = rosterOf(
     offering([], mounted([first])),
     new Map(),
@@ -730,29 +442,18 @@ test("each running row carries the serve's mount generation", () => {
   expect(row(first)?.generation).toBe(3)
   expect(row(second)?.generation).toBeUndefined()
 
-  // ...and a row the VAULT defines rides the same table, because it mounts
-  // through the same composed registry (`@olai/server`'s `runtime.ts`).
   const defined: BuiltPlugin = { name: "defined-in-the-vault", running: true }
   const withDefined = rosterOf(offering([], mounted([first])), new Map(), new Map(), [defined], new Map([[defined.name, 7]]))
   expect(withDefined.built.at(-1)?.generation).toBe(7)
 })
 
 test("every plugin the build has is on the roster, running or not", () => {
-  // NOBODY SAID, so what mounted is the built-in default — not necessarily
-  // every plugin this binary was built with, since a row may carry its own
-  // `disabled` and be opt-in. The roster carries a row for every one of them
-  // either way, which is the whole reason the two lists are separate arguments.
   const all = rosterOf(offering(PLUGIN_NAMES, mounted(DEFAULT_BUNDLE_NAMES)))
   expect(all.built.map((one) => one.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.filter((one) => one.running).map((one) => one.name))
     .toEqual([...DEFAULT_BUNDLE_NAMES])
-  // ...and an opt-in row is a row that is THERE and off, which is the state a
-  // panel has to be able to draw and a filter over the running set could not.
   expect(all.built.length).toBeGreaterThanOrEqual(DEFAULT_BUNDLE_NAMES.length)
 
-  // ...and one name out of the list leaves every other row present and off,
-  // which is the row that could not exist if this were a filter. `running`
-  // reports the runtime rather than re-reading the reason.
   const first = PLUGIN_NAMES[0]
   if (first === undefined) throw new Error("this build has no plugins to pin")
   const one = rosterOf(offering([], mounted([first])))
@@ -792,13 +493,6 @@ test("a runtime with no active rows still reports its build catalogue", () => {
   expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
 })
 
-/**
- * A RUNTIME WITH NO PLUGIN SLOT HAS NO ROSTER — which is what every runtime in
- * this file is, and what `olai surface` and the headless faces are. It composes
- * no sibling surface at all, so there is nothing for a row to be about; listing
- * the build's plugins as not running would be the server inventing a policy
- * nobody set, and it is the one arm here that a browser could be lied to by.
- */
 test("no plugin slot is no roster, rather than every plugin off", () => {
   expect(rosterOf(null)).toEqual(NO_ROSTER)
 })
@@ -811,8 +505,6 @@ test("loader reports distinguish disabled rows, failures and active providers", 
     throw new Error("this test needs a build with two plugins")
   }
 
-  // NOBODY SAID, and the loader declined to load it: that can only be the row's
-  // own `disabled`, which is this build leaving it off until somebody asks.
   const optIn = rosterOf(offering(PLUGIN_NAMES, new Map([[first, { state: "off" }]])))
   expect(optIn.built.find((row) => row.name === first)?.state).toBe("optIn")
   expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
@@ -820,7 +512,6 @@ test("loader reports distinguish disabled rows, failures and active providers", 
   const off = rosterOf(offering([], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
   expect(off.built.find((row) => row.name === first)?.state).toBe("off")
 
-  // A START THAT THREW carries the plugin's own words, verbatim.
   const failed = rosterOf(
     offering(PLUGIN_NAMES, new Map([[first, { state: "failed", fault: "no socket at /run/x" }]])),
   )
@@ -829,14 +520,10 @@ test("loader reports distinguish disabled rows, failures and active providers", 
   expect(row?.fault).toBe("no socket at /run/x")
   expect(row?.running).toBe(false)
 
-  // ...and a throw with no message says a start threw and quotes nobody, rather
-  // than putting core's paraphrase on screen as if the plugin had said it.
   const silent = rosterOf(offering(PLUGIN_NAMES, new Map([[first, { state: "failed" }]])))
   expect(silent.built.find((one) => one.name === first)?.state).toBe("failed")
   expect(silent.built.find((one) => one.name === first)?.fault).toBeUndefined()
 
-  // STILL WAITING is not the same as off: it was asked for, it did load, and it
-  // is short of something it injects.
   const waiting = rosterOf(offering(PLUGIN_NAMES, new Map([[first, { state: "waiting" }]])))
   expect(waiting.built.find((one) => one.name === first)?.state).toBe("waiting")
 })
@@ -846,16 +533,12 @@ test("a plugin's row is its fiber's state, not what it happened to register", ()
   const first = PLUGIN_NAMES[0]
   if (first === undefined) throw new Error("this build has no plugins")
 
-  // A fiber that is UP is running, whether or not it put anything in a table
-  // this file could have looked in.
   const up = rosterOf(offering(PLUGIN_NAMES, mounted([first])))
   const row = up.built.find((one) => one.name === first)
   expect(row?.running).toBe(true)
   expect(row?.state).toBe("running")
   expect(row?.fault).toBeUndefined()
 
-  // ...and a fiber that FAILED is not running, whatever it managed to register
-  // before it threw — the case the old two-clock reading could get backwards.
   const threw = rosterOf(
     offering(PLUGIN_NAMES, new Map([[first, { state: "failed", fault: "it threw once" }]])),
   )
@@ -865,30 +548,12 @@ test("a plugin's row is its fiber's state, not what it happened to register", ()
   expect(bad?.fault).toBe("it threw once")
 })
 
-/**
- * A ROW THE SNAPSHOT HAS NOTHING TO SAY ABOUT falls back to what `running:
- * false` has always meant on its own — which is what every runtime in this file
- * but this section's is, and what a serve that mounted doubles directly is.
- */
 test("an empty report leaves the rows saying exactly what the boolean did", () => {
   const roster = rosterOf(offering([]))
   expect(roster.built.every((row) => row.state === "off")).toBe(true)
   expect(roster.built.every((row) => row.fault === undefined)).toBe(true)
 })
 
-/**
- * THE DOORBELL'S SENTENCE RIDES THE ROSTER, and only on a row that is RUNNING.
- *
- * The strip draws a scope control out of this cell, so the words it draws have
- * to be here — they are compiled in and move at most once per serve, which is
- * why they are on this roster rather than republished per conversation.
- *
- * The gate is the half worth a test. This roster carries a row per BUILT plugin
- * whether or not this serve composed it — that is the feature the rows above are
- * about — so a picker offered for a plugin that is OFF would store a pick
- * nothing will ever read. The halves are a parameter rather than a registry read
- * for the reason the names are: a general file names no plugin.
- */
 test("a wake sentence reaches the roster, and never for a plugin this serve left out", () => {
   const [first, second] = PLUGIN_NAMES
   if (first === undefined || second === undefined) {
@@ -902,45 +567,21 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
   const wakes = new Map([[first, wake]])
 
   const all = rosterOf(offering(PLUGIN_NAMES, mounted(PLUGIN_NAMES)), wakes)
-  // WHAT THE PICKER IS MADE OF, and not the sentences. A roster that carried a
-  // delivered sentence would be putting a message on the wire for a reader that
-  // never sends one — and the wire's own schema has no key for either.
   expect(all.built.find((row) => row.name === first)?.wake).toEqual(drawn)
-  // A plugin that wakes nobody declares none, which is a whole plugin and the
-  // ordinary case — absent rather than an empty sentence.
   expect(all.built.find((row) => row.name === second)?.wake).toBeUndefined()
 
-  // A declared wake contributes no picker while its provider is stopped.
   const inactive = rosterOf(offering([], mounted([second])), wakes)
   expect(inactive.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(inactive.built.find((row) => row.name === first)?.running).toBe(false)
   expect(inactive.built.find((row) => row.name === first)?.wake).toBeUndefined()
 })
 
-/** ... and a caller that only wants to know which plugins the build HAS says so
- *  by naming no wakes. The four cases above are that caller, and this is the
- *  claim they make read out loud. */
 test("no wake declarations is no sentence, and every row is still there", () => {
   const all = rosterOf(offering(PLUGIN_NAMES, mounted(PLUGIN_NAMES)))
   expect(all.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.every((row) => row.wake === undefined)).toBe(true)
 })
 
-/**
- * WHAT STOPS IF THIS ROW STOPS — the join, and the one thing on the roster that
- * is about a press nobody has made yet.
- *
- * Two live readings meet here and neither is a list anybody keeps: who stands
- * behind which door (core's offers table, taken by a plugin's own `offer` and
- * released by its scope) and which doors each running row is standing on (the
- * `inject` the runtime derived from that plugin's `needs`). The panel draws the
- * answer under the switch, so a person about to turn the chat row off is told
- * the engines and the tenants go with it.
- *
- * IT IS SPELLED WITH THE BUILD'S OWN NAMES because the roster is, and this file
- * names no plugin: the first row offers a toy door and the next two name it,
- * which is the chat row's shape with the nouns taken out.
- */
 test("a running row that offers a door names the rows that would stop with it", () => {
   const [first, second, third] = PLUGIN_NAMES
   if (first === undefined || second === undefined || third === undefined) {
@@ -958,25 +599,15 @@ test("a running row that offers a door names the rows that would stop with it", 
     new Map([[second, ["aDoor"]], [third, ["aDoor"]]]),
   )
   expect(roster.built.find((row) => row.name === first)?.carrying).toEqual([second, third])
-  // ...AND ABSENT ON EVERY OTHER ROW, which is the ordinary state and is why the
-  // field is optional rather than an empty array: a row that carries nobody says
-  // nothing, where an empty list would be each of them claiming to carry no one.
   expect(roster.built.filter((row) => row.carrying !== undefined).map((row) => row.name))
     .toEqual([first])
 
-  // IN BUNDLE ORDER, not in the order the registry answered. The registry's
-  // order is the order two dynamic imports came back in, which is a fact about
-  // the filesystem on the day; a list that reshuffles between boots is a list
-  // nobody can read twice.
   const shuffled = carrying(
     new Map([["aDoor", first]]),
     new Map([[third, ["aDoor"]], [second, ["aDoor"]]]),
   )
   expect(shuffled.built.find((row) => row.name === first)?.carrying).toEqual([second, third])
 
-  // A ROW IS NOT IN ITS OWN ANSWER. Nothing forbids a plugin naming a door it
-  // also offers, and it does not stop when it stops — otherwise every offering
-  // row would name itself among its own casualties.
   const itself = carrying(
     new Map([["aDoor", first]]),
     new Map([[first, ["aDoor"]], [second, ["aDoor"]]]),
@@ -997,18 +628,12 @@ test("a row a person switched off is not the build's default", () => {
   expect(pressed.built.find((row) => row.name === first)?.state).toBe("switched")
   expect(pressed.built.find((row) => row.name === first)?.running).toBe(false)
 
-  // a file enabling this row and then switched off is not a row the operator
-  // declined to ask for.
   const underPolicy = rosterOf({
     ...offering([], absent),
     switched: () => new Set([first]),
   })
   expect(underPolicy.built.find((row) => row.name === first)?.state).toBe("switched")
 
-  // ...AND IT IS ONLY ABOUT AN ABSENT ROW. A row switched off and then on again
-  // is simply running, which is why the set is cleared on the way back rather
-  // than kept as a log of presses — but a set that had not been cleared must not
-  // be able to say `switched` about a fiber that is up.
   const back = rosterOf({
     ...offering(PLUGIN_NAMES, mounted([first])),
     switched: () => new Set([first]),
@@ -1025,14 +650,6 @@ test("a file-enabled build-disabled row reports its real activation", () => {
   expect(roster.built.find(row => row.name === first)).toMatchObject({ state: "running", running: true, desiredOn: true })
 })
 
-/**
- * ...AND A ROW THAT IS NOT RUNNING CARRIES NOBODY, whatever the tables say.
- *
- * It has already stopped: what it stood behind is revoked, and every row that
- * named it is already `waiting` and already says which door. A sentence here
- * would be a switch offering to tell a person what turning something off would
- * cost, about a thing that is off.
- */
 test("a row that is not running carries nobody", () => {
   const [first, second] = PLUGIN_NAMES
   if (first === undefined || second === undefined) {
@@ -1050,27 +667,6 @@ test("a row that is not running carries nobody", () => {
   expect(roster.built.find((row) => row.name === first)?.carrying).toBeUndefined()
 })
 
-/**
- * A PLUGIN THAT COMPOSES NO SIBLING IS STILL `running` — which is what an
- * ENGINE is, and what the word had stopped covering.
- *
- * `running` used to be read off the SIBLING TABLE, which was exact while every
- * plugin composed a surface. An engine composes none: what it contributes to a
- * tab already travels on the chat cell, which is core's, and a second surface
- * under `surface/claude/` would be one fact on the wire twice. So every engine
- * row said `off` while its fiber ran — and that is not merely a wrong word on a
- * preferences row: the TAB fetches a plugin's chunk only when the roster names
- * it, so the panel drew the generic mark for an agent whose own shape was
- * sitting in a chunk nobody had asked for. The e2e suite caught it; this is
- * where it is held.
- *
- * IT IS THE FIBER NOW rather than a wider guess at what counts as contributing,
- * which is why this case is stated over the two kinds rather than over the two
- * registries: a tenant that registers a sibling and an engine that registers
- * only an engine are both up, and a browser-only plugin — one whose server half
- * registers nothing at all — would be too, without this file learning a third
- * thing to look for.
- */
 test("a plugin that contributed an ENGINE and no sibling is running", () =>
   withRuntime(
     { "a.olai": OUTLINE },
@@ -1081,11 +677,6 @@ test("a plugin that contributed an ENGINE and no sibling is running", () =>
         const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
         const built = (yield* open.take).built
         expect(built.map((row) => [row.name, row.state, row.running])).toEqual([
-          // THE ROW THAT OFFERS, first — an engine names `agents`, which is a
-          // door the CHAT ROW stands behind since phase 7, so a runtime with no
-          // chat in it leaves every engine `waiting`. It is a double here (the
-          // offer and nothing behind it), and it is on the roster like any other
-          // plugin because it IS one.
           ["chat", "running", true],
           ["an-engine", "running", true],
           ["a-tenant", "running", true],
@@ -1106,39 +697,6 @@ test("the roster is served on the plugins cell", () =>
       yield* Fiber.interrupt(open.reader)
     })))
 
-// ── a sibling that arrives after the bundle is composed ────────────────
-
-/**
- * THE LIVE RE-COMPOSE, and the containment claim held on the one path where it
- * can actually be false.
- *
- * Every other case in this file mounts its doubles BEFORE `bind`, which is what
- * a real serve does: the bundle's rows are fibers before the store opens,
- * because a plugin teaches the vault its vocabulary. A sibling that arrives
- * AFTER that goes through `surfaces.register` → the root's `recompose` →
- * `runtime.mount`, and `mount` is TRANSACTIONAL: a surface whose deps do not
- * match it throws, with the roster and the running sources untouched.
- *
- * ## What that throw used to leave behind
- *
- * `Surfaces.register` set its table entry, called the root's re-compose, and
- * returned the disposer. A re-compose that threw exited the effect body BEFORE
- * the disposer existed, so the runtime had nothing to unwind: the refusing
- * fiber landed `FAILED` — which is what the claim says — and its sibling stayed
- * in `composed()`. The next plugin to register re-ran the re-compose, which
- * retried the same refused mount and threw inside THAT plugin's `apply`. One
- * mis-shaped surface took down every plugin that arrived after it, each failing
- * on somebody else's refusal, and the roster went on drawing the refused one as
- * running.
- *
- * ## Why the case is here rather than beside the service
- *
- * `@olai/plugin-api`'s own bench holds the same claim against a `changed` that
- * refuses, which is the unit. This is the INTEGRATION: the refusal is a real
- * `implementRootedSurfaces` mount refusing a real mis-shaped sibling, through
- * the real `recompose`, so the case cannot pass on a stand-in that throws where
- * the framework would not.
- */
 test("a sibling the rooted bundle refuses takes only its own fiber down, and the next one still mounts", () =>
   withRuntime(
     { "a.olai": OUTLINE },
@@ -1148,9 +706,6 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         const before = Object.keys(wired.bound.handlers).length
         const composedBefore = plugins.composed().map(one => one.name)
 
-        // A surface with a cell and DEPS THAT DO NOT MENTION IT — the shape a
-        // plugin's own `satisfies` makes unspellable in its own package, which
-        // is why reaching it here takes a double rather than a tenant.
         const bad = definePlugin({
           name: "refused",
           needs: [Surfaces],
@@ -1164,15 +719,10 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         })
         const refused = yield* mountPlugin(plugins.host, bad)
 
-        // FAILED, and nothing of it on the wire. The WORD rather than a fiber
-        // state: this file holds what a composition root can see, and what a
-        // composition root can see is the four words the bridge answers with.
         expect((yield* refused.report).state).toBe("failed")
         expect(plugins.composed().map((one) => one.name)).toEqual(composedBefore)
         expect(Object.keys(wired.bound.handlers).length).toBe(before)
 
-        // ...and the next plugin in is untouched by it, which is the half that
-        // was false: it composes, its tag is served, and the roster says so.
         const healthy = yield* mountPlugin(
           plugins.host,
           definePlugin({
@@ -1190,9 +740,6 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         expect((yield* healthy.report).state).toBe("running")
         expect(plugins.composed().map((one) => one.name)).toEqual([...composedBefore, "healthy"])
 
-        // The roster a browser reads carries the truth about both: the build has
-        // no rows here (these doubles are not the bundle's), so what it says is
-        // that nothing composed is missing and nothing refused is present.
         const get = wired.bound.handlers["surface/plugins/get"]
         if (get === undefined) throw new Error("the plugins cell has no `get`")
         const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
@@ -1203,57 +750,6 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
   ))
 
 
-/**
- * THE GATE AND THE GROUP ARE ONE GENERATION — the pairing the listener now
- * rests on at every accept, rather than once at bind.
- *
- * ## Why this became a claim
- *
- * `serveSurfaceApp` reads the served `{group, handlers, expose}` together at
- * each accept and `restrictHandlers` THROWS on any set inequality between them
- * — a socket terminated, not a member refused. Before that it was read once, at
- * a moment when the two were equal by construction, so nothing had to hold.
- *
- * The two are derived from different tables and they are not the same table.
- * `siblings()` is the sibling REGISTRY: a plugin's `apply` registered, so it is
- * in there the instant the fiber applies. The group is what is MOUNTED. This
- * file's own `leaving` map is what pulls them apart — a row switched off and on
- * again before the previous generation's drop has settled is registered and not
- * yet mounted — and a gate read off the registry then names tags the group does
- * not carry, on every socket accepted until the deferred mount lands.
- *
- * So the gate is derived from what is SERVED rather than from what is
- * registered, and with that there is no window: a deferred row is on neither
- * side.
- *
- * ## WHAT THIS CASE DOES AND DOES NOT REACH, said plainly
- *
- * It asserts that the gate FITS the group — through `restrictHandlers`, the
- * same call the transport makes at every accept — at rest, after a sibling
- * arrives and after it leaves. It does NOT reach the deferred window itself,
- * and that was measured rather than assumed: disposing a toy sibling and
- * re-mounting it in the same breath finds the drop already settled, so the
- * mount is never deferred and the case would be asserting about a state it
- * had not produced. Reaching it needs a sibling whose sources take a real
- * moment to finalize, which is a plugin with an appliance behind it.
- *
- * The window is therefore held END TO END (`the_plugin_switch.feature`), and
- * what is held here is the derivation's other consequence, which is the half
- * that was silently untrue and that no scenario would ever have caught.
- *
- * ## ...AND THE IDENTITY, which is what "one generation" MEANS
- *
- * The `toBe` assertions are not about cost. They are how "one gate belongs to
- * one group" is stated in a test at all: a gate that is a fresh object per read
- * is a gate nobody can say is the same gate, and the only way to assert that a
- * value moves exactly when its generation moves — and not otherwise — is by
- * identity.
- *
- * It also happens to be what a memo would need, and for one revision upstream
- * had one, keyed on the triple. The refactor that landed dropped it: the
- * restriction is walked at every accept now, so an accept's cost is upstream's
- * and no assertion here should pretend this consumer can move it.
- */
 test("the browser gate names exactly what the group serves, and is one value per generation", () =>
   withRuntime(
     { "a.olai": OUTLINE },
@@ -1261,37 +757,18 @@ test("the browser gate names exactly what the group serves, and is one value per
       Effect.gen(function*() {
         if (plugins === null) throw new Error("this case needs the plugin runtime")
 
-        /**
-         * DOES THE GATE FIT THE GROUP — asked through the function that
-         * enforces it rather than by reading either side.
-         *
-         * `restrictHandlers` is what `serveSurfaceApp` runs at every accept, and
-         * it THROWS on any set inequality between the exposure and the group it
-         * gates. So this is not a proxy for the property, it is the property, on
-         * the same call the transport makes — and it says nothing about how a
-         * `FaceExposure` is shaped, which is not this case's business and would
-         * be a second thing to keep in step if it were.
-         */
         const gateFits = (): void => {
           restrictHandlers(wired.bound.group, wired.bound.handlers, wired.faces.browser)
         }
-        /** ...and whether the group carries a sibling's tags at all, which is
-         *  what makes the fit above a claim about something rather than about an
-         *  empty set. `surface/<sibling>/<member>/<verb>` is how they compose. */
         const groupCarries = (key: string): boolean =>
           [...wired.bound.group.requests.keys()].some((tag) => tag.startsWith(`surface/${key}/`))
 
-        // AT REST, with no sibling at all.
         const first = wired.faces.browser
         expect(gateFits).not.toThrow()
         expect(groupCarries("gated")).toBe(false)
 
-        // ...AND THE SAME OBJECT while nothing has moved, which is how "one
-        // gate for one group" is sayable in a test at all: a gate that is a
-        // fresh object per read is a gate nobody can say is the same gate.
         expect(wired.faces.browser).toBe(first)
 
-        // A SIBLING ARRIVES through the real `recompose`.
         const gatedDouble = definePlugin({
           name: "gated",
           needs: [Surfaces],
@@ -1307,21 +784,13 @@ test("the browser gate names exactly what the group serves, and is one value per
         })
         const mounted = yield* mountPlugin(plugins.host, gatedDouble)
 
-        // THE GATE MOVED WITH IT — a new value, naming the sibling the group
-        // now carries. Both halves matter: a gate that did not move would refuse
-        // the member, and one that moved without the group would refuse the
-        // whole socket.
         expect(wired.faces.browser).not.toBe(first)
         expect(gateFits).not.toThrow()
         expect(groupCarries("gated")).toBe(true)
 
-        // ...and it is one value again until the next re-compose.
         const second = wired.faces.browser
         expect(wired.faces.browser).toBe(second)
 
-        // AND IT LEAVES WITH IT. A gate that kept naming a departed sibling
-        // would name tags the group no longer carries, which is the same set
-        // inequality from the other side and refuses the socket just as hard.
         yield* mounted.dispose
         expect(gateFits).not.toThrow()
         expect(groupCarries("gated")).toBe(false)
@@ -1330,21 +799,8 @@ test("the browser gate names exactly what the group serves, and is one value per
     { plugins: [] },
   ))
 
-// ── the doubles every case above mounts ────────────────────────────────
-
-/** A whole surface with nothing on it. What a double contributes to the rooted
- *  bundle, and it is a real state rather than a convenience: an empty sibling
- *  composes to no tag, no handler and no expose row (`@olai/bundle`'s
- *  `composition.test.ts` holds it), so a runtime composed with these is byte
- *  for byte the runtime every other case in this file boots. */
 const NOTHING = defineSurface({})
 
-/** THE SENTENCE A DOUBLE DECLARES. Nothing under test here reads a word of it —
- *  the strip draws it, `rosterOf`'s cases carry it, and what a BROKEN scope is
- *  told is `olai-plugin-chat`'s bench, because the picks and the walk that judges
- *  them are that row's. What matters here is that a declaration is PRESENT,
- *  because being declared at all is what a roster row draws its watchability
- *  from. */
 const RINGING = {
   subject: "wake on something",
   from: "the somethings of",
@@ -1357,22 +813,6 @@ const RINGING = {
   },
 }
 
-/**
- * ONE DOUBLE: a name, and whether it rings.
- *
- * `apply` is the whole of what the runtime calls. It names `Surfaces` and
- * `Wakes` and NOT `Deliveries`, and that absence is this lane: where a doorbell
- * may deliver is a door the CHAT ROW stands behind, so a double that named it
- * would sit `waiting` in a runtime with no chat mounted — which is exactly what
- * a real tenant does now, and is `@olai/plugin-api`'s `services.test.ts`'s claim
- * rather than this file's.
- *
- * THE REVISION LISTENERS ARE NO-OPS AND WOULD STILL BELONG HERE, for the reason
- * the two hooks they replaced had to: every published revision emits, so a
- * double that listened to neither would leave the events with no subscriber.
- * What a plugin MAKES of a revision is its own bench; what this file owns is
- * that core drives it.
- */
 const doubleCalled = (name: string, wake?: typeof RINGING) => ({
   name,
   plugin: definePlugin({
@@ -1385,15 +825,6 @@ const doubleCalled = (name: string, wake?: typeof RINGING) => ({
   }),
 })
 
-/**
- * A DOUBLE THAT STANDS BEHIND ONE OF THE FOUR DOORS A CHAT ROW OWNS.
- *
- * It exists because `Agents` is no longer core's: an engine plugin names it, so
- * a runtime with no chat row leaves every engine `waiting`. This is the smallest
- * thing that unblocks one — the offer, and nothing behind it — so a case about
- * the plugins ROSTER can mount an engine without this file learning what a
- * conversation is.
- */
 const chatOffering = definePlugin({
   name: "chat",
   needs: [Offers],
@@ -1405,18 +836,6 @@ const chatOffering = definePlugin({
   }),
 })
 
-/**
- * ONE DOUBLE THAT COMPOSES NO SIBLING — an ENGINE, which is the other kind of
- * plugin and the one that made `running` stop meaning "registered a surface".
- *
- * What it registers is the whole of what an engine registers and nothing else:
- * a name a person reads, a leg (opaque here — this file asserts on the ROSTER
- * and never reads a wire), a probe that answers "not on this host", and the
- * channel every engine olai ships rides. It answers `NotHere` deliberately: a
- * plugin that CONTRIBUTED is `running` whether or not the machine turned out to
- * have the agent, which is the distinction the panel's row and the chat's roster
- * keep apart.
- */
 const engineCalled = (name: string) => ({
   name,
   plugin: definePlugin({

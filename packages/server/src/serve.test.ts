@@ -1,25 +1,3 @@
-/**
- * Starting up, and the two ways it can go wrong.
- *
- * Both are about what the OPERATOR is told. A port that is already listening
- * is not a reason to refuse to serve, so it is not an error at all any more —
- * it is a line saying where we went instead. A port that cannot be bound for
- * any other reason IS an error, and the whole point of these tests is that the
- * error the reader gets is the real one: the bug they replace printed
- * `surface runtime faulted — unrecoverable: [object Object]` and exited before
- * the actual `cannot listen on …` could be reported.
- *
- * They start a real server on a real port. Nothing here is mocked, because the
- * thing under test is exactly the seam where Node's `listen` meets the Effect
- * runtime — the seam a mock would replace with an assumption.
- *
- * What they read is a collecting LOGGER rather than an injected callback: the
- * server logs the way every other package does, so the way to hear it is the
- * way anything hears an Effect log. That also means these assert on the pieces
- * — the level, the message, the annotations — rather than on one interpolated
- * sentence, which is the whole reason the pieces exist.
- */
-
 import { mountBundle, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins } from "@olai/plugin-api/services"
 import { VaultBoot } from "olai-plugin-vault/boot"
@@ -45,37 +23,20 @@ import { manifestOf } from "olai-plugin-web-app/testlib"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
 
-// A leftover OLAI_PORT_FILE from an older olai is ignored; the test that
-// pins that sits below. Nothing here writes the file.
-// The machine's NAME, pinned: the install manifest's name is composed from
-// it at serve time (`./manifest.ts`), so the fetch below is checkable
-// against a string this file chose rather than against whatever box the
-// run happened on — the harness's own `OLAI_HOSTNAME` pin, one test that
-// says the name actually crossed.
 const PIN = "serve-test-box"
 process.env.OLAI_HOSTNAME = PIN
 const MANIFEST = manifestOf(PIN)
-// Twin of startWeb: this file's `run()` does not go through withServe,
-// so it clears explicit engine paths and discovery independently. Listen tests
-// must not spawn an external engine found on the developer’s machine.
 process.env.KOLU_ACP_AGENT = ""
 process.env.OLAI_ACP_CODEX = ""
 process.env.OLAI_ACP_PI = ""
 process.env.OLAI_AGENT_PATH = ""
 
-/** Hang detector around a real listen. Longer than {@link BOOT_TIMEOUT} so a
- *  slow boot fails on the serving line (or bun would steal it at 5s and say
- *  only that something took too long). The wait itself is the listen, not
- *  this number. */
 const BOUND_MS = BOOT_TIMEOUT * 2
 
-/** Every test here boots a real listener; bun's hang detector sits outside
- *  the inner wait so load cannot report as a bare timeout. */
 const test = (name: string, fn: () => Promise<void>): void => {
   bunTest(name, fn, BOUND_MS)
 }
 
-/** A port with something already listening on it, closed with the test. */
 const occupied = (): Promise<{ port: number; release: () => Promise<void> }> =>
   new Promise((resolve, reject) => {
     const squatter = net.createServer()
@@ -93,7 +54,6 @@ const occupied = (): Promise<{ port: number; release: () => Promise<void> }> =>
     })
   })
 
-/** Run `serve` and shut it straight back down, collecting what it said. */
 const run = (
   options: { readonly port: number; readonly host?: string },
 ): Promise<ReadonlyArray<Logged>> => {
@@ -125,12 +85,9 @@ test("a port that is already listening is a fallback, not a failure", async () =
 
     const notice = findSaid(said, "port in use")
     expect(notice?.annotations.asked).toBe(taken.port)
-    // It names where we went, and that is a DIFFERENT port that is really ours.
     const landed = url.exec(String(notice?.annotations.url))?.[1]
     expect(landed).toBeDefined()
     expect(Number(landed)).not.toBe(taken.port)
-    // And the line everyone reads for the address agrees with it: the bound
-    // address is the single source of truth, fallback or not.
     expect(findSaid(said, "serving")?.annotations.url).toBe(
       `http://127.0.0.1:${landed}`,
     )
@@ -139,10 +96,6 @@ test("a port that is already listening is a fallback, not a failure", async () =
   }
 })
 
-// Every line the served directory produces says which directory it was —
-// including the ones a store fiber emits from three layers down, which is the
-// reason the annotation is set before anything is started rather than added to
-// each message by hand.
 test("every line says which directory it is about", async () => {
   const said = await run({ port: 0 })
 
@@ -151,11 +104,6 @@ test("every line says which directory it is about", async () => {
   expect(said.every((line) => line.annotations.root === root)).toBe(true)
 })
 
-// The regression this file exists for. A host that is not this machine's
-// cannot be bound, the scope unwinds, and closing the surface runtime settles
-// its `done` on the way out — which used to be read as a fault, printed as
-// `[object Object]`, and followed by `process.exit(1)`. An exiting process
-// takes the test runner with it, so this failing is loud in the right way.
 test("a listen failure is reported as itself, not as a faulted runtime", async () => {
   const failure = await run({ port: 7714, host: "192.0.2.1" }).then(
     () => undefined,
@@ -168,9 +116,6 @@ test("a listen failure is reported as itself, not as a faulted runtime", async (
   expect(failure).not.toContain("faulted")
 })
 
-// A fallback is for a port someone else holds. Asking for one the OS picks is
-// already that, so there is nothing to fall back FROM — and a retry loop on
-// port 0 would be a way to hide a real bind failure behind a second one.
 test("port 0 is a request, not a collision", async () => {
   const said = await run({ port: 0 })
 
@@ -178,11 +123,6 @@ test("port 0 is a request, not a collision", async () => {
   expect(String(findSaid(said, "serving")?.annotations.url)).toMatch(url)
 })
 
-// The CLI default is 0, not 7714. Spelled as a child so a `Flag.withDefault`
-// of 7714 would fail this rather than only the in-process `run({ port: 0 })`
-// above, which never goes through the flag. 7714 is what a deploy passes
-// explicitly; a worktree that bound it by default is the incident this
-// exists to close.
 test("the process default asks the OS, it does not bind 7714", async () => {
   const server = startWeb({ root: served() })
   try {
@@ -210,7 +150,6 @@ test("a leftover port file is ignored: port 0 asks the OS every boot", async () 
     expect(bound).toMatch(url)
     expect(bound).not.toBe(`http://127.0.0.1:${taken.port}`)
     expect(findSaid(said, "port in use")).toBeUndefined()
-    // Nothing written back. The leftover is inert.
     expect(fs.readFileSync(file, "utf8")).toBe(leftover)
   } finally {
     if (previous === undefined) delete process.env.OLAI_PORT_FILE
@@ -220,8 +159,6 @@ test("a leftover port file is ignored: port 0 asks the OS every boot", async () 
   }
 })
 
-// Binding off loopback is the one thing this layer warns about, and the LEVEL
-// is now what says so — the message used to have to shout `WARNING:` at itself.
 test("binding off loopback is a warning, not a line among lines", async () => {
   const said = await run({ port: 0, host: "0.0.0.0" })
 
@@ -230,32 +167,8 @@ test("binding off loopback is a warning, not a line among lines", async () => {
   expect(warned?.annotations.host).toBe("0.0.0.0")
 })
 
-// ── the install surface, as an installer asks it ────────────────────────
-//
-// The manifest is this package's (`./manifest.ts`); the icons and the shell
-// are the browser bundle's. The two packages do not import each other, and
-// the static layer answers an unmatched path with the HTML shell — so a
-// renamed icon still 200s, and only the content type says otherwise. These
-// used to be browser scenarios (`install_it.feature`); they never opened a
-// page worth looking at.
-//
-// The walk into `packages/web/src/client` is TEST-ONLY, and deliberate: it is
-// the two ends of a contract whose packages do not import each other. The
-// generated bundle asset contributions supply the real install assets and
-// head markup, following the same owner declarations as the browser build.
-//
-// WHICH `/sw.js` this origin serves is asserted here, on the wire, because
-// that is the only place it exists: the source is the framework's constant and
-// the route is `freshStaticLayer`'s, so there is no file in this repo to read
-// it off — and serving the wrong one of the two is a chat panel that cannot
-// raise a notification at all. That the SHELL inlines no registration of its
-// own is the other half; WHICH client file may register one is
-// `web/src/client/claims.test.ts`.
-
 const WEB_CLIENT = path.join(import.meta.dirname, "../../web/src/client")
 
-/** A dist that is the real shell and the real icons, plus one outline so the
- *  store will boot. Thrown away with the test. */
 const installDist = async (): Promise<string> => {
   const dist = served()
   const shell = fs.readFileSync(path.join(WEB_CLIENT, "index.html"), "utf8")
@@ -293,8 +206,6 @@ test("the install manifest is served as itself, not as the shell", async () => {
       icons?: ReadonlyArray<ManifestIcon>
     }
     expect(body.name).toBe(MANIFEST.name)
-    // Box-first, not a cut-apart copy of `name`: the cramped label's one
-    // job is to say which BOX the icon belongs to (`./manifest.ts`).
     expect(body.short_name).toBe(PIN)
     expect(body.display).toBe("standalone")
     expect(new URL(body.start_url ?? "/", url).pathname).toBe("/")
@@ -324,19 +235,11 @@ test("/sw.js is the notification worker, and it caches nothing", async () => {
     const answer = await fetch(`${url}/sw.js`)
     expect(answer.status).toBe(200)
     expect(answer.headers.get("content-type") ?? "").toMatch(/^text\/javascript/)
-    // Never cached: a worker a browser will not re-fetch is a worker that
-    // cannot be replaced, which is the freshness contract's own rule.
     expect(answer.headers.get("cache-control") ?? "").toContain("no-cache")
 
     const source = await answer.text()
-    // WHICH of the framework's two workers, as the facts that tell them apart.
-    // The self-destructing default unregisters itself, which would take the
-    // notification path down with it; the notify worker answers a press.
     expect(source).toContain("notificationclick")
     expect(source).not.toContain("registration.unregister")
-    // ... and the half that keeps "live or nothing" true: it registers no
-    // `fetch` handler at all, so it can never answer a navigation out of a
-    // cache (website/docs/architecture/overview.md).
     expect(source).not.toMatch(/addEventListener\(\s*["']fetch["']/)
   })
 })
@@ -364,19 +267,6 @@ test("the shell names the mark and the viewport, and registers nothing itself", 
   })
 })
 
-// ── the bundle against the reader's own URL space ───────────────────────
-//
-// Addresses went prefix-free in #256: a served file's address IS its path. So
-// the paths the BUNDLE answers at the dist root are paths a reader's own files
-// can have, and `web/src/client/routes.ts` names the two of them. These are
-// where that claim is measured, because its two halves do not come out the
-// same way and only a request can say which.
-//
-// Unlike the install tests above, the served directory and the dist are two
-// different trees here — the whole question is what happens when one holds a
-// path the other also holds.
-
-/** A served directory holding the two paths the bundle also answers at. */
 const shadowedVault = (): string => {
   const root = served()
   fs.writeFileSync(
@@ -400,14 +290,7 @@ test("a vault's own index.html has a page — the bundle answers it with the she
     const shadowed = await fetch(`${url}/index.html`)
     expect(shadowed.status).toBe(200)
     expect(shadowed.headers.get("content-type") ?? "").toMatch(/^text\/html/)
-    // The bundle wins the path, and winning it costs nothing: what sits there
-    // is the SPA shell, which is exactly what an unmatched path is answered
-    // with. So the address reaches the client's parser and `index.html` opens
-    // as the hypertext page it is — driven in a browser, with a reload, by
-    // `packages/plugins/hypertext/e2e/features/html_previews.feature`.
     expect(await shadowed.text()).toBe(await shell.text())
-    // ...and it is still the shell's own freshness contract, not a cacheable
-    // file: a reader who reloads here must not replay a stale bundle.
     expect(shadowed.headers.get("cache-control")).toBe("no-store")
   })
 })
@@ -424,10 +307,6 @@ test("a vault file under assets/ opens as a page — the hashed prefix moved", a
   await withShadowed(async (url) => {
     const shell = await fetch(`${url}/`)
     const answer = await fetch(`${url}/assets/x.md`)
-    // THE COLLISION, gone. `/assets/` is no longer the immutable prefix, so a
-    // miss there reaches the SPA shell the same way `/index.html` always did,
-    // and the address reaches the client's parser. The hashed dir sits at
-    // `/_olai/assets/` now (`@olai/surface`'s ASSET_PREFIX).
     expect(answer.status).toBe(200)
     expect(answer.headers.get("content-type") ?? "").toMatch(/^text\/html/)
     expect(await answer.text()).toBe(await shell.text())
@@ -436,9 +315,6 @@ test("a vault file under assets/ opens as a page — the hashed prefix moved", a
 })
 
 
-/** Drive the real root, reader and loader through the same wire as the panel.
- * A fresh socket per request also proves the reconciled identity offer is what
- * a later connection reads; no test-only loader or provider is substituted. */
 const configurationCall = async <A>(url: string, verb: string, input: unknown): Promise<A> => {
   const socket = await createSurfaceSocket({ group: surface.group,
     url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`, retired: () => {},
@@ -463,8 +339,6 @@ test("the settings offer withdraws with its row, a live policy keeps the row, an
   write("manual")
   await withServing({ root }, async url => {
     const row = async () => (await configurationRoster(url)).built.find(one => one.name === "git")!
-    /** The LIVE reading of the file — a git row is `configUpdates: "live"`, so
-     *  the activation's own `config` is the boot copy and never moves. */
     const commit = async () => (await row()).configurationValues?.find(one => one.key === "commit")
     await eventually(async () => (await commit())?.value === "manual" && (await commit())?.setBy === "vault")
     expect(await commit()).toMatchObject({ value: "manual", setBy: "vault" })
@@ -472,28 +346,18 @@ test("the settings offer withdraws with its row, a live policy keeps the row, an
     await flip("settings", false)
     await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
     write("auto")
-    // The stopped reader cannot acknowledge an external edit. Wait for the
-    // ordinary content reading before restarting it, so its first revision
-    // no longer contains its own previous on:no.
     await eventually(async () => {
       const answer = await fetch(`${url}/mcp`, { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "outlines_read", arguments: { id: "git-policy" } } }) })
       return JSON.stringify(await answer.json()).includes("auto")
     })
-    // ... and the roster says the declaration's defaults, not the file's words:
-    // a live row's activation config is the boot copy.
     expect((await row()).config?.commit).toBe("manual")
-    // The reader is ABSENT, not the policy: git keeps running (and its browser
-    // half, panel and ledger with it) on the last value it heard.
     expect((await row()).running).toBe(true)
     expect(await commit()).toMatchObject({ value: "manual", setBy: "default" })
     await flip("settings", true)
     await eventually(async () => (await commit())?.value === "auto")
     await flip("vault", false)
     await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
-    // With no reading, the roster falls back to the schema defaults rather
-    // than echoing a policy nobody can read. The applied value lives with the
-    // row's own door, not in the loader's stale copy.
     expect(await commit()).toMatchObject({ value: "manual", setBy: "default" })
     write("manual")
     await flip("vault", true)
@@ -567,8 +431,6 @@ test("a kolu watch edit and a git policy edit preserve their activation, while o
     const firstGit = plugins.composed().find(one => one.name === "git")
     expect(firstGit).toBeDefined()
     yield* policy.configure("git", "commit", "auto")
-    // BOTH ARE LIVE: a policy edit moves the ledger's value on the running row
-    // and takes no fiber with it, so the sibling is the same object.
     expect(policy.current()?.rows.get("git")?.values.find(one => one.key === "commit")?.value).toBe("auto")
     expect(plugins.composed().find(one => one.name === "git")).toBe(firstGit)
     yield* policy.configure("kolu", "watch.held-for", "90s")
@@ -579,8 +441,6 @@ test("a kolu watch edit and a git policy edit preserve their activation, while o
       write("45s")
       await eventually(async () => publications > before && policy.current()?.rows.get("kolu")?.values
         .some(one => one.key === "watch.held-for" && one.value === "45s") === true)
-      // This sibling is registered in the actual row's scope. A config restart
-      // withdraws it and registers a new object even if the final state is on.
       expect(registration()).toBe(first)
       write("45s", "no")
       await eventually(async () => registration() === undefined)

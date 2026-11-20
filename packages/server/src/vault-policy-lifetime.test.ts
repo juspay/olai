@@ -21,8 +21,6 @@ test("withdrawing vault source policy removes its children, catalog, chunks and 
   const onChange = {run: () => {}}
   const plugins = yield* openPlugins({vars:{},now:()=>"",changed:()=>onChange.run()})
   const loading = yield* openLoading(plugins.host,["vault-plugins"],()=>onChange.run(),{services:plugins.serviceKeys,browserServices:plugins.browserKeys})
-  // A PLUGIN IS A FOLDER, and its consent is a node in the settings file —
-  // the same two files this row reads on a real serve.
   const read = readingOfVault(new Map([
     ["plugins/swatch/server.ts", source],
     ["_olai/Settings.olai", JSON.stringify({id:"c",ord:"a0",title:"swatch",custom:{approved:"always",on:"yes"}})],
@@ -31,9 +29,6 @@ test("withdrawing vault source policy removes its children, catalog, chunks and 
   yield* events.published({rev:1,value:read,changed:["plugins/swatch/server.ts"],removed:[]})
   yield* provide(plugins.host,Vault,events.door)
   yield* provide(plugins.host,Ops,()=>({gate:{read:Effect.succeed(read)}} as never))
-  // The row claims `.ts` under `plugins/` the moment it mounts, so it needs
-  // the registry that holds claims; withdrawing the row takes the claim with
-  // it, which is the same withdrawal this test is about.
   yield* provide(plugins.host,FileKinds,openViews().fileKinds.provision)
   yield* mountBundle(plugins.host,selectFixtureRows(["vault-plugins"]))
   yield* settled(plugins.host,["swatch"])
@@ -43,11 +38,6 @@ test("withdrawing vault source policy removes its children, catalog, chunks and 
   const runtime = yield* runtimeFor(plugins,["vault-plugins"],onChange)
   const wired = yield* bind({hostname:"test",startedAt:"",plugins:{...runtime,catalogs:loading.catalogs}})
   yield* Effect.addFinalizer(()=>Effect.promise(()=>wired.bound.close()))
-  // THE DOUBLED SEGMENT IS THE POINT, not a typo: `vault-plugins` is the ROW
-  // and `plugins` is the member it declares, so the tag is the row's name over
-  // the member's. It read `surface/plugins/inspect` until #546, which was the
-  // root mount's bare alias and collided in spelling with CORE's own `plugins`
-  // cell — the one member name in the tree with two owners.
   const retained = wired.bound.handlers["surface/vault-plugins/plugins/inspect"]!
   expect(retained).toBeDefined()
   yield* setRow(plugins.host,"vault-plugins",false)

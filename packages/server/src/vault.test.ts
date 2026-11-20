@@ -18,14 +18,6 @@ const opening = (root: string, options: { readonly format?: string; readonly led
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
   yield* mountBundle(plugins.host, [...selectFixtureRows(["vault", "outline-olai"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
-  /**
-   * A LEDGER ARRIVES THE WAY GIT'S DOES — registered through `VaultViews` by a
-   * row that named it — rather than provided over the host's head. The vault
-   * used to LOOK ITS LEDGER UP (`HostServices.current(Ledger)`), so standing a
-   * door behind the key was enough to be found; the arrow points the other way
-   * now, and a fixture that only offered the door would be testing a serve with
-   * no ledger at all.
-   */
   if (options.ledger) {
     yield* mountPlugin(plugins.host, definePlugin({
       name: "ledger-row", needs: [VaultViews],
@@ -74,7 +66,6 @@ test("headless vault reports its missing HTTP component while file access leaves
     expect((yield* Effect.result(ops.read))).toEqual(Result.fail(NO_DIRECTORY))
     const before = revisions
     writeFileSync(join(root, "a.olai"), `{"id":"a","ord":"a0","title":"activation ${i}"}\n`)
-    // A second provider can now take the released lock, and releases it again.
     yield* Effect.scoped(opening(root))
     expect(revisions).toBe(before)
     yield* flip(plugins.host, "vault", true)
@@ -143,7 +134,6 @@ test("vault teardown drains an accepted write before releasing the directory loc
   )
   expect(yield* Deferred.isDone(stopped)).toBe(false)
   expect(yield* Effect.result(ops.run({ op: "title", id: "a", title: "too late" }, "web"))).toEqual(Result.fail(NO_DIRECTORY))
-  // The lock is still held while the accepted operation completes.
   const contender = yield* opening(root)
   expect(contender.store()).toBeUndefined()
   yield* Deferred.succeed(finish, undefined)
@@ -154,22 +144,6 @@ test("vault teardown drains an accepted write before releasing the directory loc
   expect(JSON.stringify(yield* contender.ops.read)).toContain("accepted")
 }))))
 
-/**
- * TWO HOSTS IN ONE PROCESS ARE TWO VAULTS, and until this branch's review they
- * were not.
- *
- * The vault's optional views — where a write is RECORDED, what a query is
- * ANSWERED BY — were a `let` apiece at `olai-plugin-vault`'s `views.ts` module
- * scope. Private to that package, and owned by nobody: the second serve's git
- * row registered over the first serve's, so host A's settings recorded through
- * host B's ledger. `openPlugins` makes no claim to be a singleton, the benches
- * open several, and the paper's Def. 30 is exactly about the difference
- * between a name being unreachable and a value being owned.
- *
- * The table is minted inside `vault-setup`'s own `apply` now, so this asks the
- * only question that distinguishes the two: with a ledger registered in EACH
- * host, does A still answer A's?
- */
 test("one process's two vaults share neither ledgers nor file-kind claims", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const named = (name: string): Ledger => ({ ...NO_LEDGER, whyWaiting: () => Effect.succeed(name) })
   const a = yield* opening(rootWithNote(), { ledger: named("host A") })
@@ -182,16 +156,11 @@ test("one process's two vaults share neither ledgers nor file-kind claims", () =
   yield* settled(a.plugins.host, ["host-a-kind"])
   expect(offered(a.plugins.host, FileKinds)?.current().has("host-a-kind")).toBe(true)
   expect(offered(b.plugins.host, FileKinds)?.current().has("host-a-kind")).toBe(false)
-  // Through the SETTINGS rather than the table: what the finding was about is
-  // which ledger a vault's store writes through, and the settings are what
-  // carries it (`vault-setup` builds them over the views it minted).
   const said = (host: typeof a) =>
     Effect.promise(() => Effect.runPromise(
       (offered(host.plugins.host, VaultSettings) as { ledger: Ledger }).ledger.whyWaiting("web"),
     ))
   expect(yield* said(a)).toBe("host A")
   expect(yield* said(b)).toBe("host B")
-  // ...and still A's after B is up, which is the ordering the shared module
-  // variable failed: B's registration used to answer for both.
   expect(yield* said(a)).toBe("host A")
 }))))

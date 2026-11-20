@@ -1,4 +1,3 @@
-/** Every server row that registers a format inherits the record round trip. */
 import { expect, test } from "bun:test"
 import { readdirSync, readFileSync, mkdtempSync, rmSync } from "node:fs"
 import { join } from "node:path"
@@ -27,8 +26,6 @@ test("every registered outline format preserves generated records and canonical 
   const table = claims(registry!.current().values())
   const formats = [...table.byKind.values()].filter(claim => claim.holds === "nodes")
   expect(formats.length).toBeGreaterThan(0)
-  // A deterministic generator keeps failures reproducible. Combinations cover
-  // optional fields, hierarchy, mirrors, escaping, Unicode and empty files.
   let seed = 0x5f3759df
   const next = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed }
   const titles = ["plain", "quoted \"title\"", "café 日本語", "#tag", "a\\b", "one\ntwo"]

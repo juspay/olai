@@ -1,16 +1,3 @@
-/**
- * Where the browser bundle is.
- *
- * One receptacle: `OLAI_DIST_DIR`. The nix wrapper sets it to the bundle
- * derivation; `just serve` sets it to the tree it just built. A fallback that
- * walked from this file into `packages/web/dist` would be a second answer to
- * the same question — and a real `server → web` dependency expressed as a path,
- * invisible to `bun install` and to any layering check.
- *
- * The server does not build. A server that quietly rebuilt would be a second,
- * slower build with different inputs from the one CI proves.
- */
-
 import { Data, Effect, FileSystem } from "effect"
 
 const DIST_ENV_VAR = "OLAI_DIST_DIR"

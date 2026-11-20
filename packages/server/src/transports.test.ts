@@ -3,7 +3,6 @@ import { Deferred, Effect, Exit, Scope } from "effect"
 import { HttpRouter, HttpServerResponse } from "effect/http"
 import { listener } from "./listener.ts"
 
-// No known transport names: any scoped route provider can share the port.
 test("independent route providers can leave and return without withdrawing another provider", async () => {
   await Effect.gen(function*() {
     const shared = yield* listener({ host: "127.0.0.1", port: 0 })

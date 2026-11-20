@@ -1,5 +1,3 @@
-/** The serve reads its log policy from the vault before announcing its socket. */
-
 import { findLogfmt } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { mkdtempSync, rmSync } from "node:fs"
@@ -10,9 +8,6 @@ import { startWeb } from "./child.testlib.ts"
 
 const vault = (): string => mkdtempSync(join(tmpdir(), "olai-loglevel-"))
 
-/** How long a quiet boot may take before we believe it will not say `serving`.
- *  The box is filled by the spawn-time drain; this clock is only the hang
- *  detector for a negative. */
 const QUIET_MS = 4_000
 
 test("file log-level error suppresses the serving line", async () => {

@@ -1,22 +1,3 @@
-/**
- * The internal route, over real HTTP.
- *
- * This is the face olai's OWN agent talks to, and it had no test — which is how
- * the SSE default got as far as the e2e suite. The transport prefers an SSE
- * stream unless told otherwise, and a client that asked for
- * `application/json, text/event-stream` (every ACP agent does) and then called
- * `response.json()` waits on it forever. That is not a shape a unit test of the
- * face can see, because it is a property of the TRANSPORT and its headers.
- *
- * So the assertions here are deliberately about the envelope rather than about
- * the tools: one POST, one JSON reply, loopback without a token, off-loopback
- * still refused, and the SSE half refused. What is inside the reply is
- * `tools.test.ts`'s subject — with one
- * exception, and it earns it: a REFUSAL is an envelope claim as much as a
- * payload one, because getting it wrong here means a 500, or a JSON-RPC error
- * frame, or a structured half that never made it into the reply. This is the
- * pipe the chat panel's agent reads its refusals through.
- */
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { capabilitiesOver } from "../capabilities.testlib.ts"
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
@@ -42,10 +23,6 @@ import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind } from "../runtime.ts"
 import type { RootedSurfaceClients } from "@kolu/surface/client"
-/** ONE STATEMENT, where six stood. `mcpContract`, `AGENT_EXPOSE`, `McpClient`,
- *  `liveClient` and `toOwner` are all gone with the flat contract
- *  (juspay/kolu#2234), and what is left of the served face's shape is the two
- *  halves of `bundle.ts` beside the door and the transport. */
 import {
   bespokeFrom,
   clientsFor,
@@ -63,33 +40,14 @@ import {
   type Ticket,
 } from "olai-plugin-mcp/testlib"
 
-/** The codec this suite validates through — the vocabulary of a build that
- *  composed no plugin, which is what these fixtures declare nothing about
- *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
 const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 
 const TOKEN = "test-token"
 
-/** The header this bench's pretend proxy injects. Spelled here because the
- *  requests below spell it too, and a name a test writes and a name a test
- *  reads under must be one string. */
 const LOGIN = "tailscale-user-login"
 
-/**
- * A STAND-IN FOR THE IDENTITY ROW'S READING, and deliberately a bare one.
- *
- * What this bench is about is that the route asks per request and carries the
- * answer on the request's own stack — not what any particular deployment's
- * ladder makes of a login. So it takes a login and hands back a person with no
- * picture, which is all the attribution below reads, rather than mounting the
- * real row for two fields it never looks at.
- *
- * A serve mints this over whatever row offers `Identity` (`../serve.ts`'s
- * `readingOf`, answering nobody when none does); this bench builds its own
- * listener by hand, so it hands over its own.
- */
 const PROXY: Reading = (headers) => {
   const raw = headers[LOGIN]
   const login = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? ""
@@ -97,16 +55,11 @@ const PROXY: Reading = (headers) => {
 }
 
 interface Served {
-  /** The directory this route is serving — so a case can read back what a call
-   *  actually wrote, rather than trusting the answer it was given. */
   readonly root: string
-  /** POST one JSON-RPC message, with the token unless told otherwise. */
   readonly post: (
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
-  /** A ticket and the BUNDLE it was minted for — one client per standing
-   *  row, where it was one flat client until juspay/kolu#2234. */
   readonly retainedTicket: () => { ticket: Ticket; client: RootedSurfaceClients }
   readonly mintTicket: () => Ticket
   readonly url: string
@@ -136,15 +89,6 @@ const withRoute = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const transport = mcpTransport()
-    // THE BUNDLE THE SERVED FACE IS, off the rows this bind actually composed —
-    // `bundle.ts`'s two halves, called as `binding.ts` and `endpoint.ts` call
-    // them.
-    //
-    // IT WAS A FLAT CONTRACT AND A HAND-WRITTEN EXPOSE MAP OVER ONE `liveClient`
-    // ROUTED BY `toOwner`, and none of those names exists. A member is addressed
-    // through the row that declares it (`ops.node` is
-    // `surface/outlines/ops/node`), which the per-sibling client does by
-    // construction rather than by consulting a route.
     const rows = (): ReadonlyArray<Row> =>
       wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
     const panel = () => clientsFor(
@@ -155,15 +99,6 @@ const withRoute = <A>(
     let selectingTicket: string | null = null
     const tickets = ticketing({ reservations: WRITE_RESERVATIONS, bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN, currentTicket: () => selectingTicket ?? currentTicket(), rows })
     yield* serveFace({
-      // EVERY VERB COMES OFF ITS OWN ROW, including the plugin ones.
-      // `vault-plugins_inspect`, `vault-plugins_run` and `vault-plugins_stop` used to arrive through
-      // a second spread (`pluginTools()`), because they call a row's own client
-      // rather than an ops-layer door; then through one build-wide table
-      // (`agentTools()`) handed in flat. They are `olai-plugin-vault-plugins`'
-      // own `tools.ts` now and they ride that row's SIBLING ENTRY, so the case
-      // below that lists and calls all three is asking whether the roster
-      // carries them — which is the question that replaced "does the filter
-      // still name them".
       siblings: siblingsOf(rows(), row => bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
         login: currentLogin,
         root,
@@ -178,11 +113,6 @@ const withRoute = <A>(
     })
     yield* Effect.addFinalizer(() => runtime.stopped)
 
-    // olai's REAL listener, so the route is proved where it actually lives —
-    // ranked against the shell's catch-all, on the socket a browser shares.
-    // `listen` rather than `serve` for one reason: the token is minted inside
-    // `serve` and handed only to the session it spawns, so a test that wanted
-    // to present a valid one could not get it.
     const base = yield* listen({
       host: listenOn.host, port: 0,
       contributions: [{ routes: mcpRoute({ transport, token: TOKEN, who: PROXY }) }],
@@ -237,8 +167,6 @@ test("a POST is answered with JSON, not an SSE stream", async () => {
     const response = await post(initialize)
 
     expect(response.status).toBe(200)
-    // THE assertion. `text/event-stream` here is a client hanging on
-    // `response.json()`, which is what the e2e chat scenarios saw.
     expect(response.headers.get("content-type")).toContain("application/json")
 
     const body = await response.json() as { result?: { serverInfo?: { name?: string } } }
@@ -249,19 +177,9 @@ test("a POST is answered with JSON, not an SSE stream", async () => {
 test("a tool call goes through and comes back as one reply", async () => {
   await withRoute(async ({ post }) => {
     await post(initialize)
-    // The handshake's third leg. A notification, so the transport answers 202
-    // with no body — and the server refuses real work until it has arrived,
-    // which is the lifecycle the specification defines and the one every real
-    // client follows.
     const ack = await post({ jsonrpc: "2.0", method: "notifications/initialized" })
     expect(ack.status).toBe(202)
 
-    // `outlines_read` rather than `search_nodes`, which this used to call: the
-    // matcher is a ROW now (`olai-plugin-search`) and this harness mounts none,
-    // so a search here answers with the row's absence in words — one reply, which is
-    // all this test claims, but a payload about an absent plugin rather than
-    // about the transport. A read core answers for itself keeps the claim about
-    // the thing under test: arguments in, one JSON reply out.
     const response = await post({
       jsonrpc: "2.0",
       id: 2,
@@ -305,19 +223,6 @@ test("tools/list and a resource read answer over the same POST", async () => {
   })
 })
 
-/**
- * A refusal is an ANSWER on this transport too.
- *
- * `tools.test.ts` pins the contract — `isError` with the structured detail
- * beside the prose — over an `InMemoryTransport`, where a result is handed
- * across in one call. This face is the one transport olai wrote itself: a
- * half-duplex HTTP shape with a waiter table, built because neither of the
- * SDK's Streamable modes fits (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-viewing.md`).
- * It has three ways to get a refusal wrong that an in-memory pair cannot have
- * — an HTTP status keyed off `isError`, a JSON-RPC `error` frame instead of a
- * result, or the structured half dropped in the reply's serialization — and
- * the panel's agent reads its refusals through exactly this pipe.
- */
 test("a refused write crosses as a 200 result carrying its structured detail", async () => {
   await withRoute(async ({ post }) => {
     await post(initialize)
@@ -330,8 +235,6 @@ test("a refused write crosses as a 200 result carrying its structured detail", a
       params: { name: "outlines_done", arguments: { id: "nowhere" } },
     })
 
-    // 200 and a RESULT: a refused write is something the server answered, not
-    // something that went wrong in it.
     expect(response.status).toBe(200)
     const body = await response.json() as {
       error?: unknown
@@ -346,8 +249,6 @@ test("a refused write crosses as a 200 result carrying its structured detail", a
 
 test("from loopback the token is optional", async () => {
   await withRoute(async ({ post }) => {
-    // No Authorization at all — the `.mcp.json` HTTP client. Loopback is
-    // who you are, and that is the whole of the authentication.
     const response = await post(initialize, { authorization: "" })
     expect(response.status).toBe(200)
     const body = await response.json() as { result?: { serverInfo?: { name?: string } } }
@@ -357,7 +258,6 @@ test("from loopback the token is optional", async () => {
 
 test("from loopback a token is accepted, not required", async () => {
   await withRoute(async ({ post }) => {
-    // The chat keeps sending the one it was handed. Harmless either way.
     const response = await post(initialize)
     expect(response.status).toBe(200)
   })
@@ -395,8 +295,6 @@ test("releasing a node ticket closes it without changing arbitrary loopback toke
     expect(refused.result?.isError).toBe(true)
     expect(refused.result?.structuredContent?.reason).toContain("conversation has been reaped")
 
-    // The old local-client affordance is a different namespace and remains
-    // unfenced; recognizing stale node tickets must not redefine it.
     const local = await call(22, "local-token", "arbitrary-local-token")
     expect((await local.json() as { error?: unknown }).error).toBeUndefined()
 
@@ -407,20 +305,6 @@ test("releasing a node ticket closes it without changing arbitrary loopback toke
   })
 })
 
-/**
- * THE THREE VERBS A PLUGIN'S AUTHOR HAS, ON THE WIRE — because being on the
- * FACE turned out not to be the same thing as being reachable.
- *
- * `faces.test.ts` pins `plugins.inspect`, `plugins.run` and `plugins.stop` on
- * the agent face, and that gates what a caller may CALL. What an ACP engine is
- * OFFERED is the tool list, which is a different table — so the doc's first
- * instruction to an author, *read `plugins.inspect` before writing code*, named
- * something no agent could reach, and a node agent working on this branch found
- * it by trying (juspay/olai#506).
- *
- * So the question is asked here rather than one layer up: through the route, as
- * a `tools/call`, on a node ticket, which is exactly what a session holds.
- */
 test("a node ticket can list and call the three plugin verbs", async () => {
   await withRoute(async ({ mintTicket, post }) => {
     await post(initialize)
@@ -429,7 +313,6 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     const ticket = mintTicket()
     const bearer = { authorization: `Bearer ${ticket.bearer}` }
 
-    // ADVERTISED, which is the half a face gate says nothing about.
     const listed = await (await post({ jsonrpc: "2.0", id: 40, method: "tools/list" }, bearer))
       .json() as { result?: { tools?: ReadonlyArray<{ name: string }> } }
     const names = (listed.result?.tools ?? []).map((one) => one.name)
@@ -439,9 +322,6 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     expect(names).toContain("vault-plugins_run")
     expect(names).toContain("vault-plugins_stop")
 
-    // ...and answered. The catalog is read off the live registry, so the
-    // assertion is that it names the things a half is written against rather
-    // than that it names any particular one.
     const inspected = await (await post({
       jsonrpc: "2.0",
       id: 41,
@@ -466,9 +346,6 @@ test("a node ticket can list and call the three plugin verbs", async () => {
       },
     })
 
-    // ...AND THE GUIDE, which is the one answer an agent in a vault with no
-    // olai checkout cannot get any other way: the page a person reads, shipped
-    // inside the binary.
     const guided = await (await post({
       jsonrpc: "2.0",
       id: 43,
@@ -478,9 +355,6 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     expect(guided.result?.structuredContent?.folder).toBe("plugins/")
     expect(guided.result?.structuredContent?.text ?? "").toContain("@olai/plugin-api")
 
-    // ...and the feedback loop, on a word this vault does not define: a refusal
-    // that says what a definition IS, which is the sentence an author who has
-    // not written one yet needs.
     const ran = await (await post({
       jsonrpc: "2.0",
       id: 42,
@@ -495,22 +369,6 @@ test("a node ticket can list and call the three plugin verbs", async () => {
   })
 })
 
-/**
- * A SESSION MAY NOT APPROVE THE PLUGIN IT WROTE — through the route, on a real
- * ticket, because that is the layer the hole was in.
- *
- * `plugins.approve` is on the browser face and no other, and `faces.test.ts`
- * pins that as an exact set. What that does not cover is the FACT the verb
- * guards: an approval is an ordinary custom property on an ordinary node, a
- * definition an agent wrote is inside that agent's own subtree by construction,
- * and `outlines_prop` writes any custom key that is not spelled like a field. So the
- * agent could approve itself through a door it already held.
- *
- * The door's forbidden table is what closes it (`olai-plugin-mcp`'s `tickets.ts`), and this is
- * the test that asks the question the way an agent would: the same call, the
- * same bearer, one key apart. The one that lands is what makes the refusal
- * about THAT KEY rather than about the subtree.
- */
 for (const definitions of [true, false]) test(`a node ticket cannot write approval with vault policy ${definitions ? "present" : "absent"}`, async () => {
   await withRoute(async ({ mintTicket, post, root }) => {
     await post(initialize)
@@ -542,14 +400,6 @@ for (const definitions of [true, false]) test(`a node ticket cannot write approv
   }, {host:"127.0.0.1", definitions})
 })
 
-/**
- * Off loopback the bearer is still the gate.
- *
- * Bound to every interface so a request can arrive from an address that is
- * not 127.0.0.1; fetched at that address so the kernel reports it as the
- * peer. A machine with no non-loopback IPv4 cannot pose the question, and
- * says so rather than passing a test that never ran.
- */
 test("off loopback the bearer is still required", async () => {
   const peer = nonLoopbackIPv4()
   if (peer === undefined) {
@@ -561,9 +411,6 @@ test("off loopback the bearer is still required", async () => {
 
   await withRoute(async ({ url }) => {
     const port = Number(new URL(url).port)
-    // Bind the CLIENT to the non-loopback address. Fetching the LAN IP
-    // from the same host often hairpins via 127.0.0.1, which would
-    // silently test the wrong thing.
     const response = await postFrom(peer, port, initialize)
     expect(response.status).toBe(401)
     expect(response.body).toBe("unauthorized")
@@ -586,11 +433,9 @@ test("mcpAllowed skips the bearer only on a known loopback peer", () => {
   expect(mcpAllowed(Option.some("10.0.0.4"), undefined, token)).toBe(false)
   expect(mcpAllowed(Option.some("10.0.0.4"), "Bearer secret", token)).toBe(true)
   expect(mcpAllowed(Option.some("10.0.0.4"), "Bearer wrong", token)).toBe(false)
-  // Unknown peer — refuse rather than guess.
   expect(mcpAllowed(Option.none(), undefined, token)).toBe(false)
 })
 
-/** First non-internal IPv4, if this machine has one. */
 const nonLoopbackIPv4 = (): string | undefined => {
   for (const addrs of Object.values(os.networkInterfaces())) {
     for (const addr of addrs ?? []) {
@@ -600,7 +445,6 @@ const nonLoopbackIPv4 = (): string | undefined => {
   return undefined
 }
 
-/** POST /mcp from a specific local address, so the kernel reports that peer. */
 const postFrom = (
   localAddress: string,
   port: number,
@@ -637,19 +481,6 @@ test("the SSE half is refused, because this face pushes nothing", async () => {
   })
 })
 
-/**
- * Garbage in, an ANSWER out — not silence.
- *
- * A body that parses as JSON but is not a message (`null`, `42`, `[]`) reaches
- * the SDK's `Protocol` as something it reports to `onerror` and never replies
- * to. Through a half-duplex transport that is indistinguishable from a
- * notification: 202, no frame, and a client that expected one waits forever.
- * The hand-rolled dispatch this replaced judged the shape itself and answered
- * `-32600`, so the judgement stays at the edge where it always was.
- *
- * Not the chat path — no real client sends these — which is exactly why it is
- * worth a test: nothing else would ever notice it break.
- */
 test("a body that is not a JSON-RPC message is refused, not silently accepted", async () => {
   await withRoute(async ({ post }) => {
     for (const garbage of [null, 42, [], "a string"]) {
@@ -662,22 +493,8 @@ test("a body that is not a JSON-RPC message is refused, not silently accepted", 
 })
 
 
-/**
- * The waiter table, driven directly.
- *
- * Through HTTP this would be a race: `search_nodes` answers in microseconds, so
- * two POSTs sharing an id would almost never actually overlap and the test
- * would pass without exercising anything. Driving the transport with an
- * `onmessage` that never answers makes the collision certain.
- *
- * What it guards: the second `ask` used to `set` over the first's resolver,
- * which dropped it on the floor — that POST then hung until the process died.
- * A client reusing an id is a client bug; a request that never comes back was
- * ours.
- */
 test("an id already in flight is answered rather than overwriting its waiter", async () => {
   const transport = mcpTransport()
-  // Nothing answers, so the first request stays in flight for the whole test.
   transport.onmessage = () => {}
 
   const first = transport.ask({ jsonrpc: "2.0", id: 7, method: "tools/list" })
@@ -689,8 +506,6 @@ test("an id already in flight is answered rather than overwriting its waiter", a
   expect(second.id).toBe(7)
   expect(second.error?.code).toBe(-32600)
 
-  // And the FIRST is still waiting for its real answer rather than having been
-  // resolved or forgotten — which is the half that used to break.
   let settled = false
   void first.then(() => {
     settled = true
@@ -698,23 +513,10 @@ test("an id already in flight is answered rather than overwriting its waiter", a
   await new Promise((resolve) => setTimeout(resolve, 10))
   expect(settled).toBe(false)
 
-  // Closed rather than left pending: `close` answers its waiters so a shutdown
-  // cannot strand one.
   await transport.close()
   expect(await first).toBeNull()
 })
 
-/**
- * WHO A WRITE IS ATTRIBUTED TO IS A FACT ABOUT THE REQUEST, not about the face.
- *
- * The face behind this route is built once, at boot, with one transport and one
- * set of handlers. The login is not: a reverse proxy injects it per request, and
- * two people can be behind one proxy. So it travels beside the request in an
- * `AsyncLocalStorage` (`./route.ts`'s `WHOSE`) rather than bound into the face
- * — and the reason it is that and not a field is exactly what the second case
- * below measures. A field would be a race whose failure mode is a capture
- * attributed to the wrong person, silently, and permanently, in a file.
- */
 test("a capture is recorded as the login the proxy named on THAT request", async () => {
   await withRoute(async ({ post, root }) => {
     await post(initialize)
@@ -729,9 +531,6 @@ test("a capture is recorded as the login the proxy named on THAT request", async
       },
       { "Tailscale-User-Login": "srid@github" },
     )
-    // …and one with no proxy in front of it at all, which is what a direct
-    // loopback call is. The ruling: a door that knows nobody writes NO
-    // attribution rather than a made-up one.
     await post({
       jsonrpc: "2.0",
       id: 3,
@@ -752,21 +551,6 @@ test("a capture is recorded as the login the proxy named on THAT request", async
 })
 
 test("…and two people behind one proxy do not get each other's", async () => {
-  // Two calls in flight at once, through one face, one transport and one set of
-  // handlers — because two people behind one proxy is the ordinary case for the
-  // deployment this door is reached through, and a capture attributed to the
-  // wrong person is not a crash, not a refusal, and not discoverable
-  // afterwards: it is a file that quietly says the wrong thing.
-  //
-  // WHAT THIS DOES NOT PROVE, said out loud because it was measured: it does not
-  // demonstrate that the `AsyncLocalStorage` is load-bearing. Swapping it for a
-  // plain module-level field leaves this case green, because the login is read
-  // SYNCHRONOUSLY at the top of the handler (`../mcp/tools.ts`), on the
-  // request's own stack, before anything can yield to the other request — and
-  // that is what actually makes it right. The storage is the structural half of
-  // the same guarantee: it survives a handler that starts reading it later,
-  // which a field would not, and it is what makes "read it later" a safe thing
-  // for the next person to write rather than a trap.
   await withRoute(async ({ post, root }) => {
     await post(initialize)
     await post({ jsonrpc: "2.0", method: "notifications/initialized" })
@@ -805,17 +589,9 @@ test("…and two people behind one proxy do not get each other's", async () => {
 test("releasing a ticket closes a retained client and the delayed next step of a tool", async () => {
   await withRoute(async ({ retainedTicket, root }) => {
     const { ticket, client } = retainedTicket()
-    // THROUGH THE ROW THAT DECLARES IT. It was `client.surface.ops.run(…)` on
-    // one flat client over an un-prefixed namespace; a ticketed door is a
-    // bundle now (juspay/kolu#2234) and `ops.run` is four rows' member, so the
-    // caller says which one it means. What is being asked is unchanged — the
-    // rule
-    // rides the writer, per call, on whichever client the caller holds.
     const run = (title: string) =>
       client.clients!["outlines"]!.surface.ops!.run!({ op: "title", id: "kitchen", title })
     await Effect.runPromise(run("accepted before release"))
-    // A multi-step tool can already hold both the client and its next lazy
-    // Effect when its owning session is released. It must recheck the fence.
     const next = run("forbidden delayed write")
     ticket.release()
     ticket.release()

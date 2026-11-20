@@ -1,5 +1,3 @@
-/** Real capability rows over an explicitly supplied test vault. Store fault
- * injection stays below the rows; their handlers and subscriptions are real. */
 import { selectFixtureRows } from "@olai/bundle/testlib"
 import { mountBundle, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins, Directory, FileKinds, VaultSettings, Ops, Vault, VaultViews, vaultEvents, opsEvents, mountPlugin, rowReport, openLoading } from "@olai/plugin-api/services"
@@ -40,16 +38,6 @@ export const capabilitiesOver = (store: Store, gate: Gate, root: string, options
     document: file => Effect.asVoid(gate.run({op:"create-doc",file},"web")),
     refused: refusals.listen(plugin),
   }))
-  /**
-   * THE VAULT ROW'S OTHER DOOR, stood in for the way `Vault` above is.
-   *
-   * Git and search register their ledger and matcher through `VaultViews`, so
-   * a fixture that hands out `Vault` without mounting the vault row has to hand
-   * out this one too or those rows wait forever. The registrations go NOWHERE
-   * on purpose: the `gate` this fixture was made with has no ledger and no
-   * matcher, which is the whole of what keeps the refusals below saying what a
-   * serve without those providers says.
-   */
   yield* provide(plugins.host, VaultViews, () => ({ ledger: () => Effect.void, search: () => Effect.void }))
   const views = openViews()
   yield* provide(plugins.host, FileKinds, views.fileKinds.provision)

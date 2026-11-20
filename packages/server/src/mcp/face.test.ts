@@ -1,30 +1,3 @@
-/**
- * The read face against a real directory, over a real MCP client.
- *
- * `expose.test.ts` proves what the allowlist RESOLVES to; this proves what a
- * client actually gets, which is a different question in the one way that
- * matters. The allowlist says `outlines` is a resource. Whether reading that
- * resource costs the key set or the corpus is decided by the ADAPTER — it picks
- * the verb by kind, `keys` for a collection and `get` for a cell — and that is
- * not visible from the map. So the wire-cost half of `faces.ts`'s rule is
- * fenced here, by reading the collection resource in a directory that contains a
- * deliberately fat document and asserting the answer stayed small.
- *
- * That fence is the point of the file. Without it, "a cell is exposable iff it
- * is O(1)-ish" is a paragraph in a header, and the way it gets broken is not by
- * somebody disagreeing with it — it is by somebody adding a member and not
- * having read it.
- *
- * In-process over a linked transport pair rather than a child process: what is
- * being tested is the PROJECTION, not the pipe. `serve.test.ts` next door owns
- * the process-level claims (stdout carries the protocol and nothing else,
- * closing stdin stops it), and those are exactly the ones an in-memory transport
- * cannot make.
- *
- * The store is driven with `refresh` rather than by waiting on the watcher —
- * "probe NOW, and do not return until the result has been published" — so the
- * subscription test is a sequence and not a race.
- */
 import { selectFixtureRows } from "@olai/bundle/testlib"
 import { VaultBoot } from "olai-plugin-vault/boot"
 import { CONTENT_ROWS, runtimeFor } from "../capabilities.testlib.ts"
@@ -56,24 +29,12 @@ const HOUSE = [
 
 const GARDEN = `{"id":"beds","ord":"a0","title":"Raised beds"}\n`
 
-/** A string that appears ONLY in the document body, so an assertion that the
- *  corpus did not ride along is about this directory's actual bytes rather than
- *  about a size that happened to look small. */
 const BODY_MARKER = "BODY-THAT-MUST-NOT-TRAVEL"
 
-/** Fat on purpose. The manifest cell inlines every document's text, so a
- *  projection that reached for it instead of the collection would show up here
- *  as tens of kilobytes in an answer that should be two file names. */
 const MANUAL = `# Manual\n\n${`${BODY_MARKER} filler filler filler.\n`.repeat(1200)}`
 
-/** A saved page, of the shape that made the set expensive to hold: markup with
- *  its picture inlined. The server keeps this file's PATH and reads its bytes
- *  when somebody asks for them — an agent included, which is what the item read
- *  below is about. */
 const SAVED = `<h1>Saved</h1>\n<p>${BODY_MARKER} inlined.</p>\n`
 
-/** A directory with two outlines, one large document and one saved page, thrown
- *  away with the test. */
 const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-face-"))
   fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
@@ -85,14 +46,10 @@ const served = (): string => {
 
 interface Face {
   readonly client: Client
-  /** Probe now and do not return until the result is published, so a test's own
-   *  write reaches an open subscription without racing the file watcher. */
   readonly refresh: () => Promise<void>
   readonly root: string
 }
 
-/** Stand the whole read face up against a fresh directory, hand it to `use`,
- *  and take everything down with the scope. */
 const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
@@ -101,53 +58,21 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     yield* provide(plugins.host, VaultBoot, () => ({root, runtime: runtimePaths}))
     yield* settled(plugins.host, ["vault", ...CONTENT_ROWS])
     const store = offered(plugins.host, Directory)!.store as Store
-    // Settlement mounts readers; the probe is a separate owned fiber. Wait
-    // for this fixture's complete claims to be reflected before asking MCP.
     yield* store.refresh("verified")
-    // A real ops layer with commits OFF: this face is about READING, and `off`
-    // is the one mode that asks git nothing at all. The edit procedures are
-    // bound to it too and this face exposes none of them, so what they cost
-    // here is a binding nobody can reach.
     const ops = offered(plugins.host, OpsDoor)!.gate as Ops
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
       plugins: yield* runtimeFor(plugins, ["vault", ...CONTENT_ROWS]),
     })
-    // Not optional, and not ceremony copied from `serve.ts`: the runtime's
-    // `done` REJECTS when it is closed, so something has to be holding the
-    // catch or every teardown here is an unhandled rejection the test runner
-    // attributes to whichever test happened to be running. Holding it while
-    // saying a shutdown is not news is `fault.ts`'s whole job.
     const runtime = yield* watchFault(wired.bound)
-    // The runtime is built here, so it is closed here — the same rule serve.ts
-    // keeps, and the reason the face is handed `handlers` and not a lifetime.
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
-    // THE ROOTED BUNDLE, off the rows this bind actually composed — the two
-    // halves of `olai-plugin-mcp`'s `bundle.ts`, called here as `binding.ts`
-    // calls them.
-    //
-    // IT WAS A FLAT CONTRACT PLUS A HAND-WRITTEN EXPOSE MAP (`mcpContract` +
-    // `AGENT_EXPOSE`) OVER ONE `liveClient` ROUTED BY `toOwner`, because
-    // `serveSurfaceAsMcp` built every `surface://` URI out of ONE spec's member
-    // keys and a face spanning six rows had to hand it something shaped like one
-    // surface. juspay/kolu#2234 took that price away: each row's OWN spec and
-    // OWN resource map go in under the row's key, and the URIs below carry that
-    // key — which is why every one of them changed.
     const rows = (): ReadonlyArray<Row> =>
       wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
     yield* serveFace({
-      // NO VERBS ON THESE SIBLINGS. This bench is the READ face — what a client
-      // is handed as `surface://` addresses — and a row's tools are the other
-      // half of its entry, projected in `tools.test.ts` next door. An empty
-      // table per row is what "read the resources without standing an ops layer
-      // up behind them" comes to now that a verb rides its row.
       siblings: siblingsOf(rows(), () => ({})),
-      // The group AND the face, from the one call that composed both: an
-      // exposure describes a group as a set equality, so a gate built from a
-      // second reading of which plugins are on refuses to bind.
       client: () => clientsFor(
         rows(),
         () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
@@ -160,9 +85,6 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     const client = new Client({ name: "face.test", version: "0" })
     yield* Effect.promise(() => client.connect(clientSide))
     yield* Effect.addFinalizer(() => Effect.promise(() => client.close()))
-    // Registered LAST so it runs FIRST — finalizers run in reverse, and this
-    // has to be true before anything starts closing. Same ordering rule, and
-    // the same reason, as the pair in serve.ts.
     yield* Effect.addFinalizer(() => runtime.stopped)
 
     return yield* Effect.promise(() =>
@@ -174,12 +96,6 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     )
   }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.runPromise)
 
-/** The one text part of a resource read.
- *
- *  MCP types a content as text-OR-blob, and every resource this face serves is
- *  JSON in a text part — the adapter has no other arm. So a blob arriving here
- *  is a projection bug and gets thrown at rather than handled, which is also
- *  what narrows the union for the reads below. */
 const textOf = async (client: Client, uri: string): Promise<string> => {
   const answer = await client.readResource({ uri })
   const first = answer.contents[0]
@@ -190,28 +106,9 @@ const textOf = async (client: Client, uri: string): Promise<string> => {
   return first.text
 }
 
-/** The same read, decoded. */
 const readJson = async (client: Client, uri: string): Promise<unknown> =>
   JSON.parse(await textOf(client, uri))
 
-// Every case opens the real scoped server and MCP pair; cold catalog loading
-// and filesystem setup need an integration budget on the shared CI fleet.
-/**
- * EVERY URI CARRIES ITS ROW, and that is what juspay/kolu#2234 changed here.
- *
- * They were `surface://cells/errors`, `surface://collections/documents` and
- * `surface://collections/outlines` — one un-prefixed namespace, because the
- * adapter took ONE surface and minted every URI from that spec's member keys,
- * so the three rows' members had to be copied into a curated flat contract
- * first. The first segment after the kind is the ROW now and the member follows
- * it, which is the disjointness the copying used to be responsible for: two
- * rows exposing the same member key cannot collide, and there is no place left
- * for a curator to decide which of them wins.
- *
- * `outlines/outlines` is the row's name beside its member's, and it reads like
- * a repetition because it is one — `olai-plugin-outlines` publishes a member
- * called `outlines`. It is not a doubled segment.
- */
 test("the served resources are exactly the allowlist names, each under its own row", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
@@ -233,13 +130,8 @@ test("reading the outlines collection costs the KEY SET, not the corpus", async 
   await withFace(async ({ client }) => {
     const text = await textOf(client, "surface://collections/outlines/outlines")
 
-    // What it IS: the file names, and only the outline files.
     expect(JSON.parse(text).sort()).toEqual(["garden.olai", "house.olai"])
 
-    // What it is NOT, stated two ways because they fail differently. The marker
-    // catches a projection that reached the document text at all; the size
-    // catches one that grew O(corpus) in some other shape. The document is ~40
-    // KiB, so a bound of one is not a close call.
     expect(text).not.toContain(BODY_MARKER)
     expect(text.length).toBeLessThan(1024)
   })
@@ -257,39 +149,22 @@ test("one outline item is that file's nodes, and no other file's", async () => {
       "order the cabinets",
     ])
     expect(entry.broken).toBeNull()
-    // The revision the entry was published at travels with it — the number a
-    // write will one day name as the base it edited.
     expect(entry.rev).toBeGreaterThan(0)
   })
 }, 30_000)
 
 test("the errors cell reads as a live value", async () => {
   await withFace(async ({ client }) => {
-    // THE VERDICT, which is what the cell carries now (`@olai/format`'s
-    // `verdict.ts`): a clean directory is a verdict with no findings, and an
-    // agent asks it the same questions a browser does.
     expect(await readJson(client, "surface://cells/vault/errors")).toEqual({ findings: [] })
   })
 }, 30_000)
 
-// A directory that cannot be READ, over the agent's face — the same rows the
-// browser draws its banner from, off the same cell, because there is one cell.
-//
-// This is the MCP half of "MCP and Web ops must be consistent",
-// and it is asserted rather than argued: the failure used to be a log line, so
-// an agent reading a served directory that had gone away was handed the last
-// good tree with nothing to say it was stale — the same lie the browser told,
-// by the same omission. Putting it on the errors cell fixes both faces at once
-// BY CONSTRUCTION, and this is what holds that construction in place.
 test("a directory that cannot be read reaches the agent, not just the browser", async () => {
   await withFace(async ({ client, refresh, root }) => {
     fs.rmSync(root, { recursive: true, force: true })
     await refresh().catch(() => {})
 
     const errors = await readJson(client, "surface://cells/vault/errors")
-    // `.` and not the absolute root: every site in this vocabulary is
-    // root-relative, and the server's filesystem layout is not something a
-    // reader of an outline is owed.
     expect(errors).toEqual({
       findings: [
         expect.objectContaining({ code: "unreadable-directory", file: ".", line: 0 }),
@@ -310,7 +185,6 @@ test("an edited outline notifies its subscribers", async () => {
     })
     await client.subscribeResource({ uri })
 
-    // The change an agent is watching for: another writer moved a file.
     fs.writeFileSync(
       path.join(root, "house.olai"),
       `${HOUSE}{"id":"paint","parent":"kitchen","ord":"a1","title":"paint it"}\n`,
@@ -319,8 +193,6 @@ test("an edited outline notifies its subscribers", async () => {
 
     expect(await updated).toBe(uri)
 
-    // And the re-read carries the change, which is the half that makes the
-    // notification worth anything: MCP pushes "this changed", never the value.
     const entry = await readJson(client, uri) as {
       nodes: ReadonlyArray<{ node: { title: string } }>
     }
@@ -330,18 +202,6 @@ test("an edited outline notifies its subscribers", async () => {
 
 test("a member the allowlist omits has no URI at all", async () => {
   await withFace(async ({ client }) => {
-    // Default-deny at the WIRE, not merely in the map. `manifest` is the one
-    // that matters — it is the .md corpus — but an omitted member of any kind
-    // must be unaddressable, so vault's `heads` collection is checked beside it.
-    //
-    // BOTH ARE VAULT'S, AND VAULT IS STANDING, which is what keeps this about
-    // the allowlist. It used to name `cells/manifest` and
-    // `collections/transcript` under the flat namespace; `transcript` is
-    // `olai-plugin-chat`'s and this fixture mounts no chat, so under the scoped
-    // form it would be unaddressable because its ROW is absent — a true
-    // sentence about a different rule. Vault publishes `errors` and nothing
-    // else, so these two are omitted members of a row whose other member reads
-    // fine three cases above.
     await expect(
       client.readResource({ uri: "surface://cells/vault/manifest" }),
     ).rejects.toThrow(/unknown resource/)
@@ -355,14 +215,7 @@ test("reading the documents collection costs the PATHS, not the bodies", async (
   await withFace(async ({ client }) => {
     const text = await textOf(client, "surface://collections/markdown/documents")
 
-    // Every BODIED file, `.html` included — the key set is what the sidebar and
-    // an agent both read, and a file whose body the server does not keep is
-    // still a file it serves.
     expect(JSON.parse(text)).toEqual(["manual.md"])
-    // The same fence as the outlines one, on the member that motivated the rule.
-    // `manifest` used to carry these bodies whole; the collection is what
-    // `snapshot-scale` cut them into, and this is the assertion that says the
-    // MCP projection inherited the cheap shape rather than only the browser.
     expect(text).not.toContain(BODY_MARKER)
     expect(text.length).toBeLessThan(1024)
   })
@@ -375,8 +228,6 @@ test("one document item is that document's body, fetched only when asked", async
       "surface://collections/markdown/documents/manual.md",
     ) as { text: string }
 
-    // The body IS reachable — laziness is about when it travels, not whether an
-    // agent can read it. One `resources/read` of one key, and nothing else.
     expect(entry.text).toContain(BODY_MARKER)
     expect(entry.text.length).toBeGreaterThan(10_000)
   })

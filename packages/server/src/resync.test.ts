@@ -1,9 +1,3 @@
-/**
- * `POST /olai/resync` on a real listener. The store-side claim (same-length
- * rewrite, refresh misses, resync publishes) is `@olai/store`'s; this file
- * is the door: loopback POST returns 204, and a GET is not that door.
- */
-
 import { Deferred, Effect, Fiber, Result } from "effect"
 import { NO_DIRECTORY } from "@olai/ops"
 import { expect, test } from "bun:test"

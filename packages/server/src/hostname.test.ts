@@ -3,9 +3,6 @@ import * as os from "node:os"
 
 import { hostname } from "./hostname.ts"
 
-// The variable is the one input; each case leaves it put back, because the
-// tests share a process and the e2e harness owns the pin in its own runs
-// (`serve.test.ts` sets it at module scope for the same reason).
 const withEnv = (value: string | undefined, body: () => void): void => {
   const before = process.env.OLAI_HOSTNAME
   if (value === undefined) delete process.env.OLAI_HOSTNAME

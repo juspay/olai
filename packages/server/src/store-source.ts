@@ -1,6 +1,3 @@
-/** Store lifetime adapted to a stable reading source. The composition root
- * supplies host changes; surface binding never needs to know why a store left
- * or returned. Fixed fixtures keep the store's direct initial delivery. */
 import type { Store } from "@olai/ops"
 import type { Reading, Verdict } from "@olai/format"
 import type { Snapshot } from "@olai/store"

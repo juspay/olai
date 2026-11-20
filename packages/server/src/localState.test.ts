@@ -1,7 +1,3 @@
-/**
- * Core's local-state door: the last snapshot handed over is the one that lands,
- * a missing file is a fresh map, and an unreadable file is a warn.
- */
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
@@ -54,9 +50,6 @@ test("unreadable local state warns and answers null", () =>
 
 test("successive saves land in order: the last snapshot is the one that stays", () =>
   withHome(async ({ served }) => {
-    // The first snapshot is SLOW to rename. Without the chain it would finish
-    // last and overwrite 2 and 3 — which is the round-3 race. With the chain
-    // the slow write still goes first, then 2, then 3, and 3 is what stays.
     const order: Array<number> = []
     const local = localStateFor("example", served, () => {}, (at, value) =>
       Effect.gen(function* () {
@@ -160,7 +153,6 @@ test("the directory door answers one private path per plugin and served director
     expect(at).toBe(join(home, "olai", "example", digestOf(canonical(served))))
     expect(statSync(at).mode & 0o777).toBe(0o700)
     rmSync(at, { recursive: true })
-    // A home cleaned out mid-serve is made again on the next ask.
     expect(await run(localStateFor("example", served, () => {}).directory)).toBe(at)
     expect(warnings).toEqual([])
   }))

@@ -1,4 +1,3 @@
-/** The root's publication worker, over real loader rows and scoped service offers. */
 import { expect, test } from "bun:test"
 import { Effect, Deferred, Exit, Fiber, Scope, SubscriptionRef, Schema } from "effect"
 import { ROWS } from "@olai/bundle"

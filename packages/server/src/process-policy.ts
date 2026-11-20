@@ -1,5 +1,3 @@
-/** The process namespace is read from the same published file revision as rows.
- * Bootstrap addresses and credentials are readings, never persisted policy. */
 import { configurationNode, decodePolicy, type Configuration, type PolicyValue } from "@olai/plugin-api/configuration"
 import { Effect, Schema } from "effect"
 export const Config = Schema.Struct({

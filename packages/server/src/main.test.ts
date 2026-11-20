@@ -1,4 +1,3 @@
-/** The public boot door is process location/face only; policy is authored. */
 import { expect, test } from "bun:test"
 import { spawnSync } from "node:child_process"
 import { served } from "./serve.testlib.ts"
@@ -19,6 +18,4 @@ test("retired policy and row-selection flags are refused before serving", () => 
     expect(result.stdout + result.stderr).not.toContain('message="serving"')
     expect(result.stdout + result.stderr).toContain(flag.split("=")[0]!)
   }
-  // Seven cold `olai web` boots in a row: 12s of a 15s budget on a loaded CI
-  // box. A budget for a hang, not for speed.
 }, 60_000)
