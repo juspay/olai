@@ -22,17 +22,18 @@ ops: {
   document: { input: DocumentRequest, output: DocumentBody, error: OpFailure }, run: writeProcedure }
 }
 })
+type Verb = {
+  [Member in keyof typeof surface.spec.procedures]: `${Member & string}.${keyof (typeof surface.spec.procedures)[Member] & string}`
+}[keyof typeof surface.spec.procedures]
+
 export const dispatch = {
   "edit.apply": ["doc", "docNew"],
   "ops.run": ["doc", "create-doc"],
-} as const
+} as const satisfies Partial<Record<Verb, ReadonlyArray<string>>>
 export const resources = {
   documents: "resource",
 } as const
 
-/** The general rule this is written against — a cell is exposable iff its value
- * is O(1)-ish, and anything O(corpus) must be a COLLECTION — is
- * `@olai/surface/host`'s `hostFaces`. */
 export const faces = {
   "browser": {
     "documents": "resource",

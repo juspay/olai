@@ -196,7 +196,8 @@ test("a write moves the file's entry and nothing else's, in every collection", (
 
   const third = publishedOf(revisions[2]!, second)
   expect(third.documents.upserts.map(([path]) => path)).toEqual(["notes.md"])
-  expect(third.documents.entries.get("notes.md")?.text).toBe("# hello again")
+  const notes = third.documents.entries.get("notes.md")
+  expect(notes?.state === "served" && notes.text).toBe("# hello again")
   expect(third.heads.entries.get("notes.md")).not.toBe(wasNotesHead)
   expect(third.outlines.upserts).toEqual([])
 })

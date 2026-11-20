@@ -1,8 +1,3 @@
-/** A COMPONENT AND NOT THIS ROW, and that is load-bearing: content runs under
- * another layout entirely (`olai-plugin-test-layout`,
- * `alternate_layout.feature`), so a row that waited for the shell would be a
- * row that could not. */
-
 import type { Accessor } from "solid-js"
 
 import { heldService } from "@olai/ui-primitives/held.ts"

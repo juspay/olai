@@ -1,11 +1,6 @@
-/** ONE module owns `client().collections.documents`. That rule is enforceable
- * only where the member is reached, so the member is reached here and nowhere
- * else. */
-
 import { createDocumentEditors, type DocumentEditor } from "./drafts.ts"
 import type { DocumentEntry } from "../../wire.ts"
 
-import type { Ready } from "./ready.ts"
 import {
   type Accessor,
   createContext,
@@ -18,29 +13,23 @@ import {
 } from "solid-js"
 
 import { sameList } from "@olai/web/client/same.ts"
-import { client } from "../../client.ts"
+import { documentEntries } from "../../client.ts"
 
-export type { Ready, Refused, Served } from "./ready.ts"
+export type { Refused, Served } from "./ready.ts"
 export { isServed } from "./ready.ts"
 
 export interface Documents {
   readonly retainEditors: (active: ReadonlyMap<string, string | undefined>) => void
   readonly editor: (pane: string, file: string) => DocumentEditor
+  readonly mintEditing: (file: string) => void
   readonly read: (
     file: Accessor<string | undefined>,
-  ) => Accessor<Ready | undefined>
+  ) => Accessor<DocumentEntry | undefined>
 }
-
-const arrived = (entry: DocumentEntry | undefined): entry is Ready =>
-  entry !== undefined && (entry.refused || entry.text !== null)
 
 export const createDocuments = (): Documents => {
   const editors = createDocumentEditors()
   const [askers, setAskers] = createSignal<ReadonlyMap<string, number>>(new Map())
-  /** By value: a fresh array carrying the same paths notifies the framework's
-   * `keys` memo, which re-diffs its `mapArray` and re-runs every per-key `read()`
-   * accessor in the app
-   * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §3.7). */
   const wanted = createMemo(() => [...askers().keys()], [], { equals: sameList })
   const held = (file: string, by: number): void => {
     setAskers((before) => {
@@ -52,10 +41,11 @@ export const createDocuments = (): Documents => {
     })
   }
 
-  const entries = client().collections.documents.use({ keys: wanted })
+  const entries = documentEntries(wanted)
 
   return {
     editor: editors.editor,
+    mintEditing: editors.mintEditing,
     retainEditors: editors.retain,
     read: (file) => {
       createEffect(() => {
@@ -66,9 +56,7 @@ export const createDocuments = (): Documents => {
       })
       return () => {
         const path = file()
-        if (path === undefined) return undefined
-        const entry = entries.byKey(path)?.()
-        return arrived(entry) ? entry : undefined
+        return path === undefined ? undefined : entries.byKey(path)?.()
       }
     },
   }
@@ -97,7 +85,7 @@ const reader = (): Documents => {
 
 export const useDocument = (
   file: () => string | undefined,
-): Accessor<Ready | undefined> => reader().read(file)
+): Accessor<DocumentEntry | undefined> => reader().read(file)
 
 let ownedDocuments: Documents | undefined
 export const holdDocuments = (value: Documents): (() => void) => {
@@ -106,3 +94,5 @@ export const holdDocuments = (value: Documents): (() => void) => {
 }
 
 export const useDocumentEditor = (pane: string, file: string): DocumentEditor => reader().editor(pane, file)
+
+export const mintEditing = (file: string): void => reader().mintEditing(file)

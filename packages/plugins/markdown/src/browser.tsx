@@ -32,12 +32,12 @@ import { holdShell } from "./browser/shell.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { createReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 import { referrersMemory } from "./browser/memory.ts"
-import { openCreated, clearMinted } from "./browser/document/minted.ts"
+import { openCreated } from "./browser/document/minted.ts"
 import { documentFile } from "./browser/document-route.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
 import { atFile } from "olai-plugin-navigation/routes"
 import { name, browserState, documentBodies, noteLine, properties, type MarkdownBrowser } from "./index.ts"
-import { client } from "./client.ts"
+
 import { runAsync } from "@olai/web/client/run.ts"
 import { documentMaking, NewDocument } from "./browser/document/NewDocument.tsx"
 import { propertyRoutes } from "olai-plugin-outlines/contract"
@@ -54,8 +54,8 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
     const history = createUndo(edit => runAsync(writeEdit(edit)))
     const release = [holdDocuments(documents), holdHistory(history)]
     return {
-      value: { client, documents, history, editing: { openCreated } } satisfies MarkdownBrowser,
-      dispose: () => { dispose(); for (const stop of release) stop(); clearMinted() },
+      value: { documents, history, editing: { openCreated } } satisfies MarkdownBrowser,
+      dispose: () => { dispose(); for (const stop of release) stop() },
     }
   })), state => Effect.sync(state.dispose))
   const memory = createReferrerMemory()

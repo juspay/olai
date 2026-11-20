@@ -157,8 +157,8 @@ test("a document's text is in its own entry, keyed by its path", () => {
   expect([...documents.entries.keys()]).toEqual(["notes.md"])
   expect(documents.entries.get("notes.md")).toEqual({
     rev: 3,
+    state: "served",
     text: "# hello",
-    refused: false,
   })
   expect(JSON.stringify([...outlines.entries.values()])).not.toContain("# hello")
 })
@@ -254,11 +254,11 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
   )
   expect(parsed.documents.entries.get("torn.md")).toEqual({
     rev: 5,
+    state: "served",
     text: "",
-    refused: false,
   })
   expect(parsed.heads.entries.get("torn.md")?.broken).not.toBeNull()
-  expect(parsed.documents.entries.get("notes.md")?.refused).toBe(false)
+  expect(parsed.documents.entries.get("notes.md")?.state).toBe("served")
 
   const unread = publishedOf(
     revision(
@@ -286,8 +286,7 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
   )
   expect(unread.documents.entries.get("locked.md")).toEqual({
     rev: 6,
-    text: "",
-    refused: true,
+    state: "refused",
   })
   expect(unread.heads.entries.get("locked.md")?.broken).not.toBeNull()
 })

@@ -6,7 +6,7 @@ import { TESTID as IDS_MARKDOWN } from "olai-plugin-markdown/testids"
 import { today } from "../clock.ts"
 import { proseIn, proseLineOffset, needlesFrom } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
-import { markdownReady } from "@olai/markdown-ui/chunk.ts"
+import { markdownArrival } from "@olai/markdown-ui/chunk.ts"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { landingId, outlineOf } from "@olai/markdown-ui/render.ts"
 import { useHere, useLanding, useRouter } from "olai-plugin-navigation/routing"
@@ -14,18 +14,56 @@ import { BodyRefused } from "./BodyRefused.tsx"
 import { isServed, useDocument } from "./documents.tsx"
 import { Toc } from "./Toc.tsx"
 
+// A scroll issued inside an effect lands before the browser has settled layout.
+const afterLayout = (run: () => void): (() => void) => {
+  const frame = requestAnimationFrame(run)
+  return () => cancelAnimationFrame(frame)
+}
+
+// A font swap landing after the scroll shifts every line above the target;
+// `document.fonts.ready` settles at once when nothing is loading.
+const afterFontsSettle = (run: () => void): (() => void) => {
+  let live = true
+  void document.fonts.ready.then(() => { if (live) run() })
+  return () => { live = false }
+}
+
+const landOnHeading = (land: {
+  readonly root: () => Element | null | undefined
+  readonly id: string
+  readonly line: number | undefined
+  readonly lines: number
+  readonly landed: () => void
+}): (() => void) => {
+  let stopSettle: (() => void) | undefined
+  const stopFrame = afterLayout(() => {
+    const root = land.root()
+    if (land.line !== undefined && land.line > land.lines) {
+      root?.scrollTo({ top: 0 })
+      land.landed()
+      return
+    }
+    const heading = land.line === undefined
+      ? root?.querySelector(`#${CSS.escape(land.id)}`) ?? null
+      : root?.querySelector('[data-search-landing="true"]') ?? null
+    if (heading === null) return
+    stopSettle = afterFontsSettle(() => {
+      heading.scrollIntoView({ block: "start" })
+      land.landed()
+    })
+  })
+  return () => { stopFrame(); stopSettle?.() }
+}
+
 export function Rendered(props: { readonly file: string }) {
   const here = useHere()
   const served = useDocument(() => props.file)
-  /** The EDITOR is untouched by this and must be: a draft is a change to the
-   * file's whole text, block and all, and `../document/DocEditor.tsx` reads
-   * the served body directly. */
   const text = () => {
     const entry = served()
     return proseIn(isServed(entry) ? entry.text : "")
   }
   const headings = createMemo(() =>
-    markdownReady() ? outlineOf(servedDirectory()?.claims(), text(), props.file) : [],
+    markdownArrival().kind === "ready" ? outlineOf(servedDirectory()?.claims(), text(), props.file) : [],
   )
 
   const landing = useLanding(() => props.file)
@@ -43,38 +81,21 @@ export function Rendered(props: { readonly file: string }) {
     && (a?.needles.every((needle, index) => needle === b?.needles[index]) ?? true) })
   createEffect(() => {
     const at = landing.owed()
-    if (!shown() || at === undefined || !markdownReady()) return
-    const id = landingId(text(), props.file, at)
-    const line = sourceLine()
     const entry = served()
-    if (!isServed(entry)) return
-    let live = true
-    // A scroll inside the effect lands before the surrounding layout has settled.
-    const frame = requestAnimationFrame(() => {
-      const root = pane?.element
-      if (line !== undefined && line > entry.text.split("\n").length) {
-        root?.scrollTo({ top: 0 })
-        landing.landed(at)
-        return
-      }
-      const heading = line === undefined
-        ? root?.querySelector(`#${CSS.escape(id)}`) ?? null
-        : root?.querySelector('[data-search-landing="true"]') ?? null
-      if (heading === null) return
-      // A font swap landing after the scroll shifts every line above the target;
-      // `fonts.ready` settles at once when nothing is loading.
-      void document.fonts.ready.then(() => {
-        if (!live) return
-        heading.scrollIntoView({ block: "start" })
-        landing.landed(at)
-      })
+    if (!shown() || at === undefined || markdownArrival().kind !== "ready" || !isServed(entry)) return
+    const cancel = landOnHeading({
+      root: () => pane?.element,
+      id: landingId(text(), props.file, at),
+      line: sourceLine(),
+      lines: entry.text.split("\n").length,
+      landed: () => landing.landed(at),
     })
-    onCleanup(() => { live = false; cancelAnimationFrame(frame) })
+    onCleanup(cancel)
   })
 
   return (
     <>
-      <Show when={served()?.refused}>
+      <Show when={served()?.state === "refused"}>
         <BodyRefused />
       </Show>
       <Show when={isServed(served())}>

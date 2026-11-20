@@ -2,10 +2,8 @@ import { serviceTag } from "@olai/plugin-api/contracts"
 export { name } from "./name.ts"
 
 import type { Undo } from "@olai/edit-history/undoing.ts"
-import type { Client } from "./client.ts"
 import type { Documents } from "./browser/document/documents.tsx"
 export interface MarkdownBrowser {
-  readonly client: () => Client
   readonly documents: Documents
   readonly history: Undo
   readonly editing: DocumentActions

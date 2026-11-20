@@ -93,18 +93,16 @@ test("documents are served keys-first, one body at a time, and read-only", () =>
   expect(MARKDOWN.has("surface/markdown/documents/delete")).toBe(false)
 })
 
-test("a document entry without refused decodes as not refused", () => {
+test("a document entry is a body or a refusal, never both", () => {
   const decode = Schema.decodeUnknownSync(DocumentEntry)
-  expect(decode({ rev: 1, text: "hello" })).toEqual({
+  expect(decode({ rev: 1, state: "served", text: "hello" })).toEqual({
     rev: 1,
+    state: "served",
     text: "hello",
-    refused: false,
   })
-  expect(decode({ rev: 1, text: null, refused: true })).toEqual({
-    rev: 1,
-    text: null,
-    refused: true,
-  })
+  expect(decode({ rev: 1, state: "refused" })).toEqual({ rev: 1, state: "refused" })
+  expect(decode({ rev: 1, state: "refused", text: "hello" })).toEqual({ rev: 1, state: "refused" })
+  expect(() => decode({ rev: 1, text: "hello" })).toThrow()
 })
 
 const MEMBERS: ReadonlyArray<{

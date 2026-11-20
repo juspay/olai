@@ -11,7 +11,7 @@ import { tools } from "./tools.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 import type { Projection } from "@olai/surface/projection"
-import { documentProjection } from "./projection.ts"
+import { documentProjection, readOnlyCollection } from "./projection.ts"
 import type { DocumentEntry } from "./wire.ts"
 import type { FiledPageReading } from "@olai/format"
 
@@ -40,9 +40,6 @@ export default definePlugin({
     }))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       onStreamReadError: (error, {stream}) => { Effect.runFork(Effect.logWarning(`markdown ${stream} read failed: ${String(error)}`)) },
-      /** The effect is run OUTSIDE this plugin's scope, which is why a failure
-       *  lands on `onStreamReadError` above rather than tearing the fiber down
-       *  — one reader's bad address must not withdraw the row from everyone. */
       streams: { documentPage: {
         read: input => {
           if (!claim.exts.some(ext => input.address.path.endsWith(ext))) return Promise.reject(new Error("this page requires this row's claimed Markdown file"))
@@ -55,9 +52,7 @@ export default definePlugin({
         isEqual: samePageReading,
       } },
       collections: {
-        documents: { readAll: () => held?.change.entries ?? empty, upsert: () => {}, remove: () => {},
-        readOne: key => held?.change.entries.get(key), }
-
+        documents: readOnlyCollection(() => held?.change.entries ?? empty),
       },
       procedures: {
         edit: { apply: ({ input }) => applyEdit(gate, input) },

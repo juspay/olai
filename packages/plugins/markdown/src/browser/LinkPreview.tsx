@@ -2,7 +2,7 @@ import { createMemo, Show } from "solid-js"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { proseIn } from "@olai/format"
 import type { Route } from "olai-plugin-navigation/contract"
-import { markdownReady } from "@olai/markdown-ui/chunk.ts"
+import { markdownArrival } from "@olai/markdown-ui/chunk.ts"
 import { outlineOf, landingId } from "@olai/markdown-ui/render.ts"
 import { isServed, useDocument } from "./document/documents.tsx"
 import { servedDirectory } from "./vault.ts"
@@ -14,7 +14,7 @@ export function MarkdownLinkPreview(props: { readonly route: Route }) {
   const text = () => { const body = entry(); return isServed(body) ? proseIn(body.text) : "" }
   const section = createMemo(() => {
     const body = entry()
-    if (!isServed(body) || !markdownReady()) return undefined
+    if (!isServed(body) || markdownArrival().kind !== "ready") return undefined
     const heading = address?.kind === "heading" ? landingId(proseIn(body.text), file, address.slug) : undefined
     const found = heading === undefined ? undefined : outlineOf(servedDirectory()?.claims(), text(), file).find(item => item.id === heading)
     return { heading, missing: heading !== undefined && !found, title: found?.text.replace(/^#\s*/, "") ?? file }
@@ -28,7 +28,7 @@ export function MarkdownLinkPreview(props: { readonly route: Route }) {
         source={text()} excerpt={{ after: section()?.heading, blocks: 3 }}
         class="olai-md-compact max-h-56 overflow-hidden" />
       <Show when={!entry()}><p class="text-xs text-muted">Reading…</p></Show>
-      <Show when={entry()?.refused}><p class="text-sm text-alarm">This document could not be read.</p></Show>
+      <Show when={entry()?.state === "refused"}><p class="text-sm text-alarm">This document could not be read.</p></Show>
     </Show>
   </>
 }

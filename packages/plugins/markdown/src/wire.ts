@@ -1,12 +1,7 @@
-import { Effect, Schema } from "effect"
+import { Schema } from "effect"
 
-/** The server still holds every served PATH and validates every declared `doc`
- * property against it (`website/docs/format.md`). */
-export const DocumentEntry = Schema.Struct({
-  rev: Schema.Int,
-  text: Schema.NullOr(Schema.String),
-  refused: Schema.Boolean.pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed(false)),
-  ),
-})
+export const DocumentEntry = Schema.Union([
+  Schema.Struct({ rev: Schema.Int, state: Schema.Literal("served"), text: Schema.String }),
+  Schema.Struct({ rev: Schema.Int, state: Schema.Literal("refused") }),
+])
 export type DocumentEntry = typeof DocumentEntry.Type

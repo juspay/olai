@@ -8,8 +8,8 @@ const draftOf = (base: string) => {
 }
 export type DocumentDraft = ReturnType<typeof draftOf>
 
-const editorOf = () => {
-  const [editing, setEditing] = createSignal(false)
+const editorOf = (open: boolean) => {
+  const [editing, setEditing] = createSignal(open)
   let held: DocumentDraft | null = null
   return {
     editing,
@@ -25,15 +25,20 @@ const editorOf = () => {
 export type DocumentEditor = ReturnType<typeof editorOf>
 export const createDocumentEditors = () => {
   const panes = new Map<string, Map<string, DocumentEditor>>()
+  let minted: string | null = null
   onCleanup(() => panes.clear())
   const editor = (pane: string, file: string): DocumentEditor => {
     let entries = panes.get(pane)
     if (entries === undefined) panes.set(pane, entries = new Map())
     let editor = entries.get(file)
-    if (editor === undefined) entries.set(file, editor = editorOf())
+    if (editor === undefined) {
+      const wasMinted = minted === file
+      minted = null
+      entries.set(file, editor = editorOf(wasMinted))
+    }
     return editor
   }
-  return { editor, retain: (active: ReadonlyMap<string, string | undefined>): void => {
+  return { editor, mintEditing: (file: string): void => { minted = file }, retain: (active: ReadonlyMap<string, string | undefined>): void => {
     for (const [pane, entries] of panes) {
       const file = active.get(pane)
       for (const key of entries.keys()) if (key !== file) entries.delete(key)

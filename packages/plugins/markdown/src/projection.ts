@@ -8,12 +8,17 @@ export const documentProjection = (snapshot: Snapshot<Reading>, previous?: Proje
   const change = collectionSlice<Markdown, DocumentEntry>(
     snapshot.value.set,
     (document): document is Markdown => isMarkdown(document) && document.kind === "markdown",
-    document => ({
-      rev: snapshot.rev,
-      text: document.body,
-      refused: files.broken.get(document.path)?.errors.some(error => error.code === "unreadable-file") === true,
-    }),
+    document => files.broken.get(document.path)?.errors.some(error => error.code === "unreadable-file") === true
+      ? { rev: snapshot.rev, state: "refused" }
+      : { rev: snapshot.rev, state: "served", text: document.body },
     files.decoded, snapshot, previous?.change, files.complete,
   )
   return { files: files.files, change }
 }
+
+export const readOnlyCollection = <V>(entries: () => Map<string, V>) => ({
+  readAll: entries,
+  readOne: (key: string) => entries().get(key),
+  upsert: () => {},
+  remove: () => {},
+})

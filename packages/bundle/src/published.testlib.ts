@@ -3,10 +3,10 @@ import {
   assemble,
   bodiedIn,
   bodyKind,
-  bodyOf,
   type BrokenFile,
   faceOf,
-
+  isMarkdown,
+  type Markdown,
   nodesOf,
   outlinesIn,
   type Reading,
@@ -91,15 +91,15 @@ const walkedDocumentsOf = (
   held: Published | null,
   broken: ReadonlyMap<string, BrokenFile>,
 ): Pick<Published, "documents"> => {
-  const documents = bodiedIn(snapshot.value.set).filter(document => document.kind === "markdown")
+  const documents = bodiedIn(snapshot.value.set).filter(
+    (document): document is Markdown => isMarkdown(document) && document.kind === "markdown",
+  )
   const change = walkedChangeOf(
     documents,
     (document) => document.path,
-    (document) => ({
-      rev: snapshot.rev,
-      text: bodyOf(document),
-      refused: walkedIsUnread(broken.get(document.path)),
-    }),
+    (document) => walkedIsUnread(broken.get(document.path))
+      ? { rev: snapshot.rev, state: "refused" as const }
+      : { rev: snapshot.rev, state: "served" as const, text: document.body },
     snapshot,
     held?.documents,
   )

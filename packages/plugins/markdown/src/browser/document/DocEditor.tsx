@@ -7,6 +7,9 @@ import { Refused } from "@olai/web/client/Refused.tsx"
 import { applying } from "../writes.ts"
 import type { DocumentDraft } from "./drafts.ts"
 
+const focusIsTakenByAnInput = (): boolean =>
+  document.activeElement?.matches("input, textarea, [contenteditable=true]") === true
+
 export function DocEditor(props: {
   readonly file: string
   readonly served: string
@@ -49,10 +52,7 @@ export function DocEditor(props: {
 
   let editor: HTMLTextAreaElement | undefined
   onMount(() => {
-    // By then the user may already be typing the next filename (or another
-    // field); mounting this editor must not redirect their next key into the
-    // document instead.
-    if (document.activeElement?.matches("input, textarea, [contenteditable=true]")) return
+    if (focusIsTakenByAnInput()) return
     editor?.focus()
   })
 

@@ -2,7 +2,7 @@ import { usePaneId } from "olai-plugin-navigation/routing"
 import { useDocumentReading } from "../reading.tsx"
 import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
-import { bodyKind, type Custom } from "@olai/format"
+import { type Custom } from "@olai/format"
 import { createMemo, createSignal, Show } from "solid-js"
 
 import { DeleteFile } from "../files.tsx"
@@ -13,14 +13,13 @@ import { DocEditor } from "./DocEditor.tsx"
 import { Referrers } from "./Referrers.tsx"
 import { isServed, useDocument, useDocumentEditor } from "./documents.tsx"
 import { Rendered } from "./Rendered.tsx"
-import { consumeMinted } from "./minted.ts"
+
 import { referrersMemory } from "../memory.ts"
 
 import { useRouter } from "olai-plugin-navigation/routing"
 
 /** Solid compares a `<Match>` condition object as a boolean (`!a === !b`), so the
- * route's arm stays true across `/a.md` → `/b.md` and this page is not remounted.
- * Keyed on file and pane so that it is. */
+ * route's arm stays true across `/a.md` → `/b.md` and this page is not remounted. */
 
 export function DocumentPage(props: {
   readonly file: string
@@ -45,8 +44,10 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   const router = useRouter()
   const editor = useDocumentEditor(pane, props.file)
   const editing = editor.editing
-  if (consumeMinted(props.file)) editor.open()
-
+  const editable = createMemo(() => {
+    const entry = served()
+    return editing() && isServed(entry) ? entry : undefined
+  })
 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
@@ -54,8 +55,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <h1 class="m-0 max-w-full break-all font-mono text-label tracking-tight text-muted">{props.file}</h1>
           <Show when={isServed(served()) && !editing()}>
-            {/* The path and question must not push either choice outside the
-                viewport. */}
+
             <div class="flex min-w-0 flex-1 basis-full flex-wrap items-baseline justify-end gap-2 sm:basis-auto">
               <button
                 type="button"
@@ -70,24 +70,17 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           </Show>
         </div>
         <NoteLine file={props.file} />
-        {/* Hidden while editing, because the editor IS the YAML (and the
-            prose), and two spellings of one block on one screen is the thing
-            the drawer must not be. */}
+
         <Show when={!editing()}>
           <Properties custom={props.custom} from={props.file} />
         </Show>
       </header>
-      <Show
-        when={editing() && isServed(served()) ? served() : undefined}
-        fallback={
-          <Rendered file={props.file} />
-        }
-      >
+      <Show when={editable()} fallback={<Rendered file={props.file} />}>
         {(body) => (
           <DocEditor
             file={props.file}
-            served={body().text ?? ""}
-            draft={editor.draft(body().text ?? "")}
+            served={body().text}
+            draft={editor.draft(body().text)}
             onDone={editor.close}
             onNudge={setNudge}
           />

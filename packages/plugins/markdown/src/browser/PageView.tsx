@@ -11,7 +11,7 @@ import { useHistory } from "./history.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { useRouter, useHere } from "olai-plugin-navigation/routing"
 import { hrefOf } from "./routing.ts"
-import { client } from "../client.ts"
+import { documentPageReading } from "../client.ts"
 
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { only } from "@olai/web/client/narrow.ts"
@@ -27,7 +27,7 @@ export function MarkdownPageView() {
   const request = createMemo<DocumentPageRequest | null>(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? null : documentRequest(claims, route()) })(), null, {
     equals: (a,b) => a === null || b === null ? a === b : samePageRequest(a,b),
   })
-  const reading = client().streams.documentPage.use(request)
+  const reading = documentPageReading(request)
   const page = createMemo<import("@olai/format").PageReading | undefined>(was => reading() ?? was)
   const history = useHistory()
   router.report(here, () => ({ history, file: file(), title: nameOf(route(),undefined) }))
