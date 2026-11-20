@@ -1,37 +1,3 @@
-/**
- * A served picture, drawn — one `<img>`, pointed at the file's own URL on the
- * media route.
- *
- * The simplest face there is, and every decision in it is about what it is
- * NOT doing.
- *
- * AN `<img>` AND NEVER INLINE MARKUP, which is the ruling and is the whole of
- * the trust boundary here. The picture kind claims `.svg` along with the raster
- * spellings (`@olai/format`'s `kinds.ts`), and an SVG is a document that can
- * script: dropped into this page's own DOM it would run in this app's origin,
- * with this app's cookies and this app's storage, which is the one thing a file
- * somebody else wrote may never do. An `<img>` is the element that will not run
- * it — no script, no external fetch, no reach into the page around it — and it
- * is the same shape a markdown `![](…)` has always drawn. The other half of the
- * promise is the RESPONSE, since a reader can also type the media URL into
- * their own address bar: `@olai/server`'s `media.ts` answers an SVG with a
- * policy that sandboxes it, so the file is inert whichever way it is reached.
- *
- * NO INTRINSIC SIZE IS ASSUMED. The file says how big it is and this does not
- * — `max-w-full` and an auto height, so a screenshot four thousand pixels wide
- * lands inside the column and a small icon is drawn at the size it is rather
- * than blown up to fill one. Same rule a picture in a document already gets
- * (`../styles.css`), stated here because this page is not markdown.
- *
- * WHERE THE URL COMES FROM is ./pointed.ts, which is the decision this face
- * shares with the `.pdf` one next door: the file on the media route, at the
- * revision it is at, so a picture replaced on disk is re-fetched rather than
- * served out of the browser's cache.
- *
- * NO EDIT, for `./Hypertext.tsx`'s reason: `markdown_write` takes a `.md` and
- * nothing else, so a control here would be a door onto a refusal. That is
- * `edits: false` in the registry of faces (./faces.tsx).
- */
 import { useHead } from "./vault.ts"
 import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-image/testids"
@@ -40,42 +6,13 @@ import { stemOf } from "@olai/format"
 
 import { usePointed } from "olai-plugin-vault/pointed"
 
-/** The file, and nothing else — ./faces.tsx's `Reading`, spelled here for the
- *  reason ./Csv.tsx spells its own. */
 export function Image(props: { readonly file: string }) {
   const src = usePointed(() => props.file, useHead(() => props.file))
 
   return (
     <img
       src={src()}
-      /* The STEM, which is what the sidebar calls this file and what a reader
-         would say out loud. Not the whole path: the path is already the
-         heading of this page, and a screen reader reading it twice is the
-         page saying the same thing in two voices. Not empty either — a
-         picture that IS the page is never decoration. */
       alt={(() => { const claims = servedDirectory()?.claims(); return claims === undefined ? props.file : stemOf(claims, props.file) })()}
-      /* FETCHED AT ONCE, AND AHEAD OF EVERYTHING. This is the one case where
-         the largest contentful paint is not a guess: the picture is the whole
-         page, so whatever the browser ends up measuring, this is it. So it is
-         said in both directions — `eager`, because deferring the image a page
-         is painted by is the mistake the priority guidance names outright, and
-         `high`, because the default heuristics only raise an image's priority
-         once layout has placed it in the viewport, and this one can be known
-         to be there before a single byte of layout has run. It is also the
-         only picture this page asks for, so the boost is spent where the
-         guidance says to spend it rather than diluted across a gallery.
-
-         `eager` is spelled rather than left off for the reason the alt text
-         above is spelled: the default and the decision look identical in the
-         DOM, and only one of them tells the next person not to make this lazy
-         "for consistency" with the pictures inside a document, which ARE lazy
-         and for a reason that does not hold here (`@olai/markdown-ui`'s
-         `rewrite.ts` argues that side).
-
-         `decoding="async"` even so: the fetch is what must be early, the
-         decode is main-thread work, and a four-thousand-pixel screenshot
-         decoded synchronously stalls the frame the page's own chrome paints
-         in. */
       loading="eager"
       fetchpriority="high"
       decoding="async"

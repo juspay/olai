@@ -16,8 +16,6 @@ Feature: The picture a page IS
     When I open the address "/art/handle.png"
     Then the document open is "art/handle.png"
     And the picture drawn is "art/handle.png"
-    # Not deferred, and asked for ahead of the rest of the page's fetches.
     And the picture that is the page is fetched first
-    # …and it really arrived, which is what makes the priority worth anything.
     And the picture has loaded
     And there should be no page errors
