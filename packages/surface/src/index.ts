@@ -32,10 +32,10 @@ export { ASSET_PREFIX, chunkFile, chunkUrl } from "./bundle.ts"
 
 export {
   BODY_REFUSED,
-  heard,
+  decodeFrameMessage,
+  type FrameMessage,
   REFUSED_MARKUP,
   ROUNDING,
-  type Said,
   SEAL,
   sealPolicy,
   spellsHost,

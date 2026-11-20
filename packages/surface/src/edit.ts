@@ -1,9 +1,9 @@
 import { OpFailure, Status } from "@olai/format"
 import { Schema } from "effect"
 
-const Id = Schema.String
+const NodeId = Schema.String
 
-const Was = <A extends Schema.Top>(text: A) =>
+const ExpectedText = <A extends Schema.Top>(text: A) =>
   Schema.optionalKey(
     text.annotate({
       description:
@@ -14,14 +14,14 @@ const Was = <A extends Schema.Top>(text: A) =>
   )
 
 export const Anchor = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("after"), id: Id }),
-  Schema.Struct({ kind: Schema.Literal("before"), id: Id }),
-  Schema.Struct({ kind: Schema.Literal("under"), id: Id }),
+  Schema.Struct({ kind: Schema.Literal("after"), id: NodeId }),
+  Schema.Struct({ kind: Schema.Literal("before"), id: NodeId }),
+  Schema.Struct({ kind: Schema.Literal("under"), id: NodeId }),
   Schema.Struct({ kind: Schema.Literal("first"), file: Schema.String }),
 ])
 export type Anchor = typeof Anchor.Type
 
-export const Edit = Schema.Union([
+const NodeEdit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("add"),
     at: Anchor,
@@ -30,92 +30,95 @@ export const Edit = Schema.Union([
   }),
   Schema.Struct({
     verb: Schema.Literal("move"),
-    id: Id,
+    id: NodeId,
     how: Schema.Literals(["in", "out", "up", "down"]),
   }),
   Schema.Struct({
     verb: Schema.Literal("under"),
-    id: Id,
-    parent: Id,
+    id: NodeId,
+    parent: NodeId,
   }),
-  Schema.Struct({ verb: Schema.Literal("toggle"), id: Id, mark: Status }),
-  Schema.Struct({ verb: Schema.Literal("walk"), id: Id }),
+  Schema.Struct({ verb: Schema.Literal("toggle"), id: NodeId, mark: Status }),
+  Schema.Struct({ verb: Schema.Literal("walk"), id: NodeId }),
   Schema.Struct({
     verb: Schema.Literal("split"),
-    id: Id,
+    id: NodeId,
     title: Schema.String,
     rest: Schema.String,
     under: Schema.optional(Schema.Boolean),
   }),
   Schema.Struct({
     verb: Schema.Literal("merge"),
-    id: Id,
+    id: NodeId,
     title: Schema.optional(Schema.String),
   }),
   Schema.Struct({
     verb: Schema.Literal("title"),
-    id: Id,
+    id: NodeId,
     title: Schema.String,
-    was: Was(Schema.String),
+    was: ExpectedText(Schema.String),
     pinned: Schema.optionalKey(Schema.Literal(true)),
   }),
   Schema.Struct({
     verb: Schema.Literal("desc"),
-    id: Id,
+    id: NodeId,
     desc: Schema.NullOr(Schema.String),
-    was: Was(Schema.NullOr(Schema.String)),
+    was: ExpectedText(Schema.NullOr(Schema.String)),
   }),
 
   Schema.Struct({
     verb: Schema.Literal("mark"),
-    id: Id,
+    id: NodeId,
     mark: Schema.NullOr(Status),
   }),
 
   Schema.Struct({
     verb: Schema.Literal("date"),
-    id: Id,
+    id: NodeId,
     date: Schema.NullOr(Schema.String),
   }),
   Schema.Struct({
     verb: Schema.Literal("repeat"),
-    id: Id,
+    id: NodeId,
     repeat: Schema.NullOr(Schema.String),
   }),
   Schema.Struct({
     verb: Schema.Literal("prop"),
-    id: Id,
+    id: NodeId,
     key: Schema.String,
     value: Schema.NullOr(Schema.String),
-    was: Was(Schema.NullOr(Schema.String)),
+    was: ExpectedText(Schema.NullOr(Schema.String)),
   }),
-  Schema.Struct({ verb: Schema.Literal("unmirror"), id: Id }),
+  Schema.Struct({ verb: Schema.Literal("unmirror"), id: NodeId }),
   Schema.Struct({
     verb: Schema.Literal("mirror"),
-    target: Id,
+    target: NodeId,
     at: Anchor,
   }),
-  Schema.Struct({ verb: Schema.Literal("trash"), id: Id }),
-  Schema.Struct({ verb: Schema.Literal("duplicate"), id: Id }),
+  Schema.Struct({ verb: Schema.Literal("trash"), id: NodeId }),
+  Schema.Struct({ verb: Schema.Literal("duplicate"), id: NodeId }),
 
   Schema.Struct({
     verb: Schema.Literal("see"),
-    id: Id,
-    add: Schema.optionalKey(Schema.Array(Id)),
-    remove: Schema.optionalKey(Schema.Array(Id)),
+    id: NodeId,
+    add: Schema.optionalKey(Schema.Array(NodeId)),
+    remove: Schema.optionalKey(Schema.Array(NodeId)),
   }),
   Schema.Struct({
     verb: Schema.Literal("after"),
-    id: Id,
-    add: Schema.optionalKey(Schema.Array(Id)),
-    remove: Schema.optionalKey(Schema.Array(Id)),
+    id: NodeId,
+    add: Schema.optionalKey(Schema.Array(NodeId)),
+    remove: Schema.optionalKey(Schema.Array(NodeId)),
   }),
   Schema.Struct({
     verb: Schema.Literal("untrash"),
-    id: Id,
-    parent: Schema.optionalKey(Id),
+    id: NodeId,
+    parent: Schema.optionalKey(NodeId),
     file: Schema.optionalKey(Schema.String),
   }),
+])
+
+const DirectoryEdit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("emptyTrash"),
     was: Schema.optionalKey(Schema.Int),
@@ -128,12 +131,14 @@ export const Edit = Schema.Union([
     at: Schema.String,
     name: Schema.optionalKey(Schema.String),
   }),
+])
 
+const FileEdit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("doc"),
     file: Schema.String,
     text: Schema.String,
-    was: Was(Schema.String),
+    was: ExpectedText(Schema.String),
   }),
   Schema.Struct({
     verb: Schema.Literal("docNew"),
@@ -148,20 +153,29 @@ export const Edit = Schema.Union([
     verb: Schema.Literal("fileDelete"),
     file: Schema.String,
   }),
+])
 
+const InverseEdit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("place"),
-    id: Id,
-    parent: Schema.NullOr(Id),
+    id: NodeId,
+    parent: Schema.NullOr(NodeId),
     file: Schema.optionalKey(Schema.String),
-    after: Schema.NullOr(Id),
+    after: Schema.NullOr(NodeId),
   }),
-  Schema.Struct({ verb: Schema.Literal("remove"), id: Id }),
+  Schema.Struct({ verb: Schema.Literal("remove"), id: NodeId }),
+])
+
+export const Edit = Schema.Union([
+  ...NodeEdit.members,
+  ...DirectoryEdit.members,
+  ...FileEdit.members,
+  ...InverseEdit.members,
 ])
 export type Edit = typeof Edit.Type
 
 export const Applied = Schema.Struct({
-  id: Id,
+  id: NodeId,
   title: Schema.String,
   file: Schema.String,
   nudge: Schema.optionalKey(Schema.String),

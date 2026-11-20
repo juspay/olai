@@ -30,17 +30,17 @@ export type SurfaceClient<S extends SurfaceSpec> = {
     & SurfaceCollectionsReadFace<S>
 }
 
-export const clientOn = <S extends SurfaceSpec>(
+export const clientOnDispatch = <S extends SurfaceSpec>(
   surface: Surface<S>,
   dispatch: SurfaceDispatch,
 ): SurfaceClient<S> =>
   buildSurfaceFace(surface, dispatch) as unknown as SurfaceClient<S>
 
-export const clientOver = <S extends SurfaceSpec>(
+export const clientBehindExposure = <S extends SurfaceSpec>(
   surface: Surface<S>,
   bound: Pick<Bound, "group" | "handlers">,
   face: FaceExposure,
 ): SurfaceClient<S> => {
   const handlers = restrictHandlers(bound.group, bound.handlers, face)
-  return clientOn(surface, directDispatch({ handlers }))
+  return clientOnDispatch(surface, directDispatch({ handlers }))
 }

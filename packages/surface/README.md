@@ -14,7 +14,7 @@ What a row does NOT reach up into this package for is the shape of its own membe
 
 `./dispatch` contains only the shared write envelopes: `Edit`/`Applied` and `WriteRequest`/`WriteResult`. Several capabilities own disjoint variants on preserved root tags. They share the same schema objects so composition can prove descriptor compatibility — `@olai/server`'s `composition.ts` refuses dispatch co-owners whose payload, success and error ASTs differ — and each registration separately declares its accepted discriminators. Sharing an envelope grants no authority to execute another provider's variant. It is here rather than in one of the six rows because a row that held it would be a row the other five could not run without.
 
-`./projection` is the slicing rule three rows call and none owns: what a revision moved (`frame`), and one collection's entries and deltas cut out of it (`changeOf`). It names no collection. Each row supplies its own predicate and its own entry, and keeps its own `Projection` between revisions.
+`./projection` is the slicing rule three rows call and none owns: what a revision moved (`decodeRevision`), and one collection's entries and deltas cut out of it (`collectionSlice`). It names no collection. Each row supplies its own predicate and its own entry, and keeps its own `Projection` between revisions.
 
 The remaining root exports are immutable schemas and pure protocol helpers used on both sides: the edit union, the media URL, the saved-page seal, the attachment policy, what a click meant, and where the hashed browser bundle lives.
 

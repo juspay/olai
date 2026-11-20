@@ -28,10 +28,6 @@ export const BuiltPlugin = Schema.Struct({
   fault: Schema.optionalKey(Schema.String),
   missing: Schema.optionalKey(Schema.Array(Schema.String)),
   carrying: Schema.optionalKey(Schema.Array(Schema.String)),
-  /** OPTIONAL, and that is load-bearing rather than tidy. A required field here
-   *  fails DECODE for a new tab talking to an older server, and the roster's
-   *  failed arm is what the browser's subscribe licence is read out of — so one
-   *  missing key would take every plugin's mount down. */
   wake: Schema.optionalKey(Schema.Struct({
     subject: Schema.String,
     waiting: Schema.Struct({ one: Schema.String, many: Schema.String }),

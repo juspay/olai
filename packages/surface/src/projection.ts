@@ -19,11 +19,7 @@ export interface Sliced<T> extends Change<T> {
   readonly born: ReadonlySet<string>
 }
 
-
-/** The revision handed in is CONSUMED: a caller must not go on reading the old
- *  one. An entry the wire is told about and an entry the map holds are written
- *  in the SAME statement. */
-export const changeOf = <S extends Document, T>(
+export const collectionSlice = <S extends Document, T>(
   set: OutlineSet,
   holds: (document: Document) => document is S,
   build: (source: S) => T,
@@ -89,7 +85,7 @@ export interface Projection<T> {
   readonly change: Change<T>
 }
 
-export const frame = (snapshot: Snapshot<Reading>, previous?: ReadonlySet<string>) => {
+export const decodeRevision = (snapshot: Snapshot<Reading>, previous?: ReadonlySet<string>) => {
   const decoded = snapshot.changed.flatMap(path => {
     const document = documentAt(snapshot.value.set, path)
     return document ? [document] : []

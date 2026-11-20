@@ -20,8 +20,6 @@ export const keyings = (
     if (!SchemaAST.isObjects(arm)) return false
     const property = arm.propertySignatures.find((one) => one.name === field)
     if (property === undefined) return false
-    // Optionality moved off the node between effect 3 and 4; ask `SchemaAST`
-    // rather than reading `context.isOptional` by hand.
     if (SchemaAST.isOptional(property.type)) return false
     return !arms(property.type).some(SchemaAST.isNull)
   }

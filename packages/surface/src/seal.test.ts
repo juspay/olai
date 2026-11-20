@@ -5,7 +5,7 @@ import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
 import { intentOf, type Press } from "./press.ts"
-import { BODY_REFUSED, heard, REFUSED_MARKUP, SEAL as seal, sealPolicy } from "./seal.ts"
+import { BODY_REFUSED, decodeFrameMessage, REFUSED_MARKUP, SEAL as seal, sealPolicy } from "./seal.ts"
 const HOST = "127.0.0.1:4173"
 
 const policy = (host: string = HOST): Record<string, ReadonlyArray<string>> => {
@@ -66,6 +66,10 @@ test("the hosts this app is actually served on are spelled", () => {
 })
 
 test("the seal opens with a doctype and carries exactly one script", () => {
+  // FIRST, because the HTML parser only reads a DOCTYPE in its "initial"
+  // insertion mode: the file's own arrives later and is ignored as a stray
+  // token, and a document that reached "before html" without one is in quirks
+  // mode, where the root box no longer measures the page.
   expect(SEAL.startsWith("<!doctype html>")).toBe(true)
   expect(scriptsIn(SEAL)).toHaveLength(1)
   expect(scriptsIn("<SCRIPT>alert(1)</SCRIPT>")).toEqual(["alert(1)"])
@@ -79,6 +83,8 @@ test("the seal opens with a doctype and carries exactly one script", () => {
 })
 
 test("the seal carries no policy and no base of its own", () => {
+  // A `<meta>` cannot carry `sandbox` — CSP3 says the directive is ignored
+  // entirely when delivered in one — so the policy has to be a header.
   expect(SEAL).not.toContain("Content-Security-Policy")
   expect(SEAL).not.toContain("<base")
 })
@@ -98,7 +104,7 @@ const HELLO = ((): string => {
 })()
 
 test("a sealed document greets its embedder before it does anything else", () => {
-  expect(heard(HELLO)).toEqual({ kind: "hello" })
+  expect(decodeFrameMessage(HELLO)).toEqual({ kind: "hello" })
   expect(SEAL.indexOf(`parent.postMessage("${HELLO}", "*")`))
     .toBeLessThan(SEAL.indexOf("addEventListener"))
 })
@@ -116,7 +122,7 @@ test("only the greeting is the greeting", () => {
       "",
     ]
   ) {
-    expect(heard(said)).not.toEqual({ kind: "hello" })
+    expect(decodeFrameMessage(said)).not.toEqual({ kind: "hello" })
   }
 })
 
@@ -128,7 +134,7 @@ const REFUSED = ((): string => {
 
 test("a refused page says so, and only the refusal is the refusal", () => {
   expect(REFUSED_MARKUP).toContain(BODY_REFUSED)
-  expect(heard(REFUSED)).toEqual({ kind: "refused" })
+  expect(decodeFrameMessage(REFUSED)).toEqual({ kind: "refused" })
   for (
     const said of [
       `${REFUSED}:`,
@@ -137,13 +143,13 @@ test("a refused page says so, and only the refusal is the refusal", () => {
       `${HEIGHT}640`,
     ]
   ) {
-    expect(heard(said)).not.toEqual({ kind: "refused" })
+    expect(decodeFrameMessage(said)).not.toEqual({ kind: "refused" })
   }
 })
 
 test("the frame's height message is the one the parser recognises", () => {
-  expect(heard(`${HEIGHT}640`)).toEqual({ kind: "reading", height: 640 })
-  expect(heard(`${HEIGHT}940`)).toEqual({ kind: "reading", height: 940 })
+  expect(decodeFrameMessage(`${HEIGHT}640`)).toEqual({ kind: "reading", height: 640 })
+  expect(decodeFrameMessage(`${HEIGHT}940`)).toEqual({ kind: "reading", height: 940 })
 })
 
 test("anything else the frame could say is not a height", () => {
@@ -163,7 +169,7 @@ test("anything else the frame could say is not a height", () => {
       "olai:page-loaded:940",
     ]
   ) {
-    expect(heard(said)).toBeUndefined()
+    expect(decodeFrameMessage(said)).toBeUndefined()
   }
 })
 
@@ -218,7 +224,7 @@ test("anything else a frame could say is not a link", () => {
       "some-other-app:open-page:/media/second.html",
     ]
   ) {
-    expect(heard(said)).toBeUndefined()
+    expect(decodeFrameMessage(said)).toBeUndefined()
   }
 })
 
@@ -235,12 +241,12 @@ test("no one of the things a frame can say begins another", () => {
 })
 
 test("a fractional page gets the pixel it needs", () => {
-  expect(heard(`${HEIGHT}640.2`)).toEqual({ kind: "reading", height: 641 })
+  expect(decodeFrameMessage(`${HEIGHT}640.2`)).toEqual({ kind: "reading", height: 641 })
 })
 
 test("a slack spelling of a number is still a number", () => {
-  expect(heard(`${HEIGHT} 640`)).toMatchObject({ height: 640 })
-  expect(heard(`${HEIGHT}0x100`)).toMatchObject({ height: 256 })
+  expect(decodeFrameMessage(`${HEIGHT} 640`)).toMatchObject({ height: 640 })
+  expect(decodeFrameMessage(`${HEIGHT}0x100`)).toMatchObject({ height: 256 })
 })
 
 test("a frame says where its anchor landed, zero and negative included", () => {
@@ -249,13 +255,13 @@ test("a frame says where its anchor landed, zero and negative included", () => {
     if (found === null) throw new Error(`the measure reports no anchor: ${SEAL}`)
     return found[1]!
   })()
-  expect(heard(`${LANDED}1298`)).toEqual({ kind: "landed", top: 1298 })
-  expect(heard(`${LANDED}0`)).toEqual({ kind: "landed", top: 0 })
-  expect(heard(`${LANDED}-40`)).toEqual({ kind: "landed", top: -40 })
+  expect(decodeFrameMessage(`${LANDED}1298`)).toEqual({ kind: "landed", top: 1298 })
+  expect(decodeFrameMessage(`${LANDED}0`)).toEqual({ kind: "landed", top: 0 })
+  expect(decodeFrameMessage(`${LANDED}-40`)).toEqual({ kind: "landed", top: -40 })
   for (const said of [`${LANDED}`, `${LANDED}down`, `${LANDED}Infinity`]) {
-    expect(heard(said)).toBeUndefined()
+    expect(decodeFrameMessage(said)).toBeUndefined()
   }
-  expect(heard(`${LANDED}1298`)?.kind).not.toBe("reading")
+  expect(decodeFrameMessage(`${LANDED}1298`)?.kind).not.toBe("reading")
 })
 
 test("a frame that is resized says where the anchor is now, unasked", () => {
@@ -295,18 +301,18 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
 
   fire("DOMContentLoaded")
   fire("load")
-  expect(said.map(heard)).toContainEqual({ kind: "landed", top: 205 })
+  expect(said.map(decodeFrameMessage)).toContainEqual({ kind: "landed", top: 205 })
 
   anchor = 1195
   said.length = 0
   fire("resize")
 
-  expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
+  expect(said.map(decodeFrameMessage)).toEqual([{ kind: "landed", top: 1195 }])
 })
 
 
 test("sealed link reports validate gestures and finite anchor geometry", () => {
   const report = { type: "olai:link", href: "/#node", action: "click", intent: "right", x: 1, y: 2, width: 30, height: 20 }
-  expect(heard(report)).toMatchObject({ kind: "link", href: "/#node", intent: "right" })
-  for (const change of [{href: "//elsewhere/"}, {href: "javascript:evil()"}, {intent: "wrong"}, {action: "wrong"}, {x: Infinity}, {width: "30"}]) expect(heard({...report, ...change})).toBeUndefined()
+  expect(decodeFrameMessage(report)).toMatchObject({ kind: "link", href: "/#node", intent: "right" })
+  for (const change of [{href: "//elsewhere/"}, {href: "javascript:evil()"}, {intent: "wrong"}, {action: "wrong"}, {x: Infinity}, {width: "30"}]) expect(decodeFrameMessage({...report, ...change})).toBeUndefined()
 })

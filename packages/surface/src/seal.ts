@@ -97,10 +97,10 @@ export const SEAL = (extensions: ReadonlyArray<string>) => `<!doctype html>` +
   `<meta name="color-scheme" content="light">` +
   `<script>${MEASURE};${FOLLOW(extensions)}</script>`
 
-/** The `Host` header lands unescaped in the policy, where a `;` opens a
- *  directive of the sender's choosing. Matched against the shape of a host
- *  rather than parsed: the URL parser's forbidden-host set excludes `;`, so
- *  `http://a;b` parses and round-trips as its own origin. */
+/** Matched against the shape of a host rather than parsed: the WHATWG URL
+ *  parser's forbidden-host set excludes `;`, so `new URL("http://a;b")` parses
+ *  and round-trips as its own origin — and the host lands unescaped in the
+ *  policy, where a `;` opens a directive of the sender's choosing. */
 const HOST = /^(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
 
 export const spellsHost = (host: string): boolean => HOST.test(host)
@@ -110,10 +110,10 @@ const sourcesOn = (host: string): ReadonlyArray<string> =>
     ? [`http://${host}${MEDIA_PREFIX}`, `https://${host}${MEDIA_PREFIX}`]
     : []
 
-/** `'none'` is a source list only when it is the WHOLE of one: a browser
- *  ignores it beside any other source, so an empty list is spelled `'none'`
- *  and nothing else is. `form-action` and `base-uri` do not fall back to
- *  `default-src`. */
+/** `'none'` is a source list only when it is the WHOLE of one (CSP3's
+ *  `serialized-source-list` grammar), so an empty list is spelled `'none'` and
+ *  nothing else is. `form-action` and `base-uri` are not fetch directives, so
+ *  neither falls back to `default-src`. */
 export const sealPolicy = (host: string): string => {
   const vault = sourcesOn(host)
   const from = (...keywords: ReadonlyArray<string>): string =>
@@ -125,14 +125,14 @@ export const sealPolicy = (host: string): string => {
     `frame-src 'none'; form-action 'none'; base-uri 'none'`
 }
 
-export type Said =
+export type FrameMessage =
   | { readonly kind: "link"; readonly href: string; readonly action: "click" | "contextmenu" | "pointerover" | "pointerout"; readonly intent?: Intent; readonly x: number; readonly y: number; readonly width: number; readonly height: number }
   | { readonly kind: "hello" }
   | { readonly kind: "refused" }
   | { readonly kind: "reading"; readonly height: number }
   | { readonly kind: "landed"; readonly top: number }
 
-export const heard = (said: unknown): Said | undefined => {
+export const decodeFrameMessage = (said: unknown): FrameMessage | undefined => {
   if (typeof said === "object" && said !== null) {
     const message = said as Record<string, unknown>
     if (message.type === "olai:link") {
@@ -141,7 +141,7 @@ export const heard = (said: unknown): Said | undefined => {
       if (![message.x, message.y, message.width, message.height].every(value => typeof value === "number" && Number.isFinite(value))) return undefined
       if (message.action === "click" && !["go", "right", "new-pane"].includes(String(message.intent))) return undefined
       return { kind: "link", href: message.href, action: message.action, intent: message.intent,
-        x: message.x, y: message.y, width: message.width, height: message.height } as Extract<Said, { kind: "link" }>
+        x: message.x, y: message.y, width: message.width, height: message.height } as Extract<FrameMessage, { kind: "link" }>
     }
     return undefined
   }

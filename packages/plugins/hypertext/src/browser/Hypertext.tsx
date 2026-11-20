@@ -1,5 +1,5 @@
 import { TESTID } from "olai-plugin-hypertext/testids"
-import { heard, mediaHref } from "@olai/surface"
+import { decodeFrameMessage, type FrameMessage, mediaHref } from "@olai/surface"
 import {
   createEffect,
   createMemo,
@@ -165,7 +165,7 @@ export function Hypertext(props: { readonly file: string }) {
   }
   onCleanup(clearLink)
   createEffect(on(() => [shown(), rev(), landing.at()], clearLink, { defer: true }))
-  const link = (said: Extract<ReturnType<typeof heard>, { kind: "link" }>) => {
+  const link = (said: Extract<FrameMessage, { kind: "link" }>) => {
     if (!shown() || !frame) return
     if (!frameLink || frameLink.getAttribute("href") !== said.href) {
       clearLink()
@@ -201,7 +201,7 @@ export function Hypertext(props: { readonly file: string }) {
   onMount(() => {
     const listen = (event: MessageEvent) => {
       if (event.source !== frame?.contentWindow) return
-      const said = heard(event.data)
+      const said = decodeFrameMessage(event.data)
       if (said === undefined) return
       if (said.kind === "refused") {
         setUnreadable(true)
