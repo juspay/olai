@@ -24,6 +24,7 @@
   max-width: 21ch;
 }
 .hero p.sub { color: var(--muted); margin-top: 1rem; max-width: 36rem; }
+.hero-say .sub + .sub { margin-top: 0.7rem; font-size: 0.95rem; }
 .brand { display: flex; align-items: center; gap: 1rem; }
 .leafmark {
   width: 4.4rem; height: 4.4rem; border-radius: 12px; object-fit: cover; object-position: 50% 20%;
@@ -59,11 +60,9 @@
 }
 .shot img { display: block; width: 100%; height: auto; }
 .hero .shot { margin-top: 1.5rem; }
-/* On a phone a whole desktop window is too small to read, so the frame shows
-   the outline and the start of the chat. */
 @media (max-width: 40rem) {
   .shot.crop { aspect-ratio: 4 / 5; }
-  .shot.crop img { width: 250%; max-width: none; margin-left: -44%; margin-top: -6%; }
+  .shot.crop img { width: 250%; max-width: none; margin-left: -148%; margin-top: -8%; }
 }
 .only-narrow { display: none; }
 @media (max-width: 40rem) { .only-wide { display: none; } .only-narrow { display: block; } }

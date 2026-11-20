@@ -27,13 +27,14 @@ const dark = PALETTES.length - light
           <h1>olai</h1>
           <img class="leafmark" src="/leaf.jpg" width="1024" height="1365" alt="A palm leaf drawn in ink, with coral tips. It is the olai mark.">
         </div>
-        <p class="tag">Notes and to-do lists that you and an AI agent edit together.</p>
+        <p class="tag">Markdown notes and outlines that you and an AI agent edit together.</p>
       </div>
       <div class="hero-say">
-        <p class="sub">olai is an outliner. An outline is a list of items, and an
-        item can hold more items under it. You write items, mark them done, and
-        give them dates. An AI agent does the same when you ask it. olai saves
-        your work as plain files on your own computer.</p>
+        <p class="sub">olai opens a directory of your notes in the browser. The
+        directory holds two kinds of file. A document is a Markdown file, the
+        same kind of file that Obsidian keeps. An outline is a list of items,
+        and an item can hold more items under it. You edit both, and an AI
+        agent does the same when you ask it.</p>
         <p class="next">
           <a href="#try">What you need to run olai</a>
         </p>
@@ -41,14 +42,14 @@ const dark = PALETTES.length - light
     </div>
 
     <figure class="shot crop">
-      <img src="/tour/outline-and-chat.png" width="2880" height="1800" alt="olai in a browser. The sidebar on the left lists two outlines. The middle shows the outline Kitchen renovation, with six of seven items marked done. The right shows a chat in which an agent marks items done.">
+      <img src="/tour/outline-and-document.png" width="2880" height="1800" alt="olai in a browser. The sidebar on the left lists two outlines and a section of documents named Reference. The middle pane shows the outline Kitchen renovation. The right pane shows the Markdown document Cabinets, with its properties, its headings, and a table.">
     </figure>
-    <p class="caption only-wide">The real app. The middle pane shows an outline. The right pane shows a chat with an agent about that outline. The agent has marked four items done. The agent in this picture is scripted, so that the picture can be made again when olai changes.</p>
-    <p class="caption only-narrow">A close view of the real app. An agent has marked four items of this outline done. The agent in this picture is scripted.</p>
+    <p class="caption only-wide">The real app. The middle pane shows an outline. The right pane shows a Markdown document that an item of the outline links to.</p>
+    <p class="caption only-narrow">A close view of the real app. This part shows a Markdown document. An outline is open beside it.</p>
 
     <ul class="points three">
       <li><b>Your notes are plain files.</b>
-        <span>olai keeps them in a directory, which is a folder on your computer. An outline is a text file with one item per line, written as JSON. A document is a Markdown file. If you stop using olai, the files stay where they are.</span></li>
+        <span>olai keeps them in a directory, which is a folder on your computer. A document is a Markdown file. An outline is a text file with one item per line, written as JSON. If you stop using olai, the files stay where they are.</span></li>
       <li><b>You choose the AI agent.</b>
         <span>olai has no AI of its own. It runs {agentList} with the account that you already have. You pick the agent each time you start a chat.</span></li>
       <li><b>You see every change.</b>
