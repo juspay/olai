@@ -23,23 +23,22 @@ const dark = PALETTES.length - light
   <div class="wrap">
     <div class="hero-grid">
       <div class="hero-copy">
-        <p class="kicker">open source · plain files · the AI agent you choose</p>
+        <p class="kicker">open source · open formats · the AI agent you choose</p>
         <div class="brand">
           <h1>olai</h1>
           <img class="leafmark" src="/leaf.jpg" width="1024" height="1365" alt="A palm leaf drawn in ink, with coral tips. It is the olai mark.">
         </div>
-        <p class="tag">Markdown notes and outlines that you and an AI agent edit together.</p>
+        <p class="tag">Your notes are files in open formats. You and an AI agent work on them together.</p>
       </div>
       <div class="hero-say">
-        <p class="sub">olai opens a directory of your notes in the browser. The
-        directory holds two kinds of file. A document is a Markdown file, the
-        same kind of file that Obsidian keeps. An outline is a list of items,
-        and an item can hold more items under it. You edit both, and an AI
-        agent does the same when you ask it.</p>
+        <p class="sub">olai opens a directory of your notes in the browser.
+        Each note is a file in an open format. Today olai edits Markdown
+        documents and outlines, and it shows HTML pages, tables, pictures, and
+        PDFs. Each format is a plugin, so a new plugin can add a format. An AI
+        agent works on the same files when you ask it.</p>
         <p class="sub">Do you keep a folder of Markdown notes? olai opens it as
         it is. Some things that Obsidian does are
-        <a href="#upcoming">upcoming for Markdown</a>, and wikilinks are one of
-        them.</p>
+        <a href="#upcoming">upcoming</a>, and wikilinks are one of them.</p>
         <p class="next">
           <a class="go" href="#see">Watch the recording</a>
           <a href="#try">What you need to run olai</a>
@@ -50,12 +49,12 @@ const dark = PALETTES.length - light
     <figure class="shot crop">
       <img src="/tour/outline-and-document.png" width="2880" height="1800" alt="olai in a browser. The sidebar on the left lists two outlines and a section of documents named Reference. The middle pane shows the outline Kitchen renovation. The right pane shows the Markdown document Cabinets, with its properties, its headings, and a table.">
     </figure>
-    <p class="caption only-wide">The real app. The middle pane shows an outline. The right pane shows a Markdown document that an item of the outline links to.</p>
-    <p class="caption only-narrow">A close view of the real app. This part shows a Markdown document. An outline is open beside it.</p>
+    <p class="caption only-wide">The real app. The middle pane shows an outline, and the right pane shows a Markdown document. They are two of the formats that olai opens.</p>
+    <p class="caption only-narrow">A close view of the real app. This part shows a Markdown document, one of the formats that olai opens.</p>
 
     <ul class="points three">
       <li><b>Your notes are plain files.</b>
-        <span>olai keeps them in a directory, which is a folder on your computer. A document is a Markdown file. An outline is a text file with one item per line, written as JSON. If you stop using olai, the files stay where they are.</span></li>
+        <span>olai keeps them in a directory, which is a folder on your computer. Each file is in an open format. A document is Markdown, and an outline is one item per line, written as JSON. If you stop using olai, the files stay where they are.</span></li>
       <li><b>You choose the AI agent.</b>
         <span>olai has no AI of its own. It runs {agentList} with the account that you already have. You pick the agent each time you start a chat.</span></li>
       <li><b>You see every change.</b>

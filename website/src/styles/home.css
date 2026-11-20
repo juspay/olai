@@ -39,7 +39,7 @@ main p, main li, main figcaption { text-wrap: pretty; }
   font-family: var(--display); font-style: italic; font-weight: 400;
   font-size: clamp(1.5rem, 2.6vw, 2.05rem);
   line-height: 1.25; margin-top: var(--space-s); text-wrap: balance;
-  max-width: 21ch;
+  max-width: 24ch;
 }
 .hero p.sub { color: var(--muted); max-width: 36rem; }
 .hero p.sub + p.sub { margin-top: var(--space-xs); font-size: 0.95rem; }
