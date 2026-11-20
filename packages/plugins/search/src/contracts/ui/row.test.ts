@@ -1,4 +1,3 @@
-/** File hits retain their address; only body line hits add a line fragment. */
 import { expect, test } from "bun:test"
 import { DocumentPath, Slug, type SearchHit } from "@olai/format"
 import { hitRow } from "./row.ts"

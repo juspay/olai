@@ -1,6 +1,3 @@
-/** The search provider owns live query subscriptions as well as its header.
- * Other features consume its scoped reading location; they retain their own
- * editing and navigation when the provider is absent. */
 import { holdServed, servedDirectory } from "./browser/vault.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { createRoot, createSignal } from "solid-js"
@@ -36,22 +33,13 @@ export default definePlugin({
 
     const slots = yield* rendererSlots
     yield* holdFaces(yield* Faces)
-    // A new callable identity for each activation makes replacement observable
-    // even when a browser sees off/on registry events in the same batch.
     const reading: SearchProvider = (...args: Parameters<SearchProvider>) => createSearch(...args)
-    // HELD FOR THIS ACTIVATION as well as offered: the header box below is a
-    // face of this same row, and `./browser/reading.ts` is how an `apply`'s
-    // value reaches a component that draws with it.
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("readings", () => reading)
     yield* slots.contribute<Hung<BarSeat>>(slotLocation("app.header"), { plugin: name, face: { place: "lead" as const, body: () => <HeaderSearch claims={servedDirectory()?.claims()} /> } }, { children: [boxBelow] })
   }),
 })
 
-/** The ⌘K box this row's control opens, DECLARED — a component of its own so
- *  the header box keeps searching with no navigation row mounted, and the
- *  press that would open a palette that is not there simply does nothing
- *  (`./browser/palette.ts`). */
 export const components = {
   files: definePlugin({ name: "files", needs: [fileAccess], apply: Effect.gen(function*() {
     const files = yield* fileAccess
@@ -72,8 +60,6 @@ export const components = {
       body: props => <KindSelector claims={files.claims} state={state} search={props.search} />,
     })
   }) }),
-  /** The app's clock, DECLARED — a component of its own so the box keeps
-   *  searching with no renderer clock mounted (`./browser/clock.ts`). */
   clock: definePlugin({ name: "clock", needs: [Clocks], apply: Effect.gen(function*() {
     const clock = yield* Clocks
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))

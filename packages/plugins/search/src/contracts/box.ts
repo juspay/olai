@@ -1,4 +1,3 @@
-/** Static contracts: the session pick and the optional face under listing boxes. */
 import type { Accessor, JSX } from "solid-js"
 import { serviceTag } from "@olai/plugin-api/contracts"
 import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"

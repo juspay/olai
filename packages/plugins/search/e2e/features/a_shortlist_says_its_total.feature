@@ -29,9 +29,6 @@ Feature: A shortlist says how much of the answer it drew
     Then the palette found "8 of 20 matches"
 
   Scenario: A palette answer that fits says nothing about a total
-    # The silence is the other half of the promise: "3 of 3 matches" is a
-    # number a reader has to take in before they can ignore it, and the rows
-    # already say how many there are.
     When I press the palette shortcut
     And I type "cabinets" into the palette
     Then the palette lists the node "order the new cabinets"
