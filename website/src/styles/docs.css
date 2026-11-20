@@ -1,11 +1,6 @@
-/* A docs page: the page map on the left, the page in the middle, its own
-   sections on the right. Narrower, the map and the sections fold into two
-   closed <details> above the page. */
-
 .docs { padding-top: 1.6rem; padding-bottom: 2rem; }
 .docs-nav { margin-bottom: 1.4rem; }
 
-/* The page map, and "On this page". */
 .docs-nav > summary,
 .contents > summary {
   cursor: pointer; list-style: none;
@@ -28,8 +23,6 @@
 .docs-nav a:hover { background: var(--desk); }
 .docs-nav a[aria-current] { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); font-weight: 700; }
 .docs-nav a.overview { font-weight: 700; margin-bottom: 0.4rem; }
-/* A group is a fold: its name and how many pages it holds, open only around
-   the page you are on. */
 .docs-nav details > summary { cursor: pointer; list-style: none; border-radius: 6px; }
 .docs-nav details > summary::-webkit-details-marker { display: none; }
 .docs-nav details > summary::before {
@@ -56,7 +49,6 @@
 .contents a { color: var(--muted); text-decoration: none; }
 .contents a:hover { color: var(--accent); }
 
-/* The page's own head: where it sits, what it is, what it covers, how long. */
 .page-head { padding-bottom: 1.1rem; border-bottom: 1px solid var(--hair); }
 .trail { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
 .page-head h1 {
@@ -67,11 +59,8 @@
 .summary { font-size: 1.12rem; color: var(--ink); margin-top: 0.75rem; max-width: 40rem; text-wrap: pretty; }
 .meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
 
-/* The page. A short line, real space between blocks, tables a reader can run
-   an eye down. */
 .prose { max-width: 44rem; margin-top: 1.6rem; overflow-wrap: break-word; }
 .prose > * + * { margin-top: 1rem; }
-/* The opening says the one thing, so it reads as the page's lede. */
 .prose > p:first-child { font-size: 1.16rem; line-height: 1.5; }
 .prose h2 {
   font-family: var(--display); font-weight: 600; font-size: 1.5rem;
@@ -107,7 +96,6 @@
 .prose td:first-child:has(> code:only-child), .prose td:first-child:has(> a:only-child) { white-space: nowrap; }
 .prose tbody tr:hover { background: color-mix(in srgb, var(--desk) 70%, transparent); }
 
-/* A long table or a listing, closed until the reader asks for it. */
 .prose details {
   border-radius: 12px; box-shadow: 0 0 0 1px var(--rule); padding: 0 1rem;
 }
@@ -119,7 +107,6 @@
 .prose details > * + * { margin-top: 0.9rem; }
 .prose details + details { margin-top: 0.6rem; }
 
-/* The overview: one card per group. */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem; margin-top: 1.6rem; }
 .card { border-radius: 14px; box-shadow: 0 0 0 1px var(--rule); padding: 1rem 1.15rem 1.1rem; }
 .card h2 { font-family: var(--display); font-weight: 600; font-size: 1.3rem; }
@@ -135,7 +122,6 @@
 .closing { max-width: 44rem; margin-top: 1.2rem; font-size: 0.86rem; color: var(--muted); }
 .cards + .closing { margin-top: 2rem; }
 
-/* Previous and next, in the index's order. */
 .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 3.5rem; max-width: 44rem; }
 .pager a {
   display: block; padding: 0.8rem 1rem; border-radius: 12px;
@@ -146,7 +132,6 @@
 .pager span { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 400; margin-bottom: 0.2rem; }
 .pager .next { grid-column: 2; text-align: right; }
 
-/* Wide: the page map becomes a sidebar. */
 @media (min-width: 56rem) {
   .docs { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 3rem; align-items: start; }
   .docs-nav {
@@ -160,7 +145,6 @@
   .docs-nav section:first-of-type { margin-top: 1.1rem; }
 }
 
-/* Wider: "On this page" stands to the right of the page. */
 @media (min-width: 80rem) {
   .wrap.docs, header.site .wrap, footer.site .wrap { max-width: 86rem; }
   .docs-main { display: grid; grid-template-columns: minmax(0, 44rem) 14rem; column-gap: 3rem; align-items: start; }

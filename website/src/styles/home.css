@@ -1,5 +1,3 @@
-/* The home page: the pitch, and pictures of what a person sees. */
-
 .hero { padding: 2.2rem 0 4.5rem; overflow: hidden; }
 .hero-grid {
   display: grid;

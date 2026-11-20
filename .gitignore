@@ -3,50 +3,26 @@ node_modules
 /result
 /result-*
 /.direnv
-# odu's per-run state and logs
 /.ci
 
-# The browser bundle, built by `just build-client` (and by the nix build, into
-# its own sandbox). Generated, never committed.
 /packages/web/dist
 
-# Throwaway scripts used while working; never part of a commit.
 /.probe
 
-# Bound URL of this worktree's `just run` / `just serve`, and the optional
-# OLAI_BIN wrapper from `just dev-bin`. Per-worktree on purpose — a shared
-# /tmp/olai-dev is how two worktrees used to dial each other.
 /.olai-dev
 
-# Review notes handed to the implementing agent — read, acted on, never
-# committed. The PR is the record; a stale critique in the tree is not.
 /PR-REVIEW.md
 
 /.claude/settings.local.json
 
-# A tenant's own mark, as a TypeScript module: GENERATED from that tenant's
-# npins pin by packages/plugin-kit/default.nix, and copied into place by
-# `just install` (the nix build regenerates it in its sandbox). The fold's
-# `.generated.` infix is what makes this glob total — any plugin's generated
-# file lands beside its component, so no second ignore pattern grows.
 /packages/plugins/**/*.generated.ts
 
-# The browser's rows, the stylesheet chain and the merged testid table:
-# GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts, so
-# that file is the only place a plugin is named. Written by `just install`
-# (the nix build rewrites them in its sandbox).
 /packages/bundle/src/rows.generated.ts
 /packages/bundle/src/fakes.generated.ts
 /packages/bundle/src/all.generated.css
 
 /packages/bundle/src/testids.generated.ts
 
-# The unit suite, to a log rather than to the terminal — `just test-log` says
-# why, and the rule generalises to every long leg. It is written down here as a
-# GLOB for that reason: the justfile tells a reader to redirect `just typecheck`
-# and `just e2e` the same way ("`> some.log 2>&1`, then grep"), and a rule that
-# named only the one leg with a recipe left every other one a file somebody
-# commits by accident on their next `git add -A`.
 /*.log
 
 /packages/bundle/src/assets.generated.ts
@@ -55,7 +31,4 @@ node_modules
 
 /packages/bundle/src/knobs.generated.ts
 
-# The guide region a failing `guide.test.ts` writes out beside the shipped
-# guide, so the difference can be read and copied. It is a scratch file: the
-# two that matter are `website/docs/dynamic-plugins.md` and the `guide.md` beside it.
 guide.next.md

@@ -1,16 +1,7 @@
-# Deploys olai.page from `nix build .#website` (website/default.nix): the
-# Astro build of website/, with the docs at website/docs/ and each plugin's
-# page beside its code. The same build is the `website` leg of `just check`.
-#
-# No `paths:` filter: website/default.nix alone says what the site is built
-# from, and a second list here would fall behind it silently. A push that
-# changed none of it rebuilds nothing and republishes the same files.
 name: pages
 
 on:
   push:
-    # `website` is here so the PR branch deploys for preview before merge;
-    # harmless to keep, since the branch is deleted on merge.
     branches: [master, website]
   workflow_dispatch:
 
@@ -40,7 +31,6 @@ jobs:
         run: nix build .#website
 
       - name: Stage it
-        # result/ is a read-only store path; Pages wants a plain directory.
         run: |
           cp -rL result _site
           chmod -R u+w _site

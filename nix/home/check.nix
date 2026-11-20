@@ -1,13 +1,7 @@
-# Evaluate a sample `services.olai` configuration against the home-manager
-# module without pulling home-manager itself: the options this module reads
-# and writes are stubbed, then the resulting systemd / launchd config is
-# asserted. Proves evaluation + the argv and supervisor knobs; does not
-# prove a real home-manager activation or a live process.
 { pkgs, module }:
 let
   inherit (pkgs) lib;
 
-  # Minimal stand-ins for the home-manager options the module touches.
   stub = { lib, ... }: {
     options = {
       home.packages = lib.mkOption {
@@ -26,8 +20,6 @@ let
         type = lib.types.attrsOf lib.types.anything;
         default = { };
       };
-      # The module refuses `environmentFile` on Darwin rather than dropping it,
-      # so the check needs somewhere for that refusal to land.
       assertions = lib.mkOption {
         type = lib.types.listOf lib.types.unspecified;
         default = [ ];
@@ -35,9 +27,6 @@ let
     };
   };
 
-  # A throwaway package so this check does not wait on the real olai build.
-  # The flake wires the real package via mkDefault; here we only care that
-  # getExe lands in argv.
   fakeOlai = pkgs.writeShellScriptBin "olai" ''
     echo "fake olai — hm-module check only" >&2
     exit 1
@@ -60,7 +49,6 @@ let
           enable = true;
           package = fakeOlai;
           dataDir = "/home/alice/outlines";
-          # host/port left at defaults so the asserts below pin them.
         } // settings;
       }
     ];
@@ -74,10 +62,6 @@ let
   darwinAgent = darwin.config.launchd.agents.olai;
   exe = lib.getExe fakeOlai;
 
-  # --- Linux (systemd) ---------------------------------------------------
-  # ExecStart is one escaped string (`lib.escapeShellArgs`). hasInfix is a
-  # regex match and refuses store-path contexts, so discard context on the
-  # executable path before searching.
   execStart = linuxService.Service.ExecStart;
   exePlain = builtins.unsafeDiscardStringContext exe;
   execPlain = builtins.unsafeDiscardStringContext execStart;
@@ -95,28 +79,21 @@ let
     assert lib.hasInfix "/home/alice/outlines" execPlain;
     assert lib.hasInfix "--port 7714" execPlain;
     assert lib.hasInfix "--host 127.0.0.1" execPlain;
-    # Policy is authored in the vault, never in supervisor argv.
     assert !(lib.hasInfix "--commit" execPlain);
     assert !(lib.hasInfix "--push" execPlain);
     assert !(lib.hasInfix "--plugins" execPlain);
     assert !(lib.hasInfix "--extra-plugins" execPlain);
     assert !(lib.hasInfix "--without-plugins" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];
-    # Logging policy also belongs in the vault.
     assert !(linuxService.Service ? Environment);
-    # Darwin path must not fire on Linux.
     assert linux.config.launchd.agents == { };
     true;
 
-  # --- only bootstrap and environment options remain ---------------------
   _removed =
     assert builtins.attrNames linux.options.services.olai ==
       [ "agents" "dataDir" "enable" "environmentFile" "host" "package" "port" ];
     true;
 
-  # --- the environment agents inherit ------------------------------------
-  # No EnvironmentFile unless one was named: an empty setting is not a file
-  # systemd should be told to read.
   withEnvFile = evalFor { isLinux = true; isDarwin = false; }
     { environmentFile = "/home/alice/.config/olai/env"; };
   darwinEnvFile = evalFor { isLinux = false; isDarwin = true; }
@@ -127,19 +104,12 @@ let
     assert !(linuxService.Service ? EnvironmentFile);
     assert withEnvFile.config.systemd.user.services.olai.Service.EnvironmentFile
       == "/home/alice/.config/olai/env";
-    # Nothing else moved: the file is an addition to the unit, not a rewrite,
     assert withEnvFile.config.systemd.user.services.olai.Service.Restart == "always";
-    # ... and launchd, which has no such knob, REFUSES rather than dropping it.
     assert failed linux == [ ];
     assert failed darwin == [ ];
     assert builtins.length (failed darwinEnvFile) == 1;
     true;
 
-  # --- the agent search path ---------------------------------------------
-  # The option exists so a consumer never has to know the variable's NAME or
-  # its one surprise (it REPLACES the search path). Empty, nothing is set at
-  # all: an unset variable is what makes the probe fall back to the unit's own
-  # PATH, and `OLAI_AGENT_PATH=""` would be a search path with nothing on it.
   fakeAgent = pkgs.writeShellScriptBin "an-agent" "exit 1";
   linuxAgents = evalFor { isLinux = true; isDarwin = false; } { agents = [ fakeAgent ]; };
   darwinAgents = evalFor { isLinux = false; isDarwin = true; } { agents = [ fakeAgent ]; };
@@ -148,19 +118,14 @@ let
     assert !(darwinAgent.config ? EnvironmentVariables);
     assert linuxAgents.config.systemd.user.services.olai.Service.Environment
       == [ "OLAI_AGENT_PATH=${lib.makeBinPath [ fakeAgent ]}" ];
-    # ... and the same fact on the other supervisor, in its own spelling: a
-    # search path is not a secret, so launchd takes it where it refuses
-    # `environmentFile`.
     assert darwinAgents.config.launchd.agents.olai.config.EnvironmentVariables
       == { OLAI_AGENT_PATH = lib.makeBinPath [ fakeAgent ]; };
-    # Nothing else moved on either: this is an addition to the unit.
     assert linuxAgents.config.systemd.user.services.olai.Service.Restart == "always";
     assert darwinAgents.config.launchd.agents.olai.config.RunAtLoad == true;
     assert failed linuxAgents == [ ];
     assert failed darwinAgents == [ ];
     true;
 
-  # --- Darwin (launchd) --------------------------------------------------
   args = darwinAgent.config.ProgramArguments;
   _darwin =
     assert darwinAgent.enable == true;
@@ -182,7 +147,6 @@ let
       "127.0.0.1"
     ];
     assert darwin.config.home.packages == [ fakeOlai ];
-    # Linux path must not fire on Darwin.
     assert darwin.config.systemd.user.services == { };
     true;
 in

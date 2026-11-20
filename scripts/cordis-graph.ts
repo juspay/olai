@@ -1,28 +1,3 @@
-/**
- * `just cordis-graph`: the plugin rows as a graph you can click.
- *
- * Reads `packages/bundle/olai.yml` for the rows, then walks each row's server
- * and browser half (the package's `./server` and `./browser` doors and every
- * module they reach by relative import) with the TypeScript parser and records
- * three things per half:
- *
- *   - every `definePlugin({ name, needs: [...] })` — a component and what it
- *     declares it needs;
- *   - every `offers.offer(Key, …)` — a service this half provides;
- *   - every `x.contribute(Location, …)` — a location this half contributes to.
- *
- * Service keys and locations are matched to their owner by declaration:
- * `serviceTag("…")` and `location("…")` calls across every package, with
- * `provide(host, Key, …)` in the host packages marking a key as host-supplied
- * and `offers.offer(Key, …)` in a row overriding the declaring package, since
- * `Directory` is declared in plugin-api and offered by vault.
- *
- * Serves one page. `/graph.json` recomputes on every request, so editing a
- * plugin and reloading the page is enough.
- *
- * Read-only over the tree; no import of any olai package.
- */
-
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import * as path from "node:path"
 
@@ -33,22 +8,16 @@ const ROOT = path.resolve(import.meta.dirname, "..")
 const PLUGINS = path.join(ROOT, "packages", "plugins")
 const PACKAGES = path.join(ROOT, "packages")
 
-// ---------------------------------------------------------------------------
-// The tree
-
 interface Row {
   readonly id: string
   readonly name: string
   readonly section: string
   readonly disabled: boolean
   readonly profiles: ReadonlyArray<string>
-  /** The first paragraph of `website/docs/plugins/<id>.md`, or `null` when there is none. */
   readonly description: string | null
   readonly doc: string | null
 }
 
-/** What a row is for, in the words its doc page opens with: the first
- *  paragraph after the title, markdown links flattened to their text. */
 const describe = (id: string): { description: string | null; doc: string | null } => {
   const doc = path.join("website", "docs", "plugins", `${id}.md`)
   if (!existsSync(path.join(ROOT, doc))) return { description: null, doc: null }
@@ -76,7 +45,6 @@ const rowsOf = (): ReadonlyArray<Row> => {
   }))
 }
 
-/** package name → package directory, for every workspace member. */
 const packageDirs = (): ReadonlyMap<string, string> => {
   const out = new Map<string, string>()
   const visit = (dir: string) => {
@@ -130,7 +98,6 @@ const doorOf = (dir: string, door: string): string | null => {
   return target === undefined ? null : path.join(dir, target)
 }
 
-/** A module and everything it reaches by relative import, inside one package. */
 const closureOf = (entry: string): ReadonlyArray<string> => {
   const seen = new Set<string>()
   const queue = [entry]
@@ -152,18 +119,11 @@ const closureOf = (entry: string): ReadonlyArray<string> => {
   return [...seen]
 }
 
-// ---------------------------------------------------------------------------
-// Declarations: which identifier is which key, and who declares it
-
 interface Key {
   readonly name: string
   readonly kind: "service" | "location"
   readonly declaredIn: string
-  /** Row id, "host", or "?" */
   owner: string
-  /** Where ownership was read from: an `offers.offer` or `offers.own` call in
-   *  a row, a `provide(host, …)` in a host package, the declaring package, the
-   *  `<row>.<word>` naming convention, or nothing. */
   ownerBy: "offer" | "own" | "host" | "declaration" | "name" | "unknown"
 }
 
@@ -192,8 +152,6 @@ const calleeText = (call: ts.CallExpression): string => {
   return ""
 }
 
-/** identifier text → key, read off `const X = serviceTag("…")` / `location("…")`,
- *  with `const Y = X` aliases followed. */
 const declarations = (dirs: ReadonlyMap<string, string>, rows: ReadonlyArray<Row>): Declared => {
   const byIdent = new Map<string, Key>()
   const byName = new Map<string, Key>()
@@ -227,7 +185,6 @@ const declarations = (dirs: ReadonlyMap<string, string>, rows: ReadonlyArray<Row
     const key = byIdent.get(target)
     if (key !== undefined && !byIdent.has(alias)) byIdent.set(alias, key)
   }
-  // Host provision, read off every non-plugin package.
   for (const [name, dir] of dirs) {
     if (name.startsWith("olai-plugin-")) continue
     for (const file of sourcesUnder(path.join(dir, "src"))) {
@@ -243,8 +200,6 @@ const declarations = (dirs: ReadonlyMap<string, string>, rows: ReadonlyArray<Row
   return { byIdent, byName }
 }
 
-/** `import { shell as appShell }` — what a file calls a key is not always the
- *  name it was declared under. */
 const importAliases = (source: ts.SourceFile): ReadonlyMap<string, string> => {
   const out = new Map<string, string>()
   for (const statement of source.statements) {
@@ -257,9 +212,6 @@ const importAliases = (source: ts.SourceFile): ReadonlyMap<string, string> => {
   }
   return out
 }
-
-// ---------------------------------------------------------------------------
-// Rows: components, offers, contributions
 
 interface Component {
   readonly name: string
@@ -291,7 +243,6 @@ const halfOf = (entry: string, declared: Declared, rowId: string): Half => {
       if (callee === "definePlugin") {
         const spec = node.arguments[0]
         if (spec === undefined || !ts.isObjectLiteralExpression(spec)) return
-        // A shorthand `name` is the row's own `name` export, which is its id.
         let name = rowId
         const needs: Array<string> = []
         const unresolved: Array<string> = []
@@ -315,7 +266,6 @@ const halfOf = (entry: string, declared: Declared, rowId: string): Half => {
       }
       const first = node.arguments[0]
       if (first === undefined) return
-      // `offers.own("word")` provides the row-owned key `<row>.<word>`.
       if (callee === "own" && ts.isStringLiteral(first)) {
         const name = `${rowId}.${first.text}`
         offers.add(name)
@@ -357,9 +307,6 @@ export const graph = (): Graph => {
       browser: browser === null ? null : halfOf(browser, declared, row.id),
     }
   })
-  // What nobody offered, owned or provided: the `<row>.<word>` convention
-  // (plugin-vocabulary.md's offer) names the row; a key declared in a host package
-  // with no provider found is the host's.
   const ids = new Set(rows.map((row) => row.id))
   for (const key of declared.byName.values()) {
     if (key.ownerBy !== "unknown") continue
@@ -370,9 +317,6 @@ export const graph = (): Graph => {
   const keys = [...declared.byName.values()].sort((a, b) => a.name.localeCompare(b.name))
   return { rows: out, keys }
 }
-
-// ---------------------------------------------------------------------------
-// The page
 
 const PAGE = /* html */ `<!doctype html>
 <meta charset="utf-8">
@@ -609,8 +553,6 @@ if (import.meta.main) {
         try {
           return Response.json(graph())
         } catch (error) {
-          // Keep exception details in the terminal; the HTTP response must
-          // not expose paths or stack information embedded in an error.
           console.error(error)
           return new Response("Could not build the Cordis graph. See the server terminal for details.", { status: 500 })
         }

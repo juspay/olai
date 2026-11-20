@@ -1,12 +1,3 @@
-# Build every flake output on linux + darwin and push the closures to odu's
-# `kolu-r2` bucket on Cloudflare R2, read at https://cache.kolu.dev/kolu-r2:
-# the same daemon that runs this repository's CI owns the bucket. The flake
-# already lists this cache as a substituter, so a green run here warms
-# `nix build` / `nix develop` on both platforms (odu lanes included). The push
-# is `juspay/odu/.github/actions/push`: the step any project uses, which brings
-# its own `odu` from the sha it is pinned to, and names no cache at all — it
-# reads the one odu substituter out of `./flake.nix` — and proves every path
-# the bucket serves answers at the substituter before it goes green.
 name: nix-cache
 
 on:
@@ -27,19 +18,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # xlarge is the ARM box (aarch64-darwin). macos-latest-large is Intel
-        # and would warm x86_64-darwin instead.
         os: [ubuntu-latest, macos-latest-xlarge]
     runs-on: ${{ matrix.os }}
     steps:
-      # pull_request's default ref is the synthetic merge commit; warm the
-      # branch head (what `nix run github:juspay/olai/<branch>` builds).
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      # The bucket's public half: the same pair every flake advertises, so this
-      # job substitutes what an earlier run pushed instead of rebuilding it.
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
         with:
           nix_conf: |
@@ -49,8 +34,7 @@ jobs:
 
       # BUILD HERE, PUSH IN THE NEXT STEP — because the push is an action
       # (`juspay/odu/.github/actions/push`) that owns its own `odu`, its own
-      # token rule and its own proof of what landed. Nothing in this step
-      # reads a secret or branches on one.
+      # token rule and its own proof of what landed.
       - name: Build every flake output, and name its closure roots
         id: roots
         shell: bash
@@ -79,17 +63,10 @@ jobs:
             echo "::error::nix build produced no output paths"
             exit 1
           fi
-          # Runtime closures of the outputs, plus each output's realized
-          # build-time inputs (bun-pkg FODs a rebuild still needs). The
-          # bucket's upstream filter drops anything already on cache.nixos.org,
-          # and the pusher expands each path's own closure, so this is
-          # the list of ROOTS, not of every path.
-          #
           # `.drv` FILES ARE FILTERED OUT. `nix-store -qR --include-outputs` on
           # a deriver answers that deriver's whole input graph, recipes and
           # all, and a binary cache serves outputs: pushing one is refused with
-          # "is a derivation — a cache serves outputs". The OUTPUTS of those
-          # inputs are what a rebuild actually substitutes, and they stay.
+          # "is a derivation — a cache serves outputs".
           {
             printf '%s\n' "$paths"
             while IFS= read -r p; do
@@ -98,14 +75,6 @@ jobs:
               nix-store -qR --include-outputs "$drv"
             done <<< "$paths"
           } | awk 'NF && !seen[$0]++ && $0 !~ /\.drv$/' > "$RUNNER_TEMP/roots"
-          # THE ACTION'S `paths:` INPUT IS ONE ENVIRONMENT VARIABLE, and Linux
-          # caps a single environment string at 128 KiB (`MAX_ARG_STRLEN`). A
-          # full flake's roots are ~2 500 store paths — ~210 KiB — so they
-          # cannot be named one by one in it. They are named as LINKS instead:
-          # one symlink per root, thirteen bytes a line, ~33 KiB. That is a
-          # shape the action already takes ("`result` links"), and
-          # `nix path-info` reads a link as the store path it points at, so
-          # what reaches the pusher — and what it uploads — is unchanged.
           links="$GITHUB_WORKSPACE/.roots"
           mkdir -p "$links"
           {
@@ -116,8 +85,6 @@ jobs:
               printf '%s\n' "./.roots/$name"
             done < "$RUNNER_TEMP/roots"
           } > "$RUNNER_TEMP/paths"
-          # A POSITIVE ASSERTION: roots that reached the action as an empty
-          # input would push nothing and still report success.
           [ -s "$RUNNER_TEMP/paths" ] || {
             echo "::error::the built outputs named no closure roots"
             exit 1
@@ -128,50 +95,6 @@ jobs:
             echo "ODU_PUSH_ROOTS"
           } >> "$GITHUB_OUTPUT"
 
-      # THE PUSH, AND ITS PROOF. `juspay/odu/.github/actions/push` is the step
-      # any project uses, and it decides nothing for its caller: the `odu` it
-      # pushes with is built from ITS OWN checkout, so this pinned sha is the
-      # client — not a release page that can drift. It expands and uploads the
-      # roots above (named as the links the previous step made), then asks the
-      # bucket over plain HTTP, as a Nix client would, for every served path's
-      # narinfo AND the NAR it names: a narinfo that answers proves nothing
-      # about the object behind it, and a NAR truncated by a proxy's body cap
-      # is caught rather than counted as landed. Any path that fails is named
-      # and the step is red.
-      #
-      # THE TOKEN RULE IS THE ACTION'S: no token on a pull request builds and
-      # pushes nothing (the PR is still owed its build); no token on a `push`
-      # event fails, naming the secret; and the token is never an argument.
-      #
-      # NO `cache:` — THE FLAKE IS THE ONE DECLARATION. With the input
-      # omitted the step runs `odu cache target` in this checkout, takes the
-      # single odu substituter `./flake.nix`'s `nixConfig` names
-      # (https://cache.kolu.dev/kolu-r2, the same line that makes reads work),
-      # and pushes there by name with the token. The URL is written once, for
-      # reading, and the push follows it; this workflow can no longer name a
-      # cache the flake does not.
-      #
-      # NO `pin:` EITHER — THE ACTION HOLDS THE DEFAULT BRANCH'S CLOSURE ON
-      # ITS OWN. Left empty it pins when `github.ref` is
-      # `refs/heads/<default branch>`, read from the event payload: exactly
-      # the comparison this step used to spell out, now the action's default
-      # (#169). A pull request still builds and pushes, and still holds
-      # nothing.
-      #
-      # THE ACTION PIN IS ODU MASTER, `71e6240` — #169's merge commit, where
-      # that default landed and where every pushed narinfo began carrying the
-      # run and commit that built it. `odu cache` speaks the bucket daemon's
-      # own HTTP API and no released `odu` has cache verbs, so this is
-      # re-pinned by SHA.
-      #
-      # IT IS NOT, AND NEED NOT BE, `npins/sources.json`'s `odu`. That pin is
-      # the one the plugin's hydrated `@odu/*` sources are compiled from, and
-      # kolu's `nix/consumer.nix` refuses any value but the revision KOLU was
-      # built against — kolu grafts those three gitignored packages from its
-      # own odu pin and olai grafts them from this one, and a `tsc` that mixes
-      # two revisions typechecks until a field moves. So that pin walks when
-      # kolu's does. This sha is a GitHub action fetched by ref; it answers to
-      # nothing in this tree.
       - uses: juspay/odu/.github/actions/push@71e62402008e328779676618e43d499f9d299988 # odu master: #169 merged
         with:
           token: ${{ secrets.ODU_CACHE_TOKEN }}

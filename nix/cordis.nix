@@ -1,149 +1,49 @@
-# The pinned Cordis TypeScript olai's server runs on — FOUR packages from one
-# repo, copied the way `@odu/run-client` is.
+# Upstream Cordis gotchas olai cannot use the pin without working around. The
+# code-side ledger of what each workaround costs is
+# `packages/effect-cordis/README.md`'s "Where the pin's instability lives".
+# Status at f8ea3cd (cordis 4.0.0-rc.10, plugin-loader 1.0.0-rc.7,
+# plugin-include 1.1.0): all four still open.
 #
-# cordiverse/cordis is a workspace: `packages/core` is `cordis`, `packages/loader`
-# is `@cordisjs/plugin-loader`, `packages/include` is `@cordisjs/plugin-include`
-# and `packages/group` is `@cordisjs/plugin-group`. All four are hydrated as raw
-# TypeScript from the npins pin (npins/sources.json, name `cordis`). There is no
-# vendor/ copy and no sync script: bumping the pin is `just update-pins`, the
-# same as kolu and odu. Cordis arrives ONLY this way — the human's ruling of
-# 2026-09-02, and the reason `packages/cordis-spike` shipped nothing.
-#
-# WHY FOUR AND NOT TWO. The spike hydrated core and the loader, which is enough
-# to mount a fiber from a row. olai's base bundle is a FILE, and the file’s row selection is
-# a `disabled` patch over the rows in it — which is `@cordisjs/plugin-include`'s
-# job, and `-group` is the one builtin (`cordis:group`) a row may name to nest
-# other rows. Both are peers of the core the pin already carries, so hydrating
-# them is one more (src, dest) pair each rather than a second arrangement.
-#
-# THE PIN TRACKS `main` at the revision this tree compiled against. `just
-# update-pins` walks it forward; `npins/sources.json` records the sha either way.
-# (Upstream renamed `master` to `main`; the pin followed at 4.0.0-rc.10, f8ea3cd.)
-#
-# ## The two throwaway arms of the spike's rewrite, and what became of them
-#
-# Upstream's manifests point at `lib/` — a `tsc` emit this tree does not run —
-# so the hydrated copy's `main`, `types`, `typings` and every `exports` entry
-# are rewritten to `src/`. The spike rewrote `exports["."]` ALONE, which was
-# enough for the two specifiers it imported and was not a proof the rewrite was
-# complete. This one WALKS the map: every string under `exports`, at any depth,
-# that names `./lib/<x>.js` or `./lib/<x>.d.ts` becomes `./src/<x>.ts`, and a
-# conditional entry (`{types, default}`) collapses to the one source file both
-# conditions now mean. A package with no `exports` at all — include and group,
-# which publish `lib/` and nothing else — is GIVEN one, so `import
-# "@cordisjs/plugin-include"` resolves the same way the other two do.
-#
-# And the `@ts-nocheck` stamp STAYS, which is the one thing phase 2 owed and
-# did not get. It is no longer a hand-wave, though: the spike said "olai's tsc
-# is stricter than Cordis's" and phase 2 MEASURED it, which turns a suspicion
-# into a five-line upstream ask.
-#
-# ## The delta, exactly
-#
-# Cordis's own `tsconfig.base.json` is `strict: true`, and each package it
-# publishes turns options back OFF in its own `tsconfig.json`:
-#
-#   packages/core     noImplicitAny: false, noImplicitThis: false, strictFunctionTypes: false
-#   packages/loader   noImplicitAny: false
-#   packages/include  (base only)
-#   packages/group    (base only)
-#
-# and olai's `tsconfig.base.json` adds two upstream does not set at all:
-# `noUncheckedIndexedAccess` and `noImplicitOverride`. Compiled under Cordis's
-# OWN per-package flags the pinned revision is clean — verified against
-# `packages/core` at this revision, which emits declarations with no error.
-# Compiled under olai's, it is ~35 errors, every one of them an instance of
-# those five flags and none of them a bug in Cordis.
-#
-# So this is not a delta olai can close from here: an option a package turns off
-# for itself is a decision about how that package is written, and the honest
-# route the proposal names is the second one — the delta goes upstream as the
-# ask "adopt noUncheckedIndexedAccess and noImplicitOverride, and retire the
-# three off-switches", and this stamp comes off the day a pin bump makes it
-# true. It is a real suppression and it is worth naming what it does NOT
-# suppress: the pin's exported TYPES are still computed and olai's own call
-# sites are still checked against them, so a revision that moved the API is red
-# in olai's source. What the stamp hides is Cordis's authoring, not Cordis's
-# shape.
-#
-# ## THE FIVE UPSTREAM ASKS, kept together because they are the same class
-#
-# Every one of them is a place olai cannot use the pin as written, and every one
-# is written down here rather than worked around silently. The code-side ledger
-# of what each workaround costs is `packages/effect-cordis/README.md`'s "Where
-# the pin's instability lives", which names the file, the test and the failure
-# shape for asks 2 to 5; this list is the ASK. The first has no row there and
-# could not: it is a property of how the pin is HYDRATED rather than an
-# assumption the bridge makes about its behaviour, and it is argued here alone.
-#
-#   1. THE STRICTNESS DELTA above — adopt `noUncheckedIndexedAccess` and
-#      `noImplicitOverride`, retire the three off-switches — which takes the
-#      `@ts-nocheck` stamp with it.
-#   2. A PUBLIC RESOLVER SEAM on `@cordisjs/plugin-loader`. `EntryTree.import`
+#   1. NO PUBLIC RESOLVER SEAM on `@cordisjs/plugin-loader`. `EntryTree.import`
 #      resolves a row's `name` with a bare `import()` from inside the loader's
 #      own package, which under bun's isolated linker cannot see a workspace
-#      member; the only way through today is to fill `loader.internal` — the
-#      slot upstream keeps for Node's own `ModuleLoader` — with one method and a
-#      cast (`packages/effect-cordis/src/loader.ts`, which names the revision it
-#      was verified against). A `resolve` option on `Loader.Config`, or a
-#      documented import hook, would make "a consumer whose module graph the
-#      loader cannot walk" a supported case rather than a cast that fails at
-#      runtime.
-#   3. A TYPED DUPLICATE-PROVIDER ERROR. `ctx.provide` refuses a second provider
-#      by throwing a plain `Error` whose PROSE carries the owning fiber's name
-#      (`service "x" has been registered at <owner>`), so the only way to report
-#      which two rows collided is to match that sentence and slice the owner out
-#      of it (`packages/effect-cordis/src/lifecycle.ts`, pinned by a test in
-#      `lifecycle.test.ts`). A `ServiceConflictError` carrying the owner would
-#      make the report structural, and a reword would then cost nothing.
-#   4. SEQUENTIAL DISPOSER UNLOAD, or a documented ordering. A fiber's disposers
-#      are unloaded with `Promise.all`, so a disposer that waits for dependents
-#      does not keep the disposers BESIDE it from releasing first. olai
-#      compensates by taking its provisions' disposers out of that set and
-#      running them itself in order (`lifecycle.ts`'s `offer` and `close`), which
-#      is the pin coupling with the sharpest edge: it asserts the handoff so a
-#      revision that changes disposer ownership names itself.
-#   5. AN ERROR WITHOUT A STACK SURVIVES `composeError`. Its `handleError`
-#      splits `.stack` on the error it is splicing and on two it made itself;
-#      under Bun an Error can have no `stack` (always so while
-#      `Error.stackTraceLimit` is 0), and the splice then throws a TypeError
-#      ("undefined is not an object") in place of a failed start or a
+#      member; the only way through is to fill `loader.internal` — the slot
+#      upstream keeps for Node's own `ModuleLoader` — with one method and a
+#      cast (`packages/effect-cordis/src/loader.ts`). rc.7 resolves bare
+#      specifiers by writing a `.cordis/resolve.mjs` helper into the config
+#      file's project, which is not a seam a consumer can supply.
+#   2. NO TYPED DUPLICATE-PROVIDER ERROR. `ctx.provide` refuses a second
+#      provider by throwing a plain `Error` whose PROSE carries the owning
+#      fiber's name (`service "x" has been registered at <owner>`), so the
+#      owner can only be recovered by matching that sentence
+#      (`packages/effect-cordis/src/lifecycle.ts`, pinned by `lifecycle.test.ts`).
+#   3. DISPOSERS UNLOAD CONCURRENTLY. A fiber's disposers are unloaded with
+#      `Promise.all` (`Fiber._unload`), so a disposer that waits for dependents
+#      does not keep the disposers beside it from releasing first; olai takes
+#      its provisions' disposers out of that set and runs them in order
+#      (`lifecycle.ts`'s `offer` and `close`).
+#   4. AN ERROR WITHOUT A STACK DOES NOT SURVIVE `composeError`. `handleError`
+#      (`src/utils.ts`) splits `.stack` unguarded; under Bun an Error can have
+#      no `stack` (always so while `Error.stackTraceLimit` is 0), and the
+#      splice then throws a TypeError in place of the failed start or
 #      `ctx.provide` refusal. olai keeps what a start threw itself and reads a
-#      lost refusal off the service store
-#      (`packages/effect-cordis/src/lifecycle.ts`); a `typeof` guard upstream
-#      would retire both.
+#      lost refusal off the service store (`lifecycle.ts`).
 #
-# STATUS AT f8ea3cd (cordis 4.0.0-rc.10, plugin-loader 1.0.0-rc.7, plugin-include
-# 1.1.0): all five still open. 1: the per-package off-switches are unchanged.
-# 2: rc.7 resolves bare specifiers from the config file's project by writing a
-# `.cordis/resolve.mjs` helper there. That is not a seam a consumer can supply,
-# so `loader.internal` stays filled (its header in `loader.ts` says why).
-# 3: `reflect.ts` still throws the prose. 4: `Fiber._unload` is still one
-# `Promise.all` (`upstream.test.ts` asks it). 5: `handleError` in
-# `src/utils.ts` still calls `.split` on `.stack` unguarded, for both
-# `info.error` and the outer error it makes.
+# The `@ts-nocheck` stamp below is the fifth: compiled under olai's
+# `noUncheckedIndexedAccess` / `noImplicitOverride` (which upstream does not
+# set) plus the three options each Cordis package turns off for itself, the pin
+# is ~35 errors. The stamp hides Cordis's authoring only — the pin's exported
+# types are still computed and olai's call sites still checked against them.
 #
-# None is a blocker: the tree works. All five are the pin's own shape asking to
-# be a little wider, and a note here is how they stay askable.
-#
-# cosmokit, `@standard-schema/spec` and js-yaml stay on npm, declared at the
-# root at the versions the pin names — the same arrangement `@odu/run-client`
-# has with `effect`. The copier is kolu's (`hydrate-kolu-packages.sh`); this
-# file supplies argv.
+# Upstream's manifests point at `lib/` (a `tsc` emit this tree does not run),
+# so the hydrated copy's entry points are rewritten to `src/`, and the two
+# packages that publish no `exports` at all are given one.
 
 { pkgs }:
 
 let
   npins = import ../npins;
 
-  # ONE REWRITE FOR FOUR MANIFESTS. `walk` is jq's own recursive map, so a
-  # subpath nested inside a condition object is reached without this filter
-  # knowing the shape of any particular manifest — which is the whole
-  # difference between this and the spike's single-key `exports["."]`.
-  #
-  # `private = true` keeps bun from ever treating the copy as a registry
-  # package: it is a Nix-store source dropped into node_modules after the
-  # install, exactly as the @kolu/* members are.
   asTypescript = name: src:
     pkgs.runCommand name { nativeBuildInputs = [ pkgs.jq ]; } ''
       cp -r ${src} $out
@@ -185,26 +85,12 @@ let
     builtins.fromJSON (builtins.readFile "${npins.cordis}/packages/${dir}/package.json");
 in
 {
-  # Four (src, dest) pairs, in the shape `hydrate-kolu-packages.sh` takes.
   hydrateArgs =
     "${core} cordis "
     + "${loader} @cordisjs/plugin-loader "
     + "${include} @cordisjs/plugin-include "
     + "${group} @cordisjs/plugin-group";
 
-  # The pin's own runtime dependencies, for `scripts/check-hydrated-deps.sh` —
-  # the UNION over the four hydrated packages, because all four resolve their
-  # externals by walking up into the one root node_modules and a check that
-  # asked only about the core would be green while the loader's `cosmokit` or
-  # include's `js-yaml` was missing.
-  #
-  # Peers are deliberately NOT folded in here, and that is this pin's one
-  # departure from the shape kolu's `externals` has. Every peer the four
-  # declare is ANOTHER OF THE FOUR (`cordis`, `@cordisjs/plugin-loader`) plus
-  # `node-addon-require-builtin`, which is optional and is the Node-internals
-  # route the loader takes when it can — under Bun it cannot, and `import()`
-  # by specifier is the arm that runs (§5's HMR note). None of those is an npm
-  # external the root could declare without inventing a second copy of a pin.
   externals =
     (manifestOf "core").dependencies
     // (manifestOf "loader").dependencies

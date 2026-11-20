@@ -1,56 +1,7 @@
 #!/bin/sh
-# PROVE THE FENCE — a mutation run, so "the fence is as strong as before" is a
-# thing somebody watched happen rather than a sentence in a PR body.
-#
-# What is left here is TWO HALVES, and the first is not this script's:
-#
-#   1. THE DOOR'S OWN PROOF. `@olai/effect-cordis/fence` ships `prove`, which
-#      breaks a COPY of this tree once per claim — a cross-row import, a
-#      `node:` builtin on a browser root, a row's word in a host's code, a
-#      module-scope value behind a door, a package declaring a row nobody
-#      named — and asserts the claim that names each defect refuses it. That is
-#      the falsifier for the five GENERIC claims, and it runs here because the
-#      declaration it proves is olai's.
-#
-#   2. OLAI'S OWN MUTATIONS, below — the defects only this build can be about:
-#      a general package importing a plugin, a manifest declaring one, the
-#      engine reached directly, a hydrated appliance's tier, a contract door
-#      holding an activation's value, a plugin's word reaching `default.nix`.
-#
-# Every claim is a SWEEP: it reads the repository and asserts an equality over
-# what it found. A sweep's one failure mode is going quiet — a pattern that
-# stopped matching, a corpus that came back short, a resolver that answered
-# `undefined` and walked one file — and every one of those is GREEN. Neither the
-# suite nor a reviewer can tell a fence that is holding from a fence that is not
-# running, because both look exactly like `0 fail`.
-#
-# So this script breaks the tree on purpose, once per claim, and asserts the
-# claims go RED. It is the falsifier for the falsifiers.
-#
-#   sh scripts/prove-fence.sh          # run every mutation
-#   sh scripts/prove-fence.sh 5 9      # run only these
-#
-# NOT A `just check` LEG, deliberately. Its own half writes to tracked files (and
-# puts each one back), so two of them running at once would fight — and `check`
-# runs its legs in parallel. It is a thing a person runs when the fence CHANGES.
-#
-# ## Everything it touches is DERIVED
-#
-# The three things a packaging move MOVES are derived, and that is what lets the
-# same script run against the tree before one and the tree after it and mean the
-# same thing — which is the only way its two runs are comparable. The registry is
-# the member holding `fence.test.ts`; the plugins are the members the registry
-# DECLARES, which is the roster read where the fence itself reads it; the
-# container is the directory a tenant lives in. Three paths ARE typed and the
-# block that sets them says why each was chosen rather than computed.
-#
-# ## The restore is the part to be careful about
-#
-# Each mutation copies the file it will touch, edits it, runs the lints, and
-# puts the copy back — with a TRAP, so a `^C` or a failed `bun` does not leave
-# somebody's tree mutated. The script refuses to start against a dirty tree for
-# the same reason: `git status` is the check that the restore worked, and it
-# can only say so if it was clean to begin with.
+# NOT A `just check` LEG, deliberately. Its own half writes to tracked files
+# (and puts each one back), so two of them running at once would fight — and
+# `check` runs its legs in parallel.
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -63,27 +14,8 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
-# ── the tree, derived ────────────────────────────────────────────────────────
-
-# Every workspace member, from the one script that expands the field. This used
-# to be its own `jq | while read` loop with no empty-glob guard — the third
-# expansion of one fact, and the one that would have reported a short list in
-# silence while its two siblings threw. `scripts/workspace-members.sh` is the
-# shared rule; what stays independent here is the REGISTRY and the PLUGINS
-# below, which are re-derived from different sources than the fence uses on
-# purpose, because a harness that re-derived from the fence's own arithmetic
-# would prove nothing.
 members=$(sh "$root/scripts/workspace-members.sh" "$root")
 
-# THE REGISTRY: the member that owns this build's fence — a workspace member
-# that holds `src/fence.test.ts` AND declares plugins.
-#
-# BOTH HALVES ARE LOAD-BEARING NOW. It was "the member with a fence file", and
-# that stopped being a unique answer the day the fence itself got a door with a
-# test of its own: `packages/effect-cordis/src/fence.test.ts` exists, names no
-# plugin, and would have captured `$registry` — every path below would then have
-# been read out of the door's package and this harness would have died on a `jq`
-# with two files in one word. So the second clause is what tells the two apart.
 registry=$(
   for m in $members; do
     if [ -f "$m/src/fence.test.ts" ] && jq -r '.dependencies | keys[]' "$m/package.json" | grep -q '^olai-plugin-'; then
@@ -101,28 +33,6 @@ case "$registry" in
 esac
 [ -n "$registry" ] || { echo "prove-fence: no member both holds src/fence.test.ts and declares plugins" >&2; exit 1; }
 
-# THE PLUGINS: what the registry DECLARES, held to the CONTAINER. Not a shape
-# test — `@olai/plugin-api` opens `./wire`, `./server` and `./all.css` too,
-# because it MIRRORS the doors it composes, so a signature match would have
-# called the interface a tenant and quietly aimed half these mutations at the
-# wrong package. The registry is the one package allowed to name a plugin, so
-# its dependency list IS the roster; the container filter is what stops that
-# roster from meaning something else the day the registry declares any other
-# workspace sibling (`jq -r keys[]` sorts `@olai/…` ahead of `olai-plugin-…`,
-# so `plugin_a` would silently become that package).
-#
-# ONE `jq` PER MEMBER rather than one per (dependency x member) pair: the nested
-# loop this replaces forked `jq` eighty-eight times, 227ms of a 9.5s run and the
-# only super-linear thing in the harness.
-#
-# AND EVERY NAME IS DERIVED AFTER THE FILTER, which the first draft got wrong:
-# `name_a`/`name_b` were read off the pre-filter list and never recomputed, so a
-# filter that dropped anything but the first entry left `$plugin_b` and
-# `$name_b` naming different packages — and mutations 4, 6 and 8 spend them
-# together. The mutation would have imported a non-plugin, the fence would have
-# correctly said nothing, and the harness would have scored it
-# `GREEN — THE FENCE DID NOT SEE IT`: a false indictment of the lint, from the
-# guard written to prevent exactly that.
 names=$(for m in $members; do echo "$m $(jq -r .name "$m/package.json")"; done)
 declared_deps=$(jq -r '.dependencies | keys[]' "$registry/package.json")
 plugins=$(
@@ -132,112 +42,36 @@ plugins=$(
     done
   done
 )
-# THE CONTAINER: the directory MOST of those declarations sit in, rather than the
-# one the first of them sits in.
-#
-# `dirname` of the first entry is what this was, and the comment above warned
-# about exactly the day that would stop working: `jq -r keys[]` sorts
-# `@olai/…` ahead of `olai-plugin-…`, so the first entry is whichever `@olai/*`
-# sibling the registry declares. It declared none for a while and declares one
-# now — `@olai/plugin-api`, the INTERFACE, which is a package the registry
-# depends on and is not a tenant — so the first entry's dirname became
-# `packages` and the filter below dropped both real plugins, leaving the harness
-# to die on "fewer than two plugins found".
-#
-# The MODE is the derivation that survives that, and it survives it for the
-# reason the container exists at all: the tenants are the many and everything
-# else the registry declares is the few. It is still derived rather than typed,
-# which is the property this whole block is written for — a harness that
-# re-derived from the fence's own arithmetic would prove nothing.
 container=$(
   for m in $plugins; do dirname "$m"; done | sort | uniq -c | sort -rn | head -n 1 | awk '{print $2}'
 )
 plugins=$(for m in $plugins; do if [ "$(dirname "$m")" = "$container" ]; then echo "$m"; fi; done)
-# `$plugin_a`/`$plugin_b` are the two the mutations APPEND to, which needs
-# both halves: mutations 3/4/6 plant in `src/browser.tsx`, mutations 7/8/16
-# in `src/server.ts`. A BROWSER-ONLY plugin (`alerts`, a `browserOnly` row
-# with no server half) was the first alphabetically and took `plugin_a`,
-# turning the `src/server.ts` guard below into this script's own refusal to
-# start. So the pair is derived from the servers AND browsers that both
-# exist, the same way `tenant_a` derives from `src/wire.ts` — derived still,
-# and the guard below is what turns "have a server but no browser" into a
-# diagnostic rather than a `cp` dying mid-run.
 plugin_cands=$(for m in $plugins; do
   if [ -f "$m/src/server.ts" ] && [ -f "$m/src/browser.tsx" ]; then echo "$m"; fi
 done)
 plugin_a=$(echo "$plugin_cands" | sed -n 1p)
 plugin_b=$(echo "$plugin_cands" | sed -n 2p)
-# ...AND THE FIRST OF THEM THAT COMPOSES A SIBLING SURFACE, which is what a
-# `src/wire.ts` is.
-#
-# NOT EVERY PLUGIN HAS ONE any more, and that is the agents phase rather than an
-# irregularity: an ENGINE contributes a row of the chat panel's picker and the
-# readings behind it, all of which already travel on the chat cell, so a second
-# surface under `surface/claude/` would be one fact on the wire twice. Mutation 5
-# is about what may not ride a `./wire` onto a SERVER's graph, so it needs a
-# plugin that has one — and `plugin_a` is now alphabetically an engine.
-#
-# Derived rather than typed, like everything else in this block: the day the
-# tenants are renamed this finds them, and the guard below is what turns "none
-# of them has one" into this script's own diagnostic rather than a `cp` failing
-# mid-run.
 tenant_a=$(for m in $plugins; do if [ -f "$m/src/wire.ts" ]; then echo "$m"; fi; done | sed -n 1p)
 [ -n "$tenant_a" ] || { echo "prove-fence: no plugin composes a sibling surface" >&2; exit 1; }
 name_a=$(echo "$names" | awk -v p="$plugin_a" '$1 == p { print $2 }')
 name_b=$(echo "$names" | awk -v p="$plugin_b" '$1 == p { print $2 }')
 registry_name=$(jq -r .name "$registry/package.json")
 
-# ...and THREE PATHS THAT ARE TYPED, which the header's "derived" is about the
-# registry and the plugins rather than about these. Each is chosen rather than
-# computed, on purpose: `packages/server` is the composition root, which is
-# where every one of these defects historically WAS; `styles.css` is the app's
-# one sheet, which is the grammar a TypeScript reading is blind to; and
-# `packages/plugins/odu/src/appliance/index.ts` is the SECOND appliance's
-# folded dial, which is the only way to write the cross-tenant mutation. A
-# derived "first member that is neither registry nor plugin" would pick
-# alphabetically and mean nothing. The guard below is what keeps a typed path
-# from becoming a silent skip.
 general=packages/server
 general_src=$general/src/main.ts
 sheet=packages/web/src/client/styles.css
 other_dial=packages/plugins/odu/src/appliance/index.ts
-# ...and A PLUGIN'S CONTRACT DOOR ANOTHER PLUGIN OPENS, for mutation 19. Typed
-# for the sheet's reason, and guarded below for `Mark.tsx`'s: the app's URL
-# grammar is opened by six other rows, and it is the module the Cordis audit's
-# own §12 finding was in.
 contract_door=packages/plugins/navigation/src/routes.ts
 contract_spec=olai-plugin-navigation/routes
 
-# ...and the SHELL DOOR every browser half opens, which is where three of the
-# Cordis audit's §12 findings were: a general package's wildcard `./client/*`,
-# holding one row's live value for every other row to read. Typed for the sheet's
-# reason — a derived "first module a plugin opens from `@olai/web`" would pick
-# alphabetically and mean nothing — and `run.ts` is chosen because it is opened
-# by three tenants and holds nothing today, so the mutation is the whole defect.
 shell_door=packages/web/src/client/run.ts
 
 [ -n "$plugin_b" ] || { echo "prove-fence: fewer than two plugins found" >&2; exit 1; }
 case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a plugin" >&2; exit 1 ;; esac
-# ...AND A COMPONENT THAT PLUGIN ACTUALLY HAS, for mutation 8.
-#
-# It was `$plugin_b/src/browser/Mark.tsx` — a path typed into a block whose
-# whole subject is derivation, and one no tenant has had since the marks moved
-# under `browser/agents/`. `plugin_b` is `chat` today; the file has not existed
-# for several phases, and the guard below turned that into this script's own
-# refusal to start, so the falsifier had been dead with nothing red anywhere.
-# That is the failure mode it was written to detect, arriving in its own
-# derivation — which is the argument for deriving this one too: any `.tsx`
-# under that plugin's `src/` is a component, and a component is the whole of
-# what mutation 8 needs.
 component_b=$(find "$plugin_b/src" -name '*.tsx' | sort | sed -n 1p)
 [ -n "$component_b" ] || { echo "prove-fence: $plugin_b has no component for mutation 8" >&2; exit 1; }
-# ...as a specifier relative to that plugin's `src/server.ts`, which is where
-# the mutation appends it.
 component_b_spec=./$(printf '%s' "${component_b#"$plugin_b/src/"}")
 
-# EVERY PATH A MUTATION TOUCHES, not just the roots they are derived from. Five
-# mutations reach `$plugin_x/src/<file>`. Without these, a missing one dies
-# mid-run on `cp`/`sed` rather than here, with this block's own diagnostic.
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
   "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
   "$tenant_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
@@ -246,24 +80,12 @@ for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
 
-# A TYPED PATH NEEDS A GUARD THAT IT IS STILL ABOUT SOMETHING, which is
-# `Mark.tsx`'s lesson: existing is not the property mutation 19 rests on — being
-# OPENED BY ANOTHER PACKAGE is, and a door every consumer stopped importing
-# would make the mutation green for a reason that has nothing to do with the
-# fence.
 opens_contract=$(git grep -l "$contract_spec" -- "$container" | grep -v "^$(dirname "$(dirname "$contract_door")")/" | head -1)
 [ -n "$opens_contract" ] || {
   echo "prove-fence: no plugin outside its own opens $contract_spec — mutation 19 has no subject" >&2
   exit 1
 }
 
-# THE CONTAINER GETS ITS OWN GUARD, because `restore` hands it to `git clean`
-# and a derivation that came back empty would hand over `.` — `dirname ""` is
-# `.`, `[ -e "." ]` is true, and the sweep would then be the whole worktree
-# rather than one directory. Nothing reachable produces that today (an empty
-# `plugin_a` means an empty `plugin_b`, which the line above already refuses),
-# but "unreachable by the order the guards happen to run in" is not the property
-# a `git clean` should rest on.
 case "$container" in
   packages/*) ;;
   *) echo "prove-fence: the container derived to '$container', which is not under packages/" >&2; exit 1 ;;
@@ -274,72 +96,27 @@ echo "registry : $registry ($registry_name)"
 echo "plugins  : $plugin_a ($name_a), $plugin_b ($name_b); wire door: $tenant_a"
 echo
 
-# ── the harness ──────────────────────────────────────────────────────────────
-
 touched=""
 restore() {
-  # `git checkout --` RATHER THAN A `.bak` COPY, and it is the shorter of two
-  # correct answers rather than a preference. The precondition at the top is a
-  # clean tree, so HEAD IS the pristine content of every tracked file this
-  # script touches — the tool that already knows it is the one already in use
-  # two lines down. The copy was also strictly worse on the failure path the
-  # header cares about: a `SIGKILL`, which no trap catches, left both a mutated
-  # tracked file AND a stray `.prove-fence.bak` outside `$container`, which the
-  # `git clean` below would not remove.
   [ -n "$touched" ] && git checkout -- $touched
   touched=""
   [ -n "$created" ] && rm -f $created
   created=""
-  # ...and anything a mutation CREATED. `-fd` and never `-x`: an ignored path
-  # (every `node_modules`, the generated mark) is left alone, and the clean-tree
-  # precondition at the top is what makes "untracked in here" mean "this script
-  # put it there".
   git clean -fdq "$container" 2>/dev/null || true
 }
-# THE EXIT TRAP PUTS THE TREE BACK; THE SIGNAL TRAPS ALSO STOP.
-#
-# A POSIX handler that does not exit returns control to the point after the
-# interrupted command — so a `^C` during `bun test` used to restore the tree
-# (which the header promised) and then run the remaining fourteen mutations,
-# scoring the interrupted one as CAUGHT, and print `15 of 15 mutations were
-# caught.` A person who pressed `^C` once got a clean bill of health. Re-raising
-# with the default disposition is what makes the exit status honest and the
-# summary unreachable.
 trap 'restore' EXIT
 trap 'restore; trap - INT; kill -INT $$' INT
 trap 'restore; trap - TERM; kill -TERM $$' TERM
 
-# THE MUTATION ITSELF, as arguments rather than as a heredoc. It was a heredoc
-# read into `body=$(cat)` and run through `eval`, and the cost was double
-# expansion: every `$` a mutation wanted at RUN time had to be escaped against
-# the here-document's own pass, which is a trap laid for whoever writes the
-# sixteenth. Arguments are expanded once, by the shell, where they are written.
-#
-# Run in THIS shell rather than a subshell: `hold` records what to put back in a
-# variable, and a subshell would take that record with it — leaving every
-# mutation applied and every later one reading a tree several defects deep.
-
-# Record a tracked file as one `restore` must put back. It no longer COPIES —
-# see `restore` — so this is the whole of the obligation. Each mutation helper
-# discharges it; `impostor` is the one that does not, because it CREATES rather
-# than edits and the `git clean` in `restore` is what takes that back.
 hold() {
   touched="$touched $1"
 }
 
-# APPEND ONE LINE to a tracked file — which is what twelve of the fifteen
-# mutations are, because an import is a line and that is the whole of how these
-# defects get in.
 append() {
   hold "$1"
   printf '\n%s\n' "$2" >> "$1"
 }
 
-# ...AND THE ONE THAT WRITES A NEW MODULE BEHIND A DOOR, for the claim that the
-# fence reads the implementation rather than the door file. `restore` puts
-# tracked files back with `git checkout` and sweeps untracked ones out of the
-# plugin container only, so a file written into a general package records
-# itself here and is removed by name.
 created=""
 behind_door() {
   created="$created $2"
@@ -350,7 +127,6 @@ export const provenCurrent = (): unknown => heldByProveFence' > "$2"
   printf '\nexport { holdByProveFence, provenCurrent } from "./%s"\n' "$(basename "$2")" >> "$1"
 }
 
-# ...and the three that are not an appended line.
 declare_dep() {
   hold "$1/package.json"
   jq --arg n "$2" '.dependencies[$n] = "workspace:*"' "$1/package.json" > "$1/package.json.tmp"
@@ -365,10 +141,6 @@ impostor() {
 
 unname_the_seam() {
   seam=$(grep -rl 'connectSurfaces(' --include='*.ts' packages | sort | head -1)
-  # A DISCOVERY STEP NEEDS A FAILURE ARM. `grep` matching nothing is exactly the
-  # event this mutation exists to detect, and the pipeline's status is `head`'s,
-  # so `set -e` does not see it: `seam=""` would reach `git checkout -- ""` and
-  # die mid-run with a git error rather than this script's own words.
   [ -n "$seam" ] || {
     echo "prove-fence: nothing calls connectSurfaces( — mutation 15 has no subject" >&2
     exit 1
@@ -382,14 +154,6 @@ passed=0
 failed=0
 unnamed=0
 
-# THE MUTATION NUMBERS, spelled once, and checked BEFORE anything runs. It used
-# to accumulate as `run` executed and be checked at the END, so
-# `prove-fence.sh 5 99` paid a baseline and a mutation before saying the 99 was
-# a typo. The set is static; the check can be too. And a selector that named no
-# mutation used to print `0 of 0 mutations were caught.` and exit 0, which is
-# this script's own indictment of the lints reproduced on its one argument.
-#
-# Plugin package edges are forbidden again: services carry the dependency.
 DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26"
 for want in $only; do
   case " $DECLARED " in
@@ -398,13 +162,6 @@ for want in $only; do
   esac
 done
 
-# THE BASELINE, and the whole verdict rests on it. Every judgement below is
-# "the suite went red when I broke the tree" — which says nothing unless the
-# suite was GREEN before. Without this, a package that is already failing (a
-# stale `node_modules`, a half-finished edit, an unrelated red test) makes all
-# fifteen mutations look caught, and the falsifier reports a fence that is
-# holding while nothing at all is being tested. It is the same defect the script
-# exists to find in the lints, read from the other side: red by not running.
 printf 'baseline: %s ... ' "$registry"
 if bun test "$registry" >/dev/null 2>&1; then
   echo "green"
@@ -416,14 +173,6 @@ else
   exit 1
 fi
 
-# ── the door's own proof ─────────────────────────────────────────────────────
-#
-# ONE LINE PER CLAIM, and the three verdicts are the ones the mutations below
-# use: CAUGHT is a claim that went red for its own defect, `GREEN` is a mutation
-# the fence did not see (the failure mode this whole script exists for), and
-# SPILL is a claim that went red without being asked to — a proof that is not
-# clean. The door proves itself on a COPY, so nothing here needs restoring, and
-# a red baseline inside `prove` is reported rather than proved over.
 printf 'the door: %s ... ' "effect-cordis/fence"
 if proof=$(bun -e '
 import { prove } from "./packages/effect-cordis/src/fence.ts"
@@ -455,25 +204,6 @@ else
 fi
 echo
 
-# run <n> <what should go red> <command…> — the mutation is the rest of the argv.
-# run <n> <what should go red> <the claim that must say so> <command…>
-#
-# THE THIRD ARGUMENT IS THE POINT. A mutation is not "caught" because the suite
-# went red — it is caught because THE CLAIM IT NAMES refused it. Counting any
-# `(fail)` line was the scorer's last hole and both reviewers found it: mutation
-# 7, 8 and 10 evaluate a plugin's `./server` live through `kinds.test.ts`, so a
-# load error there that happened to print some other claim's failure would have
-# minted a catch, and the attribution was left for a human to read off `head -4`.
-#
-# The expectation is a `grep -E` alternation, so a mutation that legitimately
-# trips more than one claim can name the ones it is ABOUT. What it may not do is
-# trip a different claim and still count.
-#
-# This also subsumes the old third verdict rather than sitting beside it: "no
-# claim named it at all" is the case where the expectation matched nothing,
-# which is the same question asked once. The two are still REPORTED apart,
-# because "the suite died" and "a different claim refused it" send a reader to
-# different places.
 run() {
   n=$1
   what=$2
@@ -484,18 +214,12 @@ run() {
   fi
   printf '%2s. %s\n' "$n" "$what"
   "$@"
-  # The WHOLE package, not one file: a mutation that took a claim red by taking
-  # the module out of the corpus would be a false pass, and the other tests in
-  # there are what notices.
   if out=$(bun test "$registry" 2>&1); then
     echo "      GREEN — THE FENCE DID NOT SEE IT"
     failed=$((failed + 1))
   else
     said=$(printf '%s' "$out" | sed -n 's/^(fail) //p' | sed 's/ \[[0-9.]*ms\]$//' | head -4)
     if [ -z "$said" ]; then
-      # A mutation that broke module RESOLUTION, or a `bun` that is not there,
-      # or an OOM: the suite exited non-zero having asserted nothing, which is
-      # the falsifier reproducing the exact failure it was written to detect.
       echo "      RED, BUT NO CLAIM NAMED IT — the suite died rather than refused"
       unnamed=$((unnamed + 1))
     elif printf '%s\n' "$said" | grep -Eq "$expect"; then
@@ -510,29 +234,6 @@ run() {
   restore
 }
 
-# ── the mutations ────────────────────────────────────────────────────────────
-#
-# One per claim the two lints make, each written as the defect it is about —
-# the shape that was actually in this tree before the extraction, or the shape
-# the door split exists to prevent.
-#
-# THE EXPECTATIONS ARE THE CLAIMS' CURRENT NAMES, and five of them were not:
-# claims 1, 2, 4, 12 and 18 named sentences the fence stopped saying several
-# phases ago, so each went red and was scored `RED, BUT NOT BY THE CLAIM IT
-# NAMES`. That is the scorer working — a mutation is caught because the claim it
-# is about refused it — and it had been unreadable because this script could not
-# start at all (the guard block above, and `Mark.tsx`).
-#
-# THE FIVE GENERIC CLAIMS LIVE IN THE DOOR NOW, so the mutations that break one
-# name the door's test (`the fence's five generic claims > <claim>`), which is
-# where `fence.test.ts` asserts it. What stayed here is what the door cannot
-# see: this tree's contract doors, its manifests, its chunk and server doors,
-# its Nix halves.
-
-# A SUBPATH rather than the bare name, deliberately: a claim that matched only
-# `olai-plugin-<name>` would be green under the door a consumer would actually
-# reach for. `./server` rather than `./wire`, because every plugin has one and
-# an ENGINE has no `./wire` at all — `plugin_a` is alphabetically an engine now.
 run 1 "a general package IMPORTS a plugin" \
   'general production packages name no plugins' \
   append "$general_src" "import \"$name_a/server\""
@@ -541,22 +242,10 @@ run 2 "a general package DECLARES a plugin in its manifest" \
   'plugin dependencies correspond to static contracts' \
   declare_dep "$general" "$name_a"
 
-# THE DIRECTION MUTATION goes in the BROWSER half rather than in `./wire`, and
-# the reason has changed with the doors. It used to be that `fence.test.ts`
-# imported `./surfaces.ts`, which imported every plugin's `./wire`, so a cycle
-# put there was refused by the module loader before a single claim ran and the
-# proof read "red" without any claim having seen it. There is no `surfaces.ts`
-# — but the suite still LOADS each plugin's server half (`serverHalves`, which
-# imports by the row's own name), and a server half re-exports its `./wire`.
-# `src/browser.tsx` is on the browser graph, which nothing in the registry
-# imports at all now: the root door names that module in a dynamic `import()`
-# and the walk records it without following it. So a defect there is caught by
-# the sweep and NAMED by it, which is exactly what this mutation has to prove.
 run 3 "a plugin imports the REGISTRY back (the cycle)" \
   'generic claims > imports' \
   append "$plugin_a/src/browser.tsx" "import \"$registry_name\""
 
-# A service key is the dependency arm; a package import bypasses its lifecycle.
 run 4 "a plugin imports ANOTHER plugin" \
   'plugins consume other plugins only through static contract doors' \
   append "$plugin_a/src/browser.tsx" "import \"$name_b/server\""
@@ -564,43 +253,6 @@ run 4 "a plugin imports ANOTHER plugin" \
 run 18 "a plugin DECLARES another plugin in its manifest" \
   'plugin dependencies correspond to static contracts' \
   declare_dep "$plugin_a" "$name_b"
-
-# MUTATIONS 5 AND 6 WERE ONE DOOR AND ARE NOW TWO, and the split is the whole
-# story of what this PR did to the fence.
-#
-# There used to be a `./wire` door: `@olai/bundle` exported a subpath that
-# statically imported every plugin's own `./wire`, and one confinement list was
-# walked over it. That list forbade five things for TWO different reasons held
-# in one place — `solid-js` because a SERVER read that door, and `@olai/format`,
-# `node:` builtins and every appliance's client because a BROWSER read it too.
-# One graph, two audiences, one list; which entry was there for which reader was
-# a thing you had to know rather than a thing the file said.
-#
-# The door is gone. The browser now fetches each plugin's `./browser` as its own
-# dynamic-import chunk, so the two audiences no longer share a graph — and the
-# old list came apart along the seam it always had:
-#
-#   - THE SERVER HALF SURVIVED WHERE IT STOOD. A plugin's `./server` re-exports
-#     its own `./wire`, so `./wire` is still on the server's graph and a UI
-#     runtime put there is still refused — by `NOT_ON_A_SERVER`, through the
-#     server door, rather than by a wire door that no longer exists. Mutation 5
-#     keeps its edit unchanged for exactly that reason: the DEFECT is the same
-#     defect, reached by the same line; only the claim that answers it has a new
-#     address, and a mutation that named the old one scored
-#     `RED, BUT NOT BY THE CLAIM IT NAMES` — red for the right reason, counted
-#     as a miss, which is the harness accusing a lint that was doing its job.
-#
-#   - THE BROWSER HALF MOVED TO THE CHUNK. What a tab may not carry is now held
-#     over each plugin's `./browser` by `NOT_IN_A_TAB`, and mutation 6 follows
-#     it there. Its old subject stopped being a defect: `@olai/format` on a
-#     plugin's `./wire` is legal twice over — the server may read the vault's
-#     format, and the tab may too, because odu's chip spends those file-kind
-#     words to say what a run is about. So the mutation is re-aimed at the entry
-#     that DID survive and is sharpest: a `node:` builtin, which no bundler can
-#     satisfy for a browser and which fails in the reader's tab rather than at
-#     any build step. This mutation is also why that list exists at all — it
-#     went GREEN against the tree that had no browser-chunk claim, which is the
-#     second time this harness has written a line of `fence.test.ts`.
 
 run 5 "a plugin's WIRE pulls a UI runtime, and its SERVER re-exports it" \
   'UI runtime or a component library' \
@@ -634,11 +286,6 @@ run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
   'generic claims > imports' \
   append "$sheet" "@import \"$name_a/all.css\";"
 
-# ONE DIRECTION of an equality, and the other is not mutated here: moving a
-# plugin OUT of the container is a directory move, which breaks module
-# resolution before a claim can speak and would read as "red, but no claim
-# named it". The assertion is a set equality, so the same line holds both ways;
-# what this proves is that the line is not vacuous.
 run 13 "a package that is not a plugin sits IN the tenant container" \
   'lives in it, and nothing else does' \
   impostor
@@ -651,35 +298,9 @@ run 15 "the turnkey SEAM stops being called" \
   'the seam that performs them is called, exactly once' \
   unname_the_seam
 
-# THE ENGINE, REACHED DIRECTLY. The human's ruling is that Cordis is an engine
-# nobody outside one package sees, and the whole of phase 4 rests on it: a plugin
-# is an Effect, `needs` is the requirement channel, and the translation lives in
-# one package. A plugin that imports `cordis` to type its own `apply` again is
-# exactly the shape that ruling forbids, and it is the shape the tree HAD.
-#
-# The SERVER half rather than the browser one, because that is where the import
-# was: `import type { Context } from "cordis"` above every plugin's `apply`.
 run 16 "a plugin imports the ENGINE directly" \
   'an engine nobody outside one package sees' \
   append "$plugin_a/src/server.ts" 'import "cordis"'
-
-# AN ACP ENGINE'S NAME, SPELLED IN A GENERAL PACKAGE. The agents phase turned
-# `claude`, `opencode` and `pi` into plugins, and the name claim covers them the
-# way it covers a tenant — but the ENGINE names are the ones with collisions in
-# ordinary English, so the claim carries recorded collisions (the vault's own
-# `prop:agent=claude-opus` worked example, `Math.PI`). A recorded exception is a
-# place a claim can quietly widen, so the engine gets its own mutation rather
-# than resting on mutation 11's tenant.
-#
-# `packages/server` is where this defect historically WAS in its other form: the
-# composition root held the roster and the composition root named the agents.
-# ── the audit's §12: a door that HOLDS rather than reaches ───────────────────
-#
-# The eighteen above are all about what a module REACHES FOR. Neither of these
-# two reaches for anything: they are the shape the Cordis audit names — a live
-# value at module scope behind a door another package opens — and the door's
-# `live-state` claim walks the module BEHIND each door, so a `let` one import
-# in is caught where reading the door file alone would have missed it.
 
 run 19 "a plugin's CONTRACT DOOR holds another activation's value" \
   'generic claims > live-state' \
@@ -691,11 +312,6 @@ run 20 "the SHELL DOOR every browser half opens holds one" \
   append "$shell_door" 'let heldByProveFence: unknown
 export const provenCurrent = () => heldByProveFence'
 
-# THE TWO SHAPES A REVIEW FOUND THE §12 CLAIM BLIND TO. The first is this
-# phase's own primitive published through a door — live state with a `const` and
-# no cell in sight, under an ALIAS so a table of bare words would miss it. The
-# second is a `let` one import behind a door, which the claim could not see at
-# all while it read the door file and stopped.
 run 21 "a CONTRACT DOOR exports one of this tree's own holders, under an alias" \
   'generic claims > live-state' \
   append "$contract_door" 'import { heldService as provenSlot } from "@olai/ui-primitives/held.ts"
@@ -705,16 +321,6 @@ run 22 "a SHELL DOOR re-exports a holder from a module BEHIND it" \
   'generic claims > live-state' \
   behind_door "$shell_door" packages/web/src/client/proven-fence-leak.ts
 
-# ── THE NIX-ISOLATION FENCE (claim 9) ───────────────────────────────────────
-#
-# Three defects from the plan's section 9, each the exact shape the fence
-# exists to refuse: a bare path reaching into the plugin container, a knob
-# variable hand-written back at the root, and a plugin's word as a tag literal
-# in the e2e harness — a plugin's fact landing in a file outside its own
-# directory, which is the whole of what that describe is about. Each is CAUGHT
-# by the claim that NAMES the shape: the path by claim 1, the variable and the
-# tag by claim 2's word spelling (whose `\b`-free SHOUT is exactly so
-# `OLAI_ODU_BIN` and `@pi` count).
 run 23 "a bare path reaches into a plugin's directory" \
   "outside packages/plugins contains the path itself" \
   append "default.nix" "container = ./packages/plugins/odu;"
@@ -731,13 +337,6 @@ run 17 "a general package SPELLS AN ENGINE'S name in code" \
   'generic claims > names' \
   append "$general_src" 'export const claudeSeat = () => null'
 
-# THE BROWSER REGISTRY'S OWN DOOR, WHICH THE PORT DROPPED AND THIS RUN FOUND.
-#
-# The door's `door-graphs` refuses a `node:`/`bun:` builtin on a browser root's
-# walk, because that is the word every build shares. What THIS build may not put
-# behind its chunk table is its own judgement — `solid-js`, an appliance's
-# client, the format — and the first port lost the claim that held it, with
-# 25/25 still green. A mutation is what makes the loss visible next time.
 run 26 "the BROWSER REGISTRY's own door pulls the UI runtime" \
   "nothing on it is a UI runtime, an appliance's client, or the format" \
   append "$registry/src/rows.ts" 'import "solid-js"'

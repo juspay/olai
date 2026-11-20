@@ -1,13 +1,7 @@
-# home-manager module for `olai web` (systemd user unit on Linux, launchd
-# agent on macOS). The flake's `homeManagerModules.default` imports this and
-# fills in `package`; nothing here names a store path.
 { config, lib, pkgs, ... }:
 let
   cfg = config.services.olai;
 
-  # The command is `../runtime.nix` — the same module the flake exposes as
-  # `lib`, so this service and a container cannot drift; this file adds only
-  # the supervisor.
   runtime = import ../runtime.nix { inherit lib; };
 
   webArgs = runtime.webArgs {
@@ -113,8 +107,6 @@ in
       }
     ];
 
-    # Put the same binary the service runs on PATH, so a shell `olai web`
-    # cannot skew from the unit it is meant to inspect.
     home.packages = [ cfg.package ];
 
     systemd.user.services = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
@@ -125,19 +117,12 @@ in
         };
         Service = {
           ExecStart = lib.escapeShellArgs webArgs;
-          # One policy, three knobs. Effect's runMain exits 130 on SIGTERM.
-          # SuccessExitStatus=130 keeps systemctl stop out of failed.
-          # Restart=always (not on-failure) is still the right answer to
-          # every death that CAN kill this server: SIGKILL, the OOM killer,
-          # a crash — a stray kill -TERM no longer can (the server catches
-          # TERM and refuses any sender that is not its supervisor; only
-          # uncatchable signals get through). The failure mode this knob
-          # prevents is a dark ledger: on-failure does not restart a
-          # successful exit, which is how two outside SIGTERMs left one
-          # dark for hours
-          # (https://github.com/juspay/oss.olai/blob/main/projects/olai/RCA/2026-08-20-olai-service-sigterm.md). systemd never
-          # restarts a unit whose death was a systemd stop or restart
-          # (man systemd.service, Restart=).
+          # Effect's runMain exits 130 on SIGTERM, so SuccessExitStatus=130
+          # keeps `systemctl stop` out of failed. Restart=always rather than
+          # on-failure: systemd never restarts a unit whose death was a
+          # systemd stop or restart (man systemd.service, Restart=), and
+          # on-failure would leave a successful exit dark
+          # (https://github.com/juspay/oss.olai/blob/main/projects/olai/RCA/2026-08-20-olai-service-sigterm.md).
           Restart = "always";
           RestartSec = "1s";
           SuccessExitStatus = 130;
@@ -160,11 +145,8 @@ in
           ProgramArguments = webArgs;
           RunAtLoad = true;
           # A 130 exit is non-zero, so SuccessfulExit=false already restarts
-          # it — the Linux incident's case, without needing KeepAlive=true
-          # (which would also restart a clean 0 that `olai web` never does;
-          # it waits until interrupted). Crashed=true covers a signal death
-          # that never became an exit status. launchctl bootout stays a
-          # deliberate stop either way.
+          # it; KeepAlive=true would also restart a clean 0. Crashed=true
+          # covers a signal death that never became an exit status.
           KeepAlive = {
             SuccessfulExit = false;
             Crashed = true;
@@ -174,9 +156,6 @@ in
           StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/olai.err.log";
 
         } // lib.optionalAttrs (cfg.agents != [ ]) {
-          # The same variable, in launchd's own spelling — an attrset of
-          # literals rather than a file, which is why `environmentFile` is
-          # refused here and this is not: a search path is not a secret.
           EnvironmentVariables = { OLAI_AGENT_PATH = lib.makeBinPath cfg.agents; };
         };
       };

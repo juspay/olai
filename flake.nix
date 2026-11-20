@@ -1,21 +1,3 @@
-# IMPORTANT: this flake has ZERO inputs *except* `bun2nix` (the kolu
-# convention). nixpkgs and the kolu source are pinned by npins
-# (npins/sources.json) and imported via fetchTarball, which keeps `nix
-# develop` cold eval near a second instead of the several the flake input
-# system costs per input. Add a pin, not an input. bun 1.4.1 is overlaid
-# from the official prebuilt zip (`nix/bun.nix`); drop that overlay when
-# NixOS/nixpkgs#556047 reaches the nixpkgs-unstable pin (bun-nixpkgs-catchup).
-#
-# `bun2nix` is the ONE documented exception: nixpkgs has no fetchBunDeps /
-# buildBunPackage. Upstream (nix-community/bun2nix) is flake-parts-shaped
-# internally, but its consumer API is the package itself:
-# `packages.<system>.default` carries `hook`, `fetchBunDeps`, `mkDerivation`,
-# etc. on passthru — enough without flake-parts on our side and without the
-# juspay/bun2nix rawflake fork (`lib.mkBun2nix` was only a thin re-export of
-# the same passthru). It brings its own nixpkgs (and flake-parts / systems /
-# treefmt-nix) — the CLI is built against upstream's pin, not ours; that cost
-# is why this stays the only input. Forced only when `packages.*` is
-# evaluated, so `nix develop` cold eval is unchanged.
 {
   # Pin a commit, not master. 2.1.2's cache has tarballs and no npm
   # manifests, so bun 1.4.1 `bun install --offline` dies with "no cached
@@ -24,11 +6,6 @@
   # (synapdeck/bun2nix@34894825) until it lands and we retag.
   inputs.bun2nix.url = "github:synapdeck/bun2nix/3489482505adf9eafd4498c8e53015b5da980e13";
 
-  # Juspay's shared OSS cache — odu's `kolu-r2` bucket on Cloudflare R2 — so
-  # `nix run .#bun2nix` and the kolu sources come down prebuilt instead of being
-  # compiled on every lane. `.github/workflows/nix-cache.yml` warms it on every
-  # push; reads come straight from R2 at the bucket's own path, so the daemon
-  # behind it can move without a reader changing a line.
   nixConfig = {
     extra-substituters = "https://cache.kolu.dev/kolu-r2";
     extra-trusted-public-keys = "kolu-r2-1:7KmFrK05rVrnxkyZi9hJGnJJmRCpg87u6MUQIk7nokQ=";
@@ -36,16 +13,10 @@
 
   outputs = { self, bun2nix, ... }:
     let
-      # One commit for the whole build: the browser shell and the server that
-      # serves it are stamped with it, so a tab can tell whether the server it
-      # reconnected to still ships the bundle it is running.
       stamp = import ((import ./npins).kolu + "/packages/surface-app/nix/commit-stamp.nix") { };
       rev = stamp.revFromSelf self;
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
-      # One `pkgs` (and one bun2nix package) per system, shared by every
-      # output that asks for it. `b2n` is the upstream CLI derivation; hook /
-      # fetchBunDeps live on its passthru.
       perSystem = builtins.listToAttrs (map
         (system:
           let pkgs = import ./nix/nixpkgs.nix { inherit system; };
@@ -57,9 +28,6 @@
       eachSystem = f: builtins.mapAttrs (_: ctx: f ctx) perSystem;
     in
     {
-      # The launch command and its defaults, without a supervisor: a container
-      # takes the home-manager service's argv without importing home-manager.
-      # Nixpkgs' `lib` from the pin, so this output is system-free.
       lib = import ./nix/runtime.nix {
         lib = import ((import ./npins).nixpkgs + "/lib");
       };
@@ -67,39 +35,21 @@
       packages = eachSystem ({ pkgs, b2n }:
         let
           olai = import ./default.nix { inherit pkgs b2n rev; };
-          # olai.page, built and link-checked (website/default.nix).
           website = import ./website { inherit pkgs b2n; };
           bundle = olai.bundle;
-          # `consumer.nix` builds the source copies rather than handing back a
-          # list for an overlay to build. `bundle` is the fold the default.nix
-          # above already composed; flake outputs read it once so two plugins
-          # (or a plugin and a root output) cannot collide.
           overlap = builtins.attrNames
             (builtins.intersectAttrs bundle.packages
               { inherit (olai) olai olai-client olai-fonts base olai-deps; inherit website; });
           clash = if overlap != [ ] then throw "flake packages: a plugin declares an output the root already names: ${builtins.concatStringsSep ", " overlap}" else null;
         in
         builtins.seq clash (bundle.packages // {
-          # `olai-deps` is an output of its own so the split can be MEASURED
-          # rather than asserted: `nix build .#olai-deps` is where the
-          # node_modules bytes live now, and two commits that touch no
-          # manifest build the same path.
           inherit (olai) olai olai-client olai-fonts base olai-deps;
           inherit website;
           default = olai.olai;
-          # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
-          # lockfile-derived nix expression (`just regenerate-bun-nix`).
           bun2nix = b2n;
-          # The dev loop's generic env snippet, `export VAR="${VAR-default}"`
-          # over every declared knob; `serve`, `run` and `dev-bin` source it
-          # rather than hand-copying a plugin's lines.
           plugin-env = bundle.devEnv;
         }));
 
-      # Two shells, and the second is the first plus browsers. Playwright's
-      # browser set is ~600ms of cold `nix develop` that every non-e2e leg
-      # would pay for nothing, so `just e2e` enters `.#e2e` and everything
-      # else stays in `default`.
       devShells = eachSystem ({ pkgs, ... }:
         let default = import ./shell.nix { inherit pkgs; };
         in {
@@ -108,25 +58,17 @@
             name = "olai-shell-e2e";
             env = (prev.env or { }) // {
               PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
-              # The real Playwright tool server, for the browsing row's live
-              # scenarios: an agent's own tools attaching to the Chromium olai
-              # launched.
               OLAI_E2E_PLAYWRIGHT_MCP = "${pkgs.playwright-mcp}/bin/playwright-mcp";
             };
           });
         });
 
-      # home-manager module (nix/home/module.nix) for running `olai web` as a
-      # user service. The flake fills in package; the user fills in dataDir.
       homeManagerModules.default = { pkgs, lib, ... }: {
         imports = [ ./nix/home/module.nix ];
         config.services.olai.package =
           lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.olai;
       };
 
-      # Pure evaluation of the module under stubbed home-manager options —
-      # systemd argv on Linux, launchd argv on Darwin. Wired into `just check`
-      # as the `hm-module` recipe; not a full activation test.
       checks = eachSystem ({ pkgs, b2n }:
         let
           olai = import ./default.nix { inherit pkgs b2n rev; };
@@ -137,11 +79,7 @@
             inherit pkgs;
             module = ./nix/home/module.nix;
           };
-          # The same command through the PUBLIC `lib` output, the way a
-          # container takes it: no home-manager, no supervisor.
           runtime = import ./nix/runtime-check.nix { inherit pkgs; runtime = self.lib; };
-          # The registry fold's contract/collision refusals over fixture
-          # containers, asserted at eval time by packages/bundle/nix/fold-check.nix.
           plugin-fold = import ./packages/bundle/nix/fold-check.nix {
             inherit pkgs;
           };

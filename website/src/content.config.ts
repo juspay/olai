@@ -5,8 +5,6 @@ import { glob } from "astro/loaders"
 
 import { DOCS, idOf } from "./markdown.ts"
 
-/** Every page under `website/docs/`; a plugin's page is a symlink there onto
- *  the `docs.md` beside its code. */
 const docs = defineCollection({
   loader: glob({
     pattern: "**/*.md",

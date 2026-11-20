@@ -1,4 +1,2 @@
-# The same linker the Nix build installs with (bun2nix's hook default, and the
-# root workspace's), so a local build resolves exactly what CI resolves.
 [install]
 linker = "isolated"

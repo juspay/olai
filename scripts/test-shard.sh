@@ -11,12 +11,6 @@ if [[ -z "${ODU_SHARD_INDEX+x}" && -z "${ODU_SHARD_TOTAL+x}" ]]; then
   exit
 fi
 
-# Per-member heavy-test weights live in each workspace's `test-weights.json`
-# (a `{ "key": seconds }` map), keyed by the REPO-RELATIVE path as produced by
-# `git ls-files` — so no path translation is needed when partitioning. The
-# default for files with no weight is 0.1s (an average ~0.07s plus margin).
-# Members with no heavy tests simply omit the file. Git determines coverage,
-# so absent/stale estimates cannot skip tests.
 exec bun - <<'JS'
 const index = Number(process.env.ODU_SHARD_INDEX)
 const total = Number(process.env.ODU_SHARD_TOTAL)
