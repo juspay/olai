@@ -1,7 +1,4 @@
 ---
-/**
- * Every page's frame: the head, the header and the footer.
- */
 import {
   DEFAULT_DARK_PALETTE,
   DEFAULT_THEME,
@@ -23,8 +20,6 @@ const canonical = new URL(here, Astro.site).href
 const github = "https://github.com/juspay/olai"
 const ogImage = new URL("/og.png", Astro.site).href
 const ogAlt = "olai — a git-native outliner. A palm leaf in ink on sea-glass paper."
-// The header link the reader is under: the longest one this address starts
-// with, so Start is lit on its own page and Docs on every other docs page.
 const nav = [
   { href: hrefOf("start"), label: "Start" },
   { href: hrefOf("index"), label: "Docs" },
@@ -32,10 +27,6 @@ const nav = [
 const lit = nav
   .filter((link) => here.startsWith(link.href))
   .sort((a, b) => b.href.length - a.href.length)[0]
-// The app's own palettes (its table is the one place a colour is written):
-// the default for an unpicked page, chalk, and basalt under a dark OS, exactly
-// as olai does. A page picks another with `data-theme`, as the home page's
-// chips do.
 const tokens = (palette: Palette) =>
   `color-scheme:${palette.scheme};` + PALETTE_TOKENS.map((token) => `--${token}:${palette.colors[token]};`).join("")
 const palettes = [
@@ -100,8 +91,6 @@ const palettes = [
       </div>
     </footer>
 
-  {/* One popup for every footnote on the page. Without JavaScript a marker is
-      a plain link to its note in the list at the foot of the page. */}
   <div id="note" popover tabindex="-1" role="note" aria-label="Note"></div>
   <script is:inline>
     (() => {

@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
-label="${1:?usage: check-hydrated-deps.sh <label> <pinned-json>}"
-pinned="${2:?usage: check-hydrated-deps.sh <label> <pinned-json>}"
+label="${1:?usage: check-hydrated-deps.sh <label> <externals-json>}"
+pinned="${2:?usage: check-hydrated-deps.sh <label> <externals-json>}"
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "check-hydrated-deps: jq is not on PATH — run this through \`just\`," >&2
@@ -15,12 +15,12 @@ fail=0
 
 wanted=$(
   printf '%s' "$pinned" | jq -c '
-    if (has("dependencies") or has("peerDependencies") or has("name"))
-    then (.dependencies // {}) + (.peerDependencies // {})
-    else . end
+    if type == "object" and all(.[]; type == "string") then .
+    else error("not a {name: version} map") end
   '
 ) || {
-  echo "check-hydrated-deps: $label: the pinned JSON did not parse" >&2
+  echo "check-hydrated-deps: $label: the pin must arrive as one {name: version}" >&2
+  echo "  map of every external it needs. Look at what nix exported." >&2
   exit 1
 }
 

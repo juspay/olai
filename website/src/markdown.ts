@@ -37,6 +37,8 @@ export const docsPage = (ctx: PluginFactoryContext) => {
   if (!file.startsWith(DOCS)) return null
   const page = idOf(file)
   const reading: Reading = { sections: [], notes: 0 }
+  // Astro hands a page back what a plugin writes into `data.astro.frontmatter`
+  // as its `remarkPluginFrontmatter`; satteri types that bag as open data.
   const astro = ctx.data.astro as { frontmatter: Record<string, unknown> }
   astro.frontmatter.reading = reading
   let titled = false

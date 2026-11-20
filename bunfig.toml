@@ -1,12 +1,7 @@
-# The hydrated @kolu/* sources are not in bun.lock, so their own imports
-# (effect, solid-js, …) resolve by walking up to the ROOT node_modules: an
-# external they need must be a direct dependency of the root package.
-# Hoisting instead would nest conflicting transitive versions, which bun
-# cannot create inside the Nix build sandbox on aarch64-darwin ("AccessDenied:
-# Failed to open node_modules folder").
-# That is the invariant to protect: a hydrated package importing something the
-# root package.json does not declare resolves nothing. The fix when it fires
-# is to declare the dependency here, never to switch linkers.
+# `linker = "isolated"`, not hoisted: hoisting has to nest conflicting
+# transitive versions inside their dependents, and bun cannot create those
+# nested trees inside the Nix build sandbox on aarch64-darwin — the install
+# fails with "AccessDenied: Failed to open node_modules folder".
 [install]
 linker = "isolated"
 

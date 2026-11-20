@@ -19,8 +19,6 @@ if (!/^(0|[1-9][0-9]*)$/.test(process.env.ODU_SHARD_INDEX ?? "") ||
     !Number.isSafeInteger(index) || !Number.isSafeInteger(total) || index >= total)
   throw new Error("invalid ODU_SHARD_INDEX / ODU_SHARD_TOTAL")
 let seconds = {}
-// merged value = { member, seconds }; carrying the owning member makes a
-// collision across two members report both names instead of just the loser.
 const membersOut = Bun.spawnSync(["sh", "scripts/workspace-members.sh"])
 for (const dir of membersOut.stdout.toString().split("\n")) {
   if (!dir) continue
@@ -50,7 +48,6 @@ const browser = file => file.endsWith(".browsertest.ts")
 const files = tracked.stdout.toString().split("\0").filter(file =>
   browser(file) || /(?:\.test\.|_test\.|\.spec\.|_spec\.)[jt]sx?$/.test(file))
 if (!files.length) throw new Error("no tracked test files found")
-// Allocation is pure; discovery and Bun's execution conditions stay outside it.
 function partition(files, total, cost) {
   const ordered = [...files].sort((a, b) => cost(b) - cost(a) || (a < b ? -1 : a > b ? 1 : 0))
   const shards = Array.from({ length: total }, () => ({ files: [], seconds: 0 }))

@@ -10,8 +10,6 @@ root="${1:-$(dirname "$0")/..}"
 # statement of a loop body kills the shell.
 while IFS= read -r glob; do
   [ -n "$glob" ] || continue
-  # POSIX sh has no globstar: `packages/**` expands to the top-level entries
-  # only, which would be a silently short member list rather than an error.
   case "$glob" in
     *"**"*)
       echo "workspace-members: the glob '$glob' uses '**', which POSIX sh cannot" >&2

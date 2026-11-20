@@ -51,8 +51,7 @@ pkgs.stdenv.mkDerivation {
     runHook preCheck
     # The site's TypeScript: Astro's build strips types without checking them.
     bun run check
-    # Offline: a link to another site is not fetched. An absolute link
-    # (`/docs/chat/#signing-in`) resolves against the built site.
+
     lychee --offline --include-fragments --root-dir "$PWD/dist" \
       --index-files index.html --no-progress --format detailed 'dist/**/*.html'
     runHook postCheck

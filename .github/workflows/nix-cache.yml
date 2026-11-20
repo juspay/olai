@@ -18,6 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # macos-latest-xlarge is the Apple-silicon runner (aarch64-darwin);
+        # macos-latest-large is Intel and would warm x86_64-darwin instead.
         os: [ubuntu-latest, macos-latest-xlarge]
     runs-on: ${{ matrix.os }}
     steps:
@@ -32,9 +34,6 @@ jobs:
             extra-trusted-public-keys = kolu-r2-1:7KmFrK05rVrnxkyZi9hJGnJJmRCpg87u6MUQIk7nokQ=
             accept-flake-config = true
 
-      # BUILD HERE, PUSH IN THE NEXT STEP — because the push is an action
-      # (`juspay/odu/.github/actions/push`) that owns its own `odu`, its own
-      # token rule and its own proof of what landed.
       - name: Build every flake output, and name its closure roots
         id: roots
         shell: bash
@@ -63,10 +62,6 @@ jobs:
             echo "::error::nix build produced no output paths"
             exit 1
           fi
-          # `.drv` FILES ARE FILTERED OUT. `nix-store -qR --include-outputs` on
-          # a deriver answers that deriver's whole input graph, recipes and
-          # all, and a binary cache serves outputs: pushing one is refused with
-          # "is a derivation — a cache serves outputs".
           {
             printf '%s\n' "$paths"
             while IFS= read -r p; do

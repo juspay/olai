@@ -19,8 +19,8 @@ in
     };
 
     dataDir = lib.mkOption {
-      # str, not path: these are the user's outlines. A path literal would
-      # copy them into the read-only store and `web` would watch the copy.
+      # str, not path: a path literal would copy the user's outlines into the
+      # read-only store, and `web` would then watch the copy.
       type = lib.types.str;
       example = lib.literalExpression ''"''${config.home.homeDirectory}/outlines"'';
       description = ''
@@ -36,8 +36,8 @@ in
     };
 
     environmentFile = lib.mkOption {
-      # str, not path: a file of secrets copied into the world-readable nix
-      # store is the one mistake this option exists to make easy to avoid.
+      # str, not path: a path literal would copy a file of secrets into the
+      # world-readable nix store.
       type = lib.types.nullOr lib.types.str;
       default = null;
       example = lib.literalExpression ''"''${config.home.homeDirectory}/.config/olai/env"'';
@@ -97,9 +97,7 @@ in
 
   config = lib.mkIf cfg.enable {
     # launchd has no EnvironmentFile — its plist takes an attrset of literal
-    # values, which is not a file and not a secret. So the option is refused
-    # there rather than silently doing nothing, which is the failure it exists
-    # to prevent one layer down.
+    # values — so the option is refused there rather than silently dropped.
     assertions = [
       {
         assertion = cfg.environmentFile == null || pkgs.stdenv.hostPlatform.isLinux;
@@ -119,9 +117,9 @@ in
           ExecStart = lib.escapeShellArgs webArgs;
           # Effect's runMain exits 130 on SIGTERM, so SuccessExitStatus=130
           # keeps `systemctl stop` out of failed. Restart=always rather than
-          # on-failure: systemd never restarts a unit whose death was a
-          # systemd stop or restart (man systemd.service, Restart=), and
-          # on-failure would leave a successful exit dark
+          # on-failure: systemd never restarts a unit whose death was a systemd
+          # stop or restart (man systemd.service, Restart=), and on-failure
+          # would leave a successful exit dark
           # (https://github.com/juspay/oss.olai/blob/main/projects/olai/RCA/2026-08-20-olai-service-sigterm.md).
           Restart = "always";
           RestartSec = "1s";
@@ -144,9 +142,9 @@ in
         config = {
           ProgramArguments = webArgs;
           RunAtLoad = true;
-          # A 130 exit is non-zero, so SuccessfulExit=false already restarts
-          # it; KeepAlive=true would also restart a clean 0. Crashed=true
-          # covers a signal death that never became an exit status.
+          # launchd.plist(5): SuccessfulExit=false restarts on any non-zero
+          # exit, so Effect's 130 already comes back; Crashed=true is the
+          # signal-death arm.
           KeepAlive = {
             SuccessfulExit = false;
             Crashed = true;

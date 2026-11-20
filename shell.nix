@@ -27,14 +27,12 @@ pkgs.mkShell {
     OLAI_PLUGIN_EXTERNALS = builtins.toJSON bundle.externals;
 
     OLAI_CORDIS_HYDRATE = cordis.hydrateArgs;
-    OLAI_CORDIS_MANIFEST = builtins.toJSON cordis.externals;
+    OLAI_CORDIS_EXTERNALS = builtins.toJSON cordis.externals;
 
     OSS_OLAI_VAULT = "${pins.oss-olai}";
 
-    # The browsers come from nixpkgs, in the `e2e` shell only (flake.nix) — so
-    # the npm package must never try to fetch its own. This is set HERE, in the
-    # shell that runs `bun install`, rather than there, in the shell that runs
-    # the tests.
+    # The Playwright npm package fetches its own browsers during `bun install`
+    # unless this is set; the `e2e` shell takes them from nixpkgs instead.
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
     OLAI_FONTS_DIR = "${olaiFonts}";

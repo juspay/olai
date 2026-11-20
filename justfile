@@ -1,5 +1,3 @@
-# Only *tracked* files are visible, so a new .nix file must be `git add`ed
-# before `nix develop` sees it.
 nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop ' + justfile_directory() + ' --accept-flake-config -c' }
 
 nix_files := "$(git ls-files '*.nix')"
@@ -74,7 +72,7 @@ plugin-checks:
 
 [doc("Check dependency versions against the Cordis pin")]
 cordis-deps:
-    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh cordis "$OLAI_CORDIS_MANIFEST"'
+    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh cordis "$OLAI_CORDIS_EXTERNALS"'
 
 [doc("Build the browser bundle into packages/web/dist")]
 build-client: install
@@ -106,55 +104,7 @@ nix:
     echo >&2 "nix run .#olai -- --help"
     nix run .#olai --accept-flake-config -- --help > /dev/null
     table=$(nix eval --raw .#olai.passthru.knobsTable --accept-flake-config)
-    keys=""
-    while IFS=$'\t' read -r name kind path holds; do
-      keys="$keys $name"
-      default=$(sed -n "s|.*${name}=\${${name}-'\(.*\)'}.*|\1|p" "$out/bin/olai")
-      if [ -z "$default" ]; then
-        echo "the packaged binary does not bake ${name} into its wrapper," >&2
-        echo "so \`nix run\` would start with no answer for it. Wrapper:" >&2
-        cat "$out/bin/olai" >&2
-        exit 1
-      fi
-      if [ "$default" != "$path" ]; then
-        echo "the wrapper's baked ${name} does not match the fold's path:" >&2
-        echo "  wrapper: $default" >&2
-        echo "  fold:    $path" >&2
-        exit 1
-      fi
-      case "$kind" in
-        file)
-          if [ ! -x "$default" ]; then
-            echo "the wrapper's baked ${name} is not executable: $default" >&2
-            exit 1
-          fi
-          echo "packaged ${name}: $default"
-          ;;
-        dir)
-          if [ ! -d "$default" ] || [ -n "$holds" ] && [ ! -x "$default/$holds" ]; then
-            echo "the wrapper's pinned ${name} is not a directory holding ${holds:-the answer}: $default" >&2
-            exit 1
-          fi
-          echo "packaged ${name}: $default"
-          ;;
-      esac
-    done <<< "$table"
-    keys=$(echo "$keys" | xargs)  # strip leading/trailing whitespace
-    if ! grep -qF "for key in $keys" "$out/bin/olai"; then
-        echo "the wrapper's OLAI_WRAPPER_DEFAULTS loop does not name the fold's knobs: $keys" >&2
-        cat "$out/bin/olai" >&2
-        exit 1
-    fi
-    printf '%s' "$table" | cut -f1,2 | while IFS=$'\t' read -r name kind; do
-        if [ "$kind" = "dir" ]; then
-            if ! grep -qF "export PATH=\"\${${name}}\"\"\${PATH:+:\$PATH}\"" "$out/bin/olai"; then
-                echo "the wrapper names $name but never splices it onto PATH —" >&2
-                echo "the probe would resolve nothing. Wrapper:" >&2
-                cat "$out/bin/olai" >&2
-                exit 1
-            fi
-        fi
-    done
+    bash scripts/check-wrapper-knobs.sh "$out/bin/olai" "$table"
 
 [doc("Check the plugin registry fold (contracts and collisions)")]
 plugin-fold:
@@ -215,8 +165,6 @@ dev-bin:
 [doc("Run browser tests against the Nix-packaged binary")]
 e2e: install
     #!/usr/bin/env bash
-    # NOT `-e`: a failing suite is this recipe's whole subject, and the evidence
-    # below has to be printed BEFORE the status is handed on.
     set -uo pipefail
     bin="$(sh scripts/nix-out.sh .#olai)/bin/olai"
     export OLAI_E2E_ATTEMPT="${OLAI_E2E_ATTEMPT:-$(git rev-parse --short HEAD 2>/dev/null || echo nosha)-$(date -u +%Y%m%dT%H%M%SZ)-$$${ODU_SHARD_INDEX:+-shard$ODU_SHARD_INDEX}}"
@@ -230,8 +178,6 @@ e2e: install
     kept="$OLAI_E2E_EVIDENCE/$OLAI_E2E_ATTEMPT"
     if [[ -d "$kept" ]]; then
       echo "olai-e2e-evidence: kept in $kept"
-      # `|| true` on every line of this block: evidence that cannot be printed
-      # must not turn a red leg green or a green one red.
       for note in "$kept"/*.txt; do [[ -e "$note" ]] && cat "$note" || true; done
       ls -1 "$kept" | sed 's/^/olai-e2e-evidence: file /' || true
     fi
@@ -281,9 +227,6 @@ _gen-bun-nix dir out:
 regenerate-bun-nix:
     for dir in {{ bun_roots }}; do just _gen-bun-nix "$dir" "$dir/bun.nix"; done
 
-# It generates into a tmpdir rather than in place because `check` runs its legs
-# in parallel, and a leg that rewrote a tracked file would race the ones
-# reading it.
 [doc("Check that every bun.nix matches its bun.lock")]
 bun-nix-fresh:
     #!/usr/bin/env bash

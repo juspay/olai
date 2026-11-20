@@ -5,9 +5,6 @@ serve:
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{root}}
-    # saatchi points HOME at .saatchi/home (olai's state). Caches must not
-    # follow it: `git clean -fx .saatchi/` would then cold-start nix+bun
-    # inside the 30s readiness deadline.
     user_home=$(getent passwd "$(id -un)" | cut -d: -f6)
     : "${user_home:?could not resolve the real home directory}"
     export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$user_home/.cache}"

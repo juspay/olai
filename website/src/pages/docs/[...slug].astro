@@ -4,7 +4,6 @@ import { getCollection, render, type CollectionEntry } from "astro:content"
 import Docs from "../../layouts/Docs.astro"
 import { hrefOf, type Reading } from "../../markdown.ts"
 
-// Every page but the index, which the overview draws as cards.
 export async function getStaticPaths() {
   const pages = await getCollection("docs", (page) => page.id !== "index")
   return pages.map((page) => ({
@@ -15,8 +14,6 @@ export async function getStaticPaths() {
 
 const { page } = Astro.props as { page: CollectionEntry<"docs"> }
 const { Content, headings, remarkPluginFrontmatter } = await render(page)
-// What the main flow holds, as the docs pass saw it. Its length needs no
-// measuring here: the docs lint holds every page to about a minute.
 const reading: Reading = remarkPluginFrontmatter.reading
 const h2 = headings.filter((heading) => heading.depth === 2)
 const sections = reading.sections.flatMap((at) => h2[at] ?? [])

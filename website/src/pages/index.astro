@@ -1,8 +1,4 @@
 ---
-/**
- * The pitch: why to try olai, and pictures of what a person sees. How to do
- * a thing belongs on a docs page; each section here ends with a link to it.
- */
 import { markdownToHtml } from "satteri"
 
 import { DEFAULT_THEME, PALETTES } from "../../../packages/appearance/src/palettes.ts"
@@ -10,14 +6,9 @@ import Base from "../layouts/Base.astro"
 import { siteMap } from "../sitemap.ts"
 import "../styles/home.css"
 
-// Every plugin olai ships, as the docs index lists them (a test holds the
-// index to the registry), so this list cannot fall behind the build.
 const plugins = (await siteMap()).groups.find((group) => group.title === "Plugins")
 if (plugins === undefined) throw new Error('docs/index.md has no "## Plugins" group')
 
-// The plugin pitch, with its side facts as footnotes, written the way a docs
-// page writes them so the same renderer draws markers and notes alike. The
-// notes go to the foot of the page.
 const { html } = markdownToHtml(
   `**Ask for one.** Press ⌘K, say in one sentence what it should do, and an agent writes it while you watch.[^agenda] Read what it does, press **Turn on**, and it starts drawing in the page you are on. No reload, no install, no build.[^folder] Your settings travel with your notes.[^settings]
 

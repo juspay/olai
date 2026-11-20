@@ -1,8 +1,7 @@
-# Official bun prebuilt zip, the nixpkgs `pkgs/by-name/bu/bun/package.nix`
-# spelling, vendored so this tree does not pin a second nixpkgs just for
-# one file. 1.4.1 is the first bun with `bun install --offline` (juspay/olai#503).
-# Drop this overlay when NixOS/nixpkgs#556047 (or a 1.4.1 follow-up) reaches
-# the nixpkgs-unstable pin — bun-nixpkgs-catchup.
+# The official bun prebuilt zip, vendored from nixpkgs' bun expression so this
+# tree does not pin a second nixpkgs for one file. 1.4.1 is the first bun with
+# `bun install --offline` (juspay/olai#503); drop the overlay when
+# NixOS/nixpkgs#556047 reaches the nixpkgs-unstable pin.
 { lib
 , stdenvNoCC
 , fetchurl

@@ -1,7 +1,4 @@
 #!/bin/sh
-# NOT A `just check` LEG, deliberately. Its own half writes to tracked files
-# (and puts each one back), so two of them running at once would fight — and
-# `check` runs its legs in parallel.
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -14,48 +11,19 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
-members=$(sh "$root/scripts/workspace-members.sh" "$root")
+roster=$(bun "$root/scripts/fence-tree.ts")
+field() { printf '%s\n' "$roster" | awk -F'\t' -v key="$1" '$1 == key { print $2 }'; }
 
-registry=$(
-  for m in $members; do
-    if [ -f "$m/src/fence.test.ts" ] && jq -r '.dependencies | keys[]' "$m/package.json" | grep -q '^olai-plugin-'; then
-      echo "$m"
-    fi
-  done
-)
-case "$registry" in
-  *"
-"*)
-    echo "prove-fence: more than one member holds a fence and declares plugins:" >&2
-    echo "$registry" | sed 's/^/  /' >&2
-    exit 1
-    ;;
-esac
-[ -n "$registry" ] || { echo "prove-fence: no member both holds src/fence.test.ts and declares plugins" >&2; exit 1; }
-
-names=$(for m in $members; do echo "$m $(jq -r .name "$m/package.json")"; done)
-declared_deps=$(jq -r '.dependencies | keys[]' "$registry/package.json")
-plugins=$(
-  for want in $declared_deps; do
-    echo "$names" | while read -r m mname; do
-      if [ "$mname" = "$want" ] && [ "$m" != "$registry" ]; then echo "$m"; fi
-    done
-  done
-)
-container=$(
-  for m in $plugins; do dirname "$m"; done | sort | uniq -c | sort -rn | head -n 1 | awk '{print $2}'
-)
-plugins=$(for m in $plugins; do if [ "$(dirname "$m")" = "$container" ]; then echo "$m"; fi; done)
-plugin_cands=$(for m in $plugins; do
-  if [ -f "$m/src/server.ts" ] && [ -f "$m/src/browser.tsx" ]; then echo "$m"; fi
-done)
-plugin_a=$(echo "$plugin_cands" | sed -n 1p)
-plugin_b=$(echo "$plugin_cands" | sed -n 2p)
-tenant_a=$(for m in $plugins; do if [ -f "$m/src/wire.ts" ]; then echo "$m"; fi; done | sed -n 1p)
-[ -n "$tenant_a" ] || { echo "prove-fence: no plugin composes a sibling surface" >&2; exit 1; }
-name_a=$(echo "$names" | awk -v p="$plugin_a" '$1 == p { print $2 }')
-name_b=$(echo "$names" | awk -v p="$plugin_b" '$1 == p { print $2 }')
-registry_name=$(jq -r .name "$registry/package.json")
+registry=$(field registry)
+registry_name=$(field registry_name)
+container=$(field container)
+plugin_a=$(field plugin_a)
+name_a=$(field name_a)
+plugin_b=$(field plugin_b)
+name_b=$(field name_b)
+tenant_a=$(field tenant_a)
+component_b=$(field component_b)
+component_b_spec=$(field component_b_spec)
 
 general=packages/server
 general_src=$general/src/main.ts
@@ -65,12 +33,6 @@ contract_door=packages/plugins/navigation/src/routes.ts
 contract_spec=olai-plugin-navigation/routes
 
 shell_door=packages/web/src/client/run.ts
-
-[ -n "$plugin_b" ] || { echo "prove-fence: fewer than two plugins found" >&2; exit 1; }
-case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a plugin" >&2; exit 1 ;; esac
-component_b=$(find "$plugin_b/src" -name '*.tsx' | sort | sed -n 1p)
-[ -n "$component_b" ] || { echo "prove-fence: $plugin_b has no component for mutation 8" >&2; exit 1; }
-component_b_spec=./$(printf '%s' "${component_b#"$plugin_b/src/"}")
 
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
   "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
@@ -188,8 +150,6 @@ for (const one of proof.mutations) {
   console.log(`${verdict}  ${one.claim}: ${one.what}${one.why === undefined ? "" : ` (${one.why})`}${spill}`)
 }
 for (const one of proof.baseline) console.error(`  baseline red: ${one.claim}: ${one.said}`)
-// `ok` is "red on EXACTLY that claim": a spill means the proof is not clean, so
-// this exits non-zero and the run above is not evidence of anything.
 if (!proof.ok) {
   console.error("the proof is not clean: a mutation was not seen, or it coloured another claim")
   process.exit(1)

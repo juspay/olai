@@ -1,43 +1,14 @@
-# Upstream Cordis gotchas olai cannot use the pin without working around. The
-# code-side ledger of what each workaround costs is
-# `packages/effect-cordis/README.md`'s "Where the pin's instability lives".
-# Status at f8ea3cd (cordis 4.0.0-rc.10, plugin-loader 1.0.0-rc.7,
-# plugin-include 1.1.0): all four still open.
-#
-#   1. NO PUBLIC RESOLVER SEAM on `@cordisjs/plugin-loader`. `EntryTree.import`
-#      resolves a row's `name` with a bare `import()` from inside the loader's
-#      own package, which under bun's isolated linker cannot see a workspace
-#      member; the only way through is to fill `loader.internal` — the slot
-#      upstream keeps for Node's own `ModuleLoader` — with one method and a
-#      cast (`packages/effect-cordis/src/loader.ts`). rc.7 resolves bare
-#      specifiers by writing a `.cordis/resolve.mjs` helper into the config
-#      file's project, which is not a seam a consumer can supply.
-#   2. NO TYPED DUPLICATE-PROVIDER ERROR. `ctx.provide` refuses a second
-#      provider by throwing a plain `Error` whose PROSE carries the owning
-#      fiber's name (`service "x" has been registered at <owner>`), so the
-#      owner can only be recovered by matching that sentence
-#      (`packages/effect-cordis/src/lifecycle.ts`, pinned by `lifecycle.test.ts`).
-#   3. DISPOSERS UNLOAD CONCURRENTLY. A fiber's disposers are unloaded with
-#      `Promise.all` (`Fiber._unload`), so a disposer that waits for dependents
-#      does not keep the disposers beside it from releasing first; olai takes
-#      its provisions' disposers out of that set and runs them in order
-#      (`lifecycle.ts`'s `offer` and `close`).
-#   4. AN ERROR WITHOUT A STACK DOES NOT SURVIVE `composeError`. `handleError`
-#      (`src/utils.ts`) splits `.stack` unguarded; under Bun an Error can have
-#      no `stack` (always so while `Error.stackTraceLimit` is 0), and the
-#      splice then throws a TypeError in place of the failed start or
-#      `ctx.provide` refusal. olai keeps what a start threw itself and reads a
-#      lost refusal off the service store (`lifecycle.ts`).
-#
-# The `@ts-nocheck` stamp below is the fifth: compiled under olai's
-# `noUncheckedIndexedAccess` / `noImplicitOverride` (which upstream does not
-# set) plus the three options each Cordis package turns off for itself, the pin
-# is ~35 errors. The stamp hides Cordis's authoring only — the pin's exported
-# types are still computed and olai's call sites still checked against them.
-#
-# Upstream's manifests point at `lib/` (a `tsc` emit this tree does not run),
+# Upstream's manifests point at `lib/` — a `tsc` emit this tree does not run —
 # so the hydrated copy's entry points are rewritten to `src/`, and the two
-# packages that publish no `exports` at all are given one.
+# packages that publish no `exports` at all (include, group) are given one.
+#
+# The `@ts-nocheck` stamp: `packages/core` turns `noImplicitAny`,
+# `noImplicitThis` and `strictFunctionTypes` off in its own tsconfig and
+# `packages/loader` turns off the first, while olai's tsconfig adds
+# `noUncheckedIndexedAccess` and `noImplicitOverride` that upstream never
+# sets — so the pin is ~35 errors under olai's tsc. The stamp hides Cordis's
+# authoring only: its exported types are still computed and olai's call sites
+# still checked against them.
 
 { pkgs }:
 
