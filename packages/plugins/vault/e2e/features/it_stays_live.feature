@@ -100,8 +100,8 @@ Feature: It stays live
   @own-scratch
   Scenario: A directory that stops being readable says so, over the tree it left
     When the served directory is taken away
-    # The root going away is the one change no watcher reports on both
-    # platforms — macOS delivers nothing for it — so the sweep is what notices.
+    # macOS delivers no watch event for the served root going away, so the
+    # unconditional sweep is what notices it.
     Then the stale banner eventually appears
     And the stale banner names "." as "unreadable"
     And the stale banner says "olai can't read this folder right now"

@@ -16,13 +16,8 @@ import {
   HttpStaticServer,
 } from "effect/http"
 
-/**
- * The route, over one served directory.
- *
- * `HttpRouter` ranks by specificity, so this beats the client bundle's `GET /*`
- * catch-all whichever order the layers are merged in — a picture request never
- * falls through to the SPA shell.
- */
+/** `HttpRouter` ranks by specificity, so this beats the client bundle's
+ *  `GET /*` catch-all whichever order the layers are merged in. */
 export const mediaLayer = (root: string, table: () => Claims) =>
   HttpRouter.use((router) =>
     Effect.gen(function*() {
@@ -66,14 +61,9 @@ const missing = HttpServerResponse.empty({ status: 404 })
 
 const NOSNIFF = { "x-content-type-options": "nosniff" } as const
 
-/**
- * What an `.svg` is answered with, on top of the file engine's own answer.
- *
- * An SVG reached as a DOCUMENT rather than through an `<img>` can script, in
- * this origin. `sandbox` with nothing granted puts it in an opaque origin with
- * `allow-scripts` withheld; a CSP header on a response the browser loads as an
- * IMAGE is ignored, so the picture page is unaffected.
- */
+/** A CSP header is ignored on a response the browser loads as an IMAGE, so
+ *  this costs the `<img>` path nothing; an SVG opened as a DOCUMENT is put in
+ *  an opaque origin with `allow-scripts` withheld. */
 const INERT = {
   "content-security-policy": "default-src 'none'; sandbox",
   "x-content-type-options": "nosniff",
@@ -93,33 +83,18 @@ const sealedHeaders = (host: string) => ({
   "cache-control": "no-store",
 })
 
-/**
- * Whether a failed read is one an operator is owed a log line about: the file
- * is THERE and will not open.
- *
- * `BadResource` is what the platform says when a path COMPONENT is not a
- * directory or the target is one — `/media/notes/finishes.md/x.html`, a URL
- * anybody can type and which this route claims. That is a miss: logging it
- * would let anyone who can reach the port write to the log at will.
- */
+/** `BadResource` is what the file API reports when a path COMPONENT is not a
+ *  directory — `/media/notes/finishes.md/x.html` — which is a miss rather than
+ *  a file that will not open. */
 const willNotOpen = (failure: PlatformError.PlatformError): boolean =>
   !vanished(failure) && failure.reason._tag !== "BadResource"
 
-/**
- * A served `.html`, as the response a preview frame is pointed at.
- *
- * `Content-Type` carries the charset because the seal prefix would push the
- * file's own `<meta charset>` past the 1024 bytes a parser looks in.
- *
- * WHICH OF A PAGE'S SCRIPTS RUN, since nothing else in the tree says it: an
- * inline `<script>` and a classic `<script src>` run — a classic script is
- * fetched `no-cors`, which the opaque origin costs nothing. A MODULE script,
- * a dynamic `import()` and `fetch`/`XMLHttpRequest` do not: those are CORS-mode
- * always, and an opaque origin needs an `Access-Control-Allow-Origin` this
- * route deliberately never sends — `null` is the origin every opaque document
- * sends, so granting it would grant every sandboxed frame on the internet a
- * read of this vault's bytes.
- */
+/** `Content-Type` carries the charset because the seal prefix would push the
+ *  file's own `<meta charset>` past the 1024 bytes a parser looks in. A module
+ *  script, `import()` and `fetch` are CORS-mode always, so inside the opaque
+ *  origin `sandbox` mints they would need `Access-Control-Allow-Origin: null`,
+ *  which grants every sandboxed frame; an inline or classic `<script src>` is
+ *  fetched `no-cors` and runs. */
 const page = (
   disk: FileSystem.FileSystem,
   root: string,

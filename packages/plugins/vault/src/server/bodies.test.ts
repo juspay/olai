@@ -7,9 +7,7 @@ import * as Bodies from "./bodies.ts"
 interface Fixture {
   readonly bodies: Bodies.Bodies
   readonly reads: ReadonlyArray<string>
-  readonly published: ReadonlyArray<
-    readonly [string, { readonly text: string } | { readonly refused: true }]
-  >
+  readonly published: ReadonlyArray<readonly [string, Bodies.Served]>
   readonly took: (count: number) => Effect.Effect<void>
   readonly opens: (path: string) => Effect.Effect<Effect.Effect<void>>
 }
@@ -21,14 +19,10 @@ const withBodies = <A>(
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
 ): Promise<A> => {
   const reads: Array<string> = []
-  const published: Array<
-    readonly [string, { readonly text: string } | { readonly refused: true }]
-  > = []
+  const published: Array<readonly [string, Bodies.Served]> = []
 
   return Effect.gen(function*() {
-    const arrivals = yield* Queue.unbounded<
-      readonly [string, { readonly text: string } | { readonly refused: true }]
-    >()
+    const arrivals = yield* Queue.unbounded<readonly [string, Bodies.Served]>()
     const bodies = yield* Bodies.make({
       read: (path) => {
         reads.push(path)
@@ -36,7 +30,7 @@ const withBodies = <A>(
         if (said === "unreadable") {
           return Effect.fail(new PlatformFailure({ path, cause: new Error("EACCES") }))
         }
-        return Effect.succeed(said ?? null)
+        return Effect.succeed(said === undefined ? Bodies.GONE : { _tag: "body" as const, text: said })
       },
       publish: (path, text) => {
         Queue.offerUnsafe(arrivals, [path, text])
@@ -78,7 +72,7 @@ test("opening a file reads its body once and hands it over", () =>
 
       expect(fixture.reads).toEqual(["report.html"])
       expect(fixture.published).toEqual([
-        ["report.html", { text: "<h1>Cabinet quote</h1>" }],
+        ["report.html", { _tag: "body", text: "<h1>Cabinet quote</h1>" }],
       ])
     })))
 
@@ -152,7 +146,7 @@ test("a file released before the read is taken is never opened", () =>
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["other.html"])
-      expect(fixture.published).toEqual([["other.html", { text: "also" }]])
+      expect(fixture.published).toEqual([["other.html", { _tag: "body", text: "also" }]])
     })))
 
 test("a file that has gone publishes nothing", () =>
@@ -163,7 +157,7 @@ test("a file that has gone publishes nothing", () =>
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["gone.html", "here.html"])
-      expect(fixture.published).toEqual([["here.html", { text: "still here" }]])
+      expect(fixture.published).toEqual([["here.html", { _tag: "body", text: "still here" }]])
     })))
 
 test("a body that cannot be read publishes a refusal and does not stop the reader", () =>
@@ -175,8 +169,8 @@ test("a body that cannot be read publishes a refusal and does not stop the reade
 
       expect(fixture.reads).toEqual(["locked.html", "fine.html"])
       expect(fixture.published).toEqual([
-        ["locked.html", { refused: true }],
-        ["fine.html", { text: "readable" }],
+        ["locked.html", { _tag: "refused" }],
+        ["fine.html", { _tag: "body", text: "readable" }],
       ])
     })))
 
@@ -186,5 +180,5 @@ test("a body that is the word refused is still a body", () =>
       yield* fixture.opens("said.html")
       yield* fixture.took(1)
 
-      expect(fixture.published).toEqual([["said.html", { text: "refused" }]])
+      expect(fixture.published).toEqual([["said.html", { _tag: "body", text: "refused" }]])
     })))

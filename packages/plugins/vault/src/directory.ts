@@ -9,12 +9,6 @@ import { holdVault } from "./lock.ts"
 
 export type { Directory } from "@olai/ops"
 
-/** The claim is taken BEFORE the store, which is the only order that means
- *  anything: a store opened first has already forked a watcher over files this
- *  process may turn out not to own. The ORDER of the annotation and the store
- *  is load-bearing in a different way: `Store.make` forks the watcher and the
- *  probe loop, and a fiber inherits the log annotations in force when it is
- *  forked. */
 export const openDirectory = (root: string, codec: Store.Codec<Document, Reading, Verdict>, paths: RuntimePaths) =>
   Effect.gen(function*() {
     const resolved = resolve(root)

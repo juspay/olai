@@ -10,17 +10,19 @@ export interface Views {
   readonly door: VaultViews
 }
 
-const holding = <Door>(what: string) => {
+const heldByOne = <Door>(what: string) => {
   let held: Door | undefined
+  const takeIfFree = (door: Door) =>
+    Effect.sync(() => {
+      if (held !== undefined) return false
+      held = door
+      return true
+    })
   return {
     read: () => held,
-    hold: (door: Door) =>
+    claimOnce: (door: Door) =>
       Effect.acquireRelease(
-        Effect.sync(() => {
-          if (held !== undefined) return false
-          held = door
-          return true
-        }),
+        takeIfFree(door),
         (won) => Effect.sync(() => { if (won && held === door) held = undefined }),
       ).pipe(Effect.flatMap((won) =>
         won ? Effect.void : Effect.die(new Error(
@@ -33,15 +35,15 @@ const holding = <Door>(what: string) => {
 }
 
 export const openViews = (): Views => {
-  const ledger = holding<OpsLedger>("ledger")
-  const search = holding<OpsSearch>("matcher")
+  const ledger = heldByOne<OpsLedger>("ledger")
+  const search = heldByOne<OpsSearch>("matcher")
   return {
     fileKinds: openFileKinds(),
     ledger: () => ledger.read() ?? NO_LEDGER,
     search: () => search.read() ?? NO_SEARCH,
     door: {
-      ledger: ledger.hold as VaultViews["ledger"],
-      search: search.hold as VaultViews["search"],
+      ledger: ledger.claimOnce as VaultViews["ledger"],
+      search: search.claimOnce as VaultViews["search"],
     },
   }
 }

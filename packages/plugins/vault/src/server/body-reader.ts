@@ -2,7 +2,7 @@ import { claimedOf, fileKind, type Claims } from "@olai/format"
 import type { PlatformFailure } from "@olai/store"
 import { Deferred, Effect } from "effect"
 import type { Body } from "../file-surface.ts"
-import { make } from "./bodies.ts"
+import { GONE, make, type Read } from "./bodies.ts"
 
 const refused: Body = { text: null, refused: true }
 
@@ -27,13 +27,16 @@ export const openBodyReader = (
     read: path => Effect.suspend(() => {
       if (!admitted(path)) {
         publish(path, refused)
-        return Effect.succeed(null)
+        return Effect.succeed(GONE)
       }
-      return Effect.tap(read(path), text => Effect.sync(() => {
-        if (text === null) publish(path, { text: null, refused: false })
+      return Effect.flatMap(read(path), text => Effect.sync((): Read => {
+        if (text !== null) return { _tag: "body", text }
+        publish(path, { text: null, refused: false })
+        return GONE
       }))
     }),
-    publish: (path, body) => publish(path, "refused" in body ? refused : { text: body.text, refused: false }),
+    publish: (path, body) =>
+      publish(path, body._tag === "refused" ? refused : { text: body.text, refused: false }),
   })
   yield* Effect.addFinalizer(() => Effect.sync(() => {
     live = false

@@ -20,14 +20,11 @@ const LOCK_NB = 4
  */
 const PLATFORM = process.platform === "darwin"
   ? {
-    // macOS: libc, libm, libpthread and the rest are one library.
     libcs: ["libSystem.B.dylib"],
     errno: "__error",
     wouldBlock: 35,
   } as const
   : {
-    // glibc, which is every platform olai is packaged for today; then musl and
-    // the BSDs' unversioned spelling.
     libcs: ["libc.so.6", "libc.so"],
     errno: "__errno_location",
     wouldBlock: 11,

@@ -5,7 +5,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 
 import { expectCodeIn, expectSiteIn, rowsIn } from "@olai/tests/harness/errors.ts";
-import { askResync } from "@olai/tests/harness/scratch.ts";
+import { drainAndResync } from "@olai/tests/harness/scratch.ts";
 import {
   attr,
   BACKSTOP_STEP_TIMEOUT,
@@ -48,33 +48,19 @@ When(
   },
 );
 
-/** Root can read a 0000 file, so this step is pending there rather than
- *  inverted. */
-When(
-  "the served file {string} cannot be read",
+/** Root reads a file whatever its mode, so a mode-based step cannot be asked
+ *  there at all. */
+const servedFileMode = (mode: number) =>
   async function (this: OlaiWorld, file: string) {
-    if (typeof process.getuid === "function" && process.getuid() === 0) {
-      return "pending";
-    }
-    const target = path.join(this.scratch(), file);
-    fs.chmodSync(target, 0o000);
-    await askResync(this.baseUrl, POLL_TIMEOUT);
-  },
-);
+    if (typeof process.getuid === "function" && process.getuid() === 0) return "pending";
+    fs.chmodSync(path.join(this.scratch(), file), mode);
+    await drainAndResync(this.baseUrl, POLL_TIMEOUT);
+    return undefined;
+  };
 
-/** Pending on root for its twin's reason: root reads a 0000 file, so a root run
- *  skips the pair rather than half of it. */
-When(
-  "the served file {string} can be read again",
-  async function (this: OlaiWorld, file: string) {
-    if (typeof process.getuid === "function" && process.getuid() === 0) {
-      return "pending";
-    }
-    const target = path.join(this.scratch(), file);
-    fs.chmodSync(target, 0o644);
-    await askResync(this.baseUrl, POLL_TIMEOUT);
-  },
-);
+When("the served file {string} cannot be read", servedFileMode(0o000));
+
+When("the served file {string} can be read again", servedFileMode(0o644));
 
 When(
   "another writer adds {string} to {string}",
@@ -132,7 +118,6 @@ When(
       }
     }
     assert.ok(records.some((node) => node["id"] === id), `${file} holds no \`${id}\``);
-    // Archive first, then the outline.
     this.writeServed(
       "_olai/Trash.olai",
       records
@@ -301,9 +286,6 @@ Then("the stale banner is shown", async function (this: OlaiWorld) {
 
 Then(
   "the stale banner eventually appears",
-  // Cucumber's own kill-timeout, widened for this step ALONE: the default
-  // envelope is 40s, so without this the wait below is killed at 40 by
-  // something that knows nothing about what it was waiting for.
   { timeout: BACKSTOP_STEP_TIMEOUT },
   async function (this: OlaiWorld) {
     await this.page

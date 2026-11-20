@@ -1,10 +1,7 @@
-/** Effect 4 RC PubSub subscription teardown can append Fail(Cause.Done) to
- * an interrupt exit. That sentinel means the queue ended, not that the vault
- * failed. Normalize it only on interruption at this owned subscription
- * boundary; publisher defects and every other failure remain supervised.
- * The explicit inner scope includes unsubscribe finalizers in the observed
- * exit, while the mask lets us inspect it after cancellation. */
 import { Cause, Effect, Exit, Stream, SubscriptionRef } from "effect"
+
+/** Effect 4's PubSub teardown can append `Fail(Cause.Done)` — the queue's own
+ *  end-of-stream signal — to a subscription stream's interrupt exit. */
 export const followSubscription = <A>(
   source: SubscriptionRef.SubscriptionRef<A>,
   publish: (value: A) => void,

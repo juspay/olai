@@ -30,9 +30,6 @@ export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
   }
 }
 
-/** The digest is over the REALPATH, which is the load-bearing half: `resolve`
- *  and `realpath` answer a symlinked vault differently, and two brains over one
- *  vault is what the difference would buy. */
 export const lockFor = (root: string, paths: RuntimePaths): string =>
   join(paths.home(), `${paths.digest(paths.canonical(root))}.lock`)
 
@@ -96,24 +93,19 @@ const unlinkQuiet = (path: string): boolean => {
   }
 }
 
-const holderIn = (path: string): number | null => {
-  const pid = noteIn(path)
-  return pid !== null && alive(pid) ? pid : null
-}
-
-const noteIn = (path: string): number | null => {
+const diagnosticPidIn = (path: string): number | null => {
   try {
-    const pid = /^pid=(\d+)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
-    return pid === undefined ? null : Number(pid)
+    const written = /^pid=(\d+)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
+    if (written === undefined) return null
+    const pid = Number(written)
+    return alive(pid) ? pid : null
   } catch {
     return null
   }
 }
 
-/** Signal 0 is the "does this process exist" syscall spelled as a kill.
- *  `EPERM` is a yes — it exists and belongs to somebody else, which on a
- *  per-user runtime directory means the pid has been recycled to another
- *  user's process; anything else (`ESRCH`) is a no. */
+/** Signal 0 is the "does this process exist" syscall spelled as a kill, and
+ *  `EPERM` is a yes: the process is there and belongs to somebody else. */
 const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0)
@@ -146,7 +138,7 @@ export const holdVault = (
         }
         const outcome = lockExclusive(opened)
         if (outcome._tag === "busy") {
-          return refuse(new VaultInUse({ root, holder: holderIn(path) }))
+          return refuse(new VaultInUse({ root, holder: diagnosticPidIn(path) }))
         }
         if (outcome._tag === "failed") {
           return refuse(new LockUnavailable({ path, reason: outcome.reason }))
@@ -161,11 +153,6 @@ export const holdVault = (
       }),
       (held) =>
         Effect.sync(() => {
-          // Unlink WHILE the flock still names this inode, then close. Closing
-          // first would let a second olai lock the same file, after which the
-          // unlink would strand that holder on an unlinked inode and a third
-          // olai would create a new one — two brains. Unlinking a file we have
-          // already stopped serving is the leftover we will not leave behind.
           unlinkQuiet(held.path)
           try {
             fs.closeSync(held.fd)
@@ -184,9 +171,8 @@ const openLock = (path: string): number | LockUnavailable => {
   const directory = dirname(path)
   try {
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
-    // mkdirSync's mode applies only when the directory is CREATED, so a
-    // pre-existing `/tmp/olai-$UID` is the case it cannot speak for. A failed
-    // lstat throws into this try and becomes LockUnavailable.
+    // `mkdirSync`'s mode applies only when the directory is CREATED, so a
+    // pre-existing one needs its own ownership check.
     if (!isPrivateOwnedDir(directory)) {
       return new LockUnavailable({
         path,

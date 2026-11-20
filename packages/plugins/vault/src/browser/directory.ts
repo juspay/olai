@@ -46,8 +46,6 @@ const pathsAfter = (held: Held, upserts: Upserts, removes: Removes): ReadonlyArr
   return moved ? sortByPath(held.members) : held.paths
 }
 
-/** The map handed in is the one the sidebar is drawn from, so it must never be
- *  written into. */
 const unreadableAfter = (
   was: ReadonlyMap<string, BrokenFile>,
   upserts: Upserts,
@@ -72,8 +70,6 @@ const after = (held: Held, upserts: Upserts, removes: Removes): Held => {
   return paths === held.paths && broken === held.broken ? held : { ...held, paths, broken }
 }
 
-/** Minted per seeding rather than shared: one fold's working memory must never
- *  be another's. */
 const holdingNothing = (): Held => ({
   paths: NO_PATHS,
   broken: NO_BROKEN,
@@ -88,12 +84,20 @@ const SERVED_FILES: CollectionFoldOptions<string, Head, Held> = {
 const NO_PATHS: ReadonlyArray<string> = []
 const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
 
+const standingOf = (held: Held | undefined, manifest: Manifest | undefined): Standing => {
+  const holdingFiles = held !== undefined && held.paths.length > 0
+  if (holdingFiles) return "loaded"
+  const neverLoaded = manifest === null
+  if (neverLoaded) return "never"
+  const bothArrived = held !== undefined && manifest !== undefined
+  return bothArrived ? "loaded" : "reading"
+}
+
 export const createDirectory = (
   entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
   fileKinds: Accessor<FileKindsState | null | undefined>,
 ): Directory => {
-  // MUST be registered under a reactive owner.
   const held = entries.fold(SERVED_FILES)
   const claims = createMemo(() => {
     try { return makeClaims(fileKinds()?.claims ?? []) }
@@ -107,13 +111,7 @@ export const createDirectory = (
     claims,
     outlineRow: () => fileKinds()?.outlineRow,
     kindOf: path => fileKind(claims(), path),
-    standing: createMemo((): Standing => {
-      const holding = held()
-      if (holding !== undefined && holding.paths.length > 0) return "loaded"
-      const said = manifest()
-      if (said === null) return "never"
-      return said !== undefined && holding !== undefined ? "loaded" : "reading"
-    }),
+    standing: createMemo(() => standingOf(held(), manifest())),
     paths: heldPaths,
     members: createMemo(() => new Set(heldPaths())),
     broken: createMemo(() => held()?.broken ?? NO_BROKEN, NO_BROKEN, {

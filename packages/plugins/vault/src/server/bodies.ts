@@ -1,17 +1,26 @@
 import type { PlatformFailure } from "@olai/store"
 import { Effect, Queue, type Scope } from "effect"
 
+export type Read =
+  | { readonly _tag: "body"; readonly text: string }
+  | { readonly _tag: "gone" }
+
+export type Served =
+  | { readonly _tag: "body"; readonly text: string }
+  | { readonly _tag: "refused" }
+
+export const GONE: Read = { _tag: "gone" }
+
+const REFUSED: Served = { _tag: "refused" }
+
 export interface Bodies {
   readonly held: (path: string) => Effect.Effect<void, never, Scope.Scope>
   readonly unread: (paths: Iterable<string>) => void
 }
 
 export interface Options {
-  readonly read: (path: string) => Effect.Effect<string | null, PlatformFailure>
-  readonly publish: (
-    path: string,
-    body: { readonly text: string } | { readonly refused: true },
-  ) => void
+  readonly read: (path: string) => Effect.Effect<Read, PlatformFailure>
+  readonly publish: (path: string, body: Served) => void
 }
 
 export const make = (
@@ -34,18 +43,11 @@ export const make = (
         asked.delete(path)
         if (!holders.has(path)) return
         const got = yield* Effect.catch(
-          Effect.map(
-            options.read(path),
-            (text): { text: string } | { gone: true } =>
-              text === null ? { gone: true } : { text },
-          ),
+          options.read(path),
           (failure: PlatformFailure) =>
-            Effect.as(
-              Effect.logWarning(`olai server: ${failure.message}`),
-              { refused: true as const },
-            ),
+            Effect.as(Effect.logWarning(`olai server: ${failure.message}`), REFUSED),
         )
-        if ("gone" in got) return
+        if (got._tag === "gone") return
         options.publish(path, got)
       }),
     ).pipe(Effect.forkScoped)
