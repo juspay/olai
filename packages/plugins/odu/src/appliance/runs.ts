@@ -1,6 +1,6 @@
 import type { NodesFrame, RunRow } from "@odu/service-client/surface"
 import type { ServiceConnection } from "@odu/service-client/dial"
-import { unenrolledStreamCall } from "@kolu/surface/client"
+import { type SurfaceClientCallable, unenrolledStreamCall } from "@kolu/surface/client"
 import { Cause, Effect, Fiber, type Scope, Stream } from "effect"
 
 import { runOf, unknownOf } from "./project.ts"
@@ -86,13 +86,14 @@ export const advanceSub = (
 }
 
 const runsGet = (
-  client: ServiceConnection["client"],
-): ((input: { readonly key: string }) => Stream.Stream<RunRow, unknown>) =>
-  (client.surface as unknown as {
-    readonly runs: {
-      readonly get: (input: { readonly key: string }) => Stream.Stream<RunRow, unknown>
-    }
-  }).runs.get
+  client: SurfaceClientCallable,
+): ((input: { readonly key: string }) => Stream.Stream<RunRow, unknown>) => {
+  const get = client.surface["runs"]?.["get"]
+  if (get === undefined) {
+    throw new Error("odu: the service this build dialled serves no `runs` collection")
+  }
+  return get
+}
 
 export const makeBoard = (deps: BoardDeps): Board => {
   const held = new Map<string, Held>()

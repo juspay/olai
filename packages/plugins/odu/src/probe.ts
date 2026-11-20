@@ -17,10 +17,9 @@ export interface NotHere {
   readonly why: string
 }
 
-export interface Probed {
-  readonly server: StdioServer | null
-  readonly missing: NotHere | null
-}
+export type Probed =
+  | { readonly server: StdioServer; readonly missing: null }
+  | { readonly server: null; readonly missing: NotHere }
 
 export const ODU_COMMAND = "odu"
 
@@ -58,10 +57,10 @@ const NOT_FOUND = `no \`${ODU_COMMAND}\` is on the PATH this server was started 
   + " — a packaged olai carries one"
 
 export const probing = (
-  env: Record<string, string | undefined>,
+  path: string | undefined,
 ): Effect.Effect<Probed, never, Scope.Scope> =>
   Effect.gen(function*() {
-    const found = resolveOn(env["PATH"])
+    const found = resolveOn(path)
     if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
 
     const verdict = yield* askStdioMcp({ command: found, args: ARGS, timeout: DEADLINE_MS })

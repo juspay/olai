@@ -1,9 +1,3 @@
-/**
- * THE ENTRY'S OWN FENCE: `@olai/surface` depends on this module, so it may
- * import `effect` and NOTHING ELSE — no `@odu/*`, no `solid-js`, no
- * `@olai/format`. `packages/bundle/src/fence.test.ts` asserts it.
- */
-
 import { Schema } from "effect"
 
 export const OduLink = Schema.Struct({

@@ -7,8 +7,8 @@ import { Effect, Fiber } from "effect"
 
 import { ODU_COMMAND, type Probed, probing } from "./probe.ts"
 
-const probe = (env: Record<string, string | undefined>): Promise<Probed> =>
-  Effect.runPromise(Effect.scoped(probing(env)))
+const probe = (path: string): Promise<Probed> =>
+  Effect.runPromise(Effect.scoped(probing(path)))
 
 const made: Array<string> = []
 
@@ -90,7 +90,7 @@ describe("odu's mcp, asked for fresh", () => {
   test("no `odu` on the probed PATH is a missing row, never quiet — a packaged olai carries one", async () => {
     const none = mkdtempSync(join(tmpdir(), "olai-odu-"))
     made.push(none)
-    const found = await probe({ PATH: none })
+    const found = await probe(none)
     expect(found.server).toBeNull()
     expect(found.missing?.name).toBe("odu")
     expect(found.missing?.where).toBeNull()
@@ -101,7 +101,7 @@ describe("odu's mcp, asked for fresh", () => {
 
   test("an answering `odu` with the shape is handed over, by its own resolved path", async () => {
     const bin = oduOnPath(answering(handshake()))
-    expect(await probe({ PATH: where })).toEqual({
+    expect(await probe(where)).toEqual({
       server: { name: "odu", command: bin, args: ["mcp"], env: {} },
       missing: null,
     })
@@ -114,7 +114,7 @@ describe("odu's mcp, asked for fresh", () => {
     writeFileSync(bin, "data: not a program")
     chmodSync(bin, 0o644)
     const good = oduOnPath(answering(handshake()))
-    const found = await probe({ PATH: `${dir}${require("node:path").delimiter}${where}` })
+    const found = await probe(`${dir}${require("node:path").delimiter}${where}`)
     expect(found.server?.command).toBe(good)
   })
 
@@ -122,7 +122,7 @@ describe("odu's mcp, asked for fresh", () => {
     oduOnPath(answering(handshake({
       tools: [tool("run_start", "checkout"), tool("run_retry", "runId"), tool("run_wait", "runId")],
     })))
-    const found = await probe({ PATH: where })
+    const found = await probe(where)
     expect(found.server).toBeNull()
     expect(found.missing?.name).toBe("odu")
     expect(found.missing?.why).toContain("`run_cancel`")
@@ -132,7 +132,7 @@ describe("odu's mcp, asked for fresh", () => {
 
   test("an odu from BEFORE juspay/odu#105 is a missing-verb sentence, not a handover", async () => {
     oduOnPath(answering(handshake(SURFACE_BEFORE_105)))
-    const found = await probe({ PATH: where })
+    const found = await probe(where)
     expect(found.server).toBeNull()
     expect(found.missing?.why).toContain("`run_start`")
     expect(found.missing?.why).toContain("`venue_release`")
@@ -143,7 +143,7 @@ describe("odu's mcp, asked for fresh", () => {
     oduOnPath(answering(handshake({
       tools: SURFACE.tools.map((one) => tool(String(one["name"]))),
     })))
-    const found = await probe({ PATH: where })
+    const found = await probe(where)
     expect(found.server).toBeNull()
     expect(found.missing?.why).toContain("checkout")
     expect(found.missing?.why).toContain("needs an upgrade")
@@ -153,7 +153,7 @@ describe("odu's mcp, asked for fresh", () => {
     oduOnPath(answering(handshake({
       tools: [tool("run_start", "expectedSha"), ...SURFACE.tools.slice(1)],
     })))
-    const found = await probe({ PATH: where })
+    const found = await probe(where)
     expect(found.server).toBeNull()
     expect(found.missing?.why).toContain("`run_start`")
     expect(found.missing?.why).toContain("`checkout`")
@@ -163,7 +163,7 @@ describe("odu's mcp, asked for fresh", () => {
     oduOnPath(answering(handshake({
       tools: [...SURFACE.tools.filter((one) => one["name"] !== "run_wait"), tool("run_wait", "checkout")],
     })))
-    const found = await probe({ PATH: where })
+    const found = await probe(where)
     expect(found.server).toBeNull()
     expect(found.missing?.why).toContain("`run_wait`")
     expect(found.missing?.why).toContain("`runId`")
@@ -173,7 +173,7 @@ describe("odu's mcp, asked for fresh", () => {
     oduOnPath(answering(handshake({
       tools: [...SURFACE.tools, tool("future_verb")],
     })))
-    const found = await probe({ PATH: where })
+    const found = await probe(where)
     expect(found.missing).toBeNull()
     expect(found.server).not.toBeNull()
   })
@@ -181,7 +181,7 @@ describe("odu's mcp, asked for fresh", () => {
   describe("the ways of failing, told apart", () => {
     test("one that exits is `closed`, never `timedOut`", async () => {
       oduOnPath(`process.exit(0)`)
-      const found = await probe({ PATH: where })
+      const found = await probe(where)
       expect(found.server).toBeNull()
       expect(found.missing?.why).toContain("closed the connection without answering")
     })
@@ -199,7 +199,7 @@ describe("odu's mcp, asked for fresh", () => {
       setInterval(() => {}, 1000)
     `)
     await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
-      const asking = yield* Effect.forkChild(Effect.scoped(probing({ PATH: where })))
+      const asking = yield* Effect.forkChild(Effect.scoped(probing(where)))
       yield* Effect.promise(() => until(() => existsSync(pidFile)))
       yield* Fiber.interrupt(asking)
     })))

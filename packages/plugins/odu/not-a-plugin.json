@@ -1,5 +1,4 @@
 {
-  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls.",
   "chat": {
     "src/browser/Wake.tsx": 6
   },

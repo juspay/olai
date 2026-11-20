@@ -53,7 +53,6 @@ export default definePlugin({
   name,
   needs: [LocalState, Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
-    // the same list `needs` carries, in the same order
     const clock = yield* Clock
     const deliveries = yield* Deliveries
     const env = yield* Env
@@ -169,6 +168,6 @@ export default definePlugin({
       half.unloaded()
     }))
 
-    yield* opening.ask(Effect.scoped(probing(env.vars)))
+    yield* opening.ask(Effect.scoped(probing(env.vars["PATH"])))
   }),
 })

@@ -1,7 +1,3 @@
-/**
- * AN ODU SERVICE FOR ONE SCENARIO — spawned before the server that dials it.
- */
-
 import { spawn } from "node:child_process"
 import { once } from "node:events"
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"

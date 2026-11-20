@@ -91,3 +91,35 @@ test("an interrupted dial does not wait out the ready deadline", async () => {
   await Effect.runPromise(Fiber.interrupt(fiber))
   expect(Date.now() - started).toBeLessThan(1000)
 })
+
+test("nothing serving the origin is SAID, not warned — absence is the ordinary case", async () => {
+  const said: Array<string> = []
+  const warned: Array<string> = []
+  const links: Array<OduLink> = []
+  const fiber = Effect.runFork(
+    runLink(
+      {
+        link: (state) => { links.push(state) },
+        face: () => {},
+        say: (line) => { said.push(line) },
+        warn: (line) => { warned.push(line) },
+      },
+      { ODU_WEB_ORIGIN: "http://127.0.0.1:1" },
+      () => SINCE,
+      () =>
+        Promise.reject(
+          new Error("odu: nothing is serving ws://127.0.0.1:1/rpc/ws — run `odu web --background`"),
+        ),
+    ),
+  )
+  try {
+    await waitUntil(
+      () => links.some((one) => one.status === "absent"),
+      "the link to say absent, and it said nothing",
+    )
+    expect(warned).toEqual([])
+    expect(said.some((line) => line.includes("no odu at"))).toBe(true)
+  } finally {
+    await Effect.runPromise(Fiber.interrupt(fiber))
+  }
+})

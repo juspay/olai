@@ -8,7 +8,7 @@ if (dir === undefined || dir === "") {
   process.exit(2)
 }
 
-const found = await Effect.runPromise(Effect.scoped(probing({ PATH: dir })))
+const found = await Effect.runPromise(Effect.scoped(probing(dir)))
 
 if (found.missing !== null) {
   console.error(`check-odu-surface: the pinned \`${ODU_COMMAND}\` does not answer this olai's probe`)
@@ -18,11 +18,6 @@ if (found.missing !== null) {
   console.error("This is what a conversation would draw instead of CI tools. Either move")
   console.error("`packages/plugins/odu/src/probe.ts` onto the surface the pin now answers")
   console.error("with, or move the pin back — see nix/odu.nix.")
-  process.exit(1)
-}
-
-if (found.server === null) {
-  console.error("check-odu-surface: the probe reported no server and no reason, which is neither arm")
   process.exit(1)
 }
 

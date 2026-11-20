@@ -26,13 +26,6 @@ export interface LinkSink {
   readonly warn: (line: string) => void
 }
 
-const absenceOf = (cause: unknown): boolean => {
-  const text = cause instanceof Error ? `${cause.name} ${cause.message}` : String(cause)
-  return /ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ECONNRESET|connection refused|nothing serving/i.test(
-    text,
-  )
-}
-
 export const originIn = (
   env: Record<string, string | undefined>,
 ): string => serviceOrigin(env)
@@ -98,15 +91,18 @@ const openConnection = (
     )
   })
 
-const dialOnce = (
+const gone = (sink: LinkSink, origin: string, now: () => string): void => {
+  sink.face(null)
+  sink.link(absent(origin, now()))
+}
+
+const watching = (
   sink: LinkSink,
+  connection: ServiceConnection,
   origin: string,
   now: () => string,
-  dial: DialService,
-): Effect.Effect<void> =>
+): Effect.Effect<void, unknown> =>
   Effect.gen(function*() {
-    const connection = yield* openConnection(origin, dial)
-    yield* Effect.addFinalizer(() => Effect.promise(() => connection.dispose()))
     const cell = yield* readService(connection)
     const verdict = admitService(cell, origin, CI_NEEDS)
     if (verdict.kind === "refuse") {
@@ -131,18 +127,40 @@ const dialOnce = (
       ),
     )
 
-    sink.face(null)
-    sink.link(absent(origin, now()))
+    gone(sink, origin, now)
+  })
+
+const held = (
+  sink: LinkSink,
+  connection: ServiceConnection,
+  origin: string,
+  now: () => string,
+): Effect.Effect<void> =>
+  Effect.gen(function*() {
+    yield* Effect.addFinalizer(() => Effect.promise(() => connection.dispose()))
+    yield* watching(sink, connection, origin, now)
   }).pipe(
     Effect.scoped,
     Effect.catchCause((cause) =>
       Effect.sync(() => {
-        sink.face(null)
-        sink.link(absent(origin, now()))
-        const squashed = Cause.squash(cause)
-        const line = `olai: no odu at ${origin} (${String(squashed)})`
-        if (absenceOf(squashed)) sink.say(line)
-        else sink.warn(line)
+        gone(sink, origin, now)
+        sink.warn(`olai: no odu at ${origin} (${String(Cause.squash(cause))})`)
+      }),
+    ),
+  )
+
+const dialOnce = (
+  sink: LinkSink,
+  origin: string,
+  now: () => string,
+  dial: DialService,
+): Effect.Effect<void> =>
+  openConnection(origin, dial).pipe(
+    Effect.flatMap((connection) => held(sink, connection, origin, now)),
+    Effect.catchCause((cause) =>
+      Effect.sync(() => {
+        gone(sink, origin, now)
+        sink.say(`olai: no odu at ${origin} (${String(Cause.squash(cause))})`)
       }),
     ),
   )

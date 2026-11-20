@@ -166,7 +166,9 @@ export function bodyFor(
 const claimLine = (claim: Claim): string =>
   ` ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names this run.`
 
-export const coalesceOf = (notice: RunNotice): string =>
+export type CoalesceKey = `${typeof name}:${RunNotice["kind"]}:${CiRun["id"]}`
+
+export const coalesceOf = (notice: RunNotice): CoalesceKey =>
   `${name}:${notice.kind}:${notice.run.id}`
 
 export const countsFor = (

@@ -99,7 +99,7 @@ export default definePlugin({
     yield* (yield* Wakes).register(wake)
     yield* (yield* Surfaces).register({ surface, faces, deps })
     yield* (yield* Vault).revision((revision) => /* re-derive from the directory */)
-    yield* (yield* SessionStart).ask(probing(env.vars))
+    yield* (yield* SessionStart).ask(probing(env.vars["PATH"]))
   }),
 })
 ```

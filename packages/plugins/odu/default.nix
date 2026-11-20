@@ -1,6 +1,3 @@
-# `b2n` must be a real `bun2nix` package (the CLI derivation with `hook` and
-# `fetchBunDeps` on passthru).
-
 { pkgs, pins, kit, b2n ? null, ... }:
 
 let
