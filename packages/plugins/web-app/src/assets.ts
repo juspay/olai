@@ -1,5 +1,3 @@
-/** Stable install assets are supplied by the web-app row, alongside the
- * manifest that names them. The generic builder knows neither names nor paths. */
 import { chmodSync, cpSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 export default {
