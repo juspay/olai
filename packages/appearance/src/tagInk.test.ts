@@ -1,8 +1,39 @@
 import { describe, expect, test } from "bun:test"
 
 import { AA, contrastRatio } from "./contrast.ts"
-import { PALETTES } from "./palettes.ts"
-import { TAG_HUE_PROPERTY, TAG_INK, tagHue, tagInkHex, tagStyle } from "./tagInk.ts"
+import { PALETTES, type Scheme } from "./palettes.ts"
+import {
+  oklchChromaReducedToSrgb,
+  oklchClippedToSrgb,
+  type SrgbFromOklch,
+  TAG_HUE_PROPERTY,
+  TAG_INK,
+  tagHue,
+  tagInkHex,
+  tagStyle,
+} from "./tagInk.ts"
+
+const ENGINES: Readonly<Record<string, SrgbFromOklch>> = {
+  "chroma reduction (css-color-4, Firefox)": oklchChromaReducedToSrgb,
+  "channel clipping (Chromium, WebKit)": oklchClippedToSrgb,
+}
+
+const GROUNDS = ["paper", "panel"] as const
+
+const worstRatio = (scheme: Scheme, toSrgb: SrgbFromOklch): number => {
+  let worst = Number.POSITIVE_INFINITY
+  for (const palette of PALETTES) {
+    if (palette.scheme !== scheme) continue
+    for (let hue = 0; hue < 360; hue += 1) {
+      const ink = tagInkHex(scheme, hue, toSrgb)
+      for (const ground of GROUNDS) {
+        const ratio = contrastRatio(ink, palette.colors[ground])
+        if (ratio < worst) worst = ratio
+      }
+    }
+  }
+  return worst
+}
 
 describe("the hue a tag is handed", () => {
   test("it is on the wheel", () => {
@@ -76,35 +107,47 @@ describe("the hue a tag is handed", () => {
 describe("the ink is legible everywhere a title can sit", () => {
   test("the rendered colours are inside sRGB", () => {
     for (const scheme of ["light", "dark"] as const) {
-      for (const hue of [0, 90, 180, 270, 359]) {
-        expect(tagInkHex(scheme, hue)).toMatch(/^#[0-9a-f]{6}$/)
+      for (const toSrgb of Object.values(ENGINES)) {
+        for (const hue of [0, 90, 180, 270, 359]) {
+          expect(tagInkHex(scheme, hue, toSrgb)).toMatch(/^#[0-9a-f]{6}$/)
+        }
       }
     }
   })
 
-  test("the mapping the test grades is the mapping the sheet paints", () => {
-    expect(tagInkHex("light", tagHue("#now"))).toMatch(/^#[0-9a-f]{6}$/)
-  })
-
-  test("every hue clears AA on every palette's paper and panel", () => {
+  test("every hue clears AA on every palette's paper and panel, whichever way the engine lands an out-of-gamut colour", () => {
     const under: Array<string> = []
-    for (const palette of PALETTES) {
-      const ink = TAG_INK[palette.scheme]
-      for (let hue = 0; hue < 360; hue += 1) {
-        for (const ground of ["paper", "panel"] as const) {
-          const ratio = contrastRatio(
-            tagInkHex(palette.scheme, hue),
-            palette.colors[ground],
-          )
-          if (ratio < AA) {
-            under.push(
-              `${palette.name} (${ink.l}/${ink.c}): hue ${hue} on ${ground} ` +
-                `is ${ratio.toFixed(2)}:1, under AA`,
+    for (const [engine, toSrgb] of Object.entries(ENGINES)) {
+      for (const palette of PALETTES) {
+        const ink = TAG_INK[palette.scheme]
+        for (let hue = 0; hue < 360; hue += 1) {
+          for (const ground of GROUNDS) {
+            const ratio = contrastRatio(
+              tagInkHex(palette.scheme, hue, toSrgb),
+              palette.colors[ground],
             )
+            if (ratio < AA) {
+              under.push(
+                `${palette.name} (${ink.l}/${ink.c}, ${engine}): hue ${hue} on ` +
+                  `${ground} is ${ratio.toFixed(2)}:1, under AA`,
+              )
+            }
           }
         }
       }
     }
     expect(under).toEqual([])
+  })
+
+  test("the pair each scheme rides at is recorded by what it measures", () => {
+    const floored = (ratio: number): number => Math.floor(ratio * 100) / 100
+    const measured = Object.fromEntries(
+      (["light", "dark"] as const).map((scheme) => [
+        scheme,
+        floored(Math.min(...Object.values(ENGINES).map((toSrgb) => worstRatio(scheme, toSrgb)))),
+      ]),
+    )
+    expect(measured).toEqual({ light: 6.65, dark: 5.44 })
+    expect(TAG_INK).toEqual({ light: { l: 0.42, c: 0.12 }, dark: { l: 0.74, c: 0.15 } })
   })
 })

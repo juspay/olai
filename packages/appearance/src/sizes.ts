@@ -3,6 +3,10 @@ export type SizeName = "medium" | "large" | "larger"
 export interface TypeSize {
   readonly name: SizeName
   readonly label: string
+  /* On the root element a `rem` means the INITIAL value of `font-size` — the
+   * browser's own, or the reader's preference — rather than the value being
+   * declared (css-values-4 §5.1.1), so these are multipliers of that baseline
+   * and not pixel counts overriding it. */
   readonly root: string
   readonly hint: string
 }

@@ -7,7 +7,7 @@ export const createChrome = () => {
   /**
    * EVERY `theme-color` meta, not the first one: the browser paints from the
    * first meta whose `prefers-color-scheme` media matches, and the shell ships
-   * one per scheme (theme/head.html). The media attributes are left as the
+   * one per scheme (`@olai/appearance/shell.ts`). The media attributes are left as the
    * shell authored them, so withdrawal hands that story back intact.
    */
   const previousColors = Array.from(document.querySelectorAll('meta[name="theme-color"]'))

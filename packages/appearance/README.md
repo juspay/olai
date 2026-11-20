@@ -6,6 +6,12 @@ creates no state, listeners or DOM resources. Theme owns preference state and
 uses these values in its runtime and static build contribution. Fonts have their
 own catalog and build conversion in `@olai/fonts`.
 
+The page's first-paint head is generated here as well (`src/shell.ts`): the two
+`theme-color` metas, the `color-scheme` meta and the inline script that puts a
+stored theme, typeface and size on `<html>` before the bundle exists. Every key,
+attribute and colour in it comes from these tables, and the script reads a
+picked theme's scheme out of the table it was generated from.
+
 ## The interface scale — the rule for chrome
 
 Everything that is interface chrome rather than a reader's own content — the

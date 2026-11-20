@@ -12,11 +12,11 @@ html {
   color: var(--color-ink);
 }
 
-/* macOS draws overlay scrollbars whose gutter is transparent whatever an
- * author asks for, so the thumb has to read against the page rather than
- * against a track colour — and macOS ignores `scrollbar-color` entirely
- * without `scrollbar-width`. Never transition `scrollbar-color`: WebKit
- * flickers the whole bar on every change of it (bugs.webkit.org 311752). */
+/* macOS overlay scrollbars keep a transparent gutter whatever an author asks
+ * for, and ignore `scrollbar-color` without `scrollbar-width` (Chrome's
+ * dark-mode guidance, developer.chrome.com). Never transition
+ * `scrollbar-color`: WebKit repaints the whole bar on every change of it
+ * (bugs.webkit.org 311752, open). */
 .olai-scroll {
   --olai-scroll-thumb: color-mix(in srgb, currentColor 24%, transparent);
   --olai-scroll-track: transparent;
@@ -52,10 +52,8 @@ html {
 }
 
 /* `::backdrop` defaults to `overflow: visible`, which is not a scroll
- * container, and a non-container ignores `overscroll-behavior` entirely — so
- * both declarations are needed, and neither `clip` nor `visible` would do.
- * Engines differ on honouring it where the content does not overflow.
- * What this must never become is `overflow: hidden` on `html` or `body`. */
+ * container, and a non-container ignores `overscroll-behavior` — so both
+ * declarations are needed. */
 :where(dialog:modal) {
   overscroll-behavior: contain;
 }
@@ -65,19 +63,20 @@ html {
   overscroll-behavior: contain;
 }
 
-:where(button, [role="button"], a[href], input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: var(--olai-ring-offset, 2px);
-  border-radius: var(--olai-ring-radius, var(--radius-control));
-}
-
-/* Forced colours: the browser repaints from the system palette and DELETES
- * `box-shadow`, `text-shadow` and gradient backgrounds outright, so an
- * `outline` is the only focus indicator that survives. A system colour keyword
- * written by the author does survive. */
-@media (forced-colors: active) {
+@layer base {
   :where(button, [role="button"], a[href], input, select, textarea, summary, [tabindex]):focus-visible {
-    outline-color: Highlight;
+    outline: 2px solid var(--color-accent);
+    outline-offset: var(--olai-ring-offset, 2px);
+    border-radius: var(--olai-ring-radius, var(--radius-control));
+  }
+
+  /* Forced colours compute `box-shadow` and `text-shadow` to `none` and drop
+   * non-`url()` background images (css-color-adjust-1), so an `outline` is the
+   * only focus indicator left; a system colour keyword survives. */
+  @media (forced-colors: active) {
+    :where(button, [role="button"], a[href], input, select, textarea, summary, [tabindex]):focus-visible {
+      outline-color: Highlight;
+    }
   }
 }
 
@@ -87,8 +86,8 @@ html {
   :where(*)::after {
     transition-property:
       color, background-color, border-color, outline-color,
-      text-decoration-color, fill, stroke, opacity;
-    animation: none;
-    scroll-behavior: auto;
+      text-decoration-color, fill, stroke, opacity !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
   }
 }

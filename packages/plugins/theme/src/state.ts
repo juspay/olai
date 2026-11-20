@@ -3,7 +3,7 @@ import { createSignal } from "solid-js"
 import { DEFAULT_TYPEFACE, FONT_ATTRIBUTE, FONT_STORAGE_KEY, typefaceNamed } from "@olai/fonts"
 import { readPreference, watchPreference, writePreference } from "@olai/web/client/preference.ts"
 import { createChrome } from "./chrome.ts"
-import { defaultPaletteFor, SCHEME_STORAGE_KEY, THEME_ATTRIBUTE, THEME_STORAGE_KEY, paletteNamed } from "@olai/appearance/palettes.ts"
+import { defaultPaletteFor, THEME_ATTRIBUTE, THEME_STORAGE_KEY, paletteNamed } from "@olai/appearance/palettes.ts"
 import { DEFAULT_TYPE_SIZE, SIZE_ATTRIBUTE, SIZE_STORAGE_KEY, sizeNamed } from "@olai/appearance/sizes.ts"
 import type { Appearance, Choice, ThemeChoice } from "./index.ts"
 
@@ -14,7 +14,7 @@ const choice = <T extends { readonly name: string }>(config: {
   readonly key: string
   readonly fallback: () => T
   readonly named: (name: string) => T | undefined
-  readonly shown?: (value: T, selected: T | undefined) => void
+  readonly shown?: (seen: { readonly inForce: T; readonly picked: T | undefined }) => void
 }) => Effect.gen(function*() {
   const root = document.documentElement
   yield* Effect.acquireRelease(Effect.sync(() => root.getAttribute(config.attribute)), (previous) => Effect.sync(() => {
@@ -29,7 +29,7 @@ const choice = <T extends { readonly name: string }>(config: {
     const value = selected ?? config.fallback()
     setPicked(() => selected)
     setCurrent(() => value)
-    config.shown?.(value, selected)
+    config.shown?.({ inForce: value, picked: selected })
   }
   const stored = readPreference(config.key)
   const selected = stored === null ? undefined : config.named(stored)
@@ -92,10 +92,9 @@ export const createAppearance = Effect.gen(function*() {
     key: THEME_STORAGE_KEY,
     fallback: () => defaultPaletteFor(os.dark() ? "dark" : "light"),
     named: paletteNamed,
-    shown: (palette, selected) => {
-      chrome.paint(palette)
-      chrome.scheme(selected?.scheme)
-      writePreference(SCHEME_STORAGE_KEY, selected?.scheme ?? null)
+    shown: ({ inForce, picked }) => {
+      chrome.paint(inForce)
+      chrome.scheme(picked?.scheme)
     },
   })
   os.onChange(themeChoice.refresh)

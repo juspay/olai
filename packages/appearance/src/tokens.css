@@ -1,12 +1,8 @@
 @theme {
-  /* The values must match the default row; `theme/fonts.test.ts` holds
-   * them. */
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: Literata, ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
   --font-mono: "iA Writer Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* These must be the DEFAULT's rather than any palette's, and
-   * `theme/css.test.ts` holds them to that row. */
   --color-ink: #1B1B18;
   --color-paper: #FBFBF9;
   --color-desk: #F3F3EF;
@@ -46,11 +42,6 @@
   --shadow-overlay: 0 2px 8px rgb(0 0 0 / 0.06), 0 24px 64px -12px rgb(0 0 0 / 0.32);
 }
 
-/* The main column reserves the header plus the occupied strip. Keep this on
- * :root, where layout publishes --height-strip inline at runtime, so changes
- * (including withdrawal and phone widths) recompute the derived length.
- * A nested scrollport overrides this to zero: its own top already clears
- * the viewport chrome. Portals on the document still read the root value. */
 :root {
   --height-chrome: calc(var(--height-header) + var(--height-strip, 0px));
 }

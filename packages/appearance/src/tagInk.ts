@@ -85,14 +85,18 @@ const clipSrgb = (rgb: [number, number, number]): [number, number, number] =>
 const inSrgb = (rgb: [number, number, number]): boolean =>
   rgb.every((channel) => channel >= 0 && channel <= 1)
 
+export type SrgbFromOklch = (
+  l: number,
+  c: number,
+  h: number,
+) => [number, number, number]
+
+export const oklchClippedToSrgb: SrgbFromOklch = (l, c, h) =>
+  clipSrgb(oklchToLinearSrgb(l, c, h))
+
 const JND = 0.02
 
-/**
- * What a browser actually paints for an out-of-gamut `oklch(l c h)`:
- * css-color-4 §13.2's local-MINDE gamut mapping — clip when within a JND of
- * exact, else walk the chroma down to the wall keeping L and H.
- */
-export const oklchPaintedInSrgb = (
+export const oklchChromaReducedToSrgb = (
   l: number,
   c: number,
   h: number,
@@ -130,11 +134,12 @@ const gamma = (channel: number): number =>
 export const tagInkHex = (
   scheme: "light" | "dark",
   hue: number,
+  toSrgb: SrgbFromOklch,
 ): string => {
   const ink = TAG_INK[scheme]
   return (
     "#" +
-    oklchPaintedInSrgb(ink.l, ink.c, hue)
+    toSrgb(ink.l, ink.c, hue)
       .map((channel) => Math.round(gamma(channel) * 255).toString(16).padStart(2, "0"))
       .join("")
   )

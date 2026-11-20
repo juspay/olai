@@ -3,10 +3,12 @@
     "src/scale.ts": 1
   },
   "pi": {
+    "src/hues.ts": 1,
     "src/tagInk.ts": 2
   },
   "theme": {
     "src/css.ts": 5,
-    "src/palettes.ts": 14
+    "src/palettes.ts": 14,
+    "src/shell.ts": 9
   }
 }

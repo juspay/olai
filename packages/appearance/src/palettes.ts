@@ -114,8 +114,6 @@ export const THEME_ATTRIBUTE = "data-theme"
 
 export const THEME_STORAGE_KEY = "olai.theme"
 
-export const SCHEME_STORAGE_KEY = "olai.scheme"
-
 export const SYSTEM_SCHEME = "light dark"
 
 export const paletteNamed = (name: string): Palette | undefined =>

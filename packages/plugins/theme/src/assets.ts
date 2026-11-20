@@ -1,7 +1,8 @@
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { chmodSync, cpSync, existsSync, mkdirSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fontCss, fontPreloadHtml, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
 import { paletteCss } from "@olai/appearance/css.ts"
+import { shellHead } from "@olai/appearance/shell.ts"
 import { sizeCss } from "@olai/appearance/sizes.ts"
 import { scaleCss } from "@olai/appearance/scale.ts"
 
@@ -34,7 +35,7 @@ const installFonts = (distDir: string): void => {
 }
 
 export default {
-  head: `${readFileSync(new URL("./head.html", import.meta.url), "utf8")}
+  head: `${shellHead()}
 ${fontPreloadHtml()}`,
   css: () => [scaleCss(), sizeCss(), paletteCss(), fontCss()].join("\n"),
   install: installFonts,

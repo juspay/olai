@@ -4,7 +4,7 @@ export interface Oklch {
   readonly h: number
 }
 
-const DEGREES_PER_RADIAN = 57.29577951308232
+const DEGREES_PER_RADIAN = 180 / Math.PI
 
 const channel = (unit: number): number =>
   unit <= 0.04045 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4
