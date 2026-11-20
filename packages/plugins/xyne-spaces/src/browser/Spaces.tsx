@@ -1,11 +1,4 @@
 import { createMemo } from "solid-js"
-/**
- * THE SPACES READOUT — whether this olai can post to a bound channel.
- *
- * Three states rather than a boolean, like the padi pill: connected, absent,
- * fault. Desktop only, by the app's own breakpoint. Not a door — there is
- * no feed to open — so it is a `<span>` rather than a `<button>`.
- */
 
 import { Show } from "solid-js"
 
@@ -25,10 +18,6 @@ export function Spaces(props: { readonly app: SpacesApp }) {
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>
-      {/* A READOUT, not a control: the sentence rides a hidden twin after the
-          pill, because an `aria-label` on a bare span names nothing a screen
-          reader will read. The tip draws the same words for a pointer, over
-          the bar the pill sits in. */}
       <Tip text={detail() ?? ""} layer={LAYER.over} disabled={detail() === undefined}>
         <span
           class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}

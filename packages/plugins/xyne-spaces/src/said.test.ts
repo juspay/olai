@@ -14,7 +14,6 @@ test("absent names where olai looked, and is quiet", () => {
   expect(said.label).toBe("No xyne")
   expect(said.detail).toBe("Spaces isn't set up. Looked at OLAI_SPACES_URL. Set OLAI_SPACES_URL and OLAI_SPACES_TOKEN.")
   expect(said.tone).toBe("quiet")
-  // Told where to look, it does not repeat the fix.
   expect(spacesSaid(link({ status: "absent", where: "https://spaces.example", told: true })).detail)
     .toBe("Spaces isn't set up. Looked at https://spaces.example.")
 })
@@ -40,12 +39,9 @@ test("fault is an alarm and names the refusal", () => {
   expect(said.label).toBe("xyne error")
   expect(said.detail).toBe("Authentication failed")
   expect(said.tone).toBe("alarm")
-  // A refusal that gave no reason still names where.
   expect(spacesSaid(link({ status: "fault", where: "https://spaces.example", why: null })).detail)
     .toBe("Spaces refused a post at https://spaces.example.")
 })
-
-// ── the readout as the health dot reads it ─────────────────────────────
 
 test("connected is healthy, in the row's own words", () => {
   const up = link({ status: "connected", where: "https://spaces.example", told: true })

@@ -1,17 +1,3 @@
-/**
- * A SPACES THAT IS NOT SPACES — the far end of the mirror's unit tests.
- *
- * The suite pins the request shapes and the queue-on-failure behaviour against
- * the real route's gates, not a paraphrase of one of them. Standing up the
- * human's live instance is refused: this listens on loopback, records every
- * request, and answers with the ChatActionResponse the real routes return.
- *
- * It is a real HTTP server (Bun.serve). The four refines the three chat POSTs
- * actually run (`~/code/xyne-spaces` `routes/chat.ts`, `channelValidation.ts`,
- * `chatController.ts`) are all here, plus channel existence — an unknown
- * `channelId` is 404, which is how a typo'd bind is tested as retryable.
- */
-
 export interface Recorded {
   readonly method: string
   readonly path: string
@@ -23,12 +9,9 @@ export interface FakeSpaces {
   readonly url: string
   readonly requests: ReadonlyArray<Recorded>
   readonly failNext: (status: number, error: string, message?: string) => void
-  /** Stay refused until {@link FakeSpaces.up}. */
   readonly down: (status: number, error: string, message?: string) => void
   readonly up: () => void
-  /** Forget a conversation so the next post into it 404s as a dead thread. */
   readonly dropConversation: (id: string) => void
-  /** Delay each fetch by `ms`, so two drain callers can overlap. */
   readonly slow: (ms: number) => void
   readonly close: () => void
 }

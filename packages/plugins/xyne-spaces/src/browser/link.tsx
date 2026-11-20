@@ -1,7 +1,3 @@
-/**
- * THE LINK, as this tab holds it — ONE subscription, for the pill.
- */
-
 import { type Accessor, createContext, type JSX, useContext } from "solid-js"
 
 import { SPACES_UNDIALED, type SpacesLink } from "../wire.ts"

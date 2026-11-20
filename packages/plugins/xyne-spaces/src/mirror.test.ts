@@ -125,7 +125,7 @@ test("CI while faulted coalesces to one post on recovery, not two", async () => 
     const ciPosts = posts.filter((r) =>
       (r.body as { markdownText: string }).markdownText.includes("CI settled")
     )
-    expect(ciPosts.length).toBe(2) // one refused while down, one posted on recovery
+    expect(ciPosts.length).toBe(2)
     expect(recovered.at(-2)?.body).toEqual(expect.objectContaining({
       markdownText: expect.stringContaining("green"),
     }))

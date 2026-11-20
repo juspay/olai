@@ -1,10 +1,3 @@
-/**
- * SPACES' FACE IN A TRANSCRIPT — the mark over a fault sentence the mirror
- * delivered into somebody's conversation.
- *
- * A `<g>` of paths in a `0 0 16 16` box, `currentColor` throughout. The app
- * owns the `<svg>` around it.
- */
 import type { JSX } from "solid-js"
 
 export function SpacesMark(): JSX.Element {

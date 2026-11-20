@@ -1,8 +1,3 @@
-/**
- * The dial, pinned against a fake Spaces: auth header, postMessage body,
- * thread reply, updateMessage, agentProgress.
- */
-
 import { expect, test } from "bun:test"
 
 import { makeClient, originOf } from "./client.ts"

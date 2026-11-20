@@ -1,29 +1,3 @@
-/**
- * WHAT GETS POSTED, and how — digest classification, the ~500-char trim,
- * one thread per lane, CI edited in place, the queue-on-failure.
- *
- * ## Digest level (the human's ruling)
- *
- * Roughly 5–8 messages per PR, never the firehose: lane dispatched, review
- * verdict, CI result, merged, stuck/needs-human. A kolu heartbeat is not
- * one of those and is dropped. Other doorbell deliveries still post — they
- * are already rare. Orchestrator replies ALL mirror, trimmed to the cap.
- *
- * ## One thread per bound conversation
- *
- * The thread key is the olai `(agent, session)` pair that rides the watching
- * event. The first digest opens a Spaces Conversation (postMessage without
- * `conversationId`). Later digests reply into it. The CI message is EDITED
- * IN PLACE on first-red → final via updateMessage; a later CI still queued
- * replaces the earlier so recovery cannot post two.
- *
- * ## Failure honesty
- *
- * A refused post is said ONCE into the olai conversation (the doorbell
- * fault pattern). Digests queue and post in order on recovery. Progress
- * signals are ephemeral and are not queued.
- */
-
 import type { SpacesClient } from "./client.ts"
 
 export type DigestKind = "dispatched" | "review" | "ci" | "merged" | "stuck" | "note"
@@ -68,13 +42,6 @@ export const classify = (text: string): DigestKind => {
   return "note"
 }
 
-/**
- * THE LANE A DIGEST BELONGS TO — the bound olai conversation, not a title
- * parsed out of the digest. A regex over prose the plugin does not control
- * opened a second thread the moment a later CI line carried a different bold
- * span (`**#460**` after `Lane dispatched: **X**`). The conversation pair
- * already rides the watching event; that is the unit.
- */
 export const laneOf = (agent: string, session: string): string => `${agent}/${session}`
 
 const closeOpenFence = (text: string): string => {
@@ -82,9 +49,6 @@ const closeOpenFence = (text: string): string => {
   return fences % 2 === 1 ? `${text}\n\`\`\`` : text
 }
 
-/** Cap on Unicode code points, never UTF-16 code units, and close a fence
- *  the cut left open so Spaces does not render structure the orchestrator
- *  never wrote. */
 export const trimTo = (text: string, cap: number): string => {
   const points = [...text]
   if (points.length <= cap) return text
@@ -100,10 +64,6 @@ export const faultBody = (why: string, at: string): string =>
     "Said once — not repeated per message. Digests queue here and post when the token works again; fix OLAI_SPACES_TOKEN (or the xyne-channel property on the node agent) and the queue retries on its own.",
   ].join("\n")
 
-/** A channel is bound in the vault and this process has no Spaces app —
- *  the user named where to post, and the secrets that would post are
- *  missing. Not `absent`: `absent` is the ordinary quiet of a machine
- *  that never pointed at Spaces. */
 export const unconfiguredBody = (where: string, named: string, at: string): string =>
   [
     `mirroring is down: ${named} has xyne-channel, but ${where} ${
@@ -141,7 +101,6 @@ export interface MirrorDeps {
     readonly load: () => MirrorSnapshot | undefined
     readonly save: (snapshot: MirrorSnapshot) => void
   }
-  /** How long to wait before retrying a stuck queue. Tests pass a short beat. */
   readonly retryMs?: number
 }
 
@@ -251,12 +210,6 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     return "ok"
   }
 
-  /** ONE PERMIT, TWO FIELDS. `draining` is drainLoop's posted count.
-   *  `sending` is a live send occupying the same permit so the timer
-   *  defers — its 0/1 is not a queued count, and `drain()` never returns
-   *  it. Unreachable today that a caller would mix them (events are
-   *  serialized by the server chain, the timer defers before it reaches
-   *  drain), but one Promise<number> for both was a trap for the next edit. */
   let draining: Promise<number> | undefined
   let sending: Promise<void> | undefined
 
@@ -317,9 +270,6 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     persist()
   }
 
-  /** A live send occupies `sending` so a retry timer that fires after the
-   *  queue emptied cannot `succeed` while this send is still in the air
-   *  and about to fail. */
   const sendWhileDraining = async (item: Outbound): Promise<Verdict> => {
     for (;;) {
       const held = busy()
@@ -376,8 +326,6 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     schedule()
   }
 
-  /** A later CI result for the same lane replaces an earlier one still queued,
-   *  so recovery posts one message, not first-red and final as two. */
   const replaceQueuedCi = (lane: string, text: string): boolean => {
     const index = queue.findIndex((item) =>
       item.lane === lane && (item.op === "update" || (item.op === "post" && item.kind === "ci"))

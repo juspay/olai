@@ -1,21 +1,3 @@
-/**
- * The server half, driven through a fake Spaces and a fake watching bus —
- * never the human's live instance.
- *
- * ## It mounts the plugin rather than calling a function
- *
- * `serve(services)` was a function this file called with a blob of doubles, and
- * the half handed back a `revision` hook, an `unloaded` hook and a `link()` for
- * the bench to read. None of those exists: the half is a plugin, so the bench
- * opens a RUNTIME with double services on it, mounts the plugin, rings
- * `plugins.published(…)` and reads the pill off the cell the browser reads.
- *
- * What that buys is that the cases drive the path a serve drives. The old shape
- * could pass with a `revision` hook nothing called and an `unloaded` that tore
- * down the wrong things — which it did: `unloaded` stopped the watching
- * subscription and every mirror, and `unloaded` means the STORE has never
- * published, not that this plugin is going away.
- */
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -66,8 +48,6 @@ const memoryLocalState = (): LocalState => {
   }
 }
 
-/** What one case hands the services — the same fields the old `Services` blob
- *  carried, now as the config the composition root gives each service. */
 interface Doubles {
   readonly env: Record<string, string | undefined>
   readonly served: string
@@ -77,23 +57,6 @@ interface Doubles {
   readonly localState?: LocalState
 }
 
-/**
- * ONE MOUNTED PLUGIN, on a runtime this case owns — what a serve does, with
- * doubles behind the services rather than a machine behind them.
- *
- * `emit` is the composition root's end of the watching bus (`plugins.saw`),
- * which is what `@olai/server`'s `runtime.ts` rings off a transcript frame. The
- * subscription the plugin makes is a finalizer on its own scope, so a case that
- * disposes the plugin stops the bus without this harness doing anything.
- *
- * ## The Effects are run at the EDGE, and the cases stay promises
- *
- * `openPlugins` and the two doors are Effects; a case is an ordinary `async`
- * test. So the harness holds one scope for the whole case and runs each door as
- * a promise — which is also what makes a case AWAIT a revision, and that is the
- * honest shape rather than a convenience: the root awaits every plugin's
- * re-derivation before the statement that published it returns.
- */
 const mounted = async (doubles: Doubles) => {
   const run = standing()
   const localState = doubles.localState ?? memoryLocalState()
@@ -104,15 +67,6 @@ const mounted = async (doubles: Doubles) => {
     dials: { "xyne-spaces": doubles.dial },
     localStateFor: () => localState,
   }))
-  // A STAND-IN CHAT ROW, because that is what a serve HAS. `deliveries` and
-  // `watching` are the chat plugin's to keep and core provides neither, so a
-  // plugin that names one is `waiting` until a row offers it. This harness used
-  // to be handed both by `openPlugins` through a config field no serve ever
-  // passed, which meant the bench composed a shape that does not exist. It
-  // offers them the way the real row does instead, and the two ends these cases
-  // drive — the deliveries double, and the conversation bus — hang off that
-  // offer. MOUNTED FIRST for the same reason: spaces names them, so it is
-  // PENDING until they are there and has composed no sibling to read.
   const watchers: Array<(event: ConversationSeen) => Effect.Effect<void>> = []
   await run(mountPlugin(
     plugins.host,
@@ -151,17 +105,12 @@ const mounted = async (doubles: Doubles) => {
     return one
   }
   return {
-    /** The pill, read off the CELL the browser reads — one reading, so a case
-     *  cannot pass while what a person sees is wrong. */
     link: (): SpacesLink => {
       const deps = sibling().deps as {
         cells: { link: { store: { get: () => SpacesLink } } }
       }
       return deps.cells.link.store.get()
     },
-    /** A published revision, the way the composition root rings one. The DEFAULT
-     *  is the bound board every case but one wants; a case that is about the bind
-     *  going away hands its own. */
     revision: (snapshot?: unknown): Promise<void> => {
       if (snapshot !== undefined) return run(plugins.published(snapshot))
       const reading = readingOf(setOf({
@@ -176,14 +125,8 @@ const mounted = async (doubles: Doubles) => {
         removed: [],
       }))
     },
-    /** ...and one conversation event, the way the row that owns the bus pushes
-     *  one — awaiting every subscriber, which is what makes a case that emits
-     *  and then asserts read the settled mirror rather than a race. */
     emit: (event: ConversationSeen): Promise<void> =>
       run(Effect.forEach(watchers, (handler) => handler(event), { discard: true })),
-    /** ...and the plugin going away, which is what every case ends with: the
-     *  mirrors stop, the subscription comes off the bus, and the sibling leaves
-     *  the table. */
     dispose: (): Promise<void> => run(plugin.dispose),
   }
 }

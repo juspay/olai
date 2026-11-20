@@ -21,9 +21,6 @@
  *
  * `conversationId` absent on postMessage opens a thread (a new Conversation);
  * present, it replies into that thread. That is `findOrCreateConversation`.
- *
- * `fetch` is injectable so a test owns the far end. A real serve uses the
- * runtime's `fetch`.
  */
 
 export interface Posted {
@@ -64,7 +61,6 @@ export interface SpacesClient {
   }) => Promise<ProgressResult>
 }
 
-/** What a test (or a real serve) hands the dial. */
 export interface Dial {
   readonly fetch?: typeof fetch
 }

@@ -1,10 +1,3 @@
-/**
- * Spaces' channel policy consumes seating answers, not chat's storage grammar.
- * These nodes carry only channel properties; the service's answers are explicit
- * so changing how chat persists a seat cannot change what this test is asking.
- * Chat's declaration fold is covered in its own tests, and the real provider's
- * arrival and withdrawal are covered by cross_plugin_doors.feature.
- */
 import { readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { bindOf, DEFAULT_TRIM, spacesConfigIn, type Seats } from "./config.ts"

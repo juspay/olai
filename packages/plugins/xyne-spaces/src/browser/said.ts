@@ -1,12 +1,3 @@
-/**
- * WHAT THE SPACES READOUT SAYS — the three faces of the link, as words and one
- * tone. The row paints this value and the bar's health dot folds the same one
- * (`olai-plugin-layout`'s `BarStatus`), so the two cannot disagree.
- *
- * `connected` is healthy (one word). `absent` is quiet and names where olai
- * looked. `fault` — a refused post — is the alarm, and names the refusal.
- */
-
 import type { BarStatus } from "olai-plugin-layout/slots"
 
 import type { SpacesLink } from "../wire.ts"

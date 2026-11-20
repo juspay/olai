@@ -1,11 +1,3 @@
-/**
- * THE MIRROR'S SNAPSHOT — threads, queue, overflow count.
- *
- * Core owns the file behind `LocalState`. This module is the parse: a
- * missing or unreadable record is a fresh map, a single malformed row is
- * skipped rather than the file.
- */
-
 import type { LocalState, Refusal } from "@olai/plugin-api/services"
 import { Effect, Semaphore } from "effect"
 
@@ -69,9 +61,6 @@ export const recordOf = (snapshot: MirrorSnapshot): Record<string, unknown> => (
   droppedTotal: snapshot.droppedTotal,
 })
 
-/** Every channel's snapshot, so two node agents naming two channels
- *  cannot clobber each other's threads. A record that is still the
- *  one-channel shape is one entry. */
 export const snapshotsOf = (
   raw: Record<string, unknown> | null,
 ): Map<string, MirrorSnapshot> => {
@@ -99,7 +88,6 @@ export interface MirrorLocalState {
   readonly save: (snapshot: MirrorSnapshot) => Effect.Effect<void, Refusal>
 }
 
-/** Open Xyne's document once and keep its channels behind one write permit. */
 export const openLocalState = (door: LocalState): Effect.Effect<MirrorLocalState> =>
   Effect.gen(function*() {
     let snapshots = snapshotsOf(yield* door.load)
