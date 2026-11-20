@@ -1,11 +1,3 @@
-/**
- * @olai/store — files on disk, kept as a validated snapshot.
- *
- * Generic over content: the caller brings the codec, and this package holds no
- * knowledge of outlines. See {@link ./store.ts} for the sync loop and for what
- * the write gate adds without changing this surface.
- */
-
 export type { Codec, Since } from "./codec.ts"
 export { PlatformFailure, ROOT_ITSELF, StaleWrite, vanished } from "./errors.ts"
 export {
