@@ -11,14 +11,11 @@
   "identity": {
     "src/who.ts": 3
   },
-  "kolu": {
-    "src/runtime.ts": 2
-  },
   "markdown": {
     "src/main.ts": 3
   },
   "mcp": {
-    "src/dial.ts": 6,
+    "src/dial.ts": 5,
     "src/main.ts": 1,
     "src/mcpClient.ts": 19
   },

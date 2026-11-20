@@ -19,7 +19,7 @@
   },
   "files": {
     "src/conventions.ts": 1,
-    "src/derive.ts": 4,
+    "src/derive.ts": 3,
     "src/errors.ts": 10,
     "src/message.ts": 4,
     "src/node.ts": 8,
@@ -103,10 +103,10 @@
   },
   "vault": {
     "src/index.ts": 1,
-    "src/meaning.ts": 24,
+    "src/meaning.ts": 34,
     "src/page.ts": 4,
     "src/searching.ts": 1,
-    "src/typing.ts": 9,
+    "src/typing.ts": 8,
     "src/writing.ts": 1
   }
 }

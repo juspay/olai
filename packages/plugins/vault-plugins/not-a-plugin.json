@@ -1,15 +1,4 @@
 {
-  "//alerts": "`alertsChannel` is the seam's own name for its door, in an import clause — code the sweep reads though the specifier beside it is subtracted. The channel arrives as a declared service on a component of its own (`src/browser.tsx`'s `notices`), and the local binding is `noticeChannel` so the word is spelled once, where the exporter spells it.",
-  "//chat": "None of these reaches for the chat package's code. In the browser half it is `olai-plugin-chat/beside`'s exported tag name in an import clause, with the live door arriving as a declared service on a component of its own. In the server half it is the KEY `chat.conversations` and the prose around it: a key is a name the runtime resolves, which is exactly what makes this row able to run with chat switched off. The rest is the vault's own word for a conversation: whether a CHAT is on a plugin's README (`source.chat` on the wire, the `chats` the runtime asked core's `conversations` door about), which is what counts as a plugin's builder, and the word in `Chats`, the sidebar heading a person is pointed at.",
-  "//files": "The English plural of a file, in prose a person reads and in the name of the list of three the folder holds — `PLUGIN_FILES`, `2 files, 38 lines` on the page, the sentence that says which three there are. None of them reaches the files row.",
-  "//markdown": "`Markdown` is the shared renderer component the README is drawn through (`@olai/markdown-ui`), not a runtime lookup of the markdown row.",
-  "//mcp": "The writer a file written through the agent's own verb is attributed to, which is the door that write came through (`@olai/format`'s `Writer`). It is the ledger's word for an author, not the mcp row.",
-  "//navigation": "`Navigation` is the type on navigation's own contract door, named in an import clause and in the holder it types. The live router arrives as a declared service on the `palette` component; the page, the section and the alert read this package's own hold on it.",
-  "//search": "`search` is the palette row's own key — the lowercase haystack every contributed row carries (`PaletteItem.search`) — and not the search row.",
-  "//settings": "The FILE a plugin's consent and knobs are kept in — `_olai/Settings.olai` — named in the page's heading, in the agent's layout answer and in the words the tools use to say where a person's yes is written down. It is a vault file, not the settings row.",
-  "//sidebar": "The slot a section is hung in is called `sidebar.section` by the row that owns it; naming a slot is how a face is contributed at all.",
-  "//trash": "The vault's own write op (`{ op: \"trash\", id }`) — what removing a plugin does with the node its consent was written on, named where that write is spelled. It is the format's verb for moving a record to `_olai/Trash.olai`, not the trash row.",
-  "//vault": "This row IS the vault's plugins, so the word is in its own name, its own tool names (`vault-plugins_run`), its package path and the prose a person reads: `Kept in your vault as plugins/<word>/`. The vault row is reached the way every other row is, through a declared service. In the alert it is the sentence a folder somebody copied in is announced with — `It is in your vault and nobody has read it yet` — which is prose about a directory.",
   "alerts": {
     "src/browser.tsx": 1
   },
@@ -18,7 +7,7 @@
     "src/server.ts": 7,
     "src/browser/Page.tsx": 9,
     "src/browser/alerts.ts": 1,
-    "src/runtime.ts": 4,
+    "src/runtime.ts": 1,
     "src/source.ts": 2
   },
   "files": {

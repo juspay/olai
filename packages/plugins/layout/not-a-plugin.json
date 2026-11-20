@@ -1,5 +1,4 @@
 {
-  "//tabs": "The seat above the panes is sized by the tab token, and the phone's pane strip is called tabs; neither names the tabs row.",
   "files": {
     "src/Fault.tsx": 1
   },

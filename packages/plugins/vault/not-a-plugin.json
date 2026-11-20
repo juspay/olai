@@ -1,5 +1,4 @@
 {
-  "//outlines": "The broken-file banner and page say a file conflicts with your other `outlines`: the word, not the outlines row.",
   "files": {
     "src/browser.tsx": 2,
     "src/browser/directory.ts": 2,

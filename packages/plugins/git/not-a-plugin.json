@@ -20,8 +20,8 @@
     "src/ledger/pending.ts": 1
   },
   "outlines": {
-    "src/browser/commit/Outlines.tsx": 3,
-    "src/browser/commit/Panel.tsx": 6,
+    "src/browser/commit/Outlines.tsx": 1,
+    "src/browser/commit/Panel.tsx": 3,
     "src/browser/commit/said.ts": 1,
     "src/browser/commit/selection.ts": 2,
     "src/ledger/pending.ts": 21,

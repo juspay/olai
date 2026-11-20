@@ -14,7 +14,6 @@
     "./testids": "./src/testids.ts",
     "./all.css": "./src/all.css"
   },
-  "//browser": "The browser half is `./browser` and is a `.tsx` now, because this row DRAWS: a sidebar section, the plugin's own page, a palette row and an alert. `./testids` is the ids those faces stamp, opened by the scenario package and by nothing else that runs — a static table with no activation behind it. `./all.css` carries no rule and exists so Tailwind is pointed at this directory: a face outside the app's own tree emits no utilities and fails silently as a component with no box (`@olai/bundle`'s `all.css`). The browser dependencies are the five houses those faces hang in — navigation (the route, the palette, the router), layout (the column's entry shapes and the phone's foot clearance), sidebar (the section slot), chat (the agent panel's door and the engine roster, both STATIC doors whose live values arrive through declared services) and the plugin inspector (its knob, so a plugin's settings are not a second control) — plus the markdown pipeline the README is rendered through, Kobalte for the one menu, and Solid itself. `@olai/web` moved out of devDependencies with them: the run edge, the dot and the settled answer are product code here now.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
