@@ -564,7 +564,6 @@ test("index and corpus agree over a generated vault", () => {
     const held = recordCount(at)
     const selective = index.narrow(at, parseFilter(`"of file 11"`, NOW))
     expect(selective?.nodes.size ?? held).toBeLessThan(held / 5)
-    // Declining may not change an answer, only a cost.
     expect(index.narrow(at, parseFilter("record", NOW))).toBeNull()
     let found = 0
     for (

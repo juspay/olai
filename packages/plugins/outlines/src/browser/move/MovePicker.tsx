@@ -67,7 +67,7 @@ export function MovePicker(props: {
 
       <Shortlist
         claims={servedDirectory()?.claims()}
-        nodes={createSearch}
+        search={createSearch}
         query={props.query}
         label="Search for where to move it"
         testids={MOVE_LIST}

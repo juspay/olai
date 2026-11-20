@@ -25,8 +25,6 @@ export default definePlugin({
       (table) => Effect.sync(table.close),
     )
 
-    /** `@olai/plugin-api` may not import the floor, so the door is spelled
-     *  structurally there and with the floor's own types at both ends. */
     yield* offers.offer(Search, () => ({
       nodes: ({ at, query, now, kinds }) =>
         Effect.sync(() =>

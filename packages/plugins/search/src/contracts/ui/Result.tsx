@@ -31,9 +31,6 @@ export function Result(props: {
   readonly active: boolean
   readonly testids: RowTestids
   readonly id?: string
-  /** The file a NODE hit is written in; the label then runs through
-   *  `renderTitle` with `links` false, because a link nested in this row's own
-   *  anchor or button is invalid HTML. */
   readonly from?: string
   readonly needles?: ReadonlyArray<string>
   readonly onSelect: () => void
@@ -45,6 +42,7 @@ export function Result(props: {
       if (from === undefined) return undefined
       return renderTitle(props.claims, props.label, from, {
         needles: props.needles,
+        // A link nested in this row's own anchor or button is invalid HTML.
         links: false,
       })
     },
@@ -67,8 +65,8 @@ export function Result(props: {
       data-id={props.id}
       data-active={props.active ? "true" : "false"}
       onMouseEnter={() => props.onHover()}
-      // Preventing the default on mousedown keeps focus on the header's box, so
-      // its results panel is still up when `click` fires.
+      // The default action of `mousedown` is what moves focus, so preventing it
+      // keeps focus on the header's box and its panel up until `click` fires.
       onMouseDown={(event: MouseEvent) => event.preventDefault()}
       on:olai-navigated={() => props.onNavigate?.()}
       onClick={() => { if (props.href === undefined) props.onSelect() }}

@@ -68,7 +68,6 @@ test("a scope and a candidate list compose over a vault with depth in it", () =>
     expect(report.hits).toBeGreaterThan(500)
     expect(report.narrowing).toBeGreaterThan(100)
     expect(report.candidates).toBeGreaterThan(asks.length / 4)
-    // A scope may not mean one thing to a candidate list and another to a corpus.
     expect(differential(at, asks, NOW).divergences).toEqual([])
   } finally {
     index.close()

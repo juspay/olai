@@ -13,7 +13,7 @@ import { definePlugin, Offers, Slots, Faces, slotLocation } from "@olai/plugin-a
 import { Effect } from "effect"
 
 import { HeaderSearch } from "./browser/HeaderSearch.tsx"
-import { createSearch } from "./browser/kit/nodes.ts"
+import { freshProvider } from "./browser/kit/nodes.ts"
 import { holdReading } from "./browser/reading.ts"
 import { holdPalette } from "./browser/palette.ts"
 import { Clocks } from "@olai/plugin-api"
@@ -33,7 +33,7 @@ export default definePlugin({
 
     const slots = yield* rendererSlots
     yield* holdFaces(yield* Faces)
-    const reading: SearchProvider = (...args: Parameters<SearchProvider>) => createSearch(...args)
+    const reading: SearchProvider = freshProvider()
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("readings", () => reading)
     yield* slots.contribute<Hung<BarSeat>>(slotLocation("app.header"), { plugin: name, face: { place: "lead" as const, body: () => <HeaderSearch claims={servedDirectory()?.claims()} /> } }, { children: [boxBelow] })

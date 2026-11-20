@@ -3,5 +3,9 @@ export interface Drawn {
   readonly total: number
 }
 
-export const countLine = ({ drawn, total }: Drawn): string | null =>
-  total > drawn ? `${drawn} of ${total} matches` : null
+const behindTheRows = ({ drawn, total }: Drawn): number => total - drawn
+
+export const countLine = (answer: Drawn): string | null =>
+  behindTheRows(answer) > 0
+    ? `${answer.drawn} of ${answer.total} matches`
+    : null

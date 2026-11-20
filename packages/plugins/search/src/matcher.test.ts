@@ -1,4 +1,3 @@
-// This package may import `@olai/ops`, and `@olai/ops` may not import this one.
 import {
   type Derived,
   type Detail,

@@ -22,8 +22,7 @@ export interface ShortlistTestids {
 
 export function Shortlist(props: {
   readonly claims: Claims | undefined;
-  /** Handed in: a contract closure may not acquire a provider resource. */
-  readonly nodes: NodeSearch
+  readonly search: NodeSearch
   readonly query?: Signal<string>
   readonly label: string
   readonly testids: ShortlistTestids
@@ -36,7 +35,7 @@ export function Shortlist(props: {
   }
 }) {
   const [query, setQuery] = props.query ?? createSignal("")
-  const found = props.nodes(() => query(), "node")
+  const found = props.search(() => query(), "node")
   const hits = found.hits
   const cursor = createCursor(() => hits().length)
   const isCurrent = createSelector(cursor.at)
@@ -79,7 +78,7 @@ export function Shortlist(props: {
         autocapitalize="none"
         spellcheck={false}
         value={query()}
-        // `queueMicrotask`: the element is not in the document when the ref runs.
+        // solid-js runs a `ref` callback before the element is in the document.
         ref={(box) => queueMicrotask(() => box.focus())}
         onInput={(event) => {
           setQuery(event.currentTarget.value)

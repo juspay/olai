@@ -142,14 +142,12 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         {(box_) => (
           <Portal>
             <div
-              // A `border`, not a `ring-1`: forced-colors modes remove box-shadows,
-              // which would leave this panel with no edge at all.
+              // A `border`, not a `ring-1`: forced colors mode computes
+              // `box-shadow` to `none`, leaving this panel with no edge at all.
               class={`fixed ${LAYER.over} overflow-hidden rounded-surface border border-rule bg-panel shadow-overlay`}
               ref={results}
               onFocusOut={event => { if (!(event.relatedTarget instanceof Node && (results?.contains(event.relatedTarget) || event.relatedTarget === box))) setCaret(false) }}
               data-testid={TESTID.headerSearchResults}
-              // `styleOf`, because a computed key (`[at.side]`) in a Solid style
-              // object compiles away silently and leaves the panel unpositioned.
               style={styleOf(box_())}
             >
               <Show when={below()} keyed>{face => <face.body search={nodes} />}</Show>

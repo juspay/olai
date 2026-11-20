@@ -49,15 +49,24 @@ export const CROWD_FLOOR = 1024
 
 type Kind = "node" | "document"
 
+interface Plan {
+  readonly putting: ReadonlyArray<readonly [string, ReadonlyArray<Located>]>
+  readonly dropping: ReadonlyArray<string>
+  readonly puttingDocuments: ReadonlyArray<Bodied>
+  readonly droppingDocuments: ReadonlyArray<string>
+}
+
+interface Written {
+  readonly plan: Plan
+  readonly moved: number
+}
+
 export interface Candidates {
   readonly nodes: ReadonlySet<string>
   readonly documents: ReadonlySet<string>
 }
 
 export interface Index {
-  /** `null` and an empty {@link Candidates} are opposite answers and must not be
-   *  confused: `null` is "nothing to say about that query", an empty pair is
-   *  "looked, and nothing can match". */
   readonly narrow: (at: Reading, filter: Filter) => Candidates | null
   readonly rows: () => number
   readonly bytes: () => number
@@ -147,6 +156,37 @@ export const open = (): Index => {
     return 1
   }
 
+  const writeRows = db.transaction((plan: Plan): Written => {
+    let moved = 0
+    for (const file of plan.dropping) moved -= drop(file)
+    for (const [file, records] of plan.putting) {
+      moved -= drop(file)
+      moved += put(file, records)
+    }
+    for (const path of plan.droppingDocuments) moved -= drop(path)
+    for (const document of plan.puttingDocuments) {
+      moved -= drop(document.path)
+      moved += putDocument(document)
+    }
+    return { plan, moved }
+  })
+
+  const remember = ({ plan, moved }: Written): void => {
+    held += moved
+    for (const file of plan.dropping) files.delete(file)
+    for (const [file, records] of plan.putting) files.set(file, records)
+    for (const path of plan.droppingDocuments) documents.delete(path)
+    for (const document of plan.puttingDocuments) documents.set(document.path, document)
+  }
+
+  const lookOrDecline = (
+    expression: string,
+  ): ReadonlyArray<{ kind: Kind; key: string }> | null => {
+    const crowd = Math.max(CROWD_FLOOR, Math.floor(held / CROWD))
+    const found = looked.all(expression, crowd + 1)
+    return found.length > crowd ? null : found
+  }
+
   const follow = (at: Reading): void => {
     if (followed === at) return
     const bodied = bodiedIn(at.set)
@@ -179,30 +219,8 @@ export const open = (): Index => {
       return
     }
 
-    // THE SQL FIRST AND THE BOOKKEEPING AFTER, which is not a style choice: a
-    // transaction that throws rolls the ROWS back and would not roll back a
-    // `files.set` made inside it, leaving this side certain a file is indexed
-    // whose rows are gone — the one failure that costs a hit rather than a
-    // millisecond. Written this way, a throw leaves both sides exactly as they
-    // were and the next call does the same work again.
-    let moved = 0
-    db.transaction(() => {
-      for (const file of dropping) moved -= drop(file)
-      for (const [file, records] of putting) {
-        moved -= drop(file)
-        moved += put(file, records)
-      }
-      for (const path of droppingDocuments) moved -= drop(path)
-      for (const document of puttingDocuments) {
-        moved -= drop(document.path)
-        moved += putDocument(document)
-      }
-    })()
-    held += moved
-    for (const file of dropping) files.delete(file)
-    for (const [file, records] of putting) files.set(file, records)
-    for (const path of droppingDocuments) documents.delete(path)
-    for (const document of puttingDocuments) documents.set(document.path, document)
+    const plan = { putting, dropping, puttingDocuments, droppingDocuments }
+    remember(writeRows(plan))
     followed = at
   }
 
@@ -211,20 +229,8 @@ export const open = (): Index => {
       const groups = narrowableBy(filter, lookupable)
       if (groups === null) return null
       follow(at)
-      const crowd = Math.max(CROWD_FLOOR, Math.floor(held / CROWD))
-      const found = looked.all(expressionOf(groups), crowd + 1)
-      // A CROWD, which is the one answer this table declines to give: the query
-      // selects so much of the directory that finding out which part costs more
-      // than reading all of it ({@link CROWD}). One row over the share is how
-      // that is known, and the limit is why knowing it was cheap.
-      //
-      // THE LIMIT AND THIS LINE ARE ONE MECHANISM and neither survives without
-      // the other: a `limit` with no decline behind it hands back a TRUNCATED
-      // list, which is the one thing candidates may never be — over-inclusion
-      // is free and under-inclusion is a hit nobody finds. Taking this line out
-      // does not make the index slower, it makes it wrong, and the soak says so
-      // at the superset assertion rather than at a missing row.
-      if (found.length > crowd) return null
+      const found = lookOrDecline(expressionOf(groups))
+      if (found === null) return null
       const nodes = new Set<string>()
       const paths = new Set<string>()
       for (const row of found) (row.kind === "node" ? nodes : paths).add(row.key)

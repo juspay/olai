@@ -25,11 +25,18 @@ const rowProps = (
     value: entry.value,
     matched: matched.includes(entry.key),
   }))
-  return [
-    ...matched.flatMap((key) => {
-      const entry = entries.find((one) => one.key === key)
-      return entry === undefined ? [] : [entry]
-    }),
-    ...entries.filter((entry) => !entry.matched),
-  ]
+  return matchedFirst(entries, matched)
+}
+
+const matchedFirst = (
+  entries: ReadonlyArray<NodeProp>,
+  queryOrder: ReadonlyArray<string>,
+): ReadonlyArray<NodeProp> => {
+  const byKey = new Map(entries.map((entry) => [entry.key, entry]))
+  const inQueryOrder = queryOrder.flatMap((key) => {
+    const entry = byKey.get(key)
+    return entry === undefined ? [] : [entry]
+  })
+  const inFileOrder = entries.filter((entry) => !entry.matched)
+  return [...inQueryOrder, ...inFileOrder]
 }

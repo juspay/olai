@@ -90,7 +90,7 @@ export function EdgePanel(props: {
 
       <Shortlist
         claims={servedDirectory()?.claims()}
-        nodes={createSearch}
+        search={createSearch}
         query={props.query}
         label={words().placeholder}
         testids={EDGE_LIST}
