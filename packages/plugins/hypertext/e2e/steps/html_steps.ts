@@ -1,29 +1,8 @@
-/**
- * A `.html` in the vault: the row, the page, and the seal around the file.
- *
- * Most of these read INSIDE the frame, through Playwright's `frameLocator`,
- * and that is the point rather than an inconvenience: what the file says is in
- * there, and what the file may NOT do is everything out here. A step that read
- * the app's DOM for the file's heading would be asserting the exact thing this
- * feature exists to forbid.
- *
- * The two "untouched" steps are the probe's other end. `report.html`'s script
- * RUNS now, and tries to write `localStorage`, set a cookie and mark the app's
- * `<body>`; each is read from the APP's side, because that is the origin that
- * would have been reached and the only place the damage would show. They are
- * deliberately asserted after a step that has already seen the preview draw —
- * an empty storage is trivially true of a page that never loaded.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
 
-// The policy the server actually writes, not a copy of it — see the step that
-// reads it, and `seal.ts`'s own note on why it is a named function. It takes
-// the HOST the request was made to, because the one thing the policy says that
-// is not a constant is where this vault's files are. `mediaHref` is the other
-// half of the same contract: the address a preview frame is pointed at.
 import { isPicture } from "@olai/format";
 import {
   BODY_REFUSED as REFUSED_SAID,
@@ -52,10 +31,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── the row in the tree ────────────────────────────────────────────────
-
-// The same question the documents step asks, about the other kind, through the
-// world that owns the waiting (`expectListed`).
 Then(
   "the pages listed are {string}",
   async function (this: OlaiWorld, expected: string) {
@@ -76,26 +51,16 @@ When("I click the page {string}", async function (this: OlaiWorld, file: string)
   await this.waitForFrame();
 });
 
-// The same address a document has, because it is the same page model — so it
-// is opened the same way, through the world's own `openDocument`.
 When("I open the page {string}", async function (this: OlaiWorld, file: string) {
   await this.openDocument(file);
 });
 
-// ── what is drawn in the frame ─────────────────────────────────────────
-
-/** The frame ELEMENT, on screen — what every step below starts from, so a
- *  failure says "there is no preview" rather than timing out on something
- *  inside one. */
 const preview = async (world: OlaiWorld) => {
   const frame = world.page.locator(HYPERTEXT_PREVIEW);
   await frame.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   return frame;
 };
 
-/** …and the document inside it, which is where everything the FILE says is
- *  read. Asked through `frameLocator` because that is the only way in: nothing
- *  in there can reach a testid out here, which is the point. */
 const inside = async (world: OlaiWorld) => {
   await preview(world);
   return world.page.frameLocator(HYPERTEXT_PREVIEW);
@@ -138,9 +103,6 @@ Then(
   },
 );
 
-/** Any of the file's own words, wherever in it they are — what a step needs
- *  when the claim is "the write reached the frame" and the write was a line
- *  rather than a heading. */
 Then(
   "the preview shows the text {string}",
   async function (this: OlaiWorld, text: string) {
@@ -166,9 +128,6 @@ Then(
   },
 );
 
-// The file's own `<style>`, read as the COMPUTED colour of what it styled: a
-// heading that came out the app's ink is a frame that dropped the stylesheet,
-// which is what a policy without `style-src 'unsafe-inline'` would do.
 Then(
   "the preview draws {string} in the file's own colour",
   async function (this: OlaiWorld, text: string) {
@@ -186,21 +145,7 @@ Then(
   },
 );
 
-/**
- * WHAT THE PAGE'S OWN SCRIPT DREW, which is the ruling of 2026-08-16 read as a
- * fact on a screen rather than as a policy string.
- *
- * A page that builds its own content is the ordinary saved dashboard, and under
- * the old seal it drew NOTHING — the script was refused by hash, so the file
- * was a heading over an empty box. So the assertion is not "the script ran": it
- * is that the elements it created are there and each has a real box, because an
- * element appended by a script that could not style it is as invisible as one
- * that was never appended.
- */
 When("I grow the preview", async function (this: OlaiWorld) {
-  // The late-growth scenario's own event: the fixture exposes `grow`, and
-  // calling it is what makes the page taller. A clock after `load` is not
-  // that event — under load it fires while the reader is still landing.
   await (await inside(this)).locator("body").evaluate(() => {
     const grow = (window as unknown as { grow?: () => void }).grow
     if (typeof grow !== "function") {
@@ -215,10 +160,6 @@ Then(
   async function (this: OlaiWorld, many: number, selector: string) {
     const drawn = (await inside(this)).locator(selector);
     if (many === 0) {
-      // HOLD, not wait-until-gone. A wait for zero is a wait the late-growth
-      // scenario fails under load: a clock after `load` has often already
-      // fired, and the step then times out on boxes that are supposed to
-      // stay. Absence is true NOW, of the frame as it is.
       await this.waitForFrame();
       assert.strictEqual(
         await drawn.count(),
@@ -252,21 +193,6 @@ Then(
   },
 );
 
-// ── the pictures a page may and may not draw ───────────────────────────
-
-/**
- * DECODED, not merely present, and that is the only reading that means anything
- * here: a refused `<img>` is in the DOM, is visible, has the `src` the file
- * wrote, and has drawn nothing at all. Every picture step below asks the
- * browser this one question.
- *
- * `decode()` rather than `naturalWidth` alone, and the difference is not
- * pedantic: a PNG's width is in its header, so an image whose PIXELS never
- * arrived still reports one. (Found the hard way here — a fixture picture with
- * a malformed body passed a width check and rendered a blank box.) The answer
- * is the width of a picture that actually decoded, and zero for everything
- * else.
- */
 const drawn = (picture: Locator) =>
   picture.evaluate(async (node) => {
     const image = node as HTMLImageElement;
@@ -278,11 +204,6 @@ const drawn = (picture: Locator) =>
     }
   });
 
-/** The `<img>` itself, once it is in the DOM — which is the wait that has to
- *  come first: an `<img>` is there the moment the document parses, so reading
- *  its width straight away would be reading it before the fetch it is about
- *  could possibly have finished. Resolved ONCE and handed to {@link drawn}, so
- *  a step that reads a picture twice looks it up once. */
 const pictureIn = async (world: OlaiWorld, selector: string): Promise<Locator> => {
   const picture = (await inside(world)).locator(selector).first();
   await picture.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
@@ -300,20 +221,11 @@ Then(
   },
 );
 
-// …and the refusals, which are the whole point of the fixture. Each of these
-// is in the DOM — asserted, so a typo'd selector cannot pass as "nothing was
-// drawn" — and each has to have fetched nothing: a climb out of the served
-// directory, the same climb spelled `%2e%2e`, a remote host, a `data:` URI.
-// Given a moment to be wrong first, because a picture that HAD been allowed
-// would arrive a frame or two after the markup did.
 Then(
   "the preview draws no picture for {string}",
   async function (this: OlaiWorld, selectors: string) {
     const named = selectors.split(",").map((one) => one.trim());
     const pictures = await Promise.all(named.map((one) => pictureIn(this, one)));
-    // ONCE, not once per selector: every one of these was asked for by the same
-    // page load, so one grace period covers the lot — and the four in the
-    // fixture used to cost four of them.
     await this.page.waitForTimeout(POLL_TIMEOUT / 10);
     const widths = await Promise.all(pictures.map(drawn));
     const wrong = named
@@ -329,42 +241,10 @@ Then(
   },
 );
 
-/**
- * WHICH ADDRESS a picture was actually fetched from, and that it was allowed.
- *
- * The step above reads an `<img>` and asks whether it DECODED, which is the
- * right question when there is an element to read. Three ways of naming a
- * picture have no such element to read, or none that says which candidate won:
- * a `srcset`, a `<picture>`'s `<source>`, and a CSS `background: url(…)`. They
- * are the addresses a saved page uses most and the ones #201 named as untested,
- * on the argument that they "work by consequence of the shared base" — which is
- * exactly the kind of claim that is true until it is not.
- *
- * So this asks the network instead, and it asks the two halves separately
- * because they can fail apart:
- *
- *   - **the URL is the one the file's own address resolves to.** `art/x.png`
- *     inside `notes/page.html` is `/media/notes/art/x.png` and nothing else. A
- *     base that had slipped — back to the app's root, to the media root, to a
- *     `<base>` the file itself declared — produces a DIFFERENT path here, and a
- *     step that only asked "was it refused?" would go green on a picture nobody
- *     meant to serve;
- *   - **and nothing refused it.** A request is recorded the moment a document
- *     asks for one, before anything decides whether it may happen, so being in
- *     the list proves only the asking. `world.refused` is the other half.
- *
- * Paths rather than whole URLs in the feature, because the port is this run's.
- */
 Then(
   "the preview fetched the vault's pictures at {string}",
   async function (this: OlaiWorld, wanted: string) {
     const paths = wanted.split(",").map((one) => one.trim());
-    // Path AND QUERY, because the query is how a fixture tells three requests
-    // for one picture apart. `mediaTarget` cuts at the `?` before it decodes a
-    // name, so `handle.png?painted` is the same FILE and a different REQUEST —
-    // which is what stops a browser answering the stylesheet's fetch out of the
-    // cache the `<img>` above it filled, and turns "all three were allowed"
-    // from a hope into three lines.
     const pathOf = (url: string): string => {
       try {
         const at = new URL(url);
@@ -389,31 +269,6 @@ Then(
   },
 );
 
-/**
- * WHAT LEFT, as against what was asked for — and on a page that names somebody
- * else's server on purpose, those are two different lists.
- *
- * `report.html` carries a remote picture, so the ATTEMPT is recorded the moment
- * the markup is parsed: a browser records a request when a document asks for
- * one, before anything has decided whether it may happen. "The page requested
- * nothing off this server" (the markdown side's step) is therefore the wrong
- * question here, and a weaker one — what this asks is whether each of those
- * attempts was STOPPED, and by what.
- *
- * By the POLICY, specifically, and that is the whole reason the reason is read.
- * `example.invalid` cannot resolve, by construction — so a fixture pointing at
- * it would fail to reach anyone whether or not this app had a content policy at
- * all, and a step that accepted any failure would go green on a preview with
- * the seal taken off. What the browser says about a refusal is the difference
- * between "we stopped it" and "the internet did": Playwright hands this one
- * back as `csp` and the same family of blocks is spelled `ERR_BLOCKED_BY_*`
- * elsewhere, so both are matched and a failure prints every reason it saw —
- * this pattern is about a browser's WORDING, and a rewording of it should fail
- * here legibly rather than read as a policy that stopped working.
- *
- * The last assertion is the fixture's own teeth: at least one address off this
- * server has to have been attempted, or this step is a sentence about nothing.
- */
 const BLOCKED_BY_POLICY = /^csp$|blocked_by_csp|blocked_by_client|blocked_by_response/i;
 
 Then("the preview reached nothing off this server", function (this: OlaiWorld) {
@@ -438,22 +293,6 @@ Then("the preview reached nothing off this server", function (this: OlaiWorld) {
   );
 });
 
-/**
- * WHAT THE SERVER SENT THIS READER, as against what it drew.
- *
- * The two steps below are one claim read from both ends, and they are about
- * the WEBSOCKET rather than about the screen: a preview draws a file whose
- * bytes it fetched over HTTP, so those bytes have no business on the socket as
- * well — while a note draws a body the socket is the ONLY way to get, so that
- * one had better be on it. Before the head member existed, both were sent both
- * ways, and the copy nobody drew arrived first and gated the frame.
- *
- * It reads the raw frames (`world.socketCarried`) rather than parsing them: the
- * question is whether some text was in what arrived, and a second
- * implementation of the framing here would go on passing after the real one
- * moved. What a scenario passes in is a sentence out of the FIXTURE, so the
- * step is about that file rather than about a shape this suite invented.
- */
 Then(
   "the websocket never carried {string}",
   function (this: OlaiWorld, text: string) {
@@ -473,42 +312,8 @@ Then("the websocket carried {string}", function (this: OlaiWorld, text: string) 
   );
 });
 
-/**
- * A vault whose pictures take a moment, which is what makes the height
- * scenario an experiment rather than a race.
- *
- * The frame measures itself when the document has parsed, and an `<img>` is a
- * zero-tall box until its bytes land — so whether the first measurement is
- * correct depends entirely on whether the picture beat it. Over a loopback
- * socket with a one-kilobyte PNG it usually does, which means an unheld run
- * would pass without the picture ever having been LATE, which is the whole of
- * what these scenarios are about. Held for longer than a first layout takes,
- * the order is the one every real page with a photograph in it sees: measure,
- * then arrive.
- *
- * `route` rather than a slower fixture, because size is not the knob — a bigger
- * file is still a race, just with different odds.
- *
- * WHICH addresses are held is read off the two things that own the answer
- * rather than written out here (below), so a route or an allowlist moved over
- * there is a step that follows it rather than one that quietly holds nothing.
- */
 const SLOW_PICTURE_MS = 750;
 
-/**
- * PICTURES ONLY, which the route no longer is: it answers the page itself now,
- * and holding that back too would delay the document and its picture equally —
- * an experiment that proves nothing, since what is under test is a picture
- * arriving AFTER the page has been measured.
- *
- * Both halves are asked of the code that owns them — `mediaTarget` for which
- * file of this vault a URL names, decoding and all, and `@olai/format`'s
- * `isPicture` for whether that file is a picture — rather than written out here.
- * A rule copied into a step is a second rule from the day it is written: an
- * earlier draft of this one re-spelled the suffix list and had already lost
- * `.bmp` and `.ico`, which the route serves, so a fixture using either would
- * have raced the measurement this step exists to lose.
- */
 const heldBack = (world: OlaiWorld) => (url: URL): boolean => {
   const target = mediaTarget(TEST_CLAIMS, url.pathname);
   return `${url.origin}` === world.baseUrl && target !== null && isPicture(TEST_CLAIMS, target);
@@ -521,71 +326,24 @@ When("the vault's pictures are slow to arrive", async function (this: OlaiWorld)
   });
 });
 
-// ── how tall the frame is ──────────────────────────────────────────────
-
-/** How far the frame and its page may disagree and still be "the same height",
- *  taken from the package that MINTS the disagreement rather than typed again
- *  here (`@olai/surface`'s `ROUNDING`, where the whole argument is): the
- *  policy these steps assert about is allowed to leave the frame exactly this
- *  far off its page, so a copy that drifted below it would go red on a frame
- *  doing its job. */
 const ROUNDING_PX = ROUNDING;
 
-/** How long the frame has to hold ONE height to count as settled, in
- *  milliseconds. A frame still arguing with its page changes height every
- *  quarter of a second or so — the loop is a style write, a layout, an observer
- *  callback and a message, not a paint — so a window of a second and a half is
- *  several rounds of an argument that has not ended. */
 const SETTLED_MS = 1500;
 
-/** The two heights every step below compares.
- *
- *  `frame` is the preview element's own CONTENT box out here — `clientHeight`,
- *  so the seal's border is not counted as page. `page` is the height of the
- *  document INSIDE it, taken independently of the tape measure that reported
- *  it: the client believes a number that came over `postMessage`, and the whole
- *  question every step asks is whether that number was the truth. */
 interface Heights {
   readonly frame: number;
   readonly page: number;
 }
 
-/**
- * Wait until the two heights say `settled`, and fail saying what they said.
- *
- * A WAIT, because it is one: the height arrives a frame or two after the
- * preview draws — the seal's script measures once the document is parsed and
- * the message crosses the frame boundary — so a step that read once would be
- * reading the `70dvh` fallback and calling it a measurement.
- *
- * The poll is the world's own (`waitUntil`), not a second one written here; the
- * only thing this adds is the last reading, because "timed out waiting until
- * the frame fits its page" is a worse sentence than the two numbers. Same shape
- * as `theme_steps.ts` uses for the same reason.
- *
- * `settled` is evaluated in exactly ONE place — the poll — and the failure path
- * does not re-check it, it just reports. That is deliberate: an earlier draft
- * waited on the predicate and then asserted the predicate again, which is one
- * editor away from waiting for X and asserting Y, and a step that waits for
- * something other than what it checks either passes on a value it never waited
- * for or burns the whole timeout before failing anyway (opencode's review of
- * this PR named the shape). With no second evaluation there is no second
- * condition to drift from the first.
- */
 const untilHeights = async (
   world: OlaiWorld,
   settled: (seen: Heights) => boolean,
   describe: string,
   complain: (seen: Heights) => string,
 ): Promise<void> => {
-  // Resolved ONCE, and the frame is waited for ONCE: `inside` waits on the same
-  // element `preview` just waited on, so asking it here would be the same round
-  // trip twice on every tick. Both handles are lazy and re-resolve at use.
   const element = await preview(world);
   const inner = world.page.frameLocator(HYPERTEXT_PREVIEW);
   const reading = async (): Promise<Heights> => {
-    // Independent reads of two different documents, so they go together rather
-    // than one after the other.
     const [frame, page] = await Promise.all([
       element.evaluate((node) => (node as HTMLElement).clientHeight),
       inner.locator("body").evaluate(() => document.documentElement.offsetHeight),
@@ -597,7 +355,6 @@ const untilHeights = async (
   try {
     await world.waitUntil(async () => settled((seen = await reading())), describe);
   } catch {
-    // The timeout knows it never held; only this knows what was there instead.
     assert.fail(complain(seen));
   }
 };
@@ -613,29 +370,6 @@ Then("the preview is as tall as the page it shows", async function (this: OlaiWo
   );
 });
 
-/**
- * THE FRAME STOPS MOVING, which is the one claim about this rule that only a
- * browser can make.
- *
- * The rule itself is arithmetic and is checked by doing the arithmetic
- * (`@olai/web`'s `document/echo.test.ts`). What no unit test can reach is the
- * LOOP: the frame is sized from a number measured inside the frame, so a page
- * whose height moves the opposite way from its container has no height that
- * satisfies it — it flips, the frame follows, it flips back — and whether that
- * terminates is a fact about a real browser painting real frames.
- *
- * Sampled once per animation frame FROM INSIDE the page under test, which is
- * the only place fast enough: a Playwright poll reads a few times a second and
- * would see two heights and call it a still picture. What comes back is how
- * many times the frame's height CHANGED over the window.
- *
- * IT WAITS, because settling is a thing that happens rather than a thing that
- * was always true: the frame really does change its mind a few times before the
- * bound is spent, and asserting on the first window would be asserting that the
- * bound is zero. So the window is taken again until one of them is still, and
- * the failure is the last one — which names how much it moved and over how
- * long, because "the frame never settled" is a worse sentence than the heights.
- */
 Then(
   "the preview settles at one height",
   async function (this: OlaiWorld) {
@@ -674,13 +408,6 @@ Then(
   },
 );
 
-/** The two directions one step asks in, as the word the feature says and what
- *  it means — a table rather than two near-identical step bodies, since only
- *  the comparison and the complaint differ.
- *
- *  `tall` throughout is the VIEWPORT's height, which is what these bounds are
- *  written against: `dvh` in a browser with no address bar in motion is
- *  exactly the page's own height. */
 const AGAINST_VIEWPORT = {
   shorter: {
     holds: (frame: number, tall: number) => frame < tall,
@@ -711,30 +438,6 @@ Then(
   },
 );
 
-// ── walking the frame off its own document ─────────────────────────────
-
-/**
- * A fixture that tries to leave, written HERE rather than in the feature
- * because it needs the one thing a `.feature` file cannot spell: this server's
- * address.
- *
- * A `<meta http-equiv="refresh">` is the walk-off that needs no script, and it
- * needs an ABSOLUTE url for a reason that CHANGED with this rule and still
- * holds: a served page has a real address now, so `url=/` would resolve — onto
- * this server's own root, which is not where the frame has to be stopped from
- * going. The attack this scenario is about is the frame leaving the vault, so
- * the fixture has to name somewhere outside it.
- *
- * The destination is THIS APP. Not for drama — it is the destination that makes
- * the failure legible and needs no network: unsealed, the frame would load
- * olai inside olai, and with `allow-scripts` on the context that page's
- * JavaScript would run, in a document with no `default-src 'none'` over it.
- * The seal cannot follow the frame there; `sandbox` can. That is the gap this
- * scenario exists for.
- */
-/** The two ways out, as the head and body each needs. A `refresh` goes in the
- *  HEAD, where the parser keeps it and every browser honours it; a link is a
- *  link. Both point at an ABSOLUTE address for the reason above. */
 const WALKS_OFF = {
   "refreshing itself": (to: string) => ({
     head: `<meta http-equiv="refresh" content="0;url=${to}/">`,
@@ -767,10 +470,6 @@ When("I follow the link out of the preview", async function (this: OlaiWorld) {
   await frame.locator("#away").click();
 });
 
-/** A click on anything else in there — a submit button, so far. Given a moment
- *  afterwards, because what the scenario using it asserts is that something did
- *  NOT happen: reading immediately would be reading before the navigation or
- *  the request it is about could have started. */
 When(
   "I click {string} inside the preview",
   async function (this: OlaiWorld, selector: string) {
@@ -780,21 +479,6 @@ When(
   },
 );
 
-/**
- * …and it is STILL on that page a moment later, which is the assertion a
- * snapshot cannot make.
- *
- * A document the frame reached on its own is given `SAYS_HELLO` to identify
- * itself before the file is put back (`Hypertext.tsx`), so a frame that was
- * going to be brought home has been brought home by the time this reads. The
- * grace is the same `POLL_TIMEOUT / 10` every other "did NOT happen" step in
- * this file waits, and it is an order of magnitude past that budget.
- *
- * The heading is read and COMPARED rather than waited for, so a frame that was
- * restored fails here immediately and says which page it is on instead — where
- * waiting for a heading that is never coming would burn the whole timeout and
- * report nothing but its absence.
- */
 Then(
   "the preview stays on the heading {string}",
   async function (this: OlaiWorld, text: string) {
@@ -812,16 +496,6 @@ Then(
   },
 );
 
-/** The place inside the page THE APP'S OWN ADDRESS names, on its own.
- *
- *  It used to be the only way to see a fragment at all — `the address is`
- *  compared pathnames, and a fragment that never arrived passed it. Since a
- *  `#` became part of the address (`@olai/format`'s `address.ts`), that step
- *  reads the fragment too, and the two scenarios that asserted both were
- *  asserting a contradiction that only passed by racing the hash. What is left
- *  here is the case this step is actually for: the fragment WITHOUT a claim
- *  about the path, where the scenario's subject is that the anchor survived
- *  something else (a scroll restored, a page kept). */
 Then(
   "the address carries the anchor {string}",
   async function (this: OlaiWorld, anchor: string) {
@@ -832,38 +506,13 @@ Then(
   },
 );
 
-/** How near the top of the screen a heading has to be to count as landed on,
- *  in pixels — the tolerance {@link landedOn} allows, because `scrollIntoView`
- *  puts the element at the top of the viewport and the sticky header sits over
- *  the first few pixels of it. A viewport's worth of slack would say nothing; a
- *  pixel would pin the header's height and the stylesheet's
- *  `scroll-padding-top`, which are styling and not this claim. */
 const AT_THE_TOP = 160;
 
-/**
- * WHERE THE DOCUMENT PAGE IS SCROLLED TO, as the heading nearest the top of the
- * viewport — asked of one SCOPE, so the lone page and one column of a split are
- * the same question written once.
- *
- * The `.md` landing cannot be read the way the frame's is: there is no inner
- * `location.hash` to ask, because the app scrolled its own page to an element
- * whose id it had to translate first (`markdown/render.ts`'s `landingId`). So
- * what is read is the OUTCOME a reader would see — the heading they are looking
- * at — which is also the assertion that survives the id scheme changing.
- *
- * Not `toc_steps.ts`'s "the heading … is at the top of the pane", which reads
- * the same rectangle for a stricter claim: that a fragment MOVED the page, and
- * that it landed hard against the top unless the document ran out first. That
- * one is about a jump; this is about where a reader ended up.
- */
 const landedOn = async (
   world: OlaiWorld,
   where: Locator,
   text: string,
   whose: string,
-  /** Chrome that holds still above the reading besides the bar — a split's
-   *  columns start under the seat above the panes, where a tab strip may be —
-   *  so "the top" is that much further down the screen. */
   under = 0,
 ): Promise<void> => {
   const heading = where.locator(HEADINGS).filter({ hasText: text }).first();
@@ -881,16 +530,6 @@ Then(
   },
 );
 
-/**
- * …and the same claim about ONE PANE of a split, which is the only way to ask
- * it there: a landing is a fact about a pane, two panes may be showing the same
- * file, and "the heading Code" has two answers on screen at once.
- *
- * Measured against the SCREEN rather than against the column, for the reason
- * the twin above is: what a reader is owed is the section in front of them, and
- * where exactly a browser puts an anchor under a sticky header and a pane's own
- * header is styling this should not pin.
- */
 Then(
   "the document in pane {int} is scrolled to the heading {string}",
   async function (this: OlaiWorld, index: number, text: string) {
@@ -905,21 +544,6 @@ Then(
   },
 );
 
-/**
- * THE SECTION IS ON SCREEN — the assertion a landing is actually about, and the
- * one an address and a frame's own hash between them do not make.
- *
- * A `.html` preview is a frame sized to its content, so the browser's own scroll
- * inside it moves nothing when the page fits: the anchor sits some way down a
- * frame taller than the window, and everything about the address can be right
- * while the reader is looking at the top of the file. So this reads the one
- * thing that cannot be true by luck — where the anchor is in THIS window — by
- * asking the frame for its own position and adding the frame's.
- *
- * The tolerance is a viewport rather than a pixel: what a reader is owed is that
- * the section is in front of them, and exactly where a browser puts an anchor
- * under a sticky header is a styling decision this should not pin.
- */
 Then(
   "the section {string} is on screen",
   async function (this: OlaiWorld, anchor: string) {
@@ -943,22 +567,6 @@ Then(
   },
 );
 
-/**
- * NARROWER — a gesture about the WINDOW, made by a reader who is somewhere in a
- * page and means to stay there.
- *
- * It is here rather than beside the other viewport steps because what it is for
- * is the frame: a sealed page's own `resize` is how the anchor's position is
- * re-reported while the box is still settling (`@olai/surface`'s `seal.ts`), so
- * a window a reader drags is the one gesture that re-fires a landing hours
- * after it happened.
- *
- * NARROWER and not SHORTER, and not wider: the page below the frame has to keep
- * the room the reader was scrolled into. A narrower column rewraps taller, so
- * the bottom of the page stays below where they are; a wider one takes it away
- * and the browser clamps them upwards, which is a move nobody made and would
- * read as the bug this exists to catch.
- */
 When("I narrow the window", async function (this: OlaiWorld) {
   const size = this.viewport();
   await this.page.setViewportSize({
@@ -968,10 +576,6 @@ When("I narrow the window", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
-/** …and the other end of a landing that had nothing to land on: the reader is
- *  at the top, which is what a browser does with a fragment naming no id. A
- *  wait rather than a read, because the page arrives before the frame inside it
- *  does and a landing that WOULD have fired fires a frame later. */
 Then("the page is scrolled to the top", async function (this: OlaiWorld) {
   await this.page.waitForTimeout(POLL_TIMEOUT / 10);
   const where = await this.page.evaluate(() => window.scrollY);
@@ -983,9 +587,6 @@ Then("the page is scrolled to the top", async function (this: OlaiWorld) {
   );
 });
 
-/** Where the window is, so a scenario can say it did not move — or moved to
- *  where it was left. Kept on the world for the same reason
- *  `I scroll to the bottom of the page` keeps its own. */
 When("I remember where the page is scrolled", async function (this: OlaiWorld) {
   this.scrolledTo = await this.page.evaluate(() => window.scrollY);
 });
@@ -997,9 +598,6 @@ Then("the page is scrolled where it was left", async function (this: OlaiWorld) 
     const now = await this.page.evaluate(() => window.scrollY);
     return Math.abs(now - was) < 40;
   }, `the page to be back at ${was}px`);
-  // …and it STAYS there, which is the half a snapshot cannot make: a landing
-  // that re-fired would do it a frame later, after the restore had already put
-  // the reader back.
   await this.page.waitForTimeout(POLL_TIMEOUT / 10);
   const settled = await this.page.evaluate(() => window.scrollY);
   assert.ok(
@@ -1009,11 +607,6 @@ Then("the page is scrolled where it was left", async function (this: OlaiWorld) 
   );
 });
 
-/** WHAT THE PREVIEW SAID about a click it could not answer, through the suite's
- *  one reader of every said-line in this client (`support/said.ts`): the words,
- *  and the MOOD as a `data-` fact rather than a colour. A refusal in the aside
- *  tone would be a reason-nothing-happened a screen reader is not interrupted
- *  for, which is the distinction that helper exists to hold. */
 Then(
   "the preview says it cannot open that link",
   async function (this: OlaiWorld) {
@@ -1027,9 +620,6 @@ Then(
   },
 );
 
-/** …and the other half: nothing was said at all, which is what every click this
- *  app CAN answer leaves behind. Asserted after something on the new page has
- *  been waited for, so it is a fact about the page that arrived. */
 Then("the preview says nothing about the link", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.page.locator(HYPERTEXT_SAID).count(),
@@ -1038,10 +628,6 @@ Then("the preview says nothing about the link", async function (this: OlaiWorld)
   );
 });
 
-/** No preview at all on this page — which is what an OUTLINE looks like: a
- *  different page shape entirely, not a `.html` page with an empty frame on it.
- *  Read after something on the new page has been waited for, so "not there" is
- *  a fact about the page that arrived rather than about one still arriving. */
 Then("there is no preview on this page", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.page.locator(HYPERTEXT_PREVIEW).count(),
@@ -1050,15 +636,9 @@ Then("there is no preview on this page", async function (this: OlaiWorld) {
   );
 });
 
-/** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash`. Read
- *  INSIDE the frame, because a fragment is not part of `baseURI` and nothing
- *  out here can see it — which is the fragile half, so it is written once and
- *  both steps below ask it. */
 const hash = async (world: OlaiWorld): Promise<string> =>
   (await inside(world)).locator("body").evaluate(() => location.hash);
 
-/** The frame is at the section its address named — the half of "a link with a
- *  fragment is left to the frame" that a heading cannot say. */
 Then(
   "the preview is at the anchor {string}",
   async function (this: OlaiWorld, anchor: string) {
@@ -1069,13 +649,6 @@ Then(
   },
 );
 
-/** …and the other end of it: the frame's address carries NO fragment, which is
- *  what a spent landing looks like from out here. A landing is an act that
- *  happens once, so the pointing after it is the file at its own address and
- *  nothing more — no fragment for the browser to scroll to, and therefore no
- *  report for this window to follow. Read as a settled state rather than as a
- *  snapshot: a re-pointing that WOULD carry the slug arrives a moment after the
- *  revision does. */
 Then("the preview is at no anchor", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await hash(this)) === "",
@@ -1090,11 +663,6 @@ Then("the preview is at no anchor", async function (this: OlaiWorld) {
   );
 });
 
-/** A modified click on something in the preview — the press a reader makes when
- *  they want the BROWSER's behaviour rather than this app's, which is the one
- *  `press.ts`'s rule (and the copy of it the seal ships) refuses to claim.
- *  Given a moment afterwards for the same reason the plain click is: what the
- *  scenario asserts is that something did NOT happen. */
 When(
   "I {word}-click {string} inside the preview",
   async function (this: OlaiWorld, modifier: string, selector: string) {
@@ -1107,9 +675,6 @@ When(
 );
 
 Then("the preview exhausts its walk-off budget and becomes empty", async function (this: OlaiWorld) {
-  // Each allowed bounce includes a network load; an absence of #root between
-  // bounces is not termination. Observe the terminal navigation itself, then
-  // the resulting inert document, rather than sampling at fixed delays.
   const frame = await preview(this);
   await this.waitUntil(
     async () => (await frame.getAttribute("src")) === "about:blank",
@@ -1123,24 +688,6 @@ Then("the preview exhausts its walk-off budget and becomes empty", async functio
   );
 });
 
-/**
- * The app, INSIDE the preview — the thing that must never be left there. Read
- * as the mount point rather than as a testid, because `#root` is in the shell's
- * own HTML from the first byte, so it is there before any hydration and cannot
- * pass by arriving late.
- *
- * Read as a SETTLED state rather than as a snapshot, and that is what the new
- * rule cost this step. A document the frame arrived at by itself is given a
- * moment to say it is one of this vault's before it is replaced (the file's own
- * scripts run now, so a relative link to a sibling page is a navigation that
- * must be allowed to stand — `Hypertext.tsx` argues the whole of it), so a
- * frame bouncing off a page that keeps leaving passes through the destination
- * briefly on each bounce. What a reader is owed is where it ENDS UP and that it
- * ends up anywhere at all: the three lines below are "give it time to be
- * wrong", "it comes home, or empties" and "and it stays there", which together
- * say more than one reading at one moment did — a frame ping-ponging forever
- * fails the second, and one that came home and left again fails the third.
- */
 Then("the app is not loaded inside the preview", async function (this: OlaiWorld) {
   const frame = await inside(this);
   const app = frame.locator("#root");
@@ -1161,9 +708,6 @@ Then("the app is not loaded inside the preview", async function (this: OlaiWorld
   );
 });
 
-// …and the positive half: it came home. The file's own markup is back in the
-// frame, which is what says the restore RAN rather than the navigation merely
-// having failed.
 Then("the preview is back on the sealed document", async function (this: OlaiWorld) {
   const frame = await inside(this);
   await frame
@@ -1171,14 +715,6 @@ Then("the preview is back on the sealed document", async function (this: OlaiWor
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
-// ── a link that opens a page of this vault ─────────────────────────────
-
-/** The directory column's own answer to "which file is open" — `aria-current`,
- *  which is what the entry's wash is drawn from (`Sidebar.tsx`) and what a
- *  screen reader announces. Read here rather than inferred from the address,
- *  because the ask was that a link inside a preview lands EXACTLY where the
- *  sidebar's own click lands, and the marked entry is the half of that the URL
- *  cannot say. */
 Then(
   "the sidebar marks the page {string} as the one open",
   async function (this: OlaiWorld, file: string) {
@@ -1192,28 +728,6 @@ Then(
   },
 );
 
-/**
- * THE FORGER: a page that posts this app's own messages at it, which any
- * previewed file can do because its scripts run.
- *
- * The message is SPELLED here, and that is the one place in this suite where
- * spelling a wire constant is the right thing rather than the usual mistake —
- * for the scripted agent's reason, which is the same reason: an adversary has no
- * access to olai's constants, and a fixture that derived the message from the
- * implementation under test would agree with it by construction and prove
- * nothing about a hostile page that guesses.
- *
- * A guess that guessed WRONG would make every assertion in that scenario vacuous
- * — a stream of unrecognised strings moving nothing, for the wrong reason — so
- * the fixture carries its own teeth: `#honest` sends one well-formed message
- * naming a file this vault really holds, and the scenario watches it land.
- *
- * WHAT IS FORGED, and each is a different way through: a page that is not
- * there, a climb out of the vault, a name no directory holds, a bare path, an
- * address off this origin, a click with no intent, and the retired
- * `olai:open-page:` string naming a file that IS there — which no sealed page
- * says any more and so must move nothing.
- */
 const forged = (href: string, intent = "go") =>
   ({ type: "olai:link", href, action: "click", intent, x: 0, y: 0, width: 0, height: 0 });
 
@@ -1248,21 +762,6 @@ When(
   },
 );
 
-/**
- * A page that asks for ITSELF, over and over — the shape the self-open guard
- * exists for.
- *
- * It posts rather than draws a link, because a script needs no reader: that is
- * the whole hazard, and a scenario built on clicks would be measuring how fast
- * a test can click rather than what an unattended page can spend. The message
- * is spelled for the forger's reason, naming this file exactly as the seal's own
- * handler would.
- *
- * It also carries a self-LINK, because the guard has to hold for the reader's
- * half too: a page containing `<a href="itself.html">` is an ordinary thing to
- * save, and the seal's in-page rule does not cover it — that rule is about a
- * FRAGMENT, and this link has none.
- */
 When(
   "I rewrite {string} as a page that asks for itself",
   function (this: OlaiWorld, file: string) {
@@ -1282,9 +781,6 @@ When(
   },
 );
 
-/** How many entries the reader could go back through — the ledger a page
- *  spending history with no reader in it would grow. Read from the app's own
- *  window, since `history.length` is the tab's. */
 When("I remember how much history there is", async function (this: OlaiWorld) {
   this.historyWas = await this.page.evaluate(() => history.length);
 });
@@ -1294,9 +790,6 @@ Then(
   async function (this: OlaiWorld, many: number) {
     const was = this.historyWas;
     assert.ok(was !== undefined, "nothing was remembered to compare against");
-    // Given a moment first: what this asserts is that entries did NOT arrive
-    // beyond the ones counted, and reading immediately would be reading before
-    // the messages could have landed.
     await this.page.waitForTimeout(POLL_TIMEOUT / 10);
     const now = await this.page.evaluate(() => history.length);
     assert.strictEqual(
@@ -1309,11 +802,6 @@ Then(
   },
 );
 
-/** …and the same message from somewhere that is not the frame. The app
- *  identifies its sender by IDENTITY rather than by origin — every sandboxed
- *  frame in every tab posts as the same opaque `"null"` — so this is the case
- *  that check exists for, sent from the app's own window at a file the vault
- *  really holds. */
 When(
   "something other than the preview asks the app to open {string}",
   async function (this: OlaiWorld, file: string) {
@@ -1325,20 +813,10 @@ When(
   },
 );
 
-// ── the seal ───────────────────────────────────────────────────────────
-
 Then(
   "the preview is sandboxed into nobody's origin",
   async function (this: OlaiWorld) {
     const frame = await preview(this);
-    // The ATTRIBUTE, exactly as written. `allow-scripts` is there so the seal's
-    // own tape measure and the FILE's own scripts can run (`@olai/surface`'s
-    // `seal.ts` argues it); `allow-same-origin` is
-    // the one that must never join it, because a document with BOTH can reach
-    // its own frame element and take the sandbox off. Asserted as an equality
-    // rather than as "does not contain same-origin", so any third token is a
-    // failure too — the regressions here are all one word added by somebody
-    // making one page work.
     assert.strictEqual(
       await frame.getAttribute("sandbox"),
       "allow-scripts",
@@ -1349,14 +827,8 @@ Then(
   },
 );
 
-/** The address the preview frame is pointed at, as the browser holds it — the
- *  file's own URL on the media route, plus the visit counter the component
- *  navigates with. Read off the element rather than rebuilt here, because half
- *  of what these steps assert is that it IS this app's address. */
 const pointedAt = async (world: OlaiWorld): Promise<string> => {
   const src = await (await preview(world)).getAttribute("src");
-  // Written as a path by the component and resolved here against this server,
-  // which is the same thing the browser did with it.
   const at = src === null ? null : new URL(src, world.baseUrl);
   assert.ok(
     at !== null && at.origin === world.baseUrl && at.pathname.startsWith(MEDIA_PREFIX),
@@ -1365,16 +837,6 @@ const pointedAt = async (world: OlaiWorld): Promise<string> => {
   return at.href;
 };
 
-/**
- * WHERE THE FRAME IS POINTED NOW, remembered — and, one step later, that it is
- * still pointed there.
- *
- * The pair is a claim about a NAVIGATION that must not happen. The component
- * gives every pointing its own visit counter, so re-pointing a frame at the
- * file it is already showing still changes the address — which makes "the same
- * href" the exact reading of "this frame was not reloaded", with no timing
- * window and nothing to count.
- */
 When("I remember where the preview is pointed", async function (this: OlaiWorld) {
   this.previewPointedAt = await pointedAt(this);
 });
@@ -1395,10 +857,6 @@ Then("the preview is pointed where it was", async function (this: OlaiWorld) {
   );
 });
 
-/** What the preview's own address answers, asked for again rather than read
- *  out of the frame: a frame in an opaque origin cannot be asked what its
- *  headers or its bytes were. Two steps below want that response and neither
- *  should have to remember that finding the address comes first. */
 const answered = async (world: OlaiWorld) => {
   const answer = await world.page.request.get(await pointedAt(world));
   assert.strictEqual(
@@ -1412,18 +870,7 @@ const answered = async (world: OlaiWorld) => {
 Then(
   "the preview's response is sealed with a policy that fetches only this vault",
   async function (this: OlaiWorld) {
-    // The RESPONSE, because that is where the seal is now: a `<meta>` policy
-    // cannot carry `sandbox`, and `sandbox` is the directive that makes this
-    // address safe for a reader who types it instead of opening the preview.
     const answer = await answered(this);
-    // The exact policy the server writes, computed by the server's own function
-    // rather than re-spelled, for the reason every selector in `world.ts` is
-    // imported: a widening made over there would still read as sealed over
-    // here. The unit test beside it (`@olai/surface`'s `seal.test.ts`) is what
-    // says the policy is the strict one — every directive, including that its
-    // one source is this route on this host and not a scheme, a host or
-    // `'self'`; this says the strict one is what the browser was actually
-    // handed, at the address this server is really on.
     assert.strictEqual(
       answer.headers()["content-security-policy"],
       sealPolicy(new URL(this.baseUrl).host),
@@ -1438,21 +885,6 @@ Then(
   },
 );
 
-/**
- * WHAT A RELATIVE ADDRESS IN THE FILE RESOLVES AGAINST, read as the browser's
- * own answer rather than as the mechanism that produced it.
- *
- * `document.baseURI` INSIDE the frame is the whole assertion: it is the value
- * every `<img src="art/shot.png">` and every `<a href="other.html">` in there
- * is resolved against. Served at its own address, a page's base is that address
- * — which is what makes a relative link land on the file beside it instead of
- * on a URL that was never meant to be one.
- *
- * `report.html` carries a `<base>` of its own pointing at `example.invalid`, so
- * this is also where the seal's `base-uri 'none'` is read: honoured, that
- * element would move every relative address in the file to somebody else's
- * server, and this step would fail with that address in the message.
- */
 Then(
   "the preview resolves the file's addresses beside {string}",
   async function (this: OlaiWorld, file: string) {
@@ -1460,9 +892,6 @@ Then(
       .locator("body")
       .evaluate(() => document.baseURI);
     assert.strictEqual(
-      // The visit counter the frame navigates with is part of the address and
-      // is not part of what resolves against it — a query belongs to the URL
-      // that carries it.
       base.split("?")[0],
       `${this.baseUrl}${mediaHref(file)}`,
       "a relative address in the previewed file does not resolve beside the " +
@@ -1472,10 +901,6 @@ Then(
   },
 );
 
-/** …and the other half of that promise: the file's own `<base>` is STILL THERE
- *  in the bytes. Nothing was stripped or rewritten to make the addresses work
- *  — the element is refused by the policy, and the file on disk is what the
- *  reader is shown. */
 Then("the preview was handed the file whole", async function (this: OlaiWorld) {
   const body = await (await answered(this)).text();
   assert.ok(
@@ -1485,8 +910,6 @@ Then("the preview was handed the file whole", async function (this: OlaiWorld) {
       "pictures work would be lying about what is on disk",
   );
 });
-
-// ── what the script could not do ───────────────────────────────────────
 
 Then("the app's storage is untouched by the preview", async function (this: OlaiWorld) {
   const written = await this.page.evaluate(() => ({
@@ -1500,40 +923,6 @@ Then("the app's storage is untouched by the preview", async function (this: Olai
   );
 });
 
-/**
- * The BROWSER's own words, and the only console errors a page with a preview on
- * it is allowed to carry.
- *
- * `report.html` carries four addresses it may not fetch, a `<base>` it may not
- * set and a tab it may not navigate; the seal refuses every one of them;
- * Chromium says so on the console, and the suite's error listener records every
- * console error there is. So "there should be no page errors" is the wrong
- * question on these pages — and the right one is stronger than the question it
- * replaces, because it reads the refusals as EVIDENCE: nothing else went wrong,
- * and the things that were supposed to be stopped were stopped, said by the
- * browser rather than by us.
- *
- * THE SCRIPT ONE IS GONE, and its absence is the whole of the ruling of
- * 2026-08-16 read from the console: the file's own script is supposed to run
- * now, so a browser complaining that it refused one would be a preview that had
- * not been fixed. What proves it ran is the paragraph it rewrites, in the
- * scenario that reads it.
- *
- * Matched loosely (the shape of the sentence, not the sentence — Chromium's
- * current ones are "Refused to load the image '…' because it violates the
- * following Content Security Policy directive: default-src …" and "Setting the
- * document's base URI to '…' violates the following Content Security Policy
- * directive: base-uri 'none'") so a browser that rewords its message fails on
- * the wording of THIS assertion rather than on a security regression that never
- * happened.
- *
- * The first two are required to have HAPPENED, not merely tolerated. A pattern
- * that only permits a message is one the fixture can satisfy by losing its
- * teeth — the picture probes could be deleted, or quietly start drawing, and an
- * allowance would say nothing either way. The navigation one is tolerated
- * rather than required: the sandbox refuses it before any policy is consulted,
- * and how a browser words THAT is not something this suite should pin.
- */
 const REFUSALS = {
   picture: /(?:loading|refused to load) the image[\s\S]*content security policy/i,
   base: /(?:refused to set|setting) the document's base uri/i,
@@ -1543,11 +932,6 @@ const REFUSALS = {
 Then(
   "the only complaints are the browser refusing what the file may not do",
   async function (this: OlaiWorld) {
-    // The frame's CSP refusals are console errors the iframe raises as it
-    // fetches, a beat behind the page being "open". Read immediately, a loaded
-    // runner has not heard them yet — "the browser never refused a picture"
-    // with the fixture still carrying one. Wait for the refusals; the budget
-    // is the hang detector.
     await this.waitUntil(
       async () =>
         this.errors.some((said) => REFUSALS.picture.test(said)) &&
@@ -1573,11 +957,7 @@ Then("the app's page is untouched by the preview", async function (this: OlaiWor
   assert.strictEqual(marked, null, "the preview reached this app's DOM");
 });
 
-// ── the affordance a document has and this page does not ───────────────
-
 Then("there is no way to edit this page", async function (this: OlaiWorld) {
-  // The preview first, because "not there" is the assertion: reading for the
-  // control before the page has drawn would pass for the wrong reason.
   await preview(this);
   assert.strictEqual(
     await this.page.locator(DOCUMENT_EDIT).count(),

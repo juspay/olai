@@ -1,4 +1,3 @@
-/** Stable identifiers owned by this row's browser contributions. */
 export const TESTID = {
   hypertextLink: "hypertext-link",
   hypertextPreview: "hypertext-preview",
