@@ -15,7 +15,7 @@ panesOf,
 type Pane,
 } from "olai-plugin-navigation/workspace"
 import { desktop, holdPhoneTabs } from "../layout/live.ts"
-import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
+import { sheetHeight } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
 import { nameOf } from "../routing.ts"
 
@@ -31,6 +31,12 @@ export function Panes() {
 }
 
 const TAKEOVER = ["wheel", "touchstart", "keydown", "pointerdown"] as const
+
+declare const PLACE: unique symbol
+type PlaceKey = string & { readonly [PLACE]: true }
+
+const placeOf = (at: { readonly id: string; readonly page: string }): PlaceKey =>
+  `${at.id}\n${at.page}` as PlaceKey
 
 function LanePanes(props: { readonly page: Navigation["page"] }) {
   const router = useRouter()
@@ -59,16 +65,11 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
   const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
   const tabbed = createMemo(() => router.split() && !desktop())
-  const places = new Map<string, number>()
+  const places = new Map<PlaceKey, number>()
   const front = createMemo(() => {
     const pane = router.panes()[router.focusIndex()]
     return pane === undefined ? undefined : { id: pane.id, page: router.routes.href(pane.route()) }
   })
-  const placeOf = (at: { readonly id: string; readonly page: string }): string => `${at.id}\n${at.page}`
-  // Two phases of one update: the leaving tab's position is read in a
-  // `createComputed`, which runs before the DOM is touched and therefore still
-  // measures the page that is on screen, and the arriving tab's is put back in
-  // a `createEffect`, after the swap.
   createComputed(on(front, (now, before) => {
     if (!tabbed() || before === undefined || before.id === now?.id && before.page === now.page) return
     places.set(placeOf(before), window.scrollY)
@@ -117,7 +118,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
       height: visible() ? undefined : `${laneBox()?.height ?? 0}px`,
       "overflow-anchor": "none",
     }}
-    classList={{ [PANES_SPLIT]: columns(), [PANES_LONE]: !columns() }}>
+    classList={{ [sheetHeight({ underStrip: true, split: columns() })]: true }}>
     <Show when={tabbed()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
       <For each={router.panes()}>{pane => {

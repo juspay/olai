@@ -1,5 +1,5 @@
 import { TESTID } from "olai-plugin-preferences/testids"
-import { BarDoor } from "olai-plugin-layout/bar-door"
+import { createBarDoor } from "olai-plugin-layout/bar-door"
 import type { ToolWhere } from "olai-plugin-layout/contract"
 import type { HeldOpen } from "@olai/web/client/popover.ts"
 import { Panel } from "./Panel.tsx"
@@ -12,10 +12,10 @@ export function Preferences(props: {
   readonly door: HeldOpen
   readonly where?: ToolWhere
 }) {
+  const Door = createBarDoor(props.door)
   return (
-    <BarDoor
+    <Door
       where={props.where}
-      held={props.door}
       glyph="⚙"
       name="Preferences"
       testid={TESTID.prefsTrigger}

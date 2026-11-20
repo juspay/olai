@@ -110,21 +110,14 @@ Then(
       after.width >= before + minGain - 1,
       `sidebar grew by ${Math.round(after.width - before)}px, wanted ≥${minGain}`,
     );
-    await this.page.evaluate((w) => {
-      (window as unknown as { __olaiSideAfter?: number }).__olaiSideAfter = w;
-    }, after.width);
   },
 );
 
 Then("the sidebar width survived the reload", async function (this: OlaiWorld) {
-  const expected = await this.page.evaluate(
-    () => (window as unknown as { __olaiSideAfter?: number }).__olaiSideAfter,
-  );
   const stored = await this.stored(SIDEBAR_WIDTH_KEY);
   assert.ok(stored !== null, "sidebar width was not persisted");
   const px = Number(stored);
   assert.ok(Number.isFinite(px), `stored width is not a number: ${stored}`);
-  void expected;
   const box = await this.page.locator(SIDEBAR).boundingBox();
   assert.ok(box !== null, "sidebar has no box after reload");
   assert.ok(

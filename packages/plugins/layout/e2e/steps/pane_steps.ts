@@ -117,9 +117,8 @@ When("I tap pane tab {int}", async function (this: OlaiWorld, index: number) {
 });
 
 When("I close the focused pane from the keyboard", async function (this: OlaiWorld) {
-  // `ControlOrMeta` is Playwright's spelling of the platform modifier: Meta on
-  // Apple, Control elsewhere. Spelled `Control`, this chord never matches on
-  // macOS and the pane simply does not close.
+  // Playwright resolves `ControlOrMeta` to `Meta` on macOS and to `Control`
+  // elsewhere (playwright-core types.d.ts, `keyboard.press`).
   await pressed(this, "ControlOrMeta+Shift+w");
 });
 

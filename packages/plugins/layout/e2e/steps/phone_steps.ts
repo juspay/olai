@@ -180,8 +180,6 @@ Then("the phone header is identity and search", async function (this: OlaiWorld)
 });
 
 When("I open the app held at connecting", async function (this: OlaiWorld) {
-  // A string, not a function: tsc would otherwise typecheck the stub as a
-  // real WebSocket constructor.
   await this.page.addInitScript(`
     (function () {
       function HeldWebSocket(url) {

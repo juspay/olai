@@ -12,8 +12,6 @@ export const worstOf = (statuses: ReadonlyArray<BarStatus>): DotTone =>
 
 const PLACE: Readonly<Record<BarTone, number>> = { alarm: 0, notice: 1, healthy: 2, quiet: 3 }
 
-/** Rows of one tone keep the order they came in (the connection first, then
- *  mount order): the sort is stable. */
 export const worstFirst = <T>(rows: ReadonlyArray<T>, toneOf: (row: T) => BarTone): ReadonlyArray<T> =>
   [...rows].sort((a, b) => PLACE[toneOf(a)] - PLACE[toneOf(b)])
 

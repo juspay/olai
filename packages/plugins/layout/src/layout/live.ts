@@ -12,14 +12,15 @@ import {
   SIDEBAR_MIN_PX,
 } from "./prefs.ts"
 
-/** Installed before geometry listeners and withdrawn after them. */
+type Lease = () => void
+
 export const createLayoutState = () => {
   const [desktop, setDesktop] = createSignal(false)
   const [width, setWidth] = createSignal(10_000)
   const [prefs, setPreferences] = createSignal<LayoutPreferences>()
   const [drawer, setDrawer] = createSignal(false)
-  const [strips, setStrips] = createSignal(0)
-  return { desktop, setDesktop, width, setWidth, prefs, setPreferences, drawer, setDrawer, strips, setStrips }
+  const [stripLeases, setStripLeases] = createSignal(0)
+  return { desktop, setDesktop, width, setWidth, prefs, setPreferences, drawer, setDrawer, stripLeases, setStripLeases }
 }
 const held = heldService<ReturnType<typeof createLayoutState>>()
 export const holdLayoutState = held.hold
@@ -28,16 +29,16 @@ export const desktop: Accessor<boolean> = () => state()?.desktop() ?? false
 export const publishDesktop = (value: boolean): void => { state()?.setDesktop(value) }
 const viewportWidth = () => state()?.width() ?? 10_000
 
-export const phoneTabs: Accessor<boolean> = () => (state()?.strips() ?? 0) > 0
+export const phoneTabs: Accessor<boolean> = () => (state()?.stripLeases() ?? 0) > 0
 
-export const holdPhoneTabs = (): (() => void) => {
+export const holdPhoneTabs = (): Lease => {
   const owner = state()
-  owner?.setStrips((count) => count + 1)
-  return () => { owner?.setStrips((count) => Math.max(0, count - 1)) }
+  owner?.setStripLeases((leases) => leases + 1)
+  return () => { owner?.setStripLeases((leases) => Math.max(0, leases - 1)) }
 }
 
 const active = () => state()?.prefs()
-export const holdLayoutPreferences = (value: LayoutPreferences): (() => void) => {
+export const holdLayoutPreferences = (value: LayoutPreferences): Lease => {
   const owner = state()
   owner?.setPreferences(value)
   return () => { if (owner?.prefs() === value) owner?.setPreferences(undefined) }

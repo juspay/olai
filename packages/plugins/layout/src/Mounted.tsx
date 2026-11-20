@@ -18,16 +18,18 @@ export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.E
   )
 }
 
-/** MOUNT ORDER is the nesting order, outermost first. What it must NOT be is a
- *  `.map()` into siblings — these wrap, they do not sit beside each other. */
+/** Solid resolves a context against the owner the component was CREATED under,
+ *  so each level's children are built by the mount above it, never before it. */
+type LazyChildren = () => JSX.Element
+
 const chainOver = (
   faces: ReadonlyArray<Hung<SlotFaces["app.mount"]>>,
-  page: () => JSX.Element,
-): (() => JSX.Element) =>
-  faces.reduceRight<() => JSX.Element>(
+  lazyChildren: LazyChildren,
+): LazyChildren =>
+  faces.reduceRight<LazyChildren>(
     (inner, one) => {
       const Mount = one.face
       return () => <Mount>{inner()}</Mount>
     },
-    page,
+    lazyChildren,
   )

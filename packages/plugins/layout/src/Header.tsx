@@ -1,7 +1,3 @@
-/**
- * The bar is `sticky`: no ancestor may take an `overflow` other than
- * `visible`, or it silently stops sticking.
- */
 import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 

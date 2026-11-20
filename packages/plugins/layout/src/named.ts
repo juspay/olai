@@ -8,16 +8,22 @@ import type { SurfaceReadout } from "@olai/web/client/connection/status.ts"
 
 let current: NameState | undefined
 
-export const shouldAsk = (
-  readout: SurfaceReadout,
-  called: string | undefined,
-  inFlight: boolean,
-): boolean =>
-  reachable(readout) && called === undefined && !inFlight
+export interface Landed {
+  readonly phase: "landed"
+  readonly called: string
+  readonly startedAt: string
+}
 
-export const landingOf = (
-  app: App,
-): { readonly called: string; readonly startedAt: string } => ({
+export type Landing = { readonly phase: "waiting" } | { readonly phase: "asking" } | Landed
+
+export const WAITING: Landing = { phase: "waiting" }
+export const ASKING: Landing = { phase: "asking" }
+
+export const shouldAsk = (readout: SurfaceReadout, landing: Landing): boolean =>
+  reachable(readout) && landing.phase === "waiting"
+
+export const landingOf = (app: App): Landed => ({
+  phase: "landed",
   called: appName(app.hostname),
   startedAt: app.startedAt,
 })
@@ -39,30 +45,27 @@ export interface NameState {
 }
 
 export const createName = (opts: FollowName): NameState => {
-  const [called, setCalled] = createSignal<string | undefined>()
-  const [started, setStarted] = createSignal<string | undefined>()
+  const [landing, setLanding] = createSignal<Landing>(WAITING)
   let active = true
-  const [tick, pulse] = createSignal(0)
-  let inFlight = false
   return createRoot((dispose) => {
     onCleanup(() => { active = false })
-    // Once `called` has arrived, a later open (a reconnect to the SAME
-    // process, or a retired handshake after a restart) must not re-ask.
+    const retryAfterFailedAsk = (): void => { setLanding(WAITING) }
     createEffect(() => {
-      tick()
-      if (!shouldAsk(opts.readout(), called(), inFlight)) return
-      inFlight = true
+      if (!shouldAsk(opts.readout(), landing())) return
+      setLanding(ASKING)
       void opts.ask().then((outcome) => {
         if (!active) return
-        inFlight = false
-        if (!Result.isSuccess(outcome)) return pulse((n) => n + 1)
+        if (!Result.isSuccess(outcome)) return retryAfterFailedAsk()
         const landed = landingOf(outcome.success)
-        setCalled(landed.called)
+        setLanding(landed)
         opts.named?.(landed.called)
-        setStarted(landed.startedAt)
       })
     })
-    return { called, started, dispose }
+    const landed = (): Landed | undefined => {
+      const now = landing()
+      return now.phase === "landed" ? now : undefined
+    }
+    return { called: () => landed()?.called, started: () => landed()?.startedAt, dispose }
   })
 }
 

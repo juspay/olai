@@ -1,8 +1,13 @@
-export const SHELL_SPLIT = "h-[calc(100dvh-var(--height-header))] min-h-0"
+export const sheetHeight = (fills: {
+  readonly underStrip: boolean
+  readonly split: boolean
+}): string =>
+  fills.split
+    ? fills.underStrip
+      ? "h-[calc(100dvh-var(--height-header)-var(--height-strip,0px))] min-h-0"
+      : "h-[calc(100dvh-var(--height-header))] min-h-0"
+    : fills.underStrip
+      ? "min-h-[calc(100dvh-var(--height-header)-var(--height-strip,0px))]"
+      : "min-h-[calc(100dvh-var(--height-header))]"
 
-export const SHELL_LONE = "min-h-[calc(100dvh-var(--height-header))]"
-
-export const PANES_SPLIT = "h-[calc(100dvh-var(--height-header)-var(--height-strip,0px))] min-h-0"
-export const PANES_LONE = "min-h-[calc(100dvh-var(--height-header)-var(--height-strip,0px))]"
-
-export const SHEET = `bg-paper ${SHELL_LONE}`
+export const SHEET = `bg-paper ${sheetHeight({ underStrip: false, split: false })}`

@@ -3,10 +3,6 @@ import { createEffect,onCleanup } from "solid-js"
 import { RAIL_WIDTH_PX } from "./prefs.ts"
 import { desktop,phoneTabs,sidebarOpen,sidebarWidth } from "./live.ts"
 
-/** Keep `--width-sidebar` in step with the preferences, `--height-strip`
- *  in step with whether the seat above the panes is filled (`filled`) on a
- *  desktop, and the document's own `scroll-padding-top` in step with the
- *  chrome a phone pins over the page. */
 export const publishLayoutCss = (filled: () => boolean = () => false, thumbed: () => boolean = () => false): void => {
   const style = document.documentElement.style
   const previous = ["--width-sidebar", "--height-strip", "--height-bottom-chrome", "scroll-padding-top"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)

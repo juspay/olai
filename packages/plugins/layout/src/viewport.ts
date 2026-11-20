@@ -33,11 +33,10 @@ export const trackVisibleViewport = (): (() => void) => {
 
   const style = document.documentElement.style
   const previous = [HEIGHT, BOTTOM].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)
-  // Both properties INHERIT, so writing one is a style recalc for every node
-  // on the page; an unchanged reading is dropped here. `-1` is "never
-  // published" and no reading can collide with it.
-  let height = -1
-  let bottom = -1
+  // Both properties INHERIT, so writing one is a style recalc for every node on
+  // the page: an unchanged reading is not published.
+  let height: number | undefined
+  let bottom: number | undefined
 
   // `clientHeight` forces layout, so the layout viewport is re-read only when
   // something could have changed it — never per scroll frame.

@@ -19,7 +19,7 @@ import { PluginsMounted } from "./Mounted.tsx"
 import { connectionReadout, rosterChanging } from "@olai/web/client/wire.ts"
 import { desktop } from "./layout/live.ts"
 import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
-import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
+import { sheetHeight } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
 import { Header } from "./Header.tsx"
@@ -80,11 +80,9 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                   <div
                     class="relative md:grid"
                     classList={{
-                      [SHELL_SPLIT]: columns(),
-                      // Sticky children after a resize must not extend document overflow.
+                      [sheetHeight({ underStrip: false, split: columns() })]: true,
                       "md:overflow-clip": split(),
                       "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0,
-                      [SHELL_LONE]: !columns(),
                     }}
                   >
                     <For each={props.slots.read(sidebar)}>{({ value: parts }) => <>
