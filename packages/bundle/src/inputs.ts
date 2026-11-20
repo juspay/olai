@@ -7,8 +7,11 @@ export const provideInputs = (host: Host, input: VaultBoot) =>
   provide(host, VaultBoot, () => input)
 
 export const ticketsFor = (host: Host) =>
-  (...args: Parameters<TicketMint["mint"]>) =>
-    offered(host, ticketMint)?.mint(...args) ?? null
+  ({ forbidden, writer, confined }: {
+    readonly forbidden: Parameters<TicketMint["mint"]>[0]
+    readonly writer: Parameters<TicketMint["mint"]>[1]
+    readonly confined?: Parameters<TicketMint["mint"]>[2]
+  }) => offered(host, ticketMint)?.mint(forbidden, writer, confined) ?? null
 
 export const advertisedFor = (host: Host): Catalogue["advertised"] =>
   (server, tool) => offered(host, catalogue)?.advertised(server, tool) ?? null

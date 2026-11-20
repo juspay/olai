@@ -9,9 +9,6 @@ export const configurationFileIn = (claims: Claims, paths: Iterable<string>): st
   .filter(path => stemOf(claims, path).toLowerCase() === "settings" && claims.byKind.get(fileKind(claims, path) ?? "")?.holds === "nodes")
   .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))[0]
 
-/** THE ONE ANNOTATION A DECLARATION ADDS TO A LEAF IT PROMOTES — see
- *  {@link preference}. Declared here so this module can READ it, and typed so a
- *  declaration that spells it by hand still type-checks. */
 declare module "effect/Schema" {
   namespace Annotations {
     interface Annotations {
@@ -22,14 +19,10 @@ declare module "effect/Schema" {
 }
 
 /**
- * MARK A CONFIG SCHEMA LEAF AS A PREFERENCE.
- *
- * A promoted leaf is drawn in the Preferences panel under a heading named after
- * its plugin, and moves out of the plugins panel while that plugin is running.
- * It is the same annotation style as `Schema.annotate({ description })`: the
- * flag travels on the reading this module decodes (`PolicyValue.preference`),
- * so the browser learns it from the roster and imports no plugin package. A
- * leaf without it behaves exactly as it did before.
+ * Mark a config schema leaf as a preference: it is drawn in the Preferences
+ * panel under a heading named after its plugin, and out of the plugins panel,
+ * while that plugin is running. The flag travels on the reading this module
+ * decodes ({@link PolicyValue.preference}).
  */
 export const preference = <S extends Schema.Top>(self: S): S["Rebuild"] =>
   Schema.annotate({ preference: true })(self)
@@ -70,7 +63,6 @@ export const policyControl = (ast: SchemaAST.AST): Control => {
   return { kind: "text", ...(expected === "" ? {} : { expected }) }
 }
 
-/** Both file reading and panel writes use the leaf's own decoder. */
 export const coerceLeaf = (schema: Schema.ConstraintDecoder<unknown, never>, raw: string): unknown => {
   const control = policyControl(schema.ast)
   const input = control.kind === "number" ? (raw.trim() === "" ? NaN : Number(raw))
@@ -86,8 +78,7 @@ export interface PolicyValue {
   readonly setBy: "vault" | "default"
   readonly says: string
   readonly control: Control
-  /** The declaration marked this leaf a preference ({@link preference}): it is
-   *  drawn under its plugin's heading in the Preferences panel. */
+  /** The declaration marked this leaf a preference ({@link preference}). */
   readonly preference?: boolean
   readonly problem?: { readonly raw: string; readonly why: string }
 }
@@ -111,16 +102,11 @@ export interface ConfigurationSource {
 export const ConfigurationSource = serviceTag<ConfigurationSource>("configuration")
 
 /**
- * THE CONFIGURATION A ROW FOLLOWS, INDEPENDENT OF WHO IS READING THE FILE.
- *
- * `ConfigurationSource` belongs to the settings row, so a follower naming it
- * directly unloads — and reports its row `waiting` — when that reader is off or
- * the directory has no `Settings.olai`. This is core's narrow broker over that
- * optional provider: `current` is the reader's last reading or `undefined`, and
- * `changes` replays the current reading, follows its revisions, and answers
- * `undefined` when the reader leaves. Followers keep their last value for that
- * absence, and compare readings themselves: the broker knows nothing about
- * which fields anybody follows.
+ * The configuration a row follows, independent of who is reading the file.
+ * `current` is the reader's last reading or `undefined`; `changes` replays the
+ * current reading, follows its revisions, and answers `undefined` when the
+ * reader leaves. Followers keep their last value for that absence and compare
+ * readings themselves.
  */
 export interface ConfigurationWatch {
   readonly current: () => Configuration | undefined
@@ -128,7 +114,6 @@ export interface ConfigurationWatch {
 }
 export const ConfigurationWatch = serviceTag<ConfigurationWatch>("configuration-watch")
 
-/** The shared namespace walk, over the vault codec's already-decoded revision. */
 export const configurationNodes = (reading: Pick<Reading, "set" | "derived">) => {
   const file = configurationFileIn(reading.derived.claims, reading.set.documents.map((doc) => doc.path))
   const broken = file === undefined ? undefined : reading.set.broken.find((one) => one.file === file)
@@ -141,7 +126,7 @@ export const configurationNode = (nodes: ReadonlyArray<Located>, name: string) =
 
 /** Decode each leaf independently, preserving valid siblings when one is bad.
  * Numeric/boolean properties are text in an outline; the schema's default
- * supplies their representation. The schema remains the validity check. */
+ * supplies their representation. */
 export const decodePolicy = (
   schema: Schema.ConstraintDecoder<unknown, never>,
   nodes: ReadonlyArray<Located>,

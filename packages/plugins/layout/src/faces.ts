@@ -1,3 +1,3 @@
-import { heldFaces } from "@olai/plugin-api"
+import { singleConsumerFaces } from "@olai/plugin-api"
 
-export const { hold: holdFaces, hung, only } = heldFaces()
+export const { hold: holdFaces, hung, only } = singleConsumerFaces()

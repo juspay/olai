@@ -20,6 +20,6 @@
   },
   "vault": {
     "src/configuration.ts": 3,
-    "src/services.ts": 32
+    "src/services.ts": 36
   }
 }

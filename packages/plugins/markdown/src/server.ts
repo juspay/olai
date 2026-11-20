@@ -3,8 +3,7 @@ import { definePlugin, Directory, FileKinds, Ops, Surfaces, Vault } from "@olai/
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Effect } from "effect"
 import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
-import { type Reading, samePageReading } from "@olai/format"
-import type { Snapshot } from "@olai/store"
+import { samePageReading } from "@olai/format"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
 import { surface, faces, resources } from "./surface.ts"
 import { tools } from "./tools.ts"
@@ -26,7 +25,7 @@ export default definePlugin({
     let held: Projection<DocumentEntry> | undefined
     const empty = new Map<string, DocumentEntry>()
     const revisions = inMemoryChannel<void>()
-    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.sync(() => {
+    yield* vault.revision(snapshot => Effect.sync(() => {
       const next = documentProjection(snapshot, held)
       held = next
       for (const [key, value] of next.change.upserts) ctx?.collections.documents.upsert(key, value)

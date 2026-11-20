@@ -19,17 +19,17 @@ export type {
 } from "./plugin.ts"
 export type {
   App,
-  HeldFaces,
+  AppKeyedSlot,
   Hung,
-  KindSlot,
-  ListSlot,
-  PluginSlot,
-  SingleSlot,
+  KindKeyedSlot,
+  PluginKeyedSlot,
+  SingleConsumerFaces,
   SlotFaces,
   SlotOptions,
   SlotKey,
   SlotName,
+  UnkeyedSlot,
   EditWriters,
 } from "./browser.ts"
-export { Bar, Clocks, Edits, editApply, Landings, Faces, heldFaces, Links, NO_EDITS, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
+export { Bar, Clocks, Edits, editApply, Landings, Faces, singleConsumerFaces, Links, NO_EDITS, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
 export * from "./runtime.ts"

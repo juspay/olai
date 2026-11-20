@@ -3,9 +3,9 @@ import { Effect } from "effect"
 import { createMemo, createRoot } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { sameList } from "@olai/web/client/same.ts"
-import { type Faces, heldFaces } from "@olai/plugin-api"
+import { type Faces, singleConsumerFaces } from "@olai/plugin-api"
 
-const faces = heldFaces()
+const faces = singleConsumerFaces()
 export const { hung, dressed } = faces
 const createLists = () => ({
   asides: createMemo(() => hung("outline.row.aside"), undefined, { equals: sameList }),

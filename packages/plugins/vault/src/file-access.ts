@@ -6,8 +6,6 @@ import type { Store } from "@olai/ops"
 import { Effect, Stream } from "effect"
 import { followSubscription } from "./subscription.ts"
 import { inMemoryChannel, inMemoryStore, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
-import { type Reading } from "@olai/format"
-import type { Snapshot } from "@olai/store"
 import { surface, faces, resources, type FileKindsState } from "./file-surface.ts"
 
 import type { Projection } from "@olai/surface/projection"
@@ -40,7 +38,7 @@ export default definePlugin({
     const empty = new Map<string, Head>()
     const errors = inMemoryStore(NOTHING_WRONG)
     const manifest = inMemoryStore<Manifest>(null)
-    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.sync(() => {
+    yield* vault.revision(snapshot => Effect.sync(() => {
       const next = headProjection(snapshot, held)
       held = next
       revisions.publish(undefined)

@@ -633,22 +633,22 @@ export default definePlugin({
         nodes: () => nodeAgents.nodes(),
         nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
         ticket: (node) =>
-          tools.ticket(
-            () => [
+          tools.ticket({
+            forbidden: () => [
               ...nodeAgents.keys().map((key) => ({ key, says: SEATS })),
               ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
               ...nodeAgents.sleepKeys().map((key) => ({ key, says: SLEEPING_MARK })),
               ...nodeAgents.opensKeys().map((key) => ({ key, says: OPENS })),
             ],
-            "chat-agent",
-            () => chat?.live().get(node)?.sleep === true
+            writer: "chat-agent",
+            confined: () => chat?.live().get(node)?.sleep === true
               ? {
                 under: node,
                 says: "olai is tidying this node's knowledge base, and a turn nobody is watching writes only inside it",
                 stop: othersOf(nodeAgents.nodes(), node),
               }
               : null,
-          ),
+          }),
         onState: () => {},
         onConversationState: publishState,
         ...(nodeIdle === undefined ? {} : { idle: nodeIdle }),

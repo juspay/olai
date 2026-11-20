@@ -10,8 +10,7 @@ export const slotContract = <F>(name: string, keyedBy: SlotKey): SlotContract<F>
 })
 export const slotReference = <F>(name: string) => locationReference<Hung<F>>(name)
 
-/** Inert discovery uses only descriptors exported by supplied capability
- * modules. An absent module contributes no contract; this keeps no registry. */
+/** An absent module contributes no contract; this keeps no registry. */
 export const slotCatalog = (modules: Iterable<unknown>): ReadonlyArray<{readonly name: string;readonly keyedBy: SlotKey}> => {
   const entries: Array<{readonly name: string;readonly keyedBy: SlotKey}> = []
   for (const module of modules) {

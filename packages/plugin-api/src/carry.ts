@@ -1,4 +1,3 @@
-/** Static carry contracts. Each app owns a table; each activation owns a scope. */
 export interface Carried { readonly kind: string }
 export interface Box { readonly top: number; readonly left: number; readonly bottom: number; readonly right: number }
 export interface Receiver {
@@ -34,7 +33,6 @@ export const createLandings = (): Landings => {
     standing: receiver => entries.has(receiver),
   }
 }
-/** Registration wrappers make an old snapshot distinct from a replacement. */
 export const scopedLandings = (table: Landings): Landings & { readonly dispose: () => void } => {
   const releases = new Set<() => void>()
   let disposed = false

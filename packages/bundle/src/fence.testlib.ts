@@ -73,7 +73,7 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
 
 const HOLDERS: ReadonlyArray<Holder> = [
   { from: /held\.ts$/, named: "heldService" },
-  { from: /^@olai\/plugin-api$|plugin-api\/(src\/)?browser\.ts$/, named: "heldFaces" },
+  { from: /^@olai\/plugin-api$|plugin-api\/(src\/)?browser\.ts$/, named: "singleConsumerFaces" },
 ]
 
 export const RUNTIMES: ReadonlyArray<RegExp> = [

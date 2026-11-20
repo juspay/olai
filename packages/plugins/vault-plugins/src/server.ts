@@ -9,7 +9,6 @@ import { tools } from "./tools.ts"
 import { surface, faces } from "./surface.ts"
 import { NotFoundFailure, UsageFailure, type Reading } from "@olai/format"
 import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
-import type { Snapshot } from "@olai/store"
 import {
   PLUGIN_BROWSER_FILE,
   PLUGIN_FILES,
@@ -58,7 +57,7 @@ export default definePlugin({
     const followed = (read: Reading | null) => Effect.asVoid(settling(dynamic.follow(read)))
     yield* Effect.addFinalizer(() => Effect.asVoid(dynamic.follow(null)))
     yield* loading.describe({ names: dynamic.names, rows: dynamic.rows, set: (name, enabled) => settling(dynamic.set(name, enabled)), configure: dynamic.configure })
-    yield* (yield* Vault).revision<Snapshot<Reading>>(snapshot => followed(snapshot.value))
+    yield* (yield* Vault).revision(snapshot => followed(snapshot.value))
     yield* (yield* Vault).unloaded(followed(null))
     const abreast = Effect.suspend(() => Effect.andThen(
       Effect.catch(gate.read, () => Effect.succeed(null)),

@@ -2,8 +2,6 @@ import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Effect, Stream, SubscriptionRef } from "effect"
 import { inMemoryStore, inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
-import type { Reading } from "@olai/format"
-import type { Snapshot } from "@olai/store"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
 import { surface, faces } from "./surface.ts"
 import { tools } from "./tools.ts"
@@ -22,7 +20,7 @@ export default definePlugin({
     const publish = (next: typeof NO_INBOX) => ctx ? ctx.cells.inbox.set(next) : value.set(next)
     const publishInbox = yield* vault.inbox.register(null)
     let file: Convention | undefined
-    yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.gen(function*() {
+    yield* vault.revision(snapshot => Effect.gen(function*() {
       file = conventionServed(snapshot.value.claims, inboxIn, snapshot.value.set, snapshot, file)
       publish(inboxHeldIn(snapshot.value.derived, file.file))
       const reading = yield* Effect.result(gate.read)

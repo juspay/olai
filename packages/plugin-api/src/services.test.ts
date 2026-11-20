@@ -22,12 +22,18 @@ import {
   Surfaces,
   Vault,
   vaultEvents,
+  type VaultSnapshot,
   Wakes,
   Watching,
 } from "./services.ts"
 import type { Configuration } from "./configuration.ts"
 
 const NOTHING_FOUND = { server: null, missing: null }
+
+const snapshotOf = (said: string, rev = 1): VaultSnapshot =>
+  ({ rev, value: {} as VaultSnapshot["value"], changed: [said], removed: [] })
+
+const saidIn = (snapshot: VaultSnapshot): string => snapshot.changed[0] ?? ""
 
 const NOTHING = { surface: { spec: {} }, faces: {}, deps: {} }
 
@@ -224,7 +230,7 @@ test("a vault listener that dies costs the next plugin nothing", async () => {
         }),
       )
 
-      yield* plugins.published({ rev: 1 })
+      yield* plugins.published(snapshotOf("one"))
     })).pipe(Effect.provide(layer)),
   )
   expect(heard).toEqual(["neighbour"])
@@ -281,10 +287,10 @@ test("a vault listener goes when its plugin does", async () => {
         }),
       }),
     )
-    yield* plugins.published({ rev: 1 })
+    yield* plugins.published(snapshotOf("one"))
     expect(heard).toEqual(["leaver"])
     yield* mounted.dispose
-    yield* plugins.published({ rev: 2 })
+    yield* plugins.published(snapshotOf("two", 2))
     expect(heard).toEqual(["leaver"])
   })))
 })
@@ -815,12 +821,13 @@ test("discovery follows plugin-owned offers without publishing internal core doo
 test("a late vault subscriber replays the published reading before receiving the next one", () =>
   Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const events = vaultEvents("/tmp")
-    yield* events.published("first")
+    yield* events.published(snapshotOf("first"))
     const replaying = yield* Deferred.make<void>()
     const continueReplay = yield* Deferred.make<void>()
     const seen: string[] = []
-    const listener = yield* Effect.forkScoped(events.door("late").revision((value: string) =>
+    const listener = yield* Effect.forkScoped(events.door("late").revision((snapshot) =>
       Effect.gen(function*() {
+        const value = saidIn(snapshot)
         seen.push(value)
         if (value === "first") {
           yield* Deferred.succeed(replaying, undefined)
@@ -829,7 +836,7 @@ test("a late vault subscriber replays the published reading before receiving the
         seen.push(`${value} done`)
       })))
     yield* Deferred.await(replaying)
-    const publish = yield* Effect.forkScoped(events.published("second"))
+    const publish = yield* Effect.forkScoped(events.published(snapshotOf("second", 2)))
     yield* Effect.yieldNow
     expect(seen).toEqual(["first"])
     yield* Deferred.succeed(continueReplay, undefined)
@@ -876,11 +883,11 @@ for (const words of [["viewer", "viewer"], ["viewer", "other.viewer"]]) {
 test("a synchronous replay failure cannot prevent later subscribers or publications", () =>
   Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const events = vaultEvents("/tmp")
-    yield* events.published("first")
+    yield* events.published(snapshotOf("first"))
     yield* events.door("thrower").revision(() => { throw new Error("nope") })
     const seen: string[] = []
-    yield* events.door("neighbour").revision((value: string) => Effect.sync(() => { seen.push(value) }))
-    yield* events.published("second")
+    yield* events.door("neighbour").revision((snapshot) => Effect.sync(() => { seen.push(saidIn(snapshot)) }))
+    yield* events.published(snapshotOf("second", 2))
     expect(seen).toEqual(["first", "second"])
   }))))
 

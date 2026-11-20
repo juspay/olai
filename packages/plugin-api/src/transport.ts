@@ -17,7 +17,6 @@ export interface ListenerContribution {
   }
 }
 export interface TransportSurface {
-  /** Acquisitions are independent; each scope withdraws only what it added. */
   readonly register: (contribution: ListenerContribution) => Effect.Effect<void, never, Scope.Scope>
   readonly routes: Routes
   readonly live: () => ServedGeneration & { readonly expose: NonNullable<ServedGeneration["expose"]> }
@@ -31,16 +30,12 @@ export interface TransportSurface {
   readonly browserBoot?: () => ReadonlyArray<string>
   readonly hostname: string
   readonly token: string
-  /** The composed agent generation; credential providers own attribution. */
   readonly agent: () => ServedGeneration & { readonly expose: NonNullable<ServedGeneration["expose"]>; readonly writes: readonly string[] }
   /**
-   * WHICH ROWS ARE STANDING AND WHAT AGENT VERBS EACH BROUGHT — read afresh,
-   * per call. A tool is offered because the row that owns it is HERE, and it
-   * leaves when that row does.
-   *
-   * `surface`, `resources` and `tools` are opaque on this side of the wall:
-   * each is built against the row's own spec, in the row's own package. A row
-   * is entered with `{}` for `resources` when it publishes nothing
+   * Which rows are standing and what agent verbs each brought — read afresh,
+   * per call. `surface`, `resources` and `tools` are opaque on this side of the
+   * wall: each is built against the row's own spec, in the row's own package. A
+   * row is entered with `{}` for `resources` when it publishes nothing
    * addressable.
    */
   readonly agentRows: () => ReadonlyArray<{
@@ -50,13 +45,6 @@ export interface TransportSurface {
     readonly tools: ReadonlyArray<unknown>
     readonly charter?: string
   }>
-  /**
-   * ...AND A BELL WHEN THE COMPOSED ROSTER MOVES. Rung at the TAIL of a
-   * recompose, after every mount, every drop and the gate, so a listener
-   * reading {@link agentRows} sees the generation that has just been
-   * published. Returns its own removal, and a caller registers it on its
-   * scope.
-   */
   readonly agentRosterMoved: (run: () => void) => () => void
   /** Static owner declarations remain reserved while an owner is disabled. */
   readonly writeReservations: readonly { readonly key: string; readonly says: string; readonly file?: string }[]

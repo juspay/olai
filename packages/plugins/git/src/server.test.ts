@@ -104,7 +104,7 @@ const mounted = async (root: string, initial: GitPolicy): Promise<Mounted> => {
         },
       })
     },
-    vault: () => run(plugins.published({ value: readingOf(setOf({})) })),
+    vault: () => run(plugins.published({ rev: 1, value: readingOf(setOf({})), changed: [], removed: [] })),
     publish: (next) => run(publish!(reading(next))),
     withdraw: () => run(holder.dispose),
     reoffer: async (next) => {

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Effect, Exit, Scope } from "effect"
 
-import { heldFaces, type Faces } from "./browser.ts"
+import { singleConsumerFaces, type Faces } from "./browser.ts"
 
 const table = (said: string): Faces => ({
   hung: (() => [{ plugin: said, face: said }]) as Faces["hung"],
@@ -14,8 +14,8 @@ const wordsIn = (faces: Pick<Faces, "hung">): ReadonlyArray<string> =>
 
 test("two callers get two holders, so minting one shares nothing", () =>
   Effect.runPromise(Effect.scoped(Effect.gen(function*() {
-    const one = heldFaces()
-    const other = heldFaces()
+    const one = singleConsumerFaces()
+    const other = singleConsumerFaces()
     yield* one.hold(table("first"))
     expect(wordsIn(one)).toEqual(["first"])
     expect(wordsIn(other)).toEqual([])
@@ -25,7 +25,7 @@ test("two callers get two holders, so minting one shares nothing", () =>
 
 test("a stopped activation clears its own hold and never a live one, even for the SAME table", () =>
   Effect.runPromise(Effect.gen(function*() {
-    const held = heldFaces()
+    const held = singleConsumerFaces()
     const shared = table("shared")
     const first = yield* Scope.make()
     const second = yield* Scope.make()
@@ -39,7 +39,7 @@ test("a stopped activation clears its own hold and never a live one, even for th
 
 test("one holder is one slot: a second hold displaces the first, and its release empties it", () =>
   Effect.runPromise(Effect.gen(function*() {
-    const held = heldFaces()
+    const held = singleConsumerFaces()
     const first = yield* Scope.make()
     const second = yield* Scope.make()
     yield* Scope.provide(held.hold(table("first")), first)

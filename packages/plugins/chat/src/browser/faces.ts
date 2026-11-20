@@ -1,7 +1,7 @@
-import { heldFaces } from "@olai/plugin-api"
+import { singleConsumerFaces } from "@olai/plugin-api"
 import type {} from "olai-plugin-outlines/slots"
 
-const own = heldFaces()
+const own = singleConsumerFaces()
 
 export const holdFaces = own.hold
 

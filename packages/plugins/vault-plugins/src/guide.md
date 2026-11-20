@@ -255,7 +255,7 @@ export default definePlugin({
     // The reading every answer will be about, kept as the vault publishes it
     // and handed back unchanged. This plugin never looks inside it.
     let at: unknown
-    yield* vault.revision((snapshot: { readonly value: unknown }) =>
+    yield* vault.revision((snapshot) =>
       Effect.sync(() => {
         at = snapshot.value
       })

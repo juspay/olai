@@ -15,6 +15,7 @@ import {
 
   type Registered,
   standing,
+  type VaultSnapshot,
   Watching,
 } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
@@ -111,7 +112,7 @@ const mounted = async (doubles: Doubles) => {
       }
       return deps.cells.link.store.get()
     },
-    revision: (snapshot?: unknown): Promise<void> => {
+    revision: (snapshot?: VaultSnapshot): Promise<void> => {
       if (snapshot !== undefined) return run(plugins.published(snapshot))
       const reading = readingOf(setOf({
         "board.olai": rec("orch", {
@@ -120,7 +121,8 @@ const mounted = async (doubles: Doubles) => {
         }),
       }))
       return run(plugins.published({
-        value: { set: reading.set, derived: reading.derived },
+        rev: 1,
+        value: reading,
         changed: ["board.olai"],
         removed: [],
       }))
@@ -283,7 +285,8 @@ test("dropping the bind without env returns the pill to absent", async () => {
   expect(half.link().status).toBe("fault")
   const empty = readingOf(setOf({}))
   await half.revision({
-    value: { set: empty.set, derived: empty.derived },
+    rev: 2,
+    value: empty,
     changed: [],
     removed: ["board.olai"],
   })

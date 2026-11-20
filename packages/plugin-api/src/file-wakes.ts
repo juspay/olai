@@ -25,8 +25,7 @@ export const fileFault = (claims: Claims, paths: Iterable<string>, file: string)
   return kind !== null && claims.byKind.get(kind)?.holds === "nodes" ? null : "unwatchable"
 }
 
-/** The file owner persists which broken picks it has already announced.
- * No shared live state: each activation acquires its own instance and IO door. */
+/** The file owner persists which broken picks it has already announced. */
 export const fileWakeFaults = (local: LocalState, deliveries: Deliveries, judge: (file: string) => FileFault | null, words: Record<FileFault, string>) => Effect.gen(function*() {
   const loaded = yield* local.load
   let marked = new Set(Array.isArray(loaded?.wakeFaults) ? loaded.wakeFaults.filter((key): key is string => typeof key === "string") : [])
