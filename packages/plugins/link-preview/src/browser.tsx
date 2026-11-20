@@ -98,7 +98,6 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     root.remove()
   }))
   function Body(props: { readonly renderer: LinkPreview; readonly route: Route }) {
-    // The keyed target owns this mount and its immutable route contract.
     const route = props.route
     return <div data-testid={TESTID.linkPreviewBody} class="min-h-0 overflow-auto p-3 [overflow-wrap:anywhere]"><Dynamic component={props.renderer.Preview} route={route} /></div>
   }
@@ -122,23 +121,15 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
             else element.removeAttribute("aria-describedby")
           })
         })
-        // Live edits can remove an anchor without a pointerout event. Its card
-        // must release immediately, rather than reading at a detached element.
         const parent = at.element.parentElement
         const href = at.element.getAttribute("href")
         const removed = new MutationObserver(() => {
           if (anchor()?.isConnected) return
-          // Markdown can replace its HTML when membership changes. Follow the
-          // same link in that owned block without remounting its live reading.
           const replacement = parent?.isConnected ? [...parent.querySelectorAll<HTMLElement>("a[href]")]
             .find(element => element.getAttribute("href") === href) : undefined
           if (!replacement) { close(); return }
           setAnchor(replacement)
         })
-        // The source can be in a pane, sidebar or portal, all of which may
-        // themselves be removed. Observing a descendant misses removal of that
-        // root; body is their narrowest shared surviving ancestor. The callback
-        // does no search while the current anchor is still connected.
         removed.observe(document.body, { childList: true, subtree: true })
         onCleanup(() => removed.disconnect())
         return <Popper anchorRef={anchor} contentRef={content} placement="bottom-start" gutter={6} fitViewport overflowPadding={8}>

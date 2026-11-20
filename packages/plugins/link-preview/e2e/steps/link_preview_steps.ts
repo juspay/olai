@@ -56,8 +56,6 @@ Then("the link preview is read-only and fits the viewport", async function (this
 When("I make the preview note an active editor", async function (this: OlaiWorld) { await link(this, "target").evaluate(el => el.parentElement!.setAttribute("contenteditable", "true")) })
 When("I change the preview target on disk", function (this: OlaiWorld) { write(this, records().map(row => row.id === "preview-target" ? { ...row, title: "Changed preview target" } : row)) })
 When("I delete the preview target on disk", function (this: OlaiWorld) {
-  // Keep the outline valid: structural see references cannot dangle, while
-  // the source's Markdown link deliberately remains to show the missing card.
   write(this, records().filter(row => row.id !== "preview-target" && !("parent" in row && row.parent === "preview-target"))
     .map(row => row.id === "preview-source" ? { ...row, see: [] } : row))
 })
@@ -184,7 +182,6 @@ Then("the complete preview title and every paragraph are reachable", async funct
   const heading = card(this).getByRole("heading", { name: longTitle, exact: true })
   await heading.scrollIntoViewIfNeeded()
   assert.equal(await heading.textContent(), longTitle)
-  // Geometry, not just textContent: hidden/clamped text can still be in the DOM.
   const visibleBody = (await body.boundingBox())!
   const titleLines = await heading.evaluate(el => {
     const range = document.createRange()

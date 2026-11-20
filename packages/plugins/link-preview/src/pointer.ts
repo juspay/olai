@@ -1,5 +1,3 @@
-/** Boundary events classify once. Layout-only arrivals wait for real movement;
- * ordinary movement within an already entered element never reclassifies it. */
 export function pointerEdges<E extends { readonly clientX: number; readonly clientY: number; readonly target: EventTarget | null }>(enter: (event: E) => void) {
   let point: { x: number; y: number } | undefined
   let skipped: EventTarget | null = null
