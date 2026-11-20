@@ -1,17 +1,8 @@
-/**
- * The cursor every shortlist in this client is walked with.
- *
- * A Solid primitive, so it is exercised inside a root — which is also what
- * makes the GUARD testable: the effect that keeps the cursor on a row that
- * exists only runs where there is an owner to run it.
- */
-
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 
-/** Run a body inside a disposed-after root, with a settable count. */
 const over = <A>(
   start: number,
   body: (cursor: ReturnType<typeof createCursor>, setCount: (n: number) => void) => A,
@@ -71,9 +62,6 @@ test("a new question puts it back at the top", () => {
   ).toBe(0)
 })
 
-// A list that gets SHORTER under somebody standing near the bottom of it —
-// both lists this serves are fed by a server, so both can. There is no frame in
-// which the answer is out of range, because the clamp is where it is READ.
 test("a list that gets shorter keeps the cursor on a row that exists", () => {
   expect(
     over(5, (cursor, setCount) => {
@@ -94,8 +82,6 @@ test("a list that empties leaves the cursor at the top", () => {
   ).toBe(0)
 })
 
-// ...and what is remembered underneath is where the person put it, so a list
-// that comes back finds them where they were rather than at the top.
 test("a list that grows back puts them where they were", () => {
   expect(
     over(5, (cursor, setCount) => {
@@ -107,9 +93,6 @@ test("a list that grows back puts them where they were", () => {
   ).toBe(4)
 })
 
-// Stepping is from where the cursor IS, which over a shortened list is not
-// where it was put — so the step after a shrink lands on a neighbour of the
-// row that is drawn, never of one that is gone.
 test("stepping starts from the row that is drawn", () => {
   expect(
     over(5, (cursor, setCount) => {

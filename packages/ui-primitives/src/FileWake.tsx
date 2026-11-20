@@ -1,16 +1,3 @@
-/**
- * A pure file picker: its owner supplies paths, labels, status and the write.
- *
- * IT DRAWS NO TOOLTIP OF ITS OWN, and the reason is this package's manifest:
- * `@olai/ui-primitives` declares `solid-js` and nothing else, while the app's
- * tip lives in `@olai/web` — which depends on this package. So the rule the
- * rest of the app follows (whoever renders the control renders its tip) lands
- * on the HOST here. A rail button's host can simply wrap it; this one cannot,
- * because the control the sentence is about is the trigger INSIDE this
- * component, so the host hands its tip in as {@link FileWake.tip} instead.
- * That is the same rule, not a second one: the tip is still drawn by the
- * nearest owner that is allowed to know what a tip is.
- */
 import { For, type JSX, Show } from "solid-js"
 export function FileWake(props: {
   readonly plugin: string
@@ -25,17 +12,9 @@ export function FileWake(props: {
   readonly triggerClass: string
   readonly listClass: string
   readonly problem?: string
-  /** THE HOST'S TIP, around the picker's trigger. `said` is an accessor so the
-   *  sentence follows the pick rather than freezing at the one that was chosen
-   *  when this component was built. Absent draws the bare trigger, which is
-   *  what a host with no tips of its own gets. */
   readonly tip?: (said: () => string, control: JSX.Element) => JSX.Element
 }) {
   const name = (file: string) => file.split("/").at(-1) ?? file
-  /** What the trigger is ABOUT: the whole path, of which the button draws the
-   *  last segment alone. The host's tip says it to a pointer and the `sr-only`
-   *  span inside the button says it to everybody else — the drawn name is a
-   *  basename, so the directory it is in was only ever in the tooltip. */
   const said = (): string => props.file ?? "No file chosen"
   const trigger = (): JSX.Element => (
     <button type="button" class={`${props.triggerClass} max-w-[16rem] truncate${props.fault ? " text-alarm" : ""}`} data-testid={props.ids.picker} data-plugin={props.plugin} data-file={props.file ?? "off"} ref={props.picker.setTrigger} aria-expanded={props.picker.open()} onClick={props.picker.toggle}>

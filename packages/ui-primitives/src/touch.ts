@@ -1,194 +1,39 @@
-/**
- * How big a thing a finger aims at has to be, and the one place that is not
- * free.
- *
- * 2.75rem — 44px, the number both mobile platforms print in their guidelines —
- * and only below 48rem, because it is a fact about the POINTER: on a laptop
- * the same rule would space a sidebar out for nothing. 48rem rather than
- * `pointer: coarse` so that this and the layout are one line and not two: the
- * sidebar stops being a column at exactly that width (../client/App.tsx), the
- * racket original drew both from the same `phone-max`, and a control that grew
- * on a touchscreen laptop while the layout stayed in two columns would be a
- * third case nobody has looked at.
- *
- * THE REVEALS BELOW DO NOT GET THAT PROXY, and that is the one place this
- * file keeps two lines instead of one. A target that grows on a laptop costs
- * a sidebar some air; a control that stays transparent on a tablet costs a
- * person the control altogether, so the cheap answer is affordable for the
- * size and is not affordable for the reveal. Width cannot answer whether
- * there is a HOVER here — a tablet, a touchscreen laptop and a handset held
- * sideways are all past 48rem with nothing to put on the row —
- * so the reveals ask the pointer directly ({@link SHOWN_WITHOUT_HOVER}).
- *
- * What a control is ABOVE that line is per control — a day of the month goes
- * back to a 1.75rem row, a pill to its padding, a bullet to 1rem — so the
- * reset is spelled at each site and only the target is spelled here. That is
- * the whole split: one number that is a policy, and per-control compactness
- * that is a design.
- *
- * ## The gutter (Workflowy arithmetic)
- *
- * A tree row's left side, left to right:
- *
- *   hover strip (triangle; + `•••` on pointer devices) · glyph · title
- *
- * ONE GLYPH CELL, not two. The bullet and the status box were separate columns
- * until the quiet outline merged them (`../client/Glyph.tsx`): one cell says
- * what the node is AND is the way into it, which gave a phone back 2rem of a
- * 390pt screen and gave every reader one place to look instead of two.
- *
- * On a pointer device the menu and triangle appear only on row hover / focus;
- * on a phone the triangle stays visible (there is no hover) and the `•••` is
- * not drawn at all — a phone has no room for two always-on cells before the
- * title (see packages/web/README.md). What a phone reaches the MENU with
- * instead is a long press on the row, which costs no width at all
- * (../client/longPress.ts); the menu's root is still in the markup below 48rem
- * to hold the panel that opens, and is taken out of the strip's flow
- * (`absolute`) so the arithmetic below stays true — a strip with no `•••` in
- * it is exactly as wide as its triangle. The permanent widths are still
- * reserved so a title never shifts under the pointer when the controls fade
- * in.
- *
- * EVERY gap in the row is `GUTTER_GAP`. The note indents (`PAST_*`) are the
- * arithmetic of those widths + gaps; change a control width or the gap and
- * both the table and the constants below must move together. Literal class
- * names rather than computed ones: Tailwind scans this file as text.
- */
-
-/** A control a finger aims at. Paired at each site with what it is above
- *  48rem (`md:min-h-0`, or whatever compact size that control has). */
 export const TARGET = "min-h-11"
 
-/** The same, both ways: for a control with no column of its own to fill it
- *  out — a chevron, a lone icon — where the height alone would leave a target
- *  a finger still misses sideways. */
 export const TARGET_BOX = "min-h-11 min-w-11"
 
-// ── the gutter ─────────────────────────────────────────────────────────────
-//
-//   GUTTER_GAP = 0.25rem (gap-1) between every flex sibling on the row.
-//
-//   CONTROL / HOVER_CELL: phone 1.75rem (w-7), pointer 1rem (w-4)
-//
-//   Tree hover strip:
-//     phone  — triangle only                         → 1.75rem
-//     pointer — menu + gap + triangle                → 1 + 0.25 + 1 = 2.25rem
-//
-//   Tree PAST_CONTROLS (hover + 2×gap + glyph):
-//     phone   1.75 + 0.5 + 1.75 = 4rem
-//     pointer 2.25 + 0.5 + 1    = 3.75rem
-//
-//   Day PAST_BULLET (glyph + gap):
-//     phone   1.75 + 0.25 = 2rem
-//     pointer 1    + 0.25 = 1.25rem
-//
-// When a width moves, the control, the spacer, HOVER_*, and the two PAST_*
-// constants move with it. They live together here.
-
-/** Gap between gutter siblings — tree row, day row, and inside the hover
- *  strip. One export so the JSX and the PAST arithmetic cannot disagree. */
 export const GUTTER_GAP = "gap-1"
 
-/**
- * A LINE of the outline — the row line, and the blank that is about to become
- * one. ONE spelling, used by both (`../client/Tree.tsx` and
- * `../client/edit/NewRow.tsx`), because a blank is a row one write early: if
- * the two are laid out by different rules, the bullet and the caret MOVE the
- * moment the write lands, which is the one thing the seat they share exists to
- * prevent. It was `items-center` on the blank and `items-baseline` here, and
- * the bullet dropped six pixels at every landing.
- *
- * `items-baseline`, not `items-center`, and that is the rule rather than a
- * preference: a title WRAPS (`../client/NodeLine.tsx`), so the glyph and the
- * fold triangle sit against the title's first line rather than the middle of
- * the block. `py-[3px]` is the vertical rhythm every row is spaced on: with
- * the title's 1.5 leading it makes a line about 2rem tall at the default
- * size, which is the density a list read all day wants — one glance takes in
- * a dozen rows rather than eight.
- */
 export const ROW_LINE = `relative flex items-baseline py-[3px] ${GUTTER_GAP}`
 
-/**
- * The box a line's GLYPH is drawn in: the span a tree row wraps its bullet in
- * so the bullet can be picked up (`../client/drag/Handle.tsx`), and the same
- * box around a blank's dot — the two lines are one layout (`@olai/outlines` and
- * this file's `ROW_LINE`).
- *
- * `items-center` HERE and `items-baseline` on the line, which is not a
- * contradiction: this box is a flex item of the line and is aligned by the
- * line's rule, while the glyph inside it is centred on its own cell.
- */
 export const GLYPH_BOX = "inline-flex items-center"
 
-/**
- * A row's permanent control — the glyph, and the hollow dot a row that does not
- * exist yet draws in its place.
- *
- * There used to be a second one beside it and a blank of the same width for the
- * rows that carried no mark; the glyph column absorbed both
- * (`../client/Glyph.tsx`), so every row now spends exactly one of these and
- * nothing has to hold a place open.
- */
 export const CONTROL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
 
-/**
- * The hover strip: collapse triangle always; `•••` menu on pointer devices
- * only (below md the menu's root is out of this flow at its own site, so it
- * takes neither a cell nor a gap). Width matches content so a fixed `w-*`
- * cannot drift from the cells it holds.
- */
 export const HOVER_GUTTER =
   `inline-flex h-11 shrink-0 items-center justify-end ${GUTTER_GAP} md:h-5`
 
-/** One cell inside the hover strip (the triangle, and the `•••` above md). */
 export const HOVER_CELL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
 
 /**
- * The `•••` cell: the same box, drawn only where there is room for it.
- *
- * Its own constant rather than `${HOVER_CELL} hidden md:inline-flex`, because
- * that reads as a rule and is not one: `hidden` and `inline-flex` are the same
- * property, so which of them wins below md is Tailwind's emission order and not
- * the order they are written in. Spelled here, the display is stated once per
- * breakpoint and cannot be undone by the cell it is built from.
+ * `hidden` and `inline-flex` are the same property, so which of them wins
+ * below md is Tailwind's emission order and not the order they are written in.
+ * Spelled here, the display is stated once per breakpoint and cannot be undone
+ * by the cell it is built from.
  */
 export const MENU_CELL =
   "hidden h-11 w-7 shrink-0 items-center justify-center md:inline-flex md:h-5 md:w-4"
 
 /**
- * A surface a finger may be HELD on (`../client/longPress.ts`).
- *
  * iOS raises its own callout for a long press and does not send the
  * `contextmenu` that would let it be prevented, so it is turned off wherever
- * this client claims the gesture. (Android's arrives as that event and is
- * answered there instead — one platform each, and the halves are named where
- * they are done.)
+ * this client claims the gesture. (Android's arrives as that event.)
  */
 export const HELD = "[-webkit-touch-callout:none]"
 
 /**
- * WHERE THERE IS NO HOVER, THE CONTROL IS SIMPLY ON — the arm every reveal in
- * this file was missing, written once and appended by all three.
- *
- * A fade-in-on-hover control has three states and only two of them were here:
- * hovered, focused, and the device that can do neither. `md:` was standing in
- * for the third, and it cannot: it answers a question about ROOM (is this the
- * two-column layout; is there space on the line for a `•••`), and a wide
- * touch screen answers that question YES while having no pointer to reveal
- * anything with. Every control below `md:opacity-0` was therefore drawn
- * transparent on a tablet and revealed by nothing a finger could do — a
- * control that exists, takes its width, and cannot be found (WCAG 1.4.13's
- * other half: content revealed on hover must be reachable without one).
- *
- * It is `hover: none` and not `pointer: coarse` because the question is
- * whether a hover can reveal this, not how fat the finger is: a stylus is a
- * fine pointer that cannot hover, and a remote's cursor is a coarse one that
- * can. The spelling is the trash page's, which was the first surface here to
- * answer this at all (`olai-plugin-trash`'s `TrashPage.tsx`) and is now a
- * caller of this constant rather than a second answer.
- *
  * THAT IT IS A SINGLE APPENDED CLASS IS LOAD-BEARING, and it rests on the
  * order Tailwind emits: an arbitrary at-rule variant sorts after `md:` and
  * after `group-hover` (which v4 wraps in `@media (hover: hover)` of its own),
@@ -199,205 +44,39 @@ export const HELD = "[-webkit-touch-callout:none]"
  */
 export const SHOWN_WITHOUT_HOVER = "[@media(hover:none)]:opacity-100"
 
-/**
- * Reveal policy for hover-only gutter controls (triangle; menu on md+).
- *
- * Below 48rem: always on (a finger has no hover). Above: invisible until the
- * row line is hovered, or something in it is FOCUSED — and that second half is
- * the KEYBOARD's, not the caret's.
- *
- * A TITLE BEING TYPED IS ALSO FOCUS INSIDE THIS LINE, and `group-focus-within`
- * counted it as a hand on the row: the title's `<input>` is drawn in the row's
- * own group (`./client/RowEditor.tsx` — it is the title's cell), so the gutter
- * was revealed for as long as anybody was typing. What a reader saw was a
- * `•••` and a plugin's chip appearing on a line at the moment it landed, with
- * the pointer nowhere near the row.
- *
- * So the clause asks for focus on anything that is NOT an editor — the two
- * this client's fields are, one `<input>` and one `<textarea>`
- * (`@olai/web`'s `isEditingTarget` names the wider set for the same question
- * one layer up). A programmatic `focus()` counts as focus, which is what keeps
- * `workflowy_gutter.feature`'s keyboard path true: the caret put ON a control
- * is the state that clause exists for.
- *
- * And on a screen with no hover the width arm would have left nothing to
- * reveal it, which is {@link SHOWN_WITHOUT_HOVER}'s clause: below 48rem it
- * says again what the first class already said, and above it — the tablet —
- * it is the only thing that draws the gutter at all.
- */
 export const HOVER_REVEAL =
   "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 " +
   "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100 " +
   SHOWN_WITHOUT_HOVER
 
-/**
- * Reveal for an OFFER a plugin hangs on a row — a verb a person may want
- * here, as against a fact about the row (which is always drawn).
- *
- * Above 48rem it is {@link HOVER_REVEAL}'s: in the row's box, invisible until
- * a hand is on the row or the keyboard is on a control in it.
- *
- * Below 48rem it is NOT drawn at all until the row is the ACTIVE one — the row
- * a finger tapped, which the row line says with `data-active`. A phone has no
- * hover to wait for, and an offer drawn permanently on every line took a line
- * of its own per row: five rows filled the screen.
- *
- * It carries the DISPLAY (`hidden`, then `inline-flex` where it shows), so the
- * element wearing it must not spell a display of its own — two display
- * utilities on one box are settled by emission order, not by the page.
- *
- * The two branches answer two questions and the `md:` one is kept for the
- * question it really answers: whether a LINE has room for a pill beside the
- * title. Below 48rem it does not, which is why the offer waits there for the
- * tapped row. Above it there is room, so a touch screen gets the offer the
- * way the guide asks for it — drawn, and not waiting on a hover it cannot
- * perform ({@link SHOWN_WITHOUT_HOVER}).
- */
 export const OFFER_REVEAL =
-  // `self-center`: a pill in a baseline-aligned line would otherwise STEER
-  // the baseline — its first flex item is an icon, whose synthesised baseline
-  // is its bottom edge, three pixels under the title's own — and a row with
-  // an offer on it sat lower than the blank it was typed as
-  // (`a_new_line_keeps_its_box.feature`). Centred on the line, it moves
-  // nothing beside it.
   "hidden items-center self-center group-data-[active]/row:inline-flex md:inline-flex " +
   "md:opacity-0 md:group-hover/row:opacity-100 " +
   "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100 " +
   SHOWN_WITHOUT_HOVER
 
-/**
- * Reveal for the `•••` menu button — hover/focus-only, and no phone branch,
- * because the button it is on is not drawn below md at all ({@link MENU_CELL}).
- * An opacity there would be an opacity on a `display: none` box.
- *
- * `data-[expanded]` is the third arm and it is not optional: an OPEN menu
- * whose `•••` had faded out would be a panel hanging off nothing. Kobalte puts
- * that attribute on the trigger for exactly this (`menu/Dropdown.tsx`), which
- * is steadier than the focus it used to ride on — a menu's own list can take
- * and drop the caret as a pointer moves over it.
- *
- * The focus arm is {@link HOVER_REVEAL}'s, in its spelling and for its reason:
- * a hand on the row, or the caret on a CONTROL in it — never the caret in the
- * title, which is what made this button appear when a new line landed.
- *
- * The fourth arm is {@link SHOWN_WITHOUT_HOVER}, and this is the recipe it
- * was most needed in: there is no width branch to fall back on here, so on
- * every touch screen wide enough to be drawn the `•••` was a transparent
- * square at the end of the row — in the way of the row's own press, and
- * invisible to the one gesture that could have reached it.
- */
 export const MENU_REVEAL =
   "opacity-0 group-hover/row:opacity-100 " +
   "group-has-[:focus:not(input):not(textarea)]/row:opacity-100 " +
   `data-[expanded]:opacity-100 ${SHOWN_WITHOUT_HOVER}`
 
-/** Past the glyph — where a day's row puts its note. */
 export const PAST_BULLET = "ml-8 md:ml-5"
 
-/**
- * Where a day's row hangs its `•••`: OUTSIDE the row, left of the glyph, so the
- * glyph and everything `PAST_BULLET` indents stay exactly where they were.
- *
- * Above md it is a flex item one {@link MENU_CELL} wide (`w-4`) pulled left by
- * that width plus the one `GUTTER_GAP` after it (`1 + 0.25 = 1.25rem`), so the
- * gap lands the glyph back on the row's own left edge. Below md it is
- * `contents`: the menu's root is out of flow there (a zero-width absolute box —
- * `NodeMenu.tsx`) and a box of its own would still be a flex item, taking a gap.
- */
 export const HANGING_MENU = "contents md:inline-flex md:h-5 md:items-center md:-ml-5"
 
-/** Past the hover strip AND the glyph — where a tree's row puts its note, and
- *  its one aside about a mirror it would not expand. */
 export const PAST_CONTROLS = "ml-16 md:ml-15"
 
-/**
- * A row's TITLE, as type: the size and leading a line of the outline is set
- * in. Here because the input that replaces a title while it is being typed
- * must be the same box (`../client/edit/RowEditor.tsx`) — a row that shifted
- * by a pixel when the caret arrived would be this file's kind of bug, and
- * three literals were three chances for one of them to miss a change.
- *
- * SANS, and at the interface's BODY size. The serif is kept for what a person
- * wrote as prose — a document's body — and a row of an outline is a line of
- * the interface a person is working in, read beside the chrome and the chips
- * in the same voice they are: `text-body` is 0.875rem, and of a root that is
- * already notched up (Large, 18px) that is about 16px — a line, not a
- * heading, and the Size preference is how a reader who wants them bigger
- * asks. Seven steps of the markdown scale (`scale.ts`'s `STEP_REM`), which
- * `@olai/web`'s `touch.test.ts` holds.
- *
- * THE LEADING IS THE MARKDOWN BODY'S. A title is drawn as `.olai-md`, which
- * sets `line-height` to 1.5 (`theme/scale.ts`'s `LEADING.body`) rather than
- * inheriting this span's. `leading-snug` (1.375) on the input that replaces
- * it was a 2px jump the moment the caret arrived — the box this constant
- * exists to keep still. The `1.5` is a literal because Tailwind scans this
- * file as text; `touch.test.ts` holds it to the scale.
- */
 export const ROW_TITLE = "font-sans text-[0.875rem] leading-[1.5]"
 
 /**
- * A TOP-LEVEL row is a section. One step above a row title — weight and a
- * step, not a second heading size. A section is still a line of the outline.
- *
  * ITS OWN TYPE, not a patch on {@link ROW_TITLE}: two `text-[…]` utilities on
  * one span are a coin toss, settled by the order Tailwind emitted them.
  */
 export const SECTION_TITLE =
   "font-sans text-[1rem] font-semibold leading-[1.5] tracking-tight"
 
-/**
- * A row's NOTE, as type: what the clamped line, the rendered note and the
- * editor that replaces them all have to agree about, for the same reason the
- * title's scale is here — the note edits in place, and a note that changed
- * size or colour when the caret arrived would be a different thing appearing
- * rather than the same thing becoming editable.
- *
- * One step under the title (`STEP_REM` in `theme/scale.ts`), so a preview
- * stays a byline and does not collide with the line it hangs from.
- */
 export const ROW_NOTE = "text-[0.75rem] leading-normal text-muted"
 
-/**
- * THERE IS NO MEASURE, and its absence is a ruling rather than an omission.
- *
- * The quiet outline's brief asked for two: the tree capped near 80 characters
- * and an opened note wrapped near 62. Both were built, and the human rejected
- * both on sight of the first build ("why not full width? why waste space on
- * right"; "no need to wrap desc either. just take full width"). The reason they
- * were wrong here is worth keeping, because the typographic argument for a
- * measure is real and will be made again:
- *
- *   - a ROW is a LINE, not a paragraph. Nobody tracks back to the start of the
- *     next one, so the cap bought no legibility — and it cost text, because a
- *     title longer than it ellipsizes and there was empty pane beside the
- *     ellipsis. Text lost with room to spare is the trade a measure must never
- *     make.
- *   - a NOTE under a row is read in the tree it hangs in, at a glance, against
- *     the rows above and below it. Ragged short lines with a hand's width of
- *     empty pane to their right read as a column that has stopped rather than as
- *     a page that is set.
- *
- * What survives of that move is the ellipsis: a long title is still ONE line
- * (`../client/NodeLine.tsx`), it just gets the whole pane before it is cut.
- */
-
-/** How far a child list indents from its parent, and the vertical guide. */
 export const CHILD_INDENT = "ml-3 list-none border-l border-rule/70 pl-3 md:ml-[0.5625rem] md:pl-4"
 
-/**
- * The outline's own left RAIL: the strip a press can land on beside a row that
- * has no list above it to indent from.
- *
- * A nested list gives its branch one for free — the padding half of
- * {@link CHILD_INDENT} is scaffolding a person can press, which is what makes a
- * drag-across startable beside any indented row (`../client/drag/sweeping.ts`).
- * A ROOT row had none: the outline's own list is flush, so the leftmost
- * empty-looking band on a flat inbox belonged to the row's hover controls, and
- * the one sweep such a page could not make was a prefix of it.
- *
- * Taken out of the PANE's padding rather than out of the page — the negative
- * margin and the padding are the same number — so the rail exists at depth 0
- * and nothing moves by a pixel. The numbers are the nested list's own, because
- * it is the same strip one level up.
- */
 export const ROOT_RAIL = "-ml-3 pl-3 md:-ml-4 md:pl-4"
