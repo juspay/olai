@@ -1,58 +1,3 @@
-/**
- * WHAT ONE PUBLISHED REVISION COSTS — the maps it builds and the keys it writes
- * into them, before and after `perf-published-maps`, both arms in one run.
- *
- * Publishing used to rebuild the three collections whole on every revision:
- * each walked its own list of every served file and minted a fresh `Map` of
- * every entry, so one keystroke saved into one outline of a two-thousand-file
- * vault paid about three maps of two thousand keys. It now CARRIES those maps,
- * writing only the files a probe moved into them and rebuilding one only where
- * THAT COLLECTION's membership moved ({@link ./published.ts}). That is a claim
- * about cost, and this is the number for it.
- *
- * BOTH ARMS ARE IN THE TREE, which is what this repository requires of a pair
- * of figures: the "before" is the walk kept as the differential's reference
- * implementation ({@link ./published.testlib.ts}'s `publishedAsWalked`), so a
- * reader re-running this gets both halves and can compare them on their own
- * hardware rather than taking one laptop's milliseconds on trust.
- *
- * IT IS A LEG, NOT A CLAIM (`just bench`), and deliberately not a dependency of
- * `check`: a timing that fails a lane on a busy machine teaches nobody
- * anything, and perf numbers are reported artifacts and never gates. What the
- * equivalence rests on is `./published.equivalence.test.ts` — the same two
- * projections, compared for their FRAMES, in the suite.
- *
- * ONE THING HERE DOES FAIL THE RUN, and it is not a timing: the two arms are
- * replayed against each other over this leg's own corpus before anything is
- * measured, and a single divergence throws. Two projections that published
- * different frames are two projections nobody may compare, and the one shape a
- * flattering ratio takes is an arm that reported magnificently by doing less
- * than it was supposed to.
- *
- * TWO MEASUREMENTS, because the interesting one is not a timing:
- *
- *   - THE ALLOCATION, which is the subject. `Map` is swapped for a counting
- *     subclass and every map's own `set` for a counting one, around the call and
- *     put back afterwards, so what is reported is maps CONSTRUCTED and keys
- *     WRITTEN per revision — the figures the roadmap node is about, and the ones
- *     that do not move with the weather. Both halves are needed and the second
- *     is the load-bearing one: a map CARRIED from the revision before was built
- *     before the counter existed, so a subclass alone would report the write
- *     this change is all about as costing nothing.
- *   - THE TIME, uninstrumented and alternating, because allocation that costs
- *     no wall clock would be an optimisation nobody needed.
- *
- * THREE REVISIONS, because a collection is carried, written into or rebuilt and
- * the three cost differently: ONE FILE SAVED is the commonest revision there is
- * and the one the whole change is about; A FILE CREATED is a membership change,
- * which is the one thing that still rebuilds — its row is what the change did
- * NOT buy, and it rebuilds TWO of the three rather than all of them, since the
- * documents collection gains no key when an outline arrives; and a
- * `git pull` moving twenty files at once is the burst the store coalesces into
- * a single revision.
- *
- * Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { bodyKind,  type Reading } from "@olai/format"
 import { median, runtimeSaid, timed, vaultOf } from "@olai/format/testlib"
@@ -68,19 +13,11 @@ import {
   type Step,
 } from "./published.testlib.ts"
 
-/** The suffix a new file is minted with, read off the REGISTRY rather than
- *  written out — see the note on the two lists below. */
 const OUTLINE = TEST_CLAIMS.byKind.get("outline-olai")!.exts[0]
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1200)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 20)
 
-/**
- * The vault, with the OTHER kinds beside the outlines — `vaultOf` mints `.olai`
- * and nothing else, and a directory of nothing but outlines is one where the
- * documents collection is empty and a third of what is being measured is never
- * asked for anything.
- */
 const vault = ((): ReadonlyMap<string, string> => {
   const files = new Map(vaultOf({ files: FILES, records: RECORDS }))
   for (let at = 0; at < FILES / 4; at++) {
@@ -90,24 +27,15 @@ const vault = ((): ReadonlyMap<string, string> => {
   return files
 })()
 
-// WHICH KIND A PATH IS, asked of the REGISTRY rather than of its spelling —
-// `@olai/format`'s `kinds.ts` is the one place that says what a file of the set
-// is, and an `endsWith` here would be a second answer to it (the sweep in
-// `@olai/tests`' `kinds.test.ts` fails a run over one).
 const outlines = [...vault.keys()].filter((file) => bodyKind(TEST_CLAIMS, file) === null)
 const documents = [...vault.keys()].filter((file) => bodyKind(TEST_CLAIMS, file) === "document")
 
-/** One outline's worth of JSONL, minted per revision so no two writes of a file
- *  are the same bytes. */
 const minted = (at: number): string =>
   [
     JSON.stringify({ id: `b${at}root`, ord: "a0", title: `written at revision ${at}` }),
     JSON.stringify({ id: `b${at}kid`, parent: `b${at}root`, ord: "a1", title: `a child ${at}` }),
   ].join("\n")
 
-/** The three revisions measured, each as a run of {@link ROUNDS} of the same
- *  shape — one shape per arm run, so what is timed is that shape and not a
- *  corpus's whole history. */
 const SHAPES: ReadonlyArray<readonly [string, (at: number) => Step]> = [
   ["one file saved", (at) => ({ writes: [[outlines[at % outlines.length] as string, minted(at)]] })],
   ["a file created", (at) => ({ writes: [[`born${at}${OUTLINE}`, minted(at)]] })],
@@ -129,31 +57,11 @@ const SHAPES: ReadonlyArray<readonly [string, (at: number) => Step]> = [
   ],
 ]
 
-/** How many revisions of a shape one arm run folds. Enough that one revision's
- *  cost is not one clock tick, few enough that the corpus below is built in
- *  seconds. */
 const ROUNDS = 12
 
-/** The snapshots for one shape, built ONCE and folded by both arms — a bench
- *  that built a revision per arm would be timing two corpora. */
 const revisionsFor = (step: (at: number) => Step): ReadonlyArray<Snapshot<Reading>> =>
   revisionsOf(vault, Array.from({ length: ROUNDS }, (_, at) => step(at)))
 
-/**
- * ONE ARM: fold every revision after the first, from a store already holding
- * one.
- *
- * The FIRST revision is deliberately outside this. Both sides build three whole
- * maps there, once per store, and a leg that folded it into the average would
- * be reporting a figure a running server pays once at boot as if it were the
- * cost of a keystroke.
- *
- * The seed is a parameter rather than something this builds, and that is not
- * tidiness: the projection under test CONSUMES the revision it is handed (it
- * carries its maps forward and writes into them), so an arm run twice from one
- * seed would be folding from a map the first run already moved. Every run gets
- * its own, built outside whatever is measuring.
- */
 const foldFrom = (
   projection: Projection,
   revisions: ReadonlyArray<Snapshot<Reading>>,
@@ -170,14 +78,6 @@ const seedOf = (
   revisions: ReadonlyArray<Snapshot<Reading>>,
 ): Published => projection(revisions[0] as Snapshot<Reading>, null)
 
-/**
- * TWO ARMS, warmed and then timed in alternating order — `@olai/format`'s
- * `alternating` with one thing added, which is why it is not simply called: a
- * run of an arm needs a seed built for it, and that build must be outside the
- * clock. Everything else is that helper's argument verbatim — two arms run one
- * after the other are two arms of a machine in two moods, and going second in a
- * round is worth more than some of the differences this leg is asked to see.
- */
 const ARMS = [publishedAsWalked, publishedOf] as const
 
 const paired = (
@@ -200,24 +100,11 @@ const paired = (
   ]
 }
 
-// ── the counting Map ───────────────────────────────────────────────────
-
-/** What one arm allocated: maps constructed, and keys written into them. */
 interface Allocated {
   readonly maps: number
   readonly writes: number
 }
 
-/**
- * The same fold, with `Map` swapped for a subclass that counts — the
- * measurement this leg exists for.
- *
- * A GLOBAL SWAP rather than a parameter, because the thing being counted is a
- * `new Map()` written in production code and the alternative is production code
- * that takes an allocator so a benchmark can watch it. It is put back in a
- * `finally`, and the counted region is the fold and nothing else: the corpus is
- * built before this is ever installed.
- */
 const counting = (run: () => void): Allocated => {
   let maps = 0
   let writes = 0
@@ -229,12 +116,6 @@ const counting = (run: () => void): Allocated => {
       maps += 1
     }
   }
-  // THE PROTOTYPE, not the subclass's own `set`. A map CARRIED from the
-  // revision before was built before this counter existed, so a write into it
-  // would be invisible to a subclass — which is precisely the write this leg is
-  // trying to see. Patching the method every map shares counts them all, the
-  // carried ones included, and a map built from another calls it per entry by
-  // specification so a clone is counted as the work it is.
   ;(Real.prototype as { set: unknown }).set = function <K, V>(
     this: Map<K, V>,
     key: K,
@@ -253,8 +134,6 @@ const counting = (run: () => void): Allocated => {
   return { maps, writes }
 }
 
-/** One arm's fold, counted — with its seed built BEFORE the counter is
- *  installed, for {@link foldFrom}'s reason. */
 const allocated = (
   projection: Projection,
   revisions: ReadonlyArray<Snapshot<Reading>>,
@@ -263,11 +142,6 @@ const allocated = (
   return counting(() => foldFrom(projection, revisions, seed))
 }
 
-// ── the gate, and then the numbers ─────────────────────────────────────
-
-// THE TWO ARMS MUST PUBLISH THE SAME FRAMES, asserted at this leg's own size
-// before a millisecond is quoted — the differential from the suite, run over
-// the corpus the ratios below are about.
 const agreed = differential(
   vault,
   SHAPES.flatMap(([, step]) => Array.from({ length: 3 }, (_, at) => step(at))),
@@ -302,8 +176,6 @@ const ms = (at: number): string => `${at.toFixed(2)}ms`
 
 for (const [what, step] of SHAPES) {
   const revisions = revisionsFor(step)
-  // The seed is built OUTSIDE the counter for the same reason it is built
-  // outside the clock — see {@link foldFrom}.
   const wasAlloc = allocated(publishedAsWalked, revisions)
   const nowAlloc = allocated(publishedOf, revisions)
   const [wasMs, nowMs] = paired(revisions)
@@ -315,9 +187,6 @@ for (const [what, step] of SHAPES) {
   console.log()
 }
 
-// ...and what the FIRST revision of a store costs, which is the one both sides
-// pay in full and the one nothing here claims to have improved. Printed rather
-// than left out, so a reader is not left thinking publishing became free.
 const first = revisionsFor(SHAPES[0]![1])[0] as Snapshot<Reading>
 const firstWalked = counting(() => void publishedAsWalked(first, null))
 const firstCarried = counting(() => void publishedOf(first, null))

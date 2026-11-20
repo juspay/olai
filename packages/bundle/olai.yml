@@ -1,61 +1,3 @@
-# THE BASE BUNDLE — every plugin this build has, as rows.
-#
-# One row per plugin, and this file is the whole of the list — the ONLY place a
-# plugin is named by hand. It replaced three `as const` arrays that had to agree
-# in order (`WIRES`, `PLUGINS`, `SERVERS`, six edits per plugin), and then the
-# two the browser kept for one more round: those are WRITTEN from this file at
-# build time now (`../generate.ts` — the browser's rows with a dynamic import
-# per plugin, the stylesheet chain, and the merged testid table), so a plugin is
-# ONE ROW and there is no second list to keep in step. `src/fence.test.ts` is
-# what refuses a name spelled anywhere else.
-#
-#   id        the sibling key. It IS the plugin's name: the settings namespace
-#             takes, the row preferences draws, the namespace every one of its
-#             members reaches the wire under, and the address of its docs page.
-#             The fiber is bound under it, so it is also the stamp
-#             `ctx.deliveries` and `ctx.kinds` read off `ctx.fiber.name` — never
-#             off anything a caller supplies.
-#   name      the MODULE the loader mounts. A specifier and not an import: the
-#             loader resolves it at mount through the bundle's own resolver
-#             (`src/bundle.ts`), which is what makes a plugin's presence a
-#             runtime fact and is the seam an out-of-tree `olai plugin add`
-#             lands on later.
-#   disabled  OFF UNLESS THE VAULT ENABLES IT. Absent is the ordinary case and
-#             means on; `true` is a plugin that is opt-in.
-#   profiles  Additional default profiles selecting this row (web uses defaults).
-#   section   THE PLUGINS PANEL GROUP this row sits in. The inspector walks
-#             groups rather than a flat list; a new plugin picks a section here
-#             and appears in it with no inspector edit. The word is verbatim on
-#             screen. Required.
-#   label     THE NAME A PERSON READS on the plugins panel row — `Claude Code`
-#             rather than `claude`. The id stays the settings namespace and is
-#             shown in the row's detail. Absent draws the id.
-#   switchHint Warning shown before switching a row off.
-#   quiet     THE GROUP MAY START COLLAPSED when every row in it is running and
-#             has nothing to say. Absent is always-open. A group is quiet when
-#             every member is.
-#
-# _olai/Settings.olai holds operator policy. Its on property becomes a disabled
-# patch over these build defaults; the composition root owns the loader verbs.
-# Missing choices preserve the selected profile and this file's defaults.
-# THE CHAT, FIRST — because everything else on this list names one of its doors.
-#
-# One row, and it is the row that made this file's grammar honest: chat was
-# CORE until phase 7, so a policy with all rows off served an outliner that still carried a
-# panel, a roster, fourteen procedures and four services nobody could turn off.
-# It is a plugin now, with both halves, and a serve that does not name it has no
-# `surface/chat/` on the wire, no panel in the tab and no conversation anywhere.
-#
-# IT IS FIRST BECAUSE IT OFFERS. `Agents`, `Deliveries`, `Watching` and
-# `chat/session-start` are doors this row stands behind (`@olai/plugin-api`'s
-# `Offers`), and every engine and every tenant below NAMES one of them — so a
-# serve without this row leaves all of them `waiting`, which the preferences
-# panel says out loud, per row, on whose account. That is the paper's rule and
-# the ruling that took this phase accepted its cost.
-#
-# The order is not what makes any of that work — the runtime is reactive, and a
-# row that mounts late is picked up when its `apply` provides — but this file is
-# read by people, and the thing everything else waits on reads first.
 - id: alerts
   name: olai-plugin-alerts
   section: Interface
@@ -65,7 +7,6 @@
   name: olai-plugin-chat/server
   section: Agents
   label: Chat
-# THE DIRECTORY — an ordinary plugin, selected in every default profile.
 - id: vault
   name: olai-plugin-vault/server
   section: Notes
@@ -77,55 +18,25 @@
   section: Notes
   label: Settings
   profiles: [surface, test-minimal]
-# THE LEDGER — policy defaults belong to the plugin's Config schema.
 - id: git
   name: olai-plugin-git/server
   section: Notes
   label: Git
-# THE MATCHER — search as a row. Off is "no provider mounted": `search_nodes`
-# and the four boxes a person types into are answered with no hits and the
-# reason, in words. It carries the trigram table with it, so a serve without it
-# has no index to keep up to date either. The FILTER over the page in front of
-# somebody is not on this row: it is a reading of one page and it stays core.
 - id: search
   name: olai-plugin-search/server
   section: Notes
   label: Search
-# WHO IS LOOKING — the login a reverse proxy injected, or nobody. Its server
-# half stands behind the `Identity` door core reads at the websocket upgrade, at
-# `GET /olai/who` and at `/mcp`; its browser half is the chip in the bar's last
-# seat. A serve that does not name it is a serve on which every request is
-# nobody — which is what a loopback serve with no proxy in front already is, so
-# the row is on by default and its absence needs no mode.
-#
-# Header names and the avatar template are behaviour knobs on the identity
-# node in _olai/Settings.olai. Their defaults and descriptions are declared
-# by the identity Config schema, like every other row's policy.
 - id: identity
   name: olai-plugin-identity/server
   section: Notes
   label: Identity
-# THE JOURNAL — the date-shaped reading of the vault. Its server half owns the
-# four live readings and daily-note mint; its browser half owns the three URLs,
-# agenda entry, calendar section and palette navigation.
 - id: journal
   name: olai-plugin-journal/server
   section: Notes
   label: Journal
-# THE ENGINES, FIRST AND IN THE ORDER THE PICKER DRAWS THEM.
-#
-# One row per ACP agent olai can seat, and ORDER IS LOAD-BEARING HERE in a way
-# it is not for the tenants below: this list is what `@olai/server` sorts the
-# registry by, so it decides the order of the picker's rows and the order of the
-# install sentences on the no-agent face — the agent olai SHIPS first, and
-# everything found on the machine after it. It is also what a memory naming no
-# agent at all is read as being about: a note written before olai had a roster
-# was written by an olai that had exactly one, and this is the row it had.
-#
-# Each is a row rather than four rows of one "agents" plugin because they share
-# no release clock: the Claude adapter's pin moved five times in a month and
-# opencode's has never moved. a policy selecting only codex, opencode, pi is a serve with no
-# Claude row, no probe of one, and no mark for one anywhere.
+# ORDER IS LOAD-BEARING HERE: this list is what `@olai/server` sorts the
+# registry by, so it decides the order of the picker's rows and the order of
+# the install sentences on the no-agent face.
 - id: claude
   name: olai-plugin-claude/server
   section: Agents
@@ -146,7 +57,6 @@
   name: olai-plugin-omp/server
   section: Agents
   label: Oh My Pi
-# ...AND THE TENANTS: olai's judgement about somebody else's appliance.
 - id: kolu
   name: olai-plugin-kolu/server
   section: Connections
@@ -155,28 +65,16 @@
   name: olai-plugin-odu/server
   section: Connections
   label: Odu
-# OFF BY DEFAULT, declared here by `disabled: true`: a Spaces app JWT is a
-# secret this machine may not have,
-# and a pill in every bar for an integration nobody pointed at is the wrong
-# default. a policy selecting only xyne-spaces is what turns it on, which is the patch
-# mechanism doing exactly what it is for.
 - id: xyne-spaces
   name: olai-plugin-xyne-spaces/server
   section: Connections
   label: Xyne Spaces
   disabled: true
-# OFF BY DEFAULT for the same reason, and it is the row that made the reason
-# general rather than about Spaces: a Gmail account needs an OAuth client this
-# machine may not have, and the plugin reads a MESSAGE STORE — a bar nobody asked
-# for, over somebody's whole mailbox. The row still declares the four
-# environment doors it wants, so a person learns what to set before switching it
-# on, and a policy selecting only mail is what turns it on.
 - id: mail
   name: olai-plugin-mail/server
   section: Connections
   label: Mail
   disabled: true
-# TRANSPORTS — ordinary plugins, selected by profiles and vault policy.
 - id: ws
   name: olai-plugin-ws/server
   section: Connections
@@ -194,7 +92,6 @@
   label: Web app
   quiet: true
 
-# Browser-only rows: the host selects them; activation is reported by each tab.
 - id: ui-renderer
   name: olai-plugin-ui-renderer
   section: Interface
@@ -231,7 +128,6 @@
   label: Plugins panel
   quiet: true
 
-# Independent navigation, content and directory capabilities.
 - id: navigation
   name: olai-plugin-navigation
   section: Interface
@@ -268,10 +164,6 @@
   quiet: true
   profiles: [surface]
 
-# Maintained acceptance fixtures, never selected by normal profiles.
-# They share the product catalogue so tests exercise the real resolver, profile
-# selection, reports and compiled assets. A separate test bundle would bypass
-# precisely that boundary; disabled rows add no activation to ordinary starts.
 - id: test-layout
   name: olai-plugin-test-layout
   section: Test fixtures

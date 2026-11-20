@@ -1,4 +1,3 @@
-/** Audit the real row modules, including rows disabled by the build. */
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
 import ts from "typescript"
@@ -20,7 +19,6 @@ const audit = (schema: Schema.ConstraintDecoder<unknown, never>, path: string): 
     expect(Object.hasOwn(defaults, key), `${path}.${key} needs a default`).toBe(true)
     expect(defaults[key], `${path}.${key} default cannot be undefined`).not.toBeUndefined()
     expect(SchemaAST.resolveDescription(field.type)?.trim().length ?? 0, `${path}.${key} needs a description`).toBeGreaterThan(0)
-    // The enclosing schema requires no services; its fields inherit that contract.
     const one = Schema.make(field.type) as Schema.ConstraintDecoder<unknown, never>
     if (field.type._tag === "Objects") count += audit(one, `${path}.${key}`)
     else expect(Schema.decodeUnknownSync(one)(String(defaults[key])), `${path}.${key} must decode a vault property`).toEqual(defaults[key])
@@ -33,7 +31,6 @@ test("every Config field declares a usable default and description", async () =>
   const seen: string[] = []
   let fields = 0
   for (const row of ROWS) {
-    // A browser-only row has no server configuration declaration.
     if (row.browserOnly) continue
     const module = await import(row.name) as { default: Plugin; Config?: Plugin["config"] }
     expect(module.default.config, row.id).toBe(module.Config)
@@ -58,17 +55,6 @@ test("the audit refuses numeric and nullable fields without a string spelling", 
   }
 })
 
-/**
- * THE WHOLE STANDING RESERVATION SET, exactly — the words no agent face may
- * write, whatever row is composed: a person's enablement choice, a person's
- * approval of code that runs, the key that says WHICH conversation an item is
- * having, and the switch that says how a note's chat opens.
- *
- * Chat's two are spelled as literals in its policy module, because that module
- * is in the host's permanent entry closure and may import nothing; the words
- * are held against the assembled vocabulary below rather than against a second
- * copy of the literals.
- */
 test("the agent write reservation set is enablement, definition approval and a chat's seat and switch", async () => {
   const { WRITE_RESERVATIONS } = await import("./policy.ts")
   expect(WRITE_RESERVATIONS.map(({ key, file }) => ({ key, file })).sort((a, b) => a.key.localeCompare(b.key))).toEqual([
@@ -113,9 +99,6 @@ test("every shipped declaration supplies a control for each leaf in schema order
   expect([...kinds].sort()).toEqual(["choice", "number", "text"])
 })
 
-/** This value-level fence lives with the schema audit: fence.test.ts must run
- * even when a plugin cannot load. Only production code is checked; fixtures may
- * name real settings to exercise the generic renderer. */
 const declaredKeys = (ast: SchemaAST.AST, prefix = ""): string[] => ast._tag !== "Objects" ? [] :
   ast.propertySignatures.flatMap(field => {
     const key = String(field.name)
@@ -126,10 +109,8 @@ const spelledKeys = (source: string, keys: ReadonlySet<string>): string[] => {
   const file = ts.createSourceFile("panel.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const found = new Set<string>()
   const visit = (node: ts.Node): void => {
-    // Package paths and type contracts are not configuration lookups.
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isTypeNode(node)) return
     if (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) {
-      // Array.push is generic collection construction, not a policy key.
       const collectionAppend = ts.isIdentifier(node) && node.text === "push" &&
         ts.isPropertyAccessExpression(node.parent) && node.parent.name === node &&
         ts.isCallExpression(node.parent.parent) && node.parent.parent.expression === node.parent
@@ -173,11 +154,6 @@ test("mail declares a two-minute poll knob with duration validation", async () =
   expect(() => Schema.decodeUnknownSync(Config)({ poll: "0s" })).toThrow()
 })
 
-/** WHICH LEAVES A PERSON SETS FOR THEMSELVES, as an equality rather than a
- *  promise: a leaf drawn in the preferences panel moved out of the plugins
- *  panel, so promoting an operator setting (an address, a credential, a path, a
- *  limit) or demoting a person-facing one is a visible change here rather than
- *  a quiet drift across two panels. */
 test("only person-facing leaves are promoted, and no operator row promotes one", async () => {
   const promoted: string[] = []
   for (const row of ROWS) {

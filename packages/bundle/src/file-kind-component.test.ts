@@ -1,5 +1,3 @@
-/** Mount the real component with no navigation provider. Its declaration must
- * remain alive even when the location's owning Files container withdraws. */
 import { expect, test } from "bun:test"
 import { Effect, Exit, Scope } from "effect"
 import { openTestPlugins } from "@olai/plugin-api/testlib"

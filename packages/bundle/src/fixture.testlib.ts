@@ -1,6 +1,3 @@
-/** Test setup only: author the same policy file a person would put in a vault.
- * Existing authored leaves win, except an explicitly requested process log format. Call before the fixture's initial git commit,
- * never from product boot or when restarting an already prepared directory. */
 import * as fs from "node:fs"
 import * as path from "node:path"
 import { ROWS } from "./rows.ts"
@@ -14,27 +11,15 @@ export interface FixturePolicy {
   readonly without?: string
   readonly identity?: Readonly<Record<string, string | undefined>>
   readonly idle?: number
-  /** The chat row's own spans for the sleep pass, when a scenario cannot wait
-   *  six hours for one (`@sleep-fast`). The same three words a person writes in
-   *  `_olai/Settings.olai`, because that is the only door they have. */
   readonly sleep?: {
     readonly after: string
     readonly tick: string
     readonly question: string
     readonly limit: string
-    /** HOW MANY MOVED ROWS MAKE A PASS WORTH IT (`sleep-floor`), and how long one
-     *  may wait (`sleep-latest`) — the pressure half of the due-ness rule, which
-     *  a scenario sets so that a pass happens on two rows instead of five. */
     readonly floor: string
     readonly latest: string
   }
-  /** The pass turned off IN THE FILE, at boot (`@sleep-off`) — rather than
-   *  written into a running serve, which would test the setting's re-application
-   *  instead of the pass being absent. */
   readonly sleepOff?: boolean
-  /** How often a node agent is reminded of its writing rule
-   *  (`@remind-every:<n>`), so a scenario reaches the Nth message in a few
-   *  sends — and `0`, the setting switched off. */
   readonly remindEvery?: number
   readonly avatar?: string
 }
@@ -44,7 +29,7 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
   let nodes: Node[] = []
   try { nodes = fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") return // Keep broken-file fixtures broken.
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") return
   }
   let changed = false
   const put = (name: string, key: string, value: string | undefined, replace = false) => {
@@ -85,6 +70,5 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
   }
 }
 
-/** Exact row selection for isolated composition tests, never a product policy door. */
 export const selectFixtureRows = (names: ReadonlyArray<string>) =>
   ROWS.map(row => ({ id: row.id, disabled: !names.includes(row.id) }))

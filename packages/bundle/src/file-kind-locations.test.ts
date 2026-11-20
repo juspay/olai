@@ -6,8 +6,6 @@ import { fileKinds, type FileKindDrawing } from "olai-plugin-files/contract"
 import { pages, type FilePage } from "olai-plugin-navigation/contract"
 import { TESTID } from "olai-plugin-pdf/testids"
 
-// The actual contracts, on the same scoped location registry the renderer
-// provides. A container leaving withdraws its readers before their owner dies.
 test("glyph and page locations withdraw independently and reattach without a second contribution", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const slots = yield* locations()
   const containers = location<null>("test.containers")

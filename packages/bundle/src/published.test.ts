@@ -1,13 +1,3 @@
-/**
- * The projection from one published revision to what the wire holds.
- *
- * Three properties are worth a test. Every file the set lists keeps a key of
- * its collection, whatever it holds and whether or not it parsed. The per-tick
- * change is the STORE's diff mapped onto the collection's verbs, never a
- * comparison of two sets — a key that was never held is not a remove. And a
- * document's TEXT is in that document's own entry and nowhere else: not on the
- * manifest, not in an outline's slice, so nothing carries the corpus.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   assemble,
@@ -27,23 +17,17 @@ import { publishedOf } from "./published.testlib.ts"
 const HOUSE = '{"id":"kitchen","ord":"a0","title":"kitchen"}\n'
 const GARDEN = '{"id":"garden","ord":"a0","title":"garden"}\n'
 
-/** A revision, moved however the caller says — by default everything, which is
- *  what a first probe reports. `changed` names documents too: the store is
- *  talking about a directory, not about outlines. */
 const revision = (
   value: OutlineSet,
   moved: { changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> } = {},
   rev = 1,
 ): Snapshot<Reading> => ({
   rev,
-  // The pair the store publishes: a snapshot carries the set AND the view the
-  // validator judged it against, and this projection reads both halves.
   value: readingOf(value),
   changed: moved.changed ?? value.documents.map((document) => document.path),
   removed: moved.removed ?? [],
 })
 
-/** The first revision: the wire is holding nothing yet. */
 const NOTHING_HELD = null
 
 test("every file the set lists gets an entry, at the set's revision", () => {
@@ -62,21 +46,15 @@ test("every file the set lists gets an entry, at the set's revision", () => {
     nodes: recordsOf(setOf({ "house.olai": HOUSE })),
     broken: null,
   })
-  // AND WHAT THE FILE IS, beside what it holds: the face the decode built,
-  // cut from the same document the records were (`@olai/format`'s `Face`).
   expect(outlines.entries.get("house.olai")?.face.title).toBe("house")
-  // A file that holds nothing is still an outline somebody can open.
   expect(outlines.entries.get("empty.olai")).toMatchObject({
     rev: 7,
     nodes: [],
     broken: null,
   })
-  // A document is not an outline: it is a key of its own collection.
   expect(outlines.entries.has("notes.md")).toBe(false)
 })
 
-// The per-entity degrade, as data: the key stays and the errors are IN it, so
-// the sidebar still lists the file and its own pane is what shows the trouble.
 test("a file that did not parse keeps its key and carries its errors", () => {
   const { outlines } = publishedOf(
     revision(setOf({ "house.olai": HOUSE }, [], { "shed.olai": "{" })),
@@ -109,26 +87,12 @@ test("only the files the probe re-decoded are upserted", () => {
   expect(published.outlines.upserts.map(([path]) => path)).toEqual(["house.olai"])
   expect(published.outlines.upserts[0]?.[1].rev).toBe(2)
   expect(published.outlines.removes).toEqual(["garden.olai"])
-  // The document that moved in the same tick is the OTHER collection's upsert,
-  // and each one names only its own keys.
   expect(published.documents.upserts.map(([path]) => path)).toEqual(["notes.md"])
-  // ...AND THE MAP AGREES WITH THE DELTA, which is the assertion this fixture
-  // was one line short of and the whole of grok's MUST on `bcc15008`. The
-  // revision drops an outline and adds a `.md`, so the DIRECTORY holds two files
-  // before and two after and the outlines birth nothing — and a rule that read
-  // membership off that count would carry a map still holding `garden.olai`,
-  // telling an open subscriber to drop a key every fresh one would go on
-  // reading. What a collection HOLDS and what it SAID have to be the same thing
-  // in both directions.
   expect(published.outlines.entries.has("garden.olai")).toBe(false)
   expect([...published.outlines.entries.keys()]).toEqual(["house.olai"])
   expect([...published.heads.entries.keys()]).toEqual(["house.olai", "notes.md"])
 })
 
-// ...AND THE INVERSE, because the two collections are two readings of one rule
-// and a fix that only reached the outlines would look exactly like this test
-// passing. A `.md` leaves as an outline arrives: the documents collection is
-// the one that must not keep the key, and the file count is still still.
 test("a key that leaves as another kind arrives is dropped from its own map", () => {
   const before = publishedOf(
     revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]])),
@@ -147,20 +111,9 @@ test("a key that leaves as another kind arrives is dropped from its own map", ()
   expect(published.documents.entries.has("notes.md")).toBe(false)
   expect([...published.documents.entries.keys()]).toEqual([])
   expect([...published.outlines.entries.keys()]).toEqual(["garden.olai", "house.olai"])
-  // ...and the file the revision did not touch keeps the entry it was published
-  // with, rebuilt map or not.
   expect(published.outlines.entries.get("house.olai")?.rev).toBe(1)
 })
 
-// `rev` IS THE CHANGE TOKEN, which is the half of the sentence above two
-// readers rest on: a phase-4 write names the revision it edited as its base,
-// and `Head.rev` is how a page WATCHES one file it does not draw — a preview
-// waiting for its `.html` to move — without asking for the body. So the
-// promise is two-sided and both sides are asserted here: the file that moved
-// carries the new revision, and the file that did not carries the very entry it
-// was published with, at the old one. A neighbour rebuilt at the new revision
-// would cost a reader a needless patch; a changed file republished at the old
-// one would leave every tab silently stale.
 test("a revision moves for the files that moved and for no others", () => {
   const first = publishedOf(
     revision(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
@@ -181,14 +134,9 @@ test("a revision moves for the files that moved and for no others", () => {
 
   expect(next.outlines.entries.get("house.olai")?.rev).toBe(2)
   expect(next.outlines.entries.get("garden.olai")?.rev).toBe(1)
-  // The entry itself, not merely a number equal to it: an unchanged file is the
-  // value the wire already sent, so a fold keyed on identity would see nothing
-  // move either.
   expect(next.outlines.entries.get("garden.olai")).toBe(held as never)
 })
 
-// A collection may not be told to drop a key it never had — the store talks
-// about a directory, and a `.md` leaving it is not an outline leaving this.
 test("a removed path that was never an entry is not a remove", () => {
   const held = publishedOf(revision(setOf({ "house.olai": HOUSE })), NOTHING_HELD)
   const published = publishedOf(
@@ -200,11 +148,6 @@ test("a removed path that was never an entry is not a remove", () => {
   expect(published.documents.removes).toEqual([])
 })
 
-// The whole of snapshot-scale, as one assertion: a document's body is in that
-// document's ENTRY, keyed by its path, and it is the only place a projection
-// puts one. The other half — that the value every subscription reads on its
-// first frame carries no documents — is the `manifest` cell, which this
-// projection no longer has anything to say about at all.
 test("a document's text is in its own entry, keyed by its path", () => {
   const { outlines, documents } = publishedOf(
     revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]), {}, 3),
@@ -217,7 +160,6 @@ test("a document's text is in its own entry, keyed by its path", () => {
     text: "# hello",
     refused: false,
   })
-  // Not smuggled into the outline's slice either: an outline entry is nodes.
   expect(JSON.stringify([...outlines.entries.values()])).not.toContain("# hello")
 })
 
@@ -235,10 +177,6 @@ test("a document that left the directory is a remove of its key", () => {
   expect(published.documents.entries.has("notes.md")).toBe(false)
 })
 
-// What a collection HOLDS is what it SAID: an untouched file keeps the entry
-// it was published with, so the snapshot a fresh subscriber reads and the
-// deltas an open one received cannot name different revisions for it. True of
-// both collections, because it is one rule read twice.
 test("a file that did not move keeps the entry it was published with", () => {
   const first = publishedOf(
     revision(
@@ -246,12 +184,6 @@ test("a file that did not move keeps the entry it was published with", () => {
     ),
     NOTHING_HELD,
   )
-  // TAKEN BEFORE THE NEXT REVISION, and that is not a formality: the map the
-  // first revision hands out is the map the second one carries forward
-  // ({@link publishedOf} — the revision passed in is consumed), so a `toBe`
-  // read off `first` AFTERWARDS would be reading `second`'s own map and would
-  // hold whatever it holds. What is being asserted is about the ENTRY, so the
-  // entry is what is kept.
   const garden = first.outlines.entries.get("garden.olai")
   const notes = first.documents.entries.get("notes.md")
   const second = publishedOf(
@@ -269,23 +201,10 @@ test("a file that did not move keeps the entry it was published with", () => {
   expect(second.outlines.entries.get("garden.olai")).toBe(garden!)
   expect(second.outlines.entries.get("garden.olai")?.rev).toBe(1)
   expect(second.outlines.entries.get("house.olai")?.rev).toBe(2)
-  // An untouched document is not re-published either — which is what keeps an
-  // open reader's body from arriving again every time a neighbour is saved.
   expect(second.documents.entries.get("notes.md")).toBe(notes!)
   expect(second.documents.upserts).toEqual([])
 })
 
-// A FILE THAT ARRIVES LANDS WHERE THE SET PUTS IT, which is the one thing a
-// carried map cannot do for itself: `Map` appends, so a new key written into
-// the map the wire already holds would sit at the END of a list every other key
-// of which is in path order — and that order is the order a FRESH subscriber's
-// snapshot arrives in. So a birth rebuilds its collection's map, and this is
-// what says so, with the born file drawn to sort FIRST (where appending is most
-// obviously wrong) and into the MIDDLE (where it is least obviously wrong).
-//
-// The equivalence harness holds the same claim over corpora
-// (`./published.equivalence.test.ts`, and its `misplacing` mutant is exactly
-// this failure); this is the fixture small enough to write the answer down.
 test("a file that arrives takes its place in the listing, not the end of it", () => {
   const before = publishedOf(
     revision(setOf({ "house.olai": HOUSE, "wing.olai": GARDEN }, [["notes.md", "# hello"]])),
@@ -318,20 +237,10 @@ test("a file that arrives takes its place in the listing, not the end of it", ()
     "mid.olai",
     "wing.olai",
   ])
-  // ...and the files that did NOT arrive keep the entries they were published
-  // with, rebuilt map or not: what is rebuilt is the map, never the entries in
-  // it.
   expect(born.heads.entries.get("house.olai")?.rev).toBe(1)
   expect(born.outlines.entries.get("wing.olai")?.rev).toBe(1)
 })
 
-// TWO FAILURE CLASSES, and they must not share a face. `set.broken` holds
-// every decode Result.fail — a frontmatter typo and an EACCES look the same
-// there, only the error code differs. `DocumentEntry.refused` is the READ
-// failure (`unreadable-file`). A parse-broken `.md` keeps master's blank
-// body, and still carries Head.broken so the sidebar ⚠ has somewhere to
-// hang. Folding the two into one sentence is how a typo'd file started
-// saying it could not be read.
 test("a parse-broken document is not refused, and an unreadable one is", () => {
   const parsed = publishedOf(
     revision(
@@ -397,15 +306,6 @@ test("unkept and byte files have heads but never enter markdown's collection", (
   expect([...second.heads.removes].sort()).toEqual(["art/handle.png", "data/sales.csv", "report.html", "reports/q3.pdf"])
 })
 
-// ── the heads ──────────────────────────────────────────────────────────
-
-// EVERY SERVED FILE has a head, and the property the wire promises about it: a
-// reader takes its FILE LIST from here, so a head missing for a file the
-// directory holds is a file the sidebar stops listing — and a bodied file's
-// head is always here to open its body against. It is a SUPERSET of the
-// documents' keys since `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 10, where
-// it was the same list: the browser stopped reading the outlines collection, so
-// this is where it learns an outline exists at all.
 test("every served file has a head, and it is that file's revision alone", () => {
   const { documents, heads } = publishedOf(
     revision(
@@ -421,20 +321,12 @@ test("every served file has a head, and it is that file's revision alone", () =>
   expect(heads.entries.get("notes.md")).toMatchObject({ rev: 4 })
   expect(heads.entries.get("report.html")).toMatchObject({ rev: 4 })
   expect(heads.entries.get("house.olai")).toMatchObject({ rev: 4 })
-  // The head carries the face, which is the whole of what a browser knows about
-  // a file it has not opened — and, for an outline, whether it parsed at all.
   expect(heads.entries.get("notes.md")?.face.title).toBe("hello")
   expect(heads.entries.get("house.olai")?.broken).toBe(null)
-  // …and no content of any kind, which is the whole point of the member.
   expect(heads.entries.get("house.olai")).not.toHaveProperty("nodes")
   expect(heads.entries.get("notes.md")).not.toHaveProperty("text")
 })
 
-// The half `documents` cannot do, and the reason this member exists. A `.html`
-// that changed is withheld from the documents collection — the body reader
-// replaces that entry in one frame, and writing a `null` over an open key would
-// blank the page — so a reader watching for "this file moved" heard nothing
-// there unless somebody read the file. The head has no body to withhold.
 test("a `.html` that changed is upserted here even though its body is not", () => {
   const first = publishedOf(
     revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"])),
@@ -457,8 +349,6 @@ test("a `.html` that changed is upserted here even though its body is not", () =
   expect(second.documents.upserts).toEqual([])
   expect(second.heads.upserts.map(([path, head]) => [path, head.rev]))
     .toEqual([["report.html", 2]])
-  // …and the file NOBODY touched keeps the number it was published with, so a
-  // reader watching it is not woken by the directory's clock.
   expect(second.heads.entries.get("notes.md")?.rev).toBe(1)
 
   const gone = publishedOf(
