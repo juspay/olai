@@ -1,5 +1,3 @@
-/** MCP protocol acquisition belongs to the plugin's activation scope. Core
- * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
 import type { SurfaceSpec } from "@kolu/surface/define"
 import type { AgentBinding } from "./binding.ts"
 import type { Tool } from "@olai/ops"
@@ -12,9 +10,8 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
 
-/** WHAT THE ADAPTER IS SERVING, as one comparable word: every sibling and the
- *  verbs on it. Read by the catch-up below and by the no-op guard, which must
- *  agree or one of them re-applies what the other just settled. */
+/** Read by the catch-up below and by the no-op guard, which must agree or one
+ *  of them re-applies what the other just settled. */
 const signatureOf = (map: Record<string, { readonly tools?: Record<string, unknown> }>): string =>
   Object.entries(map).map(([key, one]) =>
     `${key}:${Object.keys(one.tools ?? {}).sort().join(",")}`).sort().join("|")
@@ -22,67 +19,21 @@ const signatureOf = (map: Record<string, { readonly tools?: Record<string, unkno
 export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effect.gen(function*() {
   const transport = mcpTransport()
   const rows = (): ReadonlyArray<Row> => shared.agentRows() as unknown as ReadonlyArray<Row>
-  /**
-   * EVERY STANDING ROW, WITH ITS OWN VERBS ON IT — the whole bundle, minted for
-   * the roster as it is right now.
-   *
-   * There is no BUILD-wide tool table left and there was one for one commit.
-   * `serveSurfaceAsMcp` used to take its record once and dispatch out of it
-   * forever, so a row mounting later had no way in — which meant the record had
-   * to be every verb the binary had while the LIST was filtered to the roster,
-   * and something had to hold the difference. juspay/kolu#2234's `reroster`
-   * re-composes the whole bundle on a roster move, so a row that arrives brings
-   * its verbs with it and one reading answers both questions.
-   */
   const bundle = () => siblingsOf(rows(), row =>
     bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
       ...policy, get root() { return policy.root }, login: currentLogin, doorAt: policy.doorAt,
     }))
   const booted = bundle()
   const served = yield* serveFace({ siblings: booted, client: policy.client, rows, transport })
-  /**
-   * THE ROSTER, FOLLOWED IN PLACE.
-   *
-   * A row switching off used to reach this face as a FILTER: the resource list
-   * was re-derived per request from a curated flat spec, the tool list was
-   * filtered against the standing rows, and nothing told a host either had
-   * moved. The adapter takes the roster now — `reroster` re-runs the whole boot
-   * composition on the new siblings, re-dials `client()`, ends any subscription
-   * the new roster cannot serve, and sends both `list_changed` notifications.
-   * Absence is the adapter's, which is what #546 asked for.
-   *
-   * RUNG FROM THE COMPOSITION ROOT, at the tail of a recompose, so the rows it
-   * reads are the generation just published.
-   *
-   * ONE AT A TIME, AND NOT BECAUSE THE SWAP RACES. kolu's `reroster` resolves
-   * the new generation and assigns it with no `await` in between, so two calls
-   * cannot interleave the state change however fast the bell rings — read, not
-   * assumed. What the chain buys is the two NOTIFICATIONS, which are awaited:
-   * un-chained, a burst could tell a host the list changed in an order that
-   * does not match the order it changed in, and a host that re-lists on the
-   * first notice would be answered correctly and then told again for a move it
-   * had already seen. It also gives the failure below one place to be caught.
-   *
-   * A REFUSED ROSTER IS SAID OUT LOUD. The adapter leaves the endpoint exactly
-   * as it was — the same guarantee `mount` makes one wall down — so nothing is
-   * broken by one, but a face that quietly went on serving a roster the host no
-   * longer has is precisely the silent-wrong-answer this whole change is about.
-   */
+  // What the chain buys is the two NOTIFICATIONS, which are awaited:
+  // un-chained, a burst could tell a host the list changed in an order that
+  // does not match the order it changed in.
   let moving: Promise<unknown> = Promise.resolve()
-  /** The roster the adapter is currently serving, as names — see the guard. */
   let applied = signatureOf(booted)
   yield* Effect.acquireRelease(
     Effect.sync(() => shared.agentRosterMoved(() => {
       moving = moving.then(() => {
         const next = bundle()
-        // NOTHING MOVED, NOTHING TO APPLY. The bell rings on every recompose,
-        // and most recomposes do not touch the agent's roster — a browser-only
-        // row arriving, a service offer changing. Six identical rerosters at
-        // boot is what that looked like before this line, and each one re-runs
-        // the composition, re-dials `client()` and sends both `list_changed`
-        // notifications: a host told four times that a list it has not seen
-        // change has changed. Keyed on the sibling names and their verbs, which
-        // is exactly what the adapter serves out of the bundle.
         const now = signatureOf(next)
         if (now === applied) return undefined
         applied = now
@@ -93,23 +44,6 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
     })),
     stop => Effect.sync(stop),
   )
-  /**
-   * THE WINDOW BETWEEN THE BUNDLE AND THE BELL, closed.
-   *
-   * `serveFace` awaits `server.connect`, and the watcher above is attached only
-   * once that resolves. A row that registers its surface inside that await
-   * rings a bell nobody is holding, so the generation kolu keeps is the one
-   * read BEFORE it — and stays that way until some unrelated move happens to
-   * republish. This row needs only the transport door, so it applies early;
-   * `olai-plugin-outlines` waits for a vault and can land squarely in the gap.
-   *
-   * The catch-up is a comparison rather than an unconditional move: `applied`
-   * is `booted`'s signature, so a roster that did not change costs nothing and
-   * one that did is handed over exactly once. It is the same shape
-   * `./runtime.ts` uses when it composes in line before forking its stream
-   * loop — except a stream replays its first element and a bell does not, so
-   * the replay is spelled here.
-   */
   yield* Effect.promise(async () => {
     const now = bundle()
     const signature = signatureOf(now)
@@ -120,98 +54,19 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
   yield* shared.register({ routes: mcpRoute({ transport, token: shared.token, who: shared.who }) })
 })
 
-/** What this server calls itself. The version is the binary's, spelled here
- *  because the adapter has no other way to learn it. */
 export const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
 
 /**
- * What a host is told olai IS, at `initialize` — THIS ROW'S paragraphs of it.
+ * Served at `initialize`, read per connection: a host ALREADY connected is not
+ * told again, because MCP has no `instructions_changed` — only its tool list is
+ * re-read, on `list_changed`.
  *
- * Load-bearing prose, not a greeting: an agent that has met a hundred MCP
- * servers arrives assuming a filesystem, and what it has to unlearn here is
- * that this is one. Reachable only because the adapter passes it through to
- * the SDK, which serves `initialize` inside its own protocol layer — there is no
- * request handler a consumer could register to say this instead.
+ * The composed whole must stay under 2000 bytes (`@olai/server`'s
+ * `profiles.test.ts` holds the boundary): Claude Code truncates server
+ * instructions at 2 KB silently, and bills the text on every turn.
  *
- * **IT SAID "there is no file access" UNTIL THIS PR, AND THAT HAD STOPPED
- * BEING TRUE.** `md-editing` added `markdown_create` and `markdown_write` —
- * verbs whose subject is a file — and the read half (`markdown_index`,
- * `markdown_read`) is what makes the pair usable at all. A charter an agent is
- * handed at `initialize` and can disprove with its second tool call is worse
- * than no charter: what it teaches next is that the rest of this text is
- * decoration.
- *
- * So what it claims now is the thing that is actually true, and it is the
- * stronger claim rather than the weaker one. The unit is not a byte and never
- * a range — a NODE for an outline, a whole TEXT for a document, a whole
- * TRASH for `trash_empty` — and the namespace is the served set rather than
- * a disk: there is no listing that is not this directory's own, no path outside
- * it, no shell and no grep. That is what the rows' own tables enforce between
- * them — the vocabulary is closed even though it is no longer written in one
- * place — so this sentence and those lists say one thing.
- *
- * THE THIRD AND FOURTH UNITS ARE THE SAME LESSON READ ONCE MORE.
- * `trash_empty` empties `_olai/Trash.olai` and `files_delete` removes a file,
- * and an enumeration that stopped at nodes and documents would be disprovable
- * by an agent's second tool call in exactly the way the paragraph above is
- * about. They change none of the claims that do the work: the path is always
- * one the set already serves, what is named is a whole file — its records, or
- * its existence — rather than any part of one, and nothing about either
- * reaches outside this directory.
- *
- * ## The second paragraph: only what is true whatever rows are standing
- *
- * The address grammar — `/#<id>` a node anywhere, `/<path>` a document or an
- * outline, `/<path>#<element>` a row or a heading — is `@olai/format`'s
- * `address.ts` (the table at its head), and a tool's `at` is that address
- * without the leading `/`, read off `search_nodes`' own hits. That an address
- * is the app's own with no host or port to know is a fact about the grammar
- * too: nothing in it is an origin. And `<row>_<verb>` with an absent row's
- * verbs absent is `./tools.ts`' `scopedToolName` and the adapter's per-row
- * ownership (juspay/kolu#2234). Every sentence here holds on a serve with
- * only `mcp` standing and for an external host with no panel anywhere.
- *
- * ## What is NOT here: a row's sentence rides its row
- *
- * A paragraph about WHERE an agent's words land — that a person reads them in
- * a chat panel beside the outline, that a backticked id there is pressable
- * and a fenced one is a quotation, that a link is followed in place — sat in
- * this text for one PR, imported from `@olai/surface` as a static string. Each
- * of those is `olai-plugin-chat`'s behaviour, and a serve may run this row
- * with no `chat` row at all (`@olai/server`'s `mcp/face.test.ts` mounts
- * exactly that): core was asserting a plugin's panel to a host that had none.
- * The rule this file already states over `INSTRUCTIONS` — nothing an agent
- * can disprove — was broken by the paragraph that cited it.
- *
- * So a row's paragraph is the row's, on the same sibling entry as its tools
- * (`Sibling.charter`), and {@link instructionsFor} composes the text from the
- * rows STANDING — the seam `bundle()` already reads verbs and resources off,
- * one field over. A sentence leaves with its row for the reason a verb does.
- *
- * READ PER `initialize`, NOT AT BOOT. The adapter takes `instructions` as a
- * thunk and calls it on each host connection, so a host that connects after
- * a roster move is told the roster it actually gets. A host ALREADY connected
- * is not: MCP has no `instructions_changed`, and its tool list is re-read on
- * `list_changed` while its instructions stay what `initialize` said. That is
- * the wire's limit and it is written down here rather than hidden — the same
- * RECONNECT-PER-ROSTER-CHANGE contract `Surfaces` documents for a socket
- * (`@olai/plugin-api`'s `services.ts`). The alternative, `reroster` carrying a
- * new text, would have re-composed a value nobody could be sent.
- *
- * THE COMPOSED WHOLE STAYS UNDER 2000 BYTES with every row standing, and
- * `@olai/server`'s `profiles.test.ts` holds the boundary over the full bundle.
- * Claude Code truncates server instructions at 2 KB — silently, so an overrun
- * would cut the last row's paragraph mid-sentence and nobody would see it —
- * and bills the text on every turn, so what is spent here is spent per message
- * for the life of a session. That is why nothing here names `/today`, a pin,
- * a mark or a search operator: each is a plugin's, taught at the point of use
- * by the tool that owns it (`outlines_index` carries the pin grammar), and a
- * sentence here about it would be spent on every turn and sometimes false.
- *
- * WHO READS IT: Codex and Claude Code honour `instructions`. opencode fetches
- * it and drops it (anomalyco/opencode#7373), so an agent there is exactly as
- * untaught as before — a known gap, recorded in `website/docs/plugins/mcp.md`, and not
- * one this row can close from its side of the wire. pi is unverified.
+ * Codex and Claude Code honour `instructions`; opencode fetches it and drops it
+ * (anomalyco/opencode#7373). pi is unverified.
  */
 const INSTRUCTIONS =
   "olai serves a directory of outlines and the documents beside them. Everything here " +
@@ -229,130 +84,19 @@ const INSTRUCTIONS =
   "`<row>_<verb>`; a row that is off has no verbs here, and a verb you do not see is " +
   "simply not available."
 
-/**
- * THE WHOLE TEXT A HOST IS HANDED — this row's paragraphs, then every standing
- * row's own, in roster order. Composed per call for the reason `bundle()` is:
- * the roster it describes moves. Exported for the bench that reads it beside
- * the served answer; the face itself reads it through {@link FaceOptions.rows}.
- */
 export const instructionsFor = (rows: ReadonlyArray<Row>): string =>
   [INSTRUCTIONS, ...rows.map(row => row.charter).filter((one): one is string => one !== undefined && one !== "")].join("\n\n")
 
-/**
- * THE ROOT OF THE BUNDLE — core's own surface, granting an agent NOTHING.
- *
- * ## It is here because an empty roster is not a bundle
- *
- * Siblings alone was the honest shape and it had one hole: kolu refuses a
- * bundle with neither half ("a bundle with no core and no siblings is not a
- * bundle"), and the roster REACHES ZERO in two ordinary situations. A serve
- * selecting only outlines, ws, mcp and web-app in its policy composes no agent row until a
- * vault arrives, so `serveSurfaceAsMcp` threw at boot and `/mcp` was never
- * registered at all. And a person flipping the vault off through the panel took
- * every content row with it, so `reroster({})` was refused — and the adapter's
- * refusal leaves the endpoint EXACTLY AS IT WAS, which meant the face went on
- * advertising twenty-four verbs and two `surface://` URIs belonging to rows that
- * had left, indefinitely, with `list_changed` never sent. Reading one of them
- * refused, so nothing was mis-served; what was wrong is that the catalogue said
- * otherwise, which is the silent-wrong-answer #546 is about
- * (`@olai/server`'s `profiles.test.ts`, "vault withdrawal removes content tools"
- * and "an explicit content selection waits for its vault").
- *
- * ## Why CORE and not a stand-in
- *
- * Because core is genuinely the root of this composition — the surface every
- * sibling is mounted beside — and `hostFaces.agent` is genuinely `{}`: every
- * member core declares is a reading of the served INSTANCE, which is a panel's
- * business and not a vault's (`@olai/surface`'s `host.ts` argues each one). So
- * this publishes no resource and no tool and is addressable by nothing; what it
- * does is make the bundle a bundle when no row is standing, which is a true
- * sentence about olai rather than a placeholder.
- *
- * The core is passed at BOOT and `reroster` replaces the sibling half only, so
- * one statement here covers both holes.
- *
- * NOT A `FaceOptions` FIELD, deliberately. It is a fact about the agent face
- * rather than a choice a caller makes, and a bench that could pass a different
- * one — or none — would be a bench proving something this face does not do.
- */
 const AGENT_CORE = { surface: hostSurface, expose: hostFaces.agent } as const
 
 export interface FaceOptions {
-  /**
-   * THE WHOLE BUNDLE — one entry per standing row, each carrying its own
-   * surface, its own resource map and its own verbs.
-   *
-   * It was `surface` + `expose`: ONE curated spec copying six rows' members
-   * into one un-prefixed namespace, and one hand-written map beside it. The
-   * adapter takes a rooted bundle since juspay/kolu#2234, resolves each row's
-   * map against that ROW's spec, and mints
-   * `surface://collections/markdown/documents` from the key it was mounted
-   * under — so nothing is copied and two rows exposing the same member key are
-   * disjoint by construction.
-   *
-   * NO CORE. Core's four members are on no agent face (`hostFaces.agent` is
-   * `{}`), so this bundle is siblings alone — which kolu accepts; what it
-   * refuses is a bundle with neither half.
-   *
-   * NO FILTER BESIDE IT EITHER, and one stood here for one commit. While a
-   * sibling's authored tool names took its key, olai's verbs had to be declared
-   * at the bundle ROOT to keep their words — and a root tool survives any
-   * roster, so a `tools/list` override had to hide the ones whose row was gone.
-   * kolu#2234 records ownership on the entry instead of spelling it into the
-   * name, so a verb keeps its word AND leaves with its row, and absence is the
-   * adapter's.
-   */
   readonly siblings: Record<string, McpSibling<SurfaceSpec>>
-  /**
-   * Where the surface IS — the adapter's live-client factory, verbatim.
-   *
-   * A thunk because the adapter re-invokes it: on a retry after a drop, and
-   * after every `reroster`. On this face it mints one in-process client per
-   * standing row — nothing to dispose, nothing to re-dial — and it must READ
-   * the current roster rather than close over one, which is the whole reason
-   * it is a function.
-   */
+  /** It must READ the current roster rather than close over one. */
   readonly client: () => ClientOrConnection | Promise<ClientOrConnection>
-  /**
-   * THE STANDING ROSTER, read per `initialize` for the charter sentences.
-   *
-   * A thunk, and the same one the caller built `siblings` from: the adapter
-   * calls it on each host connection (`instructions` is a function to it),
-   * so a host that dials after a roster move is told the roster `siblings`
-   * has by then been rerostered to. The two are handed separately rather
-   * than this face building the bundle from `rows` itself because the bundle
-   * needs the bespoke-tool policy and this reading needs nothing but the
-   * rows; a bench passes the same `rows()` to both.
-   */
   readonly rows: () => ReadonlyArray<Row>
-  /** Where the protocol goes. The HTTP route in the binary, an
-   *  `InMemoryTransport` half in a test. Injectable is the whole reason a
-   *  test can read this face without a listener. */
   readonly transport?: Transport
 }
 
-/**
- * Serve the surface as MCP until the enclosing scope closes.
- *
- * Scoped rather than returning a teardown: everything else in the
- * composition root is, and a caller holding a `close()` it might forget is
- * exactly the arrangement `serve.ts` took the listener's lifetime away from.
- *
- * ...AND THE ACQUISITION IS BRACKETED, which is a different claim from being
- * scoped and was the one this did not keep. It awaited the adapter and THEN
- * said how to close it, and the gap between those two statements is a place a
- * fiber can be interrupted: a half stopped there — the panel's switch,
- * `plugins.stop`, a Ctrl+C — left an adapter nobody had registered a release
- * for. One `acquireRelease` makes the release part of the acquisition, so a
- * stop lands either before the adapter exists or after it is the scope's.
- *
- * WHAT THAT COSTS is that the acquire is uninterruptible: a stop arriving
- * inside it waits for the adapter and then closes it. That wait is bounded by
- * what is actually awaited — `server.connect(transport)`, whose `start()` is a
- * no-op on olai's own route transport — and it is the right trade either way,
- * because the alternative is a timeout that abandons the value, which is this
- * bug wearing a different hat.
- */
 export const serveFace = (
   options: FaceOptions,
 ): Effect.Effect<ServedSurfaceMcp, never, Scope.Scope> =>
@@ -367,9 +111,5 @@ export const serveFace = (
         ...(options.transport === undefined ? {} : { transport: options.transport }),
       })
     ),
-    // Released on the scope for the same reason the listener's teardown is:
-    // closing olai is closing a scope, and no caller carries a shutdown
-    // function. `close()` stops the resource pusher, disposes the connection
-    // and disconnects the transport.
     (served) => Effect.promise(() => served.close()),
   )

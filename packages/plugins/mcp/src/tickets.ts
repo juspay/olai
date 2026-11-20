@@ -1,5 +1,3 @@
-/** Per-node session credentials. The ticket registry owns the remaining write
- * rule, so releasing a node scope drops its whole MCP footprint at once. */
 import { Schema } from "effect"
 import { Writer } from "@olai/format"
 import type { FaceExposure } from "@kolu/surface/expose"
@@ -11,49 +9,6 @@ import type { RootedSurfaceClients } from "@kolu/surface/client"
 import { clientsFor, type Row } from "./bundle.ts"
 import type { Reading } from "./live-client.ts"
 
-/**
- * THE WORDS NO SESSION MAY WRITE, whatever node it is on.
- *
- * ## The hole this closes
- *
- * Phase 12 draws its boundary on a surface member: `plugins.approve` is on the
- * BROWSER face and no other, and `faces.test.ts` pins that as an exact set. But
- * the STATE that member guards is an ordinary custom property on an ordinary
- * node — `approved`, on the plugin's own row in `_olai/Settings.olai`, where
- * every other row's consent already lives — and `set_prop` writes any custom
- * key that is not spelled like a field. A node agent's door writes the vault,
- * and the settings file is a file in it. So:
- *
- *     set_prop {"id": "<the plugin's settings node>", "key": "approved", "value": "always"}
- *
- * is a legal write through a door the agent already held, the revision
- * publishes, the approval reads true, and code an agent wrote mounts with the
- * process's authority having been read by nobody. The verb was closed and the
- * fact was not: the boundary was drawn on one member of a face and reached
- * around through another.
- *
- * ## Why it is closed HERE
- *
- * Because this is the one place that holds both halves. `@olai/ops` may not
- * know what a plugin is; `olai-plugin-chat` supplies the keys a SESSION is
- * seated on, with its own sentence for them, and has no business knowing phase
- * 12's words; and the remaining rule is minted right here, per session, by the
- * MCP activation. So the ticket's forbidden table is the union of what the
- * session contributed and what this build's own vocabulary reserves — each
- * half carrying the clause its own author wrote.
- *
- * IT IS EVERY NODE AND NOT ONLY A PLUGIN'S, deliberately. An agent that could
- * write `approved` onto a node nothing reads yet could write the folder
- * afterwards and be approved from the first revision it was a plugin — so a
- * rule that asked "is this the settings node of a plugin right now" would be a
- * rule about the order of two writes. The word is core's
- * ([website/docs/dynamic-plugins.md]), and a word core claims is one a session's door
- * does not write.
- *
- * A PERSON'S face is untouched: `plugins.approve` runs under this runtime's own
- * writer with no session rule at all, which is the same shape a keystroke has.
- */
-
 export interface Ticket {
   readonly bearer: string
   readonly release: () => void
@@ -63,7 +18,6 @@ export interface Tickets {
   readonly mint: (
     forbidden: () => ReadonlyArray<{ readonly key: string; readonly says: string }>,
     writer: string,
-    /** The fence, read per call — see `@olai/plugin-api`'s `Tools.ticket`. */
     confined?: () => Confinement | null,
   ) => Ticket
   readonly doorAt: (held: RootedSurfaceClients) => RootedSurfaceClients
@@ -76,18 +30,12 @@ export const ticketing = (options: {
   readonly ops: Ops
   readonly currentTicket: () => string | null
   readonly token: string
-  /** Which rows are standing, so a ticketed bundle carries a client for exactly
-   *  the siblings the unticketed one does. Read afresh per mint — a ticket
-   *  outlives a recompose. */
+  /** Read afresh per mint — a ticket outlives a recompose. */
   readonly rows: () => ReadonlyArray<Row>
 }): Tickets => {
   const prefix = "olai-node-"
   const tickets = new Map<string, RootedSurfaceClients>()
 
-  /** ONE BUNDLE PER RULE, and every sibling client in it carries that rule. It
-   *  was one flat client until juspay/kolu#2234 gave the adapter a rooted
-   *  bundle; what a caller is narrowed to is unchanged, because the rule rides
-   *  the writer on each row's dispatch exactly as it did on the one. */
   const reading: Reading = () => ({
     ...(typeof options.bound === "function" ? options.bound() : options.bound),
     expose: typeof options.face === "function" ? options.face() : options.face,
@@ -95,17 +43,7 @@ export const ticketing = (options: {
   const composed = (rule: SessionRule, writer: Writer): RootedSurfaceClients =>
     clientsFor(options.rows(), reading, { writer, rule })
 
-  // A lifetime may gain content after boot. Cache per composed generation,
-  // not per request or forever: newly arriving siblings need their clients.
-  //
-  // EVERY RESERVATION, and not only the file-scoped ones. A build's reserved
-  // words are reserved against the AGENT FACE, not against one credential: a
-  // terminal talking to `/mcp` with the loopback token holds the same write
-  // door a session does, and a key-wide reservation that only a ticket carried
-  // was a fence with a gate beside it — `approved` could be written, and a
-  // conversation re-seated, by the one caller that never had to ask chat for a
-  // ticket. A person's own face is untouched: a keystroke runs under the
-  // runtime's writer with no session rule at all.
+  // Cache per composed generation, not per request or forever.
   let reservedGroup: ReturnType<Reading>["group"] | undefined
   let reservedClients: RootedSurfaceClients | undefined
   const reserved = (): RootedSurfaceClients => {
@@ -151,11 +89,7 @@ export const ticketing = (options: {
       const bearer = options.currentTicket()
       if (bearer === null || bearer === options.token) return options.reservations.length > 0 ? reserved() : held
       const at = tickets.get(bearer)
-      // Preserve the route's existing loopback affordance for arbitrary tokens.
       if (at !== undefined) return at
-      // A released (or forged) node-shaped credential stays closed without a
-      // tombstone per historical token. Other arbitrary loopback tokens keep
-      // the route's longstanding loopback behaviour.
       return bearer.startsWith(prefix) ? closed : options.reservations.length > 0 ? reserved() : held
     },
   }

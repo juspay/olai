@@ -22,23 +22,6 @@ Then("the MCP transport answers with status {int}", async function (this: OlaiWo
   }
 });
 
-/**
- * A WRITE TO A WITHDRAWN ROW, AND A WRITE TO A ROW THAT WAS NEVER THERE — two
- * situations, two sentences, and this file used to assert one for both.
- *
- * The MCP adapter distinguishes them (juspay/kolu#2234): a name it remembers
- * serving is `tool "…" is no longer served — the sibling "…" was dropped —
- * re-read the list`, and a name it never served is `unknown tool "…"`. The
- * difference is the whole point of the first sentence — an agent holding a
- * stale list called a name that WAS real, and telling it the name is unknown
- * would tell it to doubt itself.
- *
- * `the_vault_is_a_row.feature` reaches both: one scenario asks before the vault
- * has ever been on, the other after a withdrawal. One step asserting one
- * sentence therefore had to be wrong in one of them — which is what a long hunt
- * through olai's roster wiring and two kolu fixes eventually established, the
- * adapter having been right the whole way.
- */
 Then("the MCP vault never offered the write, because no vault was asked for", async function (this: OlaiWorld) {
   const said = await refusedWrite(this);
   assert.ok(said.includes("unknown tool"), said);
@@ -51,8 +34,6 @@ Then("the MCP vault refuses a write because no directory is served", async funct
   assert.ok(said.includes("outlines"), said);
 });
 
-/** The call both make: a write at a row this serve is not currently serving,
- *  answered as a 200 with `isError` rather than a transport failure. */
 const refusedWrite = async (world: OlaiWorld): Promise<string> => {
   const response = await fetch(new URL("/mcp", world.baseUrl), {
     method: "POST", headers: { "content-type": "application/json" },
@@ -86,7 +67,7 @@ const waitForStatus = async (url: URL, status: number) => {
     try {
       actual = (await fetch(url, { signal: AbortSignal.timeout(1000) })).status;
       if (actual === status) return;
-    } catch { /* The shared listener may still be rebinding. */ }
+    } catch { }
     await new Promise((resolve) => setTimeout(resolve, 50));
   } while (Date.now() < deadline);
   assert.equal(actual, status, `${url.pathname} after transport reconciliation`);

@@ -1,14 +1,3 @@
-/** A transport-owned dispatch resolves the current generation for each new
- * call. In-flight handlers retain their provider's normal revocation and drain
- * rules.
- *
- * ...AND SCOPES ITS TAGS TO ONE ROW. Every member on the wire carries its
- * owner's name since #546, and a per-sibling client face is built against that
- * row's STANDALONE spec — so its dispatch is wrapped through kolu's own
- * `scopeSiblingTag` and the face never learns it is scoped. A member whose row
- * is not standing has no tag to be routed to and is refused in the same words
- * an unexposed one is, which is "a tool leaves with its row" enforced at the
- * call rather than by a filter somebody keeps up to date. */
 import { directDispatch } from "@kolu/surface/links/direct"
 import { restrictHandlers, type FaceExposure } from "@kolu/surface/expose"
 import { isReservedSurfaceTag, scopeSiblingTag } from "@kolu/surface/define"
@@ -17,17 +6,12 @@ import { ToolFailure } from "@kolu/surface-mcp"
 import { Effect, Stream } from "effect"
 import { writerAt, type Bound } from "./authority.ts"
 
-/** The served generation, read afresh per call — never closed over, because a
- *  row that mounted since the last one is the whole point. */
+/** The served generation, read afresh per call — never closed over. */
 export type Reading = () => Bound & { readonly expose: FaceExposure }
 
-/**
- * ONE ROW'S DISPATCH: its own bare tags, put under its own name.
- *
- * A reserved tag passes through untouched. `system/live`, `system/identity` and
- * `system/clockNow` exist on EVERY surface and belong to the composition ROOT
- * here, so scoping one would send a heartbeat to a sibling.
- */
+/** A reserved tag passes through untouched: `system/live`, `system/identity` and
+ *  `system/clockNow` exist on EVERY surface and belong to the composition ROOT
+ *  here, so scoping one would send a heartbeat to a sibling. */
 export const scopedTo = (
   read: Reading,
   caller: Parameters<typeof writerAt>[1],
