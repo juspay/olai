@@ -64,7 +64,7 @@ const dark = PALETTES.length - light
 
     <nav class="chapters" aria-label="On this page">
       <a href="#see">the recording</a>
-      <a href="#kinds">documents and outlines</a>
+      <a href="#kinds">formats</a>
       <a href="#agent">AI agents</a>
       <a href="#compare">comparison</a>
       <a href="#history">git history</a>
@@ -91,46 +91,70 @@ const dark = PALETTES.length - light
 
 <section id="kinds">
   <div class="wrap">
-    <h2>Write Markdown documents and outlines in one directory</h2>
-    <p class="lead">olai has two kinds of file, and each kind is a whole part
-    of the app. Both kinds have pages, links, search, and agents.</p>
+    <h2>olai opens a directory of files in open formats</h2>
+    <p class="lead">Each format is a plugin. Markdown documents and outlines
+    are the formats that olai edits, and they do the most today.</p>
+    <div class="tablewrap">
+      <table class="cmp formats">
+        <thead>
+          <tr><th>Format</th><th>Files</th><th>What olai does with it today</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Markdown document</td><td><code>.md</code></td><td>olai draws the document, and you edit its text. Search reads it. You can chat with an agent about it.</td></tr>
+          <tr><td>Outline</td><td><code>.olai</code></td><td>You edit the outline in place. An item has a mark, a date, and a note. You can chat with an agent on any item.</td></tr>
+          <tr><td>HTML page</td><td><code>.html</code></td><td>olai draws the page as it is, with its own styles and scripts.</td></tr>
+          <tr><td>CSV file</td><td><code>.csv</code></td><td>olai draws a table.</td></tr>
+          <tr><td>Picture</td><td><code>.png</code>, <code>.jpg</code>, <code>.svg</code>, and other picture formats</td><td>olai shows the picture.</td></tr>
+          <tr><td>PDF</td><td><code>.pdf</code></td><td>The viewer of your browser shows it.</td></tr>
+          <tr><td>Ledger</td><td><code>.journal</code>, <code>.hledger</code>, <code>.ledger</code></td><td>olai shows the transactions and the balances of a plain-text accounting file.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">A document or an item can link to any of these files. olai does not open a file in another format.</p>
+
+    <div class="teasers gallery">
+      <figure><div class="shot small"><img src="/tour/document.png" width="2880" height="1800" loading="lazy" alt="A Markdown document in olai, with two headings, a table, a task list, and the item that links to the document."></div><figcaption>The real app. A Markdown document.</figcaption></figure>
+      <figure><div class="shot small"><img src="/tour/html-page.png" width="2880" height="1800" loading="lazy" alt="An HTML page in olai, drawn in a frame, with the heading Cabinet quote and a table of three units and a total."></div><figcaption>The real app. An HTML page.</figcaption></figure>
+      <figure><div class="shot small"><img src="/tour/ledger.png" width="2880" height="1800" loading="lazy" alt="A ledger file in olai, with its transactions for three months."></div><figcaption>The real app. A ledger file.</figcaption></figure>
+    </div>
+
     <div class="cols">
       <div class="steps3">
         <div>
           <h3>A document is a Markdown file</h3>
           <p>olai draws headings, tables, task lists, footnotes, code, and
-          pictures. A standard Markdown link opens another document, a
-          heading, or an item of an outline. <strong>Referenced by</strong>
-          lists what links to the document. The frontmatter at the top of the
-          file becomes properties, and search finds them.</p>
-        </div>
-        <div>
-          <h3>An outline is a list of items</h3>
-          <p>An outline is for work that has structure, such as a project, a
-          plan, or a list of to-dos. An item has a mark, a date, and a note.
-          You indent an item, move it, and make it repeat.</p>
-        </div>
-        <div>
-          <h3>The two kinds link to each other</h3>
-          <p>An item links to a document, and a document links to an item.
-          Each one lists what links to it.</p>
+          pictures. A standard Markdown link opens another file, a heading,
+          or an item of an outline. <strong>Referenced by</strong> lists what
+          links to the document. The frontmatter at the top of the file
+          becomes properties, and search finds them.</p>
         </div>
       </div>
-      <figure>
-        <div class="shot small"><img src="/tour/document.png" width="2880" height="1800" loading="lazy" alt="A Markdown document in olai, with two headings, a table, a task list, and the item that links to the document."></div>
-        <figcaption class="caption">The real app. A document, with a table, a task list, and the item that links to it.</figcaption>
-      </figure>
+      <div class="steps3">
+        <div>
+          <h3>An outline is a list of items</h3>
+          <p>An item can hold more items under it. An outline is for work
+          that has structure, such as a project, a plan, or a list of to-dos.
+          You indent an item, move it, and make it repeat. An item can link
+          to a document, and the document lists the item under
+          <strong>Referenced by</strong>.</p>
+        </div>
+      </div>
     </div>
 
     <div class="upcoming" id="upcoming">
-      <h3>Upcoming for Markdown</h3>
+      <h3>Upcoming</h3>
       <p>olai does not do these things yet. Each one has an issue that you can follow.</p>
-      <ul>
-        {UPCOMING.map((entry) => (
-          <li><a href={issueUrl(entry.issue)} set:html={entry.words} /><Fragment set:html={entry.after ?? "."} /></li>
-        ))}
-      </ul>
-      <p>One issue lists <a href={issueUrl(TRACKING_ISSUE)}>every gap between a document and an outline</a>.</p>
+      {UPCOMING.map((group) => (
+        <Fragment>
+          <h4>{group.heading}</h4>
+          <ul>
+            {group.entries.map((entry) => (
+              <li><a href={issueUrl(entry.issue)} set:html={entry.words} /><Fragment set:html={entry.after ?? "."} /></li>
+            ))}
+          </ul>
+        </Fragment>
+      ))}
+      <p>One issue lists <a href={issueUrl(TRACKING_ISSUE)}>every format and its gaps</a>.</p>
     </div>
   </div>
 </section>
