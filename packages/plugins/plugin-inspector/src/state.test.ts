@@ -6,7 +6,6 @@ test("inspector history survives presentation replacement but ends with its acti
   state.door.setOpen(true)
   state.nowRead("extension", "first")
   state.setGroupOpen("Pages", true)
-  // A door closing or moving is presentation, not a new authorization reading.
   state.door.setOpen(false)
   state.door.setOpen(true)
   expect(state.read().get("extension")).toBe("first")
@@ -32,7 +31,6 @@ test("expanded rows survive presentation replacement and end with the activation
   expect(state.expanded()["example"]).toBeUndefined()
   state.setExpanded("example", true)
   const before = state.expanded()
-  // Setting the same answer again is not a new publication.
   state.setExpanded("example", true)
   expect(state.expanded()).toBe(before)
   state.door.setOpen(false)

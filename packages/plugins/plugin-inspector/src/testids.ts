@@ -1,5 +1,3 @@
-/** Stable DOM identifiers owned by this renderer. Shared consumers import
- * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
   thisServe: "this-serve",
   pluginsTrigger: "plugins-trigger",
@@ -24,10 +22,7 @@ export const TESTID = {
   pluginsApprove: "plugins-approve",
   pluginsApproveAlways: "plugins-approve-always",
   pluginsMoved: "plugins-moved",
-  /** The way from a vault plugin's row to the page that is that plugin. */
   pluginsPage: "plugins-page",
-  /** ...and the way to a plugin this vault does not have yet: the panel's own
-   *  **New plugin** door, drawn only where something offers the verb. */
   pluginsNew: "plugins-new",
 } as const
 
@@ -39,6 +34,5 @@ declare module "@olai/ui-primitives/testids.ts" {
   interface TestIdTables { readonly "plugins/plugin-inspector": OwnedTestIds }
 }
 
-/** Namespace for dynamically discovered provider preference rows. */
 export const PLUGIN_PREF = "plugin-"
 export const pluginPref = (name: string): string => `${PLUGIN_PREF}${name}`

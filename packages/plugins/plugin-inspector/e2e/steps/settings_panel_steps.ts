@@ -1,4 +1,3 @@
-/** Drive the real controls; disk assertions observe the ordinary write door. */
 import * as assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -8,17 +7,11 @@ import { selector } from "@olai/web/testlib"
 import { attr, POLL_TIMEOUT, type OlaiWorld } from "@olai/tests/harness/world.ts"
 import type { Locator } from "@olai/tests/harness/playwright.ts"
 
-/** A row's disclosure: the name button, which only a row with something to
- *  reveal draws. A row with nothing to reveal draws its name as plain text. */
 export const ROW_TOGGLE = "button.plugins-name[aria-expanded]"
 
-/** The Server section at the foot of the panel — a `<details>`, shut until
- *  somebody opens it. */
 export const serverSection = (world: OlaiWorld): Locator =>
   world.pluginsPanel().locator(selector(TESTID.thisServe))
 
-/** Open the Server section the way a person does — its heading — unless it is
- *  already open. */
 export const openServerSection = async (world: OlaiWorld): Promise<Locator> => {
   const section = serverSection(world)
   await section.waitFor({ state: "attached", timeout: POLL_TIMEOUT })
@@ -30,12 +23,6 @@ export const openServerSection = async (world: OlaiWorld): Promise<Locator> => {
   return section
 }
 
-/**
- * ONE ROW WITH ITS GROUP OPEN, and nothing else pressed — the row's own detail
- * stays as it was, so a step can ask whether it is open. The heading is
- * pressed the way a person presses it, walking up from the row rather than
- * naming the group, since a shell remount can redraw the group around it.
- */
 export const shownLine = async (world: OlaiWorld, name: string): Promise<Locator> => {
   const row = world.pluginsPanel().locator(`[data-testid="prefs-row"]${attr("data-pref", `plugin-${name}`)}`)
   await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT })
@@ -51,13 +38,6 @@ export const shownLine = async (world: OlaiWorld, name: string): Promise<Locator
   return row
 }
 
-/**
- * ONE ROW, ITS GROUP OPEN AND ITS DETAIL SHOWN — the chevron press a person
- * makes before reaching a knob. Pressed only while the row reads collapsed, so
- * asking twice is asking once; and re-resolved on every try, because a switch
- * elsewhere can republish the roster and redraw the row under the press. A row
- * with nothing to reveal has no chevron, and is returned as it is.
- */
 export const expandedRow = async (world: OlaiWorld, name: string): Promise<Locator> => {
   if (name === "olai") return openServerSection(world)
   await world.waitUntil(async () => {
@@ -70,8 +50,6 @@ export const expandedRow = async (world: OlaiWorld, name: string): Promise<Locat
   return shownLine(world, name)
 }
 
-/** What a session-only switch says — in its tip for a pointer, and in its
- *  accessible name, which is the copy a reader gets (`../../src/Switch.tsx`). */
 const SESSION_SAID = "Resets when olai restarts"
 
 const control = async (world: OlaiWorld, name: string, key: string): Promise<Locator> =>
@@ -92,22 +70,11 @@ Then("the same serve process is running", function(this: OlaiWorld) {
   assert.equal(this.ownServer?.pid, before.pid)
   assert.equal(this.ownServer?.exitCode, null)
 })
-/**
- * THE ROW AT REST IS ONE LINE: the build's label for it, its switch, and
- * nothing else while it is fine — no state words, no summary, and its detail
- * shut. The switch is labelled with the name the row shows ("Enable Git"),
- * which is the build's label where it has one.
- */
 Then("the plugin {string} line reads {string} beside its labelled enable switch", async function(this: OlaiWorld, name: string, label: string) {
   const row = await shownLine(this, name)
   const line = row.locator(".plugins-line")
   await this.waitUntil(async () => (await line.locator(".plugins-name-text").innerText()).trim() === label,
     `the ${name} line to read ${JSON.stringify(label)}`)
-  // The switch is NAMED for the row, and may say one more thing after it: a
-  // session-only switch carries "Resets when olai restarts" in its own name,
-  // because that sentence used to be a `title` and a `title` is a pointer's
-  // answer and nobody else's. So the name OPENS with the label rather than
-  // being it, which is also WCAG 2.5.3's rule about the visible words.
   assert.equal(await line.getByRole("switch", { name: new RegExp(`^Enable ${label}\\b`) }).count(), 1)
   assert.equal(await line.locator(".plugins-status").count(), 0)
   assert.equal(await row.locator('[data-testid="plugin-summary"], [data-testid="plugin-defaults"]').count(), 0)
@@ -148,8 +115,6 @@ Then("the {string} setting {string} has no problem", async function(this: OlaiWo
 })
 Then("the {string} setting {string} is frozen because {string}", async function(this: OlaiWorld, name: string, key: string, text: string) {
   const line = await control(this, name, key)
-  // The reason a frozen knob will not move reaches a READER, which the
-  // `title` it used to wear never did: it rides the control's own name.
   await this.waitUntil(async () => await line.locator("[aria-label]").evaluateAll((elements, text) => elements.some(el => (el.getAttribute("aria-label") ?? "").includes(text)), text), "the frozen control's reason")
   const inputs = line.locator("input, select, button")
   assert.ok(await inputs.count() > 0)
@@ -166,10 +131,6 @@ Then("the {string} setting {string} is an integer input from {int} to {int}", as
 Then("the {string} setting {string} suggests {string}", async function(this: OlaiWorld, name: string, key: string, expected: string) {
   assert.equal(await (await control(this, name, key)).locator("input").getAttribute("placeholder"), expected)
 })
-/** THE SCHEMA'S OWN DESCRIPTION of a knob. It was the row's `title` — a
- *  pointer's only — and is now the tip a pointer gets plus the hidden line
- *  beside the knob, which is the one a screen reader reads. Asserted off the
- *  pair's own box (the knob and that line), never off a class. */
 Then("the {string} setting {string} is described as {string}", async function(this: OlaiWorld, name: string, key: string, said: string) {
   const knob = await control(this, name, key)
   await this.waitUntil(async () => ((await knob.locator("xpath=..").textContent()) ?? "").includes(said),
@@ -190,8 +151,6 @@ Then("the commit ledger includes the {string} settings namespace", async functio
   assert.ok((await group.innerText()).includes(name))
 })
 
-/** Alter only the requested key on the browser transport. The real server
- * validates it and supplies the refusal; no refusal is fabricated here. */
 Given("the next browser configuration request names reserved key {string}", async function(this: OlaiWorld, key: string) {
   let replaced = false
   await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", client => {
@@ -225,7 +184,6 @@ Then("the plugin {string} has a session-only switch ring", async function(this: 
   const toggle = row.locator(selector(TESTID.pluginSwitch))
   await this.waitUntil(async () => (await toggle.getAttribute("aria-label") ?? "").endsWith(SESSION_SAID), "the session switch")
   assert.equal(await toggle.evaluate(el => getComputedStyle(el, "::before").borderTopStyle), "dashed")
-  // The words live in the row's detail, once, rather than beside the switch.
   assert.ok(!(await row.locator(".plugins-line").innerText()).includes("restarts"))
   const opened = await expandedRow(this, name)
   await this.waitUntil(async () => (await opened.locator(".plugins-note").allInnerTexts()).includes("This switch resets when olai restarts."),
@@ -234,7 +192,6 @@ Then("the plugin {string} has a session-only switch ring", async function(this: 
 Then("the first choice of {string} setting {string} has focus", async function(this: OlaiWorld, name: string, key: string) {
   assert.equal(await (await control(this, name, key)).locator('[aria-pressed]').first().evaluate(el => el === document.activeElement), true)
 })
-/** One column of groups, and nothing wider than the panel it sits in. */
 Then("the plugins panel is one column and has no horizontal overflow", async function(this: OlaiWorld) {
   const panel = this.pluginsPanel()
   const box = await panel.boundingBox()
@@ -243,7 +200,6 @@ Then("the plugins panel is one column and has no horizontal overflow", async fun
   assert.ok(box.x >= 0 && box.x + box.width <= view.width, `panel spans ${box.x}..${box.x + box.width} of ${view.width}`)
   assert.equal(await panel.evaluate(el => el.scrollWidth <= el.clientWidth), true)
   assert.equal(await panel.locator(".plugins-body").evaluate(el => el.scrollWidth <= el.clientWidth), true)
-  // Every group heading starts at the same left edge: a single column.
   const lefts = await panel.locator(selector(TESTID.pluginGroup)).evaluateAll(groups => groups.map(group => Math.round(group.getBoundingClientRect().left)))
   assert.ok(lefts.length > 0)
   assert.equal(new Set(lefts).size, 1, `groups start at ${lefts.join(", ")}`)
@@ -261,7 +217,6 @@ Then("the {string} setting {string} shows refused file text {string} inline with
 When("I open the settings file from the panel header", async function(this: OlaiWorld) {
   await this.pluginsPanel().locator(selector(TESTID.pluginsFile)).click()
 })
-/** Each heading counts its own rows' switches; Needs attention counts its rows. */
 Then("the plugins panel section counts match their switches", async function(this: OlaiWorld) {
   const groups = await this.pluginsPanel().locator(selector(TESTID.pluginGroup)).all()
   assert.ok(groups.length > 0)
@@ -273,8 +228,6 @@ Then("the plugins panel section counts match their switches", async function(thi
     const off = total - enabled
     const expected = await group.getAttribute("data-needs") === "true" ? String(total)
       : off === 0 ? `${enabled} on` : enabled === 0 ? `${off} off` : `${enabled} on · ${off} off`
-    // `textContent`, since a shut heading's count is still on screen while
-    // its rows are not.
     assert.equal((await group.locator('[data-group-count]').textContent())?.trim(), expected)
   }
 })
@@ -334,8 +287,6 @@ Then("the panel hides wrapper defaults and shows operator environment readings",
   await this.waitUntil(async () => (await row.innerText()).includes("/nix/store/operator/bin/tool"), "the operator reading")
   assert.equal(await row.locator('[data-config="WRAPPED_BIN"]').count(), 0)
   assert.ok(!(await row.innerText()).includes("/nix/store/build-default"))
-  // Each reading is labelled by its own description and carries its variable
-  // beneath the value; a secret says only whether it is there.
   const text = await row.innerText()
   assert.ok(text.includes("Operator executable"), text)
   const empty = row.locator('[data-config="EMPTY_PATH"]')
@@ -349,10 +300,5 @@ Then("the panel hides wrapper defaults and shows operator environment readings",
 })
 Then("the plugin {string} env reading {string} is wrapper-provided and hidden", async function(this: OlaiWorld, name: string, key: string) {
   const row = await this.showPluginRow(name)
-  // A wrapper-provided reading (source: "wrapper", named by the generated
-  // OLAI_WRAPPER_DEFAULTS) is not a machine input a person can change here, so
-  // the panel hides it from the row's env grid. If the wrapper-defaults
-  // plumbing broke, OLAI_ODU_BIN would render as an editable operator reading
-  // ("bin env · <path>"), which is the discriminating absence this asserts.
   await this.waitUntil(async () => await row.locator(attr("data-config", key)).count() === 0, `the ${name} wrapper reading to stay hidden`)
 })

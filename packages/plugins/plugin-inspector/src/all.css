@@ -1,8 +1,5 @@
 @source "./";
 
-/* One calm list: a heading per group, one line per plugin, and the detail of a
-   row only when it is asked for. Centred on a desktop; a sheet from the bottom
-   edge on a phone. */
 .plugins-panel {
   position: fixed; z-index: 50; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(30rem, calc(100vw - 2rem)); max-height: min(44rem, calc(100dvh - 4rem));
@@ -17,9 +14,6 @@
 .plugins-head-file a:hover { color: var(--color-ink); }
 .plugins-body { overflow: auto; overscroll-behavior: contain; padding: 0 10px 12px; }
 
-/* The panel's own door onto *New plugin* — a row, not a button-looking button:
-   it stands where the first group's heading would and must read as one more
-   thing in this list rather than as a call to action shouting over it. */
 .plugins-new {
   display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 8px;
   border: 0; background: none; color: var(--color-muted); font: inherit; text-align: left;
@@ -62,8 +56,6 @@ details[open] > summary > .plugins-chevron, .plugins-row[data-open] > .plugins-l
 .plugins-row[data-off] .plugins-name-text { color: var(--color-muted); }
 .plugins-status { flex: none; max-width: 55%; font-size: var(--text-label); color: var(--color-doing); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plugins-status.plugins-alarm { color: var(--color-alarm); }
-/* Descendant, not child: the session-only switch is wrapped in a tip, whose
-   span is `display: contents` — no box in this row, but an element between. */
 .plugins-line [data-testid="plugin-switch"] { flex: none; }
 
 .plugins-confirm { margin: 0 8px 8px 28px; padding: 10px 12px; border-radius: var(--radius-control); border: 1px solid color-mix(in srgb, var(--color-alarm) 40%, transparent); background: color-mix(in srgb, var(--color-alarm) 10%, var(--color-panel)); }
@@ -81,7 +73,6 @@ details[open] > summary > .plugins-chevron, .plugins-row[data-open] > .plugins-l
 .plugins-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--text-label); }
 .plugins-note { font-size: var(--text-caption); color: var(--color-muted); }
 
-/* The label/value list — a row's knobs and readouts, and the Server's facts. */
 .plugins-detail { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr); gap: 8px 14px; align-items: baseline; font-size: var(--text-label); margin: 0; }
 .plugins-detail > dt { color: var(--color-muted); overflow-wrap: anywhere; line-height: 1.4; }
 .plugins-detail > dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -91,9 +82,6 @@ details[open] > summary > .plugins-chevron, .plugins-row[data-open] > .plugins-l
 .plugins-env { display: flex; flex-direction: column; gap: 1px; }
 .plugins-env-key { color: var(--color-muted); font-size: var(--text-caption); }
 .plugins-link { font-size: var(--text-label); color: var(--color-accent); }
-/* Two shapes wear this: a SPAN around the app's own `File` link, and a plain
-   `<a>` the row draws itself for a plugin's page. Both underline on hover, so
-   the rule names the anchor either way rather than assuming the wrapper. */
 .plugins-link a:hover, a.plugins-link:hover { text-decoration: underline; }
 a.plugins-link code { color: inherit; }
 

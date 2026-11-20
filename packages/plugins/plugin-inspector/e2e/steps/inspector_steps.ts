@@ -5,15 +5,6 @@ import * as path from "node:path";
 
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/**
- * A FIXTURE PLUGIN, WRITTEN AS A FOLDER — the only shape there is: a plugin
- * the vault defines is `plugins/<word>/` with a README over its two halves,
- * and consent for it lives on its node in `_olai/Settings.olai`, which the
- * scenario presses for rather than writing.
- *
- * An explicitly approved fixture exercises the same host capability another
- * plugin can consume. It has no UI and does not expose the notebook client.
- */
 const definesPlugin = (
   world: OlaiWorld,
   word: string,
@@ -55,18 +46,6 @@ When("the non-UI controller sets plugin {string} {word}", async function (this: 
   }, { name, enabled: state === "on" });
 });
 
-/**
- * A CONTROLLER THAT ASKS THE INSPECTOR TO OPEN A ROW — the panel's own
- * `configuration.open(name)`, drivable from a scenario.
- *
- * The inspector offers that verb to any plugin that names it; today's callers
- * are Kolu's wrench and chat's engine picker, and both ask for their OWN row,
- * whose leaves are not promoted. What a scenario has to reach is the other
- * case — a row whose every leaf is drawn in the preferences panel — so this
- * fixture is a plugin with no UI that holds the declared configuration door and
- * nothing else, approved by the scenario that uses it, exactly as the host
- * management controller above is.
- */
 Given("the vault defines a row opener", function (this: OlaiWorld) {
   const server = `import { definePlugin } from "@olai/plugin-api"
 import { Effect } from "effect"
@@ -94,10 +73,6 @@ When("the controller opens the plugin row {string}", async function (this: OlaiW
   }, name);
 });
 
-// On a desktop the plugins door is a row at the foot of the health popover,
-// drawn only while that popover is open — so both reads below put it up
-// (`readStatus`), look, and put it away again. On a phone it is the drawer's
-// row, and `readStatus` reads in place.
 Then("the inspector has no rendered controls or panel", async function (this: OlaiWorld) {
   await this.page.getByTestId(TESTID.pluginsPanel).waitFor({ state: "detached" });
   await this.readStatus(() => this.page.getByTestId(TESTID.pluginsTrigger).first().waitFor({ state: "detached" }));

@@ -5,10 +5,6 @@ Feature: Edit plugin settings on the panel
 
   @rows-off:preferences
   Scenario: The one-column panel exposes controls and the keyboard reaches a row's first knob
-    # WITH PREFERENCES OFF the promoted leaves are controls again — this is the
-    # row's own fallback (`promoted_settings.feature` holds the other side): a
-    # plugin's promoted settings are drawn in the preferences panel only while
-    # that panel is up, and here it is not.
     Given I open the app
     When I open the plugins panel
     Then the plugins panel is one column and has no horizontal overflow
@@ -25,10 +21,6 @@ Feature: Edit plugin settings on the panel
     And there should be no page errors
 
   Scenario: A vault setting change keeps the tab connected
-    # `vault.format` is plain config, not a live one: the serve restarts the
-    # vault row and mounts a fresh sibling for it. The tab must redial onto the
-    # new generation — otherwise the file tree would stop learning about writes
-    # while the socket stayed open.
     Given I open the app
     When I open the plugins panel
     And I expand the plugin "vault"
@@ -76,9 +68,6 @@ Feature: Edit plugin settings on the panel
     When I switch the plugin "git" on
     Then the plugin "git" line reads "Git" beside its labelled enable switch
     When I close the plugins panel
-    # THE LEDGER IS READ BEFORE THE POLICY PICK, and that is about the write this
-    # step asserts rather than about a restart: the pick is live now and the
-    # panel would survive it.
     And I open the commit panel
     Then the commit ledger includes the "git" settings namespace
     When I press the commit pill
@@ -122,10 +111,6 @@ Feature: Edit plugin settings on the panel
     And the plugin "kolu" marks "watch.held-for" as authored by "default"
     And there should be no page errors
 
-  # WHAT A KNOB IS FOR used to be the row's `title`: a pointer's only, and
-  # unreachable by anyone reading with a keyboard or a screen reader. It is the
-  # app's own tip now — which draws nothing assistive technology can see — so
-  # the same sentence is written beside the knob, out of sight and in the text.
   Scenario: A knob says what it is for where a screen reader can reach it
     Given I open the app
     When I open the plugins panel
@@ -190,8 +175,6 @@ Feature: Edit plugin settings on the panel
     And there should be no page errors
 
   Scenario: A refused promoted choice keeps the actual file spelling in its input
-    # The SAME code draws it, one panel over: `commit` is a promoted leaf, so
-    # the input that keeps the unaccepted spelling is the preferences panel's.
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """
@@ -245,11 +228,6 @@ Feature: Edit plugin settings on the panel
     And the plugins panel has one column and fits the phone
     And there should be no page errors
 
-  # Plan §9: the `file` knob of the ACP engines (claude/codex/pi) is not
-  # asserted end to end here, because each adapter's probe needs a provider
-  # credential that CI does not carry (ANTHROPIC_API_KEY, OPENAI_API_KEY).
-  # Only the `dir` knob (OLAI_ODU_BIN) runs with none, which is the scenario
-  # below.
   Scenario: Build defaults stay hidden while operator environment readings stay read-only
     Given the roster includes wrapper and operator environment readings
     And I open the app

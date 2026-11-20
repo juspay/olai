@@ -1,11 +1,3 @@
-/** Local drafts belong to this mounted control; accepted writes belong to the
- * serve. A replacement reading never creates a second configuration store.
- *
- * It sits under `src/contracts/` because two packages draw it now — the
- * plugins panel's rows and the page a plugin the vault defines has of its own
- * — and a component another package may mount must reach nothing this
- * activation holds (`./control.ts`). Everything it draws from arrives as a
- * prop; everything it keeps is one draft, which dies with the mount. */
 import { createEffect, createSignal, For, onCleanup, Show, Switch, Match } from "solid-js"
 import type { BrowserManagement } from "@olai/surface/management"
 import { run } from "@olai/web/client/run.ts"
@@ -33,13 +25,6 @@ export function Control(props: {
   const metadata = () => controlOf(props.value)
   const frozen = () => props.frozen ?? (metadata() === undefined ? "This setting can't be changed here." : undefined)
   const disabled = () => frozen() !== undefined || pending()
-  /**
-   * WHAT THE CONTROL IS CALLED, and — where it will not move — why. The tip
-   * beside it says the same words for a pointer, and a tip exposes nothing to
-   * assistive tech, so the NAME is the copy a reader gets. The reason comes
-   * after what is being set, never instead of it: a frozen knob must still
-   * answer "which setting is this?".
-   */
   const named = () => {
     const why = frozen()
     return why === undefined ? labelOf(props.value.key) : `${labelOf(props.value.key)} — ${why}`
@@ -59,18 +44,6 @@ export function Control(props: {
     })
   }
   const saveDraft = () => { if (edited() !== undefined) save(draft()) }
-  /**
-   * WHETHER THIS BLUR IS A LEAVE — a person moving on, which is a save, or the
-   * APP TAKING THE KEYBOARD, which is not. The reconnect freeze is a modal
-   * `<dialog>` (`@olai/web/client/connection/Offline.tsx`), and it blurs
-   * whatever had the caret while the wire is away; `takingOfflineFocus` is how
-   * that call is spelled on this side of the wire, and the outlines' editors
-   * read the same flag for the same reason
-   * (`@olai-plugin-outlines/browser/edit/RowEditor.tsx`). Saving on that blur
-   * writes a half-typed draft into the shared file because a plugin was
-   * toggled in another tab — a write nobody asked for, from a page whose wire
-   * is gone.
-   */
   const leaving = (event: FocusEvent) =>
     event.relatedTarget !== reset && !takingOfflineFocus()
   // Bound natively on the input: Solid's delegated listener runs at document,
@@ -113,16 +86,6 @@ export function Control(props: {
             </Tip>
           </Match>
           <Match when={props.value.problem || metadata()?.kind === "number" || metadata()?.kind === "text"}>
-            {/* THE KEYBOARD A KNOB ASKS FOR. `enterkeyhint="done"` because Enter
-                here saves the draft and leaves the knob where it is (`keyboard`,
-                above) — nothing is sent and nowhere is gone to.
-
-                `inputmode` is set ONLY for a number, where the keyboard it asks
-                for genuinely differs. It used to say `text` for everything else,
-                which is the default spelled out: a value with no effect that
-                reads like a decision. A knob's text value is a setting rather
-                than prose — a path, a name, a duration — so the three
-                corrections go off with it. */}
             <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
               <input class="plugins-knob-input" style={{ width: knobWidth(props.value) }} aria-label={named()} aria-invalid={invalid() ? "true" : undefined}
                 disabled={disabled()} value={draft()}
@@ -138,9 +101,6 @@ export function Control(props: {
             <Show when={metadata()?.kind === "number" && knobUnit(props.value.key)}>{unit => <span class="plugins-knob-key">{unit()}</span>}</Show>
           </Match>
         </Switch>
-        {/* WHERE THE VALUE CAME FROM. The dot is a mark and not a word, so the
-            sentence it stands for rides an `sr-only` twin beside it — the tip
-            draws nothing a reader can reach. */}
         <Show when={knobAuthored(props.value)}>
           <Tip text={configurationAuthored} say>
             <span class="plugins-knob-source" data-testid={TESTID.pluginSource} aria-hidden="true">●</span>
@@ -155,10 +115,6 @@ export function Control(props: {
       <Show when={props.value.problem}>{problem => <p class="plugins-knob-problem" data-testid={TESTID.pluginProblem}>{problem().why} · using {text()}</p>}</Show>
       <Show when={refused()}>{reason => <p role="alert" class="plugins-knob-problem" data-testid={TESTID.pluginProblem}>{reason()}</p>}</Show>
     </div>
-    {/* THE SCHEMA'S OWN DESCRIPTION — what this knob is for. It was the row's
-        `title` and nothing else said it; the tip above draws it for a pointer
-        and exposes nothing, so the same sentence sits here for a reader, AFTER
-        the knob so that what a scenario reads off the knob is still its value. */}
     <Show when={props.value.says}>{said => <span class="sr-only">{said()}</span>}</Show>
   </Tip>
 }

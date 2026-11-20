@@ -1,11 +1,3 @@
-/** Approval history belongs to this inspector activation, independently of
- * its rendered door. An unrelated provider or shell replacement must not
- * silently approve a source version the reader has not acknowledged.
- *
- * Which groups this reader has opened lives here too, and so does which rows
- * they have expanded: a switch rebuilds the shell the panel is drawn in, and a
- * walk that folded back up on that remount would be the same unusable panel
- * the live roster already was. Closing the activation forgets both. */
 import type { FileLink } from "@olai/plugin-api"
 import { createStore, reconcile } from "solid-js/store"
 import { createSignal } from "solid-js"
@@ -43,8 +35,6 @@ export const createInspectorState = () => {
       if (!active) throw new Error("The inspector activation has closed")
       setOpened(label, open)
     },
-    /** A row's detail shown or hidden, by the row's plugin name. Absent is the
-     *  row's own default: expanded while it needs attention, shut otherwise. */
     setExpanded: (name: string, open: boolean) => {
       if (!active) throw new Error("The inspector activation has closed")
       setExpandedRows(name, open)

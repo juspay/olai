@@ -19,11 +19,8 @@ Feature: The plugins panel reads as headings, one line per plugin
     And the plugins panel lists the group "Notes"
     And the plugins panel lists the group "Connections"
     And the plugins panel lists the group "Interface"
-    # The app's own machinery, every row of it quiet, reads after the groups
-    # a person is likelier to look for.
     And the plugins panel lists the group "Interface" after the group "Notes"
     And the plugins panel lists the group "Interface" after the group "Connections"
-    # The maintained test fixtures ship off and nobody here turned one on.
     And the plugins panel does not list the group "Test fixtures"
     And the plugins panel section counts match their switches
     When I open the plugins panel group "Notes"
@@ -89,9 +86,6 @@ Feature: The plugins panel reads as headings, one line per plugin
     When I open the plugins panel
     And I expand the plugin "git"
     And I switch the plugin "chat" off
-    # Kolu stands behind chat's doors, so it moves under Needs attention — a
-    # group that was not there a moment ago for it — and opens with its detail
-    # showing, because its detail is what to do.
     Then the plugins panel groups "kolu" under "Needs attention"
     And the plugins panel lists the group "Needs attention"
     And the plugin "git" is expanded
@@ -109,7 +103,6 @@ Feature: The plugins panel reads as headings, one line per plugin
     Then the plugins panel asks to confirm turning "chat" off
     And the confirm for "chat" names "Kolu"
     And the confirm for "chat" names the plugins it stops by their labels
-    # Keep on is the answer that changes nothing.
     When I keep the plugin "chat" on
     Then the plugin "chat" is running
     And chat controls are in the outline

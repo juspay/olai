@@ -1,5 +1,3 @@
-/** The inspector survives a missing definition provider. Resolve that optional
- * capability when the call executes, and clear pending UI on every exit. */
 import { NotFoundFailure } from "@olai/format"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Effect, Result } from "effect"

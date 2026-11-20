@@ -42,15 +42,8 @@ Feature: A promoted setting is not a control here
     And there should be no page errors
 
   Scenario: Opening a fully promoted row lands in Preferences
-    # THE PANEL'S OWN `configuration.open(name)`, driven by a controller a
-    # scenario approves. A row whose every leaf is drawn in the preferences
-    # panel has nothing to open HERE — the one control it would reveal is a link
-    # — so asking for that row's settings lands on them rather than on a door to
-    # them, which is one press instead of two.
     Given the vault defines a row opener
     And I open the outline "house.olai"
-    # Approving walks to the plugin's page and back, so the panel is opened on
-    # the other side of it.
     And I approve the plugin "row-opener"
     And I open the plugins panel
     When the controller opens the plugin row "git"

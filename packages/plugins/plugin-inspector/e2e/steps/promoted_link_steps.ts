@@ -1,14 +1,3 @@
-/**
- * A PROMOTED SETTING'S CONTROL IS NOT HERE — the plugins panel's side of the
- * move, and the one link that stands in its place.
- *
- * While a plugin runs, every leaf it marked as a preference
- * (`@olai/plugin-api/configuration`'s `preference`) is drawn in the
- * preferences panel, and the row draws one **Set in Preferences** link where
- * those controls were. While the plugin is OFF, or the preferences panel is
- * absent, the controls are drawn here exactly as they were — the setting stays
- * editable from whichever panel can move it.
- */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { TESTID } from "@olai/tests/harness/testids.ts";
@@ -51,8 +40,6 @@ Then(
   },
 );
 
-/** THE LINK IS A DOOR: it shuts the panel it is on and opens the one that has
- *  the control, so a person following it lands somewhere. */
 When(
   "I follow the Set in Preferences link on {string}",
   async function (this: OlaiWorld, plugin: string) {

@@ -29,13 +29,11 @@ import {
   THIS_VAULT,
 } from "./rows.ts"
 
-/** The sentence a row's detail draws, read the way the panel reads it. */
 const pluginHint = (plugin: BuiltPlugin, reports?: ReadonlyMap<string, RowReport>): string | null => {
   const now = rowCondition(plugin, reports)
   return now === null ? null : conditionSaid(now)
 }
 
-/** The few words beside a row's name, read the way the panel reads them. */
 const rowStatus = (plugin: BuiltPlugin, reports?: ReadonlyMap<string, RowReport>, needs = false): string | null => {
   const now = rowCondition(plugin, reports, needs)
   return now === null ? null : CONDITION_WORDS[now.kind]
@@ -51,16 +49,6 @@ const roster = (
   ],
 })
 
-/**
- * ...and a build whose ONE row is in a named state — what a serve that sends
- * the word looks like.
- *
- * A separate helper rather than a third parameter on the one above, because
- * every case up there is about a serve that sends no word at all, which is both
- * the shape an older server has and the shape the narrowing falls back to. Two
- * helpers keep that reading honest: nothing here quietly starts sending a state
- * to the cases that are about not having one.
- */
 const row = (
   state: string,
   fault?: string,
@@ -77,24 +65,14 @@ const row = (
   }],
 })
 
-/** That row, for the readings that take one. */
 const only = (sent: PluginRoster) => sent.built[0]!
 
-/**
- * A ROW PER PLUGIN THE BUILD HAS, not per plugin that is running — which is the
- * whole feature and the one thing a filter over the enabled ones could not do.
- * A plugin left out of the file’s row selection is absent from every structure the server
- * holds, so the row saying so is the only place its absence is visible at all.
- */
 test("every plugin the build has gets a row, running or not", () => {
   const rows = pluginRows(roster(["alpha"]))
   expect(rows.map((one) => one.name)).toEqual(["alpha", "beta"])
   expect(rows.map((one) => one.running)).toEqual([true, false])
 })
 
-/** Registry order, not sorted: the order a build lists its plugins in is the
- *  order `--help` names them in, and a panel that re-sorted would put the rows
- *  in an order nothing else in the product uses. */
 test("the rows come in the order the server sent them", () => {
   const sent: PluginRoster = {
     built: [{ name: "zulu", running: true }, { name: "alpha", running: true }],
@@ -102,44 +80,16 @@ test("the rows come in the order the server sent them", () => {
   expect(pluginRows(sent).map((one) => one.name)).toEqual(["zulu", "alpha"])
 })
 
-/**
- * A page that has not heard, and a runtime that composes no plugins at all,
- * draw the same nothing — and it is deliberately not a set of rows saying
- * everything is off, which would flash "not running" at a serve that is running
- * them on its way to the truth.
- */
 test("a page that has heard nothing draws no plugin rows", () => {
   expect(pluginRows(NO_ROSTER)).toEqual([])
 })
 
-/**
- * THE ORDINARY ROW SAYS NOTHING, and that is the fix rather than an omission.
- *
- * It said *Running — its chips, panels and delivered messages all work*, under a
- * switch reading On, on every running row. Six of those on one panel is the
- * control announcing itself six times, and it was most of what made this panel
- * a scroll (the human, 2026-09-04, with the screenshot: *portrait spammy*).
- *
- * ASSERTED AS AN ABSENCE, because that is how it comes back: not by anybody
- * arguing for the sentence again, but by an arm that needed a string for some
- * other reason quietly acquiring one.
- */
 test("a running row with nothing to add draws no sentence at all", () => {
   const [alpha] = pluginRows(roster(["alpha"]))
   expect(pluginHint(alpha!)).toBe(null)
-  // ...and a serve that sends the word explicitly is the same row.
   expect(pluginHint(only(row("running")))).toBe(null)
 })
 
-/**
- * ...AND THE ROWS THAT DO SAY SOMETHING SAY IT SHORT.
- *
- * A LENGTH BOUND, and it is a real assertion rather than a gesture: the arms
- * are one sentence each, and the way copy like this rots is one clause at a
- * time with nobody noticing until it is a paragraph again. The `failed` arm is
- * exempt because the plugin's own message rides on it and its length is not
- * core's to bound; so is `waiting`, whose list of doors is the serve's.
- */
 test("every arm core writes in full is one short line", () => {
   const every = [
     pluginHint(only(row("optIn"))),
@@ -175,21 +125,9 @@ test("only failed and waiting rows explain their absence", () => {
 test("a session-switched row has no prose and remains pressable", () => {
   const said = pluginHint(only(row("switched")))
   expect(said).toBeNull()
-  // ...and the switch beside it is still drawn and still pressable, because
-  // pressing it is the undo.
   expect(pluginSwitch(only(row("switched")), false)).toEqual({ value: "off", frozen: false })
 })
 
-/**
- * THE PLUGIN'S OWN WORDS, QUOTED — core composes no clause of them, which is
- * the rule the doorbell's three strings already keep.
- *
- * A start that died is the one arm that is a FAULT rather than a policy, and
- * it is the one arm where the useful half of the sentence is not core's to
- * write. A throw with nothing to say is quoted as nothing rather than as core's
- * paraphrase of it — `String(reason)` on a bare `Error` would put the word
- * "Error" on screen as if the plugin had said it.
- */
 test("a failed row quotes what the plugin said, or says it said nothing", () => {
   expect(pluginHint(only(row("failed", "no socket at /run/nothing"))))
     .toContain("“no socket at /run/nothing”")
@@ -201,137 +139,49 @@ test("off, opt-in, switched and pending rows have no prose", () => {
   for (const state of ["off", "optIn", "switched", "pending"]) expect(pluginHint(only(row(state)))).toBeNull()
 })
 
-/**
- * A WORD THIS BUILD DOES NOT KNOW DRAWS THE ROW THE OLD WAY, rather than a
- * blank or a lie.
- *
- * The state travels as a plain optional string so that neither an older serve
- * (which sends none) nor a newer one (which may name a sixth) can fail the
- * roster's DECODE — and a roster that fails to decode takes every plugin's
- * mount down, not this row's. `@olai/surface`'s `pluginState` is where that
- * narrowing happens; this case is the panel's half of it.
- */
 test("a state this tab has never heard of falls back to the boolean", () => {
   expect(pluginHint(only(row("hibernating")))).toBeNull()
-  // ...and a serve too old to send one at all is the same fallback, which is
-  // exactly how this panel drew every row before the word existed.
   const old = roster(["alpha"])
   expect(pluginHint(old.built[0]!)).toBe(null)
   expect(pluginHint(old.built[1]!)).toBeNull()
 })
 
-/**
- * THE ROW'S HANDLE IS A GRAMMAR, not a name. A suite may not spell a plugin's
- * name any more than this client may, so it finds the rows by the prefix and
- * reads the names off the DOM — and the prefix is what keeps the rest of the
- * `data-pref` vocabulary a closed set a plugin cannot collide with.
- */
 test("a plugin row is found by prefix, and cannot collide with a fixed row", () => {
   expect(pluginPref("alpha")).toBe("plugin-alpha")
   expect(pluginPref("done").startsWith(PLUGIN_PREF)).toBe(true)
   expect(pluginPref("done")).not.toBe("done")
 })
 
-/**
- * A WAIT NAMES WHAT IT IS WAITING FOR, which is the half of `waiting` a person
- * can act on.
- *
- * The reading has had it all along — a PENDING fiber knows which tags nobody is
- * behind (`@olai/effect-cordis`'s `rowReport`) — and every wall between there
- * and here dropped it, so the panel said *waiting for something it needs* about
- * a serve whose whole answer was one word. It matters most in exactly the serve
- * the ruling created: a policy selecting only kolu composes no chat row, so `deliveries` has
- * nobody behind it, and what a person needs told is that word and not that
- * something is wrong.
- *
- * NAMING THE DOOR IS NAMING THE PLUGIN, one step removed: a service is offered
- * by a row, so "waiting for deliveries" is "compose the row that offers it".
- * That step is a person's to take, and this line is what lets them.
- */
 test("a waiting row names the services nobody is behind", () => {
   const waiting = only(row("waiting", undefined, ["deliveries"]))
   expect(pluginHint(waiting)).toContain("deliveries")
-  // ONE OR SEVERAL, because the sentence has to read either way: a row that
-  // named two doors is short of two, and `it` would be wrong about both.
   const two = only(row("waiting", undefined, ["deliveries", "watching"]))
   expect(pluginHint(two)).toContain("deliveries, watching")
   expect(pluginHint(waiting)).toBe("Can't start: another plugin it needs isn't running (deliveries).")
 })
 
-/**
- * ...AND A WAIT THAT NAMES NOTHING STILL SAYS SO, which is not the same as
- * saying nothing.
- *
- * A fiber can be PENDING with no tag named yet — a settle still in flight — and
- * the honest line there is the old one. An empty list is that case and not a
- * row waiting on nobody, so it must not compose a sentence with a hole where
- * the names go, and it must not fall through to the `null` the ordinary running
- * row draws: a row that IS short of something and cannot say what still owes a
- * reader the first half.
- */
 test("a wait with nothing named yet keeps the sentence it always had", () => {
   expect(pluginHint(only(row("waiting")))).toBe("Starting…")
   expect(pluginHint(only(row("waiting", undefined, [])))).toBe("Starting…")
 })
 
-/**
- * A ROW THAT CARRIES OTHERS NAMES THEM, and the moment that matters is the
- * moment before a press.
- *
- * The panel drew nothing about this while the rows were frozen, and correctly:
- * there was no press to warn about. There is one now, and the row a person is
- * most likely to press is the one everything else stands behind — chat, which
- * offers `agents`, `deliveries`, `watching` and the session-start door, and
- * whose Off leaves every engine and every tenant `waiting`. A switch that did
- * that with no warning would be the most expensive control in the product.
- *
- * IT IS THE OTHER END OF THE WAIT. The `waiting` arm names the DOORS a row is
- * short of; this names the ROWS that go short. Both are read live off the serve,
- * so neither can be the copy that rots.
- */
 test("a running row that carries others names them", () => {
   const carrier = only(row("running", undefined, undefined, ["kolu", "odu"]))
   expect(pluginHint(carrier)).toBe(null)
   const said = pluginConfirm(carrier)
   expect(said).toContain("kolu, odu")
-  // ...and it says what pressing Off would DO, which is the whole of why the
-  // names are on screen rather than the fact that they exist.
   expect(said).toContain("Turning it off")
-  // ...and the panel names them by the label a person reads on their rows.
   const labels: Record<string, string> = { kolu: "Kolu" }
   expect(pluginConfirm(carrier, (name) => ({ label: labels[name] }))).toBe("Turning it off also stops Kolu, odu.")
-  // A row that carries nobody asks only when the build gave it a switchHint.
   expect(pluginConfirm(only(row("running")))).toBeNull()
   expect(pluginConfirm(only(row("running")), () => ({ switchHint: "Careful." }))).toBe("Careful.")
 })
 
-/**
- * ...AND A ROW THAT CARRIES NOBODY IS BACK TO SAYING NOTHING, which is most
- * rows.
- *
- * ABSENT AND EMPTY ARE ONE ANSWER here, deliberately unlike the `waiting` arm
- * two cases up. A `waiting` row with no `missing` is a settle still in flight —
- * it IS short of something and cannot yet say what — so that sentence has to
- * survive having no names. A `running` row with no `carrying` is a row nothing
- * depends on, which is a complete answer and the ordinary one.
- *
- * A serve too old to send the field lands here too, and correctly: silence
- * about what depends on what must not be drawn as a warning.
- */
 test("a running row that carries nobody says nothing", () => {
   expect(pluginHint(only(row("running")))).toBe(null)
   expect(pluginHint(only(row("running", undefined, undefined, [])))).toBe(null)
 })
 
-/**
- * THE STRIP READS THE BOOLEAN, independently of the detailed state.
- *
- * `running` is the field the two ends have always agreed on and the one every
- * mount licence is read from. A strip showing On for `waiting` — asked for, not
- * arrived — would be a control claiming a fact the rest of the page is drawn
- * from the negation of. The WHY of an absence is the hint's job; the switch has
- * two words and answers the question it is asking.
- */
 test("the switch shows what is running, independently of its absence reason", () => {
   expect(pluginSwitch(only(row("running")), false).value).toBe("on")
   for (const state of ["waiting", "failed", "optIn", "off"]) {
@@ -339,15 +189,6 @@ test("the switch shows what is running, independently of its absence reason", ()
   }
 })
 
-/**
- * A FAILED ROW STILL DRAWS A SWITCH, and that is a ruling rather than a
- * leftover.
- *
- * Pressing On over a plugin whose `apply` died is the gesture for *try that
- * again* — the loader re-imports the module and re-runs the apply, which is the
- * only retry this product has. Hiding it there would leave the one row on the
- * panel that is a FAULT as the one row with nothing to do about it.
- */
 test("a failed row is pressable, and its own message still rides on the hint", () => {
   const dead = only(row("failed", "no socket at /run/nothing"))
   expect(pluginSwitch(dead, false).frozen).toBe(false)
@@ -355,21 +196,6 @@ test("a failed row is pressable, and its own message still rides on the hint", (
   expect(pluginHint(dead)).toContain("“no socket at /run/nothing”")
 })
 
-/**
- * FROZEN IS THIS TAB'S OWN REQUEST AND NOTHING ELSE — the distinction
- * `../commit/state.ts` draws for Commit and Push, kept here for the same
- * reason.
- *
- * The roster cannot stand in for it: the serve does not move the roster until
- * the bundle has SETTLED, so between the press and the settle the cell still
- * carries the value the strip already shows. Without this the strip would sit
- * there live, reading the old value, inviting the second press that starts a
- * second flip across the first.
- *
- * AND THE VALUE STAYS PUT while frozen, rather than jumping to what was
- * pressed: an optimistic strip is this tab asserting a fact it has not been
- * told, on the one panel whose whole job is to say what is actually running.
- */
 test("a press freezes only that row's strip, and does not move it", () => {
   const live = only(row("running"))
   expect(pluginSwitch(live, false).frozen).toBe(false)
@@ -397,11 +223,6 @@ test("no row repeats what the panel says once", () => {
     if (said === null) continue
     expect([said, said.includes("restart")]).toEqual([said, false])
     expect([said, said.includes("Started with")]).toEqual([said, false])
-    // ...and none of them still claims a browser cannot change it, which is the
-    // sentence they all used to end with (`../settings/instance.ts`, which the
-    // git rows still use and still mean). It would come back not by being
-    // rewritten but by a row going back to borrowing that helper, which reads
-    // correct at the import and is false on screen.
     expect([said, said.includes("cannot be changed")]).toEqual([said, false])
   }
 })
@@ -423,13 +244,6 @@ test("a structured policy is readable instead of an object placeholder", () => {
     .toEqual([["section", '{"interval":"1m"}']])
 })
 
-/**
- * A PLUGIN THE VAULT DEFINES IS NOT A YAML SECTION. It has no `section` in
- * `olai.yml` because it is not in `olai.yml`. Presence of `source` is the
- * whole of the distinction, and the group is one word for every such row —
- * so a second definition does not invent a second heading, and a pending
- * one is Needs attention rather than a silent neighbour of an approved one.
- */
 test("vault-defined plugins are Your plugins; pending ones are Needs attention", () => {
   const defined = (
     name: string,
@@ -466,16 +280,10 @@ test("vault-defined plugins are Your plugins; pending ones are Needs attention",
   expect(groups[0]!.collapsed).toBe(false)
   expect(groups[1]!.rows.map((row) => row.name)).toEqual(["alpha"])
   expect(groups[2]!.rows.map((row) => row.name)).toEqual(["gamma"])
-  // Every ordinary group starts shut, the vault's own included.
   expect(groups[1]!.collapsed).toBe(true)
   expect(groups[2]!.collapsed).toBe(true)
 })
 
-/**
- * AT REST THE PANEL IS ITS HEADINGS AND THEIR COUNTS: every ordinary group
- * starts collapsed whether or not it is quiet, and the quiet ones — the app's
- * own machinery — sort after the rest, whatever order the roster sent.
- */
 test("every ordinary group starts collapsed, and quiet groups sort last", () => {
   const sent: PluginRoster = {
     built: [
@@ -494,11 +302,6 @@ test("every ordinary group starts collapsed, and quiet groups sort last", () => 
   expect(groupCount([{ name: "x", running: false }])).toBe("1 off")
 })
 
-/**
- * FIXTURES NOBODY ASKED FOR ARE NOT LISTED — a group whose every row the build
- * ships off and none of which runs. The moment one runs, the group is back,
- * so nothing a serve turns on is hidden from it.
- */
 test("a group of opt-in rows none of which runs is hidden until one runs", () => {
   const fixtures = (running: boolean): PluginRoster => ({
     built: [
@@ -516,7 +319,6 @@ test("a group of opt-in rows none of which runs is hidden until one runs", () =>
   expect(shown.map((group) => group.label)).toEqual(["Interface", "Test fixtures"])
   expect(shown[1]!.rows.map((row) => row.name)).toEqual(["beta", "gamma"])
   expect(groupCount(shown[1]!.rows)).toBe("1 on · 1 off")
-  // An opt-in row that sits in a group with an ordinary one keeps its group.
   const mixed = (name: string) => name === "gamma" ? { section: "Connections", optIn: true } : { section: "Connections" }
   expect(pluginGroups(fixtures(false), mixed).map((group) => group.label)).toEqual(["Connections"])
 })
@@ -536,12 +338,6 @@ test("a row reads the build's label; vault-defined rows and unlabelled rows read
   expect(displayName(defined, { label: "Ignored" })).toBe("local-tool")
 })
 
-/**
- * THE FOLDER AND THE PAGE ARE ONE FACT. A row the build has has neither, and
- * the reading that draws the link is the reading that decides whether there is
- * one — so the panel cannot reach an address it invented for a row with no
- * source.
- */
 test("a vault row says its folder and the address of its page; a built row says neither", () => {
   const built: BuiltPlugin = { name: "claude", running: true }
   expect(pluginPage(built)).toBeUndefined()
@@ -554,17 +350,11 @@ test("a vault row says its folder and the address of its page; a built row says 
       version: "v1", approved: true, on: true, server: "export {}",
     },
   }
-  // The trailing slash is a path's and the leading one is an address's; the
-  // word between them is the folder's, never spelled here.
   expect(pluginFolder(defined)).toBe("plugins/hex-swatch/")
   expect(pluginPage(defined)).toBe("/plugins/hex-swatch")
   expect(pluginPageLabel).toBe("Open its page")
 })
 
-/**
- * THE FEW WORDS BESIDE A ROW'S NAME are only for a row that is stuck; a row
- * that is on and fine, or off because somebody left it off, says nothing.
- */
 test("a row's short state is drawn only when it is not fine", () => {
   for (const state of ["running", "off", "optIn", "switched"]) {
     expect([state, rowStatus(only(row(state)))]).toEqual([state, null])
@@ -592,20 +382,6 @@ test("an environment reading reads as a sentence and a secret says only whether 
   expect(environmentValue({ key: "EXE", kind: "resource", set: false, says: "x" })).toBe("unset")
 })
 
-/**
- * A ROW ITS OWN PLUGIN SAYS NEEDS A PERSON IS FILED WITH THE STUCK ONES.
- *
- * The roster can say a row is failed, pending or waiting, and it cannot say the
- * one thing a plugin knows about itself: that it is running, faultless, and of
- * no use until somebody does something — connect the account, sign the card,
- * finish the setup. Left to the panel that row would sit among the healthy
- * ones, which is the shape of the whole feature (the fourth argument here is
- * the panel's reader over `plugins.row`, which is why a face answers `needs`).
- *
- * AND THE ROWS THAT DO NOT ASK STAY PUT, in one assertion: what this changes is
- * where ONE row is filed, not the order of the rest, and not whether a section
- * still heads the rows that were already fine.
- */
 test("only the rows whose own plugin asks for a person are filed under Needs you", () => {
   const sent = roster(["alpha", "beta"])
   const groups = pluginGroups(sent, () => ({}), new Map(), (name) => name === "beta")
@@ -613,21 +389,9 @@ test("only the rows whose own plugin asks for a person are filed under Needs you
   expect(groups[0]!.rows.map((row) => row.name)).toEqual(["beta"])
   expect(groups[0]!.needs).toBe(true)
   expect(groups[0]!.collapsed).toBe(false)
-  // ...and the row that asked is not ALSO drawn in its own section, which is
-  // what a walk that added the group without removing the row would do.
   expect(groups.slice(1).flatMap((group) => group.rows.map((row) => row.name))).toEqual(["alpha"])
 })
 
-/**
- * A BUILD WITH NO FACES IS THE BUILD THERE ALWAYS WAS.
- *
- * Most rows have no plugin behind them that wanted to say anything, so the
- * reader's DEFAULT is the whole of what those panels get: no face, nobody
- * asking, and the grouping the panel has always drawn. A face that answers
- * `false` — loaded, drawn, and with nothing to ask for — lands on the same
- * answer, which is the case a reader that consulted the face's EXISTENCE could
- * not tell apart from a face that is pleading.
- */
 test("a build whose faces ask for nothing keeps the groups it always had", () => {
   const sent = roster(["alpha", "beta"])
   const absent = pluginGroups(sent, () => ({}))
@@ -682,11 +446,6 @@ test("inline controls replace summary and defaults identifiers", () => {
   expect(Object.values(TESTID)).not.toContain("plugin-defaults")
 })
 
-/**
- * ONE READING, THREE TABLES: the few words, the sentence and the tone all come
- * from the row's tagged condition, so a fault in this tab is an alarm because
- * of what it IS, not because its words happen to start with "Failed".
- */
 test("a row's condition is read once, and its words and tone are tables over it", () => {
   const live: BuiltPlugin = { name: "alpha", running: true, state: "running" }
   const failed = rowCondition(live, new Map<string, RowReport>([["alpha/panel", { state: "failed", fault: "no canvas" }], ["alpha", { state: "waiting" }]]))
@@ -703,16 +462,8 @@ test("a row's condition is read once, and its words and tone are tables over it"
   expect(CONDITION_TONE[rowCondition(only(row("failed")))!.kind]).toBe("alarm")
 })
 
-/** The panel that draws a promoted leaf, as a row is told about it: a service
- *  value that exists, or `undefined` where nobody holds one. */
 const PANEL_UP: PreferencesPanel = { open: () => {} }
 
-/**
- * A PROMOTED LEAF MOVES OUT OF THE ROW — but only while its plugin runs and
- * there is a preferences panel up to draw it. The two readings are separate so
- * a scenario can tell them apart: the roster says whether the leaf is drawn
- * elsewhere, the caller says whether that elsewhere is open.
- */
 test("a promoted leaf leaves the row's controls only while Preferences can draw it", async () => {
   const { rowValues, promotedValues, promotingPlugins, rowSettings } = await import("./rows.ts")
   const git: BuiltPlugin = {
@@ -725,38 +476,24 @@ test("a promoted leaf leaves the row's controls only while Preferences can draw 
   const there = PANEL_UP
   expect(promotedValues(rowValues(git)).map(one => one.key)).toEqual(["commit"])
   expect(promotingPlugins({ built: [git, { name: "kolu", running: true, state: "running" }] })).toEqual(["git"])
-  // A plugin that is OFF contributes no heading: its rows would draw nothing.
   expect(promotingPlugins({ built: [{ ...git, running: false, state: "off" }] })).toEqual([])
   expect(promotingPlugins({ built: [{ ...git, running: false, state: "pending" }] })).toEqual([])
-  // ONE READING of what the row draws: the leaves it keeps, whether the link
-  // stands in their place, and whether nothing at all is left here.
   expect(rowSettings(git, there).knobs.map(one => one.key)).toEqual(["log"])
   expect(rowSettings(git, undefined).knobs.map(one => one.key)).toEqual(["commit", "log"])
   expect(rowSettings(git, there).link).toBe(true)
   expect(rowSettings(git, undefined).link).toBe(false)
-  // A row whose EVERY leaf is promoted has nothing left here, which is what
-  // makes `configuration.open` land in the other panel.
   const promoted: BuiltPlugin = { ...git, configurationValues: [git.configurationValues![0]!] }
   expect(rowSettings(promoted, there).allAway).toBe(true)
   expect(rowSettings(git, there).allAway).toBe(false)
   expect(rowSettings(promoted, undefined).allAway).toBe(false)
-  // A row that promoted NOTHING never shows the link and never counts as away.
   const plain: BuiltPlugin = { name: "kolu", running: true, state: "running",
     configurationValues: [{ key: "watch", value: "1m", setBy: "default", says: "how often" }] }
   expect(rowSettings(plain, there).knobs.map(one => one.key)).toEqual(["watch"])
   expect(rowSettings(plain, there)).toMatchObject({ link: false, allAway: false })
-  // A row whose plugin is OFF keeps every leaf here, link or no link.
   expect(rowSettings({ ...git, running: false, state: "off" }, there).knobs.map(one => one.key)).toEqual(["commit", "log"])
   expect(promotedValues(rowValues({ name: "off", running: false, state: "off" }))).toEqual([])
 })
 
-/**
- * AN OLDER SERVE PUBLISHES NO `configurationValues` — the reader's values and
- * the build-patch pairs are two arms of one reading, and the second is what a
- * panel draws when the first is absent. Promotion must not have cost that: a
- * row that carries `config` still shows its settings (and shows them HERE, since
- * a serve that publishes no values has published no `preference` either).
- */
 test("a serve with no configuration values still shows its patch pairs", async () => {
   const { rowValues, rowSettings } = await import("./rows.ts")
   const there = PANEL_UP
@@ -767,6 +504,5 @@ test("a serve with no configuration values still shows its patch pairs", async (
   ])
   expect(rowSettings(patched, there).knobs.map(one => one.key)).toEqual(["held-for", "watch"])
   expect(rowSettings(patched, there).link).toBe(false)
-  // A row with neither is empty rather than undefined.
   expect(rowValues({ name: "tabs", running: true, state: "running" })).toEqual([])
 })
