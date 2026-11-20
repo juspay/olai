@@ -1,78 +1,3 @@
-/**
- * The markdown machinery — and the one module of this app that is NOT in the
- * bundle the first paint waits for.
- *
- * Everything about the pipeline itself is here: the plugins, the order they run
- * in, the grammars a fence may name. ./render.ts is what CALLS it — the memo,
- * the ids, the tree walks — and it holds none of these imports, which is the
- * whole point. `unified` + remark + rehype + `highlight.js`'s common grammars
- * are ~390 KB of the client (~95 KB brotli), and an outline is titles,
- * checkboxes and badges: rows that need a markdown parser only when one of them
- * turns out to have markdown in it.
- *
- * So this file is a CHUNK of its own, and ./chunk.ts's `import("./pipeline.ts")`
- * is the whole of what asks for that: the bundler reads the specifier, splits
- * this graph out of the entry, and hashes it into the same immutable `/_olai/assets/`
- * dir (`pipeline-<hash>.js`). The specifier used to be a VARIABLE, deliberately,
- * to defeat a bundler that had splitting hardcoded off and would otherwise have
- * inlined this here — deferred in evaluation, identical on the wire. That is
- * `buildSurfaceClient`'s job now (kolu#2159), so the literal is what does the
- * work.
- *
- * The stages, and why each is where it is:
- *
- *   0. **as read** — a link destination with a space in it is closed in `<…>`
- *      before anything parses the text ({@link asRead}). One step, at the one
- *      door, so a rendering and the text a title accounts for cannot be two
- *      readings of two different strings.
- *   1. **parse**, with GFM — which is what brings footnotes (and tables, task
- *      lists and strikethrough) into the same dialect an agent and a reader
- *      already write.
- *
- *      **AND WITHOUT FRONTMATTER, deliberately.** A `---` block at the top of a
- *      `.md` is that FILE's own record and is kept off its page — but it is
- *      taken off by the caller that knows its source is a whole file
- *      (`@olai/format`'s `proseIn`, spent by the Markdown page,
- *      the journal row’s `browser/day/DayNote.tsx`), never here.
- *      `remark-frontmatter` in this pipeline was tried and is wrong for the
- *      reason the header above gives: this is ONE pipeline for every piece of
- *      markdown the app draws, and a plugin here changes the dialect for all
- *      four subjects. A NOTE is not a file — `@olai/format`'s `tagsIn` and
- *      `linksIn` read a leading `---` in one as the thematic break markdown
- *      says it is — so hiding it here would have made a note's own words
- *      vanish off the screen while the index went on reading them. Two
- *      readings of one block, which is the thing that work exists to end.
- *   2. **to HTML**, with footnote ids left bare (`clobberPrefix: ""`). They are
- *      re-minted by ./render.ts against the block they are in, so a prefix here
- *      would only be a second one to strip.
- *   3. **anchor the headings** — an `id` per heading and a link beside it
- *      pointing at it, which is what makes a section a place a reader can jump
- *      to and hand to somebody else. Before the sanitiser, not after: the id is
- *      made out of a heading somebody WROTE, so what it produces is checked by
- *      the allowlist rather than trusted for having arrived late. ./anchors.ts
- *      is that decision.
- *   4. **sanitise**, which is what makes the result safe to hand to
- *      `innerHTML`: these files are written by people, by agents and by git
- *      merges, and a note is not a place a `<script>` may appear. The allowlist
- *      is ./sanitise.ts — the security boundary, in one file, with everything
- *      this app has ever added to it named there.
- *   5. **highlight**, and then ./render.ts's own walk. Highlighting runs AFTER
- *      the sanitiser deliberately: the `hljs-` spans are ours, produced from
- *      the code's own text, so they need no allowlist entry — while
- *      `language-…` on a `<code>`, which is the reader's, is on the sanitiser's
- *      default allowlist and survives to be read here. The highlighter is
- *      `rehype-highlight`, SHIPPED BY THIS SERVER: it is in `bun.lock`, so
- *      `bun.nix` fetches it into the Nix build, and no page ever asks a CDN for
- *      the code that renders someone's private outline. Being a second file on
- *      this server's own `/_olai/assets/` does not change that — it is the same
- *      origin, the same immutable pin, the same bytes CI built.
- *
- * The pipeline is built ONCE, when this module is evaluated — which is now the
- * moment the chunk lands rather than the moment the app starts.
- * `rehype-highlight` registers three dozen languages as it is attached, and a
- * pipeline rebuilt per note would pay for that on every row of every frame.
- */
-
 import { bracketSpacedLinks } from "@olai/format"
 import nix from "highlight.js/lib/languages/nix"
 import { common } from "lowlight"
@@ -91,22 +16,16 @@ import { AUTOLINK } from "./anchors.ts"
 import { SANITISE } from "./sanitise.ts"
 import { rehypeSlugs } from "./slugs.ts"
 
-/**
- * The grammars a fence may name: `lowlight`'s common set, plus Nix.
- *
- * Spelled out because the option REPLACES the default rather than adding to
- * it — `rehype-highlight` builds its lowlight from whatever `languages` says,
- * so `{ nix }` alone would be a client that had forgotten TypeScript.
- *
- * Nix is the one addition, and it is not a preference: this repository is
- * built and run through Nix, its own `docs/` are what `just serve` serves with
- * no arguments, and a ```nix fence there came out as grey text while the one
- * above it was coloured. An unregistered language is not an error — the block
- * is drawn as plain text, which is what ./render.test.ts pins — so this is the
- * difference between a fence that reads and one that merely survives.
- */
+/** `rehype-highlight` builds its lowlight from whatever `languages` says, so
+ *  the option REPLACES the common set rather than adding to it: `{ nix }`
+ *  alone would be a client that had forgotten TypeScript. */
 const languages = { ...common, nix }
 
+// Before the sanitiser, not after: the id is
+// made out of a heading somebody WROTE, so what it produces is checked by
+// the allowlist rather than trusted for having arrived late.
+// Highlighting runs AFTER the sanitiser deliberately: the `hljs-` spans are
+// ours, produced from the code's own text, so they need no allowlist entry.
 const pipeline = unified()
   .use(remarkParse)
   .use(remarkGfm)
@@ -117,106 +36,34 @@ const pipeline = unified()
   .use(rehypeHighlight, { detect: false, languages })
   .use(rehypeStringify)
 
-/**
- * What the rest of the app is allowed to know about the pipeline: a source in
- * (twice — the tree it renders to, and the text it reads in it) and a tree
- * back out as HTML.
- *
- * Narrow on purpose. This is the shape ./chunk.ts hands out once the file has
- * arrived, so it is also the surface a test installs and the thing a reader
- * has to hold in mind to follow ./render.ts. A `Processor` with its own plugin
- * API would invite a second `.use()` somewhere else, and then the pipeline
- * would be built in two places again.
- */
 export interface Pipeline {
-  /** Source → the sanitised, highlighted HAST, before anything of ours has
-   *  walked it. */
   readonly treeOf: (source: string) => Root
-  /**
-   * Source → THE TEXT MARKDOWN READS IN IT, which is not the text the render
-   * draws and is the whole point: this is the same parse one step earlier,
-   * before `remark-rehype` and the sanitiser have dropped anything of it.
-   *
-   * One caller, one question — ./title.ts asks how much text a title accounts
-   * for, so it can tell a rendering that LOST words from one that never had
-   * them. Raw HTML is the case that matters: `<Component>` is characters in
-   * the source and nothing at all in the tree above, and the only way to know
-   * that without re-implementing markdown is to ask markdown.
-   *
-   * SOURCE is in the name and stays there: ./anchors.ts's `textOf` is an
-   * ELEMENT and the text it reads as, which is the drawn half of the very
-   * comparison this is the other half of. ./title.ts renamed its own twin
-   * (`renderedText`) for that reason; one word answering both sides of a
-   * check is how the two get read as the same number.
-   */
   readonly sourceTextOf: (source: string) => string
-  /** A tree that pipeline ran → the HTML string an element may be given. */
   readonly htmlOf: (tree: Root) => string
 }
 
-/**
- * What the parser is actually handed, which is not quite what a person wrote:
- * a link destination holding a space is closed in `<…>` first (`@olai/format`,
- * which owns that rule because the index reads the same links). `[a](my
- * file.md)` names a file a vault really has, and markdown alone would read the
- * whole thing as words.
- *
- * HERE rather than at the callers, and that is a fix rather than a tidy:
- * ./render.ts spelled it at every door it opened — a rendering, a title's
- * tree, and now the text a title accounts for — which is one dialect decision
- * held in three places by memory. The third is the one that would have gone
- * wrong: a loss check reading a different string from the render's would call
- * every spaced destination a lost link. Every parse below goes through this,
- * so two readings of one source cannot be readings of two strings.
- */
 const asRead = (source: string): string => bracketSpacedLinks(source)
 
 export const treeOf = (source: string): Root =>
   pipeline.runSync(pipeline.parse(asRead(source))) as Root
 
-/**
- * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is
- * why they are not spelled: `includeHtml` keeps a raw `<Component>`'s
- * characters (the loss the caller is hunting), and `includeImageAlt` keeps a
- * picture's words (a title is phrasing only — ./inline.ts drops the picture
- * itself, so the alt would otherwise go quietly). It is remark's own utility,
- * already in the lockfile under `mdast-util-from-markdown` (which is how
- * `remark-parse` reads a document at all); the walk was written out here once
- * and was this function line for line.
- */
+/** `mdast-util-to-string`'s defaults are the two decisions this needs, which
+ *  is why they are not spelled: `includeHtml` keeps a raw `<Component>`'s
+ *  characters, and `includeImageAlt` keeps a picture's words. */
 export const sourceTextOf = (source: string): string =>
   toString(pipeline.parse(asRead(source)))
 
 export const htmlOf = (tree: Root): string => pipeline.stringify(tree)
 
-/**
- * A node of the markdown tree BEFORE anything turns it into HTML — paragraphs,
- * list items, table cells, headings, as they were written.
- *
- * Structural rather than imported from `mdast` so that a reader outside this
- * package can hold the shape without that type package: what `remark-parse`
- * produces is assignable to it, and nothing here needs the full union.
- */
 export interface MarkdownNode {
   readonly type: string
   readonly value?: string | undefined
   readonly url?: string | undefined
   readonly depth?: number | undefined
-  /** A footnote reference's or definition's label, as `[^label]` spells it. */
   readonly identifier?: string | undefined
   readonly children?: ReadonlyArray<MarkdownNode> | undefined
   readonly position?: { readonly start: { readonly line: number } } | undefined
 }
 
-/**
- * The markdown tree of a source, in the dialect this app renders — GFM, and
- * the same `asRead` pass every other parse here goes through.
- *
- * It exists for `@olai/tests`' documentation lint, which measures the blocks,
- * cells and sentences of every page under `docs/`. Those pages are read in a
- * browser through THIS pipeline, so a lint with a parser of its own could
- * disagree with the screen about what a paragraph is and police a document
- * nobody reads.
- */
 export const mdastOf = (source: string): MarkdownNode =>
   pipeline.parse(asRead(source)) as MarkdownNode

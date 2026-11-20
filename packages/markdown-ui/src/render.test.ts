@@ -1,22 +1,3 @@
-/**
- * What the pipeline promises, as HTML.
- *
- * These are the features a document leans on — fenced code, footnotes, a
- * relative picture — plus the one thing every markdown renderer has to be held
- * to, which is what it refuses. The e2e suite proves the same things reach a
- * browser; this is where the shape of the output is pinned down cheaply.
- *
- * Titles use the same pipeline forced to phrasing content only: those tests
- * live at the bottom, because "inline-only" is a discipline of its own and a
- * block that escaped into a title would break every row that drew it.
- *
- * The pipeline is a chunk the browser fetches (./chunk.ts), and there is no
- * shell here to read its URL from — so this file imports the same module the
- * browser ends up with and installs it, which is what keeps these tests tests
- * of the thing that ships. What the page does BEFORE it arrives is a question
- * about a page, and is answered in the browser suite
- * (`packages/plugins/markdown/e2e/features/markdown_arrives.feature`).
- */
 import { claims } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { TESTID } from "@olai/markdown-ui/testids.ts"
@@ -44,27 +25,18 @@ test("a fenced block is highlighted, in classes rather than colours", () => {
   expect(html).toContain(`<span class="hljs-keyword">const</span>`)
 })
 
-// Nix is registered ON TOP of lowlight's common set rather than instead of it
-// (render.ts says why). Only the addition needs its own test: the test above
-// is a `ts` fence, which is IN that common set, so a `languages` option that
-// stopped spreading it fails there first.
 test("a nix fence is highlighted", () => {
   const html = renderMarkdown(TEST_CLAIMS, "```nix\npkgs.mkShell { name = \"olai\"; }\n```\n", NOTE)
   expect(html).toContain(`<code class="hljs language-nix">`)
   expect(html).toContain(`<span class="hljs-string">"olai"</span>`)
 })
 
-// An unknown language is not an error and not a reason to lose the block: it
-// is drawn as what it is, plain text.
 test("a fence in a language nobody registered is left alone", () => {
   const html = renderMarkdown(TEST_CLAIMS, "```klingon\nnuqneH\n```\n", NOTE)
   expect(html).toContain("nuqneH")
   expect(html).not.toContain("hljs-")
 })
 
-// A task list is checkboxes, and a plain item beside them is still a bullet.
-// The browser suite is what sees that the checkbox replaced the marker; this
-// pins that the pipeline still emitted the inputs.
 test("a task list is checkboxes, and a plain item beside them is still a bullet", () => {
   const html = renderMarkdown(TEST_CLAIMS, "- [x] done\n- [ ] not\n- plain\n", NOTE)
   expect(html).toContain(`<input type="checkbox" checked disabled>`)
@@ -76,29 +48,21 @@ test("a footnote is a link to a note at the end", () => {
   const html = renderMarkdown(TEST_CLAIMS, "Cabinets[^1]\n\n[^1]: Walnut.\n", NOTE)
   expect(html).toContain("Walnut.")
   expect(html).toContain(`class="footnotes"`)
-  // The link and the note it names agree, which is the whole of a footnote.
   const reference = /href="#([^"]+)"/.exec(html)?.[1]
   expect(reference).toBeDefined()
   expect(html).toContain(`id="${reference}"`)
 })
 
-// Every rendered block on a page mints its own ids, so two notes' footnotes
-// cannot answer for each other — and the SAME text renders the same ids every
-// time, because a live frame re-renders the page and links that moved would
-// break under the reader's cursor.
 test("footnote ids belong to the block, not to the parser", () => {
   const source = "Cabinets[^1]\n\n[^1]: Walnut.\n"
   const one = renderMarkdown(TEST_CLAIMS, source, "house.olai")
   const other = renderMarkdown(TEST_CLAIMS, source, "garden.olai")
   expect(one).not.toEqual(other)
   expect(renderMarkdown(TEST_CLAIMS, source, "house.olai")).toEqual(one)
-  // Nothing is left with the parser's own bare `fn-1`.
   expect(one).not.toContain(`id="fn-1"`)
   expect(one).toMatch(/id="md-[a-z0-9]+-fn-1"/)
 })
 
-// A relative picture is a file in the served directory, resolved beside the
-// text that named it and fetched from the one route that serves them.
 test("a relative picture points at the media route", () => {
   expect(renderMarkdown(TEST_CLAIMS, "![a](art/shot.png)", "notes/plan.md"))
     .toContain(`src="/media/notes/art/shot.png"`)
@@ -106,11 +70,6 @@ test("a relative picture points at the media route", () => {
     .toContain(`src="/media/shot.png"`)
 })
 
-// …and the one after it waits for the reader. ORDER is the whole rule: this
-// pass has no viewport to measure a fold against, so the only picture it can
-// refuse to defer is the one no other picture precedes — deferring THAT is
-// deferring whatever the page is painted by. A picture that is not drawn is
-// not counted either, which is why the second one here is still the eager one.
 test("the first picture of a block is fetched at once and the rest wait", () => {
   const html = renderMarkdown(TEST_CLAIMS, "![a](art/shot.png)\n\n![b](../shot.png)\n", "notes/plan.md")
   expect(html).toContain(`<img src="/media/notes/art/shot.png" alt="a" loading="eager" decoding="async">`)
@@ -120,31 +79,19 @@ test("the first picture of a block is fetched at once and the rest wait", () => 
   expect(after).not.toContain(`loading="lazy"`)
 })
 
-// Anything else is not drawn AT ALL — a remote image would tell a third party
-// what someone is reading, and the rest are ways of drawing something that is
-// not a file in this directory.
 test("a picture this app will not fetch is not drawn", () => {
   for (const src of ["https://example.com/a.png", "data:image/png;base64,AA", "/a.png"]) {
     expect(renderMarkdown(TEST_CLAIMS, `![a](${src})`, NOTE)).not.toContain("<img")
   }
-  // Not a picture, so not an image either, whatever the route would say.
   expect(renderMarkdown(TEST_CLAIMS, "![a](notes.md)", NOTE)).not.toContain("<img")
 })
 
-// ...and it SAYS so where the picture would have been. Not drawing it is the
-// rule; deleting the element was the bug — a name this app will not resolve
-// came out as a page with a hole in it, which nothing and nobody can debug.
-// (A name that RESOLVES to a file that is not there is a different case and
-// not this module's: it points at `/media/…`, and the browser's own broken
-// image is what says so. What this module can see, it now says.)
 test("a picture that is not drawn says so, and names what it was", () => {
   const html = renderMarkdown(TEST_CLAIMS, "![a](shot.pngg)", NOTE)
   expect(html).toContain(`data-testid="${TESTID.undrawnPicture}"`)
   expect(html).toContain("this picture could not be drawn: shot.pngg")
 })
 
-// The name is the one the MARKDOWN wrote, for every kind of refusal, because
-// that is the string a reader has to go and fix.
 test("every refused picture names the src that was written", () => {
   for (const src of ["https://example.com/a.png", "/a.png", "logo.svg", "notes.md"]) {
     expect(renderMarkdown(TEST_CLAIMS, `![a](${src})`, NOTE))
@@ -152,11 +99,6 @@ test("every refused picture names the src that was written", () => {
   }
 })
 
-// ...except the one there is no longer a name for, and that is the ORDER
-// working rather than a hole in it: the sanitiser is the security boundary and
-// runs BEFORE this pass, so a `data:` src is gone by the time anything here
-// could have quoted it. Same for an `![]()` with nothing in it. Both still say
-// so — which is the whole point — in the one sentence that is true of both.
 test("a picture whose address never reached us still says so", () => {
   for (const src of ["data:image/png;base64,AA", ""]) {
     const html = renderMarkdown(TEST_CLAIMS, `![a](${src})`, NOTE)
@@ -165,15 +107,6 @@ test("a picture whose address never reached us still says so", () => {
   }
 })
 
-// ── links between documents ──────────────────────────────────────────────
-//
-// A vault of Markdown points at itself with plain relative paths, and the
-// browser would resolve one against whatever ROUTE the page is at — the
-// document's own directory on the document page by luck, and the wrong place on
-// `/d/<date>`, where a day's note is drawn under an address that is not a file.
-// So the link is resolved beside the file it was WRITTEN in, and spelled as
-// this app's document route.
-
 test("a relative link to a document points at that document's page", () => {
   expect(renderMarkdown(TEST_CLAIMS, "[the deck](../projects/deck.md)", "Daily/2026-08-12.md"))
     .toContain(`href="/projects/deck.md"`)
@@ -181,27 +114,17 @@ test("a relative link to a document points at that document's page", () => {
     .toContain(`href="/notes/palette.md"`)
 })
 
-// The base is the FILE, never the route. This is the same source rendered from
-// two places, and the day page — where the note lives under `/d/2026-08-12` —
-// is the one that used to be wrong.
 test("a link in a note resolves beside the note, not beside the page", () => {
   const source = "[palette](palette.md)"
   expect(renderMarkdown(TEST_CLAIMS, source, "notes/2026-08-12.md"))
     .toContain(`href="/notes/palette.md"`)
-  // The same link written in an OUTLINE resolves beside the outline.
   expect(renderMarkdown(TEST_CLAIMS, source, "house.olai")).toContain(`href="/palette.md"`)
 })
 
-// A fragment is two questions — which file, and where in it — so the path is
-// resolved and the anchor is carried through exactly as written.
 test("a document link keeps the fragment it was written with", () => {
   expect(renderMarkdown(TEST_CLAIMS, "[beds](garden.md#beds)", NOTE))
     .toContain(`href="/garden.md#beds"`)
 })
-
-// A filename with a space in it is still a document this vault can point at.
-// The href is this app's document route, with the space encoded the way an
-// address is printed.
 
 test("a percent-encoded link to a spaced name points at that document's page", () => {
   expect(renderMarkdown(TEST_CLAIMS, "[the brief](the%20brief.md)", "finishes.md"))
@@ -224,9 +147,6 @@ test("a raw-space link to a spaced name points at that document's page", () => {
     .toContain(`href="/the%20brief.md"`)
 })
 
-// Everything else goes where it says. There is no allowlist widened here and
-// nothing refused: this pass narrows one shape of link and leaves the rest of
-// the reader's markdown alone.
 test("a link that is not a relative document is left exactly as written", () => {
   expect(renderMarkdown(TEST_CLAIMS, "[a](https://example.com/x.md)", NOTE))
     .toContain(`href="https://example.com/x.md"`)
@@ -235,21 +155,12 @@ test("a link that is not a relative document is left exactly as written", () => 
   expect(renderMarkdown(TEST_CLAIMS, "[a](house.olai)", NOTE)).toContain(`href="house.olai"`)
 })
 
-// A PICTURE IS A PAGE NOW, so a link to one is rewritten like a link to a
-// document — same rule, unchanged, named by whatever a relative path resolves
-// to (`@olai/format`'s `relativeTo`). The EMBED is untouched: `![](…)` still
-// resolves through markdown's own picture rule and still becomes a `/media/`
-// URL, which is the distinction this pair holds.
 test("a relative link to a picture opens that picture's page", () => {
   expect(renderMarkdown(TEST_CLAIMS, "[a](art/handle.png)", NOTE)).toContain(`href="/art/handle.png"`)
   expect(renderMarkdown(TEST_CLAIMS, "![a](art/handle.png)", NOTE))
     .toContain(`src="/media/art/handle.png"`)
 })
 
-// An http(s) address is still the address — the test above pins that — but
-// the click must not be able to throw this tab away. Stamped here, after the
-// sanitiser, so a note cannot carry a target of its own and a relative `.md`
-// that just became a page address is not treated as something that leaves the app.
 test("an external http(s) link opens in a new tab", () => {
   for (const href of ["https://example.com/x.md", "http://example.com/x.md"]) {
     const html = renderMarkdown(TEST_CLAIMS, `[a](${href})`, NOTE)
@@ -273,42 +184,26 @@ test("a fragment-only link is not sent to a new tab", () => {
   expect(html).not.toContain("rel=")
 })
 
-// The two passes over one anchor stay in their lanes: a fragment-only link is
-// the BLOCK's own business and is minted into this block's namespace, which is
-// what keeps a footnote pointing at its own note.
 test("a fragment-only link is still minted, not routed", () => {
   const html = renderMarkdown(TEST_CLAIMS, "[up](#top)\n\n# top\n", NOTE)
   expect(html).toMatch(/href="#md-[a-z0-9]+-top"/)
   expect(html).not.toContain("/projects/")
 })
 
-// ── heading anchors, and the contents derived from them ──────────────────
-//
-// The anchor is minted INSIDE the boundary (./anchors.ts), so what is pinned
-// here is that it comes out the other side: an id, a href that names it, and
-// a label a screen reader can use.
 test("a heading carries an id and a link to it", () => {
   const html = renderMarkdown(TEST_CLAIMS, "## The sync loop\n", NOTE)
   const id = /<h2 id="([^"]+)"/.exec(html)?.[1]
   expect(id).toMatch(/^md-[a-z0-9]+-the-sync-loop$/)
   expect(html).toContain(`href="#${id}"`)
-  // The label names the section: a page of anchors is a page of `#`s to
-  // anyone reading by ear.
   expect(html).toContain("aria-label=\"Link to “The sync loop”\"")
 })
 
-// Every rendered block on a page mints its own, for the reason footnotes do:
-// two notes both opening `## Shape` would otherwise answer for each other.
-// (That the id is namespaced at all is the regex above; what is left to say is
-// that the namespace is the BLOCK's.)
 test("heading ids belong to the block, not to the parser", () => {
   const source = "## Shape\n"
   expect(renderMarkdown(TEST_CLAIMS, source, "house.olai")).not
     .toEqual(renderMarkdown(TEST_CLAIMS, source, "garden.olai"))
 })
 
-// The contents is derived from the RENDERING, so what it points at is what is
-// on the page — the whole reason it is not parsed out of the source again.
 test("the outline names the ids the page carries", () => {
   const source = "# Top\n\n## The `sync` loop\n\n### Deeper\n"
   const html = renderMarkdown(TEST_CLAIMS, source, NOTE)
@@ -319,21 +214,10 @@ test("the outline names the ids the page carries", () => {
   for (const heading of headings) expect(html).toContain(`id="${heading.id}"`)
 })
 
-// The anchor is a CHILD of the heading, so the naive reading puts a hash on
-// the end of every line of the contents.
 test("the anchor is not part of the heading's text", () => {
   expect(outlineOf(TEST_CLAIMS, "## Shape\n", NOTE).map((heading) => heading.text)).toEqual(["Shape"])
 })
 
-// ONE RUN between the two entry points, which is the whole reason a contents
-// costs nothing: the page asks for the outline and the component asks for the
-// HTML, and neither is a second pass over the same text.
-//
-// Read off IDENTITY, because a second run is invisible in the output — it
-// would produce an equal outline, one `Heading` object at a time. So: take the
-// outline, render the body exactly as the page then does, and ask for the
-// outline again. Same array means the body's render found the memo and did not
-// replace it. Split `outlineOf` onto a parse of its own and this is red.
 test("the outline and the body are one run, not two", () => {
   const source = "# Top\n\n## Shape\n\n### Deeper\n"
   const from = "one-run.md"
@@ -342,19 +226,15 @@ test("the outline and the body are one run, not two", () => {
   renderMarkdown(TEST_CLAIMS, source, from)
   expect(outlineOf(TEST_CLAIMS, source, from)).toBe(first)
 
-  // …and the other way round, since the page may ask in either order.
   const other = "other.md"
   renderMarkdown(TEST_CLAIMS, source, other)
   expect(outlineOf(TEST_CLAIMS, source, other)).toBe(outlineOf(TEST_CLAIMS, source, other))
 })
 
-// Nothing to choose between, and nothing to point at: neither is a contents.
 test("a document with no headings has no outline", () => {
   expect(outlineOf(TEST_CLAIMS, "Just a paragraph.\n", NOTE)).toEqual([])
 })
 
-// The reason it is safe to hand this to `innerHTML`. These files are written
-// by people, by agents and by git merges.
 test("a script is not markdown", () => {
   const html = renderMarkdown(TEST_CLAIMS,
     `<script>alert(1)</script>\n\n[x](javascript:alert(1))\n`,
@@ -364,35 +244,14 @@ test("a script is not markdown", () => {
   expect(html).not.toContain("javascript:")
 })
 
-/**
- * The scheme quick capture writes, all the way through the pipeline.
- *
- * ./sanitise.test.ts holds the SCHEMA against upstream's; this holds the
- * OUTPUT, which is what a note in the inbox actually renders to — a link the
- * browser will hand to the OS, so pressing it opens Mail.app at the message
- * the capture came from. It was stripped before `message:` joined the href
- * protocols, which is the failure the two tests exist between them to keep
- * from coming back.
- *
- * The autolink spelling (`<…>`) is what a WRITER has to use for this scheme:
- * GFM's autolink literals do not cover `message:`, so a bare URL would have
- * been text either way. Nothing in olai composes one any more — the capture verb
- * grew a link field for the mail case and lost it again (a capture is a title
- * and a note now) — so this is the renderer's promise to whoever types one into
- * a note, which is exactly who the mail recipe in website/docs/running.md is.
- */
 test("a captured mail's message: link survives, in a note and in a title", () => {
   const href = "message://%3Cabc123@mail.example%3E"
   expect(renderMarkdown(TEST_CLAIMS, `the thread about cabinets\n\n<${href}>\n`, NOTE))
     .toContain(`href="${href}"`)
   expect(renderInlineMarkdown(TEST_CLAIMS, `[the thread](${href})`, NOTE)).toContain(`href="${href}"`)
-  // …and the sibling attribute did NOT come with it: nothing may FETCH one.
   expect(renderMarkdown(TEST_CLAIMS, `![x](${href})\n`, NOTE)).not.toContain(`src="${href}"`)
 })
 
-// ── inline (titles) ────────────────────────────────────────────────────
-
-// Racket parity: a title is phrasing — bold, links, code — never a block.
 test("inline markdown keeps bold, code and links", () => {
   const html = renderInlineMarkdown(TEST_CLAIMS,
     "**bold** and `code` and [a](https://example.com)",
@@ -403,32 +262,24 @@ test("inline markdown keeps bold, code and links", () => {
   expect(html).toContain(`href="https://example.com"`)
   expect(html).toContain(`target="_blank"`)
   expect(html).toContain(`rel="noopener noreferrer"`)
-  // No wrapping paragraph: a title is not a document.
   expect(html).not.toContain("<p")
 })
 
-// The whole point of "inline-only": a title that contains block-level source
-// must not produce block output that would break a tree row's layout. Words
-// stay; boxes do not.
 test("inline markdown unwraps blocks rather than drawing them", () => {
-  // A heading: the `#` is markdown syntax, so the words remain without an h1.
   const heading = renderInlineMarkdown(TEST_CLAIMS, "# not a heading", NOTE)
   expect(heading).toContain("not a heading")
   expect(heading).not.toMatch(/<h[1-6]/)
 
-  // A list: the item text stays, the list box does not.
   const list = renderInlineMarkdown(TEST_CLAIMS, "- nor a list", NOTE)
   expect(list).toContain("nor a list")
   expect(list).not.toContain("<ul")
   expect(list).not.toContain("<li")
 
-  // A fence: the code stays as phrasing `<code>`, never a `<pre>` block.
   const fence = renderInlineMarkdown(TEST_CLAIMS, "```\nstill words\n```", NOTE)
   expect(fence).toContain("still words")
   expect(fence).not.toContain("<pre")
   expect(fence).toContain("<code")
 
-  // Two paragraphs become one run of phrasing, with a space between.
   const paras = renderInlineMarkdown(TEST_CLAIMS, "foo\n\nbar", NOTE)
   expect(paras).toContain("foo")
   expect(paras).toContain("bar")
@@ -436,7 +287,6 @@ test("inline markdown unwraps blocks rather than drawing them", () => {
   expect(paras.replace(/\s+/g, " ")).toMatch(/foo bar/)
 })
 
-// Same sanitiser: a title is not a place a script may appear either.
 test("inline markdown is sanitised the same way", () => {
   const html = renderInlineMarkdown(TEST_CLAIMS,
     `<script>alert(1)</script> and [x](javascript:alert(1))`,
@@ -446,8 +296,6 @@ test("inline markdown is sanitised the same way", () => {
   expect(html).not.toContain("javascript:")
 })
 
-// A streamed answer and its final render must mint the same footnote ids —
-// Markdown.tsx switches path the instant streaming ends.
 test("streaming and final share a footnote id namespace", () => {
   const source = "Cabinets[^1]\n\n[^1]: Walnut.\n"
   const streamed = renderStreaming(TEST_CLAIMS, source, NOTE)
@@ -459,20 +307,9 @@ test("streaming and final share a footnote id namespace", () => {
   expect(final).toContain(`href="#${id}"`)
 })
 
-// ── titles ─────────────────────────────────────────────────────────────
-
-/** The HTML of a title's drawing.
- *
- * A drawing is HTML plus the rung of the ladder it came from (`waiting`), and
- * every case below has the pipeline installed at the top of this file — so
- * every one of them is a FINISHED answer and the rung is not what they are
- * about. What the page does with the third rung is a question about a page:
- * `packages/plugins/markdown/e2e/features/markdown_arrives.feature`. */
 const titleHtml = (title: string, from: string, options?: TitleRender): string =>
   renderTitle(TEST_CLAIMS, title, from, options).html
 
-// Tags are styled AFTER markdown, so a tag inside a construct does not split
-// the construct across two parser runs.
 test("a title keeps both markdown and its tags", () => {
   const html = titleHtml("**urgent** fix #home", NOTE)
   expect(html).toContain("<strong>urgent</strong>")
@@ -481,9 +318,6 @@ test("a title keeps both markdown and its tags", () => {
   expect(html).not.toContain("**")
 })
 
-// The space before a tag must survive. Assert the literal gap into the tag
-// span — not a slice that also covers the span's attributes (those always
-// contain whitespace, so a vacuous /\s/ would pass on the regressed html).
 test("a title keeps the space before a tag", () => {
   const html = titleHtml("kitchen remodel #home", NOTE)
   expect(html).toContain("remodel <span")
@@ -491,14 +325,12 @@ test("a title keeps the space before a tag", () => {
   expect(html).toContain("#home")
 })
 
-// Tag-inside-construct: the cases the pre-markdown split destroyed.
 test("a tag inside bold stays bold", () => {
   const html = titleHtml("**urgent #home**", NOTE)
   expect(html).toContain("<strong>")
   expect(html).toContain(`data-testid="tag"`)
   expect(html).toContain("#home")
   expect(html).not.toContain("**")
-  // The tag span sits inside the strong, not as a sibling of broken source.
   expect(html).toMatch(/<strong>[\s\S]*data-testid="tag"[\s\S]*<\/strong>/)
 })
 
@@ -506,7 +338,6 @@ test("a tag inside code stays code, not a styled tag", () => {
   const html = titleHtml("`#home` config", NOTE)
   expect(html).toContain("<code>")
   expect(html).toContain("#home")
-  // code subtrees are not walked for tags.
   expect(html).not.toContain(`data-testid="tag"`)
 })
 
@@ -514,7 +345,6 @@ test("a link with a URL fragment is not shredded by the tag alphabet", () => {
   const html = titleHtml("see [spec](https://example.com/x#home)", NOTE)
   expect(html).toContain(`href="https://example.com/x#home"`)
   expect(html).toContain("spec")
-  // The fragment is on the href, not a tag in the text.
   expect(html).not.toContain(`data-testid="tag"`)
   expect(html).not.toContain("[spec]")
 })
@@ -523,30 +353,23 @@ test("a tag that is the link text stays a link, not a split", () => {
   const html = titleHtml("[#home](https://example.com)", NOTE)
   expect(html).toContain(`href="https://example.com"`)
   expect(html).toContain("#home")
-  // Inside <a>, tags are not re-styled (skip a subtrees).
   expect(html).not.toContain(`data-testid="tag"`)
 })
 
-// Empty render of non-empty source → escaped source, never a blank row.
 test("a title that the pipeline empties falls back to the escaped source", () => {
   for (const source of ["---", "***", "___", "<div>plan the trip</div>", "<!-- note -->"]) {
     const html = titleHtml(source, NOTE)
     expect(html.length).toBeGreaterThan(0)
     expect(html).not.toBe("")
   }
-  // Raw HTML angle brackets must not open an element in the fallback.
   expect(titleHtml("<div>plan</div>", NOTE)).not.toContain("<div")
   expect(titleHtml("<div>plan</div>", NOTE)).toContain("plan")
 })
 
-// Partial loss: the pipeline kept some text but dropped a word inside raw
-// HTML. Falling back only on full emptiness left a title that looked correct
-// while being wrong — worse than the marks.
 test("a title that loses words to raw HTML falls back to the escaped source", () => {
   const component = titleHtml("Use <Component> here", NOTE)
   expect(component).toContain("Component")
   expect(component).not.toContain("<Component")
-  // Escaped, not the truncated "Use  here".
   expect(component).toContain("Use")
   expect(component).toContain("here")
   expect(component).toContain("&lt;")
@@ -554,11 +377,9 @@ test("a title that loses words to raw HTML falls back to the escaped source", ()
   const algo = titleHtml("C++ <algorithm>", NOTE)
   expect(algo).toContain("algorithm")
   expect(algo).toContain("&lt;")
-  // Must not be the truncated "C++ " with the word gone.
   expect(algo.replace(/&lt;|&gt;|&amp;|&quot;/g, "")).toContain("algorithm")
 })
 
-// Ordinary markdown still renders — the loss check must not fire on every title.
 test("a normal markdown title does not fall back to escaped source", () => {
   const html = titleHtml("**urgent** fix #home", NOTE)
   expect(html).toContain("<strong>urgent</strong>")
@@ -567,20 +388,6 @@ test("a normal markdown title does not fall back to escaped source", () => {
   expect(html).not.toContain("&lt;")
 })
 
-// ── what the loss check must NOT mistake for a loss ─────────────────────
-//
-// The check above compares what was drawn against the text the SOURCE accounts
-// for, and that second number is markdown's own reading of the title
-// (render.ts's `sourceText`, held against the drawn text by
-// title.ts's `lostText`). It used to be a list of regexes — a small
-// markdown dialect standing next to the real parser — and these are the titles
-// it read wrong: every one of them rendered correctly and was then thrown away
-// for its own escaped source.
-
-// Nested emphasis is the shape that started it: `**b *c* d**` matches no
-// bold rule whole, so the marks the inner run left behind stayed in the
-// estimate, the estimate came out longer than the render, and the row drew
-// `a **b *c* d** e` with a stray `*` in it.
 test("nested emphasis renders rather than falling back to the source", () => {
   expect(titleHtml("a **b *c* d** e", NOTE)).toBe(
     "a <strong>b <em>c</em> d</strong> e",
@@ -593,7 +400,6 @@ test("every nesting of the two emphasis marks renders", () => {
     "<strong>a <em>b</em> c</strong>",
   )
   expect(titleHtml("*a **b** c*", NOTE)).toBe("<em>a <strong>b</strong> c</em>")
-  // The underscore spellings of the same three.
   expect(titleHtml("a __b _c_ d__ e", NOTE)).toBe(
     "a <strong>b <em>c</em> d</strong> e",
   )
@@ -616,25 +422,18 @@ test("nested emphasis inside a link's text keeps the link", () => {
   expect(html).not.toContain("[**")
 })
 
-// A character reference is one character of text, and the source spells it in
-// five. Counting the spelling made every `&amp;` a loss, and the row drew the
-// fallback's re-escaped `&amp;amp;`.
 test("a character reference is not read as lost text", () => {
   const html = titleHtml("Tom &amp; Jerry", NOTE)
   expect(html).not.toContain("amp;amp;")
   expect(html.replace(/&#x26;|&amp;/g, "&")).toBe("Tom & Jerry")
 })
 
-// Both readings of a title go through `bracketSpacedLinks` (@olai/format, in
-// pipeline.ts), so they read one string: `(my file.md)` is a destination to
-// the render and would be literal text to a parse that skipped it.
 test("a link whose destination holds a space still renders", () => {
   const html = titleHtml("see [the spec](my file.md)", NOTE)
   expect(html).toContain("the spec")
   expect(html).not.toContain("](")
 })
 
-// Inside a Link (breadcrumb, see-ref): no nested <a>.
 test("a title with links=false unwraps anchors", () => {
   const html = titleHtml("see [the spec](https://example.com/x)", NOTE, {
     links: false,
@@ -644,14 +443,6 @@ test("a title with links=false unwraps anchors", () => {
   expect(html).not.toContain("href=")
 })
 
-// A local picture is not phrasing for titles — it would grow the row — which
-// makes such a title one that LOST words: ./inline.ts drops the picture and
-// the `alt` goes with it, while the alt is text the source accounts for. So
-// this is a fallback like the raw-HTML ones above, and it is pinned as the
-// WHOLE string rather than "no <img>, and the word shot is in there
-// somewhere": the accounting counts an image's alt (`mdast-util-to-string`'s
-// `includeImageAlt`), and turning that off would draw a bare "shot" here and
-// sail past the weaker assertion.
 test("a picture in a title falls back to the escaped source", () => {
   const html = titleHtml("shot ![a](art/shot.png)", NOTE)
   expect(html).toBe("shot ![a](art/shot.png)")

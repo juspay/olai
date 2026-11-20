@@ -30,8 +30,6 @@ test("a note's in-page links stay local fragments and its headings carry no rout
   expect(outlineOf(TEST_CLAIMS, BODY, "house.olai").every((one) => one.route === undefined)).toBe(true)
 })
 
-/** WHERE THE LINK LANDS is the claim, not what it spells: the route's slug,
- *  read the way an address is (`landingId`), must find the heading it names. */
 const lands = (body: string, from: string, label: string) => {
   const html = renderMarkdown(TEST_CLAIMS, body, from)
   const href = new RegExp(`<a [^>]*href="([^"]*)"[^>]*>${label}</a>`).exec(html)?.[1]

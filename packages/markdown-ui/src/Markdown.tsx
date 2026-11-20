@@ -1,45 +1,4 @@
 import { intentOf } from "@olai/surface"
-/**
- * Markdown from a file, on the page — a note, a document, or the agent.
- *
- * Titles go through the same pipeline forced to phrasing content
- * (`renderTitle` → `renderToTree` in ./title.ts / ./render.ts), drawn by
- * `NodeTitle` rather than this component, because a title is not a block of
- * prose.
- *
- * The one component that hands full rendered HTML to `innerHTML`, so the
- * reason that is safe is written down once, wherever markdown appears:
- * ./render.ts sanitises, and everything it points at — a picture, a footnote,
- * a link into itself — has been narrowed to something this app is willing to
- * draw (./rewrite.ts).
- *
- * `from` is the file the markdown was written in, and it is required rather
- * than optional because a relative picture cannot be resolved without it. A
- * note's is its outline; a document's is itself; the agent's is the EMPTY
- * string, which resolves against the served directory itself — the agent was
- * started there, so that is what a relative path in what it says is relative
- * to, and there is no file to name because it did not write one.
- *
- * ## Before the pipeline arrives, and if it never does
- *
- * Mounting this is what RUNS the markdown machinery (./chunk.ts); the shell
- * has already fetched it. Until it lands, what is on the page is the file's
- * own text, set `pre-wrap` so its lines are its lines — and BLURRED out of
- * legibility, swept, by the one rule every waiting surface wears
- * (`[data-markdown="waiting"]` in ../styles.css).
- *
- * The text is what makes that honest. The box is the size the real characters
- * make, so the swap is a de-blur and the block itself moves nowhere; a
- * skeleton of invented gray bars would be a guess at a height, and a spinner
- * or a blank would be neither the shape nor the words. What no reader gets is
- * a frame of raw `**` and `[](…)`, which is what this used to paint on every
- * first render, cache or no cache (roadmap `markdown-raw-flash`).
- *
- * A fetch that fails says so, above that same text. It is the one place in the
- * app that can say it: a title's fallback is a title either way, but a
- * document whose renderer never came would otherwise be a page of source with
- * no explanation.
- */
 import { deadLinkSaid, type Claims } from "@olai/format"
 import { createEffect, createMemo, Show } from "solid-js"
 
@@ -52,22 +11,15 @@ import { busyMark, waitingMark } from "./waiting.ts"
 export function Markdown(props: {
   readonly claims: Claims | undefined
   readonly source: string
-  /** Immutable directory membership: identity changes only with its contents. */
   readonly members?: ReadonlySet<string>
   readonly from: string
   readonly class?: string
   readonly testid?: string
-  /** This text is still arriving, so it is rendered but not CACHED: every
-   *  prefix of a growing answer is a string that will never be asked for
-   *  again. See ./render.ts. */
   readonly live?: boolean
-  /** A clipped document/section face, using the same decoration and states. */
   readonly excerpt?: { readonly after?: string; readonly blocks: number }
   readonly landing?: { readonly line: number; readonly needles: ReadonlyArray<string> }
 }) {
   let container: HTMLDivElement | undefined
-  // `markdownReady()` both answers and asks — reading it here is what starts
-  // the fetch, and what re-runs this memo when the file lands.
   const rendered = createMemo(() =>
     markdownReady()
       ? props.live === true
@@ -81,8 +33,6 @@ export function Markdown(props: {
     const value = rendered()
     return value !== undefined && props.excerpt ? markdownExcerpt(value, props.excerpt) : value
   })
-  // File membership changes link decoration, never the rendered prose or its
-  // selection/details state. The rewrite pass records authored link metadata.
   createEffect(() => {
     html()
     const members = props.members
@@ -92,24 +42,9 @@ export function Markdown(props: {
       link.classList.toggle("olai-dead-link", dead)
       if (dead) link.setAttribute("data-dead", "true")
       else link.removeAttribute("data-dead")
-      // THE AUTHOR'S OWN TOOLTIP, and the only `title` this app still writes.
-      // `[x](y "…")` is a title the DOCUMENT carries — content, the same way
-      // an `<iframe>`'s is — so it is rendered the way every markdown reader
-      // renders it rather than restyled into this app's chrome.
       const authored = link.dataset["linkTitle"] ?? ""
       if (authored) link.title = authored
       else link.removeAttribute("title")
-      // THE APP'S OWN SENTENCE IS NOT A TITLE. A dead link's reason rode that
-      // same attribute until now, where it answered a pointer and nobody
-      // else. `<Tip>` cannot take it over: a tip renders the control it
-      // explains and measures its own first element child, and these anchors
-      // are the sanitised HTML of somebody's document, written by
-      // `innerHTML` and replaced wholesale on every render — wrapping each
-      // one would mean a Solid root per link, minted and disposed inside this
-      // effect, which is a second ownership tree for a tooltip. So the reason
-      // goes where every reader gets it in every mode: the link's NAME, after
-      // the words it keeps (WCAG 2.5.3 — the visible label stays in the
-      // name), and off again the moment the file it points at is served.
       if (dead) {
         const warning = deadLinkSaid({ written: link.dataset["linkWritten"]!, resolved: path, suggest: [] })
         const words = (link.textContent ?? "").trim()
@@ -117,12 +52,6 @@ export function Markdown(props: {
       } else link.removeAttribute("aria-label")
     }
   })
-  /** Is this block still WAITING on the renderer — the arrival's own answer
-   *  (./chunk.ts), not `html() === undefined`, which is "not rendered" and is
-   *  true of a page whose renderer failed as well. The two agree inside this
-   *  branch, since the `<Show>` above sends a failure the other way; reading
-   *  the one answer is what stops that agreement being a thing somebody has to
-   *  keep true. ./title.ts reads the same signal for the same reason. */
   const waiting = markdownWaiting
   const classes = (): string => `olai-md ${props.class ?? ""}`
 
@@ -131,27 +60,16 @@ export function Markdown(props: {
       when={markdownFailure()}
       fallback={
         <div ref={container}
-          // The SAME element either way — nothing remounts when the rendering
-          // replaces the source, so nothing on the page moves but the words
-          // themselves. What it LOOKS like while it waits, down to its
-          // `pre-wrap`, is the sheet's (../styles.css).
           class={classes()}
           data-testid={props.testid}
-          // The waiting face, which every surface holding unrendered source
-          // wears (./waiting.ts, ../styles.css) — this element rather than a
-          // wrapper, because what the rule blurs is what is inside it.
           data-markdown={waitingMark(waiting())}
           aria-busy={busyMark(waiting())}
-          // Safe because the pipeline sanitises (see ./render.ts), and because
-          // the text of the file it came from is escaped when there is no
-          // pipeline yet.
           onClick={event => {
             if (intentOf(event) === null || !(event.target instanceof Element)) return
-            // The sanitiser keeps neither `download` nor `target` on a `#` link.
             const href = event.target.closest("a[href]")?.getAttribute("href")
             if (!href?.startsWith("#")) return
             event.preventDefault()
-            try { container?.querySelector(`#${CSS.escape(decodeURIComponent(href.slice(1)))}`)?.scrollIntoView({ block: "nearest" }) } catch { /* malformed local fragment */ }
+            try { container?.querySelector(`#${CSS.escape(decodeURIComponent(href.slice(1)))}`)?.scrollIntoView({ block: "nearest" }) } catch { }
           }}
           innerHTML={html() ?? escapeHtml(props.source)}
         />

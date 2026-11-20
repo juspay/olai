@@ -1,5 +1,3 @@
-/** Select sanitized rendered blocks without losing heading identity (including
- * duplicate slugs). Markdown still owns waiting, failure and link decoration. */
 export function markdownExcerpt(html: string, excerpt: { readonly after?: string; readonly blocks: number }) {
   const template = document.createElement("template")
   template.innerHTML = html
