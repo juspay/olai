@@ -5,8 +5,7 @@ const AUTHORIZE_PATH = "/o/oauth2/v2/auth"
 const TOKEN_PATH = "/token"
 const REVOKE_PATH = "/revoke"
 
-/** `BASE64URL(SHA256(ASCII(verifier)))` — RFC 7636 §4.2, and the method the
- *  plugin's authorization URL declares as `S256`. */
+// RFC 7636 §4.2: `BASE64URL(SHA256(ASCII(verifier)))`.
 const challengeOf = (verifier: string): string =>
   createHash("sha256")
     .update(verifier, "ascii")
@@ -32,7 +31,7 @@ export interface GoogleRequest {
 
 export interface FakeGoogle {
   readonly origin: string
-  readonly rewrite: (next: FakeGoogleInput) => void
+  readonly becomes: (next: FakeGoogleInput) => void
   readonly requests: () => ReadonlyArray<GoogleRequest>
   readonly revoked: () => ReadonlyArray<string>
   readonly issued: () => ReadonlyArray<string>
@@ -48,28 +47,28 @@ interface Grant {
 }
 
 export const startFakeGoogle = async (name: string): Promise<FakeGoogleByName> => {
-  const fake = await startFakeGoogleFor(fixtureNamed(GOOGLES, "Google", name))
+  const fake = await startFakeGoogleWithFixture(fixtureNamed(GOOGLES, "Google", name))
   return {
     ...fake,
-    rewrite: (next) => {
-      fake.rewrite(fixtureNamed(GOOGLES, "Google", next))
+    becomes: (next) => {
+      fake.becomes(fixtureNamed(GOOGLES, "Google", next))
     },
   }
 }
 
-export interface FakeGoogleByName extends Omit<FakeGoogle, "rewrite"> {
-  readonly rewrite: (name: string) => void
+export interface FakeGoogleByName extends Omit<FakeGoogle, "becomes"> {
+  readonly becomes: (name: string) => void
 }
 
-export const startFakeGoogleFor = async (input: FakeGoogleInput): Promise<FakeGoogle> => {
+export const startFakeGoogleWithFixture = async (input: FakeGoogleInput): Promise<FakeGoogle> => {
   let fixture = input
-  const rewrite = (next: FakeGoogleInput): void => {
+  const becomes = (next: FakeGoogleInput): void => {
     if (next.email.trim() === "") {
       throw new Error("fake-google: a fixture with no email has no account to consent as")
     }
     fixture = next
   }
-  rewrite(input)
+  becomes(input)
   let minted = 0
   const serial = (prefix: string): string => {
     minted += 1
@@ -167,9 +166,8 @@ export const startFakeGoogleFor = async (input: FakeGoogleInput): Promise<FakeGo
       }
       const access = fixture.accessToken ?? serial("ya29.olai-fake-")
       issued.push(access)
-      // NO `refresh_token` in this answer, which is Google's shape when it is
-      // not rotating one: `../../oauth.ts` reads its absence as *keep the one
-      // you have*, and this is the arm that keeps that reading honest.
+      // Google's own shape when it is not rotating a refresh token: none in the
+      // answer at all.
       return Response.json({
         access_token: access,
         expires_in: fixture.expiresIn ?? 3600,
@@ -230,7 +228,7 @@ export const startFakeGoogleFor = async (input: FakeGoogleInput): Promise<FakeGo
 
   return {
     origin: `http://127.0.0.1:${server.port}`,
-    rewrite,
+    becomes,
     requests: () => requests,
     revoked: () => revoked,
     issued: () => issued,

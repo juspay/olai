@@ -1,8 +1,5 @@
-/** What `himalaya --version` prints first: the version, then the build's
- *  features, target and revision (`v2.1.0 +msgraph +rustls-ring +imap …`). The
- *  floor is the release that introduced the `gmail` backend, so a pin that slid
- *  back to 2.0.0 is a check failure rather than a conversation whose every verb
- *  answers *unrecognized subcommand*. */
+// himalaya 2.1.0 is the release that introduced the `gmail` backend: 2.0.0
+// answers every verb below with *unrecognized subcommand*.
 export const HIMALAYA_VERSION_FLOOR: readonly [number, number, number] = [2, 1, 0]
 
 export interface GmailVerb {
@@ -31,9 +28,7 @@ export const GMAIL = {
 
 export const GMAIL_VERBS: ReadonlyArray<GmailVerb> = Object.values(GMAIL)
 
-/** The argv the binary is invoked with, given a config path and a verb's own
- *  arguments. Spelled here rather than in `./run.ts` so the flag order — which
- *  is `-c` and `--json` BEFORE the subcommand words, clap's global-flag rule —
- *  is one fact shared by the runner and the surface check. */
+// `-c` and `--json` are clap global flags, which must precede the subcommand
+// words.
 export const himalayaArgv = (config: string, path: ReadonlyArray<string>, args: ReadonlyArray<string>): ReadonlyArray<string> =>
   ["-c", config, "--json", ...path, ...args]

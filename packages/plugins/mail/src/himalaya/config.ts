@@ -12,9 +12,8 @@ export const tomlString = (value: string): string =>
 
 export interface ConfigInput {
   readonly token: string
-  /** The address `gmail profile` reported, or `null` before the first profile
-   *  call. Himalaya does not require it (the Gmail backend authenticates as the
-   *  token's own user), so an account with no address yet still renders. */
+  // himalaya's Gmail backend authenticates as the token's own user, so it runs
+  // without an address until the first profile call answers one.
   readonly address: string | null
 }
 

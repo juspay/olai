@@ -37,8 +37,8 @@ export const fixtureNamed = <T>(
 }
 
 export const LABELS = { labels: ["INBOX", "UNREAD", "STARRED", "IMPORTANT", "TRASH", "SPAM"].map(name => ({ id: name, name })).concat([{ id: "Label_1", name: "waiting" }, { id: "Label_2", name: "newsletters" }]) }
-/** An attachment id at the length Gmail really sends: 396 characters, past a
- *  single path component's 255 bytes on Linux. */
+// Gmail sends attachment ids this long: 396 characters, past a single path
+// component's 255 bytes on Linux.
 export const LONG_ATTACHMENT = `ANGjdJ__${"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_".repeat(7)}`.slice(0, 396)
 export const ATTACHMENT_BYTES: Readonly<Record<string, number>> = { attachment_1: 12288, [LONG_ATTACHMENT]: 2048 }
 const message = (id: string, subject: string, labels: string[], html = false, attachment = false) => ({

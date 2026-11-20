@@ -18,7 +18,7 @@ export const headerValue = (value: string): Result.Result<string, MailRefusal> =
   if (/[\r\n\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(value)) return refuse("mail headers cannot contain CR, LF or control characters")
   return Result.succeed(value)
 }
-// Each encoded word fits RFC 2047's 75-character limit, split on code points.
+// RFC 2047 caps one encoded word at 75 characters.
 const encodedWords = (value: string): string => {
   const chunks: string[] = []
   let chunk = ""
@@ -29,10 +29,10 @@ const encodedWords = (value: string): string => {
   if (chunk) chunks.push(chunk)
   return chunks.map(part => `=?UTF-8?B?${Buffer.from(part).toString("base64")}?=`).join("\r\n ")
 }
-const encoded = (value: string): string =>
+const unquoted = (value: string): string =>
   !/[^\x20-\x7e]/.test(value) && value.length <= 70 ? value : encodedWords(value)
 const subjectHeader = (value: string): string => {
-  if (/[^\x20-\x7e]/.test(value) || value.split(/\s+/).some(word => word.length > 69)) return encoded(value)
+  if (/[^\x20-\x7e]/.test(value) || value.split(/\s+/).some(word => word.length > 69)) return unquoted(value)
   let column = 9
   return value.split(/( +)/).map((part, i, parts) => {
     if (/^ +$/.test(part) && column + part.length + (parts[i + 1]?.length ?? 0) > 78) {
@@ -59,7 +59,7 @@ const mailbox = (value: string) => Result.gen(function*() {
 export const recipient = (value: string) => Result.gen(function*() {
   const { address, name } = yield* mailbox(value)
   if (!name) return address
-  const display = /[^\x20-\x7e]/.test(name) || name.length > 70 ? encoded(name) : `"${name.replace(/["\\]/g, "\\$&")}"`
+  const display = /[^\x20-\x7e]/.test(name) || name.length > 70 ? unquoted(name) : `"${name.replace(/["\\]/g, "\\$&")}"`
   return `${display} <${address}>`
 })
 export const addressList = (value: string) => Result.gen(function*() {
@@ -95,11 +95,9 @@ export const validateDraft = (args: DraftArgs) => Result.gen(function*() {
   if (args.to !== undefined && !args.to.length) return yield* refuse("mail drafts require at least one To recipient")
   if (!args.thread && (!args.to?.length || args.subject === undefined)) return yield* refuse("new mail drafts require To and Subject")
 })
-/** Base64 at the 76 columns MIME asks for. An empty file has no lines at all,
- *  which is a part with an empty body rather than a throw. */
+// RFC 2045 §6.8 writes base64 at 76 columns.
 const base64 = (data: Buffer): string => data.toString("base64").match(/.{1,76}/g)?.join("\r\n") ?? ""
-/** RFC 5987/2231's attr-char: everything else in a filename is percent-encoded
- *  from its UTF-8 bytes, so `filename*` carries names no quoted string can. */
+// RFC 5987's attr-char; every other byte of a filename is percent-encoded.
 const ATTR_CHAR = /[A-Za-z0-9!#$&+\-.^_`|~]/
 const extended = (name: string): string => `UTF-8''${[...Buffer.from(name, "utf8")]
   .map(byte => ATTR_CHAR.test(String.fromCharCode(byte)) ? String.fromCharCode(byte) : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`)
@@ -108,10 +106,6 @@ const enclosurePart = (boundary: string, one: Enclosure) => Result.gen(function*
   if (CONTROL.test(one.filename)) return yield* refuse("mail attachment filenames cannot contain CR, LF or control characters")
   if (!one.filename.trim()) return yield* refuse("mail attachments need a filename to arrive under")
   if (!contentType(one.type)) return yield* refuse(`malformed mail attachment content type: ${JSON.stringify(one.type)}`)
-  // A name that is plain ASCII with no quoted-pair character goes out as
-  // itself. Anything else takes the encoded words UNCONDITIONALLY — `encoded`'s
-  // short-ASCII shortcut would hand `say "hi".txt` back verbatim and end the
-  // quoted string early.
   const plain = !/[^\x20-\x7e]/.test(one.filename) && !/["\\]/.test(one.filename)
   return [
     `--${boundary}`,

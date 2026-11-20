@@ -6,9 +6,8 @@ import { Effect, Result } from "effect"
 import { MailRefusal } from "./wire.ts"
 
 export const MAX_ENCLOSURES = 10
-/** ...and how many bytes they may come to, each and together. Gmail's own
- *  attachment ceiling is 25 MB, and a draft over it is refused by Google after
- *  the upload rather than before it. */
+// Google refuses a draft whose attachments pass Gmail's 25 MB ceiling after
+// the upload rather than before it.
 export const MAX_ENCLOSED_BYTES = 25 * 1024 * 1024
 
 export interface EnclosureArgs {

@@ -11,8 +11,6 @@ test("attachment names are safe and capped", () => {
   expect(safeFilename("x".repeat(200))).toHaveLength(120)
 })
 test("a Gmail attachment id becomes a short digest, so no path component is too long", () => {
-  // NAME_MAX is 255 bytes on Linux, and a real id is longer than that on its
-  // own — which is the write that failed before the digest.
   const component = `${idDigest("x".repeat(1000))}-${safeFilename("y".repeat(200))}`
   expect(Buffer.byteLength(component)).toBeLessThanOrEqual(255)
   expect(component).not.toContain("x")

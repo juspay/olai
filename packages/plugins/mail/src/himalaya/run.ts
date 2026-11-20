@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { spawn } from "node:child_process"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 
 import { Effect } from "effect"
 
@@ -17,8 +17,8 @@ export const NO_ACCOUNT = "no Gmail account is connected to this serve"
 
 export const TIMEOUT_MS = 60 * 1000
 
-/** The three CA-bundle variables are here because the pinned build speaks TLS
- *  through rustls and a NixOS host points those at the system store. */
+// The pinned build speaks TLS through rustls, and a NixOS host points the three
+// CA-bundle variables at the system store.
 export const CHILD_ENV: ReadonlyArray<string> = [
   "PATH",
   "HOME",
@@ -94,6 +94,10 @@ const refusedWith = (where: string, done: Outcome): string => {
   return `${where} exited ${done.code === null ? "without a status" : String(done.code)}`
 }
 
+type Held =
+  | { readonly kind: "empty"; readonly directory: string }
+  | { readonly kind: "tokened"; readonly directory: string; readonly config: string }
+
 export const makeHimalaya = (input: {
   readonly binary: string | undefined
   readonly env: Record<string, string | undefined>
@@ -104,12 +108,11 @@ export const makeHimalaya = (input: {
     const value = input.env[key]
     if (value !== undefined) childEnv[key] = value
   }
-  let holding = false
-  let directory: string | undefined
+  let held: Held | undefined
 
-  const configPath = async (): Promise<string> => {
-    if (directory === undefined) directory = await mkdtemp(join(configRoot(input.env), "olai-mail-"))
-    return join(directory, CONFIG_FILE)
+  const directoryOf = async (): Promise<string> => {
+    if (held === undefined) held = { kind: "empty", directory: await mkdtemp(join(configRoot(input.env), "olai-mail-")) }
+    return held.directory
   }
 
   return {
@@ -118,9 +121,10 @@ export const makeHimalaya = (input: {
     useToken: (input) =>
       Effect.tryPromise({
         try: async () => {
-          const at = await configPath()
-          await writeFile(at, renderConfig(input), { mode: 0o600 })
-          holding = true
+          const directory = await directoryOf()
+          const config = join(directory, CONFIG_FILE)
+          await writeFile(config, renderConfig(input), { mode: 0o600 })
+          held = { kind: "tokened", directory, config }
         },
         catch: (error) => new MailRefusal({ reason: `could not write Himalaya's config: ${String(error)}` }),
       }).pipe(Effect.uninterruptible),
@@ -128,20 +132,20 @@ export const makeHimalaya = (input: {
     run: (call) =>
       Effect.gen(function*() {
         if (exe === undefined) return yield* Effect.fail(new MailRefusal({ reason: NO_BINARY }))
-        if (!holding) return yield* Effect.fail(new MailRefusal({ reason: NO_ACCOUNT }))
-        const at = yield* Effect.promise(() => configPath())
+        if (held?.kind !== "tokened") return yield* Effect.fail(new MailRefusal({ reason: NO_ACCOUNT }))
+        const tokened = held
         const done = yield* Effect.acquireUseRelease(
           Effect.tryPromise({
             try: async () => {
               if (call.message === undefined) return undefined
-              const file = join(dirname(at), `message-${randomUUID()}.eml`)
+              const file = join(tokened.directory, `message-${randomUUID()}.eml`)
               try { await writeFile(file, call.message, { mode: 0o600, flag: "wx" }) }
               catch (error) { await rm(file, { force: true }); throw error }
               return file
             },
             catch: error => new MailRefusal({ reason: `could not write draft message: ${String(error)}` }),
           }),
-          file => execute(exe, himalayaArgv(at, call.verb.path, [...call.args ?? [], ...file ? ["--", file] : []]), childEnv),
+          file => execute(exe, himalayaArgv(tokened.config, call.verb.path, [...call.args ?? [], ...file ? ["--", file] : []]), childEnv),
           file => file ? Effect.promise(() => rm(file, { force: true })) : Effect.void,
         )
         if (done.code !== 0) {
@@ -154,10 +158,9 @@ export const makeHimalaya = (input: {
       }),
 
     close: async () => {
-      const at = directory
-      directory = undefined
-      holding = false
-      if (at !== undefined) await rm(at, { recursive: true, force: true })
+      const open = held
+      held = undefined
+      if (open !== undefined) await rm(open.directory, { recursive: true, force: true })
     },
   }
 }

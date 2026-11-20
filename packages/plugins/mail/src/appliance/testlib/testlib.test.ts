@@ -19,9 +19,9 @@ import {
   verifierOf,
 } from "../../oauth.ts"
 import type { FakeGoogle } from "./fake-google.ts"
-import { startFakeGoogleFor } from "./fake-google.ts"
+import { startFakeGoogleWithFixture } from "./fake-google.ts"
 import type { FakeHimalaya, MailFixture } from "./fake-himalaya.ts"
-import { draftContents, PINNED_VERSION, startFakeHimalayaFor } from "./fake-himalaya.ts"
+import { draftContents, PINNED_VERSION, startFakeHimalayaWithFixture } from "./fake-himalaya.ts"
 
 const CLIENT = "olai-test-client"
 const SECRET = "olai-test-secret"
@@ -48,7 +48,7 @@ const run = (fake: FakeHimalaya, argv: ReadonlyArray<string>): Promise<Done> => 
 }
 
 const startedFake = async (fixture: MailFixture): Promise<{ readonly fake: FakeHimalaya; readonly config: string }> => {
-  const fake = await startFakeHimalayaFor(fixture)
+  const fake = await startFakeHimalayaWithFixture(fixture)
   const config = path.join(path.dirname(fake.fixturePath), "config.toml")
   writeFileSync(config, renderConfig({ token: "ya29.olai-fake", address: fixture.profile?.email ?? null }))
   return { fake, config }
@@ -81,7 +81,7 @@ test("--version prints the pin's line and the two under it", async () => {
       expect(lines[1]?.startsWith("build: "), flag).toBe(true)
       expect(lines[2]?.startsWith("git: "), flag).toBe(true)
     }
-    fake.rewrite({ version: "himalaya v2.0.0 +gmail" })
+    fake.becomes({ version: "himalaya v2.0.0 +gmail" })
     const older = await run(fake, ["--version"])
     expect(older.stdout.trimEnd().split("\n")[0]).toBe("himalaya v2.0.0 +gmail")
     expect(older.stdout).toContain("build: ")
@@ -173,14 +173,14 @@ test("the fixture's failure is the JSON error on stdout, exit 1, stderr empty", 
   }
 })
 
-test("rewrite moves what the next call answers, both ways", async () => {
+test("the fake becomes another world for the next call, both ways", async () => {
   const { fake, config } = await startedFake({ profile: { email: EMAIL } })
   try {
     expect(JSON.parse((await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])).stdout).email).toBe(EMAIL)
-    fake.rewrite({ profile: { email: EMAIL }, failure: "the token was revoked while you were reading" })
+    fake.becomes({ profile: { email: EMAIL }, failure: "the token was revoked while you were reading" })
     const refused = await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])
     expect(refused.code).toBe(1)
-    fake.rewrite({ profile: { email: "second@olai.invalid" } })
+    fake.becomes({ profile: { email: "second@olai.invalid" } })
     const recovered = await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])
     expect(recovered.code).toBe(0)
     expect(JSON.parse(recovered.stdout).email).toBe("second@olai.invalid")
@@ -190,7 +190,7 @@ test("rewrite moves what the next call answers, both ways", async () => {
 })
 
 test("the whole flow: consent, exchange, refresh and revoke, with every request recorded", async () => {
-  const google = await startFakeGoogleFor({ email: EMAIL })
+  const google = await startFakeGoogleWithFixture({ email: EMAIL })
   try {
     const state = newState()
     const first = verifier(1)
@@ -243,7 +243,7 @@ test("the whole flow: consent, exchange, refresh and revoke, with every request 
 })
 
 test("a consent request that would not earn a refresh token is refused, with a sentence", async () => {
-  const google = await startFakeGoogleFor({ email: EMAIL })
+  const google = await startFakeGoogleWithFixture({ email: EMAIL })
   try {
     const endpoints = endpointsAt(google.origin)
     const asked = authorizationUrl(endpoints, { client: CLIENT, redirect: REDIRECT, state: "s", challenge: challengeOf(verifier(2)) })
@@ -263,7 +263,7 @@ test("a consent request that would not earn a refresh token is refused, with a s
 })
 
 test("a code_verifier that does not hash to the challenge is invalid_grant", async () => {
-  const google = await startFakeGoogleFor({ email: EMAIL })
+  const google = await startFakeGoogleWithFixture({ email: EMAIL })
   try {
     const back = await consented(google, verifier(3), "state-3")
     const response = await exchanged(google, back.searchParams.get("code") ?? "", verifier(4))
@@ -277,7 +277,7 @@ test("a code_verifier that does not hash to the challenge is invalid_grant", asy
 })
 
 test("an authorization code is single-use", async () => {
-  const google = await startFakeGoogleFor({ email: EMAIL })
+  const google = await startFakeGoogleWithFixture({ email: EMAIL })
   try {
     const once = verifier(5)
     const code = (await consented(google, once, "state-5")).searchParams.get("code") ?? ""
@@ -291,7 +291,7 @@ test("an authorization code is single-use", async () => {
 })
 
 test('refresh: "invalid_grant" answers exactly what the plugin\'s fault arm reads', async () => {
-  const google = await startFakeGoogleFor({ email: EMAIL, refresh: "invalid_grant" })
+  const google = await startFakeGoogleWithFixture({ email: EMAIL, refresh: "invalid_grant" })
   try {
     const refresh = refreshRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, refreshToken: "1//olai-fake-1" })
     const response = await fetch(refresh.url, { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: refresh.body })
@@ -306,13 +306,13 @@ test('refresh: "invalid_grant" answers exactly what the plugin\'s fault arm read
   }
 })
 
-test("rewrite moves what the token endpoint answers, on the same origin", async () => {
-  const google = await startFakeGoogleFor({ email: EMAIL, refresh: "invalid_grant" })
+test("the fake Google becomes another world for the token endpoint, on the same origin", async () => {
+  const google = await startFakeGoogleWithFixture({ email: EMAIL, refresh: "invalid_grant" })
   try {
     const refresh = refreshRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, refreshToken: "1//olai-fake-1" })
     const asked = { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: refresh.body }
     expect((await fetch(refresh.url, asked)).status).toBe(400)
-    google.rewrite({ email: EMAIL, refresh: "ok", accessToken: "ya29.moved", expiresIn: 90 })
+    google.becomes({ email: EMAIL, refresh: "ok", accessToken: "ya29.moved", expiresIn: 90 })
     const recovered = await fetch(refresh.url, asked)
     expect(recovered.status).toBe(200)
     const tokens = await recovered.json() as Record<string, unknown>
@@ -320,7 +320,7 @@ test("rewrite moves what the token endpoint answers, on the same origin", async 
     expect(tokens["expires_in"]).toBe(90)
     expect(google.issued()).toEqual(["ya29.moved"])
     expect(google.requests()).toHaveLength(2)
-    expect(() => google.rewrite({ email: " " })).toThrow()
+    expect(() => google.becomes({ email: " " })).toThrow()
   } finally {
     await google.stop()
   }

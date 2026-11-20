@@ -131,7 +131,6 @@ export const makeWatch = (deps: {
         return body
       }, { coalesce: "mail:inbox" })
     }
-    // Only after every recipient has accepted its thunk; disk failure retries.
     if (current()) yield* memory.advance(connection, newest)
     since = clock.now()
   }).pipe(Effect.catchCause(cause => Effect.sync(() => {

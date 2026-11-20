@@ -16,6 +16,7 @@ import {
   verifierOf,
 } from "./oauth.ts"
 
+// RFC 7636 appendix B's own worked example: the verifier in, the challenge out.
 test("S256 is the RFC's own worked example", () => {
   expect(challengeOf("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")).toBe("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
 })
@@ -111,12 +112,12 @@ test("a token answer is read on both arms", () => {
     tokens: { accessToken: "at", refreshToken: null, expiresIn: 3600, scope: null },
   })
   expect(tokenAnswer(400, JSON.stringify({ error: "invalid_grant", error_description: "Token has been expired or revoked." })))
-    .toEqual({ ok: false, error: "invalid_grant", description: "Token has been expired or revoked.", retry: false })
+    .toEqual({ ok: false, kind: "verdict", error: "invalid_grant", description: "Token has been expired or revoked." })
   expect(tokenAnswer(200, JSON.stringify({ token_type: "Bearer" })))
-    .toEqual({ ok: false, error: "no-access-token", description: "the token endpoint answered 200 without an access token", retry: true })
+    .toEqual({ ok: false, kind: "transient", error: "no-access-token", description: "the token endpoint answered 200 without an access token" })
   expect(tokenAnswer(502, "<html>bad gateway</html>"))
-    .toEqual({ ok: false, error: "HTTP 502", description: "<html>bad gateway</html>", retry: true })
-  expect(tokenAnswer(400, "{}")).toEqual({ ok: false, error: "HTTP 400", description: null, retry: true })
+    .toEqual({ ok: false, kind: "transient", error: "HTTP 502", description: "<html>bad gateway</html>" })
+  expect(tokenAnswer(400, "{}")).toEqual({ ok: false, kind: "transient", error: "HTTP 400", description: null })
   expect(tokenAnswer(503, JSON.stringify({ error: "backend_error" })))
-    .toEqual({ ok: false, error: "backend_error", description: null, retry: true })
+    .toEqual({ ok: false, kind: "transient", error: "backend_error", description: null })
 })

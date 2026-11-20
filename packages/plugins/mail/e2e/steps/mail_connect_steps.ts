@@ -161,7 +161,7 @@ Then(
 When(
   "the mail Google fixture is {word}",
   function (this: OlaiWorld, fixture: string) {
-    fakeGoogle(this).rewrite(fixture)
+    fakeGoogle(this).becomes(fixture)
   },
 )
 

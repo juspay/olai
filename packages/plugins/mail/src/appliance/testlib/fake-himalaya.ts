@@ -33,7 +33,7 @@ export interface FakeHimalaya {
   readonly speaks: ReadonlyArray<string>
   readonly deliver: (thread: string, subject: string, inbox?: boolean) => void
   readonly expireHistory: () => void
-  readonly rewrite: (fixture: MailFixture) => void
+  readonly becomes: (fixture: MailFixture) => void
   readonly stop: () => Promise<void>
 }
 
@@ -107,10 +107,6 @@ const answerFor = (verb: GmailVerb, fixture: MailFixture, fixturePath: string): 
   if (profile === undefined) {
     return failed(`the fixture at ${fixturePath} carries no profile, so this fake has nothing to answer \`himalaya ${verb.path.join(" ")}\` with`)
   }
-  // The pinned binary's own JSON: `email`, the two totals — `messages-total` and
-  // `threads-total`, OMITTED when Gmail does not send them — then `history-id`.
-  // Kebab-case keys are the real spelling, and `../../account.ts`'s `profileOf`
-  // reads the two omissions as its `null` arm.
   return {
     code: 0,
     stdout: JSON.stringify({
@@ -214,28 +210,27 @@ await main(process.argv.slice(2))
 `
 
 export const startFakeHimalaya = async (name: string): Promise<FakeHimalayaByName> => {
-  const fake = await startFakeHimalayaFor(fixtureNamed(MAILBOXES, "mailbox", name))
+  const fake = await startFakeHimalayaWithFixture(fixtureNamed(MAILBOXES, "mailbox", name))
   return {
     ...fake,
-    rewrite: (next) => {
-      fake.rewrite(fixtureNamed(MAILBOXES, "mailbox", next))
+    becomes: (next) => {
+      fake.becomes(fixtureNamed(MAILBOXES, "mailbox", next))
     },
   }
 }
 
-export interface FakeHimalayaByName extends Omit<FakeHimalaya, "rewrite"> {
-  readonly rewrite: (name: string) => void
+export interface FakeHimalayaByName extends Omit<FakeHimalaya, "becomes"> {
+  readonly becomes: (name: string) => void
 }
 
-export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHimalaya> => {
+export const startFakeHimalayaWithFixture = async (fixture: MailFixture): Promise<FakeHimalaya> => {
   const directory = mkdtempSync(path.join(tmpdir(), "olai-fake-himalaya-"))
   const fixturePath = path.join(directory, FIXTURE)
   const executable = path.join(directory, SCRIPT)
   writeFileSync(fixturePath, JSON.stringify(fixture, null, 2))
   writeFileSync(executable, SCRIPT_BODY)
-  // Written and then chmodded rather than created with a mode: the umask masks
-  // the mode of a new file, and the one thing this file MUST be is executable
-  // by whoever spawns it.
+  // A new file's mode is masked by the umask, so the one bit this file must
+  // have is set after the write rather than at creation.
   chmodSync(executable, 0o755)
   return {
     path: executable,
@@ -243,7 +238,7 @@ export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHi
     speaks: SPEAKS,
     deliver: (thread, subject, inbox = true) => deliverMail(directory, thread, subject, inbox),
     expireHistory: () => { const history = historyAt(directory); history.latest = String(Number(history.latest) + 10); history.floor = history.latest; writeFileSync(path.join(directory, "history.json"), JSON.stringify(history)) },
-    rewrite: (next) => {
+    becomes: (next) => {
       writeFileSync(fixturePath, JSON.stringify(next, null, 2))
     },
     stop: () => rm(directory, { recursive: true, force: true }),

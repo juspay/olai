@@ -78,8 +78,6 @@ export function MailRow(props: {
     }
   }
 
-  const asksForAPerson = (): boolean => mailNeedsYou(props.account())
-
   const button = "rounded-control border border-rule px-2 py-0.5 text-label"
   return (
     <div class="flex flex-col gap-1.5" data-testid={TESTID.mailRow} data-mail-row={props.account().status}>
@@ -89,7 +87,7 @@ export function MailRow(props: {
           Register {redirectFor(props.account(), window.location.origin)} in Google Cloud.
         </p>
       </Show>
-      <Show when={asksForAPerson()}>
+      <Show when={mailNeedsYou(props.account())}>
         <div class="flex gap-1.5">
           <button type="button" class={button} disabled={busy()} data-testid={TESTID.mailAction} data-mail-action="connect"
             onClick={() => press(() => props.client.procedures.connect.begin({ origin: window.location.origin }))}>

@@ -47,17 +47,15 @@ export const googleOf = (google: string | undefined): Google => {
   return { kind: "endpoints", endpoints: endpointsAt(parsed.origin) }
 }
 
-/** `base64url` without padding, which is what every one of these values is
- *  spelled in (RFC 7636 §A and Google's own examples). */
+// Every value here is base64url without padding (RFC 7636 §A, and Google's own
+// examples).
 export const base64url = (bytes: Uint8Array): string =>
   Buffer.from(bytes).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 
-/** A verifier from thirty-two bytes of whatever the caller has: 43 base64url
- *  characters, inside the 43–128 RFC 7636 §4.1 allows. */
+// RFC 7636 §4.1 allows 43–128 characters; thirty-two bytes is 43 of them.
 export const verifierOf = (bytes: Uint8Array): string => base64url(bytes)
 
-/** `BASE64URL(SHA256(ASCII(verifier)))` — RFC 7636 §4.2, and the method the
- *  authorization URL declares as `S256`. */
+// RFC 7636 §4.2: `BASE64URL(SHA256(ASCII(verifier)))`.
 export const challengeOf = (verifier: string): string =>
   base64url(new Uint8Array(createHash("sha256").update(verifier, "ascii").digest()))
 
@@ -65,9 +63,9 @@ export const newVerifier = (): string => verifierOf(randomBytes(32))
 
 export const newState = (): string => base64url(randomBytes(16))
 
-/** `access_type=offline` and `prompt=consent` TOGETHER are what make Google hand
- *  back a refresh token: offline alone is answered with one only on the first
- *  consent, consent alone with none at all. */
+// `access_type=offline` and `prompt=consent` TOGETHER are what make Google hand
+// back a refresh token: offline alone is answered with one only on the first
+// consent, consent alone with none at all.
 export const authorizationUrl = (
   endpoints: Endpoints,
   input: {
@@ -157,9 +155,8 @@ export const revokeRequest = (endpoints: Endpoints, refreshToken: string): Reque
 
 export interface Tokens {
   readonly accessToken: string
-  /** Google returns a refresh token on the authorization-code exchange (and on
-   *  a refresh only when it decides to rotate one); `null` means *keep the one
-   *  you have*. */
+  // Google sends a refresh token on the authorization-code exchange, and on a
+  // refresh only when it rotates one; `null` means keep the stored one.
   readonly refreshToken: string | null
   readonly expiresIn: number
   readonly scope: string | null
@@ -167,7 +164,7 @@ export interface Tokens {
 
 export type Answer =
   | { readonly ok: true; readonly tokens: Tokens }
-  | { readonly ok: false; readonly error: string; readonly description: string | null; readonly retry: boolean }
+  | { readonly ok: false; readonly kind: "verdict" | "transient"; readonly error: string; readonly description: string | null }
 
 const word = (value: unknown, fallback: string): string => typeof value === "string" && value !== "" ? value : fallback
 
@@ -176,21 +173,21 @@ export const tokenAnswer = (status: number, body: string): Answer => {
   try {
     said = JSON.parse(body)
   } catch {
-    return { ok: false, error: `HTTP ${status}`, description: body.trim().slice(0, 200) || null, retry: true }
+    return { ok: false, kind: "transient", error: `HTTP ${status}`, description: body.trim().slice(0, 200) || null }
   }
   const record = (typeof said === "object" && said !== null ? said : {}) as Record<string, unknown>
   const failure = record["error"]
   if (status >= 400 || typeof failure === "string") {
     return {
       ok: false,
+      kind: status >= 400 && status < 500 && typeof failure === "string" ? "verdict" : "transient",
       error: word(failure, `HTTP ${status}`),
       description: typeof record["error_description"] === "string" ? record["error_description"] : null,
-      retry: !(status >= 400 && status < 500 && typeof failure === "string"),
     }
   }
   const access = record["access_token"]
   if (typeof access !== "string" || access === "") {
-    return { ok: false, error: "no-access-token", description: `the token endpoint answered ${status} without an access token`, retry: true }
+    return { ok: false, kind: "transient", error: "no-access-token", description: `the token endpoint answered ${status} without an access token` }
   }
   const expires = record["expires_in"]
   return {

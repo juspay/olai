@@ -47,10 +47,6 @@ export interface Profile {
   readonly messages: number | null
 }
 
-/** The profile's own JSON, as the pinned binary prints it under `--json`:
- *  `{"email": …, "messages-total": …, "threads-total": …, "history-id": …}` —
- *  kebab-case keys, and the two totals are omitted when Gmail does not send
- *  them. */
 export const profileOf = (raw: unknown): Profile | undefined => {
   if (typeof raw !== "object" || raw === null) return undefined
   const record = raw as Record<string, unknown>
@@ -88,8 +84,13 @@ export interface AccountMachine {
 
 type Readiness =
   | { readonly kind: "every"; readonly endpoints: Endpoints }
-  | { readonly kind: "broken"; readonly reason: string }
-  | { readonly kind: "unarmed"; readonly reason: string }
+  | { readonly kind: "operatorMustFixServe"; readonly reason: string }
+  | { readonly kind: "operatorMustSetCredentials"; readonly reason: string }
+
+type Wake =
+  | { readonly kind: "parked"; readonly backoff: number }
+  | { readonly kind: "retry"; readonly at: number; readonly backoff: number }
+  | { readonly kind: "refresh"; readonly at: number; readonly backoff: number }
 
 interface Pending {
   readonly state: string
@@ -103,21 +104,26 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
   const secret = inputs.secret?.trim() ? inputs.secret.trim() : undefined
 
   let life: TokenLife | undefined
-  let backoff = RETRY_MS
   let pending: Pending | undefined
   let redirect = ""
   let shown: Account = MAIL_UNCONNECTED
 
-  let arm: ((deadline: number | undefined) => void) | undefined
+  let waking: Wake = { kind: "parked", backoff: RETRY_MS }
+  let offer: ((next: Wake) => void) | undefined
+
+  const wake = (next: Wake): void => {
+    waking = next
+    offer?.(next)
+  }
 
   const now = (): number => Date.parse(clock.now())
 
   const ready = (): Readiness => {
-    if (google.kind === "refused") return { kind: "broken", reason: google.reason }
-    if (himalaya.binary === undefined) return { kind: "broken", reason: NO_BINARY }
+    if (google.kind === "refused") return { kind: "operatorMustFixServe", reason: google.reason }
+    if (himalaya.binary === undefined) return { kind: "operatorMustFixServe", reason: NO_BINARY }
     if (client === undefined || secret === undefined) {
       return {
-        kind: "unarmed",
+        kind: "operatorMustSetCredentials",
         reason: `${CREDENTIALS} are not set in this serve's environment, so Connect has nothing to authorize with`,
       }
     }
@@ -149,26 +155,26 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
     paint(next)
   }
 
-  const stops = (reason: string, address: string | null = null): void => {
+  const parkFault = (reason: string, address: string | null = null): void => {
     life = undefined
-    arm?.(undefined)
+    wake({ kind: "parked", backoff: waking.backoff })
     publish(account({ status: "fault", reason, address }))
   }
 
-  const retrying = (reason: string, address: string | null = null): void => {
-    arm?.(now() + backoff)
-    backoff = Math.min(backoff * 2, RETRY_CAP_MS)
+  const retryFault = (reason: string, address: string | null = null): void => {
+    const backoff = waking.backoff
+    wake({ kind: "retry", at: now() + backoff, backoff: Math.min(backoff * 2, RETRY_CAP_MS) })
     const usable = life !== undefined && life.until > now() && shown.status === "connected"
     publish(usable
       ? { ...shown, retrying: true, reason }
       : account({ status: "fault", reason, retrying: true, address }))
   }
 
-  const idle = (): void => {
+  const publishAbsent = (): void => {
     const state = ready()
-    if (state.kind === "broken") return stops(state.reason)
-    arm?.(undefined)
-    publish(account({ status: "absent", reason: state.kind === "unarmed" ? state.reason : null }))
+    if (state.kind === "operatorMustFixServe") return parkFault(state.reason)
+    wake({ kind: "parked", backoff: waking.backoff })
+    publish(account({ status: "absent", reason: state.kind === "operatorMustSetCredentials" ? state.reason : null }))
   }
 
   const asked = async (request: { readonly url: string; readonly body: string }): Promise<{ status: number; body: string }> => {
@@ -189,24 +195,22 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
     Effect.gen(function*() {
       const keep: MemoryRecord = {
         ...record,
-        // Google rotates a refresh token only sometimes; `null` means the one
-        // already on disk is still the one to use.
         refreshToken: tokens.refreshToken ?? record.refreshToken,
         scope: tokens.scope ?? record.scope,
       }
       const wrote = yield* Effect.result(himalaya.useToken({ token: tokens.accessToken, address: record.address }))
       if (wrote._tag === "Failure") {
-        retrying(wrote.failure.reason, record.address)
+        retryFault(wrote.failure.reason, record.address)
         return undefined
       }
       const ran = yield* Effect.result(himalaya.run({ verb: GMAIL.profileGet }))
       if (ran._tag === "Failure") {
-        retrying(ran.failure.reason, record.address)
+        retryFault(ran.failure.reason, record.address)
         return undefined
       }
       const profile = profileOf(ran.success)
       if (profile === undefined) {
-        stops("the pinned Himalaya answered a profile this plugin cannot read", record.address)
+        parkFault("the pinned Himalaya answered a profile this plugin cannot read", record.address)
         return undefined
       }
       const settled: MemoryRecord = { ...keep, address: profile.address, historyId: record.address === profile.address ? keep.historyId : null }
@@ -216,8 +220,7 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
         })),
       )
       life = lifeOf({ now: now(), expiresIn: tokens.expiresIn })
-      arm?.(refreshDue(life))
-      backoff = RETRY_MS
+      wake({ kind: "refresh", at: refreshDue(life), backoff: RETRY_MS })
       publish(account({
         status: "connected",
         reason: null,
@@ -233,18 +236,18 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
     Effect.gen(function*() {
       const state = ready()
       if (state.kind !== "every") {
-        stops(state.reason, record.address)
+        parkFault(state.reason, record.address)
         return
       }
       const fetched = yield* Effect.promise(() => asked(refreshRequest(state.endpoints, { client: client as string, secret: secret as string, refreshToken: record.refreshToken })))
       const answer = tokenAnswer(fetched.status, fetched.body)
       if (!answer.ok) {
-        if (answer.retry) {
-          retrying(why(answer), record.address)
+        if (answer.kind === "transient") {
+          retryFault(why(answer), record.address)
           return
         }
         yield* Effect.promise(() => himalaya.close())
-        stops(why(answer), record.address)
+        parkFault(why(answer), record.address)
         return
       }
       yield* settle(record, answer.tokens)
@@ -330,14 +333,14 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
         yield* Effect.promise(() => himalaya.close())
         redirect = ""
         pending = undefined
-        idle()
+        publishAbsent()
       }),
 
     boot: () =>
       Effect.gen(function*() {
         const record = memory.current()
         if (record === undefined) {
-          idle()
+          publishAbsent()
           return
         }
         yield* bringUp(record)
@@ -347,15 +350,15 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
     current: () => shown,
 
     refresh: Effect.gen(function*() {
-      const deadlines = yield* Queue.unbounded<number | undefined>()
-      arm = (deadline) => {
-        Queue.offerUnsafe(deadlines, deadline)
+      const wakes = yield* Queue.unbounded<Wake>()
+      offer = (next) => {
+        Queue.offerUnsafe(wakes, next)
       }
       while (true) {
-        const due = yield* Queue.take(deadlines)
-        if (due === undefined) continue
-        yield* Effect.sleep(Math.max(0, due - now()))
-        if ((yield* Queue.size(deadlines)) > 0) continue
+        const next = yield* Queue.take(wakes)
+        if (next.kind === "parked") continue
+        yield* Effect.sleep(Math.max(0, next.at - now()))
+        if ((yield* Queue.size(wakes)) > 0) continue
         const record = memory.current()
         if (record === undefined) continue
         yield* bringUp(record)

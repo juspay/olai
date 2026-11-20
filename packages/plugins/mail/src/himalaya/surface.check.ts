@@ -108,8 +108,8 @@ if (composed.status === 0 || !said) {
 for (const verb of GMAIL_VERBS) {
   const help = ask([...verb.path, "--help"])
   if (help.error !== undefined || help.status !== 0) {
-    // clap's own sentence, when there is one: an unknown subcommand arrives on
-    // stderr as `error: unrecognized subcommand '<word>'` before the usage block.
+    // clap puts an unknown subcommand on stderr as `error: unrecognized
+    // subcommand '<word>'`, ahead of the usage block.
     const said = (help.stderr.split("\n")[0] ?? "").trim()
     const why = help.error !== undefined ? help.error.message : `exited ${help.status}${said === "" ? "" : ` — ${said}`}`
     fail([

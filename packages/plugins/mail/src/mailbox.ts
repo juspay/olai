@@ -128,7 +128,6 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
       return { address, draft: output.id, message: output["message-id"], thread: output["thread-id"], to: resolved.to, cc: args.cc ?? [], subject: resolved.subject, updated: args.draft !== undefined,
         attachments: attachments.map(one => ({ filename: one.filename, type: one.type, bytes: one.data.length })) }
     })
-    // Replacements additionally share a draft permit, always acquired before a thread permit.
     const threaded = args.thread ? serialize(args.thread, work) : work
     return args.draft ? serialize(`draft:${args.draft}`, threaded) : threaded
   }

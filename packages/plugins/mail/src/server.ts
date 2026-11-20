@@ -1,8 +1,3 @@
-/**
- * The activation gate cuts and joins tool calls before resources close. The
- * watcher and refresh fibers stop before attachments and the config directory
- * close.
- */
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
@@ -42,6 +37,16 @@ const doorOf = (vars: Record<string, string | undefined>, key: string): string |
 }
 
 const DEFAULT_POLL_MS = 120_000
+
+const accountCell = (seed: Account) => {
+  const store = inMemoryStore(seed)
+  let bound: { readonly set: (value: Account) => void } | undefined
+  return {
+    store,
+    bind: (cell: { readonly set: (value: Account) => void }): void => { bound = cell },
+    set: (next: Account): void => { (bound ?? store).set(next) },
+  }
+}
 
 export default definePlugin({
   environment: [
@@ -86,12 +91,7 @@ export default definePlugin({
 
     const memory = yield* openMemory(localState, warn)
 
-    const store = inMemoryStore(MAIL_UNCONNECTED)
-    let connector: { set: (value: Account) => void } | undefined
-    const paint = (next: Account): void => {
-      if (connector === undefined) store.set(next)
-      else connector.set(next)
-    }
+    const cell = accountCell(MAIL_UNCONNECTED)
 
     const machine = makeAccount({
       clock,
@@ -109,7 +109,7 @@ export default definePlugin({
         })
         return { status: answer.status, body: await answer.text() }
       },
-      paint,
+      paint: cell.set,
       warn,
     })
 
@@ -122,10 +122,10 @@ export default definePlugin({
       deps: {
         cells: {
           account: {
-            store,
-            connect: (cell: { set: (value: Account) => void }) =>
+            store: cell.store,
+            connect: (bound: { set: (value: Account) => void }) =>
               Effect.sync(() => {
-                connector = cell
+                cell.bind(bound)
                 cell.set(machine.current())
               }),
           },

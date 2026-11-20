@@ -9,11 +9,10 @@ import { MailRefusal } from "./wire.ts"
 
 export const MAX_ATTACHMENT = 50 * 1024 * 1024
 export const safeFilename = (name: string): string => name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "attachment"
-/** Gmail's attachment ids run past 400 characters, over Linux's 255-byte
- *  NAME_MAX for a single path component, so an id cannot name a file. */
+// Gmail's attachment ids run past 400 characters, over Linux's 255-byte
+// NAME_MAX for one path component, so an id cannot name a file.
 export const idDigest = (attachment: string): string => createHash("sha256").update(attachment).digest("hex").slice(0, 16)
 export interface Attachment { readonly id: string; readonly filename: string; readonly mime: string; readonly bytes: number }
-/** Acquired before tool registration; withdrawn calls finish before this directory closes. */
 export const openAttachments = (runtime: string | undefined, run: Himalaya["run"]) => Effect.gen(function*() {
   const root = yield* Effect.acquireRelease(
     Effect.promise(() => mkdtemp(join(runtime?.trim() || tmpdir(), "olai-mail-attachments-"))),
