@@ -23,15 +23,7 @@ Feature: Signing in to opencode from inside olai
     When I type "/login" into the chat
     And I send the chat message
     Then the panel offers a sign-in
-    # THE WHOLE CLAIM, in three parts: the method is drawn and it has no
-    # button; the command names the FILE the probe found rather than the bare
-    # word opencode writes into its own `_meta` corner; and nothing was run.
-    # The third is the one the previous round got wrong — the fake writes a
-    # marker the instant anybody starts it with `--login`, so its absence is
-    # evidence rather than a card that merely looks right.
     And the sign-in shows "opencode-login" as a command to run by hand
     And the command to run by hand includes "e2e/fake/opencode auth login --standalone"
     And no sign-in process was started
-    # ... and the chooser stays what it is: nothing is running, so there is no
-    # output, no paste box and nothing to cancel.
     And the panel offers a sign-in

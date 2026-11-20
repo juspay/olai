@@ -1,21 +1,3 @@
-/**
- * Opencode's bets, over values — and the fail-safe rule, pinned.
- *
- * The payloads are what **opencode 2.2.7** actually sends (captured live,
- * 2026-11-11): a `name` on every frame, opaque `chatcmpl-tool-<hex>` ids,
- * olai's tools reachable only as JavaScript inside one `execute`, permission
- * options that lead with an ALLOW rather than with the refusal, and a
- * child-session notification of opencode's own.
- *
- * MOST OF THIS FILE IS ABOUT WHAT MUST NOT HAPPEN, deliberately. The rule that
- * answers a permission is the one rule in this package whose failure is not
- * recoverable by pressing something: an approval nobody gave. On this wire it
- * is harder than on any other olai speaks, because the request does not say
- * which tool it is about — `execute` is the name for olai's own tools, a
- * foreign server's and opencode's own builtins alike — so the near misses are
- * the subject. They are cheap as values and expensive to stage.
- */
-
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 
@@ -24,21 +6,14 @@ import { allowedWithoutAsking, mcpCall, OPENCODE, replyIn } from "./leg.ts"
 import { toolsCalledIn } from "./script.ts"
 import { announced, ran, script, wrapped } from "./testlib.ts"
 
-/** The servers a session is handed: olai's own, and an optional one when a
- *  probe answered — called `alpha`, because this package may not spell an
- *  appliance even in a fixture. `given` in `agent.ts` is exactly this list. */
 const GIVEN = ["olai", "alpha"]
 
-/** Opencode's own option list, in its own order — ALLOW FIRST, which is the
- *  opposite of the other agent's and the reason nothing here may read "the
- *  first option". These are the real `optionId`s: `once`, `always`, `reject`. */
 const ASKED: ReadonlyArray<PermissionOption> = [
   { optionId: "once", name: "Allow once", kind: "allow_once" },
   { optionId: "always", name: "Always allow", kind: "allow_always" },
   { optionId: "reject", name: "Reject", kind: "reject_once" },
 ]
 
-/** A permission request's `toolCall`, as the frame the rule is handed. */
 const asking = (code: string | null, name = "execute") => ({
   name,
   title: name,
@@ -49,7 +24,6 @@ describe("which tool a call is", () => {
   test("is the FIELD the frame carries, never the title and never the id", () => {
     expect(OPENCODE.toolNameIn(undefined, { name: "shell" })).toBe("shell")
     expect(OPENCODE.toolNameIn({ "opencode/child-session": { id: "ses_x" } }, { name: "read" })).toBe("read")
-    // The id said the name on 1.17.9 and says nothing on 2.x.
     expect(OPENCODE.toolNameOf("chatcmpl-tool-a27391eb035485a2")).toBeNull()
     expect(OPENCODE.toolNameOf("bash:0")).toBeNull()
   })
@@ -78,7 +52,6 @@ describe("which tools a Code Mode script calls", () => {
       .toEqual([{ server: "xyne-spaces", tool: "read" }])
     expect(toolsCalledIn(`return await tools['xyne-spaces'].read({});`))
       .toEqual([{ server: "xyne-spaces", tool: "read" }])
-    // A DOTTED hyphen is a subtraction, not a server — and is not a name.
     expect(toolsCalledIn(`return await tools.olai-x.read({});`)).toBeNull()
   })
 
@@ -88,10 +61,6 @@ describe("which tools a Code Mode script calls", () => {
   })
 
   test("ANYTHING OUTSIDE THE GRAMMAR IS `null` — this is the line that must never widen", () => {
-    // THE REVIEWER'S SCRIPTS, each of which a scan for the token `tools` read
-    // as "one olai call" and therefore auto-allowed. One approval covers the
-    // whole script, so every one of these was a `shell` olai would have
-    // approved on the strength of a mention.
     for (
       const code of [
         `await tools.olai.outlines_read({ id: "n1" }); return await globalThis.tools.opencode.shell({ command: "rm -rf ~" })`,
@@ -109,22 +78,13 @@ describe("which tools a Code Mode script calls", () => {
   })
 
   test("... and so is every other reach into the table", () => {
-    // Dynamic indexing, in every spelling.
     expect(toolsCalledIn(`const n = "opencode"; return await tools[n].shell({})`)).toBeNull()
-    // A destructure keeps the table but not the path.
     expect(toolsCalledIn(`const { ping } = tools.olai; return ping({})`)).toBeNull()
     expect(toolsCalledIn(`const t = tools; return t.olai.ping({})`)).toBeNull()
-    // The server named but no tool after it.
     expect(toolsCalledIn(`return tools.olai`)).toBeNull()
-    // One readable call and one that is not: the script is read whole or not
-    // at all.
     expect(toolsCalledIn(`await tools.olai.ping({}); return tools[x].y()`)).toBeNull()
-    // A `tools` that is somebody else's property is not the table, and a
-    // script containing one is a script this has not read.
     expect(toolsCalledIn(`return mine.tools.olai.ping({})`)).toBeNull()
     expect(toolsCalledIn(`return toolsmith.olai.ping({})`)).toBeNull()
-    // Anything with an operator, a call that is not a tool call, or a name
-    // this never bound.
     expect(toolsCalledIn("return 1 + 1")).toBeNull()
     expect(toolsCalledIn(`return await search({ query: 'ping' })`)).toBeNull()
     expect(toolsCalledIn(`return await tools.olai.ping({ word: name })`)).toBeNull()
@@ -132,10 +92,7 @@ describe("which tools a Code Mode script calls", () => {
     expect(toolsCalledIn(`return await tools.olai.ping({ word: "a\\n" })`)).toBeNull()
     expect(toolsCalledIn(`return x`)).toBeNull()
     expect(toolsCalledIn(`const a = await tools.olai.ping({}); return [a, b];`)).toBeNull()
-    // Nothing may follow a return: a tail this decided did not matter is a
-    // tail nobody read.
     expect(toolsCalledIn(`return await tools.olai.ping({}); tools.opencode.shell({})`)).toBeNull()
-    // A comment is refused rather than skipped, wherever it sits.
     expect(toolsCalledIn(`/* hi */ return await tools.olai.ping({});`)).toBeNull()
     expect(toolsCalledIn(`return await tools.olai.ping({}); // done`)).toBeNull()
   })
@@ -166,23 +123,14 @@ describe("which permissions are answered without asking", () => {
   test("and NOTHING else is — this is the line that must never widen", () => {
     const only = (code: string | null, name?: string) =>
       allowedWithoutAsking(name ?? "execute", GIVEN, ASKED, asking(code, name))
-    // A server we were never given.
     expect(only(script("other", "read", {}))).toBeNull()
-    // opencode's OWN builtins, which live in the same table under its own name.
     expect(only(script("opencode", "shell", { command: "rm -rf /" }))).toBeNull()
-    // Ours AND somebody else's in one script: one approval would cover both.
     expect(only(`await tools.olai.ping({}); return tools.opencode.shell({});`)).toBeNull()
-    // A script that reaches the table a way this cannot read. The bracketed
-    // form IS readable for a LITERAL key, so the unreadable one is a computed
-    // key rather than a bracket.
     expect(only(`const k = "olai"; return await tools[k].outlines_done({id:"n1"})`)).toBeNull()
-    // A script that calls no tool at all recognises nothing.
     expect(only("")).toBeNull()
     expect(only("return 1 + 1")).toBeNull()
-    // Not an `execute`: a shell, a subagent, a read, whatever.
     expect(only(null, "shell")).toBeNull()
     expect(only(script("olai", "outlines_done", {}), "subagent")).toBeNull()
-    // The 1.x spellings, which this wire has never sent.
     expect(allowedWithoutAsking("olai_outlines_done", GIVEN, ASKED, asking(null, "olai_outlines_done"))).toBeNull()
     expect(allowedWithoutAsking("mcp__olai__outlines_done", GIVEN, ASKED, asking(null, "mcp__olai__outlines_done")))
       .toBeNull()
@@ -190,8 +138,6 @@ describe("which permissions are answered without asking", () => {
 
   test("a call nobody named, and a request with no frame at all, are a person's", () => {
     expect(allowedWithoutAsking(null, GIVEN, ASKED, asking(script("olai", "ping", {})))).toBeNull()
-    // The frame is optional in the contract and decisive here: without it
-    // nothing is recognised, so nothing is allowed.
     expect(allowedWithoutAsking("execute", GIVEN, ASKED)).toBeNull()
     expect(allowedWithoutAsking("execute", GIVEN, ASKED, { name: "execute", rawInput: { code: 7 } })).toBeNull()
   })
@@ -233,8 +179,6 @@ describe("what a row is CALLED, and what it answered", () => {
   test("... and names it from the SCRIPT before the completion reports anything", () => {
     expect(mcpCall(announced(script("olai", "outlines_read", { id: "n1" })), GIVEN))
       .toEqual([{ server: "olai", tool: "outlines_read" }])
-    // The empty first frame names nothing, which is why a row may not be
-    // named from it.
     expect(mcpCall(announced(null), GIVEN)).toEqual([])
   })
 
@@ -243,15 +187,11 @@ describe("what a row is CALLED, and what it answered", () => {
     const batch = { ...announced(code), ...ran([{ tool: "olai.ping" }, { tool: "olai.outlines_read" }], [1, 2]) }
     expect(mcpCall(batch, GIVEN))
       .toEqual([{ server: "olai", tool: "ping" }, { server: "olai", tool: "outlines_read" }])
-    // ... in the order the agent ran them, which is the order the row names
-    // them in.
     expect(mcpCall(announced(code), GIVEN))
       .toEqual([{ server: "olai", tool: "ping" }, { server: "olai", tool: "outlines_read" }])
   })
 
   test("a batch that is not ALL ours is none of ours", () => {
-    // The row would otherwise name two of the three calls a script made,
-    // which is a row claiming the third did not happen.
     const mixed = { ...announced(null), ...ran([{ tool: "olai.ping" }, { tool: "github.create_pr" }], [1, 2]) }
     expect(mcpCall(mixed, GIVEN)).toEqual([])
   })
@@ -259,12 +199,10 @@ describe("what a row is CALLED, and what it answered", () => {
   test("a foreign server's tool, and a script that ran none, are nobody's row", () => {
     expect(mcpCall(announced(script("github", "create_pr", {})), GIVEN)).toEqual([])
     expect(mcpCall({ ...announced(""), ...ran([], 2) }, GIVEN)).toEqual([])
-    // Not an `execute` at all.
     expect(mcpCall({ name: "shell", title: "ls", rawInput: { command: "ls" } }, GIVEN)).toEqual([])
   })
 
   test("what the completion REPORTED beats what the script said it would do", () => {
-    // A script naming two, a run reporting one: the run is the record.
     const frame = {
       ...announced(`await tools.olai.ping({}); return tools.olai.outlines_read({id:"n1"})`),
       ...ran([{ tool: "olai.outlines_read" }], reply),
@@ -282,10 +220,8 @@ describe("what a row is CALLED, and what it answered", () => {
   })
 
   test("a reply this cannot parse is no reply at all", () => {
-    // The 1.17.9 shapes, which carry nothing on this wire.
     expect(replyIn({ metadata: { structuredContent: reply } }, undefined)).toBeUndefined()
     expect(replyIn({ output: JSON.stringify({ structuredContent: reply }) }, undefined)).toBeUndefined()
-    // Prose, an array, a block of another type.
     expect(replyIn({}, [{ type: "content", content: { type: "text", text: "just prose" } }])).toBeUndefined()
     expect(replyIn({}, [{ type: "content", content: { type: "text", text: "[1,2,3]" } }])).toBeUndefined()
     expect(replyIn({}, [{ type: "diff", path: "/a" }])).toBeUndefined()
@@ -301,12 +237,8 @@ describe("what a call SPAWNED", () => {
   })
 
   test("A CALL THAT IS NOT A SPAWN SPAWNED NOBODY, whatever its arguments say", () => {
-    // `agent` and `description` are ordinary words. A reader that answered off
-    // the input alone would hang a rail, a door and a strip entry off an
-    // ordinary shell command for an agent nobody started.
     expect(OPENCODE.spawned(undefined, { command: "ls", description: "List files" }, "shell")).toBeNull()
     expect(OPENCODE.spawned(undefined, { agent: "kolu", text: "hi" }, "execute")).toBeNull()
-    // ... including when nothing named the call at all.
     expect(OPENCODE.spawned(undefined, { agent: "explore", description: "x" })).toBeNull()
     expect(OPENCODE.spawned(undefined, { agent: "explore", description: "x" }, null)).toBeNull()
   })
@@ -354,7 +286,6 @@ describe("child sessions", () => {
     expect(state("completed")).toEqual({ kind: "childEnded", id: "ses_child", state: "completed" })
     expect(state("failed")).toEqual({ kind: "childEnded", id: "ses_child", state: "failed" })
     expect(state("interrupted")).toEqual({ kind: "childEnded", id: "ses_child", state: "cancelled" })
-    // A word no version has sent yet is not a lane anybody closes.
     expect(childIn(child({ type: "status", status: "pondering" }))).toBeNull()
   })
 
@@ -373,9 +304,6 @@ describe("child sessions", () => {
   })
 
   test("A CHILD'S PERMISSION QUESTION IS ASKED IN THE CHILD'S NAME", () => {
-    // opencode stamps the request with the session its CONNECTION belongs to —
-    // the root — and names the child only on the call. Left alone, a
-    // subagent's question would be drawn in the main agent's lane.
     const request = {
       jsonrpc: "2.0",
       id: 7,
@@ -426,8 +354,6 @@ describe("steering, and what replaced queueing", () => {
 
   test("only the outcome that CONSUMED the message counts as taken", () => {
     expect(OPENCODE.steering?.taken({ outcome: "injected" })).toBe(true)
-    // No turn to put it in: the words go back out as an ordinary prompt,
-    // which is what the person meant anyway.
     expect(OPENCODE.steering?.taken({ outcome: "promptRequired", reason: "noRunningTurn" })).toBe(false)
     expect(OPENCODE.steering?.taken({ outcome: "future" })).toBe(false)
     expect(OPENCODE.steering?.taken(null)).toBe(false)

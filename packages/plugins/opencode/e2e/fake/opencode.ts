@@ -1,143 +1,4 @@
 #!/usr/bin/env bun
-/**
- * An `opencode` on PATH, shaped the way the real one is on the wire.
- *
- * The claude plugin's fake (`packages/plugins/claude/e2e/fake/claude-agent-acp`)
- * is the CLAUDE CODE adapter's shape and has been since there was only one: a
- * `_meta` on every frame, tool names inside it, a bypass mode. This one is the
- * other shape, and every difference in it was captured live against
- * **opencode 2.2.7** (2026-11-11):
- *
- *   - **the tool's name is a FIELD on the frame** (`name: "shell"`,
- *     `"execute"`, `"subagent"`), and the call id is an opaque
- *     `chatcmpl-tool-<hex>` that says nothing. The `title` MOVES over a call's
- *     life — `shell` while it starts, the command once it is known — so a
- *     client that read the title as the name would get a different answer
- *     depending on when it looked.
- *   - **olai's own tools never arrive as tool calls.** Every MCP tool is
- *     dispatched through CODE MODE: one `execute` whose `rawInput.code` is
- *     JavaScript against `tools.<server>.<tool>`, whose completion reports
- *     what it ran in `rawOutput.metadata.toolCalls`, and whose content block
- *     holds the script's returned value. One `execute` can carry several.
- *   - **permission options are ALLOW-FIRST** — `once`, `always`, `reject` —
- *     where the Claude adapter's list leads with the refusal, which is why
- *     nothing in olai may read "the first option". Under an ask policy the
- *     real agent asks ONCE PER INNER CALL with the SAME frame each time, which
- *     is why one approval covers a whole script and why this fake asks about
- *     the `execute` rather than about anything inside it.
- *   - **STEERING, AND NO QUEUE** — the pair that flipped. `_session/steering`
- *     answers `{outcome:"injected"}` mid-turn and
- *     `{outcome:"promptRequired",reason:"noRunningTurn"}` when idle, while a
- *     second `session/prompt` during a turn is REFUSED with
- *     `-32603 "Session already has an active ACP prompt: <id>"`. On 1.17.9 it
- *     was exactly the other way round, and this file refuses for real — a fake
- *     that accepted two prompts would be a witness of the composer's copy and
- *     of nothing else.
- *   - **subagents are CHILD SESSIONS**, narrated on
- *     `opencode/session/child_update` — and only to a client whose
- *     `initialize` advertised `opencode/child-session-updates`. This file
- *     checks for the opt-in, so a client that stopped asking renders flat here
- *     rather than on somebody's machine.
- *   - **no bypass mode**: `session/set_mode` answers `-32602` for anything but
- *     `build` and `plan`.
- *   - **the model is in `configOptions` with the ids the picker offers**, and
- *     a change comes back in the method RESPONSE. Nothing is ever pushed.
- *
- * It is a SEPARATE FILE rather than a mode of the other agent, deliberately: a
- * fake whose shape is chosen by a flag is a fake that can agree with the client
- * by construction the day somebody makes the flag do less than it says. Two
- * adapters keep distinct fixtures, shared with each engine's own leg tests.
- *
- * Like the other one, it calls the REAL internal MCP server over the real HTTP
- * route with the token `session/new` handed it — so a scenario drives the real
- * panel, the real ops layer and the real store, with no model in the middle.
- *
- * Behaviour is keyed on the prompt text:
- *
- *   done <id>    one `execute` calling `tools.olai.outlines_done` — Code Mode,
- *                the only way an MCP tool reaches this wire, which the panel
- *                must still recognise, title, link and draw a reply for
- *   context <id> the same through `tools.olai.outlines_read` — a read, so no
- *                write story under it
- *   batch <id>   ONE `execute` carrying TWO of olai's calls. A row has one
- *                title and one reply, so a batch is drawn as the batch it is
- *                rather than claiming to be either of the calls it made
- *   fail         an `execute` whose olai call ERRORS — olai's ops layer
- *                refuses a node that is not there: `status: "error"`,
- *                `metadata.error`, and the refusal as the returned value
- *   throw        an `execute` whose SCRIPT throws before any tool runs —
- *                `toolCalls: []` and the thrown message as the value
- *   shell        a BUILTIN call (`name: "shell"`) whose title moves under it.
- *                Nothing here is olai's, so a permission for it is a person's
- *   permit <id>  ask permission for an `execute` that calls only olai's own —
- *                answered without anybody being asked
- *   foreign      ask permission for an `execute` that calls a server olai
- *                never handed over — which must reach a person
- *   dynamic <id> ask permission for an `execute` that reaches the tool table
- *                through a computed key. Every tool in it IS olai's, and it
- *                still reaches a person: one approval covers a whole script,
- *                so a script olai cannot read exhaustively is never approved
- *   nameless     ask permission for a call carrying no name at all, which must
- *                reach a person
- *   agents       a FAN-OUT: two `subagent` calls, two child sessions, each
- *                with its own calls and its own prose
- *   agent-asks   one subagent whose own call asks permission — a question that
- *                must be drawn in the CHILD's name and nobody else's
- *   agent-fails  two subagents that end badly — one `failed`, one
- *                `interrupted` — because opencode has four terminal words
- *                where the channel has three
- *   agent-nests  a child of a child: `rootSessionId` stays the root while
- *                `parentSessionId` becomes the first child's, at `depth: 2`
- *   agent-calls-olai  a subagent that runs one of OLAI's tools through its own
- *                Code Mode `execute`, asking with the root's session id and
- *                the child named only on the call
- *   agents-slow  a fan-out left running, so a cancel can land with an agent
- *                still out
- *   deaf         a turn that goes idle in the instant a steer arrives, so the
- *                steer answers `promptRequired` and the words go out as an
- *                ordinary prompt instead — heard once
- *   slow         announce a tool call and hold it, until a scenario says when —
- *                long enough to look at a turn WHILE it is running, which is
- *                when a mid-turn message is a question anybody has
- *   hush         hold the turn saying NOTHING at all until a scenario says
- *                when. `slow` announces a tool call first, so a cancel during
- *                it lands on a turn that has already shown something; this is
- *                the turn a cancel arrives at before the agent has said a
- *                word, which is the ordinary case and the one arm a silence
- *                notice must not fire on
- *   silent       a lone `usage_update` and a SUCCESSFUL `end_turn` — no prose,
- *                no tool, no error anywhere. A turn that produced nothing is
- *                a turn olai has to account for whoever the agent is, and this
- *                is the leg it is driven on
- *   quota        the shape a provider failure really has on 2.2.7: a usage
- *                frame and then a JSON-RPC ERROR carrying the provider's own
- *                words. Nothing a person can see arrived, so the message did
- *                not land and the row has to say so
- *   anything     one chunk of prose and an `end_turn`
- *
- * A message steered into a running turn is ACTED ON BY THAT TURN — `done <id>`
- * marks the node while the first turn is still going, which is the whole
- * difference between the interrupting gesture and an ordinary send.
- *
- * `OLAI_FAKE_OPENCODE_STORED` works the way the other agent's does: unset means
- * nothing is stored (so a client boots with `session/new`), set means
- * `session/list` answers and `session/load` replays.
- *
- * A `.agent-hold-open` dot-file in the directory makes the NEXT session open —
- * whichever verb asked for it — sit on the wire until `the agent is released`,
- * the same idiom the other scripted agent uses for a held load. It exists
- * because the window this suite has to reach is the one a person meets on a
- * real machine and cannot reach on a fast one: the seconds between picking an
- * agent and its first conversation being open. Held here rather than at
- * `initialize`, because that is where the boot's own permit is held and where a
- * prompt typed into the gap has to be refused.
- *
- * It lives in a directory of its own because that directory is what goes on a
- * spawned server's `OLAI_AGENT_PATH`: whether this machine "has opencode" is a
- * property of the scenario rather than of the laptop the run is on — the same
- * argument the fake `kolu` next door makes, and the reason a developer with the
- * real opencode installed still gets the same suite CI does.
- */
 
 import { ran, script } from "olai-plugin-opencode/testlib";
 import { existsSync, rmSync, writeFileSync } from "node:fs";
@@ -147,10 +8,6 @@ import { commandLine } from "@olai/tests/agent/command.ts";
 import { readMessages } from "@olai/tests/harness/ndjson.ts";
 import { emitter, MARKER, released, speaking } from "@olai/tests/harness/scripted.ts";
 
-/** The wire, and what an agent puts on it — the transport this file shares with
- *  the other scripted agent. What is NOT shared is anything either of them
- *  MEANS: every frame shape below is this file's own, which is the whole reason
- *  two fakes are worth having. */
 const emit = emitter(process.stdout);
 const { notify, refuse, request, respond, take } = speaking(emit, "oc");
 
@@ -179,15 +36,9 @@ if (process.argv.includes("--cwd")) {
  * does, so the scenario beside it can only pass if olai never spawns it.
  */
 if (process.argv.includes("--login")) {
-  // ... and it LEAVES A MARK, because "nothing was spawned" is the claim the
-  // scenario beside this makes and a card that merely looks right is not
-  // evidence of it. The file is written in the served directory, which is the
-  // directory olai spawns a sign-in in.
   try {
     writeFileSync(join(process.cwd(), ".opencode-login-ran"), process.argv.join(" "));
   } catch {
-    // A directory that cannot be written to is not this fake's business; the
-    // refusal below is still the whole of what the real one does.
   }
   process.stdout.write("│\n");
   process.stdout.write("■  Pass an integration ID or name when running without an interactive terminal\n");
@@ -196,14 +47,8 @@ if (process.argv.includes("--login")) {
 }
 const cwd = process.cwd();
 
-/** A turn that gave up because somebody pressed cancel. Its own class so the
- *  `session/prompt` handler can tell it from a fault and answer the stop reason
- *  a real agent would. */
 class Cancelled extends Error {}
 
-/** A turn the agent REFUSED — a JSON-RPC error for `session/prompt` rather
- *  than a stop reason, which is the shape a real provider failure arrives in
- *  and the one a stop reason cannot express. */
 class Refused extends Error {
   constructor(message: string, readonly reason: string) {
     super(message);
@@ -212,10 +57,6 @@ class Refused extends Error {
 
 const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
 
-/** Whether a scenario armed the boot to hang, read at the moment the open is
- *  asked for — so it can be armed and then something pressed. TAKEN: the file
- *  is removed as it is read, so one arming holds one open and the retry behind
- *  it is not held too. */
 const holdingOpen = (): boolean => {
   const marker = `${cwd}/${MARKER.holdOpen}`;
   if (!existsSync(marker)) return false;
@@ -223,10 +64,6 @@ const holdingOpen = (): boolean => {
   return true;
 };
 
-/** The one stored conversation, when a scenario asked for one. Opencode's own
- *  ids look like this; nothing reads their shape, but a scenario that
- *  accidentally matched the other agent's `fake-stored-…` would be asserting
- *  nothing. */
 const STORED_SESSION = "ses_opencode_stored";
 
 let sessionId = "";
@@ -238,13 +75,9 @@ let sessionId = "";
  *  fan-out flat. Checked here so that stops being true here first. */
 let childSessionUpdates = false;
 
-/** The MCP server olai handed this session, and the name it contributed —
- *  which is what makes a tool "ours" on this wire, at `tools.<server>.`. */
 let mcp: { url: string; headers: Record<string, string>; name: string } | null = null;
 
 let nextCall = 0;
-
-// ── talking to olai's own MCP server ───────────────────────────────────
 
 const callMcp = async (
   method: string,
@@ -265,9 +98,6 @@ const callMcp = async (
   return body.result ?? {};
 };
 
-/** What one of olai's tools answered, as the value a Code Mode script would
- *  have returned: `tools.<server>.<tool>()` resolves to the tool's structured
- *  content, and a refusal is the tool's own words. */
 const returned = (result: Record<string, unknown>): unknown => {
   const content = result["content"];
   const text = Array.isArray(content) && typeof content[0]?.["text"] === "string"
@@ -282,8 +112,6 @@ const returned = (result: Record<string, unknown>): unknown => {
   }
 };
 
-// ── the frames ─────────────────────────────────────────────────────────
-
 const update = (value: Record<string, unknown>, session = sessionId): void => {
   notify("session/update", { sessionId: session, update: value });
 };
@@ -292,21 +120,10 @@ const say = (text: string, session = sessionId): void => {
   update({ sessionUpdate: "agent_message_chunk", messageId: `msg_${nextCall}`, content: { type: "text", text } }, session);
 };
 
-/** A call id, this agent's way: OPAQUE. It says nothing about the tool, which
- *  is why the `name` field below is the only place the name is said. */
 const callIdFor = (): string => `chatcmpl-tool-${(nextCall++).toString(16).padStart(16, "0")}`;
 
-/** The server olai handed this session, by the name olai gave it. */
 const ours = (): string => mcp?.name ?? "olai";
 
-/**
- * Announce a call, then move its TITLE under it, then complete it.
- *
- * The title moving is not decoration: it is the behaviour that makes the frame's
- * own `name` the only stable name, and a panel that named a row from the title
- * would rename it mid-run. The first frame carries an EMPTY `rawInput`, the way
- * the real one does while the model is still emitting the arguments.
- */
 const runTool = async (
   name: string,
   title: string,
@@ -328,7 +145,6 @@ const runTool = async (
   }, session);
 };
 
-/** One Code Mode call of one of olai's tools, start to finish. */
 const codeMode = async (
   tool: string,
   args: Record<string, unknown>,
@@ -356,12 +172,6 @@ const OPTIONS = [
   { optionId: "reject", name: "Reject", kind: "reject_once" },
 ];
 
-/**
- * Announce a call and then ask about it — with the FRAME the question is
- * about, because on this wire the name is `execute` for olai's tools, a
- * foreign server's and opencode's own builtins alike, and the only thing that
- * tells them apart is the script.
- */
 const askPermission = async (
   name: string | null,
   title: string,
@@ -374,19 +184,8 @@ const askPermission = async (
   return await request("session/request_permission", { sessionId: session, toolCall: call, options: OPTIONS });
 };
 
-// ── child sessions ─────────────────────────────────────────────────────
-
 let nextChild = 0;
 
-/** One subagent, start to finish: the `subagent` call in the parent's own
- *  stream, and the child's whole life on the channel beside it.
- *
- *  `under` is the session this child hangs off — the root for an ordinary
- *  spawn, and ANOTHER CHILD for a nested one, which is the only thing that
- *  differs on the wire at `depth: 2` (`rootSessionId` stays the root,
- *  `parentSessionId` becomes the child's). `ended` is how it finishes: the
- *  four terminal words opencode has, so a scenario can watch a lane close
- *  the ways it really closes. */
 const subagent = async (
   description: string,
   work: (child: string) => Promise<void>,
@@ -423,9 +222,6 @@ const subagent = async (
   });
 };
 
-/** What each live child was sent to do, which is the title its own frames are
- *  prefixed with — kept so a NESTED spawn can stamp its announcement with its
- *  parent's title the way the real one does. */
 const childTitles = new Map<string, string>();
 
 const childStatus = (child: string, title: string, status: string, under = sessionId, depth = 1): void => {
@@ -441,12 +237,6 @@ const childStatus = (child: string, title: string, status: string, under = sessi
   });
 };
 
-/**
- * A frame of a child's own, as the real agent sends it: NESTED in the channel
- * when the client asked for it, and FLATTENED into the parent's stream when it
- * did not — stamped either way, with the child's id in front of the call id and
- * the child's title in front of the display one.
- */
 const childFrame = (child: string, title: string, value: Record<string, unknown>, depth = 1, under = sessionId): void => {
   const stamped = {
     ...value,
@@ -469,27 +259,12 @@ const childFrame = (child: string, title: string, value: Record<string, unknown>
   update(stamped);
 };
 
-// ── turns ──────────────────────────────────────────────────────────────
-
-/** Whether a turn is in flight right now — the one flag `session/prompt` and
- *  `_session/steering` both read, and the whole of what makes this agent
- *  refuse a second prompt. */
 let running = false;
 
-/** What has been steered into the turn in flight and not yet acted on. Drained
- *  by the turn itself, which is the difference a scenario can see between a
- *  message that steered a turn and one that started another. */
 const steered: string[] = [];
 
-/** ... and whether THIS turn is one that goes idle in the instant a steer
- *  arrives (`deaf`). The flag is the race, staged: the steer is answered
- *  `promptRequired` and the turn is over, so the ordinary prompt the client
- *  falls back to is one this agent will accept. */
 let deaf = false;
 
-/** Act on what was steered in, INSIDE the turn that is still running. A
- *  deliberate subset of what a prompt can ask for: `done <id>` is spelled out
- *  because it is the one a scenario watches land. */
 const takeSteering = async (): Promise<void> => {
   for (const text of steered.splice(0)) {
     const [verb, ...rest] = text.trim().split(/\s+/);
@@ -503,10 +278,8 @@ const takeSteering = async (): Promise<void> => {
   }
 };
 
-/** Somebody pressed cancel. */
 let cancelled = false;
 
-/** Wait until a scenario says when, taking anything steered in FIRST. */
 const hold = async (): Promise<void> => {
   await released(cwd, async () => {
     if (cancelled) throw new Cancelled();
@@ -516,9 +289,6 @@ const hold = async (): Promise<void> => {
 };
 
 const turn = async (text: string): Promise<string> => {
-  // THE FIRST LINE and nothing else: olai's standing instruction and its node
-  // context ride the first turn of every conversation (`prompt: first-turn`),
-  // so the words a person typed are the head of what arrives here.
   const said = commandLine(text);
   const [verb, ...rest] = said.split(/\s+/);
   const argument = rest.join(" ");
@@ -537,8 +307,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (verb === "batch" && argument !== "") {
-    // ONE call id, TWO of olai's tools. A row has one title and one reply, so
-    // nothing may claim this row is either of them.
     const code = `const read = await tools.${server}.outlines_read({ id: ${JSON.stringify(argument)} });\n`
       + `const done = await tools.${server}.outlines_done({ id: ${JSON.stringify(argument)} });\nreturn [read, done];`;
     await runTool("execute", "execute", { code }, async () => {
@@ -557,18 +325,12 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "fail") {
-    // ONE of olai's calls, REFUSED by olai's own ops layer. The `execute` still
-    // completes — Code Mode reports the error in its metadata and returns the
-    // refusal as the script's value — so the row is a recognised olai call that
-    // has no reply to draw, which is a different thing from a row nobody named.
     const result = await codeMode("outlines_done", { id: "no-such-node" });
     say(result["isError"] === true ? "could not mark it" : "marked it done");
     return "end_turn";
   }
 
   if (said === "throw") {
-    // The script threw before any tool ran: nothing to report, and the thrown
-    // message is the value.
     await runTool("execute", "execute", { code: "throw new Error('the script gave up')" }, async () =>
       ran([], "Error: the script gave up"));
     say("the script gave up");
@@ -576,8 +338,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "shell") {
-    // A BUILTIN, named on the frame, whose title moves under it: `shell` while
-    // it starts and the command once it is known.
     await runTool("shell", "echo hi", { command: "echo hi", cwd }, async () => ({
       rawOutput: { metadata: { status: "completed", truncated: false, exit: 0 } },
       content: [{ type: "content", content: { type: "text", text: "hi\n" } }],
@@ -587,8 +347,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "slow") {
-    // A tool call is ANNOUNCED and left running while the hold lasts, which is
-    // what makes a turn observable WHILE it is going.
     const toolCallId = callIdFor();
     update({ sessionUpdate: "tool_call", toolCallId, name: "shell", title: "shell", kind: "execute", status: "pending", locations: [], rawInput: {} });
     update({ sessionUpdate: "tool_call_update", toolCallId, status: "in_progress", kind: "execute", title: "sleep 20", locations: [], rawInput: { command: "sleep 20", cwd } });
@@ -599,36 +357,22 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "hush") {
-    // NOTHING announced, and then a hold. The only thing a scenario can wait
-    // for here is the PANEL saying it is busy, which is the point: this is a
-    // turn a person cancels before the agent has said a word.
     await hold();
     say("finished after all");
     return "end_turn";
   }
 
   if (said === "silent") {
-    // A turn that produced NOTHING. One usage frame — which is a frame, and
-    // used to be enough to convince olai the agent had worked on the message —
-    // and then a turn that succeeded having said nothing a person can see.
     update({ sessionUpdate: "usage_update", used: 0, size: 200000, cost: { amount: 0, currency: "USD" } });
     return "end_turn";
   }
 
   if (said === "quota") {
-    // THE PROVIDER FAILURE, as 2.2.7 really sends it: a usage frame and then a
-    // JSON-RPC error in the provider's own words. Nothing a person can see
-    // arrived, so the message did not land — and the panel has to offer it
-    // again rather than read the usage frame as work.
     update({ sessionUpdate: "usage_update", used: 0, size: 200000, cost: { amount: 0, currency: "USD" } });
     throw new Refused("Internal error: Insufficient balance. Top up at https://opencode.ai/console/billing", "provider.quota");
   }
 
   if (verb === "permit") {
-    // One of olai's own, asked about anyway — which is the path a session whose
-    // own policy says `ask` takes, and the one the fail-safe rule's ALLOW half
-    // is about. The FRAME is what the rule reads: a script that calls only
-    // tools of a server olai handed over.
     const code = script(server, "outlines_add", { id: argument === "" ? "kitchen" : argument });
     const answered = await askPermission("execute", "execute", { code });
     say(`permission: ${JSON.stringify(answered)}`);
@@ -636,19 +380,12 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "foreign") {
-    // A server olai never handed this session. Same tool name, same frame
-    // shape, and a person is asked — which is the rule's REFUSE half at the
-    // door it is most likely to be widened at.
     const answered = await askPermission("execute", "execute", { code: `return await tools.github.create_pr({ title: "x" });` });
     say(`permission: ${JSON.stringify(answered)}`);
     return "end_turn";
   }
 
   if (verb === "dynamic") {
-    // EVERY TOOL IN IT IS OLAI'S, and a person is still asked. One approval
-    // covers a whole script, so a script this cannot read exhaustively is
-    // never approved — the computed key is exactly the thing a reader that
-    // skipped what it could not parse would wave through.
     const node = argument === "" ? "kitchen" : argument;
     const code = `const which = "${server}";\nreturn await tools[which].outlines_done({ id: ${JSON.stringify(node)} });`;
     const answered = await askPermission("execute", "execute", { code });
@@ -657,16 +394,12 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "nameless") {
-    // A frame with no `name` at all. Nothing can say which tool this is, so a
-    // person is asked — the fail-safe rule's other REFUSE half.
     const answered = await askPermission(null, "do something unnamed", {});
     say(`permission: ${JSON.stringify(answered)}`);
     return "end_turn";
   }
 
   if (said === "agents") {
-    // A FAN-OUT. Two children, each with a call and a word of its own, so a
-    // scenario can see two lanes rather than one column.
     await subagent("Survey the kitchen", async (child) => {
       childFrame(child, "Survey the kitchen", {
         sessionUpdate: "tool_call", toolCallId: "c1", name: "read", title: "read", kind: "read", status: "pending", locations: [], rawInput: {},
@@ -696,10 +429,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "agent-asks") {
-    // A CHILD'S QUESTION. The real agent stamps the request with the session
-    // its CONNECTION belongs to — the ROOT — and names the child only on the
-    // call, which is why a panel that read the request's own session would
-    // draw a subagent's question in the main agent's name.
     await subagent("Open a terminal", async (child) => {
       const toolCallId = `${child}:p1`;
       childFrame(child, "Open a terminal", {
@@ -728,10 +457,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "agent-fails") {
-    // A CHILD THAT ENDED BADLY, twice over: one `failed` and one
-    // `interrupted`. opencode has four terminal words where the channel has
-    // three, and a lane that closed `completed` for all of them would be the
-    // panel saying an agent that died came back.
     await subagent("Read the missing file", async (child) => {
       childFrame(child, "Read the missing file", {
         sessionUpdate: "agent_message_chunk", messageId: "msg_child_f1", content: { type: "text", text: "there is no such file" },
@@ -747,10 +472,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "agent-nests") {
-    // A CHILD OF A CHILD. `rootSessionId` stays the root and
-    // `parentSessionId` becomes the first child's, so a panel that rooted a
-    // lane at the request's own session would file the grandchild's work
-    // under the main agent — which is the one thing `depth` exists to stop.
     await subagent("Survey the house", async (child) => {
       childFrame(child, "Survey the house", {
         sessionUpdate: "tool_call", toolCallId: "n1", name: "read", title: "read", kind: "read", status: "pending", locations: [], rawInput: {},
@@ -774,10 +495,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "agent-calls-olai") {
-    // ONE OF OLAI'S OWN, INSIDE A CHILD. The script is the same Code Mode
-    // script the main agent would have written and the permission request is
-    // stamped with the ROOT session, so the auto-allow rule has to read it
-    // and the row has to land behind the CHILD's door.
     const code = script(ours(), "outlines_done", { id: "order" });
     await subagent("Mark the order", async (child) => {
       const answered = await request("session/request_permission", {
@@ -811,8 +528,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "agents-slow") {
-    // A FAN-OUT LEFT RUNNING, so a scenario can press cancel with an agent
-    // still out and watch both the lane and the panel settle.
     await subagent("Watch the kitchen", async (child) => {
       childFrame(child, "Watch the kitchen", {
         sessionUpdate: "tool_call", toolCallId: "s1", name: "shell", title: "shell", kind: "execute", status: "in_progress", locations: [], rawInput: { command: "sleep 20" },
@@ -824,12 +539,6 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "deaf") {
-    // THE STEER THAT LOST THE RACE. The turn goes idle in the same instant
-    // the steer arrives, so the agent answers `promptRequired` — one of its
-    // only two outcomes — and the client sends the words as an ordinary
-    // prompt instead. The claim a scenario makes on this is that they are
-    // heard ONCE: a client reading an unrecognised outcome as taken would
-    // lose them, and one that sent twice would double them.
     deaf = true;
     const toolCallId = callIdFor();
     update({ sessionUpdate: "tool_call", toolCallId, name: "shell", title: "shell", kind: "execute", status: "in_progress", locations: [], rawInput: { command: "sleep 20" } });
@@ -845,8 +554,6 @@ const turn = async (text: string): Promise<string> => {
   return "end_turn";
 };
 
-// ── the protocol ───────────────────────────────────────────────────────
-
 let currentModel = "opencode/kimi-k3";
 let currentMode = "build";
 
@@ -857,8 +564,6 @@ const configOptions = () => [
     category: "model",
     type: "select",
     currentValue: currentModel,
-    // The ids the picker offers ARE the ids it reports — no aliases, which is
-    // the boring case the shared model reading also has to get right.
     options: [
       { value: "opencode/kimi-k3", name: "opencode/Kimi K3" },
       { value: "opencode/claude-sonnet-5", name: "opencode/Claude Sonnet 5" },
@@ -898,7 +603,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
   const method = message["method"];
   const params = (message["params"] ?? {}) as Record<string, unknown>;
 
-  // An answer to something WE asked.
   if (method === undefined) {
     take(id)?.(message["result"] ?? null);
     return;
@@ -906,9 +610,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
   switch (method) {
     case "initialize": {
-      // THE OPT-IN, read exactly where the real one reads it. A client that
-      // does not advertise this gets a subagent's frames flattened into the
-      // parent's stream, with no lifecycle to draw a lane from.
       const capabilities = (params["clientCapabilities"] ?? {}) as Record<string, unknown>;
       const corner = (capabilities["_meta"] ?? {}) as Record<string, unknown>;
       childSessionUpdates = corner["opencode/child-session-updates"] === true;
@@ -1006,27 +707,15 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       const value = String(params["value"]);
       if (params["configId"] === "mode") currentMode = value;
       else currentModel = value;
-      // In the RESPONSE, never as a pushed update.
       respond(id, { configOptions: configOptions() });
       return;
     }
 
     case "_session/steering": {
-      // TWO OUTCOMES, which is the whole list the real one has. Steering an
-      // idle session is `promptRequired`, and the client sends the words as an
-      // ordinary prompt instead.
-      //
-      // `deaf` is that same answer with a turn still on screen: the race the
-      // real one loses when a turn goes idle in the instant a steer arrives.
-      // The hold is released in the same breath, so by the time the client's
-      // fallback prompt lands there is a turn to start.
       if (!running || deaf) {
         if (deaf) {
           deaf = false;
           running = false;
-          // The marker the hold is waiting on, dropped rather than awaited:
-          // this turn is OVER, which is what makes the fallback prompt land
-          // on an agent with nothing running.
           void Bun.write(`${cwd}/${MARKER.release}`, "");
         }
         respond(id, { outcome: "promptRequired", reason: "noRunningTurn" });
@@ -1069,8 +758,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/cancel":
-      // A notification, so there is nothing to answer — but there is something
-      // to DO: the turn that is running gives up at its next tick.
       cancelled = true;
       return;
 
