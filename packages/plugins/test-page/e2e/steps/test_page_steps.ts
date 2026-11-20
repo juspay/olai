@@ -1,8 +1,3 @@
-/**
- * The scenario's hand on the self-drawn page fixture (`../../src/browser.tsx`):
- * read which word a pane's fixture page shows, and press its links with the
- * gestures navigation's link listener reads.
- */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
@@ -50,8 +45,6 @@ When("I type {string} into the fixture filter in pane {int}", async function (th
   const box = filterIn(this, index);
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await box.click();
-  // A key at a time: each keystroke narrows the address, and a face remounted
-  // by one would lose the caret before the next.
   await box.pressSequentially(text);
 });
 
@@ -74,8 +67,6 @@ Then("the fixture filter in pane {int} has the caret", async function (this: Ola
   assert.ok(await filterIn(this, index).evaluate((box) => box === document.activeElement), "the fixture filter lost the caret");
 });
 
-/** A DOM-identity probe on one pane's page element: a page that was torn
- *  down and drawn again is a new element, without the tag. */
 When("I tag the page drawn in pane {int}", async function (this: OlaiWorld, index: number) {
   await paneAt(this, index).first().evaluate((page) => { (page as HTMLElement & { olaiTagged?: true }).olaiTagged = true; });
 });
