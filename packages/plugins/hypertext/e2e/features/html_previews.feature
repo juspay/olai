@@ -773,9 +773,6 @@ Feature: A `.html` in the vault
 
   @scratch:good @own-scratch
   Scenario: A previewed page that grows late does not re-land a reader who has scrolled away
-    # THE ORDER IS PINNED rather than hoped for: the rows must not have been
-    # drawn yet when the reader scrolls away, or this scenario would be
-    # asserting that nothing happens after nothing happened.
     Given I open the app
     And I mark the page
     When I rewrite "notes/deep.html" as:

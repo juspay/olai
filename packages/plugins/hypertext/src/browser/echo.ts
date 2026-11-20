@@ -1,8 +1,8 @@
 import { ROUNDING } from "@olai/surface"
 
-const TURNS = 6
+const REVERSALS = 6
 
-const SETTLING = 1000
+const QUIET_MS = 1000
 
 export interface Report {
   readonly height: number
@@ -16,28 +16,28 @@ export interface Echo {
 }
 
 export const echo = (): Echo => {
-  let gap: number | undefined
-  let rose: boolean | undefined
-  let turns = 0
-  let spoke: number | undefined
+  let lastGap: number | undefined
+  let lastRising: boolean | undefined
+  let reversals = 0
+  let lastReportAt: number | undefined
   return {
     takes({ height, frame, at }) {
-      const quiet = spoke === undefined || at - spoke > SETTLING
-      spoke = at
-      const was = gap
-      gap = height - frame
-      if (was !== undefined && Math.abs(gap - was) <= ROUNDING) return false
-      if (quiet) turns = 0
-      const rising = gap > 0
-      if (rose !== undefined && rising !== rose) turns += 1
-      rose = rising
-      return turns <= TURNS
+      const quiet = lastReportAt === undefined || at - lastReportAt > QUIET_MS
+      lastReportAt = at
+      const was = lastGap
+      lastGap = height - frame
+      if (was !== undefined && Math.abs(lastGap - was) <= ROUNDING) return false
+      if (quiet) reversals = 0
+      const rising = lastGap > 0
+      if (lastRising !== undefined && rising !== lastRising) reversals += 1
+      lastRising = rising
+      return reversals <= REVERSALS
     },
     fresh() {
-      gap = undefined
-      rose = undefined
-      turns = 0
-      spoke = undefined
+      lastGap = undefined
+      lastRising = undefined
+      reversals = 0
+      lastReportAt = undefined
     },
   }
 }

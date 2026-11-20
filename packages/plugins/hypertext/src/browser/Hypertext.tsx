@@ -20,18 +20,24 @@ import { fileNamed } from "olai-plugin-navigation/routes"
 import { useHead } from "./vault.ts"
 import { BodyRefused } from "olai-plugin-markdown/body-refused"
 import { echo } from "./echo.ts"
+import { custody } from "./custody.ts"
 
-const WALK_OFFS = 3
+const BUDGET = {
+  walkOffs: 3,
+  helloMs: 300,
+  readerMovedPx: 2,
+  correctingMs: 2_000,
+} as const
 
-const SAYS_HELLO = 300
+const PAGE_HEIGHT = {
+  property: "--page-height",
+  floor: "6rem",
+  unmeasured: "70dvh",
+  ceiling: "200dvh",
+} as const
 
-type Custody =
-  | { readonly at: "asked"; readonly spoke: boolean }
-  | { readonly at: "showing"; readonly spoke: boolean }
-  | { readonly at: "greeted" }
-  | { readonly at: "stray"; readonly until: ReturnType<typeof setTimeout> }
-
-const PAGE_HEIGHT = "--page-height"
+const FRAME_HEIGHT =
+  `clamp(${PAGE_HEIGHT.floor}, var(${PAGE_HEIGHT.property}, ${PAGE_HEIGHT.unmeasured}), ${PAGE_HEIGHT.ceiling})`
 
 const VISIT = "olai-visit"
 
@@ -42,10 +48,6 @@ const REFUSED: Said = {
 
 const anchor = (at: string | undefined): string =>
   at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
-
-const UNMOVED = 2
-
-const CORRECTING = 2_000
 
 const scrollPort = (node: HTMLElement): HTMLElement | null => {
   let el: HTMLElement | null = node.parentElement
@@ -76,6 +78,7 @@ function RefusedBody() {
 export function Hypertext(props: { readonly file: string }) {
   const shown = useShown()
   const rev = createMemo(useHead(() => props.file))
+  const [address, setAddress] = createSignal<string>()
   const [measured, setMeasured] = createSignal<string>()
   const [refused, setRefused] = createSignal<Said>()
   const [unreadable, setUnreadable] = createSignal(false)
@@ -90,29 +93,23 @@ export function Hypertext(props: { readonly file: string }) {
   let walkOffs = 0
   let visits = 0
   let pointed: Pointed | undefined
-  let stood: number | undefined
-  let over = false
+  let settledTop: number | undefined
+  let landingOver = false
   let correcting: ReturnType<typeof setTimeout> | undefined
-  const done = () => {
-    over = true
+  const endLanding = () => {
+    landingOver = true
     clearTimeout(correcting)
     correcting = undefined
   }
-  let custody: Custody = { at: "showing", spoke: true }
+  const custodian = custody({ helloMs: BUDGET.helloMs, strayed: () => bringBack() })
 
-  const stand = (next: Custody) => {
-    if (custody.at === "stray") clearTimeout(custody.until)
-    custody = next
+  const pointAt = (url: string, arriving?: Pointed) => {
+    startOver(arriving)
+    custodian.pointed()
+    setAddress(url)
   }
 
-  const point = (url: string, arriving?: Pointed) => {
-    if (frame === undefined) return
-    fresh(arriving)
-    stand({ at: "asked", spoke: false })
-    frame.src = url
-  }
-
-  const fresh = (arriving?: Pointed) => {
+  const startOver = (arriving?: Pointed) => {
     heights.fresh()
     latest = undefined
     if (sizing !== undefined) cancelAnimationFrame(sizing)
@@ -120,10 +117,10 @@ export function Hypertext(props: { readonly file: string }) {
     setRefused(undefined)
     setUnreadable(false)
     setLandedAt(undefined)
-    stood = undefined
+    settledTop = undefined
     clearTimeout(correcting)
     correcting = undefined
-    over = false
+    landingOver = false
     pointed = arriving
     if (arriving === undefined) setMeasured(undefined)
   }
@@ -144,23 +141,20 @@ export function Hypertext(props: { readonly file: string }) {
     if (shown() && latest !== undefined) reported(latest)
   })
 
-  const show = () => {
+  const showFile = () => {
     visits += 1
     const at = landing.owed()
-    point(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`, { rev: rev(), at })
+    pointAt(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`, { rev: rev(), at })
   }
 
-  const bring = () => {
+  const bringBack = () => {
     walkOffs += 1
-    if (walkOffs > WALK_OFFS) point("about:blank")
-    else show()
+    if (walkOffs > BUDGET.walkOffs) pointAt("about:blank")
+    else showFile()
   }
 
-  const loaded = () => {
-    if (custody.at === "asked") return stand({ at: "showing", spoke: custody.spoke })
-    fresh()
-    if (custody.at === "greeted") return stand({ at: "showing", spoke: true })
-    stand({ at: "stray", until: setTimeout(bring, SAYS_HELLO) })
+  const frameLoaded = () => {
+    if (custodian.loaded() === "unasked") startOver()
   }
 
   let frameLink: HTMLAnchorElement | undefined
@@ -213,13 +207,7 @@ export function Hypertext(props: { readonly file: string }) {
         setUnreadable(true)
         return
       }
-      if (said.kind === "hello") {
-        if (custody.at === "stray") stand({ at: "showing", spoke: true })
-        else if (custody.at === "greeted") return
-        else if (custody.spoke) stand({ at: "greeted" })
-        else stand({ ...custody, spoke: true })
-        return
-      }
+      if (said.kind === "hello") return custodian.greeted()
       if (said.kind === "link") return link(said)
       if (said.kind === "landed") return setLandedAt(said.top)
       reported(said.height)
@@ -234,13 +222,13 @@ export function Hypertext(props: { readonly file: string }) {
     onCleanup(() => clearTimeout(correcting))
     const top = landedAt()
     const height = measured()
-    if (top === undefined || frame === undefined || over) return
+    if (top === undefined || frame === undefined || landingOver) return
     if (pointed?.at === undefined || landing.at() === undefined) return
     const box = frame
     const at = pointed.at
     const painted = requestAnimationFrame(() => {
-      if (stood !== undefined && Math.abs(box.getBoundingClientRect().top - stood) > UNMOVED) {
-        return done()
+      if (settledTop !== undefined && Math.abs(box.getBoundingClientRect().top - settledTop) > BUDGET.readerMovedPx) {
+        return endLanding()
       }
       if (!shown()) return
       box.scrollIntoView({ block: "start" })
@@ -249,10 +237,10 @@ export function Hypertext(props: { readonly file: string }) {
         if (host === null) scrollBy({ top, behavior: "instant" })
         else host.scrollTop += top
       }
-      stood = box.getBoundingClientRect().top
+      settledTop = box.getBoundingClientRect().top
       if (height !== undefined) {
         clearTimeout(correcting)
-        correcting = setTimeout(done, CORRECTING)
+        correcting = setTimeout(endLanding, BUDGET.correctingMs)
       }
       landing.landed(at)
     })
@@ -260,7 +248,7 @@ export function Hypertext(props: { readonly file: string }) {
   })
 
   onCleanup(() => {
-    if (custody.at === "stray") clearTimeout(custody.until)
+    custodian.release()
     if (sizing !== undefined) cancelAnimationFrame(sizing)
     clearTimeout(correcting)
   })
@@ -270,9 +258,11 @@ export function Hypertext(props: { readonly file: string }) {
       if (now === undefined) return
       if (at === undefined && pointed !== undefined && pointed.rev === now) return
       walkOffs = 0
-      show()
+      showFile()
     }, { defer: true }),
   )
+
+  showFile()
 
   return (
     <>
@@ -291,25 +281,14 @@ export function Hypertext(props: { readonly file: string }) {
       <iframe hidden={unreadable()}
       ref={(element) => {
         frame = element
-        show()
       }}
-      onLoad={loaded}
-      // `allow-scripts` and NOTHING ELSE. What is absent is what matters:
-      // without `allow-same-origin` the frame's origin is nobody's, so the
-      // file's own scripts — which now run, and are the whole point — have no
-      // cookies, no storage, no reach into this app's DOM. The pair
-      // `allow-scripts allow-same-origin` is the combination that lets a framed
-      // document take its own sandbox off, and it is the edit this attribute
-      // exists to make obvious: ADDING A SECOND TOKEN HERE IS THE DIFFERENCE
-      // between this component and a page that runs somebody's JavaScript in
-      // this app's origin. The response says the same thing for a reader who
-      // types the address instead (`seal.ts`'s `sandbox allow-scripts`), so the
-      // guarantee does not depend on the frame being where the bytes are read.
+      src={address()}
+      onLoad={frameLoaded}
       sandbox="allow-scripts"
       referrerpolicy="no-referrer"
       title={props.file}
-      style={{ [PAGE_HEIGHT]: measured() }}
-      class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded-control border border-rule bg-white"
+      style={{ [PAGE_HEIGHT.property]: measured(), height: FRAME_HEIGHT }}
+      class="block w-full rounded-control border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
       />
 
