@@ -1,12 +1,3 @@
-/**
- * A MENU AT A POINT — what a right-click on a tab or on a link opens. Loaded
- * behind `import()` by both, so Kobalte's dropdown stays off first paint.
- *
- * The outline's `•••` menu's paint (`@olai/ui-primitives`' `menu.ts`) and
- * Kobalte's dropdown, anchored at the pointer rather than at a trigger, the
- * way chat's engine menu anchors at its button. Portalled to the document at
- * the overlay layer, and on the dismissal stack like every other panel.
- */
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { For, onCleanup, Show } from "solid-js"
 
@@ -31,8 +22,6 @@ export default function PointMenu(props: {
   portal.className = `fixed left-0 top-0 ${LAYER.over}`
   document.body.append(portal)
   onCleanup(() => portal.remove())
-  // ON THE STACK DIRECTLY, like chat's engine menu: its dismissal gestures are
-  // Kobalte's, so it joins without `dismissOn`.
   const topmost = topmostWhileOpen(() => true)
   const { x, y } = props
   return <DropdownMenu open modal={false} placement="bottom-start" gutter={0}

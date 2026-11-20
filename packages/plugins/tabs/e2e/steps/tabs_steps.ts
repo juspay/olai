@@ -1,14 +1,3 @@
-/**
- * THE TAB STRIP, driven and read.
- *
- * A tab is found by `data-tab` (its index in the strip) and asserted by
- * `data-tab-front` and `data-href` — facts, never a colour. `data-tab-dot` says
- * a tab wears SOMETHING, and which mark it is is read off the NAME it answers
- * to (its accessible name), because one dot element is all either mark is: a
- * locator that only asked for a dot would pass on the other one. A menu entry is
- * found by its role and its words, which are what a reader picks it by.
- */
-
 import assert from "node:assert/strict";
 
 import { Then, When } from "@olai/tests/harness/runner.ts";
@@ -35,8 +24,6 @@ const tabsFailure = async (world: OlaiWorld, error: unknown): Promise<never> => 
 };
 
 const pressPinned = async (world: OlaiWorld, target: ReturnType<OlaiWorld["pane"]>) => {
-  // Use the strip-count assertion's first-paint budget and report activation
-  // state if the target is missing. A wait cannot repair a mutated fixture.
   try { await target.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT }); }
   catch (error) { await tabsFailure(world, error); }
   await target.evaluate(element => {
@@ -59,17 +46,11 @@ const tabsNow = async (world: OlaiWorld) =>
   world.page.locator(TAB).evaluateAll((faces, title) => faces.map((face) => ({
     href: face.getAttribute("data-href"),
     front: face.getAttribute("data-tab-front") === "true",
-    // What the tab DRAWS, and what it is CALLED — two facts now: the words in
-    // the strip, and the name that carries the address behind them. The
-    // address used to be a `title` attribute, which the browser drew itself
-    // and only a pointer could ask for; it is this app's own tip plus the
-    // tab's own accessible name now, so `native` is asserted to be gone.
     title: face.querySelector(title)?.textContent?.trim() ?? null,
     said: face.getAttribute("aria-label"),
     native: face.getAttribute("title"),
   })), TITLE);
 
-/** Wait for the strip to say something, and say what it held when it would not. */
 const untilTabs = async (
   world: OlaiWorld,
   holds: (tabs: Awaited<ReturnType<typeof tabsNow>>) => boolean,
@@ -85,8 +66,6 @@ const untilTabs = async (
 const settled = async (world: OlaiWorld): Promise<void> => {
   await world.waitForFrame();
 };
-
-// ── what the strip draws ───────────────────────────────────────────────
 
 Then("there {word} {int} tab(s)", async function (this: OlaiWorld, _are: string, count: number) {
   await this.page.locator(STRIP).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -116,18 +95,6 @@ Then("the tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
     `the tabs to hold ${hrefs}`);
 });
 
-/**
- * THE ADDRESS A TAB HOLDS, and who can learn it — there is no readout beside
- * the strip, so this is the only place it is said.
- *
- * It used to be the tab's `title`: the platform's tooltip, placed by the
- * browser and answered to a pointer and nothing else. It is this app's own
- * tip now (`@olai/web`'s `client/Tip.tsx`) — which is drawn
- * `role="presentation"` and reaches nobody who does not hover — so the
- * address is ALSO at the end of the tab's own accessible name, after the
- * words it draws. The absence of `title` is asserted beside it: a tab wearing
- * both would draw two tooltips over one control.
- */
 Then("tab {int} carries the address {string}", async function (this: OlaiWorld, index: number, address: string) {
   await untilTabs(
     this,
@@ -162,11 +129,6 @@ Then("there is no tab strip", async function (this: OlaiWorld) {
   await this.waitUntil(async () => (await this.page.locator(STRIP).count()) === 0, "no tab strip in the document");
 });
 
-/**
- * THE MARK, by the word it answers to — NOT by the dot element, which is one
- * element whatever it means: a tab wearing the unread dot would have satisfied
- * a locator that only asked for a dot, which is half of what these two are for.
- */
 Then("tab {int} wears the needs-you dot", async function (this: OlaiWorld, index: number) {
   await tabAt(this, index).getByRole("img", { name: "Needs you", exact: true })
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -176,26 +138,17 @@ Then("tab {int} wears no dot", async function (this: OlaiWorld, index: number) {
   await this.waitUntil(async () => (await tabAt(this, index).locator(DOT).count()) === 0, `tab ${index} to wear no dot`);
 });
 
-/** ...and the other one, on the same terms. */
 Then("tab {int} wears the unread dot", async function (this: OlaiWorld, index: number) {
   await tabAt(this, index).getByRole("img", { name: "Unread", exact: true })
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/**
- * A NODE'S OWN PAGE IN A TAB OF ITS OWN — the bullet in front of a row is the
- * link to it (`outlines`' zoom control), so this is that link's menu, which is
- * where *open in new tab* lives. The new tab goes BEHIND, exactly as the link
- * menu's own scenario pins: pressing it is the next step.
- */
 When("I open node {string} in another tab", async function (this: OlaiWorld, id: string) {
   const bullet = this.within(id, ZOOM);
   await bullet.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await bullet.click({ button: "right" });
   await chooseFromMenu(this, "Open in new tab");
 });
-
-// ── pressing it ────────────────────────────────────────────────────────
 
 When("I press tab {int}", async function (this: OlaiWorld, index: number) {
   const tab = tabAt(this, index);
@@ -218,17 +171,6 @@ When("I close tab {int} with its button", async function (this: OlaiWorld, index
   await settled(this);
 });
 
-/**
- * A BACKGROUND TAB'S `×`, SEEN AND PRESSED BY A FINGER.
- *
- * The step above hovers and clicks, which is the pointer's gesture and the
- * only one it has. These two are the other device: no hover beforehand, and no
- * `force` on the press, because on a screen with no hover the button is simply
- * drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). The strip is a
- * WIDTH decision and the reveal is a POINTER one, which is why a scenario can
- * ask this at all: a tablet in landscape is past the breakpoint that draws the
- * strip and has nothing to hover it with.
- */
 Then("tab {int} shows its close control without a hover", async function (this: OlaiWorld, index: number) {
   const close = tabAt(this, index).locator(CLOSE);
   await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -244,13 +186,6 @@ When("I tap the close control of tab {int}", async function (this: OlaiWorld, in
   await settled(this);
 });
 
-/**
- * WHERE THE CLOSE BUTTON SITS, and what it is called. At the tab's right edge,
- * after the name — the last thing in the tab, the place a hand reaches for —
- * with the tooltip `Close tab` and an accessible name that says WHICH tab.
- * Measured on the tab in front, whose button is always drawn; a background
- * tab's shows on hover.
- */
 Then(
   "tab {int}'s close button sits at its right edge, called {string}",
   async function (this: OlaiWorld, index: number, name: string) {
@@ -259,17 +194,12 @@ Then(
     const close = tab.locator(CLOSE);
     await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal(await close.getAttribute("aria-label"), name);
-    // No `title` on the close button: "Close tab" is this app's own tip, and
-    // the button's NAME is the tab it closes, asserted on the line above.
     assert.equal(await close.getAttribute("title"), null);
     const [face, button, title] = await Promise.all([tab.boundingBox(), close.boundingBox(), tab.locator(TITLE).boundingBox()]);
     assert.ok(face !== null && button !== null && title !== null, "the tab, its name or its button has no box");
-    // Right-aligned: nothing but the tab's own padding after the button.
     const gap = face.x + face.width - (button.x + button.width);
     assert.ok(gap >= 0 && gap <= 8, `the close button ends ${gap}px short of the tab's right edge`);
-    // ...and after the name, not before it.
     assert.ok(button.x >= title.x + title.width - 1, "the close button sits before the tab's name");
-    // The last element in the tab: nothing is drawn to its right.
     assert.equal(
       await close.evaluate((el) => el.nextElementSibling === null),
       true,
@@ -301,8 +231,6 @@ When("I drag tab {int} onto tab {int}", async function (this: OlaiWorld, from: n
   await settled(this);
 });
 
-// ── the link menu ──────────────────────────────────────────────────────
-
 const chooseFromMenu = async (world: OlaiWorld, entry: string): Promise<void> => {
   const menu = world.page.locator(MENU);
   try { await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT }); }
@@ -329,9 +257,6 @@ When("I choose {string} from the menu of the document link {string}", async func
   await chooseFromMenu(this, entry);
 });
 
-// A link to a heading inside its own document, and a line of its contents:
-// page-local fragments, found by what a reader sees rather than a row's
-// selector — the contents is the page's `Contents` navigation.
 When("I choose {string} from the menu of the in-page link {string}", async function (this: OlaiWorld, entry: string, label: string) {
   const link = this.documentBody().getByRole("link", { name: label, exact: true }).first();
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -355,12 +280,9 @@ Then("right-clicking the bullet of {string} opens the link menu", async function
 });
 
 When("I widen the window to a desk", async function (this: OlaiWorld) {
-  // The laptop the suite lays out at, back from a phone-width visit.
   await this.page.setViewportSize({ width: 1440, height: 900 });
   await this.waitForFrame();
 });
-
-// ── keys ───────────────────────────────────────────────────────────────
 
 const CHORDS: Readonly<Record<string, string>> = {
   "next tab": "ControlOrMeta+Shift+Period",
@@ -386,11 +308,6 @@ Then("the shortcuts list {string} as {string}", async function (this: OlaiWorld,
   );
 });
 
-// ── what is kept ───────────────────────────────────────────────────────
-
-/** The stored set, in strip order: a background tab by its address, and the
- *  tab in front as `(front)` — it is kept without one, since the address bar
- *  supplies it when the set is read back. */
 Then("the stored tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
   const wanted = hrefs.split(" ");
   const read = async () => {

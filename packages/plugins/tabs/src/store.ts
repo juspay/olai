@@ -1,25 +1,3 @@
-/**
- * THE LIVE TAB SET — one per activation of the row, created inside the row's
- * own root (`./browser.tsx`) and offered as `tabs.state`.
- *
- * WHAT IT OWNS: the list and which tab is in front (`./list.ts` decides every
- * change), the stored copy of both (`./persist.ts`), and the lane the router
- * walks history in. WHAT IT DOES NOT: `history` itself, which is the
- * navigation row's — this names a lane and switches it (`Router.switchLane`),
- * and a closed tab's lane is forgotten (`Router.forgetLane`).
- *
- * THE FRONT TAB MIRRORS THE ROUTER. A door, Back, a pane verb: whatever moves
- * the router's workspace rewrites the front tab's address and title, and
- * nothing else in the list. Visited background tabs retain their own pages
- * and mirror only their own changes.
- *
- * TWO READINGS ARRIVE FROM COMPONENTS, because the row may not want what they
- * need: whether a strip draws the tabs on a desktop (`draw`, from the strip,
- * which names `layout.shell`) and which tabs wear a dot and how (`dot`, from the
- * attention component, which names `chat.state`). Each is registered by its
- * owner and released with it — and one component may register SEVERAL, which is
- * why a mark carries its own rank rather than the set remembering an order.
- */
 import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, mapArray, on, untrack } from "solid-js"
 
 import { createPreference } from "@olai/web/client/preference.ts"
@@ -43,48 +21,28 @@ import {
 import { printStored, readStored, TABS_KEY } from "./persist.ts"
 
 export interface TabsStore extends TabsState {
-  /** Hold the front tab's lane in force while a strip draws the tabs on a
-   *  desktop, and the window's own history otherwise. The answer gives the
-   *  window its history back, which is the row's release. */
   readonly takeLane: () => () => void
-  /** Mirror the router into the front tab, and keep the stored set written.
-   *  The answer stops both. */
   readonly follow: () => () => void
 }
 
-/** What a workspace is called before its page says: a page's label, or a
- *  split's leaves' labels joined. */
 const labelOf = (routes: Navigation["routes"], workspace: Workspace): string =>
   panesOf(workspace).map((pane) => routes.label(pane.route)).join(" + ")
 
 export const createTabs = (router: Navigation): TabsStore => {
-  // The stored set as it is PRINTED: read once here, written below only when
-  // the printed string changes (`./persist.ts`'s `printStored`).
   const preference = createPreference<string | null>(TABS_KEY, { parse: (raw) => raw, print: (raw) => raw })
   const hrefOf = (workspace: Workspace): string => hrefOfWorkspace(router.routes, workspace)
 
-  /** A tab holding `workspace`, named by its label until its page says. */
   const tabFor = (id: string, workspace: Workspace): Tab =>
     ({ id, href: hrefOf(workspace), title: labelOf(router.routes, workspace) })
 
-  // READ ONCE, here. The address bar WINS over the stored front tab's page: a
-  // link somebody opened, or an address typed, is what the tab in front shows.
   const here = tabFor(nextId(undefined), untrack(router.workspace))
   const [list, setList] = createSignal<TabList>(
     readStored(untrack(preference.value), here) ?? { tabs: [here], front: here.id })
 
-  // EACH REGISTRATION IS ITS OWN ROW, released by the row rather than by the
-  // value it carries: two strip activations hand over the same accessor
-  // (layout's breakpoint is one function), and a release that compared values
-  // would take the survivor's row with its own.
   const [draws, setDraws] = createSignal<ReadonlyArray<{ readonly desktop: Accessor<boolean> }>>([])
   const [dots, setDots] = createSignal<ReadonlyArray<{ readonly dots: Dots }>>([])
   const drawn = createMemo(() => draws().some((row) => row.desktop()))
   const dotted = createMemo<ReadonlyMap<string, Mark>>(() => {
-    // ONE MARK PER TAB, and WHICH one is decided by `rank` rather than by the
-    // order these readings were registered in — a strip whose dot depended on
-    // which component mounted first would be a rule nobody could read off
-    // either reading, and two rows contributing marks would be the end of it.
     const marked = new Map<string, Mark>()
     for (const { dots: one } of dots()) {
       for (const id of one.ids()) {
@@ -95,17 +53,8 @@ export const createTabs = (router: Navigation): TabsStore => {
     return marked
   })
 
-  /** Whether THIS store holds the lane — its own claim, taken and given back
-   *  below. Not read off the router: a release must undo only what its owner
-   *  took, whoever else ever names a lane. */
   let laned = false
 
-  /**
-   * THE ONE WAY THE LIST CHANGES. A verb hands over the list afterwards; what
-   * that means for the router is read off the difference: tabs that went have
-   * their lanes forgotten, and a new front tab has its lane switched in, after
-   * the outgoing tab has recorded which entry it was left on.
-   */
   const commit = (next: TabList): void => batch(() => {
     const before = untrack(list)
     if (next === before) return
@@ -122,8 +71,6 @@ export const createTabs = (router: Navigation): TabsStore => {
       const key = router.switchLane(incoming.id, { workspace, key: incoming.key })
       setList((all) => updateTab(all, incoming.id, { key }))
     } else {
-      // NOT DRIVEN — a phone, or no strip: the page is simply gone to, in the
-      // window's own history, so Back returns to the page it came from.
       router.open(workspace)
     }
   })
@@ -164,9 +111,6 @@ export const createTabs = (router: Navigation): TabsStore => {
       return () => setDots((all) => all.filter((one) => one !== row))
     },
     takeLane: () => createRoot((dispose) => {
-      // THE LANE FOLLOWS THE STRIP. Below the breakpoint the tabs are kept but
-      // not driven, so Back there is the window's — across a reload too — and
-      // the first lane taken on a desk adopts whatever the window wrote meanwhile.
       createEffect(on(drawn, (desk) => {
         if (desk === laned) return
         laned = desk
@@ -180,8 +124,6 @@ export const createTabs = (router: Navigation): TabsStore => {
       }
     }),
     follow: () => createRoot((dispose) => {
-      // Each retained lane owns its mirror. Unrelated lane changes never
-      // re-read this one's routes or page reports.
       const mirrors = mapArray(router.lanes, lane => {
         const href = createMemo(() => hrefOf(lane.workspace()))
         const label = createMemo(() => lane.panes().map(pane => router.routes.label(pane.route())).join(" + "))
@@ -201,10 +143,6 @@ export const createTabs = (router: Navigation): TabsStore => {
         })
       })
       createEffect(mirrors)
-      // A WRITE ONLY WHEN WHAT IS KEPT CHANGES. The front tab's address and
-      // name are not kept — the address bar supplies both at activation — so a
-      // filter keystroke in the tab in front prints the same string and writes
-      // nothing. A tab leaving the front is written with its last address then.
       const printed = createMemo(() => printStored(list()))
       createEffect(() => preference.set(printed()))
       return dispose

@@ -1,5 +1,3 @@
-/** Geometry of the occupied strip and the reading beneath it. These checks
- * measure rendered boxes independently of the CSS tokens under test. */
 import assert from "node:assert/strict";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";

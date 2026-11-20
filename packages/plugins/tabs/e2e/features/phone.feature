@@ -30,7 +30,6 @@ Feature: Tabs on a phone
     And the stored tabs hold "/house.olai (front)"
     When I press the "previous tab" chord
     Then the address is "/garden.olai"
-    # No lane on a phone: Back is the window's, and returns to the page before.
     When I go back
     Then the address is "/house.olai"
     And there should be no page errors
@@ -57,9 +56,6 @@ Feature: Tabs on a phone
     Then there is 1 tab
     When I choose "Open in new tab" from the menu of the outline link "garden.olai"
     Then there are 2 tabs
-    # The background tab's `×`: the front tab's is always drawn, and the others'
-    # waited on a hover. Opacity is the claim — a transparent button is still a
-    # button Playwright would call visible and a thumb would land on blindly.
     And tab 1 shows its close control without a hover
     When I tap the close control of tab 1
     Then there is 1 tab

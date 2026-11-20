@@ -1,6 +1,3 @@
-/** Link menus read the same anchor href as navigation and hover preview.
- * The overlay owns this document listener. Row menus yield only their links;
- * Shift-right-click and the tab strip retain their own handling. */
 import { createSignal, onCleanup, Show } from "solid-js"
 
 import type { Navigation } from "olai-plugin-navigation/contract"

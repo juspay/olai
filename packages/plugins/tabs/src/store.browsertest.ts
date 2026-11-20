@@ -8,12 +8,6 @@ import { lone, panesOf, type Workspace, workspaceOf, workspaceRoutingOver } from
 import { TABS_KEY } from "./persist.ts"
 import { createTabs } from "./store.ts"
 
-/**
- * THE STORE OVER A ROUTER THAT WRITES DOWN WHAT IT WAS ASKED — which lane was
- * switched in with which key, which lane was forgotten, in what order — so the
- * order the store drives the navigation row in is a claim here rather than
- * something only the browser suite could notice.
- */
 const fakeRouter = (first: string) => {
   const routes = workspaceRoutingOver(routingOver(() => undefined, () => NO_PAGES))
   const [workspace, setWorkspace] = createSignal<Workspace>(workspaceOf(routes, first))
@@ -68,8 +62,6 @@ const withStore = (first: string, run: (parts: ReturnType<typeof fakeRouter> & {
   if (stored !== undefined) store.kept.set(TABS_KEY, stored)
   let dispose = () => {}
   try {
-    // Set up inside a root, and pressed OUTSIDE it: a root runs its effects
-    // once it has returned, and the presses are the reader's, which come later.
     const parts = createRoot((stop) => {
       dispose = stop
       const router = fakeRouter(first)
@@ -161,11 +153,9 @@ test("the front tab mirrors the router, and a restored front takes the address a
     const written = kept.get(TABS_KEY)
     go(atFile("finishes.md"))
     expect(hrefs(tabs)).toEqual(["/garden.olai", "/finishes.md"])
-    // The page in front moved, and what is kept did not: no write.
     expect(kept.get(TABS_KEY)).toBe(written)
     desk(true)
     tabs.show("t1")
-    // ...until that tab leaves the front, with its last address.
     expect(JSON.parse(kept.get(TABS_KEY)!).tabs[1].href).toBe("/finishes.md")
   }, stored)
 })
@@ -199,21 +189,16 @@ test("two dot readings with the same paint are two registrations", () => {
 })
 
 test("the higher-ranked reading wins a tab, whatever order they were registered in", () => {
-  // A conversation can be BOTH waiting and unread, and which mark a tab then
-  // wears has to be a rule rather than the order two components mounted in:
-  // the question is the one asking for something (`./contract.ts`'s `Dots.rank`).
   withStore("/house.olai", ({ tabs }) => {
     const unread = { ids: () => new Set(["t1"]), paint: "bg-muted/60", label: "Unread", rank: 1 }
     const needing = { ids: () => new Set(["t1"]), paint: "bg-doing", label: "Needs you", rank: 2 }
     const first = tabs.dot(unread)
     const second = tabs.dot(needing)
     expect(tabs.dotted().get("t1")?.label).toBe("Needs you")
-    // ...and the quieter mark is still there for the tab that only it catches.
     const quiet = { ...unread, ids: () => new Set(["t2"]) }
     const third = tabs.dot(quiet)
     expect(tabs.dotted().get("t1")?.label).toBe("Needs you")
     expect(tabs.dotted().get("t2")?.label).toBe("Unread")
-    // The winner going away leaves the other standing on the tab it caught.
     second()
     expect(tabs.dotted().get("t1")?.label).toBe("Unread")
     third()

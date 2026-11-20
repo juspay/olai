@@ -10,9 +10,7 @@ const set = {
   front: "t2",
 }
 
-/** The page the address bar holds when the set is read back. */
 const here = { href: "/Monday.olai", title: "Monday" }
-/** ...as the store hands it over: a whole tab, whose id must not replace the stored one's. */
 const shown = { id: "t9", ...here }
 
 test("a set round-trips, with the front tab kept as its id and key alone and shown at the address", () => {

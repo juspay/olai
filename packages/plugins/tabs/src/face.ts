@@ -1,9 +1,3 @@
-/**
- * What a tab WEARS: a glyph for the kind of page it holds, the name it goes by,
- * and the address it holds as its tooltip. All of it is read off the address,
- * so a restored tab that has not been visited can draw its face before its
- * page is mounted. Live background lanes also update their reported titles.
- */
 import { keyArray } from "@solid-primitives/keyed"
 import { createMemo, type Accessor } from "solid-js"
 import type { Routing } from "olai-plugin-navigation/routes"
@@ -23,10 +17,7 @@ export const glyphOf = (routes: Routing, href: string): string => {
 }
 
 export interface TabFace {
-  /** What the tab says: a document by the name the files sidebar gives it
-   *  (`garden`, not `garden.olai`), anything else by its page's title. */
   readonly title: string
-  /** Where the tab is — its address, spelled for a person to read. */
   readonly tip: string
 }
 
@@ -38,17 +29,6 @@ const readable = (href: string): string => {
   }
 }
 
-/**
- * EVERY TAB'S FACE AT ONCE, because one tab's name depends on its neighbours':
- * a name is short (the stem navigation answers, `Routing.name`) until two
- * tabs holding different pages would say the same word — `notes.md` beside
- * `notes.olai`, `a/x.olai` beside `b/x.olai` — and then those tabs, and only
- * those, say their whole path instead. Two tabs on the SAME page (a duplicate)
- * say the same word, which is the truth about them.
- *
- * A page that is not a whole document (a node, an agenda, the front page)
- * wears the title its page last reported, exactly as before.
- */
 export const facesOf = (routes: WorkspaceRouting, tabs: ReadonlyArray<Tab>): ReadonlyMap<string, TabFace> => {
   const read = tabs.map(tab => readFace(routes, tab))
   return combineFaces(read)
@@ -79,8 +59,6 @@ const combineFaces = (read: ReadonlyArray<ReturnType<typeof readFace>>): Readonl
   }]))
 }
 
-/** Each tab owns its parse; replacing a sibling or changing the front tab
- * does not reinterpret this address. Collision labels remain a set reading. */
 export const createFaces = (routes: WorkspaceRouting, tabs: Accessor<ReadonlyArray<Tab>>) => {
   const rows = keyArray(tabs, tab => tab.id, tab => {
     const href = createMemo(() => tab().href)

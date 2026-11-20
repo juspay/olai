@@ -1,9 +1,3 @@
-/**
- * THIS ROW'S SELECTORS — its own ids, spelled once, for its own steps. The one
- * id read here that is not this row's is the shortcuts sheet's row, which the
- * navigation row draws and these steps read to find the tab chords listed.
- */
-
 import { TESTID as ALL } from "@olai/tests/harness/testids.ts";
 import { selector } from "@olai/web/testlib";
 

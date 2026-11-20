@@ -12,7 +12,6 @@ When("I open every benchmark tool detail", { timeout: 120_000 }, async function 
   await this.waitUntil(async () => await rows.count() >= 300, "300 transcript rows")
   const folds = this.chat(selector(CHAT.chatToolFold))
   await this.waitUntil(async () => await folds.count() === 150, "all 150 benchmark tool rows")
-  // Fixture preparation; measured switches below use real pointer events.
   await folds.evaluateAll(elements => elements.forEach(element => (element as HTMLElement).click()))
   await this.waitForFrame()
   assert.ok(await this.pane(1).locator("pre").count() >= 150, "code blocks are rendered")
@@ -32,7 +31,6 @@ Then("I measure both retained lane hiding strategies", { timeout: 120_000 }, asy
   ` })
   const samples: Record<string, number[]> = { display: [], content: [] }
   try {
-    // Warm both visited lanes before timing; no network or mount is measured.
     for (const mode of ["display", "content", "content", "display"] as const) {
       await this.page.evaluate(mode => { document.documentElement.dataset.benchmarkHide = mode }, mode)
       for (let turn = 0; turn < 12; turn++) {
@@ -50,7 +48,6 @@ Then("I measure both retained lane hiding strategies", { timeout: 120_000 }, asy
         })
         await this.page.mouse.click(point.x + 12, point.y + point.height / 2)
         const elapsed = await this.page.evaluate(() => (window as unknown as { switchMeasurement: Promise<number> }).switchMeasurement)
-        // Only the return to the large transcript; discard the first pair.
         if (turn >= 2 && turn % 2 === 1) samples[mode]!.push(elapsed)
       }
     }

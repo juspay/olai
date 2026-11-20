@@ -1,18 +1,3 @@
-/**
- * THE STRIP — the row of tabs above the panes, on a desktop.
- *
- * Desk ground and a one-pixel rule under it; the tab in front on paper with the
- * rule broken under it, the others muted. A press brings a tab forward when it
- * is let go, a drag reorders it with the
- * pane header's threshold and pointer helper, a middle-click closes it, and a
- * right-click opens its menu. `+` opens a front-page tab. A tab says the name
- * of what it holds (`./face.ts`'s `facesOf`: a document by its stem, the way
- * the files sidebar says it) and carries its address in this app's own tip
- * (`@olai/web`'s `client/Tip.tsx`) AND in its own accessible name, since a
- * tip answers a pointer and nothing else; the menu copies that address.
- *
- * It draws the list and nothing else: every verb is `tabs.state`'s.
- */
 import { Key } from "@solid-primitives/keyed"
 import { createEffect, createMemo, createSelector, createSignal, on, Show } from "solid-js"
 
@@ -30,22 +15,16 @@ import { createFaces, glyphOf } from "./face.ts"
 import { PointMenu } from "./chunk.ts"
 import { TESTID } from "./testids.ts"
 
-/** How far a press on a tab travels before it is a drag — the pane header's. */
 const DRAG_PX = 8
 
 export function Strip(props: { readonly tabs: TabsState; readonly router: Navigation }) {
   const tabs = props.tabs
   const [menu, setMenu] = createSignal<{ readonly id: string; readonly x: number; readonly y: number } | null>(null)
   const [lifted, setLifted] = createSignal<string | null>(null)
-  /** Where a carried tab would land: the tab it is over, while it travels. */
   const [over, setOver] = createSignal<{ readonly id: string; readonly side: "before" | "after" } | null>(null)
   let row: HTMLDivElement | undefined
-  // One gesture at a time, torn down with the strip — a strip removed
-  // mid-drag (the row switched off, the breakpoint crossed) leaves no window
-  // listener and no selection guard behind.
   const drags = createDrags()
 
-  /** The index a tab carried from `from` lands at, for a pointer at `x`. */
   const landingAt = (x: number, from: number): number => {
     const faces = row === undefined ? [] : [...row.querySelectorAll(`[data-testid="${TESTID.tabsTab}"]`)]
     const hit = faces.findIndex((face) => {
@@ -56,16 +35,11 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
     return x < (faces[0]?.getBoundingClientRect().left ?? 0) ? 0 : Math.max(from, faces.length - 1)
   }
 
-  /** Every tab's name and tooltip, read together: a name shared by two
-   *  different pages is spelled out on both (`./face.ts`). */
   const faces = createFaces(props.router.routes, tabs.tabs)
 
-  /** The tab's address as a link somebody can paste. A clipboard the browser
-   *  refuses (plain http to another machine is the usual one) is not
-   *  swallowed: the address is handed over to copy by hand instead. Inside a
-   *  `then` because plain http does not refuse with a rejected write — it has
-   *  no `navigator.clipboard` at all, and the call throws before any promise
-   *  exists for a `catch` to hang on. */
+  /** Inside a `then` rather than a `catch`: a page served over plain http has
+   *  no `navigator.clipboard` at all, so the call throws before any promise
+   *  exists. The address is handed over to copy by hand instead. */
   const copyAddress = (id: string): void => {
     const href = tabs.tabs().find((tab) => tab.id === id)?.href
     if (href === undefined) return
@@ -75,11 +49,6 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
     })
   }
 
-  // The tab in front is kept in view when it CHANGES — a chord or a new tab can
-  // bring one forward that the strip has scrolled past. Only the strip's own
-  // row scrolls, sideways: `scrollIntoView` could also move ancestor scroll
-  // containers despite the strip being pinned, and the front id is compared so a
-  // navigation inside the tab (which rewrites its record) moves nothing.
   const isFront = createSelector(tabs.front)
   const lifting = createSelector(lifted)
   const front = createMemo(() => tabs.front())
@@ -92,10 +61,6 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
     else if (left + face.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + face.offsetWidth - row.clientWidth
   })))
 
-  // A PRESS THAT DOES NOT TRAVEL brings the tab forward when it is let go, not
-  // when it goes down: the page coming back asks for its old scroll position,
-  // and that request stands down for the reader's own pointerdown — which the
-  // one still being dispatched would be.
   const press = (event: PointerEvent, tab: Tab) => {
     if (event.button !== 0) return
     if ((event.target as HTMLElement).closest("button")) return
@@ -125,8 +90,6 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
 
   return (
     <div data-testid={TESTID.tabsStrip} class="relative flex h-full items-stretch gap-1 pr-1">
-      {/* The rule under the strip. Every tab is positioned and comes after it,
-          so the tab in front, on paper, breaks the rule without a z-index. */}
       <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-rule" />
       <div ref={row} role="tablist" aria-label="Open tabs"
         class="flex h-full min-w-0 flex-1 items-stretch overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
@@ -139,13 +102,6 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
           const dot = () => tabs.dotted().get(tab().id)
           const isLifted = () => lifting(tab().id)
           const drop = () => (over()?.id === tab().id ? over()!.side : undefined)
-          /** WHAT THE TAB IS CALLED, to a reader who is not looking at it: the
-           *  words it draws, the mark it wears, and the ADDRESS it holds —
-           *  which the strip truncates at 14rem and used to keep in a `title`,
-           *  where only a pointer could ask for it. The tip says the address
-           *  too, but a tip is drawn `role="presentation"` and reaches nobody
-           *  who does not hover, and the strip must go on DRAWING no address
-           *  of its own, so this is a name rather than hidden words. */
           const said = () =>
             [title(), dot()?.label, face()?.tip ?? tab().href]
               .filter((one): one is string => one !== undefined && one !== "")
@@ -164,12 +120,6 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 data-href={tab().href}
                 data-lifted={isLifted() ? "true" : undefined}
                 data-drop={drop()}
-                // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
-                // (a page naming itself as it arrives) must not move its
-                // neighbours along the strip.
-                // `olai-tab-filled` is the forced-colours hook, defined once in
-                // `@olai/ui-primitives/all.css`: paper under the front tab is a
-                // background, and High Contrast throws author backgrounds away.
                 class="olai-tab-filled group/tab relative flex h-full min-w-[5rem] max-w-[14rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap border-r border-rule pl-3 pr-1 text-label"
                 classList={{
                   "bg-paper font-medium text-ink": front(),
@@ -195,7 +145,6 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                   }
                 }}
               >
-                {/* WHERE THE CARRIED TAB WOULD LAND, drawn on the tab it is over. */}
                 <Show when={drop()}>{(side) =>
                   <span aria-hidden="true" class="pointer-events-none absolute inset-y-1.5 w-0.5 rounded-full bg-accent"
                     classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
@@ -205,15 +154,6 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 <Show when={dot()}>{(mark) =>
                   <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label={mark().label} class={`${DOT} ${mark().paint}`} />
                 }</Show>
-                {/* THE × IS THE FRONT TAB'S ALWAYS and the others' on hover —
-                    a strip of eight tabs each wearing a close button is eight
-                    invitations to lose a page. On a touch screen there is no
-                    hover to make the offer with, and this strip is drawn
-                    wherever the window is wide enough for it: a tablet in
-                    landscape had a row of tabs it could only close through the
-                    long-press menu. `SHOWN_WITHOUT_HOVER` is the one rule for
-                    that (`@olai/ui-primitives`), and it leaves the pointer's
-                    strip exactly as it was. */}
                 <Tip text="Close tab" layer={LAYER.over}>
                   <button
                     type="button"

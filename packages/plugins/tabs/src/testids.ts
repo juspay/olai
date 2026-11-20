@@ -1,5 +1,3 @@
-/** Stable DOM identifiers owned by the tabs row. Names only: a scenario
- *  imports this without pulling a component into a suite with no browser. */
 export const TESTID = {
   tabsStrip: "tabs-strip",
   tabsTab: "tabs-tab",

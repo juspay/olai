@@ -27,8 +27,6 @@ Then("remembered pane {string} is {word}", async function (this: OlaiWorld, name
 })
 Then("there are {int} live lanes", async function (this: OlaiWorld, count: number) {
   await this.waitUntil(async () => await this.page.locator(selector(TESTID.lane)).count() === count, `${count} live lanes`)
-  // Keep observing through subsequent paints: an early one-lane frame at
-  // reload must not conceal a later eager mount of the background tabs.
   assert.equal(await this.page.evaluate(async ({ lane, count }) => {
     const until = performance.now() + 500
     while (performance.now() < until) {
@@ -58,9 +56,6 @@ When("I drag pane header {int} to pane header {int}", async function (this: Olai
   await this.page.mouse.up()
 })
 
-// The reader's place is WHAT they were reading, not a pixel offset: a pinned
-// head that shrinks above it while the tab is away (an agent's "Working…"
-// line ending) moves the text and must move the offset with it.
 const savedPaneScroll = new WeakMap<OlaiWorld, Map<number, { readonly element: ElementHandle; readonly y: number }>>()
 When("I leave pane {int} halfway down", async function (this: OlaiWorld, index: number) {
   const read = await this.pane(index).evaluateHandle(root => {
@@ -68,8 +63,6 @@ When("I leave pane {int} halfway down", async function (this: OlaiWorld, index: 
     while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
     if (!host) throw new Error("no pane scroller")
     host.scrollTop = (host.scrollHeight - host.clientHeight) / 2
-    // The in-flow element at the scrollport's middle, under any pinned head
-    // or foot drawn over it there.
     const box = host.getBoundingClientRect()
     const pinned = (element: Element) => {
       for (let at: Element | null = element; at && at !== host; at = at.parentElement) {

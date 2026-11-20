@@ -1,19 +1,3 @@
-/**
- * THE TABS ROW — the set of open tabs, per browser, and the lane the router
- * walks history in for the tab in front.
- *
- * THE ROW activates with navigation and nothing that draws: the set, its
- * stored copy, the lane and the chords are all it holds. What DRAWS is on
- * components, each waiting for what it needs — the strip for the layout's
- * shell and a renderer, the link menu for a renderer, and the dots a tab wears
- * for the chat row.
- *
- * ACQUIRED in this order and released in the reverse: the state's root, the
- * service, the lane (`switchLane(id)` … `switchLane(null)`), following the
- * router and writing the stored set, and the chords. So on release the chords
- * go first, then the store stops following, then the window gets its history
- * back, and only then is the service withdrawn and the root disposed.
- */
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 
@@ -52,9 +36,6 @@ export default definePlugin({
 })
 
 export const components = {
-  /** The strip, in layout's seat above the panes. It names `layout.shell` —
-   *  never the row, which activates under any layout or none — and tells the
-   *  set whether it is drawn on a desktop. */
   strip: definePlugin({
     name: "strip",
     needs: [tabsState, navigation, shell, rendererSlots],
@@ -62,17 +43,10 @@ export const components = {
       const tabs = yield* tabsState
       const router = yield* navigation
       const geometry = yield* shell
-      // THE SEAT FIRST. `layout.strip` holds one occupant, and a refused claim
-      // must leave nothing behind — telling the set it is drawn takes the lane,
-      // which rewrites the history entry, so that waits until the seat is ours.
       yield* (yield* rendererSlots).contribute(strip, () => <Strip tabs={tabs} router={router} />)
       yield* Effect.acquireRelease(Effect.sync(() => tabs.draw(geometry.desktop)), (release) => Effect.sync(release))
     }),
   }),
-  /** The dots a tab can wear, over chat's roster (`./attention.ts`): the
-   *  needs-you mark and the quieter one for a conversation nobody has read.
-   *  Two readings rather than one — the set keeps one mark per tab and ranks
-   *  them (`./contract.ts`'s `Dots.rank`). */
   attention: definePlugin({
     name: "attention",
     needs: [tabsState, chatState, navigation],
@@ -84,8 +58,6 @@ export const components = {
         Effect.sync(() => createRoot((dispose) => {
           const releases = marksOver(chat, router.routes, tabs.tabs).map((reading) => tabs.dot(reading))
           return () => {
-            // Released in reverse, like every other list of acquisitions here:
-            // the second reading's row goes before the first's.
             for (const release of releases.reverse()) release()
             dispose()
           }
@@ -94,7 +66,6 @@ export const components = {
       )
     }),
   }),
-  /** Open in new tab, on any in-app link (`./Links.tsx`). */
   links: definePlugin({
     name: "links",
     needs: [tabsState, navigation, rendererSlots],
