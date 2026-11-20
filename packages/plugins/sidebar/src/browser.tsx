@@ -1,12 +1,3 @@
-/** The sidebar occupies a layout-owned location; it does not provide layout.
- * Only the renderer service is required to register: an absent layout leaves
- * this entry waiting while the plugin stays independent. The column and rail
- * are two presentations of one entry, sharing its child locations. Those child
- * declarations are available only while this entry is active, so withdrawal
- * drains dependent integrations before removing their container. Solid owns
- * subscriptions made while rendering; the renderer owns the integration scope.
- * The content pane is a sibling and keeps its identity when this row leaves.
- * Notebook readings inside Sidebar remain an explicit Phase 18 extraction. */
 import { slotContracts } from "./slots.ts"
 import { definePlugin, Faces } from "@olai/plugin-api"
 import { holdFaces } from "./faces.ts"
@@ -22,7 +13,6 @@ import { name } from "./index.ts"
 
 export default definePlugin({
   name, needs: [rendererSlots, Faces], apply: Effect.gen(function*() {
-    // The sections and entries other rows hang here, held for this activation.
     yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
     yield* slots.contribute(sidebar, { Sidebar: (props) => <Sidebar {...props} slots={slots} />, Rail: (props) => <Rail {...props} slots={slots} /> }, {
@@ -31,8 +21,6 @@ export default definePlugin({
   }),
 })
 
-/** The shell's geometry, DECLARED — a component of its own because content
- *  runs under another layout entirely (`./shell.ts`). */
 export const components = {
   shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
     const geometry = yield* appShell

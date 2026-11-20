@@ -1,5 +1,3 @@
-/** Sidebar owns its container and child regions. Feature entries acquire and
- * withdraw independently; no notebook tree or reading belongs to this plugin. */
 import { TESTID } from "olai-plugin-sidebar/testids"
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
@@ -16,7 +14,6 @@ export function Sidebar(props: SidebarRegionProps) {
   const foot = children(() => props.foot)
   return (
     <>
-      {/* Mobile scrim: under the header so app chrome stays tappable (#101). */}
       <Show when={props.open}>
         <button
           type="button"
@@ -29,28 +26,15 @@ export function Sidebar(props: SidebarRegionProps) {
 
       <nav
         class={
-          // Mobile closed: `hidden` (off-screen translate still counts as
-          // visible to Playwright). Mobile open: FIXED under the header —
-          // never also `relative` (that utility wins the cascade and demotes
-          // the drawer into flow offsets). Desktop: a STICKY column, pinned
-          // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
           `${LAYER.chrome} olai-frame flex-col border-r border-rule ` +
-          // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header)] w-[min(22rem,92vw)] " +
-          // `top-` above is BOTH positions' offset — the drawer's inset and
-          // this column's sticky threshold are the same seam, so they read the
-          // same token. `bottom`/`left` are the drawer's alone and must not
-          // survive here: an inset on a sticky box is a constraint against the
-          // scrollport, not a place to sit.
           "md:sticky md:bottom-auto md:left-auto md:flex " +
           "md:h-[calc(100dvh-var(--height-header))] md:w-full md:translate-x-0"
         }
         data-testid={TESTID.sidebar}
         data-open={props.open ? "true" : "false"}
       >
-        {/* Desktop: collapse sits at the bottom of the column so it cannot
-            cover the calendar's month-step chevrons (top-right of the body). */}
         <Tip text="Collapse sidebar">
           <button
             type="button"
@@ -71,35 +55,16 @@ export function Sidebar(props: SidebarRegionProps) {
         <div
           class="olai-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2"
           data-testid={TESTID.sidebarBody}
-          // Any navigation (day, outline, document) bubbles here and puts the
-          // mobile drawer away. Folder folds stop propagation so a reader can
-          // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
           <PluginEntries place="top" />
           <Regions at="primary" props={props} />
-          {/* WHAT THE PLUGINS HANG HERE, in the bundle's order — the agents
-              roster is the first and, today, the only one. A row reading *needs
-              you* is the same kind of fact as the agenda's alarm and the
-              inbox's count, and the shelf's own 2026-08-19 ruling is exactly
-              about what may NOT come ahead of those, which is why the seat is
-              HERE rather than at the foot. A section draws nothing at all where
-              its plugin has nothing to say — the roster does in a directory
-              with no node agent — so the column's budget is untouched where a
-              feature is unused, and a serve running no chat has no section at
-              all (`./plugins/Seats.tsx`). */}
           <PluginSections />
           <PluginEntries place="bottom" />
 
           <Regions at="shelf" props={props} />
           <Regions at="files" props={props} />
         </div>
-        {/* THE FOOT: entries placed `foot` (Trash), pinned under the scrolling
-            list so they stay in view however long it runs — above the drawer's
-            own foot on a phone, and beside the collapse button on a desktop,
-            which is what the right padding leaves room for. Drawn by the
-            placement word the entry declared, never by who contributed it; an
-            empty foot (the trash row off) takes no room. */}
         <div
           class="shrink-0 px-2 pb-2 pt-1 empty:hidden md:pr-11"
           data-testid={TESTID.sidebarFoot}

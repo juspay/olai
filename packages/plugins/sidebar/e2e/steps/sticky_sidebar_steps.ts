@@ -1,17 +1,3 @@
-/**
- * The directory column sticks: where the column is once the page has moved
- * under it, that it scrolls WITHIN itself rather than lengthening the page, and
- * that the two affordances on it — collapse, and the rail's way back — are
- * still on the screen and still what a pointer reaches there.
- *
- * Everything here is a MEASUREMENT, for the reason `sticky_header_steps.ts`
- * gives about the bar above it: "the directory is visible" is not an attribute
- * a component can carry, and a column that has scrolled off the top of the
- * screen is still attached, still `visible` to Playwright, and still absent
- * from the page the reader is looking at. The pre-change client passes every
- * assertion about the column that is not about WHERE it is.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -24,29 +10,10 @@ import {
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/** How far off an edge counts as on it: a CSS pixel of rounding on a
- *  fractional device scale, and nothing else. A column that has begun to leave
- *  is a column that leaves. */
 const EDGE = 2;
 
-/** How far a wheel is turned over the column. Larger than one row and smaller
- *  than the strip, so a scroll that lands is unambiguous and one that chains
- *  into the page cannot be mistaken for rounding. */
 const WHEEL = 200;
 
-/** The pin, asked of whichever face of the directory is drawn — the open column
- *  or the icon rail. Three claims, and they are not the same claim:
- *
- *    1. it STARTS at the header's bottom edge. In flow the column is as tall as
- *       the page, so past the fold its top is however far the page has scrolled
- *       ABOVE the screen — which is the bug, and the only one of the three the
- *       pre-change client fails;
- *    2. it REACHES the fold, because a pinned column shorter than the strip it
- *       is pinned in leaves a hole under itself that the page shows through;
- *    3. it stops THERE, because a column measured at `100dvh` without
- *       subtracting the header hangs its last rows off the bottom of the screen
- *       — the same 3rem, spent twice.
- */
 const pinnedUnderTheHeader = async (
   world: OlaiWorld,
   selector: string,
@@ -82,11 +49,6 @@ Then("the directory column is pinned under the header", async function (this: Ol
   await pinnedUnderTheHeader(this, SIDEBAR, "the directory column");
 });
 
-/** The point of the pin: the TREE is what a reader came back to the column for,
- *  and it sits at the top of it — the first thing a column scrolling away takes
- *  with it. Intersecting the strip rather than wholly inside it: a tree longer
- *  than the screen legitimately runs past the fold, and it is the column's own
- *  scroll region that reaches the rest of it. */
 Then("the file tree is still on screen", async function (this: OlaiWorld) {
   const viewport = this.viewport();
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
@@ -101,11 +63,6 @@ Then("the file tree is still on screen", async function (this: OlaiWorld) {
   );
 });
 
-/** #105's affordance, where #105 put it: bottom-right of the column. Which is
- *  the bottom-right of the STRIP now, and therefore on the screen at every
- *  scroll position rather than parked at the foot of the document — but it is
- *  the same control in the same corner, and this is the fence that says the pin
- *  did not move it out of the column or under the fold. */
 Then("the collapse affordance is on screen", async function (this: OlaiWorld) {
   const viewport = this.viewport();
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
@@ -123,19 +80,6 @@ Then("the collapse affordance is on screen", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * The other half of the pin: the column has a scroll region OF ITS OWN.
- *
- * A directory taller than the strip has to go somewhere, and the two answers
- * are not equivalent — lengthening the page (what a column in flow does) makes
- * the page's scrollbar do two jobs, and the tree's own end is then reachable
- * only by scrolling the PAGE, which is what pinning the column just stopped.
- *
- * Asked with a WHEEL over the column, because that is the gesture, and asked at
- * the BOTTOM of the page so the answer cannot be an accident: wheeling up there
- * is the one direction the page could still move in, so a column that did not
- * take the wheel itself would be caught taking the page with it.
- */
 Then(
   "the directory takes the wheel, and the page stays where it is",
   async function (this: OlaiWorld) {
