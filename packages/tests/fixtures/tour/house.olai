@@ -1,0 +1,8 @@
+{"id":"kitchen","ord":"a0","title":"Kitchen renovation #home"}
+{"id":"demolition","parent":"kitchen","ord":"a0","title":"Demolition","done":"2026-08-03"}
+{"id":"stone","parent":"kitchen","ord":"a1","title":"Pick the counter stone","done":"2026-08-10"}
+{"id":"cabinets","parent":"kitchen","ord":"a2","title":"Order the new cabinets #blocking","doing":true,"date":"2026-08-07","desc":"Measure the alcove before ordering. Specs are in [cabinets](notes/cabinets.md)."}
+{"id":"deposit","parent":"kitchen","ord":"a3","title":"Pay the deposit","todo":true,"date":"2026-08-15"}
+{"id":"plumber","parent":"kitchen","ord":"a4","title":"Book the plumber","todo":true,"date":"2026-08-12"}
+{"id":"tiler","parent":"kitchen","ord":"a5","title":"Meet the tiler on site","todo":true,"date":"2026-08-26"}
+{"id":"paint","parent":"kitchen","ord":"a6","title":"Paint samples on the north wall"}

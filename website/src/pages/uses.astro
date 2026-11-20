@@ -1,0 +1,119 @@
+---
+import { agentList } from "../agents.ts"
+import Base from "../layouts/Base.astro"
+import "../styles/home.css"
+---
+
+<Base
+  title="What you can do with olai"
+  description="Keep Markdown notes, give a task to an AI agent, see what is due, and capture a thought. Each picture shows the real app."
+>
+<main>
+
+<div class="pagehead">
+  <div class="wrap">
+    <p class="kicker">uses</p>
+    <h1>What you can do with olai</h1>
+    <p>olai opens a directory of files in open formats. This page shows four
+    things that you can do with them. Each picture shows the real app.</p>
+  </div>
+</div>
+
+<section id="notes">
+  <div class="wrap">
+    <h2>Keep Markdown notes</h2>
+    <div class="use flip">
+      <div>
+        <p>olai opens a directory of Markdown files as it is. Each document
+        has a page, with its headings, its properties, and a list of what
+        links to it.</p>
+        <p>A standard Markdown link opens another document, a heading, or an
+        item of an outline. Search reads the text of every document.</p>
+        <p>You can start a chat with an agent about one document. The agent
+        reads the document, and changes it when you ask.</p>
+        <p class="needs">Wikilinks are upcoming. Today olai shows <code>[[page]]</code> as text. Read <a href="/#upcoming">what is upcoming for Markdown</a>.</p>
+      </div>
+      <figure>
+        <div class="shot small"><a class="full" href="/tour/document.png"><img src="/tour/document.png" width="2880" height="1800" alt="A Markdown document in olai, with two headings, a table, a task list, and the item that links to the document."><span class="vh">Open the full-size picture.</span></a></div>
+        <figcaption class="caption">The real app. A document, with a table, a task list, and the item that links to it.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="give">
+  <div class="wrap">
+    <h2>Give a task to an agent</h2>
+    <div class="use">
+      <div>
+        <p>A project is an outline. You do some items yourself, and you give
+        other items to an agent.</p>
+        <p>A chat belongs to one item or to one document. Next week the chat is
+        still there, with everything that the agent did.</p>
+        <p>You can start agents on several items. Each item shows what its agent
+        is doing, and the sidebar lists the agents that wait for an answer.
+        Eight agents can run at the same time.</p>
+        <p class="needs">An agent needs an account with {agentList}. Read <a href="/docs/giving-an-agent-work/">how to give an agent work</a>.</p>
+      </div>
+      <figure>
+        <div class="shot small"><a class="full" href="/tour/outline-and-chat.png"><img src="/tour/outline-and-chat.png" width="2880" height="1800" loading="lazy" alt="An outline beside a chat. In the chat an agent has marked items of the outline done."><span class="vh">Open the full-size picture.</span></a></div>
+        <figcaption class="caption">The real app. The agent in this picture is scripted.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="due">
+  <div class="wrap">
+    <h2>See what is due</h2>
+    <div class="use flip">
+      <div>
+        <p>An item can have a date. The <strong>Agenda</strong> page lists the
+        dated items from every outline. Late items are first, then the items for
+        today, then the items for later days.</p>
+        <p>Each day has a page of its own. The page shows the items that have
+        that date.</p>
+        <p>An item that repeats comes back as a new item on its next date.</p>
+        <p class="needs">Read about <a href="/docs/dates-and-status/">marks, days, and repeating</a>.</p>
+      </div>
+      <figure>
+        <div class="shot small"><a class="full" href="/tour/agenda.png"><img src="/tour/agenda.png" width="2880" height="1800" loading="lazy" alt="The Agenda page, with one late item at the top."><span class="vh">Open the full-size picture.</span></a></div>
+        <figcaption class="caption">The real app. One item is late, one is due today, and two are due on later days.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="capture">
+  <div class="wrap">
+    <h2>Capture a thought</h2>
+    <div class="use">
+      <div>
+        <p>The palette has a command named <strong>Capture to the
+        Inbox</strong>. The item that you type there goes to the inbox, with
+        the date of today and the mark <strong>To do</strong>. You move the
+        item to an outline later.</p>
+        <p>The command also works in a phone browser, if the phone can reach
+        your computer. A terminal command does the same.</p>
+        <p class="needs">Read about <a href="/docs/getting-around/">the sidebar, tabs, and the palette</a>.</p>
+      </div>
+      <figure>
+        <div class="shot small"><a class="full" href="/tour/capture.png"><img src="/tour/capture.png" width="2880" height="1800" loading="lazy" alt="The palette, open over an outline, with the command Capture to the Inbox selected."><span class="vh">Open the full-size picture.</span></a></div>
+        <figcaption class="caption">The real app. The palette, after you type "capture".</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Check what olai needs before you start</h2>
+    <p class="lead">olai is new. It runs on a Mac or a Linux computer, and you
+    start it from a terminal. Read
+    <a href="/#try">what you need to run olai</a>. Or read
+    <a href="/#compare">how olai compares with Obsidian, Logseq, Roam Research, and Workflowy</a>.</p>
+  </div>
+</section>
+
+</main>
+</Base>

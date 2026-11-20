@@ -1,6 +1,6 @@
 # Git: how olai records what it writes
 
-olai records what it writes to your files as git commits: a history, not sync and not undo.[^plugin] Writes reach the disk at once and wait to be committed.[^doors]
+olai records what it writes to your files as git commits: a history, not undo.[^plugin] Writes reach the disk at once and wait to be committed.[^doors]
 
 ## Read what is waiting
 
@@ -25,7 +25,7 @@ Set `commit` and `push` on the `git` row in `_olai/Settings.olai` ([settings.md]
 | `commit: auto` | everything waiting is committed fifteen seconds after writes stop[^window][^everything] |
 | `commit: off` | nothing is committed, and the readout says so rather than disappearing |
 | `push: off` | the default: commits stay here until you click **Push** |
-| `push: auto` | every commit olai makes is pushed[^pushauto] |
+| `push: auto` | every commit olai makes is pushed, syncing computers that share a remote[^pushauto][^sync] |
 
 ## Push
 
@@ -74,6 +74,8 @@ Every commit message olai writes starts with `olai`, so `git log --grep '^olai'`
 [^everything]: Everything waiting counts, whoever wrote it: an agent writing over MCP starts the fifteen seconds again, and a `.md` you edited in vim joins the same commit. The panel says **Auto-commit will commit all of this once you stop editing** while that is really about to happen.
 
 [^pushauto]: With `push: auto`, a burst of writes is committed, the upstream is taken in, and the result is pushed, with nothing left for you to click. With it off, commits pile up and the readout counts them as unpushed. It follows every commit olai makes here, however it was made: the button, `git_commit`, and the fifteen-second wait.
+
+[^sync]: Sync between computers: with `commit` and `push` both set to `auto` on two computers that share a remote, your notes sync between them. A computer takes in the other computers' commits only when it pushes its own. Two computers that each add an item to one outline conflict, and olai stops committing until you sort it out in a terminal.
 
 [^verb]: A push picks no remote and no refspec, and is never a force push. The panel offers it when there is something to send.
 
