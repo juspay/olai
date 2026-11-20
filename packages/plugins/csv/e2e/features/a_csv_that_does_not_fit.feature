@@ -41,18 +41,11 @@ Feature: A `.csv` wider than the page it is drawn on
     Given a csv of 60 data rows and 24 columns exists at "data/wide.csv"
     When I open the address "/data/wide.csv"
     Then the document open is "data/wide.csv"
-    # What it IS, before anything about moving it: a region, named for the file
-    # it is showing, with a header row that says what it heads.
     And the table's scroller is a region named "data/wide.csv"
     And every header cell heads its column
-    # ...and it is REACHABLE. Tab presses, not a call to `focus()`: nothing in a
-    # table of text takes focus on its own, and the defect this guards against
-    # is a page where no number of presses would arrive.
     When I travel by keyboard to the table's scroller
     Then the focus ring on the table's scroller is not clipped away
     When the arrow keys move the table
     Then the table has moved sideways and down under them
-    # The point of a sticky header, read as geometry: the rows moved and the
-    # names of the columns did not go with them.
     And the header row is still against the top of the scroller
     And there should be no page errors
