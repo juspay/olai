@@ -3,10 +3,10 @@ import {
   customText,
   type Derived,
   frontmatterIn,
-  idsUnder,
   isMirror,
   isNotePath,
   markdownAt,
+  memoryScope,
   type Node,
   nodesOf,
   type OutlineSet,
@@ -84,10 +84,8 @@ export const barred = (
   set: OutlineSet,
   confined: Confinement | null = null,
 ): Barred | null => {
-  // THE FENCE FIRST, because it is about WHERE rather than about WHICH KEY, and
-  // a plan that lands outside is refused whatever it writes.
   if (confined !== null) {
-    const inside = new Set<string>([confined.under, ...idsUnder(derived, confined.under, confined.stop)])
+    const inside = memoryScope(derived, confined.under, confined.stop)
     const before = new Map(plan.files.map((one) => [one.file, nodesOf(derived, one.file).map((at) => at.node)]))
     const after = new Map(plan.files.map((one) => [one.file, one.nodes]))
     const landed = (id: string): Node | undefined => {

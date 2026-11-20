@@ -11,7 +11,7 @@ import {
   type Sort,
 } from "@olai/format"
 
-import type { Plan } from "./plan.ts"
+import type { DocumentPlan, FilePlan, Plan } from "./plan.ts"
 
 export const sortOfWrite = (
   before: OutlineSet,
@@ -20,15 +20,24 @@ export const sortOfWrite = (
 ): Sort | undefined => {
   const { files, documents = [], removed = [], id: about } = plan
   const gone = removed[0]
-  if (gone !== undefined) {
-    return documentAt(before, gone) !== undefined ? "gone" : undefined
-  }
+  if (gone !== undefined) return documentAt(before, gone) !== undefined ? "gone" : undefined
   const doc = documents[0]
-  if (doc !== undefined) {
-    const prior = markdownAt(before, doc.file)
-    if (prior === undefined) return "created"
-    return prior.body === doc.text ? undefined : "edited"
-  }
+  if (doc !== undefined) return sortOfDocument(before, doc)
+  return sortOfRecords(before, derived, files, about)
+}
+
+const sortOfDocument = (before: OutlineSet, doc: DocumentPlan): Sort | undefined => {
+  const prior = markdownAt(before, doc.file)
+  if (prior === undefined) return "created"
+  return prior.body === doc.text ? undefined : "edited"
+}
+
+const sortOfRecords = (
+  before: OutlineSet,
+  derived: Derived,
+  files: ReadonlyArray<FilePlan>,
+  about: string,
+): Sort | undefined => {
   const was = new Map<string, ReadonlyArray<Node>>(
     files.map((planned) => [
       planned.file,

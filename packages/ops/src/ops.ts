@@ -211,7 +211,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
       const store = yield* currentStore
-      let repairs = REPAIRS
+      let repairBudget = REPAIRS
       let summary: string | undefined
       let staleWrites = 0
       let claimsMismatches = 0
@@ -230,16 +230,12 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
         lostBaseRev = undefined
       }
-      /**
-       * THE CHECK BEFORE THE DOOR is the ordering the costs argue: the cheap
-       * per-file byte check is what stands in front of the resync.
-       */
-      const repair = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
+      const healOnce = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
         Effect.gen(function*() {
-          if (repairs === 0 || files.length === 0) return false
-          const drift = yield* Effect.result(store.drifted(files))
-          if (!Result.isSuccess(drift) || drift.success.length === 0) return false
-          repairs -= 1
+          if (repairBudget === 0 || files.length === 0) return false
+          const drifted = yield* Effect.result(store.drifted(files))
+          if (!Result.isSuccess(drifted) || drifted.success.length === 0) return false
+          repairBudget -= 1
           const resynced = yield* Effect.result(store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
@@ -267,7 +263,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           if (
             (tag === "NotFoundFailure" || tag === "ValidationFailure") &&
             held.length > 0 &&
-            (yield* repair(aboutFiles(held.flatMap((entry) => entry.errors))))
+            (yield* healOnce(aboutFiles(held.flatMap((entry) => entry.errors))))
           ) {
             continue
           }
@@ -325,7 +321,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
 
         const written = outcome.success
         if (Result.isFailure(written)) {
-          if (yield* repair(aboutFiles(written.failure.findings))) continue
+          if (yield* healOnce(aboutFiles(written.failure.findings))) continue
           const paths = changes.map((change) => change.path)
           const alreadyBroken =
             (yield* SubscriptionRef.get(store.errors)) !== null
@@ -342,8 +338,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           })
         }
 
-        // Recorded BEFORE the read-back can refuse, because the write it
-        // tallies has already landed.
         ledger.wrote(writer)
         for (const document of documents) {
           const held = yield* Effect.result(store.body(document.file))

@@ -1,4 +1,4 @@
-import { askedOf } from "./asked.ts"
+import { factsOf } from "./facts.ts"
 import { outlineAt } from "./refusals.ts"
 import { Effect, Result, Schema } from "effect"
 
@@ -28,7 +28,9 @@ import type { Search } from "./ops.ts"
 
 import * as Query from "./query.ts"
 
-type Arguments = Schema.Constraint & { readonly fields: Schema.Struct.Fields }
+export type Arguments = Schema.Constraint & { readonly fields: Schema.Struct.Fields }
+
+export type WriteArguments = Arguments & { readonly Type: Request }
 
 interface Described {
   readonly name: string
@@ -74,7 +76,7 @@ export const asking = (
   search: (request) =>
     Effect.flatMap(read, (at) => {
       if (request.file !== undefined) {
-        const admitted = outlineAt(askedOf(at.claims, at.set), request.file)
+        const admitted = outlineAt(factsOf(at.claims, at.set), request.file)
         if (Result.isFailure(admitted)) return Effect.fail(admitted.failure)
       }
       return search.nodes({ at, query: request, now: now(), kinds })
@@ -156,7 +158,7 @@ export const read = <S extends Arguments, R>(
   ask,
 })
 
-export const write = <S extends Arguments & { readonly Type: Request }>(
+export const write = <S extends WriteArguments>(
   name: string,
   title: string,
   description: string,

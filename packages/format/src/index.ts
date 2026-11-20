@@ -194,6 +194,7 @@ export {
   blockersOf,
   byOrd,
   memoryFiles,
+  memoryScope,
   changesUnder,
   movedUnder,
   idsUnder,

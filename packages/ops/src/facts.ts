@@ -10,9 +10,10 @@ import {
   type OutlineSet,
   outlineNames,
   outlinePaths,
+  type Reading,
 } from "@olai/format"
 
-export interface Asked {
+export interface SetFacts {
   readonly claims: Claims
   readonly set: OutlineSet
   readonly outlines: ReadonlyArray<string>
@@ -22,7 +23,7 @@ export interface Asked {
   readonly markdown: (path: string) => Markdown | undefined
 }
 
-export const askedOf = (claims: Claims, set: OutlineSet): Asked => ({
+export const factsOf = (claims: Claims, set: OutlineSet): SetFacts => ({
   claims,
   set,
   get outlines() {
@@ -38,31 +39,36 @@ export const askedOf = (claims: Claims, set: OutlineSet): Asked => ({
   markdown: (path) => markdownAt(set, path),
 })
 
-export const carried = (
-  base: Asked,
-  set: OutlineSet,
+export const carriedOrFresh = (
+  base: SetFacts,
+  at: Reading,
   written: ReadonlyMap<string, Document>,
-): Asked | undefined => {
+): { readonly facts: SetFacts; readonly carried: boolean } => {
   for (const path of written.keys()) {
-    if (base.at(path) === undefined || base.broken.has(path)) return undefined
+    if (base.at(path) === undefined || base.broken.has(path)) {
+      return { facts: factsOf(at.claims, at.set), carried: false }
+    }
   }
   return {
-    claims: base.claims,
-    set,
-    get outlines() {
-      return base.outlines
-    },
-    get serves() {
-      return base.serves
-    },
-    get broken() {
-      return base.broken
-    },
-    at: (path) => written.get(path) ?? base.at(path),
-    markdown: (path) => {
-      const found = written.get(path)
-      if (found !== undefined) return isKeptText(found) ? found : undefined
-      return markdownAt(set, path)
+    carried: true,
+    facts: {
+      claims: base.claims,
+      set: at.set,
+      get outlines() {
+        return base.outlines
+      },
+      get serves() {
+        return base.serves
+      },
+      get broken() {
+        return base.broken
+      },
+      at: (path) => written.get(path) ?? base.at(path),
+      markdown: (path) => {
+        const found = written.get(path)
+        if (found !== undefined) return isKeptText(found) ? found : undefined
+        return markdownAt(at.set, path)
+      },
     },
   }
 }

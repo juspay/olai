@@ -72,16 +72,21 @@ export const paragraphsIn = (tools: ReadonlyArray<Tool>, name: string): number =
   (tools.find((tool) => tool.name === name)?.description.match(/\n\n/g) ?? []).length
 
 export const gaveOf = (search: Search, tools: ReadonlyArray<Tool>, row: string) => {
-  const door = asking(Effect.sync(() => ({ ...at(), outlineRow: "outline-olai" })), steady().now, NO_KINDS, search)
-  const gave = new Map<string, ReadonlyArray<Record<string, unknown>>>()
+  const askingOverFixture = asking(
+    Effect.sync(() => ({ ...at(), outlineRow: "outline-olai" })),
+    steady().now,
+    NO_KINDS,
+    search,
+  )
+  const answersByTool = new Map<string, ReadonlyArray<Record<string, unknown>>>()
   for (const tool of readsOf(tools)) {
     if (tool.kind !== "read") continue
-    gave.set(
+    answersByTool.set(
       tool.name,
       (CALLS[`${row}_${tool.name}`] ?? []).map((args) =>
-        Effect.runSync(Effect.orDie(tool.ask(door, args as never))) as Record<string, unknown>
+        Effect.runSync(Effect.orDie(tool.ask(askingOverFixture, args as never))) as Record<string, unknown>
       ),
     )
   }
-  return (name: string): ReadonlyArray<Record<string, unknown>> => gave.get(name) ?? []
+  return (name: string): ReadonlyArray<Record<string, unknown>> => answersByTool.get(name) ?? []
 }

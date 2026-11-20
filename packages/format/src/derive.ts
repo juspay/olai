@@ -573,6 +573,13 @@ export const movedUnder = (
   return moved
 }
 
+export const memoryScope = (
+  derived: Pick<Derived, "children">,
+  id: string,
+  stop: ReadonlySet<string> = new Set(),
+  seen: Set<string> = new Set([id]),
+): ReadonlySet<string> => new Set([id, ...idsUnder(derived, id, stop, seen)])
+
 export const memoryFiles = (
   derived: Pick<Derived, "children" | "byId">,
   id: string,
@@ -580,10 +587,8 @@ export const memoryFiles = (
   seen: Set<string> = new Set([id]),
 ): ReadonlySet<string> => {
   const files = new Set<string>()
-  const own = derived.byId.get(id)
-  if (own !== undefined) files.add(own.file)
-  for (const under of idsUnder(derived, id, stop, seen)) {
-    const at = derived.byId.get(under)
+  for (const within of memoryScope(derived, id, stop, seen)) {
+    const at = derived.byId.get(within)
     if (at !== undefined) files.add(at.file)
   }
   return files

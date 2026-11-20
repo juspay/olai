@@ -21,15 +21,11 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
-import type { Asked } from "./asked.ts"
+import type { SetFacts } from "./facts.ts"
 
 export const notFound = (derived: Derived, id: string): OpFailure =>
   missingId(id, derived.byId)
 
-/**
- * The handful a capture is minting stay a walk, and stay LAST, so a tie still
- * goes to the id the set already declares.
- */
 export const missingId = (
   id: string,
   known: ReadonlyMap<string, unknown>,
@@ -69,9 +65,9 @@ export const noSuchDocument = (
   })
 }
 
-const noSuchOutline = (asked: Asked, file: string): OpFailure => {
-  const outlines = asked.outlines
-  if (claimedOf(asked.claims, file) === null) return unclaimedPath(file, outlines)
+const noSuchOutline = (facts: SetFacts, file: string): OpFailure => {
+  const outlines = facts.outlines
+  if (claimedOf(facts.claims, file) === null) return unclaimedPath(file, outlines)
   const near = didYouMean(file, outlines)
   return new NotFoundFailure({
     reason: near === ""
@@ -83,18 +79,18 @@ const noSuchOutline = (asked: Asked, file: string): OpFailure => {
 }
 
 export const outlineAt = (
-  asked: Asked,
+  facts: SetFacts,
   file: string,
 ): Result.Result<Outline, OpFailure> => {
-  const path = claimedOf(asked.claims, file)
-  if (path === null) return Result.fail(unclaimedPath(file, asked.outlines))
-  if (admittedOutline(asked.claims, { kind: "document", path }) === null) {
-    const claim = asked.claims.byKind.get(fileKind(asked.claims, file)!)!
+  const path = claimedOf(facts.claims, file)
+  if (path === null) return Result.fail(unclaimedPath(file, facts.outlines))
+  if (admittedOutline(facts.claims, { kind: "document", path }) === null) {
+    const claim = facts.claims.byKind.get(fileKind(facts.claims, file)!)!
     return Result.fail(new NotFoundFailure({ named: file, reason: `\`${file}\` is ${claim.article} ${claim.noun}; this verb takes an outline` }))
   }
-  const found = asked.at(path)
+  const found = facts.at(path)
   if (found === undefined || !isOutline(found)) {
-    return Result.fail(noSuchOutline(asked, file))
+    return Result.fail(noSuchOutline(facts, file))
   }
   return Result.succeed(found)
 }

@@ -3,6 +3,7 @@ import {
   deadLinksIn,
   deadLinksOf,
   deadLinkFields,
+  type DeadLink,
   type Claims,
   claimedOf,
   ancestorTitles,
@@ -93,7 +94,7 @@ import {
 
 import { Result } from "effect"
 
-import { askedOf } from "./asked.ts"
+import { factsOf } from "./facts.ts"
 import { noSuchDocument, notLoaded, outlineAt } from "./refusals.ts"
 
 export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
@@ -402,6 +403,13 @@ const armOf = (
     ? request.file !== undefined ? "both" : { id: request.id }
     : request.file !== undefined ? { file: request.file } : "neither"
 
+type Walked<Row, P> = Row & {
+  readonly deadLinks?: ReadonlyArray<DeadLink>
+  readonly children: ReadonlyArray<Walked<Row, P>>
+  readonly placed?: ReadonlyArray<P>
+  readonly truncated?: true
+}
+
 export const subtree = (
   at: Reading,
   request: SubtreeRequest,
@@ -447,32 +455,39 @@ export const subtree = (
   }
 
   const served = new Set(at.set.documents.map(one => one.path))
-  const walk = (located: LocatedRegular, left: number): Subtree => {
-    const children = countedChildren(at.derived, located.node.id)
-    const placed = placedUnder(at.derived, located.node.id)
-    return {
+  const walking = <Row extends object, P>(
+    rowOf: (located: LocatedRegular) => Row,
+    placedOf: (id: string) => ReadonlyArray<P>,
+  ): ((located: LocatedRegular, left: number) => Walked<Row, P>) => {
+    const walk = (located: LocatedRegular, left: number): Walked<Row, P> => {
+      const children = countedChildren(at.derived, located.node.id)
+      const placed = placedOf(located.node.id)
+      return {
+        ...rowOf(located),
+        ...deadLinkFields(deadLinksOf(located, served)),
+        children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
+        ...(placed.length === 0 ? {} : { placed }),
+        ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
+      }
+    }
+    return walk
+  }
+
+  const walk = walking<Found & Pick<Subtree, "date" | "desc">, Placed>(
+    (located) => ({
       ...foundOf(at.derived, located),
-      ...deadLinkFields(deadLinksOf(located, served)),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
         : {}),
-      children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
-      ...(placed.length === 0 ? {} : { placed }),
-      ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
-    }
-  }
-  const shapedWalk = (wants: Wants, located: LocatedRegular, left: number): ProjectedSubtree => {
-    const children = countedChildren(at.derived, located.node.id)
-    const placed = placedUnder(at.derived, located.node.id, wants)
-    return {
-      ...shapedOf(at.derived, located, wants),
-      ...deadLinkFields(deadLinksOf(located, served)),
-      children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
-      ...(placed.length === 0 ? {} : { placed }),
-      ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
-    }
-  }
+    }),
+    (id) => placedUnder(at.derived, id),
+  )
+  const shapedWalk = (wants: Wants) =>
+    walking<Projected, ProjectedPlaced>(
+      (located) => shapedOf(at.derived, located, wants),
+      (id) => placedUnder(at.derived, id, wants),
+    )
 
   if ("id" in arm) {
     const located = at.derived.byId.get(arm.id)
@@ -480,11 +495,11 @@ export const subtree = (
       return Result.succeed({ missing: arm.id })
     }
     return Result.succeed(
-      wants === undefined ? walk(located, depth) : shapedWalk(wants, located, depth),
+      wants === undefined ? walk(located, depth) : shapedWalk(wants)(located, depth),
     )
   }
 
-  const outline = outlineAt(askedOf(at.claims, at.set), arm.file)
+  const outline = outlineAt(factsOf(at.claims, at.set), arm.file)
   if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const broken = brokenIn(at.set, arm.file)
   if (broken !== undefined) return Result.fail(notLoaded(at.claims, arm.file, broken))
@@ -499,9 +514,10 @@ export const subtree = (
     })
   }
   const placed = placedAmong(at.derived, top, wants)
+  const shaped = shapedWalk(wants)
   return Result.succeed({
     file: arm.file,
-    roots: roots.map((root) => shapedWalk(wants, root, depth)),
+    roots: roots.map((root) => shaped(root, depth)),
     ...(placed.length === 0 ? {} : { placed }),
   })
 }

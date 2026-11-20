@@ -146,6 +146,10 @@ bench: install
     {{ nix_shell }} bun packages/ops/src/walks.bench.ts
     {{ nix_shell }} bun packages/format/src/conventions.bench.ts
 
+[doc("Re-record the planner's golden answers after a deliberate change to what an op says")]
+record-plans:
+    {{ nix_shell }} env OLAI_RECORD_PLANS=1 bun test packages/ops/src/plans.golden.test.ts
+
 [doc("Create a worktree-local binary wrapper for e2e tests")]
 dev-bin:
     #!/usr/bin/env bash

@@ -79,7 +79,7 @@ import {
 import { unclaimedPath } from "./refusals.ts"
 import { Result } from "effect"
 
-import { type Asked, askedOf } from "./asked.ts"
+import { factsOf, type SetFacts } from "./facts.ts"
 import { folding } from "./following.ts"
 import {
   missingId,
@@ -183,14 +183,11 @@ const planRepeat = (scope: Scope, request: Extract<Request, { op: "repeat" }>): 
   )
 
 
-/**
- * invariant is one line: `asked` describes `set`.
- */
 export interface Scope extends Reading {
   readonly outlineRow: string
   readonly context: Context
   readonly typed: Typed
-  readonly asked: Asked
+  readonly facts: SetFacts
 }
 
 export const typedIn = (at: Reading, kinds: KindVocabulary): Typed => {
@@ -222,8 +219,16 @@ export const scoping = (
   ...at,
   outlineRow,
   context,
-  asked: askedOf(at.claims, at.set),
+  facts: factsOf(at.claims, at.set),
   typed: typedIn(at, kinds),
+})
+
+export const rescoped = (scope: Scope, at: Reading, facts: SetFacts): Scope => ({
+  ...at,
+  outlineRow: scope.outlineRow,
+  context: scope.context,
+  facts,
+  typed: typedIn(at, scope.typed.kinds),
 })
 
 const withField = <K extends "desc" | "date" | "repeat">(
@@ -279,7 +284,7 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
 }
 
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
-  const broken = scope.asked.broken.get(file)
+  const broken = scope.facts.broken.get(file)
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
@@ -317,7 +322,7 @@ const landsIn = (
       }),
     )
   }
-  const outline = outlineAt(scope.asked, file)
+  const outline = outlineAt(scope.facts, file)
   if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
@@ -353,11 +358,18 @@ const nextOrd = (previous: string | null): string => {
   return next
 }
 
+interface SiblingOrd {
+  readonly id: string
+  readonly ord: string
+}
+
+type SiblingRow = ReadonlyArray<SiblingOrd>
+
 const placed = (
   siblings: ReadonlyArray<Located>,
   moving: string,
   placement: Anchor,
-): Result.Result<ReadonlyArray<{ id: string; ord: string }>, OpFailure> => {
+): Result.Result<SiblingRow, OpFailure> => {
   if (placement.before !== undefined && placement.after !== undefined) {
     return Result.fail(
       new UsageFailure({ reason: "give `before` or `after`, not both" }),
@@ -386,7 +398,7 @@ const placed = (
   if (gap !== null) return Result.succeed([{ id: moving, ord: gap }])
 
   const order = [...row.slice(0, at), null, ...row.slice(at)]
-  const renumbered: Array<{ id: string; ord: string }> = []
+  const renumbered: Array<SiblingOrd> = []
   let previous: string | null = null
   for (const entry of order) {
     const next = nextOrd(previous)
@@ -396,10 +408,7 @@ const placed = (
   return Result.succeed(renumbered)
 }
 
-const ordFor = (
-  ords: ReadonlyArray<{ id: string; ord: string }>,
-  id: string,
-): string => {
+const ordFor = (ords: SiblingRow, id: string): string => {
   const ord = ords.find((entry) => entry.id === id)?.ord
   if (ord === undefined) throw new Error("the placement did not include the new record")
   return ord
@@ -407,7 +416,7 @@ const ordFor = (
 
 const withOrds = (
   records: ReadonlyArray<Node>,
-  ords: ReadonlyArray<{ id: string; ord: string }>,
+  ords: SiblingRow,
 ): ReadonlyArray<Node> => {
   const byId = new Map(ords.map((entry) => [entry.id, entry.ord]))
   return records.map((record) => {
@@ -433,20 +442,12 @@ const planAdd = (
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
   const ord = ordFor(ords.success, id)
 
-  const built = captured(scope, into, request, file, { id, parent, ord, below: NESTING }, true)
+  const built = capturePlan(scope, into, request, file, { id, parent, ord, below: NESTING }, true)
   if (Result.isFailure(built)) return Result.fail(built.failure)
   const minted = built.success
 
-  const unfit = refuseCaptureDeclaration(scope, file, minted)
-  if (unfit !== undefined) return Result.fail(unfit)
-
-  // AFTER {@link emit}, and that order is a REQUIREMENT rather than a
-  // preference.
-  const contradicts = capturedOverOpenWork(request)
-  if (contradicts !== undefined) return Result.fail(contradicts)
-
   const under = minted.length - 1
-  return Result.succeed(arriving(scope, { file, parent }, () => capturesOpenWork(request), {
+  return Result.succeed(arriving(scope, { file, parent }, () => mintsOpenWork(minted), {
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
     ],
@@ -460,40 +461,35 @@ const planAdd = (
   }))
 }
 
-const capturedOpen = (capture: Capture): ReadonlyArray<Capture> => {
-  const open: Array<Capture> = []
-  const descend = (at: Capture): void => {
-    for (const child of at.children ?? []) {
-      if (unfinished(child.mark)) open.push(child)
-      descend(child)
-    }
+const mintedUnder = (minted: ReadonlyArray<RegularNode>, id: string): ReadonlyArray<RegularNode> => {
+  const under = new Set([id])
+  const open: Array<RegularNode> = []
+  for (const record of minted) {
+    if (record.id === id || record.parent === undefined || !under.has(record.parent)) continue
+    under.add(record.id)
+    if (unfinished(storedMarker(record))) open.push(record)
   }
-  descend(capture)
   return open
 }
 
-const capturesOpenWork = (capture: Capture): boolean =>
-  unfinished(capture.mark) || capturedOpen(capture).length > 0
+const mintsOpenWork = (minted: ReadonlyArray<RegularNode>): boolean =>
+  minted.some((record) => unfinished(storedMarker(record)))
 
-const capturedOverOpenWork = (capture: Capture): OpFailure | undefined => {
-  if (capture.mark === "done") {
-    const open = capturedOpen(capture)
-    if (open.length > 0) {
-      const one = open.length === 1
-      const named = capped(open, (child) => `\`${child.title}\``)
-      return new UsageFailure({
-        reason: `\`${capture.title}\` is captured done over ${open.length} ` +
-          `unfinished ${one ? "task" : "tasks"} in the same call: ${named}. ` +
-          `Done-hidden hides a done ` +
-          `node WITH its subtree, so the capture would land already invisible ` +
-          `— capture ${one ? "that one" : "those"} without a mark, or ` +
-          `\`${capture.title}\` without the \`done\`. Nothing was written.`,
-      })
-    }
-  }
-  for (const child of capture.children ?? []) {
-    const refused = capturedOverOpenWork(child)
-    if (refused !== undefined) return refused
+const mintedOverOpenWork = (minted: ReadonlyArray<RegularNode>): OpFailure | undefined => {
+  for (const record of minted) {
+    if (storedMarker(record) !== "done") continue
+    const open = mintedUnder(minted, record.id)
+    if (open.length === 0) continue
+    const one = open.length === 1
+    const named = capped(open, (child) => `\`${child.title}\``)
+    return new UsageFailure({
+      reason: `\`${record.title}\` is captured done over ${open.length} ` +
+        `unfinished ${one ? "task" : "tasks"} in the same call: ${named}. ` +
+        `Done-hidden hides a done ` +
+        `node WITH its subtree, so the capture would land already invisible ` +
+        `— capture ${one ? "that one" : "those"} without a mark, or ` +
+        `\`${record.title}\` without the \`done\`. Nothing was written.`,
+    })
   }
   return undefined
 }
@@ -632,7 +628,7 @@ const emit = (
   return null
 }
 
-const captured = (
+const capturePlan = (
   scope: Scope,
   into: Minting,
   capture: Capture,
@@ -643,7 +639,13 @@ const captured = (
   const bent = misplacedAfter(capture, anchored, at.below)
   if (bent !== undefined) return Result.fail(bent)
   const refused = emit(scope, into, capture, file, at)
-  return refused !== null ? Result.fail(refused) : wiring(scope, into)
+  if (refused !== null) return Result.fail(refused)
+  const wired = wiring(scope, into)
+  if (Result.isFailure(wired)) return wired
+  const unfit = refuseCaptureDeclaration(scope, file, wired.success)
+  if (unfit !== undefined) return Result.fail(unfit)
+  const contradicts = mintedOverOpenWork(wired.success)
+  return contradicts === undefined ? wired : Result.fail(contradicts)
 }
 
 const misplacedAfter = (
@@ -841,7 +843,7 @@ const planMark = (
 
 interface Recurrence {
   readonly spawned: RegularNode & { readonly date: string }
-  readonly ords: ReadonlyArray<{ id: string; ord: string }>
+  readonly ords: SiblingRow
 }
 
 const recurring = (
@@ -1467,7 +1469,7 @@ const crossing = (
   at: Located,
   landing: { readonly file: string; readonly parent: string | undefined },
   moved: Node,
-  ords: ReadonlyArray<{ id: string; ord: string }>,
+  ords: SiblingRow,
 ): ReadonlyArray<FilePlan> => {
   const { keeps, descendants } = liftSubtree(scope, at.file, at.node.id)
   return [
@@ -1575,7 +1577,7 @@ const planMerge = (
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
 
-  const archive = outlineCalled(scope.claims, scope.asked.outlines, TRASH) ?? TRASH_FILE(scope.claims, scope.outlineRow)
+  const archive = outlineCalled(scope.claims, scope.facts.outlines, TRASH) ?? TRASH_FILE(scope.claims, scope.outlineRow)
   if (archive === null) return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row is off, so no outline can be created` }))
   if (isTrashed(scope.claims, file)) {
     return Result.fail(
@@ -1706,7 +1708,7 @@ const planCreate = (
   if (claim.holds !== "nodes") return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row does not hold outlines` }))
   if (creatable(request.file, "") === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative file path under the served directory (no absolute path, no \`..\`, no \`.\`, and no directory the serve's walk prunes).` }))
   const path = claimedOf(scope.claims, request.file)
-  if (path === null) return Result.fail(unclaimedPath(request.file, scope.asked.outlines))
+  if (path === null) return Result.fail(unclaimedPath(request.file, scope.facts.outlines))
   if (admitOutline(scope.claims, { kind: "document", path }) === null) {
     const actual = scope.claims.byKind.get(fileKind(scope.claims, path)!)!
     return Result.fail(new UsageFailure({ reason: `\`${path}\` is ${actual.article} ${actual.noun}; this verb takes an outline` }))
@@ -1714,7 +1716,7 @@ const planCreate = (
   const file = outlinePath(scope.claims, scope.outlineRow, path)
   if (file === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative path using ${mintExt(scope.claims, scope.outlineRow)} under the served directory.` }))
 
-  if (scope.asked.at(file)?.holds === "nodes") {
+  if (scope.facts.at(file)?.holds === "nodes") {
     return Result.fail(
       new UsageFailure({
         reason:
@@ -1740,7 +1742,7 @@ const planCreate = (
   if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
   const id = chosen.success
 
-  const built = captured(scope, into, seed, file, {
+  const built = capturePlan(scope, into, seed, file, {
     id,
     parent: undefined,
     ord: nextOrd(null),
@@ -1748,12 +1750,6 @@ const planCreate = (
   }, false)
   if (Result.isFailure(built)) return Result.fail(built.failure)
   const minted = built.success
-
-  const unfit = refuseCaptureDeclaration(scope, file, minted)
-  if (unfit !== undefined) return Result.fail(unfit)
-
-  const contradicts = capturedOverOpenWork(seed)
-  if (contradicts !== undefined) return Result.fail(contradicts)
 
   const under = minted.length - 1
   return Result.succeed({
@@ -1808,7 +1804,7 @@ const planTrash = (
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
 
-  const archive = outlineCalled(scope.claims, scope.asked.outlines, TRASH) ?? TRASH_FILE(scope.claims, scope.outlineRow)
+  const archive = outlineCalled(scope.claims, scope.facts.outlines, TRASH) ?? TRASH_FILE(scope.claims, scope.outlineRow)
   if (archive === null) return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row is off, so no outline can be created` }))
   if (isTrashed(scope.claims, file)) {
     return Result.fail(
@@ -2079,7 +2075,7 @@ const untrashLanding = (
 
   const source = titles[0]!
   const rest = titles.slice(1)
-  const live = scope.asked.outlines.filter((candidate) => !isTrashed(scope.claims, candidate))
+  const live = scope.facts.outlines.filter((candidate) => !isTrashed(scope.claims, candidate))
   if (!live.includes(source)) {
     return Result.fail(
       new UsageFailure({
@@ -2133,7 +2129,7 @@ const notASignpost = (
   parent: string | undefined,
 ): Result.Result<void, OpFailure> => {
   if (!bareScaffold(node)) return Result.succeed(undefined)
-  if (scope.asked.serves.has(node.title)) {
+  if (scope.facts.serves.has(node.title)) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${node.title}\` is the outline this pile came from — the title ` +
@@ -2775,12 +2771,12 @@ const planWriteDocument = (
   scope: Scope,
   request: Extract<Request, { op: "doc" }>,
 ): Planned => {
-  const document = scope.asked.markdown(request.file)
+  const document = scope.facts.markdown(request.file)
   if (document === undefined) {
     return Result.fail(
       noSuchDocument(
         scope.claims,
-        scope.asked.set,
+        scope.facts.set,
         request.file,
         "`markdown_create` is what starts one",
       ),
@@ -2814,7 +2810,7 @@ const planCreateDocument = (
   request: Extract<Request, { op: "create-doc" }>,
 ): Planned => {
   if (creatable(request.file, "") === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative file path under the served directory (no absolute path, no \`..\`, no \`.\`, and no directory the serve's walk prunes).` }))
-  if (claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
+  if (claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.facts.serves]))
   const file = documentPath(scope.claims, request.file)
   if (file === null) {
     const kept = [...scope.claims.byKind.values()]
@@ -2832,7 +2828,7 @@ const planCreateDocument = (
     )
   }
 
-  if (scope.asked.at(file) !== undefined) {
+  if (scope.facts.at(file) !== undefined) {
     return Result.fail(
       new UsageFailure({
         reason:
@@ -2901,11 +2897,11 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
     )
   }
 
-  const document = scope.asked.at(request.file)
+  const document = scope.facts.at(request.file)
   if (document === undefined || kind === null) {
     const near = didYouMean(request.file, [
-      ...scope.asked.outlines,
-      ...markdownIn(scope.asked.set).map((entry) => entry.path),
+      ...scope.facts.outlines,
+      ...markdownIn(scope.facts.set).map((entry) => entry.path),
     ])
     return Result.fail(
       new NotFoundFailure({
@@ -3047,7 +3043,7 @@ export const VERBS: ReadonlyArray<Request["op"]> = Object.keys(PLANNERS) as Read
 
 export const plan = (scope: Scope, request: Request): Planned => {
   if (request.op !== "create" && request.op !== "create-doc" && "file" in request && typeof request.file === "string"
-    && claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
+    && claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.facts.serves]))
   const planned = (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)
   if (Result.isFailure(planned) || !["title", "desc", "add", "create", "doc", "create-doc"].includes(request.op)) return planned
   const next = planned.success

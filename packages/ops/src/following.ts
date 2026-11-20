@@ -11,14 +11,14 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
-import { askedOf, carried } from "./asked.ts"
-import { type Plan, type Scope, typedIn } from "./plan.ts"
+import { carriedOrFresh, type SetFacts } from "./facts.ts"
+import { type Plan, rescoped, type Scope } from "./plan.ts"
 
 export type Folding = (made: Plan) => Result.Result<Scope, OpFailure>
 
 export const folding = (from: Scope): Folding => {
   let at = from
-  let base = from.asked
+  let base: SetFacts = from.facts
   let wrote = new Map<string, Document>()
 
   return (made) => {
@@ -36,18 +36,12 @@ export const folding = (from: Scope): Folding => {
 
     wrote = new Map(wrote)
     for (const document of written) wrote.set(document.path, document)
-    const asked = carried(base, next.set, wrote)
-    if (asked === undefined) {
-      base = askedOf(next.claims, next.set)
+    const { facts, carried } = carriedOrFresh(base, next, wrote)
+    if (!carried) {
+      base = facts
       wrote = new Map()
     }
-    at = {
-      ...next,
-      outlineRow: at.outlineRow,
-      context: at.context,
-      asked: asked ?? base,
-      typed: typedIn(next, at.typed.kinds),
-    }
+    at = rescoped(at, next, facts)
     return Result.succeed(at)
   }
 }

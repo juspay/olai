@@ -112,10 +112,6 @@ const decodeOne = (
     ? Result.mapError(parseOutline(file, text, TEST_CLAIMS), verdictOf)
     : Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, text))
 
-/**
- * The step and the publish happen together or the corpus is one directory
- * repeated.
- */
 export const corpusOf = (
   vault: Vault,
   { steps, seed = 20260825 }: { readonly steps: number; readonly seed?: number },
@@ -234,7 +230,7 @@ export const corpusOf = (
   return revisions
 }
 
-export const publishing = (vault: Vault): {
+export interface Publisher {
   readonly revisions: Array<Revision>
   readonly refusals: ReadonlyArray<string>
   readonly publish: (
@@ -242,7 +238,9 @@ export const publishing = (vault: Vault): {
     changed: ReadonlyArray<string>,
     gone: ReadonlyArray<string>,
   ) => Reading
-} => {
+}
+
+export const publishing = (vault: Vault): Publisher => {
   const refusals: Array<string> = []
   const decoded: Decoded = new Map()
   const write = (path: string): void => {
@@ -332,11 +330,6 @@ export const asking = (views: Standing, at: Reading, question: Question): unknow
   }
 }
 
-/**
- * THE ORDER MATTERS AND IS THE SAME ON BOTH SIDES, which is what makes the
- * comparison meaningful: whichever tab asks a question first is the one whose
- * read pays for it, and the answers the others are handed are that one's.
- */
 export const watching = (
   views: Standing,
   revisions: ReadonlyArray<Revision>,

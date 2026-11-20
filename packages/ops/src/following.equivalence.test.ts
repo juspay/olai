@@ -90,9 +90,9 @@ test("one asking per batch: the carried answers are the SAME answers, until memb
   const at = start()
   const fold = folding(at)
 
-  const outlines = at.asked.outlines
-  const serves = at.asked.serves
-  const broken = at.asked.broken
+  const outlines = at.facts.outlines
+  const serves = at.facts.serves
+  const broken = at.facts.broken
 
   let carried: Scope = at
   for (const op of [
@@ -107,10 +107,10 @@ test("one asking per batch: the carried answers are the SAME answers, until memb
     const next = fold(made.success)
     if (Result.isFailure(next)) throw new Error("the fold refused")
     carried = next.success
-    expect(carried.asked.outlines).toBe(outlines)
-    expect(carried.asked.serves).toBe(serves)
-    expect(carried.asked.broken).toBe(broken)
-    expect(carried.asked.at("house.olai")).toBe(
+    expect(carried.facts.outlines).toBe(outlines)
+    expect(carried.facts.serves).toBe(serves)
+    expect(carried.facts.broken).toBe(broken)
+    expect(carried.facts.at("house.olai")).toBe(
       carried.set.documents.find((document) => document.path === "house.olai"),
     )
   }
@@ -121,23 +121,23 @@ test("one asking per batch: the carried answers are the SAME answers, until memb
   if (Result.isFailure(made)) throw new Error("`todo` refused")
   const after = reasking(made.success)
   if (Result.isFailure(after)) throw new Error("the fold refused")
-  expect(after.success.asked.outlines).not.toBe(before.asked.outlines)
-  expect(after.success.asked.broken).not.toBe(before.asked.broken)
+  expect(after.success.facts.outlines).not.toBe(before.facts.outlines)
+  expect(after.success.facts.broken).not.toBe(before.facts.broken)
 })
 
 test("a file MINTED mid-batch reaches what carries — the answers move, and they are right", () => {
   const at = start()
   const fold = folding(at)
-  const outlines = at.asked.outlines
+  const outlines = at.facts.outlines
 
   const made = plan(at, { op: "create", file: "notes/plans.olai" })
   if (Result.isFailure(made)) throw new Error(`refused: ${made.failure.message}`)
   const next = fold(made.success)
   if (Result.isFailure(next)) throw new Error("the fold refused")
 
-  expect(next.success.asked.outlines).not.toBe(outlines)
-  expect(next.success.asked.serves.has("notes/plans.olai")).toBe(true)
-  expect(next.success.asked.at("notes/plans.olai")?.holds).toBe("nodes")
+  expect(next.success.facts.outlines).not.toBe(outlines)
+  expect(next.success.facts.serves.has("notes/plans.olai")).toBe(true)
+  expect(next.success.facts.at("notes/plans.olai")?.holds).toBe("nodes")
   const into = plan(next.success, { op: "add", file: "notes/plans.olai", title: "a first row" })
   expect(Result.isSuccess(into)).toBe(true)
 })
@@ -145,14 +145,14 @@ test("a file MINTED mid-batch reaches what carries — the answers move, and the
 test("a file MENDED mid-batch leaves `broken`, and what carries hears about it", () => {
   const at = start()
   const fold = folding(at)
-  expect(at.asked.broken.has("torn.olai")).toBe(true)
+  expect(at.facts.broken.has("torn.olai")).toBe(true)
 
   const made = plan(at, { op: "todo", id: "loose" })
   if (Result.isFailure(made)) throw new Error("`todo` refused")
   const next = fold(made.success)
   if (Result.isFailure(next)) throw new Error("the fold refused")
-  expect(next.success.asked.broken).toBe(at.asked.broken)
-  expect(next.success.asked.broken.has("torn.olai")).toBe(true)
+  expect(next.success.facts.broken).toBe(at.facts.broken)
+  expect(next.success.facts.broken.has("torn.olai")).toBe(true)
 })
 
 test("an intermediate context is a value: a later op does not move an earlier one's answers", () => {
@@ -174,14 +174,14 @@ test("an intermediate context is a value: a later op does not move an earlier on
   }
 
   const noteAt = (scope: Scope): string | undefined => {
-    const document = scope.asked.at("house.olai")
+    const document = scope.facts.at("house.olai")
     if (document === undefined || document.holds !== "nodes") return undefined
     const found = document.nodes.find((located) => located.node.id === "loose")
     return found === undefined || "mirror" in found.node ? undefined : found.node.desc
   }
   expect(scopes.map(noteAt)).toEqual(["the first note", "the second note", "the third note"])
   for (const scope of scopes) {
-    expect(scope.asked.at("house.olai")).toBe(
+    expect(scope.facts.at("house.olai")).toBe(
       scope.set.documents.find((document) => document.path === "house.olai"),
     )
   }

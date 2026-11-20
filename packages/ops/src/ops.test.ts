@@ -456,7 +456,7 @@ const STALE_JUDGE = verdictOf([{
   line: 1,
   code: "bad-prop",
   message: "`pr` must be a day — the value here is not one",
-  related: [{ file: "_olai/Properties.olai", line: 1, note: "declared here", broken: false }],
+  related: [{ file: "_olai/Properties.olai", line: 1, note: "declared here", blamed: false }],
 }])
 
 const fakingCommit = (

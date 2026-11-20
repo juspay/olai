@@ -68,6 +68,36 @@ export const standing = (now: () => string, kinds: KindVocabulary): Standing => 
   let live = new Map<string, Held>()
   let prior = new Map<string, Held>()
 
+  const sharedAt = (key: string): Held | undefined => {
+    const held = live.get(key)
+    if (held === undefined) return undefined
+    held.askers++
+    return held
+  }
+
+  const carriedIfUnmoved = (key: string, reading: Reading): Held | undefined => {
+    const before = prior.get(key)
+    if (before === undefined || !stillHolds(before.tape, before.reading, reading)) {
+      return undefined
+    }
+    before.reading = reading
+    before.askers = 1
+    live.set(key, before)
+    return before
+  }
+
+  const build = <I, A>(key: string, question: Question<I, A>, reading: Reading, input: I): A => {
+    const taped = taping(reading)
+    const fresh = question.answer(taped.reading, input, now, kinds)
+    const before = prior.get(key)
+    const answer = before !== undefined && before.askers > 1 &&
+        question.same(before.answer as A, fresh)
+      ? before.answer as A
+      : fresh
+    live.set(key, { reading, answer, tape: taped.tape, askers: 1 })
+    return answer
+  }
+
   const ask = <I, A>(which: Asked, question: Question<I, A>, reading: Reading, input: I): A => {
     if (reading !== at) {
       prior = live
@@ -75,28 +105,11 @@ export const standing = (now: () => string, kinds: KindVocabulary): Standing => 
       at = reading
     }
     const key = `${which} ${JSON.stringify(input)}`
-    const shared = live.get(key)
-    if (shared !== undefined) {
-      shared.askers++
-      return shared.answer as A
-    }
-
-    const before = prior.get(key)
-    if (before !== undefined && stillHolds(before.tape, before.reading, reading)) {
-      before.reading = reading
-      before.askers = 1
-      live.set(key, before)
-      return before.answer as A
-    }
-
-    const taped = taping(reading)
-    const fresh = question.answer(taped.reading, input, now, kinds)
-    const answer = before !== undefined && before.askers > 1 &&
-        question.same(before.answer as A, fresh)
-      ? before.answer as A
-      : fresh
-    live.set(key, { reading, answer, tape: taped.tape, askers: 1 })
-    return answer
+    const shared = sharedAt(key)
+    if (shared !== undefined) return shared.answer as A
+    const carried = carriedIfUnmoved(key, reading)
+    if (carried !== undefined) return carried.answer as A
+    return build(key, question, reading, input)
   }
 
   return {

@@ -3,9 +3,9 @@ import { apart, assemble, bodiedDocument, type Document, type OutlineError, read
 import { parseOutline, serializeOutline } from "olai-plugin-outline-olai/format"
 import { Result } from "effect"
 
-import { askedOf } from "./asked.ts"
+import { factsOf } from "./facts.ts"
 import type { Folding } from "./following.ts"
-import { type Scope, typedIn } from "./plan.ts"
+import { rescoped, type Scope } from "./plan.ts"
 
 type Decoded = Result.Result<Document, Verdict>
 
@@ -30,7 +30,7 @@ export const assembling = (from: Scope): Folding => {
     }
 
     const next = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, files), { read: at, delta: { upserts, removes: [] } })
-    at = { ...next, outlineRow: at.outlineRow, context: at.context, asked: askedOf(TEST_CLAIMS, next.set), typed: typedIn(next, at.typed.kinds) }
+    at = rescoped(at, next, factsOf(TEST_CLAIMS, next.set))
     return Result.succeed(at)
   }
 }

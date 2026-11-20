@@ -1,7 +1,6 @@
 {
-  "//trash": "`trash` is a REQUEST OP and a `Barred` arm — the door refuses the op by name and the name is the format's — not the trash row.",
   "capture": {
-    "src/plan.ts": 66
+    "src/plan.ts": 52
   },
   "files": {
     "src/codec.ts": 3,
@@ -10,12 +9,11 @@
     "src/ops.ts": 6,
     "src/plan.ts": 31,
     "src/query.ts": 1,
-    "src/sorted.ts": 4
+    "src/sorted.ts": 6
   },
-  "//markdown": "The word is `@olai/format`'s own set reader `markdownAt` — the `.md` body of one file of a set, named by its grammar — not the markdown row.",
   "markdown": {
-    "src/asked.ts": 8,
     "src/door.ts": 2,
+    "src/facts.ts": 8,
     "src/ops.ts": 4,
     "src/plan.ts": 9,
     "src/query.ts": 5,
@@ -23,7 +21,7 @@
     "src/sorted.ts": 2
   },
   "outlines": {
-    "src/asked.ts": 4,
+    "src/facts.ts": 4,
     "src/live.ts": 3,
     "src/ops.ts": 3,
     "src/plan.ts": 18,
