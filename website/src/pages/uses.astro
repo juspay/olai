@@ -14,10 +14,32 @@ import "../styles/home.css"
   <div class="wrap">
     <p class="kicker">uses</p>
     <h1>What you can do with olai</h1>
-    <p>olai holds outlines and documents. This page shows three things that
-    you can do with them. Each picture shows the real app.</p>
+    <p>olai holds Markdown documents and outlines. This page shows four things
+    that you can do with them. Each picture shows the real app.</p>
   </div>
 </div>
+
+<section id="notes">
+  <div class="wrap">
+    <h2>Keep Markdown notes</h2>
+    <div class="use flip">
+      <div>
+        <p>olai opens a directory of Markdown files as it is. Each document
+        has a page, with its headings, its properties, and a list of what
+        links to it.</p>
+        <p>A standard Markdown link opens another document, a heading, or an
+        item of an outline. Search reads the text of every document.</p>
+        <p>You can start a chat with an agent about one document. The agent
+        reads the document, and changes it when you ask.</p>
+        <p class="needs">Wikilinks are upcoming. Today olai shows <code>[[page]]</code> as text. Read <a href="/#upcoming">what is upcoming for Markdown</a>.</p>
+      </div>
+      <figure>
+        <div class="shot small"><img src="/tour/document.png" width="2880" height="1800" alt="A Markdown document in olai, with two headings, a table, a task list, and the item that links to the document."></div>
+        <figcaption class="caption">The real app. A document, with a table, a task list, and the item that links to it.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
 
 <section id="give">
   <div class="wrap">
@@ -26,16 +48,15 @@ import "../styles/home.css"
       <div>
         <p>A project is an outline. You do some items yourself, and you give
         other items to an agent.</p>
-        <p>A chat belongs to one item. Next week the chat is still on that item,
-        with everything that the agent did.</p>
-        {/* The limit of eight is in website/docs/node-agents.md. */}
+        <p>A chat belongs to one item or to one document. Next week the chat is
+        still there, with everything that the agent did.</p>
         <p>You can start agents on several items. Each item shows what its agent
         is doing, and the sidebar lists the agents that wait for an answer.
         Eight agents can run at the same time.</p>
         <p class="needs">An agent needs an account with {agentList}. Read <a href="/docs/giving-an-agent-work/">how to give an agent work</a>.</p>
       </div>
       <figure>
-        <div class="shot small"><img src="/tour/outline-and-chat.png" width="2880" height="1800" alt="An outline beside a chat. In the chat an agent has marked items of the outline done."></div>
+        <div class="shot small"><img src="/tour/outline-and-chat.png" width="2880" height="1800" loading="lazy" alt="An outline beside a chat. In the chat an agent has marked items of the outline done."></div>
         <figcaption class="caption">The real app. The agent in this picture is scripted.</figcaption>
       </figure>
     </div>

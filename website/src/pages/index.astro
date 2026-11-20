@@ -336,13 +336,18 @@ const dark = PALETTES.length - light
 
 <section id="uses">
   <div class="wrap">
-    <h2>Use olai for agent tasks, due dates, and quick capture</h2>
+    <h2>Use olai for Markdown notes, agent tasks, due dates, and quick capture</h2>
     <p class="lead">Each picture shows the real app.</p>
     <div class="teasers">
+      <a href="/uses/#notes">
+        <div class="shot small"><img src="/tour/document.png" width="2880" height="1800" loading="lazy" alt=""></div>
+        <b>Keep Markdown notes</b>
+        <span>Each document has a page, with its headings and what links to it.</span>
+      </a>
       <a href="/uses/#give">
         <div class="shot small"><img src="/tour/outline-and-chat.png" width="2880" height="1800" loading="lazy" alt=""></div>
         <b>Give a task to an agent</b>
-        <span>Each item can have its own agent. The sidebar lists the agents that wait for you.</span>
+        <span>Each item and each document can have its own agent.</span>
       </a>
       <a href="/uses/#due">
         <div class="shot small"><img src="/tour/agenda.png" width="2880" height="1800" loading="lazy" alt=""></div>
@@ -374,7 +379,7 @@ const dark = PALETTES.length - light
         <p class="next"><a class="go" href="/docs/start/">Set up olai and write your first line</a></p>
       </div>
       <div>
-        <p>This command starts olai on the directory <code>~/notes</code>.</p>
+        <p>This command starts olai on the directory <code>~/notes</code>. If the directory already holds Markdown files, olai serves them as they are.</p>
         <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web ~/notes</code></pre>
         <p class="caption">The Start page has every step, with the two commands that come before this one.</p>
         <p class="caption">olai has no installer for people who do not use a terminal, and no hosted version. A new olai release can break things. Keep your notes in git, as the Start page shows.</p>

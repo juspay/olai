@@ -181,7 +181,7 @@ table.cmp thead th:nth-child(2) { color: var(--accent); }
 .fit .no li::marker { color: var(--alarm); }
 .fit .yes li::marker { color: var(--done); }
 
-.teasers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2rem; margin-top: 1.8rem; }
+.teasers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.2rem; margin-top: 1.8rem; }
 @media (max-width: 56rem) { .teasers { grid-template-columns: minmax(0, 1fr); } }
 .teasers a { display: block; text-decoration: none; color: var(--ink); }
 .teasers b { display: block; font-family: var(--display); font-style: italic; font-weight: 500; font-size: 1.15rem; margin-top: 0.7rem; }
