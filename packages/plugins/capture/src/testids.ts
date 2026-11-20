@@ -1,11 +1,8 @@
-/** Stable DOM identifiers owned by this renderer. Shared consumers import
- * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
   inboxLink: "inbox-link",
   inboxHeld: "inbox-held",
   inboxCount: "inbox-count",
   paletteCapture: "palette-capture",
-  /** The phone's `+` thumb: the palette, primed with the capture prefix. */
   thumbCapture: "thumb-capture",
 } as const
 

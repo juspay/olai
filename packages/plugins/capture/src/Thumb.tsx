@@ -1,14 +1,3 @@
-/**
- * THE CAPTURE THUMB — `+` in the phone's bottom bar
- * (`olai-plugin-layout`'s `layout.thumbs`), the one-tap door to a line in the
- * Inbox.
- *
- * It opens the ⌘K palette with the capture prefix already in the box, which
- * is exactly what the palette's own capture row does (`./Palette.tsx`): one
- * write, one grammar, one place a line goes. A phone has no ⌘K and its header
- * holds only the magnifier, so without this a capture was a magnifier, a `+`
- * and a line — three taps for the gesture a phone is for.
- */
 import { definePlugin } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { Thumb } from "olai-plugin-layout/thumb"
@@ -18,7 +7,6 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 
 import { TESTID } from "./testids.ts"
 
-/** What the capture row primes the box with (`./Palette.tsx`'s `after`). */
 const PREFIX = "+ "
 
 export const captureThumb = definePlugin({

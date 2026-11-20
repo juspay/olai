@@ -23,19 +23,10 @@ export function Inbox(props: {
         current={props.isActive(props.file)}
         broken={props.broken}
         tip={props.file}
-        // WHICH FILE the inbox IS — the row draws the word "Inbox" and the
-        // path was the anchor's `title`, which answered a pointer and nothing
-        // else. The tip is the pointer's copy; this is the name everybody
-        // reads, and it still opens with the word the row draws.
         label={`Inbox, ${props.file}`}
       >
         Inbox
         <Show when={props.broken}>
-          {/* No margin of its own: the row has one gap and this is on it — the
-              tree's own mark, said the same way (see `FileAnatomy` in
-              `files/src/Files.tsx`). The ⚠ is the only visible sign and the
-              row's name is spent on the file, so the sentence rides a
-              `role="img"`: a tip reaches nobody who does not hover. */}
           <Tip text="Couldn't open this file">
             <span class="text-alarm" role="img" aria-label="Couldn't open this file">
               ⚠

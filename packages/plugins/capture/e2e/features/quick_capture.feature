@@ -33,8 +33,6 @@ Feature: A line captured from a terminal arrives on the page
   the first line of every scenario ("no Inbox") is what proves the restore took.
 
   Scenario: A capture from a terminal reaches the page somebody already has open
-    # Nothing is reloaded and nothing is pressed: the line is typed somewhere
-    # else and the sidebar follows the disk like any other write.
     Given I open the outline "house.olai"
     And the sidebar offers no Inbox
     When I capture "look into the new cabinets" from a terminal
@@ -43,11 +41,6 @@ Feature: A line captured from a terminal arrives on the page
     And there should be no page errors
 
   Scenario: …and the terminal is told which vault it landed in, and where
-    # The ops layer's answer is nine fields of which none is a thing a person
-    # can open. What a terminal gets instead is one line: the directory that
-    # took the write, and the address of the row it made — which is the half
-    # that was missing when a capture went to the wrong vault and looked
-    # exactly like one that had not.
     Given I open the outline "house.olai"
     When I capture "buy the handles" from a terminal
     Then the terminal was told it captured into the served directory
@@ -55,18 +48,12 @@ Feature: A line captured from a terminal arrives on the page
     And there should be no page errors
 
   Scenario: …and `--json` gives the whole answer instead, for a script
-    # The flag decides, and nothing about what stdout is attached to does. Both
-    # of these run with stdout on a pipe, so a rule that read the descriptor
-    # would give the same answer twice and prove nothing.
     Given I open the outline "house.olai"
     When I capture "sand the shelf" from a terminal, asking for JSON
     Then the terminal was given the whole record, naming the vault
     And there should be no page errors
 
   Scenario: …and the terminal can read back what it just wrote
-    # The other half of a client: `olai surface get outlines <path>` reads the
-    # same collection an agent reads, through the same door the write went out
-    # on — so one binary both wrote and saw it, with no browser involved.
     Given I open the outline "house.olai"
     When I capture "fit the hinges" from a terminal
     Then reading "_olai/Inbox.olai" from a terminal shows "fit the hinges"
@@ -74,20 +61,11 @@ Feature: A line captured from a terminal arrives on the page
 
   Scenario: …and lands on today, because nobody was looking at the inbox
     Given I open today
-    # …asking for JSON, because this one needs the ID it answered with: the
-    # reader never chose one, so the row can only be found by the name the verb
-    # handed back.
     When I capture "call the electrician" from a terminal, asking for JSON
     Then what was captured is on today
     And there should be no page errors
 
   Scenario: A capture cannot say who made it, and cannot guess where to go
-    # Two absences, on the real binary. `captured-by` is written from the
-    # identity the door has, and a capture has no field to put one in — so
-    # there is no flag to forge with, which is a stronger arrangement than the
-    # refusal it replaced. And a call that names no server is a usage error
-    # that never leaves the process, rather than a write into whichever vault
-    # happened to be reachable.
     Given I open the outline "house.olai"
     Then capturing while claiming "captured-by" is not something this door takes
     And capturing without saying which server is refused before anything is sent

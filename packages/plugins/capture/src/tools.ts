@@ -1,27 +1,3 @@
-/**
- * THE CAPTURE ROW'S ONE AGENT VERB — a line into this directory's inbox, and
- * the only PLAN arm there is.
- *
- * It was an entry in `@olai/ops`' one closed `TOOLS` table, which meant a
- * general package named this row's vocabulary and a serve without this row
- * still offered an agent a `capture_add` nothing stood behind. A tool leaves with
- * the row that owns it now (juspay/olai#546).
- *
- * WHY IT IS A PLAN AND NOT A WRITE: every other write is aimed by its
- * arguments; a capture is aimed by a CONVENTION — the inbox this directory
- * happens to keep, or the one that gets minted holding it — so the request
- * cannot be known until the directory has been looked at. The resolver is PURE
- * over the outline PATHS, which is a reading every face can get, including one
- * on the far end of a socket with no store of its own.
- *
- * It was `POST /capture`, ~550 lines re-deriving for one verb what a tool table
- * gives every verb: a body schema, an identity rule, a status table and its own
- * writer. As one entry here it is instead the SAME verb an agent calls and the
- * same one `olai surface capture` calls, under one name, with one schema and one
- * attribution rule — which is what makes the CLI a client of this row rather
- * than a second door onto the directory.
- */
-
 import { CaptureRequest, captureInto, capturingOf } from "@olai/format"
 import { plan, type Tool } from "@olai/ops"
 import { Result } from "effect"

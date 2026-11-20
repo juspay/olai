@@ -23,16 +23,10 @@ function Entry(props: SidebarRegionProps & {active:()=>string|undefined}) {
 }
 export const components={palette:capturePalette,thumb:captureThumb}
 export default definePlugin({name:"capture", needs:[Wired, Edits, rendererSlots, navigation, fileAccess], apply:Effect.gen(function*(){
-  // The served directory, held for this activation — `./vault.ts` on why the
-  // inbox entry reads it here rather than out of the vault's own module.
   const served = yield* fileAccess
   yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
-  // `Edits` rather than pushed into a module-scope map in a general package
-  // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
-  // beside it is how this row's faces spend the same table (`./writes.ts`).
   const edits = yield* Edits
   yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
