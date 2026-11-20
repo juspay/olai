@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { chromium, type Page } from "playwright"
@@ -13,9 +13,9 @@ const MAX_PICTURE = 400 * 1024
 const shiftDates = (dir: string): void => {
   const now = new Date()
   const days = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - FIXTURE_TODAY) / DAY)
-  for (const name of readdirSync(dir, { recursive: true, encoding: "utf8" })) {
-    const file = join(dir, name)
-    if (!/\.(olai|md)$/.test(name) || !statSync(file).isFile()) continue
+  for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile() || !/\.(olai|md)$/.test(entry.name)) continue
+    const file = join(entry.parentPath, entry.name)
     const text = readFileSync(file, "utf8")
     const shifted = text.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, y: string, m: string, d: string) =>
       new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)) + days * DAY).toISOString().slice(0, 10),
@@ -42,9 +42,7 @@ const env = (name: string): string => {
 const shoot = async (page: Page, out: string, name: string): Promise<void> => {
   await page.mouse.move(4, 896)
   await page.waitForTimeout(500)
-  const path = join(out, name)
-  await page.screenshot({ path })
-  const size = statSync(path).size
+  const size = (await page.screenshot({ path: join(out, name) })).length
   if (size > MAX_PICTURE) throw new Error(`${name} is ${size} bytes, over the limit of ${MAX_PICTURE}`)
   console.log(`${name}: ${size} bytes`)
 }
