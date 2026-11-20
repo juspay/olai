@@ -1,10 +1,3 @@
-/**
- * THE OPEN PATH, AS DATA — drilling, going back, resolving against what is
- * contributed now, and a value level's choice and submit. The drawing and the
- * Solid scopes are `./Palette.tsx`'s and are driven in a browser
- * (`../../e2e/features/palette_levels.feature`); what is here is every rule
- * that does not need one.
- */
 import { expect, test } from "bun:test"
 
 import { boxOf } from "./items.ts"
@@ -55,7 +48,6 @@ test("a step keeps the level it opened and where its path came from, for a redra
   const step = openStep("v", "V", level, SOURCE)
   expect(step.level).toBe(level)
   expect(step.source).toBe(SOURCE)
-  // A value level starts with its own text unless the opener says otherwise.
   expect(step.text).toBe("draft")
   expect(openStep("v", "V", level, SOURCE, "carried").text).toBe("carried")
   expect(openStep("g", "G", GROUP, SOURCE).text).toBe("")
@@ -74,10 +66,7 @@ test("the root of a path stands while its source is present, available and still
   expect(rootStands(false, true, offered, "fruit", false)).toBe(false)
   expect(rootStands(true, false, offered, "fruit", false)).toBe(false)
   expect(rootStands(true, true, [], "fruit", false)).toBe(false)
-  // Still offered, but no longer as a level.
   expect(rootStands(true, true, offered, "plain", false)).toBe(false)
-  // A submit in flight stands in for the row — a send that takes its own row
-  // away does not end the level — but not for the contribution itself.
   expect(rootStands(true, true, [], "fruit", true)).toBe(true)
   expect(rootStands(true, true, offered, "plain", true)).toBe(true)
   expect(rootStands(false, true, [], "fruit", true)).toBe(false)
@@ -143,7 +132,6 @@ test("exactly one option is chosen: the one moved to, else the level's default, 
   expect(chosenOption(OPTIONS, undefined)?.id).toBe("a")
   expect(chosenOption(OPTIONS, undefined, "b")?.id).toBe("b")
   expect(chosenOption(OPTIONS, "c", "b")?.id).toBe("c")
-  // An option that left the list does not leave nothing chosen.
   expect(chosenOption(OPTIONS, "gone", "also-gone")?.id).toBe("a")
   expect(chosenOption([], "a")).toBeUndefined()
 })

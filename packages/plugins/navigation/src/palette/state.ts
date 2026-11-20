@@ -1,20 +1,4 @@
-/**
- * THE PALETTE'S OPEN STATE — this row's own, and PRIVATE to this package.
- *
- * It was `./open.ts`, a declared contract (`olai-plugin-navigation/palette-open`)
- * carrying a module variable: `olai-plugin-pins` asked a question in the palette
- * through it and `olai-plugin-search` opened one, both across a package wall
- * with no dependency declared anywhere (the audit's §12).
- *
- * The verbs travel on `navigation.palette` now — a service `../browser.tsx`
- * offers and each of those rows declares on the component that draws. What is
- * left here is this row's own hold, installed by the same activation that
- * offers the service, so what the palette reads and what a sibling row is
- * handed cannot be two different states.
- */
 import type {Asking} from "./asking.ts"
-/** A request to open already drilled into a path of row ids — a fresh object
- *  per request, so asking twice for the same path is two requests. */
 export interface OpenAt {readonly path:ReadonlyArray<string>;readonly text?:string}
 export type Opened={readonly kind:"closed"}|{readonly kind:"open";readonly asking:Asking|null;readonly at?:OpenAt}
 export const CLOSED:Opened={kind:"closed"}

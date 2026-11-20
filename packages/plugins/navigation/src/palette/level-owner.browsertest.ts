@@ -1,13 +1,3 @@
-/**
- * WHAT TYPING AT A LEVEL WAKES — asked of `./level-owner.ts` itself, under the
- * browser condition, because "this memo did not re-run" is a claim a
- * server-resolved Solid cannot make (`justfile`'s `test` recipe says why).
- *
- * A keystroke at a level replaces the path (the step's text is a field of it).
- * What must NOT follow it: the standing check, which asks the root adapter's
- * `items()`; the crumbs, which a `<For>` keeps by identity; and the top level's
- * live rows, which the drawing is keyed on.
- */
 import { expect, test } from "bun:test"
 import { createRoot, createSignal, onCleanup } from "solid-js"
 import { atOnce } from "@olai/web/client/settled.ts"
@@ -47,7 +37,6 @@ test("typing at a level asks the root adapter nothing, and keeps the crumbs and 
   const { host, asked } = bench()
   createRoot((dispose) => {
     const owner = createLevelOwner(host)
-    // Read what the drawing reads, so each is a live subscription.
     owner.crumbs(); owner.topLive(); owner.depth(); owner.busy(); owner.chosenId()
     owner.drill(row("root", NESTED), NESTED)
     owner.drill(row("note", NOTE), NOTE)
@@ -122,8 +111,6 @@ test("a level's own work ends when it is popped and when the drawing goes, and i
     expect(signal?.aborted).toBe(true)
 
     owner.drill(row("root", counted), counted)
-    // The drawing going disposes the rows' scope; the level itself (its
-    // step, its signal) belongs to navigation's memory and outlives a redraw.
     dispose()
     expect(cleaned).toBe(2)
     expect(signal?.aborted).toBe(false)
@@ -134,8 +121,6 @@ test("a level's own work ends when it is popped and when the drawing goes, and i
 
 test("a level whose submit takes its own row away stays open until the submit settles", async () => {
   resetLevelMemory()
-  // The send is exactly what takes the row away: the row is offered while
-  // there is nothing started, and starting it is what the level does.
   const [started, setStarted] = createSignal(false)
   const sent = Promise.withResolvers<PaletteRunResult>()
   const START: PaletteLevel = {
@@ -170,15 +155,12 @@ test("a level whose submit takes its own row away stays open until the submit se
   expect(owner.busy()).toBe(true)
 
   await flush()
-  // The row is gone and the level it was sent from is still standing.
   expect(adapter.items?.()).toEqual([])
   expect(owner.depth()).toBe(1)
   expect(closed).toBe(0)
 
   sent.resolve({})
   await flush()
-  // Settled: the ordinary rule resumes, and the answer that closes the
-  // palette was not dropped.
   expect(closed).toBe(1)
   expect(owner.depth()).toBe(0)
   dispose()

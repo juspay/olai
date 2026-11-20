@@ -52,8 +52,6 @@ Feature: Chat references share the app link vocabulary
       | Alt | 1 |
       | Alt-Shift | 1 |
 
-  # A CHAT HAS ITS OWN ADDRESS, and the roster's rows are links to it like any
-  # other: the gestures are the pane vocabulary, unchanged.
   Scenario Outline: The agent roster row opens the chat's own page
     When I activate the unified "roster" link with "<gesture>"
     Then pane <pane> is showing "/chat/kitchen"
@@ -70,8 +68,6 @@ Feature: Chat references share the app link vocabulary
   Scenario: A roster row lands on the conversation, not the file that holds it
     When I activate the unified "roster" link with "click"
     Then the address is "/chat/kitchen"
-    # THE CHAT IS NOT INSIDE ANYTHING: its page is headed by the name of the
-    # row it belongs to and draws no trail above it.
     And the chat page shows no breadcrumb
     And the chat page conversation is ready
     And there should be no page errors

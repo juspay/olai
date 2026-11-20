@@ -1,13 +1,3 @@
-/**
- * The palette's LEVELS: crumbs, a level's rows and sections, a value level's
- * options and submit, and where the caret is.
- *
- * Rows are named by `data-id` rather than by text — a row's text runs its
- * label, hint and place together — and crumbs, sections and the hint by their
- * own text, read as `textContent` because a section heading is drawn in
- * capitals by CSS and `innerText` would read the capitals.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
@@ -40,8 +30,6 @@ const texts = async (world: OlaiWorld, of: string): Promise<ReadonlyArray<string
 const ids = async (world: OlaiWorld, of: string): Promise<ReadonlyArray<string>> =>
   world.page.locator(of).evaluateAll((all) => all.map((one) => one.getAttribute("data-id") ?? ""));
 
-/** Wait until `read` answers `wanted`, then assert it — so a failure says
- *  what was there rather than that a poll ran out. */
 const settlesTo = async <T>(world: OlaiWorld, read: () => Promise<T>, wanted: T, what: string) => {
   await world.waitUntil(
     async () => JSON.stringify(await read()) === JSON.stringify(wanted),
@@ -50,10 +38,6 @@ const settlesTo = async <T>(world: OlaiWorld, read: () => Promise<T>, wanted: T,
   assert.deepStrictEqual(await read(), wanted, what);
 };
 
-// ── moving between levels ──────────────────────────────────────────────
-
-/** A POINTER press on a row that opens a level, or on any row that leaves the
- *  palette up; the caret must stay in the box. */
 When("I press the palette row {string}", async function (this: OlaiWorld, id: string) {
   const row = this.page.locator(`${PALETTE_ITEM}${attr("data-id", id)}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -66,7 +50,6 @@ When("I press the palette crumb {string}", async function (this: OlaiWorld, labe
   await this.press(crumb);
 });
 
-/** The crumbs, by the row ids that opened them; `""` is the root. */
 Then("the palette path is {string}", async function (this: OlaiWorld, path: string) {
   await this.page.locator(PALETTE).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await settlesTo(this, () => ids(this, CRUMB), list(path), "the palette's crumbs");
@@ -75,8 +58,6 @@ Then("the palette path is {string}", async function (this: OlaiWorld, path: stri
 Then("the palette crumbs read {string}", async function (this: OlaiWorld, crumbs: string) {
   await settlesTo(this, () => texts(this, CRUMB), list(crumbs).map((one) => `${one} ›`), "the crumbs' words");
 });
-
-// ── what a level lists ─────────────────────────────────────────────────
 
 Then("the palette rows are {string}", async function (this: OlaiWorld, rows: string) {
   await settlesTo(this, () => ids(this, `${LIST} ${PALETTE_ITEM}`), list(rows), "the palette's rows");
@@ -105,14 +86,11 @@ Then("the palette footer mentions {string}", async function (this: OlaiWorld, wo
   );
 });
 
-/** A level row's place — its second line. */
 Then("the palette row {string} is placed {string}", async function (this: OlaiWorld, id: string, place: string) {
   const row = this.page.locator(`${PALETTE_ITEM}${attr("data-id", id)}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.ok((await row.textContent())?.includes(place), `the row ${id} names ${place}`);
 });
-
-// ── a value level ──────────────────────────────────────────────────────
 
 Then("the palette options are {string}", async function (this: OlaiWorld, options: string) {
   await settlesTo(this, () => ids(this, OPTION), list(options), "the level's options");
@@ -140,7 +118,6 @@ When("I press the palette submit", async function (this: OlaiWorld) {
   await this.press(submit);
 });
 
-/** Its refusal, in the palette's refusal line and the alarm's mood. */
 Then("the palette refuses with {string}", async function (this: OlaiWorld, sentence: string) {
   await saysThat(this, PALETTE_ASK_ERROR, sentence, "the level's refusal", "alarm", this.page);
 });
@@ -148,7 +125,6 @@ Then("the palette refuses with {string}", async function (this: OlaiWorld, sente
 Then("the palette level is busy", async function (this: OlaiWorld) {
   await this.page.locator(`${LEVEL}${attr("data-busy", "true")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.page.locator(`${SUBMIT}:disabled`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  // innerText, not textContent: both words are drawn and one is hidden.
   assert.ok((await this.page.locator(SUBMIT).innerText()).includes("Working"), "the submit says it is working");
 });
 
@@ -160,14 +136,8 @@ Then("the palette level is not busy", async function (this: OlaiWorld) {
   }
 });
 
-// ── element identity: what a state change must NOT rebuild ─────────────
-
-/** Everything a level draws that a keystroke, an arrow or a submit going out
- *  must leave in place. */
 const DRAWN = [CRUMB, OPTION, SECTION, HINT, LEVEL, SUBMIT, FOOTER].join(", ");
 
-/** Tag every element drawn now, on the element itself — a rebuilt element is
- *  a new object and does not carry the tag. */
 When("I mark what the palette has drawn", async function (this: OlaiWorld) {
   await this.page.locator(LEVEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const marked = await this.page.locator(DRAWN).evaluateAll((all) => {
@@ -177,8 +147,6 @@ When("I mark what the palette has drawn", async function (this: OlaiWorld) {
   assert.ok(marked > 0, "something was drawn to mark");
 });
 
-/** Every marked element is still in the document, and everything of those
- *  kinds the palette draws now is one of them. */
 Then("what the palette had drawn is still drawn", async function (this: OlaiWorld) {
   const fresh = await this.page.locator(DRAWN).evaluateAll((all) =>
     all.filter((one) => (one as unknown as { olaiMark?: boolean }).olaiMark !== true)
@@ -192,8 +160,6 @@ Then("the palette crumb {string} is the one drawn before", async function (this:
   assert.ok(await crumb.evaluate((one) => (one as unknown as { olaiMark?: boolean }).olaiMark === true),
     `the crumb ${id} was drawn again`);
 });
-
-// ── what a person who cannot see it is told ────────────────────────────
 
 Then("the palette announces {string}", async function (this: OlaiWorld, said: string) {
   const status = this.page.locator(STATUS);
@@ -209,7 +175,6 @@ Then("the palette box has the caret", async function (this: OlaiWorld) {
   );
 });
 
-/** A value level's options are one radio group named by the level. */
 Then("the palette options are a radio group named {string}", async function (this: OlaiWorld, name: string) {
   const group = this.page.locator(`${LEVEL} [role="radiogroup"]`);
   await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

@@ -26,8 +26,6 @@ Feature: Palette write responses belong to the interaction that sent them
     And I open the node "<node>"
     When I press the palette shortcut
     And I type "<command>" into the palette
-    # The contextual command arrives with page metadata. Freeze only after
-    # the intended write is offered; typing alone does not make it available.
     Then the palette offers "<command>"
     When I hold incoming updates to the original browser tab
     And I press "Enter" without waiting

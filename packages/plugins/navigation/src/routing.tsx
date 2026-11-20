@@ -1,6 +1,4 @@
 import { localLink, type Intent } from "@olai/surface"
-/** Stateless route consumers. They receive the navigation provider through
- * context; importing this contract starts no history, observer or timer. */
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { elsewhereOf, ELSEWHERE_SELECTOR } from "./elsewhere.ts"
@@ -28,71 +26,15 @@ export interface Router {
   readonly focused: Accessor<import("./index.ts").PageInfo | undefined>
   readonly report: (index: Accessor<number>, info: Accessor<import("./index.ts").PageInfo>) => void
 
-  /**
-   * THE ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,
-   * parsing one, finding the tenant behind one, and the three narrowing
-   * readings that ask a tenant whether its page takes a filter.
-   *
-   * ON THE ROUTER because a router is what HOLDS a route, and the four
-   * questions are about the roster the route was made under: a `<Link>` three
-   * levels inside a page has the router and cannot be handed anything else.
-   * `Navigation` extends this, so a row that declares `navigation.state` is
-   * handed the same capability without a second door.
-   *
-   * They were module-scope functions in `./routes.ts` over a module-scope
-   * table, so every package parsed and printed against another activation's
-   * live claims with nothing declared — the audit's §2 and §12. What stayed on
-   * the door is the pure grammar: the constructors, the address reading, and
-   * `hrefOfPlain` for a route this app's own grammar spells whole.
-   */
   readonly routes: WorkspaceRouting
   readonly workspace: () => Workspace
-  /** The focused pane's route — what the palette, the filter chord and
-   *  anything that does not name a pane act on. */
   readonly route: () => Route
-  /**
-   * The place inside a page ONE PANE was asked to land on, or nothing.
-   *
-   * PER PANE, and that is the shape rather than a convenience. The address
-   * is a LIST of routes and any number of them may name a section inside a
-   * page, so a landing is a fact about the pane that named one — a document
-   * in the other pane must not treat a landing aimed at this one as its own
-   * (two panes previewing two files was the whole point of freeing the watch
-   * set (#219), and yanking both to a heading one of them named would be the
-   * same class of bug), and, from the other side, a two-pane link whose panes
-   * both named a heading owes BOTH of them their section. One slot for the
-   * workspace could only ever pay the focused one.
-   *
-   * `at` is a FACT about where the reader is on that pane; landing is an
-   * ACT, and it happens once, on arrival. Cleared by a `popstate` that
-   * TRAVERSED; a first paint counts as an arrival, and so does the address
-   * bar asking again inside the same document (a fresh fragment reached
-   * without a reload is still an address somebody was handed).
-   *
-   * Once, and {@link Router.landed} is where that word is kept — here,
-   * beside the minting, rather than in each surface that performs one.
-   */
   readonly landing: (index: number) => Landing | undefined
-  /**
-   * SPEND a pane's landing: the act named by `{index, file, at}` has
-   * been performed, and must not be performed again. What that means, and
-   * why it names all three, is `./landing.ts`'s `spent`.
-   *
-   * It is on the ROUTER rather than on the performer because the rule is
-   * about the VALUE and every surface that reads one is bound by it. Kept
-   * privately per surface it was one variable per face — the markdown face
-   * had one, the preview pane had none, and the pane with none re-landed
-   * its reader every time the file moved on disk.
-   */
   readonly landed: (index: number, file: string, at: string) => void
-  /** Navigate the focused pane (push). */
   readonly go: (route: Route) => void
-  /** Navigate a named pane (push). */
   readonly goIn: (index: number, route: Route) => void
-  /** The same pane, at a different address — history replaced, scroll left. */
   readonly replace: (route: Route) => void
   readonly replaceIn: (index: number, route: Route) => void
-  /** Replace the whole workspace in one history push, without landings. */
   readonly open: (workspace: Workspace) => void
   readonly openWorkspaceRight: (from: number, workspace: Workspace, forceNew?: boolean) => void
   readonly openRight: (from: number, route: Route, forceNew?: boolean) => void
@@ -107,35 +49,14 @@ export interface Router {
 
 }
 
-/** Window-wide controls belong to the declared navigation service, never to
- * the lane router handed to a page. */
 export interface NavigationRouter extends Router {
   readonly offerTabs: (open: (workspace: Workspace) => void) => () => void
   readonly openTab: (workspace: Workspace) => boolean
   readonly lanes: Accessor<readonly Lane[]>
-  /** Layouts register content visibility independently. Any shown registration draws
-   * the front lane; with no registrations the front lane is shown. */
   readonly drawContent: (shown: Accessor<boolean>) => () => void
-  /**
-   * WHICH TAB THE HISTORY BELONGS TO, or `null` for the window's own.
-   *
-   * A row that keeps several workspaces open names a LANE for the one in front,
-   * and from then on Back and Forward walk only that lane's entries: a
-   * traversal that reaches another lane's entry keeps travelling the same way,
-   * or returns to where it started when there is none of this lane's beyond it
-   * (`./lanes.ts`). The lane is this document's: an entry written before a
-   * reload belongs to nobody. With `null` in force every entry is everyone's,
-   * which is the router with no tabs at all.
-   */
   readonly lane: Accessor<string | null>
-  /** The name of the entry under the reader — what the scroll memory keys the
-   *  place it was left at by. */
   readonly entryKey: () => string
-  /** Name the lane the current entry belongs to; given `to`, also replace the
-   *  entry with `to.workspace`, reusing `to.key` if given so the scroll memory
-   *  finds that entry's place. Not a history event. Returns the entry's key. */
   readonly switchLane: (lane: string | null, to?: { readonly workspace: Workspace; readonly key?: string }) => string
-  /** Entries of this lane are dead from now on: a traversal passes over them. */
   readonly forgetLane: (lane: string) => void
 }
 
@@ -171,8 +92,6 @@ export const useRouter = (): Router => {
   return router
 }
 
-/** Which pane a gesture in this component is about: the one we are
- *  drawn in, or the focused pane when we sit outside every pane. */
 export const usePaneId = (): Accessor<string> => {
   const router = useRouter(), pane = usePane()
   return () => pane?.id ?? router.panes()[router.focusIndex()]!.id
@@ -184,52 +103,12 @@ export const useHere = (): (() => number) => {
   return () => pane?.index ?? router?.focusIndex() ?? 0
 }
 
-/**
- * WHERE INSIDE THIS PANE'S PAGE the navigation was asked to land — read two
- * ways, because the two questions a surface asks about a landing have
- * different answers once it has been performed.
- *
- * {@link Landfall.at} is the FACT: the slug this pane's address named, spent
- * or not. {@link Landfall.owed} is the ACT still to be done, and goes to
- * nothing the moment it is. A surface that scrolls somebody reads `owed`; a
- * surface that builds an address out of the slug reads `at` — which is the
- * split this exists for, and the `.html` preview needs both.
- */
 export interface Landfall {
-  /** The slug this pane's address named, or nothing. Unchanged by spending. */
   readonly at: Accessor<string | undefined>
-  /** The same slug WHILE IT IS STILL AN ACT: what this pane owes its reader,
-   *  or nothing once the arrival has happened. */
   readonly owed: Accessor<string | undefined>
-  /** Done: the reader has been taken to `at`. Named rather than implied,
-   *  because an act is performed a frame after it is decided on and the
-   *  landing it was about is the one it may spend ({@link Router.landed}). */
   readonly landed: (at: string) => void
 }
 
-/**
- * {@link Router.landing} read for the pane the reader of it is drawn in.
- *
- * MEMOS, and that is the whole of what this adds over reading `landing(…)` by
- * hand. The landings are ONE signal, replaced whenever any pane navigates — so
- * a pane that read it directly was notified by a navigation next door and
- * anything driven off that read ran again for an answer that had not moved.
- * Memos over a string are where that stops: each answer is a slug or nothing,
- * and `===` is the right comparison for both. Spending is the same story from
- * the other side — it replaces the map, so `at` must not be read off it
- * raw either, or the address a preview is pointed at would change the instant
- * its landing was performed.
- *
- * WHOSE LANDING THIS IS is asked in two halves, because a face is one FILE
- * drawn in one PANE and either alone lets somebody else's arrival through.
- * `useHere`'s rule answers the pane, so a preview, a document's scroll and
- * anything else that lands somewhere cannot disagree about it (the
- * disagreement two panes previewing two files would show as one being yanked
- * by the other's click — `reactivity-after-the-flip` §3.3). The `file` this
- * face draws answers the other, and the case it excludes is the pane's own
- * PREVIOUS page: a navigation has both on screen for a frame, and the one on
- * its way out was being told about the arrival of the one replacing it.
- */
 export const useLanding = (file: () => string): Landfall => {
   const router = useRouter()
   const here = useHere()
@@ -247,30 +126,12 @@ export const useLanding = (file: () => string): Landfall => {
   }
 }
 
-/** Navigate the pane this component is in, or the focused pane when it is
- *  chrome that sits outside every pane. One helper so a `<Link>`, a menu
- *  "Zoom in" and a `.html` preview cannot pick three different panes. */
 export const useGo = (): ((route: Route) => void) => {
   const router = useRouter()
   const here = useHere()
   return (route) => router.goIn(here(), route)
 }
 
-/**
- * {@link useGo}, or `null` where there is no router under this component.
- *
- * TWO screens draw the bar with no router beneath it — the error report and
- * the waiting page — and a face hung in `app.header` is mounted on both. While
- * the search box was core's, `AppHeader` carried that fact as an optional `go`
- * and simply did not draw the box; a slot face has no props to be handed one
- * through, so the absence is asked for here instead. The sentence is the one
- * that prop's own comment carried: a door that could not open anywhere is worse
- * than no door.
- *
- * `useContext` rather than {@link useRouter}, because the whole point is to
- * ANSWER instead of throwing — and a plugin's face throwing out of its own
- * mount is a cascade the shell should not be able to be handed.
- */
 export const useMaybeGo = (): ((route: Route) => void) | null => {
   const router = useContext(RouterContext)
   const here = useHere()
@@ -281,38 +142,6 @@ export const useMaybeGo = (): ((route: Route) => void) | null => {
 export interface LinkProps {
   readonly route: Route
   readonly class?: string
-  /**
-   * THE SENTENCE A POINTER GETS, drawn by this app's own tip rather than by
-   * the browser ({@link Tip}, whose header holds the argument: the platform
-   * ran a long one off the right edge of the window, and it answered a hover
-   * and nothing else).
-   *
-   * It is NOT the link's name. A tip is a convenience, so whatever this says
-   * has to be said somewhere a reader who never hovers can reach: `label`
-   * where the anchor's own words do not already carry it, or nothing at all
-   * where they do. A link whose only copy of a fact is this prop has lost the
-   * fact for everybody reading with a keyboard, which is the half the
-   * platform tooltip was failing at too.
-   *
-   * IT IS CALLED `tip` BECAUSE IT IS ONE. This prop was `title` and was handed
-   * straight to the `<a>`, so the name was honest exactly while it named an
-   * attribute; keeping it over a component that no longer writes one is the
-   * trap the next person falls into — `title=` reads like the DOM everywhere
-   * else in a JSX file, and a reader who believes it would go looking for a
-   * tooltip this component has stopped drawing. The rename is also the only
-   * thing that makes the migration finishable: every one of the fourteen
-   * callers that passed `title` is a TYPE ERROR until somebody has looked at
-   * it, where the same edit under the old name would have taken the tip away
-   * from a row silently and compiled.
-   *
-   * The tip rides the PAGE's layer, which is what a link in a row wants. A
-   * link that sits in the bar, or anywhere else drawn over the page, has to
-   * cover them, and that is a fact about the PLACE rather than about the
-   * link: such a caller wraps `<Link>` in its own `<Tip layer={LAYER.over}>`
-   * and passes nothing here —
-   * the `<a>` below is this component's root, so the tip measures the same box
-   * either way.
-   */
   readonly tip?: string
   readonly label?: string
   readonly current?: boolean
@@ -322,15 +151,8 @@ export interface LinkProps {
   readonly children?: JSX.Element
 }
 
-/** Content encodes its destination; navigation owns every press. */
 export function Link(props: LinkProps) {
   const router = useRouter()
-  // ONE anchor, drawn once and WRAPPED ALWAYS. The tip is a wrapper rather
-  // than an attribute now, and the obvious shape — two arms, one tipped — is
-  // a second `<a>`: a link that gains or loses its sentence would have the
-  // element replaced under the reader, taking focus, hover and a press in
-  // flight with it. `Tip`'s `disabled` is for exactly this; its wrapper is
-  // `display: contents`, so the untipped case adds no box either.
   return (
     <Tip text={props.tip ?? ""} disabled={props.tip === undefined}>
     <a
@@ -349,8 +171,6 @@ export function Link(props: LinkProps) {
   )
 }
 
-/** One reading for activation, menus, previews and the opaque-frame bridge.
- * Raw local fragments remain the content's; a resolved absolute URL loses that fact. */
 export interface LinkTarget {
   readonly destination: AddressTarget
   readonly router: Router
@@ -358,8 +178,6 @@ export interface LinkTarget {
   readonly anchor: HTMLAnchorElement
   readonly tabs?: NavigationRouter
 }
-/** `here` is the router the reader holds; `tabs`, the window's navigation, when
- *  the anchor may sit in any of its lanes. */
 export const targetOf = (here: Router, anchor: HTMLAnchorElement, tabs?: NavigationRouter): LinkTarget | undefined => {
   if (localLink(anchor)) return
   const destination = here.routes.destinationIn(anchor.href)
@@ -370,22 +188,11 @@ export const targetOf = (here: Router, anchor: HTMLAnchorElement, tabs?: Navigat
   const index = id ? router.panes().findIndex(pane => pane.id === id) : router.focusIndex()
   return index < 0 ? undefined : { destination, router, index, anchor, tabs }
 }
-/** What `follow` tells the anchor it followed, for the anchor's own after-step. */
 declare module "solid-js" { namespace JSX { interface CustomEvents { "olai-navigated": Event } } }
 export const follow = (target: LinkTarget, intent: Intent): void => {
   const { destination, router, index, anchor, tabs } = target
   const workspace = workspaceFor(destination)
-  /**
-   * A PANE THAT KEEPS WHAT IT IS DRAWING sends a plain press to the pane next
-   * to it instead of swallowing itself (`./elsewhere.ts` is the rule and the
-   * argument). `Alt` is untouched: it has always meant "to the right".
-   *
-   * ASKED ONLY OF A PRESS THAT NAMES ONE PAGE. A whole-window address names
-   * every pane at once, so it has no "other pane" to land in — a reader who
-   * presses one asked for that window, which is the sentence a pinned one
-   * says too.
-   */
-  if (intent === "go" && anchor.dataset.linkIntent === "new-tab" && tabs?.openTab(workspace)) { /* served by tabs */ }
+  if (intent === "go" && anchor.dataset.linkIntent === "new-tab" && tabs?.openTab(workspace)) { }
   else if (destination.kind === "layout") {
     if (intent === "go") router.open(workspace)
     else router.openWorkspaceRight(index, workspace, intent === "new-pane")

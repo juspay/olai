@@ -31,13 +31,10 @@ Feature: The chrome holds still while the page changes
     And the sidebar did not remount
     And the folder "notes" stayed open
     And the current mark moved in one frame
-    # A route, not a reload: the whole claim is about one document.
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: A folder chain deep in the tree stays open
-    # Three folders deep, so a chain rebuilt from the top is three subtrees
-    # gone rather than one.
     Given I open the document "Daily/2019/11/2019-11-05.md"
     And I mark the screen
     When I click the document "Daily/2019/11/2019-11-08.md"
@@ -49,9 +46,6 @@ Feature: The chrome holds still while the page changes
     And there should be no page errors
 
   Scenario: Walking from one outline to the next moves the mark and nothing else
-    # No folder in this one, and it is the sharper claim for it: the column
-    # keeps every element either way, and what a reader sees is the wash going
-    # out and coming back a round trip later.
     Given I open the outline "life.olai"
     And I mark the screen
     When I click the outline "work.olai"
@@ -61,14 +55,7 @@ Feature: The chrome holds still while the page changes
     And there should be no page errors
 
   Scenario: A second day of a month nobody is standing in
-    # The month is stamped on the day being READ (`client/calendar/Calendar.tsx`),
-    # so a day that blanked between two clicks took the grid to today's month
-    # and back — thirty-odd cells rebuilt twice, and the month's own
-    # subscription torn down and re-opened with them, for a click inside one
-    # month.
     Given I open the day "2019-11-05"
-    # The month is folded under the Today row until a reader opens it; open
-    # it before marking, so the mark watches a click inside an open month.
     And the calendar is open
     And I mark the screen
     When I click the day "2019-11-12"

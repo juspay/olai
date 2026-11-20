@@ -5,9 +5,6 @@ import type { Claims } from "@olai/format"
 import { holdFiles } from "./pages.ts"
 import { createRouter } from "./router.tsx"
 
-// Only the address bar and event listeners are needed: no page is drawn.
-// Exercise the real router because reparsing the route alone missed the
-// separate landing signal when the claims cell first arrived.
 test("late claims land every pane once, without reviving a spent landing on another frame", async () => {
   const names = ["location", "history", "addEventListener", "removeEventListener"] as const
   const saved = names.map(name => Object.getOwnPropertyDescriptor(globalThis, name))
@@ -19,8 +16,6 @@ test("late claims land every pane once, without reviving a spent landing on anot
   let release = () => {}
   try {
     const [claims, publish] = createSignal<Claims | undefined>()
-    // The provider is mounted before its cell has a value, just as on a tab's
-    // first wire. Retiring/reoffering it is another snapshot, not navigation.
     const router = createRoot(stop => {
       dispose = stop
       return createRouter()

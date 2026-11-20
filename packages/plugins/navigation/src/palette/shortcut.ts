@@ -1,4 +1,3 @@
-/** Navigation accepts palette intent even before its layout integration mounts. */
 import { matchKey } from "@olai/web/client/keys.ts"
 import { closePalette, openPalette, paletteOpen } from "./state.ts"
 

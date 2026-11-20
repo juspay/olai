@@ -80,10 +80,6 @@ Feature: A plugin page that draws itself
     And there should be no page errors
 
   Scenario: Switching the fixture off takes its page away, and on brings it back
-    # With its tenant gone the address no longer names a plugin page: it is
-    # read again by the app's own grammar (the front page, for a path with no
-    # file suffix), exactly as the journal's pages are. The address bar keeps
-    # the address, so the page comes back when the tenant does.
     Given I open the address "/fixture/alpha"
     And I mark the page
     Then pane 0 draws the fixture page for "alpha"
@@ -98,8 +94,6 @@ Feature: A plugin page that draws itself
     And there should be no page errors
 
   Scenario: The page draws its own filter box, and the filter rides in the address
-    # Narrowing is a replace, as the outline's filter box is: the filter belongs
-    # to the history entry it was typed on, and Back returns to that entry.
     Given I open the address "/fixture/alpha"
     When I type "red fox" into the fixture filter in pane 0
     Then pane 0's fixture page is narrowed by "red fox"
@@ -127,9 +121,6 @@ Feature: A plugin page that draws itself
     And there should be no page errors
 
   Scenario: An outline and a self-drawn page share a split, each drawn by its own host
-    # Outlines draws pane 0 and navigation draws pane 1. Switching the fixture
-    # off and on moves only pane 1; pane 0's page is the same element, and it
-    # still edits.
     Given I open the address "/s/house.olai/fixture%2Falpha"
     Then there are 2 panes
     And pane 0 is drawing the outline "house.olai"

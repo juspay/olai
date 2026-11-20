@@ -10,7 +10,6 @@ import { atFile, atNode, type Route } from "./routes.ts"
 import { routingIn } from "./routes.testlib.ts"
 import { navigateIn, workspaceOf } from "./workspace.ts"
 
-/** A provider whose answers the test sets; each `home` call is one reading. */
 const provider = () => {
   const asked: string[] = []
   const [answer, setAnswer] = createSignal<Home>()

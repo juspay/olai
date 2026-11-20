@@ -1,26 +1,3 @@
-/**
- * A workspace is a layout of routes, and a layout is a small tree.
- *
- * A node is a LEAF (one route — a pane) or a SPLIT (an axis and ordered
- * children, each with a fraction). Collapse is a fraction of zero, so
- * "this child is a rail" and "this child is a tenth of the split" are
- * one number. Today's product only writes a lone leaf or a single root
- * split on the row axis; the value is recursive so a column, and a
- * column that holds a row, is a local change to the codec and the
- * projection rather than a rewrite of every reader.
- *
- * The address of a one-level row is a `/s/` list of encoded hrefs, with
- * optional `?w=` and `?f=`. Axis and nesting have a place to grow (`?a=`,
- * `?t=`) that a one-level row does not write, so the flat shape stays the
- * flat shape. What each SEGMENT spells is one page's own address, whatever
- * that is — the segments changed when the addresses did (`./routes.ts`), and
- * this codec did not, which is the division it was built for.
- *
- * Pure: parsing and printing live beside each other, as `./routes.ts`
- * does, and the test that says so is the only thing standing between a
- * layout the app writes and a layout it cannot read back.
- */
-
 import { splitAddress } from "@olai/format"
 import type { Axis } from "olai-plugin-layout/geometry"
 
@@ -28,20 +5,16 @@ import { HOME_ROUTE,hrefOfPlain,fileNamed,type Route,type Routing } from "./rout
 
 export type { Axis } from "olai-plugin-layout/geometry"
 
-/** A leaf of the layout: one route, one pane. */
 export interface Leaf {
   readonly kind: "leaf"
   readonly route: Route
 }
 
-/** One child of a split. `fraction` 0 is collapsed; absent is an equal
- *  share of whatever the siblings do not claim. */
 export interface SplitChild {
   readonly layout: Layout
   readonly fraction?: number
 }
 
-/** Children side by side (`row`) or stacked (`col`). */
 export interface Split {
   readonly kind: "split"
   readonly axis: Axis
@@ -50,20 +23,16 @@ export interface Split {
 
 export type Layout = Leaf | Split
 
-/** One pane as the projection reads it today: a route and the fraction
- *  it owns in its parent. Kept so a one-level row is still a list. */
 export interface Pane {
   readonly route: Route
   readonly width?: number
 }
 
-/** The open layout and which leaf is focused (preorder). */
 export interface Workspace {
   readonly layout: Layout
   readonly focus: number
 }
 
-/** The path prefix a split workspace wears. Unused by any page route. */
 export const WORKSPACE_PREFIX = "/s/"
 
 const WIDTH_KEY = "w"
@@ -71,19 +40,14 @@ const FOCUS_KEY = "f"
 const AXIS_KEY = "a"
 const TREE_KEY = "t"
 
-/** A workspace of one pane — what a lone page has always been. */
 export const lone = (route: Route): Workspace => ({
   layout: { kind: "leaf", route },
   focus: 0,
 })
 
-/** Whether this workspace is just a page. */
 export const isLone = (workspace: Workspace): boolean =>
   workspace.layout.kind === "leaf"
 
-/** Preorder leaves, as the one-level row the projection draws today.
- *  A nested tree flattens so a future URL still has something to show;
- *  this PR's verbs only write a lone leaf or a one-level row. */
 export const panesOf = (workspace: Workspace): readonly Pane[] => {
   const layout = workspace.layout
   if (layout.kind === "leaf") return [{ route: layout.route }]
@@ -96,7 +60,6 @@ export const panesOf = (workspace: Workspace): readonly Pane[] => {
   return leavesOf(layout).map((route) => ({ route }))
 }
 
-/** The focused pane's route. */
 export const focusedRoute = (workspace: Workspace): Route => {
   const leaves = leavesOf(workspace.layout)
   if (leaves.length === 0) return HOME_ROUTE
@@ -117,15 +80,7 @@ const isFlatSplit = (layout: Split, axis?: Axis): boolean =>
   (axis === undefined || layout.axis === axis)
   && layout.children.every((child) => child.layout.kind === "leaf")
 
-// ── address ────────────────────────────────────────────────────────────
-
-/** The address of a workspace. A lone leaf prints as that page's href.
- *  A one-level row prints as today's `/s/` list — no `a=`, no `t=` —
- *  so every existing split link stays. A column or a nested tree writes
- *  the growth keys; a one-level row never does. */
 export const hrefOfWorkspace = (
-  /** The grammar to print a plugin's page with — the router's own, handed in
-   *  rather than reached for ({@link Routing}). */
   routing: Routing,
   workspace: Workspace,
 ): string => {
@@ -167,17 +122,13 @@ export const workspaceOf = (routing: Routing, address: string): Workspace => {
   return { layout: { kind: "split", axis, children }, focus }
 }
 
-/** Workspace grammar composes above page routing; page parsers remain unaware
- * of the workspace prefix. Bound by the navigation owner over its live roster. */
 export type AddressTarget =
   | { readonly kind: "page"; readonly route: Route }
   | { readonly kind: "layout"; readonly workspace: Workspace }
-/** The whole workspace a target opens when it is given a tab of its own. */
 export const workspaceFor = (target: AddressTarget): Workspace =>
   target.kind === "layout" ? target.workspace : lone(target.route)
 
 export interface WorkspaceRouting extends Routing {
-  /** A page route or a whole saved layout, for any in-app href. */
   readonly destinationIn: (href: string) => AddressTarget | null
   readonly layoutIn: (href: string) => Workspace | null
   readonly layoutHref: (workspace: Workspace) => string
@@ -197,9 +148,6 @@ export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
       } catch { return null }
     }
     const page = routes.routeIn(path)
-    // A lone literal filename under s/ remains a file. Encoded/multiple
-    // segments and an explicit tree are workspace addresses, including old
-    // degenerate saved layouts. Every link surface uses this same decision.
     const address = splitAddress(path)
     const layout = address.pathname.startsWith(WORKSPACE_PREFIX) && (address.pathname.slice(WORKSPACE_PREFIX.length).includes("/")
       || address.search.includes("t=") || !page || fileNamed(page) === undefined)
@@ -210,8 +158,6 @@ export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
   layoutHref: (workspace) => layoutHref(routes, workspace),
 })
 
-/** The saved-layout policy is a value transformation, independent of URLs.
- * Keep ordered routes; discard the current geometry and focus. */
 export const savedLayout = (workspace: Workspace): Workspace => ({
   layout: { kind: "split", axis: "row", children: panesOf(workspace).map(({ route }) => ({
     layout: { kind: "leaf", route },
@@ -219,11 +165,9 @@ export const savedLayout = (workspace: Workspace): Workspace => ({
   focus: 0,
 })
 
-/** Serialize the same value an in-place layout navigation opens. */
 export const layoutHref = (routing: Routing, workspace: Workspace): string =>
   hrefOfWorkspace(routing, savedLayout(workspace))
 
-/** Workspace addresses belong to navigation, never to a page claim. */
 export const layoutIn = (routing: Routing, href: string): Workspace | null =>
   splitAddress(href).pathname.startsWith(WORKSPACE_PREFIX) ? workspaceOf(routing, href) : null
 
@@ -241,7 +185,6 @@ const decodePane = (routing: Routing, segment: string): Route | undefined => {
   }
 }
 
-/** Absent, `row`, or anything this codec does not know → a row. */
 const axisIn = (raw: string | null): Axis => (raw === "col" ? "col" : "row")
 
 const workspaceQuery = (workspace: Workspace): string => {
@@ -263,8 +206,6 @@ const workspaceQuery = (workspace: Workspace): string => {
   if (workspace.focus !== 0) params.set(FOCUS_KEY, String(workspace.focus))
   return params.toString()
 }
-
-// ── shape (`t=`) ───────────────────────────────────────────────────────
 
 type Shape =
   | { readonly kind: "leaf" }
@@ -338,8 +279,6 @@ const layoutFrom = (
   }
   return build(shape, wTree)
 }
-
-// ── fractions ──────────────────────────────────────────────────────────
 
 type WNode =
   | { readonly kind: "leaf"; readonly fraction?: number }
@@ -501,8 +440,6 @@ const clampFocus = (focus: number, n: number): number => {
   return focus >= n ? n - 1 : focus
 }
 
-// ── tree location ──────────────────────────────────────────────────────
-
 interface At {
   readonly parent: Split
   readonly index: number
@@ -527,7 +464,6 @@ const locate = (layout: Layout, leaf: number): At | "lone" | undefined => {
   }
 }
 
-/** Replace the children of the split at `path` (empty = the root). */
 const replaceKids = (
   layout: Layout,
   path: readonly number[],
@@ -560,8 +496,6 @@ const rowOf = (children: readonly SplitChild[]): Split => ({
 })
 
 const leafOf = (route: Route): Leaf => ({ kind: "leaf", route })
-
-// ── verbs (leaf indices; a one-level row is the only shape we write) ───
 
 export const navigateIn = (
   workspace: Workspace,
@@ -770,7 +704,6 @@ export const flexOf = (panes: readonly Pane[]): ReadonlyArray<number> =>
 
 export const isCollapsed = (pane: Pane): boolean => pane.width === 0
 
-/** Build a nested workspace in tests — the product does not write this. */
 export const splitOf = (
   axis: Axis,
   children: ReadonlyArray<{ layout: Layout; fraction?: number }>,
@@ -780,8 +713,6 @@ export const splitOf = (
   focus,
 })
 
-/** Pre-reveal stored URLs named zoom views. Only persistence readers call this;
- * authored links and the address bar always use the current grammar. */
 export const legacyZoomHref = (href: string): string => {
   if (/^\/(?:\?[^#]*)?#.+/.test(href)) return "/zoom/" + href.slice(1)
   if (!href.startsWith(WORKSPACE_PREFIX)) return href

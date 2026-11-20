@@ -8,15 +8,9 @@ import { directory, fileClaims } from "./pages.ts"
 export type RevealState = "finding" | "missing" | "unavailable"
 type How = "push" | "replace"
 
-/** The node a reveal route asks for, or nothing. */
 const revealed = (route: Route): string | undefined =>
   route.kind === "at" && route.reveal && route.address?.kind === "node" ? route.address.id : undefined
 
-/** A lane resolves each pane's reveal reactively: one reading of the node's
- *  home per node and provider, landing once the claim table names the file.
- *  A followed link is ASKED while the pane keeps its page and lands as a push;
- *  a reveal route already in the pane (first paint, a split) resolves in place
- *  of its own entry. Nothing is retried here; the provider re-asks on its wire. */
 export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (index: number, route: Route | undefined, how: How) => void) {
   const [status, setStatus] = createStore<Record<string, RevealState | undefined>>({})
   const [asked, setAsked] = createStore<Record<string, string | undefined>>({})
@@ -35,7 +29,6 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
       createEffect(() => {
         const file = home(), claims = fileClaims()
         if (file === null || file instanceof Error) {
-          // A followed link that cannot land leaves the page as it was.
           if (how === "push") return setAsked(pane.id, undefined)
           return setStatus(pane.id, file === null ? "missing" : "unavailable")
         }
@@ -46,7 +39,6 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
     onCleanup(() => { setStatus(pane.id, undefined); setAsked(pane.id, undefined) })
   })
   createEffect(watch)
-  /** Select the row in place when this pane already draws it. */
   const visible = (index: number, route: Route): boolean => {
     const pane = panes()[index], id = revealed(route)
     if (!pane || id === undefined || !nodeTargets.read()?.reveal(pane.id, id)) return false
@@ -55,9 +47,6 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
   }
   return {
     visible,
-    /** Follow a reveal from this pane: in place when the pane draws the row,
-     *  otherwise asked while the page stays. False when the route must be
-     *  committed as it is. */
     follow(index: number, route: Route): boolean {
       if (visible(index, route)) return true
       const pane = panes()[index], id = revealed(route)

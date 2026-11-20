@@ -1,56 +1,4 @@
 import { actionHref } from "./items.ts"
-/**
- * ⌘K command palette — the shell, jump-to-node search, and what it can WRITE.
- *
- * Navigation, panel toggles, reset widths, whatever prefixes the plugins have
- * hung — and, under the shell rows, NODES: the query goes to the server's
- * search procedure as you type (debounced, latest-wins), and every hit is a
- * row that jumps to that node's page. The matching is entirely the server's —
- * the same reading an agent's `search_nodes` gets — so what this palette finds
- * and what an agent finds cannot drift (items.ts says why there is no local
- * matcher).
- *
- * Between the two: the directory's documents, which arrive as hits like
- * name and path against the served list this tab already holds, drawn with the
- * sidebar's own glyph, and opening the document's address the router has served
- * all along. They are keyed on the NAME and nowhere near a body — the grammar
- * above still selects nodes, and a document is prose.
- *
- * ## The two things it writes
- *
- * **OP ROWS**, about the node the reader has ZOOMED (`./ops.ts`): the same
- * verbs the `•••` menu offers, from the same pure catalog, through the same
- * write gate (`../writes.ts`) — so `Complete` chosen here and `Complete`
- * chosen there are one op, one refusal and one undo entry. There are none of
- * them on a page that is not one node, because a command list read out of
- * context must never be aimed at a node the reader cannot see.
- *
- * **QUICK CAPTURE**, on a `+` prefix — racket's `olai add`, and the one write
- * in this app whose whole promise is that nothing moves: the page, the scroll
- * and the caret stay where they are, the line goes to the directory's inbox,
- * and the box empties for the next one. Where the inbox IS is the server's
- * (`../../../../server/src/edit.ts`), for the same reason every placement is.
- *
- * ## …and what the palette adapters bring
- *
- * **AN ADAPTER'S PREFIX** ({@link prefixes}). A palette adapter may offer one
- * typed character — capture's `+` is one — with its own label, placeholder and
- * press; core keeps the BOX — this input, the prefix strip under it, and the
- * row a refusal is drawn in. A serve running no adapter that offers a prefix
- * has none, and any character is then just a filter somebody typed.
- *
- * ## What it says afterwards
- *
- * ONE line, in the two moods a write has (`../saying.ts`'s `Said`), and
- * the palette STAYS OPEN whenever there is one: a refusal is why nothing
- * happened, and a modal that closed on top of it would be the silent failure
- * the error rule is about. A write that landed with nothing to add
- * closes the palette, which is what choosing a command means.
- *
- * The search uses `run` with a real failure handler (run.ts forbids a silent
- * one); an adapter's prefix answers its own refusal, which lands in the same
- * row.
- */
 import { fileClaims } from "../pages.ts"
 import type {} from "olai-plugin-search/box"
 import { paletteCrumbs, paletteOnly } from "../faces.ts"
@@ -125,35 +73,21 @@ import { LevelView } from "./LevelView.tsx"
 import { PALETTE_ROW } from "./row-testids.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
-/** WHERE an alarm sits in this panel: a full-width band between the box and
- *  the list, at this door's own gutter. The alarm's SKIN is
- *  `../SaidLine.tsx`'s (`ALARM_BAND`, shared with the two narrower
- *  panels); the `px-4` is the palette's, because its rows set it. Three things
- *  this panel can alarm about — a write an adapter turned down, a search that
- *  fell over, a token the grammar cannot read — and one band. */
 const ALERT_ROW = `${ALARM_BAND} px-4`
 
 
-// The open/question state already outlives a plugin provider change. Keep its input
-// and pending responses with it; subscriptions, focus and cursors are rebuilt.
 const memory = {
   query: createSignal(""),
   askError: createSignal<string | null>(null),
   said: createSignal<Said | null>(null),
   sending: createSignal(false),
 }
-/** The last `showAt` request a drawing acted on, so a redraw does not act on
- *  it twice. */
 let handledAt: OpenAt | null = null
 let queryRevision = 0
 let paletteRevision = 0
 
 export function Palette(props: {
   readonly go: (route: Route) => void
-  /**
-   * Toggle the directory panel in a mode-aware way: desktop sidebar open/rail,
-   * or the mobile drawer. Owned by App because the mobile state is ephemeral.
-   */
   readonly toggleDirectory: () => void
 }) {
   const adapters = () => readLocation(paletteAdapters).map(entry=>entry.value) ?? []
@@ -165,12 +99,10 @@ export function Palette(props: {
     queryRevision++
     writeQuery(value)
   }
-  /** Type into the box: the level's own text while one owns it. */
   const setBoxText = (value: string) => {
     if (untrack(inLevel)) levels.type(value)
     else setQuery(value)
   }
-  /** A late action can answer only the opening and input that invoked it. */
   const currentInteraction = () => {
     const opened = paletteRevision
     const submitted = queryRevision
@@ -178,122 +110,20 @@ export function Palette(props: {
   }
   const today = useToday()
   const needles = createMemo(() => needlesFrom(query(), today()))
-  // WHICH row Enter takes, and the arrows that walk it — the one cursor every
-  // shortlist in this client shares (`../search/cursor.ts`).
   const cursor = createCursor(() => items().length)
-  /**
-   * WHETHER THE HIGHLIGHT IS A CHOICE, and the reason the op rows are allowed
-   * to be first.
-   *
-   * The cursor answers "which row is the walk on"; this answers a different
-   * question it deliberately does not — "has anybody chosen anything yet?" An
-   * untouched palette has not: nothing is lit, and Enter does nothing at all,
-   * so the list can LEAD with the rows that write the directory without a
-   * stray ⌘K-then-Enter meaning `Mark todo`. The first character typed is the
-   * choice, and so is the first arrow or hover.
-   *
-   * It is the palette's own rather than a state on the shared cursor because
-   * the other two surfaces that walk a list want the opposite: a completion
-   * popup and the header's results open with their best match already lit,
-   * which is what a type-ahead is. This modal opens with an EMPTY box, which
-   * is what makes it the one list nobody has asked a question of yet.
-   */
   const [chosen, setChosen] = createSignal(false)
-  /**
-   * WHICH ROW IS LIT, asked per row — Solid's own primitive for exactly this
-   * shape, the way the sidebar already asks which entry is the open one.
-   *
-   * Read as `chosen() && index() === cursor.at()` it was O(rows) work per
-   * change: `cursor.at()` reads `items().length`, so every row of the list
-   * re-evaluated its `active` binding whenever the list moved OR the cursor
-   * did, where at most two rows can have changed
-   * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.6). `createSelector`
-   * keeps one signal per subscribed key and wakes only the row that was lit
-   * and the row that now is.
-   *
-   * The UNCHOSEN state is folded in as `-1` rather than left as a second
-   * condition per row, because it is the same question: an untouched palette
-   * has no row lit ({@link chosen}), and a row asking twice is a row that can
-   * be woken twice.
-   */
   const lit = createSelector(() => (chosen() ? cursor.at() : -1))
-  /**
-   * WHAT A LEVEL'S OWN VERB HAD TO SAY WHEN IT WOULD NOT GO — the refusal a
-   * level's submit answers with, in its adapter's words, drawn in a row that
-   * keeps the palette OPEN over the line that was refused.
-   *
-   * Separate from {@link said}, which is what a WRITE this palette made had to
-   * say. Two answers about two different acts, so a person reading a refusal
-   * from one is not shown it wiped by a remark from the other.
-   */
   const [askError, setAskError] = memory.askError
-  /** What the last write had to say — a refusal in the ops layer's own words,
-   *  or a remark about one that landed. */
   const [said, setSaid] = memory.said
-  /**
-   * A WRITE IS IN FLIGHT — the date picker's rule, in the surface that needed
-   * it most: "the gate is a round trip, and a second Enter while the first is
-   * in flight is two writes for one intention" ({@link ../date/DatePicker.tsx}).
-   *
-   * The capture is what makes it load-bearing rather than tidy. It keeps the
-   * box AND the palette, so nothing visible has happened while the round trip
-   * is out — which is exactly the moment a hand repeats the key. The second
-   * send is judged against the reading the first has not landed in yet, so on
-   * a directory with no inbox both resolve to the same `create _olai/Inbox.olai`,
-   * and the write gate re-plans that REQUEST rather than re-resolving the
-   * edit: the second comes back refused in the words `files_create` gets —
-   * *already an outline … capture into this one with `outlines_add`* — over a line
-   * that DID land, and the refusal overwrites the remark saying so. Found by
-   * review, 2026-08-14.
-   *
-   * It guards every write this palette makes, not just that one, because the
-   * argument is about the gate rather than about the verb: two `Complete`s for
-   * one press are two ops, and the second is refused for asking about nothing.
-   * A PLUGIN'S COMMAND is deliberately not on it — that is a line handed to
-   * somebody else rather than a write to this directory, it closes the palette
-   * on its way out, and what a second press of it means is a question for the
-   * face that answers it and not for this box.
-   */
   const [sending, setSending] = memory.sending
   let input: HTMLInputElement | undefined
-  /** The modal itself. Everything a hand-written overlay had to keep — what
-   *  covers the page, what the caret may reach, where it goes back to — is
-   *  this element's, because it is opened with `showModal` (see the markup). */
   let modal: HTMLDialogElement | undefined
-  // ...AND WITHDRAWAL PUTS IT DOWN. A modal removed from the document leaves
-  // the top layer with no `close` event behind it: nothing tells the app the
-  // palette is gone and nobody is handed the keyboard back. Navigation going
-  // away with the palette open is exactly that, so the element is closed
-  // while it is still in the page.
   onCleanup(() => { if (modal?.open === true) modal.close() })
 
-  /**
-   * WHAT THE BOX IS DOING — one value, so "showing the list", "composing a
-   * line" and "answering a question" cannot disagree ({@link ./items.ts}'s
-   * `Box`). A question that OWNS the box takes it out of both prefixes and out
-   * of the list by construction rather than by the order four readers ask in.
-   */
-  /**
-   * WHAT THE PALETTE ADAPTERS HAVE PUT BEHIND A PREFIX — read off the live
-   * `paletteAdapters` location, first claimant keeping a character
-   * ({@link prefixesIn}), so an adapter withdrawn frees its prefix with it.
-   *
-   * A MEMO, so the walk and the collision check are spent once per change to
-   * the location rather than once per keystroke per reader.
-   */
   const prefixes = createMemo(() => prefixesIn(readLocation(paletteAdapters).flatMap(entry =>
     entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
-  /** ...and the chords plugins registered, answered after the core table by
-   *  the same rule and refused where that table already answers (`./items.ts`'s
-   *  `chordsIn`). */
   const chords = createMemo(() => chordsIn(paletteFaces("app.keys"), CHORDS))
 
-  // ── LEVELS ───────────────────────────────────────────────────────────────
-  //
-  // The open path, each level's live rows, and every way a level opens,
-  // stands, answers and goes, are `./level-owner.ts`'s. Its rows' scopes are
-  // owned by this drawing and disposed with it; this file composes them with
-  // the root list and the box.
   const levels = createLevelOwner({
     adapters,
     touched: () => { queryRevision++ },
@@ -312,31 +142,17 @@ export function Palette(props: {
     focus: () => input?.focus(),
   })
   const { top, valueTop, crumbs } = levels
-  /** WHICH OPTION OF A VALUE LEVEL IS CHOSEN, asked per option — the lit row's
-   *  rule for the radio: moving the choice wakes the two options it moves
-   *  between, and typing wakes none. */
   const chosenOption = createSelector(() => levels.chosenId())
   const depth = levels.depth
 
   const box = createMemo(() => boxOf(query(), paletteAsking(), prefixes(), depth() > 0))
-  /** A level owns the box — unless a question has borrowed it. */
   const inLevel = () => box().kind === "level"
-  /** The text in the box, wherever it is kept. */
   const boxText = () => {
     const at = top()
     return inLevel() && at !== undefined ? at.step.text : query()
   }
   const listing = () => box().kind === "filter"
 
-  /** What the box is FOR, said in it while it is empty — or, while a typed
-   *  question has borrowed it, what that door does with nothing typed, which
-   *  is how "Enter with nothing" becomes something a reader can see rather
-   *  than a promise.
-   *
-   *  THE PREFIXES IT NAMES ARE THE ONES THERE ARE. An adapter's prefix is in
-   *  it in the adapter's own words, and a serve running none teaches neither
-   *  the character nor the sentence — a placeholder promising a prefix nothing
-   *  answers is this app teaching a key that does nothing. */
   const boxSays = () => {
     const it = box()
     if (it.kind === "level") {
@@ -349,74 +165,22 @@ export function Palette(props: {
     return ["Jump", "toggle", ...prefixes().map(prefix => `${prefix.value} ${prefix.label}`)].join(", ") + "…"
   }
 
-  /**
-   * WHAT THIS BOX IS ASKING — the query, or `null` while it is asking nothing:
-   * the palette is shut, or the line carries a prefix. A prefixed line is not a
-   * lookup, and asking for one would spend a round trip per keystroke on a
-   * sentence nobody is looking things up with.
-   *
-   * ONE accessor, because two lists are answered from it — the nodes over the
-   * wire and the documents in this tab — and "when is this box asking" is a
-   * different question from "what does that list do with the answer". Spelled
-   * per consumer, the two would be free to gate differently: a prefix that took
-   * the node search away and left the file rows standing is a list answering a
-   * line nobody is searching with.
-   */
   const asked = () => (paletteOpen() && listing() ? query() : null)
 
-  /**
-   * WHAT THE FOCUSED PAGE IS CALLED — asked once, here, because two things
-   * want the same answer: the shelf's row draws it on its second line, and the
-   * box that asks for a pin's name wears it as the placeholder
-   * (`../pins/naming.ts`). It is the one fact about a page an address cannot
-   * say on its own, and it rides on that page's own reading (`../reading.tsx`).
-   */
 
-
-  // The nodes, from the server — one primitive, its own failure, and no
-  // request bookkeeping in this component ({@link ../search/nodes.ts}).
   const below = () => paletteOnly("search.box.below")?.face
   const nodes = createSearch(asked, () => below()?.pick())
-  /**
-   * The zoomed node's verbs — its OWN memo, and guarded on the palette being
-   * open, which is what keeps them from being rebuilt for nobody.
-   *
-   * Both halves of that matter. `props.zoomed` is minted afresh on every
-   * revision the server publishes a new reading for, so a memo that read it
-   * beside the query would rebuild this catalog on every write to the page with
-   * the modal shut, and again on every keystroke typed into it. Solid re-tracks
-   * per run, so while the palette is closed this depends on `paletteOpen()` and
-   * nothing else.
-   */
   const opRows = createMemo(() => paletteOpen() ? adapters().flatMap(adapter=>adapter.available?.() === false ? [] : adapter.items?.()??[]) : [])
 
   const items = createMemo(() => {
-    // NOTHING FOR A MODAL NOBODY CAN SEE, and it is the first line for the
-    // reason `opRows` above is guarded: everything below reads values that move
-    // on their own. `pins()` moves whenever anything pinned is retitled
-    // anywhere, `router.route()` on every navigation, and `props.names` on a
-    // navigation that renamed something — so a shut palette rebuilt its whole
-    // list, re-parsing the shelf for `pinnedAt` each time, on every one of them
-    // (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
-    // per run, so while the palette is shut this depends on `paletteOpen()`
-    // and nothing else.
+    // It is the first line for the reason `opRows` above is guarded:
+    // everything below reads values that move on their own.
     if (!paletteOpen()) return [] as ReadonlyArray<PaletteItem>
-    // A GROUP LEVEL'S ROWS are the list while it is on top; a value level's
-    // options are not rows and are walked by their own arrows.
     if (box().kind === "level") {
       const live = levels.topLive()
       return live?.level.kind === "group" ? live.rows() : []
     }
     if (!listing()) return [] as ReadonlyArray<PaletteItem>
-    // THE OP ROWS FIRST, because they are the only rows that are about what
-    // the reader is looking at — a list whose contextual half is below the
-    // fold is a list nobody finds them in. What makes that safe is
-    // {@link chosen}: an untouched palette has no row chosen, so being at the
-    // top is not being one keystroke from a write.
-    // THE SHELF'S ROW sits with the commands: it is about the page rather than
-    // about the zoomed node, so it belongs with the contextual half and not
-    // with the fixed ones — and it is the one door a document or a filtered
-    // page has that a reader can find by looking (../pins/palette.ts).
     const commands = [
       ...opRows(),
       ...SHELL_ITEMS,
@@ -429,34 +193,15 @@ export function Palette(props: {
         search: face.search,
       })),
     ]
-    // THEN THE HITS, which is the order they can be ANSWERED in: the commands
-    // are matched in this tab off a list it already holds, and a hit is a
-    // debounce and a round trip away. A block that arrives late must not push
-    // the rows a reader is already walking down the list under their cursor,
-    // so the local block sits above it and the list only ever grows at the
-    // bottom.
-    //
-    // THE FILES ARE IN THAT SECOND BLOCK NOW. They were a third, matched here
-    // over the served paths by a matcher of this palette's own — which was the
-    // right shape while a search could not see a document at all, and is a
-    // second index the day one can (`@olai/format`'s `matchingDocuments`). One
-    // reading answers both kinds, so a row is drawn from the same hit whichever
-    // it is, and typing a word that is in a document's PROSE finds it here
-    // exactly as it does in the header's box.
-    // THE HITS CARRY THE SEARCH THEY CAME OUT OF (`../settled.ts`'s `Taking`),
-    // which is what lets `Enter` be refused for a row of a query the reader
-    // has typed past WITHOUT being refused for the command rows above it —
-    // those are matched in this tab and are never behind anything.
+    // A block that arrives late must not push the rows a reader is already
+    // walking down the list under their cursor, so the local block sits above
+    // it and the list only ever grows at the bottom.
     return [
       ...filterItems(query(), commands),
       ...hitItems(nodes),
     ]
   })
 
-  /** Everything this modal is holding, put down — one spelling, because the
-   *  two moments that need it (opening, and closing) are the same list, and a
-   *  list kept at two sites is a signal somebody forgets to add to one of
-   *  them. `text` is what the box starts with: empty, or a primed prefix. */
   const blank = (text = "") => {
     paletteRevision++
     levels.pop(0, false)
@@ -468,46 +213,11 @@ export function Palette(props: {
   }
 
   const close = closePalette
-  /**
-   * WHERE THE CARET GOES WHEN THIS CLOSES, and why the platform is not asked.
-   *
-   * A modal dialog hands the keyboard back to whatever was focused when
-   * `showModal()` ran, and the dialog guide says plainly: DON'T write code to
-   * return focus on close. This panel is the exception, and the reason is that
-   * it has close paths that must NOT hand back — a row that navigates has
-   * taken the reader somewhere else, and the control they left behind is not
-   * where the caret belongs. The platform offers no way to decline the
-   * hand-back: it is decided at `showModal()`, from whatever has focus at that
-   * instant, and letting go of that element afterwards changes nothing,
-   * because the restore is SYNCHRONOUS inside `close()` and the `focusin` it
-   * fires has already run by the time any `close` task could undo it. One of
-   * the things listening for that `focusin` is a parked row clearing the
-   * page's selection (`outlines`' `NewRow.tsx`), which is how a destination
-   * the palette had just revealed ended up unselected by a control nobody was
-   * looking at.
-   *
-   * So: nothing is left for the platform to remember. The invoker is taken off
-   * the keyboard BEFORE `showModal()`, and this panel gives the caret back
-   * itself on the closes that did not move the reader. "Moved" is two
-   * readings, because the doors are not all alike: the two that navigate say
-   * so outright, and a `run` whose work navigated is caught by comparing WHERE
-   * THE READER IS against where they were when this opened.
-   */
-  /** Who had the keyboard when this opened, blurred at that instant. */
   let invoker: HTMLElement | null = null
-  /** The focused pane's address when this opened — the second reading of
-   *  "the reader moved", for a door that navigates from inside its own work. */
   let cameFrom: string | undefined
-  /** A door that MOVED the reader said so. */
   let moved = false
-  /** The reader asked for the shortcuts sheet, which opens once this one is
-   *  out of the way and the caret is back where it came from — so the sheet
-   *  records THAT control as its own hand-back rather than an input that is
-   *  about to unmount with this panel. */
   let wantKeys = false
   const whereabouts = (): string => router.routes.href(router.route())
-  /** Give the caret back, unless the reader moved, something else has taken it
-   *  since, or the control they left is no longer in the page. */
   const handBack = (): void => {
     const left = invoker
     invoker = null
@@ -518,16 +228,11 @@ export function Palette(props: {
     left.focus()
   }
   const navigated = () => { moved = true; close() }
-  // Navigation can close the palette through its activation-owned shortcut.
-  // Every closing door releases this renderer's query identically.
   createEffect(on(paletteOpen, (opened) => {
     if (opened) return
     blank()
   }, {defer:true}))
 
-  /** The box, primed with a prefix and the caret after it — what the capture
-   *  row does, and what a capture that landed leaves behind for the next line.
-   *  Whatever was said stays: a prime is not an answer to it. */
   const prime = (prefix: string) => {
     setQuery(prefix)
     cursor.top()
@@ -535,35 +240,17 @@ export function Palette(props: {
     input?.focus()
   }
 
-  /** `showAt`: a blank box, then the requested path (`./level-owner.ts`) —
-   *  or, for an EMPTY path, the ordinary list with `text` already in the box,
-   *  which is how a door primes a prefix (the phone's capture thumb puts
-   *  `+ ` there, exactly as the capture row does). */
   const openAt = (at: OpenAt) => {
     blank(at.path.length === 0 ? at.text : undefined)
     levels.openAt(at)
   }
 
-  /**
-   * Opening is an EFFECT of the signal rather than something a door does, so
-   * every door opens the same palette: the chord below, and the header's
-   * magnifier on a phone, which sets the signal and knows nothing about a
-   * caret or a remembered focus. Whoever opens it, the box is empty and the
-   * caret is in it.
-   */
   let firstOpening = true
   createEffect(() => {
     if (!paletteOpen()) {
-      // CLOSED IS A CALL TOO, and it is the only one: `close()` is what takes
-      // the element out of the top layer, lifts the inertness off the page,
-      // gives the keyboard back and fires the `close` the markup listens to.
       if (modal?.open === true) modal.close()
       return
     }
-    // A drawing rebuilt over an open palette restores what was open; an
-    // opening that came with a path (`showAt`) goes there; any other opening
-    // is a blank box at the root. Whichever of this and the request effect
-    // below runs first acts on a request, and the other leaves it alone.
     const at = untrack(paletteAt)
     if (firstOpening && resuming) untrack(levels.restore)
     else if (at === null) blank()
@@ -572,18 +259,9 @@ export function Palette(props: {
       untrack(() => openAt(at))
     }
     firstOpening = false
-    // The element is not attached at the instant the signal flips — and the
-    // body of the modal is drawn by the `<Show>` inside it, so there is
-    // nothing to focus until Solid has put it there. Through
-    // `enterTopLayer` because the surfaces that take the whole app are a list
-    // (`../../../../web/src/client/layer.ts`).
     queueMicrotask(() => {
       if (!paletteOpen() || modal === undefined) return
       if (modal.open !== true) {
-        // REMEMBERED AND RELEASED IN THE SAME BREATH, before the layer is
-        // entered: the platform decides its hand-back from whatever has focus
-        // at `showModal()`, and leaving it nothing to remember is the only way
-        // to decline one (see the note on `handBack`).
         const had = document.activeElement
         invoker = had instanceof HTMLElement ? had : null
         invoker?.blur()
@@ -591,31 +269,10 @@ export function Palette(props: {
         moved = false
       }
       enterTopLayer(modal)
-      // …and the CARET goes to the box, unless a question is standing in it.
-      // A confirm takes the caret onto its own verb (`./Question.tsx`, and
-      // the `•••` menu's rule before it), and this effect re-runs for reasons
-      // of its own — a level arriving, a drawing rebuilt — so without the
-      // guard the box pulls the keyboard back off a question the reader is
-      // being asked, which is the one moment the box is not what they are
-      // answering.
       if (paletteAsking() === null) input?.focus()
     })
   })
 
-  /**
-   * …and a question that OWNS the box arrives with the words it starts with.
-   *
-   * Its own effect, on its own dependency, which is what keeps the two apart:
-   * opening is about the modal (blank the box, take the caret, remember where
-   * the reader came from) and this is about one question. Folded into the one
-   * above, a question raised over an ALREADY-OPEN palette would re-run the
-   * open — re-blanking the box it is about to fill and forgetting the focus to
-   * go back to — and a CONFIRM raised over a typed filter would wipe the
-   * filter it is drawn over, which is not what backing out of one has ever
-   * done.
-   */
-  /** …and a request to open AT a path (`PaletteControl.showAt`), acted on
-   *  once — after the opening above, which is what blanks the box first. */
   createEffect(on(paletteAt, (at) => {
     if (at === null || at === handledAt || !untrack(paletteOpen)) return
     handledAt = at
@@ -634,18 +291,11 @@ export function Palette(props: {
 
   const runItem = (item: PaletteItem) => {
     const action = item.action
-    // The two that do not finish: a write may have something to say and a
-    // prefix has not been typed yet, so neither of them reaches the `close()`
-    // at the bottom.
     if (action.kind === "edit") {
       if (action.confirm === undefined) {
         sendEdit(action.edit)
         return
       }
-      // ASKING is all this does. What ANSWERING it does is `answer`, called
-      // from the question's own button and from Enter — the `•••` menu's rule
-      // word for word: "ask, then do" stays two call sites rather than one
-      // function telling them apart by which row it was handed.
       setSaid(null)
       askInPalette({
         kind: "confirm",
@@ -656,8 +306,6 @@ export function Palette(props: {
       return
     }
     if (action.kind === "prefix") {
-      // A prefix is the ROOT's grammar, so choosing one inside a level goes
-      // back there first.
       levels.pop(0, false)
       setSaid(null)
       prime(action.prefix)
@@ -675,14 +323,9 @@ export function Palette(props: {
       return
     }
     if (action.kind === "route") {
-      // A DOOR THAT MOVES THE READER: the caret stays wherever the page puts
-      // it, and the control they left behind does not get it back (`handBack`).
       moved = true
       props.go(action.route)
     }
-    // …and the sheet waits for this panel to be out of the way, so that the
-    // control it records as ITS hand-back is the one the reader came from
-    // rather than an input that unmounts a moment later (`handBack`).
     else if (action.kind === "shortcuts") wantKeys = true
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "reset-sidebar-width") resetSidebarWidth()
@@ -690,16 +333,6 @@ export function Palette(props: {
     close()
   }
 
-  /**
-   * One op, at the write gate — and the palette stays up if there is anything
-   * to say about it.
-   *
-   * `applying` is the pointer's own write (`../writes.ts`), so a refusal comes
-   * back in the ops layer's own words and a nudge from a write that landed
-   * comes back too. It records on the SAME undo stack a keystroke and a `•••`
-   * entry record on, so ⌘Z does not mean something different depending on
-   * which surface made the edit.
-   */
   const sendEdit = (edit: Edit) => {
     if (sending()) return
     const adapter = adapters().find(adapter=>adapter.accepts?.(edit))
@@ -721,33 +354,10 @@ export function Palette(props: {
     })
   }
 
-  /**
-   * ⌘O / Ctrl+O — the strip's own gesture, pressed from the keyboard: flip
-   * whether the FOCUSED page draws what is finished, and remember the answer
-   * (`../settings/done.ts`). The strip's rule word for word: the word that
-   * goes in is the OTHER of the two the page is saying now, on the page's own
-   * file even when that says what the panel's default already says — the ask
-   * outlives where the default stands. A page with no flip gives the chord
-   * nothing to be about, and it says nothing.
-   */
   const flipDone = (): void => { for(const adapter of adapters()) if (adapter.available?.() !== false) adapter.key?.("done") }
 
 
 
-  /**
-   * The question answered: it goes, and the verb behind it does.
-   *
-   * A TYPED question is resolved into its op HERE rather than when it was
-   * raised, because the words do not exist yet then — and the refusal that
-   * resolution can carry keeps the question UP with the words still in the
-   * box, which is the same promise a refused capture makes to its line. The
-   * write that lands closes the palette through {@link sendEdit}, which is
-   * what takes the question down.
-   *
-   * What the answer MEANS is the asker's, carried on the question
-   * (`./asking.ts`): this knows that a typed one resolves to a write or to a
-   * sentence, and nothing about pins.
-   */
   const answer = (question: Asking) => {
     if (question.kind === "confirm") {
       dropQuestion()
@@ -762,7 +372,6 @@ export function Palette(props: {
     sendEdit(outcome.success)
   }
 
-  /** An action replies only to the opening, input and provider that submitted it. */
   const sendPrefix = (prefix: PalettePrefix, text: string) => {
     if (sending() || !prefixes().includes(prefix)) return
     const submitted = queryRevision, opened = paletteRevision
@@ -771,9 +380,6 @@ export function Palette(props: {
     void prefix.run(text).then(line => {
       setSending(false)
       if (paletteRevision !== opened || !prefixes().includes(prefix)) return
-      // A completed write is still worth acknowledging after more typing.
-      // Refusals describe only their submitted input; neither reply may erase
-      // a newer thought or reach a later opening of the palette.
       if (line.tone !== "alarm" || queryRevision === submitted) setSaid(line)
       if (queryRevision === submitted && line.tone !== "alarm") prime(prefix.after)
     }, failure => {
@@ -785,17 +391,6 @@ export function Palette(props: {
   }
 
   const confirm = () => {
-    // THE QUESTION FIRST, above any prefix, for the reason the Switch draws
-    // it first: it is up because somebody chose the verb that asks it, and
-    // nothing they type next may quietly become the answer — nor may Enter
-    // quietly become something ELSE while it is standing there. Read the other
-    // way round, `+ …` typed into a box behind the question sent a capture on
-    // an Enter the reader aimed at the question (review, 2026-08-14): the
-    // layout kept the promise and the key did not.
-    //
-    // Reaching this from the BOX at all takes a deliberate click back into it,
-    // because raising the question moves the caret onto its own button — so
-    // the ordinary path is the button's own Enter, and this is the belt.
     const it = box()
     if (it.kind === "answering") {
       answer(it.question)
@@ -809,31 +404,10 @@ export function Palette(props: {
       sendPrefix(it.prefix, it.text)
       return
     }
-    // Nothing lit is nothing chosen — see {@link chosen}. No `?? list[0]`
-    // fallback: that is exactly the keystroke this palette must not turn into
-    // a write nobody aimed.
     if (!chosen()) return
-    // ...and neither is a row of an answer the reader has typed past, which is
-    // the same sentence one turn on: the hits HOLD STILL through the settle
-    // and the round trip after it, so for a moment after every keystroke the
-    // row under the cursor is the last query's. `spend` asks the ROW rather
-    // than this door, because the command rows above the hits are this tab's
-    // own and are never behind anything (`../settled.ts`).
-    //
-    // The key is claimed either way — the handler below preventDefaults every
-    // list key — and a POINTER does not come through here at all: `onSelect`
-    // runs the row it pressed, which is the row the hand can see.
     spend(items()[cursor.at()], runItem)
   }
 
-  /**
-   * The arrows, and the way IN to a list nobody has chosen from yet.
-   *
-   * From nowhere, down lands on the FIRST row and up on the LAST — which is
-   * what a keyboard walking an unchosen list expects, and what `cursor.step`
-   * cannot express on its own: it wraps from wherever it is standing, and
-   * where it is standing before anybody has chosen is the top.
-   */
   const walk = (by: 1 | -1) => {
     if (inLevel() && valueTop() !== undefined) {
       levels.move(by)
@@ -849,31 +423,8 @@ export function Palette(props: {
     cursor.step(by)
   }
 
-  /**
-   * The palette on the client's one dismissal stack (`../topmost.ts`) — a
-   * TICKET TAKEN AND NEVER READ, which is the whole of what is left here.
-   *
-   * Being off that stack was the same bug the `•••` menu had against the
-   * header's popovers: `⌘K` is `whileEditing: true`, so it opens with the
-   * caret inside an open popover and WITHOUT a press anywhere, which leaves
-   * both up. One Escape then ran the popover's handler (on the document) and
-   * this one (on the window, which is later in the same bubble) — two panels,
-   * one keystroke.
-   *
-   * The ticket is what makes those panels defer, and it is still needed for
-   * exactly that: a layer underneath asks the stack, and this has to be the
-   * answer. What is GONE is the other direction. This panel no longer asks
-   * the stack anything, because both of its gestures are the platform's now —
-   * a close request reaches only the topmost modal dialog, and a press on the
-   * backdrop is a press the inert page never sees. Nothing can stand over a
-   * modal but another modal, and the browser already knows which of those is
-   * on top.
-   */
   topmostWhileOpen(paletteOpen)
 
-  /** Escape backs out of the question first and closes the palette second —
-   *  one key, the nearest thing it can dismiss, which is what it means
-   *  everywhere else in this app. */
   const escape = () => {
     const question = paletteAsking()
     if (question === null) {
@@ -881,11 +432,6 @@ export function Palette(props: {
       return
     }
     dropQuestion()
-    // A TYPED question hands the box back empty: the words were about the
-    // question, and a name backed out of must not become the filter over the
-    // list underneath it. A confirm never took the box, so what was typed
-    // behind it is still there — which is what backing out of one has always
-    // left.
     if (question.kind === "line") setQuery("")
     input?.focus()
   }
@@ -909,11 +455,8 @@ export function Palette(props: {
       if (match === null) return
       if (!match.whileEditing && isEditingTarget(event.target)) return
       event.preventDefault()
-      if (match.action === "palette") return // Navigation owns this shortcut.
+      if (match.action === "palette") return
       if (match.action === "sidebar") props.toggleDirectory()
-      // Reached only with the caret nowhere — both chords are
-      // `whileEditing: false`, so a draft keeps the platform's own undo and
-      // Escape keeps abandoning.
       if (match.action === "undo") (router as Navigation).focused()?.history?.undo()
       if (match.action === "redo") (router as Navigation).focused()?.history?.redo()
       if (match.action === "closePane") router.close()
@@ -926,95 +469,29 @@ export function Palette(props: {
   return (
     <>
     <Shortcuts open={keys()} onClose={() => setKeys(false)} more={chords()} />
-    {/* On a phone this is a sheet under the header, not a card hanging in
-        20vh of empty air: a `max-h-72` list under that padding sliced the
-        last row through the rounded clip, and the teaching placeholder
-        ended `agent, -`. Desktop keeps the floating card.
-
-        THE SHEET IS THE DIALOG, rather than a card inside a scrim of this
-        panel's own. What that buys is everything an overlay used to rebuild
-        by hand and this file no longer spells: the page behind it is INERT
-        (no press, no tab stop, nothing for a screen reader to wander into),
-        the keyboard cannot leave the box, the dim is the browser's
-        `::backdrop`, Escape is a close request, and the caret goes back to
-        whoever opened it. No `role`, no `aria-modal` and no focus trap
-        either: a native modal already is one, and saying so twice is how a
-        panel ends up announced as a dialog inside a dialog.
-
-        It spells no `z-index` at all. `showModal` puts it in the TOP LAYER,
-        which is over every stacking context on the page at once — the one
-        claim `../../../../web/src/client/layer.ts`'s table cannot make — and
-        a number here would be a second, weaker answer to the same question.
-
-        The box is the SHEET rather than the viewport for the pointer's sake:
-        light dismiss below measures a press against this element's own
-        rectangle, and a dialog stretched over the whole window would have no
-        outside left to press. */}
     <dialog
       class="fixed inset-x-3 top-[calc(var(--height-header)+0.5rem)] bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] mx-auto my-0 h-auto max-h-none w-auto max-w-xl rounded-surface border border-rule bg-panel p-0 text-ink shadow-overlay backdrop:bg-ink/40 md:inset-x-4 md:bottom-auto md:top-[min(20vh,8rem)]"
       aria-label="Command palette"
-      // A press OUTSIDE puts it away, which is what the full-screen scrim
-      // this replaced was for. `closedby` is the declarative half and Safari
-      // has none of it, so `lightDismiss` carries the other half on the
-      // pointer's own position (`../../../../web/src/client/dismiss.ts`).
+      // Safari has no `closedby`, so `lightDismiss` does the outside press on
+      // the pointer's own position (`../../../../web/src/client/dismiss.ts`).
       ref={(element) => {
         modal = element
         lightDismiss(element)
         claimCloseRequest(element)
-        // AND OPENED FROM HERE TOO, for the one case the effect below cannot
-        // see: a REDRAW. A plugin arriving or leaving rebuilds this component
-        // with the open signal already true, so the effect — which tracks that
-        // signal — has nothing to re-run on, and the new element would stand
-        // in the page closed while the app believed the palette was up. The
-        // element is the thing that knows it is new.
         if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) enterTopLayer(element) })
       }}
       onCancel={(event) => {
-        // ESCAPE IS A CLOSE REQUEST now, and the dismissal stack's order is
-        // kept by the platform: a close request is offered to the TOPMOST
-        // modal and to nothing under it. What is still this panel's own is
-        // the layer INSIDE it — a question standing in the box is the nearest
-        // thing the key can dismiss, so that one is answered here and the
-        // request is refused. With nothing standing, the default runs: the
-        // dialog closes, and the `close` below is what tells the rest of the
-        // app so.
         if (paletteAsking() !== null) {
           event.preventDefault()
           escape()
           return
         }
-        // NOTHING STANDING: the default runs and the dialog closes. The signal
-        // is written HERE as well as in `close` below, because `cancel` is
-        // synchronous with the key and `close` is a task of its own — and in
-        // between, a ⌘K pressed in the same breath would read a palette that
-        // is still "open" and toggle it SHUT. The two writes agree; this one
-        // is merely in time.
         close()
       }}
       onClose={() => {
-        // THE ONE PLACE A CLOSED PALETTE IS ANSWERED, whoever closed it: this
-        // renderer's own effect, a press on the backdrop, the platform's
-        // close request. The signal is the app's copy of that fact, so it is
-        // written here rather than at each door.
-        //
-        // …unless the palette is ALREADY OPEN AGAIN. `close` is dispatched in
-        // a task of its own, so an Escape and a ⌘K in the same breath — which
-        // is a gesture a person makes, and one `palette_write_pending.feature`
-        // makes on purpose — run as close, reopen, and only THEN this handler.
-        // Writing the signal there would shut the palette the reader has just
-        // reopened, with nothing but a flicker to show for it. The element is
-        // the fact: if it is open, this news is about a palette that is gone.
         if (modal?.open === true) return
-        // …nor when the element is no longer in the page. A redraw — a plugin
-        // arriving or leaving — tears this dialog down and builds another,
-        // and a `close` fired on the way out is news about the OLD element.
-        // Answering it would shut a palette the reader still has open, which
-        // is the one thing a rebuild is supposed to survive.
         if (modal !== undefined && !modal.isConnected) return
         close()
-        // THE CARET GOES BACK HERE, from the one place that knows the panel
-        // is really gone — and the sheet, if it was asked for, opens after it
-        // so that it records a control that is still in the page.
         handBack()
         if (wantKeys) { wantKeys = false; setKeys(true) }
       }}
@@ -1024,9 +501,6 @@ export function Palette(props: {
           class="flex h-full min-h-0 w-full flex-col md:h-auto"
           data-testid={TESTID.palette}
         >
-          {/* THE BOX ROW: a crumb per open level, then the input. A crumb is
-              the pointer's and the finger's way back — pressing one closes
-              that level and every level after it. */}
           <div class="flex w-full shrink-0 flex-wrap items-center gap-1.5 border-b border-rule px-4 py-3">
             <Show when={inLevel()}>
               <For each={crumbs()}>
@@ -1037,7 +511,6 @@ export function Palette(props: {
                     data-testid={TESTID.paletteCrumb}
                     data-id={crumb.id}
                     aria-label={`Back from ${crumb.label}`}
-                    // The caret stays in the box: a crumb is pressed, not focused.
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => levels.pop(index())}
                   >
@@ -1049,10 +522,7 @@ export function Palette(props: {
           <input
             ref={input}
             type="text"
-            // WHERE THE CARET LANDS when the modal opens, said to the platform
-            // as well as done by the effect above: a dialog with no `autofocus`
-            // focuses the dialog itself, and a reader who pressed ⌘K is already
-            // typing.
+            // A dialog with no `autofocus` focuses the dialog itself.
             autofocus
             class="min-w-[8rem] flex-1 bg-transparent font-sans text-title text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
@@ -1062,34 +532,15 @@ export function Palette(props: {
             value={boxText()}
             onInput={(e) => {
               setBoxText(e.currentTarget.value)
-              // A value level's options are a choice, not a list being
-              // searched: typing neither filters nor moves them.
               if (valueTop() !== undefined && inLevel()) {
                 setAskError(null)
                 return
               }
               cursor.top()
-              // The first character typed IS the choice — it lights the best
-              // match, which is what a type-ahead is. An emptied box goes back
-              // to having chosen nothing; inside a level, opening it was.
               setChosen(inLevel() || e.currentTarget.value.trim() !== "")
               setAskError(null)
             }}
-            // WHICH key is the registry's (`../keys.ts`'s list layer, the same
-            // one the row editor's completions ask); what each answer MEANS is
-            // this dialog's — `take` runs a row, and the arrows walk it.
-            //
-            // `dismiss` is deliberately NOT answered here, and it is a rule
-            // rather than an omission: this handler is on the BOX, so it runs
-            // at the target, before anything listening on the document — and a
-            // panel that shuts itself that early promotes whatever is under it
-            // to topmost inside the same keystroke, which is how one Escape
-            // took the palette AND the popover it was opened over. Escape is
-            // answered once, on the window, where every layer has already been
-            // asked (`onMount` above, and `../topmost.ts`).
             onKeyDown={(e) => {
-              // BACKSPACE ON AN EMPTY BOX GOES BACK one level. Never mid-IME:
-              // a composition's own Backspace is not ours.
               if (e.key === "Backspace" && !composing(e) && inLevel() && e.currentTarget.value === "") {
                 e.preventDefault()
                 levels.pop(depth() - 1)
@@ -1109,8 +560,6 @@ export function Palette(props: {
             }}
           />
           </div>
-          {/* WHERE THE PERSON IS, said when it changes — the crumbs are drawn,
-              and this is their spoken half. The caret never leaves the box. */}
           <p class="sr-only" role="status" aria-live="polite" data-testid={TESTID.paletteLevelStatus}>
             {levels.announced()}
           </p>
@@ -1123,9 +572,6 @@ export function Palette(props: {
               />
             )}
           </Show>
-          {/* The SEARCH's own refusal, in its own row: it is a different
-              question from a prefix's, so it gets a different answer slot
-              rather than overwriting one the reader may still be reading. */}
           <Show when={nodes.refusals().length === 0 && nodes.failure()}>
             {(err) => (
               <SaidLine
@@ -1135,22 +581,12 @@ export function Palette(props: {
               />
             )}
           </Show>
-          {/* …and the QUERY's own, which is a fourth question: the words were
-              read and one of them is an operator with a value the grammar does
-              not take. Without this a typo in `is:` looks exactly like an empty
-              directory (`../search/nodes.ts`). Drawn by `../refusals.tsx`,
-              which is where that sentence and the ear it is read to live. */}
           <Show when={listing() ? below() : undefined}>{face => face().body({ search: nodes })}</Show>
         <Refusals
             of={nodes.refusals()}
             class={ALERT_ROW}
             testid={TESTID.searchRefusal}
           />
-          {/* WHAT A WRITE SAID, in a row of its own for the same reason the
-              two above have theirs: it is a third question. The mood — its
-              colour, its `data-tone`, whether a screen reader is interrupted —
-              is `../SaidLine.tsx`'s, once, for every surface that says
-              something about a write. */}
           <Show when={said()}>
             {(message) => (
               <SaidLine
@@ -1163,10 +599,6 @@ export function Palette(props: {
           <Switch
             fallback={
               <>
-                {/* `overflow-x-hidden` is the doctrine, not a defence: a popover
-                    scrolls down, never sideways. The rows are already built not
-                    to overflow; this makes that a property of the container
-                    rather than of every future row. */}
                 <Show when={(router as Navigation).focused()?.pending}>
                   <p class="m-0 px-3 py-2 text-label text-muted" role="status">
                     {(router as Navigation).focused()?.failure ?? "Loading…"}
@@ -1175,20 +607,8 @@ export function Palette(props: {
                 <ul
                   class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
                   data-testid={TESTID.paletteList}
-                  // WHICH QUERY the rows below answer — the same fact the
-                  // shortlist and the filter bar publish, so a scenario waits
-                  // for THIS search rather than for any rows at all.
                   data-asked={nodes.answering() ?? undefined}
                 >
-                  {/* `<Key>` rather than `<For>`, for the reason the tree uses it
-                      (`../Tree.tsx`): the rows are minted fresh on every read, so
-                      every keystroke during the 200 ms settle rebuilt a list whose
-                      hits had not changed, under a cursor somebody was walking
-                      down. `<Key>` and not `<Index>`, unlike the shortlists, for
-                      the same reason the tree is keyed: these rows MOVE — the
-                      hits arrive under the commands and rank against each other —
-                      and {@link PaletteItem.id} already promises the id is unique
-                      in this list, which is what makes it a key. */}
                   <Key
                     each={items()}
                     by="id"
@@ -1226,14 +646,6 @@ export function Palette(props: {
                     )}
                   </Key>
                 </ul>
-                {/* WHAT IS BEHIND THE HITS, and only ever about them: the rows
-                    above the hits are this tab's own (the zoomed node's verbs,
-                    the shelf's row, the shell), so the count is taken off the
-                    ANSWER rather than off the list it is drawn under — which is
-                    also why the sentence names its subject (`../search/count.ts`).
-                    Under the list rather than inside it, so it stays put while
-                    the eight rows scroll, and absent when eight was all there
-                    was. */}
                 <SearchCount
                   of={nodes}
                   empty={nodes.answering() !== null}
@@ -1242,9 +654,6 @@ export function Palette(props: {
               </>
             }
           >
-            {/* THE QUESTION FIRST, above both prefixes: it is up because
-                somebody chose the verb that asks it, and nothing they type
-                next may quietly become the answer. */}
             <Match when={inLevel() ? levels.topLive() : undefined}>
               {(live) => (
                 <LevelView
@@ -1279,10 +688,6 @@ export function Palette(props: {
                 />
               )}
             </Match>
-            {/* A prefix previews the words Enter is about to send, because
-                Enter is never a guess. THE WORDS ARE THE ADAPTER'S, both of
-                them: `label` is what the line is for, and `empty` is what to
-                say while there is no line yet — core composes neither. */}
             <Match when={only(box(), "prefix")}>
               {(box) => (
                 <Composing
@@ -1301,24 +706,9 @@ export function Palette(props: {
   )
 }
 
-/**
- * What a prefix is ABOUT to send, in the slot the list would be in.
- *
- * One component for every prefix: each makes the same promise to the reader —
- * these are the words, verbatim, that Enter will send — and two spellings of
- * that promise would be two chances for one of them to stop showing what it is
- * going to do.
- *
- * The two sentences are PARAMETERS rather than a branch on which prefix it is,
- * which is what lets a prefix core has never heard of be drawn here: `lead` and
- * `empty` are the adapter's own words.
- */
 function Composing(props: {
-  /** The line as it stands, after the prefix. */
   readonly text: string
-  /** What the words are FOR, said before them. */
   readonly lead: string
-  /** What to say while there is nothing to send yet. */
   readonly empty: string
   readonly testid: string
 }) {
@@ -1333,8 +723,6 @@ function Composing(props: {
   )
 }
 
-/** Surviving navigation retains palette input across layout changes; withdrawing
- * navigation itself drops pending UI memory and invalidates late replies. */
 export function resetPaletteMemory():void {
  queryRevision++;paletteRevision++
  memory.query[1]("");memory.askError[1](null);memory.said[1](null);memory.sending[1](false)

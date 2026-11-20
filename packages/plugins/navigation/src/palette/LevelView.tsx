@@ -1,10 +1,5 @@
 import { actionHref } from "./items.ts"
 import { useRouter } from "../routing.tsx"
-/**
- * AN OPEN LEVEL, DRAWN — what `./Palette.tsx` puts in the list's place while a
- * level owns the box. It holds no state of its own: the level, its step and
- * its rows are `./level-owner.ts`'s, and every press is handed back.
- */
 import { Key } from "@solid-primitives/keyed"
 import { type Accessor, createComputed, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -18,15 +13,6 @@ import type { Crumb, Live } from "./level-owner.ts"
 import type { PaletteOption } from "./levels.ts"
 import { PALETTE_ROW } from "./row-testids.ts"
 
-/**
- * WHICH ROWS START A SECTION — a heading per row id, kept per key.
- *
- * A row's heading depends on the row before it, so asking it of the whole
- * list from inside every row woke every row whenever the list moved. One
- * `createComputed` builds the next table instead and writes only the ids whose
- * heading changed, so a filter that leaves a row's heading alone leaves that
- * row asleep.
- */
 const createHeadings = (rows: Accessor<ReadonlyArray<{ readonly id: string; readonly section?: string }>>) => {
   const [headings, setHeadings] = createStore<Record<string, string | undefined>>({})
   createComputed(() => {
@@ -42,23 +28,13 @@ const createHeadings = (rows: Accessor<ReadonlyArray<{ readonly id: string; read
   return (id: string) => headings[id]
 }
 
-/**
- * AN OPEN LEVEL, drawn in the list's place: a group's rows under their
- * section headings, or a value level's options as one radio group — then the
- * level's hint, and a footer naming the keys (and, for a value level, the
- * submit a pointer or a finger can reach).
- */
 export function LevelView(props: {
   readonly live: Live
-  /** The level's own id and name — one object while it stands. */
   readonly crumb: Crumb
   readonly busy: boolean
   readonly items: ReadonlyArray<PaletteItem>
   readonly lit: (index: number) => boolean
-  /** A value level's options, or `undefined` at a group. */
   readonly options: ReadonlyArray<PaletteOption> | undefined
-  /** Whether this option is the chosen one — a selector, so moving the
-   *  choice wakes the two options it moves between. */
   readonly chosen: (id: string | undefined) => boolean
   readonly needles: ReturnType<typeof needlesFrom>
   readonly onHover: (index: number) => void
@@ -153,8 +129,6 @@ export function LevelView(props: {
                     data-testid={TESTID.paletteOption}
                     data-id={option.id}
                     data-chosen={props.chosen(option.id) ? "true" : "false"}
-                    // Pressed, not focused: the caret stays in the box with
-                    // the words it is about to send.
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => props.onOption(option)}
                   >
@@ -199,8 +173,6 @@ export function LevelView(props: {
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => props.onSubmit()}
               >
-                {/* Both words are drawn and one is hidden: a submit going
-                    out is an attribute on the button, not a new subtree. */}
                 <span hidden={busy()}><kbd>↵</kbd> {level().submitLabel ?? "Submit"}</span>
                 <span hidden={!busy()}>Working…</span>
               </button>
@@ -214,7 +186,6 @@ export function LevelView(props: {
   )
 }
 
-/** A level's non-interactive line ("Type to find any node"). */
 function LevelHint(props: { readonly text: string | undefined; readonly tag?: "li" | "p" }) {
   return (
     <Show when={props.text}>

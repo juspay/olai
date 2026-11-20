@@ -1,23 +1,3 @@
-/**
- * THE OWNER OF THE PALETTE'S OPEN LEVELS — the path, the live scope that
- * computes each level's rows, and every way a level opens, stands, answers and
- * goes. `./Palette.tsx` composes it with the root list and the box; the
- * drawing of a level is `./LevelView.tsx`'s; the pure rules are
- * `./levels.ts`'s.
- *
- * Two lifetimes, each with one owner:
- *
- * - The PATH (`Step`s) is this module's memory, owned by navigation's
- *   activation: `resetLevelMemory` is called where the palette's own memory is
- *   reset. A draft typed in a level, its chosen option and a submit in flight
- *   survive the overlay being redrawn. Each step's controller is the level's
- *   lifetime — aborted when it is popped, closed or stops standing, never by a
- *   redraw.
- * - The ROWS (`Live`) are Solid roots owned by the drawing that called
- *   {@link createLevelOwner}: rebuilt from each step's kept level when the
- *   drawing is, disposed when the step goes or the drawing does — one
- *   `onCleanup`, here.
- */
 import { batch, createEffect, createMemo, createRoot, createSignal, mapArray, onCleanup, untrack, type Accessor } from "solid-js"
 import type { Said } from "@olai/web/client/saying.ts"
 import type { PaletteAdapter } from "../index.ts"
@@ -42,13 +22,10 @@ import {
 } from "./levels.ts"
 import type { OpenAt } from "./state.ts"
 
-/** An open level, remembered with the adapter its path came from. */
 export type Step = StepOf<PaletteAdapter>
 
-/** One open level's live rows, in a Solid root the drawing owns. */
 export interface Live {
   readonly serial: number
-  /** The step's own level and adapter, for the drawing's convenience. */
   readonly level: PaletteLevel
   readonly adapter: PaletteAdapter
   readonly rows: Accessor<ReadonlyArray<PaletteItem>>
@@ -56,30 +33,20 @@ export interface Live {
   readonly dispose: () => void
 }
 
-/** THE OPEN LEVELS, root first. */
 const memory = createSignal<ReadonlyArray<Step>>([])
 
-/** End these levels' lifetimes: whatever they started is told to stop, and
- *  any answer they get from here on is dropped. */
 const abortSteps = (steps: ReadonlyArray<Step>) => { for (const step of steps) step.controller.abort() }
 
-/** Navigation's activation starting or stopping: every level ends. */
 export const resetLevelMemory = (): void => {
   abortSteps(memory[0]())
   memory[1]([])
 }
 
-/** What the box around the levels does when they move — the palette's own
- *  state, which this module asks for rather than holds. */
 export interface LevelHost {
   readonly adapters: Accessor<ReadonlyArray<PaletteAdapter>>
-  /** A newer interaction began: a late action from before may not answer. */
   readonly touched: () => void
-  /** The root's own query, emptied when the first level opens. */
   readonly leaveRoot: () => void
-  /** The list starts over at the top; `chosen` is whether a row is lit. */
   readonly relist: (chosen: boolean) => void
-  /** Nothing said and nothing refused any more. */
   readonly hush: () => void
   readonly say: (said: Said) => void
   readonly refuse: (sentence: string) => void
@@ -96,38 +63,25 @@ export interface ValueTop extends TopLevel {
 export interface Crumb { readonly serial: number; readonly id: string; readonly label: string }
 
 export interface LevelOwner {
-  /** How many levels stand. */
   readonly depth: Accessor<number>
   readonly top: Accessor<TopLevel | undefined>
-  /** The top level's live rows; changes only when another level is on top. */
   readonly topLive: Accessor<Live | undefined>
-  /** The top level when it is a value level, with its options and choice. */
   readonly valueTop: Accessor<ValueTop | undefined>
   readonly crumbs: Accessor<ReadonlyArray<Crumb>>
-  /** A submit is in flight at the top level. */
   readonly busy: Accessor<boolean>
-  /** The top value level's options, or `undefined` at a group. */
   readonly options: Accessor<ReadonlyArray<PaletteOption> | undefined>
-  /** The id of the option chosen at the top value level. */
   readonly chosenId: Accessor<string | undefined>
-  /** What a screen reader is told when the level changes. */
   readonly announced: Accessor<string>
-  /** Type at the top level. */
   readonly type: (text: string) => void
   readonly drill: (item: PaletteItem, level: PaletteLevel) => void
-  /** Back to `to` levels open. */
   readonly pop: (to: number, focus?: boolean) => void
-  /** A drawing rebuilt over open levels. */
   readonly restore: () => void
-  /** `showAt`'s path, onto a box already blank. */
   readonly openAt: (at: OpenAt) => void
-  /** The arrows at a value level. */
   readonly move: (by: 1 | -1) => void
   readonly choose: (option: PaletteOption | undefined) => void
   readonly submit: () => void
 }
 
-/** Call inside the drawing's owner: the rows' roots are disposed with it. */
 export function createLevelOwner(host: LevelHost): LevelOwner {
   const [path, setPath] = memory
   const [lives, setLives] = createSignal<ReadonlyArray<Live>>([])
@@ -158,14 +112,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
       }
     })
 
-  /**
-   * DOES THIS STEP STILL STAND? The root of the path stands while its adapter
-   * is contributed, `available`, and still offers that row id as a level —
-   * or, while a submit of its own is in flight, without the row (`./levels.ts`'s
-   * `rootStands` says why a send that takes its own row away does not end the
-   * level); a deeper step stands while its adapter is contributed — its
-   * parent's rows may move under it without anything being withdrawn.
-   */
   const stands = (live: ReadonlyArray<PaletteAdapter>) => (depth: number, step: Step) =>
     depth === 0
       ? rootStands(
@@ -176,20 +122,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
         step.busy,
       )
       : live.includes(step.source)
-  /** The levels still standing: cut at the first that does not, so nothing is
-   *  drawn from a dead or withdrawn contribution even for the moment before
-   *  the effect below takes it down. */
-  /**
-   * THE PATH'S SHAPE — which levels are open, not what is typed in them. A
-   * keystroke replaces the path (a step's text is a field of it), and every
-   * question below about WHICH levels stand reads this instead, so typing
-   * re-runs none of them: not the standing check, which asks the root
-   * adapter's `items()`, and not the crumbs.
-   *
-   * A SUBMIT STARTING OR SETTLING IS A CHANGE OF SHAPE, because it is half of
-   * whether the root still stands: it is read here and nowhere else, so the
-   * standing check runs again exactly when the flag moves.
-   */
   const shape = createMemo(() => path(), [], {
     equals: (was, now) =>
       was.length === now.length
@@ -203,15 +135,7 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     return upTo === all.length ? all : all.slice(0, upTo)
   })
   const depth = () => standingLives().length
-  /** The top level's live rows — the same object for as long as that level is
-   *  on top, so what draws it is not woken by typing. */
   const topLive = createMemo(() => standingLives().at(-1))
-  /**
-   * One `{ serial, id, label }` per standing level, read by the crumb buttons
-   * and the box's name. `mapArray` over the serials makes each crumb ONE
-   * OBJECT for as long as its level stands, so a `<For>` over these keeps the
-   * crumbs it already drew when a level is added or popped.
-   */
   const serials = createMemo(() => standingLives().map((live) => live.serial), [], {
     equals: (was, now) => was.length === now.length && was.every((serial, at) => serial === now[at]),
   })
@@ -232,8 +156,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     const options = at.live.options()
     return { ...at, level, options, chosen: chosenOption(options, at.step.option, level.chosen) }
   }
-  /** The top level's own few facts, each its own memo so a keystroke — which
-   *  replaces the step — wakes only what reads the text. */
   const busy = createMemo(() => top()?.step.busy ?? false)
   const chosenId = createMemo(() => valueTop()?.chosen?.id)
   const options = createMemo(() => {
@@ -244,19 +166,11 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
   const [announced, setAnnounced] = createSignal("")
   const announce = (to: ReadonlyArray<Step>) =>
     setAnnounced(to.length === 0 ? "All commands" : to.map((step) => step.label).join(", "))
-  /** The level named was withdrawn under the person: say so, in the aside
-   *  tone — nothing they did was refused. */
   const fellBack = (step: Step) => host.say({ tone: "aside", text: `“${step.label}” is no longer available.` })
-  /** Root rows that open a level, with the adapter that contributed each. */
   const levelRoots = () =>
     host.adapters().flatMap((adapter) =>
       adapter.available?.() === false ? [] : (adapter.items?.() ?? []).map((item) => ({ item, adapter })))
 
-  /**
-   * GO BACK to `to` levels open — Backspace on an empty box, a crumb, a
-   * close. What is popped is aborted and its rows' scope disposed, so no work
-   * a level started outlives it.
-   */
   const pop = (to: number, focus = true) => {
     const { kept, dropped } = popTo(untrack(path), to)
     if (dropped.length === 0) return
@@ -274,7 +188,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     if (focus) host.focus()
   }
 
-  /** Open the level a row names, on top of the path. */
   const drillInto = (item: PaletteItem, level: PaletteLevel) => {
     const below = untrack(top)
     const adapter = below?.step.source
@@ -294,14 +207,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     host.focus()
   }
 
-  /**
-   * Open a path of row ids against the LIVE contributions, level by level —
-   * what `showAt` does with a requested one. Each id is looked up in the rows
-   * the level below lists AT THAT MOMENT, so it resolves through levels whose
-   * rows are listed synchronously; it stops at the first id that does not
-   * resolve. (A redraw does not come through here: it already knows what was
-   * open — {@link restore}.)
-   */
   const resolveLevels = (ids: ReadonlyArray<string>): ReadonlyArray<TopLevel> => {
     const opened: Array<TopLevel> = []
     const found = resolvePath(ids, (_at, id) => untrack(() => {
@@ -320,7 +225,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     return opened.slice(0, found.length)
   }
 
-  /** Put a resolved path in place of whatever was open. */
   const install = (opened: ReadonlyArray<TopLevel>) => {
     const gone = untrack(lives)
     batch(() => {
@@ -333,14 +237,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     for (const live of gone) live.dispose()
   }
 
-  /**
-   * A drawing rebuilt over open levels. The remembered steps already carry the
-   * level each opened and the adapter its path came from, so only the rows'
-   * scope is rebuilt — nothing is looked up again among rows that may not have
-   * arrived yet, and the text, option and busy flag are the steps' own. What no
-   * longer stands — its adapter was withdrawn, or stopped offering the row —
-   * falls back and says so; its return will not reopen it.
-   */
   const restore = () => {
     const remembered = untrack(path)
     if (remembered.length === 0) return
@@ -350,8 +246,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     if (kept < remembered.length) fellBack(remembered[kept]!)
   }
 
-  /** `showAt`: a path of ids, as deep as it resolves, with `text` in the
-   *  deepest level when the whole path did. */
   const openAt = (at: OpenAt) => {
     const opened = resolveLevels(at.path)
     const last = opened.at(-1)
@@ -364,9 +258,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     queueMicrotask(host.focus)
   }
 
-  /** THE CONTRIBUTION BEHIND AN OPEN LEVEL STOPPED STANDING: take down what
-   *  it opened (its scopes, its submits) and stand at the deepest level that
-   *  is still there. `standingLives` already stopped drawing it. */
   createEffect(() => {
     const standingNow = standingLives()
     if (standingNow.length === untrack(lives).length) return
@@ -391,17 +282,6 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     if (value !== undefined) choose(stepOption(value.options, value.chosen, by))
   }
 
-  /**
-   * SUBMIT A VALUE LEVEL — the typed text with the chosen option. Refused in
-   * place by the level's validator; refused while one is in flight; and its
-   * answer, like a `run` row's, closes the palette or keeps it up with
-   * something said. An answer for a level that is gone — popped, closed,
-   * withdrawn — changes nothing.
-   *
-   * The busy flag it raises is also what holds the level up while the send is
-   * out, so a send that takes its own row away still gets to answer (`stands`
-   * above); lowering it hands the level back to the ordinary rule.
-   */
   const submit = () => {
     const at = untrack(valueTop)
     if (at === undefined) return

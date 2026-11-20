@@ -6,12 +6,6 @@ import { createRouter } from "./router.tsx"
 import { atFile, HOME_ROUTE } from "./routes.ts"
 import { lone } from "./workspace.ts"
 
-/**
- * THE REAL ROUTER over a history that behaves like a browser's where it
- * matters to lanes: one stack, `pushState` discarding what is ahead, and
- * `history.go` answering LATER with a `popstate` — so a seek is several
- * traversals the router has to see through without drawing any of them.
- */
 const browser = (first = "/", before: ReadonlyArray<{ state: unknown; url: string }> = []) => {
   const entries: Array<{ state: unknown; url: string }> = [...before, { state: null, url: first }]
   let index = before.length
@@ -59,7 +53,6 @@ const browser = (first = "/", before: ReadonlyArray<{ state: unknown; url: strin
   Object.defineProperty(globalThis, "scrollY", { configurable: true, get: () => top })
   return {
     path: () => url().pathname,
-    /** The reader scrolling the page to `to`. */
     scroll: (to: number) => {
       top = to
       for (const listener of scrolled) listener()
@@ -77,7 +70,6 @@ const browser = (first = "/", before: ReadonlyArray<{ state: unknown; url: strin
   }
 }
 
-/** Every queued traversal, and every traversal a seek queues after it. */
 const settled = async () => {
   for (let turn = 0; turn < 12; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0))
 }
@@ -114,8 +106,6 @@ test("Back walks the lane in front and skips another lane's pages", async () => 
     await settled()
     expect(drawn(router)).toBe("/")
     expect(page.path()).toBe("/")
-    // The start of b: Back bounces, and the reader stays where they were —
-    // the same workspace, not a fresh one, and no landing minted on the way.
     const before = router.workspace()
     page.back()
     await settled()
@@ -139,8 +129,6 @@ test("a lane brought back walks its own pages again, past the other lane's", asy
     expect(router.entryKey()).toBe(left)
     page.back()
     await settled()
-    // one.md's own entry became b's when b came forward over it, so a's
-    // history before it is the page it started on.
     expect(drawn(router)).toBe("/")
     expect(router.lane()).toBe("a")
   })
@@ -159,7 +147,6 @@ test("a forgotten lane's entries are passed over, and with no lane every entry i
     await settled()
     expect(drawn(router)).toBe("/one.md")
 
-    // With the window's history back, the closed lane's page is a page again.
     router.switchLane(null)
     page.forward()
     await settled()
@@ -180,8 +167,6 @@ test("switching to the page already drawn keeps it, and the first lane adopts wh
 })
 
 test("taking a lane over the page already drawn leaves the address bar alone, before any tenant has claimed it", async () => {
-  // No claims are held: a page whose reading needs the roster prints as
-  // something else until it settles, and must not be written back as that.
   const address = "/s/house.olai%23handles/notes%2Fdeep.html%23beds"
   await withRouter(async (router, page) => {
     router.switchLane("a")
@@ -232,7 +217,6 @@ test("forgetting the lane in force still leaves Back somewhere to come home to",
     await settled()
     expect(page.path()).toBe("/one.md")
     expect(drawn(router)).toBe("/one.md")
-    // ...and the lane switched in afterwards walks as usual.
     router.switchLane("b", { workspace: lone(atFile("b.md")) })
     router.go(atFile("b2.md"))
     page.back()
@@ -261,7 +245,7 @@ test("a switch asked for mid-travel is written once the browser is back on its e
     router.switchLane("a")
     router.go(atFile("one.md"))
     router.switchLane("b", { workspace: lone(atFile("b.md")) })
-    page.back() // b's start: this will bounce
+    page.back()
     router.switchLane("c", { workspace: lone(atFile("c.md")) })
     await settled()
     expect(page.path()).toBe("/c.md")

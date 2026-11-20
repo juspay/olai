@@ -1,15 +1,5 @@
 import { legacyZoomHref } from "./workspace.ts"
 import { zoomNode } from "./routes.ts"
-/**
- * THE PANES, as a value — how many there are, which one is focused, what a
- * navigation does to the others, and the one URL the whole arrangement is
- * written to.
- *
- * It was `@olai/web`'s `client/workspace.test.ts`, over a module that is this
- * row's: `@olai/bundle`'s `fence.test.ts` holds an equality that no general
- * package names a plugin, and the boot package spelled this one twice for a
- * claim it does not own.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -17,7 +7,6 @@ import type { Route } from "./routes.ts"
 import { atElement, atFile, atNode, HOME_ROUTE } from "./routes.ts"
 import { routingIn } from "./routes.testlib.ts"
 
-/** No plugin claims a URL — see `./routes.test.ts`. */
 const routes = routingIn()
 const { href: hrefOf, routeOf } = routes
 import {
@@ -202,8 +191,6 @@ test("reopening a reused right pane uncollapses it", () => {
   const reused = openRight(two, 0, garden)
   expect(isCollapsed(panesOf(reused)[1]!)).toBe(false)
   expect(panesOf(reused)[1]!.route).toEqual(garden)
-  // Not merely "width is not 0" — a cleared width next to a stored 1
-  // made flexOf give the reused pane nothing, so it stayed a rail.
   expect(flexOf(panesOf(reused))[1]!).toBeGreaterThan(0)
 })
 
@@ -218,15 +205,12 @@ test("an expanded sliver does not print as a collapsed rail", () => {
 
 test("pathological w= is a kindness, not a throw", () => {
   const two = "/s/house.olai/%23kitchen"
-  // Both zeros: nothing expanded to be a fraction of. Equal shares.
   const allRails = workspaceOf(routes, `${two}?w=0,0`)
   expect(panesOf(allRails).length).toBe(2)
   expect(panesOf(allRails).every((pane) => pane.width === undefined)).toBe(true)
-  // Junk beside a number: the junk is no share, the number is.
   const junk = workspaceOf(routes, `${two}?w=abc,50`)
   expect(panesOf(junk)[0]!.width).toBeUndefined()
   expect(panesOf(junk)[1]!.width).toBe(1)
-  // A negative is a rail, not a throw.
   const neg = workspaceOf(routes, `${two}?w=-10,50`)
   expect(isCollapsed(panesOf(neg)[0]!)).toBe(true)
   expect(panesOf(neg)[1]!.width).toBe(1)

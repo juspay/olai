@@ -32,10 +32,10 @@ test("only retained-page controls are blocked; navigation, other input and withd
     focused = { pending: true }
     expect(press(row)).toBe(true)
     expect(press(row, "beforeinput")).toBe(true)
-    expect(press(new Control(true, true))).toBe(false) // a retained link
-    expect(press(new Control(false))).toBe(false) // chrome/recovery controls
-    expect(press(new Control(false), "beforeinput")).toBe(false) // chat/search
-    expect(press(new Control(true, false, 1))).toBe(false) // another, current pane
+    expect(press(new Control(true, true))).toBe(false)
+    expect(press(new Control(false))).toBe(false)
+    expect(press(new Control(false), "beforeinput")).toBe(false)
+    expect(press(new Control(true, false, 1))).toBe(false)
     focused = undefined
     expect(press(row)).toBe(false)
     focused = { pending: true }

@@ -1,5 +1,3 @@
-/** Dispatch file pages by the current claim, then ordinary content routes. */
-
 import { type Address, fileKind } from "@olai/format"
 import { content, pages } from "./index.ts"
 import { useHere, useRouter } from "./routing.tsx"
@@ -33,39 +31,13 @@ export function PageView() {
   const contributions = createMemo(() => readLocation(pages).map(entry => entry.value))
   const page = createMemo(() => forFileClaim(claim(), contributions()))
   const handler = createMemo(() => readLocation(content).find(({ value }) => value.matches(route()))?.value)
-  // Both locations dispatch through one component identity. A file-to-node
-  // zoom owned by the same renderer must keep that renderer's undo scope.
   type Props = Address & { readonly route: ReturnType<typeof route>; readonly index: number }
   const draw = createMemo<((props: Props) => JSX.Element) | undefined>(() => revealing() ? undefined : address() ? page()?.page : handler()?.Page)
-  /** What went wrong, as a heading and one plain line under it. */
   const said = (): { readonly line: string; readonly detail?: string } => {
     if (revealing()) return REVEALING[router.revealState(here()) ?? "finding"]
     if (address() === undefined) {
       return { line: "This page can't be opened", detail: "The plugin that shows it is turned off." }
     }
-    /**
-     * NOTHING IS MISSING UNTIL THE DIRECTORY HAS ANSWERED. Every sentence
-     * below is a statement about the vault's CLAIMS — which kinds are known,
-     * which paths are held — so a page that says one before the reading has
-     * arrived is saying what it would say about an empty vault: that this
-     * suffix is one olai cannot open. For the frames between the first paint
-     * and the reading, `/money/nowhere.journal` therefore read "Page not
-     * found / olai can't open .journal files." — a false line, under the
-     * TRUE line's own heading, which is what made a step waiting for that
-     * heading read a page that was about to be replaced (the CI failure
-     * "the empty page reads []": the heading matched the guess, and the
-     * guess was gone by the time its lines were read).
-     *
-     * THE THREE SILENCES ARE ONE WORD: the service not held yet (the row
-     * composing, or the vault switched off), a head reading in flight, and
-     * the KIND TABLE not arrived — which is a third channel and the one this
-     * page turned out to be racing. `standing()` answers `loaded` the moment
-     * the heads carry a path, deliberately (`olai-plugin-vault`'s
-     * `directory.ts` on `manifest-fold-skew`), and the claims ride a cell of
-     * their own: for the frames in between, the paths are known and NO
-     * SUFFIX IS. A tab that knows no kind at all knows nothing about any
-     * file, which is the first frame rather than an answer about this one.
-     */
     const held = directory()
     if (held === undefined || held.standing() === "reading" || held.claims().byKind.size === 0) {
       return { line: "Loading…" }

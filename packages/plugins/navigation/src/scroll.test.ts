@@ -1,15 +1,3 @@
-/**
- * A clamped restore waits on the arriving page's layout, not on a clock from
- * the Back.
- *
- * `popstate` restores against the page being LEFT (`./reading.tsx`: the last
- * answer stands while the next is on the wire). The first attempt clamps to
- * that page's height, and a hang started at that instant expires while the
- * outline is still in flight — Darwin CI's 221px asked, 77px held. The hang
- * arms when the document GROWS. These cases are that seam, over a fake
- * document: the window APIs `./scroll.ts` actually calls, not a browser.
- */
-
 import { afterEach, expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
@@ -52,8 +40,7 @@ const page = () => {
     scrollTo: (top: number) => {
       y = Math.max(0, Math.min(top, maxY))
       // Chromium dispatches `scroll` at a rendering update, not inside
-      // `scrollTo`. The harness used to fire it synchronously, which
-      // exercised `assigning` and never `assignedTop`.
+      // `scrollTo`.
       queueMicrotask(() => fire("scroll"))
     },
     addEventListener: (type: string, fn: Listener) => {
@@ -129,9 +116,6 @@ const install = (it: Page): void => {
         })
       }
       observe() {
-        // Real `observe` delivers the size already there. Dropping that
-        // delivery is the `height <= lastHeight` filter; the first cut of
-        // this harness never called back here, so that guard was comment.
         this.#cb(
           [{ target: it.element } as unknown as ResizeObserverEntry],
           this as unknown as ResizeObserver,
@@ -174,7 +158,6 @@ const memory = (
 const tick = () => new Promise((go) => setTimeout(go, 15))
 const pastHang = () => new Promise((go) => setTimeout(go, SETTLE_MS + 50))
 
-/** Reader at 221 on the outline, then a zoomed page that can only hold 77. */
 const clamped = (
   body: (scroll: ReturnType<typeof createScrollMemory>, it: Page) => Promise<void> | void,
   ceilingMs?: number,
@@ -233,8 +216,6 @@ test("a clamped restore does not remember the clamp as the place the reader left
 
 test("growth of the standing page does not hang the restore", async () => {
   await clamped(async (_scroll, it) => {
-    // A late picture on the page being LEFT, not the swap. Hang must not
-    // arm, or an outline landing after SETTLE_MS re-loses the stream race.
     it.setMax(100)
     await pastHang()
     expect(it.y).toBe(100)
@@ -252,8 +233,6 @@ test("a shrink-then-grow that still cannot hold the place hangs, then stops", as
     expect(it.y).toBe(100)
     it.setMax(LEFT)
     await tick()
-    // The hang already ended: a later growth is a different page, not the
-    // arrival this restore was waiting on.
     expect(it.y).toBe(100)
   })
 })

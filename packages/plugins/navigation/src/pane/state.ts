@@ -4,8 +4,6 @@ import type { LivePane } from "../routing.tsx"
 import type { Route } from "../routes.ts"
 import { isLone, panesOf, type Layout, type Workspace, type WorkspaceRouting } from "../workspace.ts"
 
-/** Pane identity is local to a lane and never serialized. Each pane has narrow
- * signals: moving a neighbour cannot notify its route readers. */
 export function createPaneState(seed: Workspace, routes: WorkspaceRouting) {
   const [workspace, publish] = createSignal(seed)
   const make = (id: string, index: number, route: Route, width?: number) => {
@@ -29,8 +27,6 @@ export function createPaneState(seed: Workspace, routes: WorkspaceRouting) {
     const previous = held
     const unused = new Set(previous)
     const stable: Route[] = []
-    // Reserve address matches before positional fallbacks: a changed address
-    // must not steal the owner of an unchanged pane later in the list.
     const matches = incoming.map((pane, index) => {
       const old = keys ? previous.find(one => one.value.id === keys[index])
         : [previous[index], ...previous].find(one => one && unused.has(one) && sameRoute(one.value.route(), pane.route))

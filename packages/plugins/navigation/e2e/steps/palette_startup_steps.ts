@@ -11,7 +11,6 @@ Then("the palette input has keyboard focus", async function(this: OlaiWorld) {
 const heldPages = new WeakMap<OlaiWorld, { pending: Array<{send: () => void; fail: () => void}>; holding: boolean; node?: string }>();
 
 Given("requested page answers can be held", async function(this: OlaiWorld) {
-  // Other subscriptions recover normally; only page answers are withheld.
   const state: NonNullable<ReturnType<typeof heldPages.get>> = { pending: [], holding: false };
   heldPages.set(this, state);
   await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", client => {
@@ -41,12 +40,6 @@ Given("requested page answers can be held", async function(this: OlaiWorld) {
 });
 
 When("I open the node {string} through a held reconnect", async function(this: OlaiWorld, id: string) {
-  // Hash navigation needs no HTTP request: the header remains painted while
-  // Offline's real capture listener refuses every application shortcut.
-  //
-  // The ledger is told before the wire goes: the disconnection Chromium reports
-  // below is this scenario's own doing (`OlaiWorld.offlineFrom`), and the
-  // feature's closing `there should be no page errors` reads it that way.
   const state = heldPages.get(this)!;
   state.node = id;
   state.holding = true;
@@ -65,8 +58,6 @@ When("I open the node {string} through a held reconnect", async function(this: O
   try {
     await atPaint;
     await this.waitForFrame();
-    // Drain the helper's promise continuations after its actual paint barrier;
-    // no timeout, delayed network reply, or guessed hydration sleep is used.
     await new Promise<void>(resolve => setImmediate(resolve));
     assert.equal(returned, false, "opening must not report an interactive page behind the offline dialog");
   } finally {

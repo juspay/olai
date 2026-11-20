@@ -143,7 +143,6 @@ Feature: Levels in the command palette
     Then the palette option "plain" is chosen
     When I press "ArrowUp"
     Then the palette option "quiet" is chosen
-    # A prefix character inside a level is text: `+` is not read.
     When I type "say + > hello" into the palette
     Then the palette options are "plain, urgent, quiet"
     And the palette option "quiet" is chosen
@@ -189,9 +188,6 @@ Feature: Levels in the command palette
     And there should be no page errors
 
   Scenario: Typing, moving the choice and a submit going out keep what the level has drawn
-    # Each of these is a state change to show, not a new view: the options,
-    # their headings, the crumbs, the footer and its submit stay the same
-    # elements, and only their attributes and text follow.
     When the fixture opens the palette at "test-levels, test-note" with ""
     And I mark what the palette has drawn
     And I type "hold the same rows" into the palette
@@ -321,10 +317,6 @@ Feature: Levels in the command palette
     And there should be no page errors
 
   Scenario: A redraw keeps a level opened from rows that arrived late, with its text, option and submit
-    # The overlay is layout's, so switching layout off and on draws the palette
-    # again with the fixture left standing. What was open is remembered with
-    # the level it opened, so a level reached through rows a function lists
-    # later is not looked for again among rows that are not there yet.
     When the fixture opens the palette at "test-levels, test-late"
     Then the palette path is "test-levels, test-late"
     And the palette hint says "Rows arrive shortly"

@@ -48,9 +48,6 @@ Then("the unified destination row {string} is selected", async function(this: Ol
     async () => links().evaluateAll(found => found.some(el => el.closest("[data-node-id]")?.getAttribute("data-focused") === "true" || el.closest("[data-active]") !== null)),
     "destination row selected",
   ).catch(async () => {
-    // WHAT IT FOUND, because "the link is not there" and "the row it is in is
-    // not marked" are different failures and the message decided which one
-    // somebody went looking for.
     const seen = await links().evaluateAll(found => found.map(el => {
       const row = el.closest("[data-node-id]")
       return `${row?.getAttribute("data-node-id") ?? "no row"}:focused=${row?.getAttribute("data-focused") ?? "-"}`
@@ -110,8 +107,6 @@ Then("the unified {string} link leads to {string}", async function(this: OlaiWor
 Then("the unified {string} link leaves {string} to the browser", async function(this: OlaiWorld, surface: string, gesture: string) {
   const anchor = link(this, surface), before = this.page.url()
   const picked = await this.page.locator('[data-picked="true"]').count()
-  // Prevent the browser's actual tab creation only after all app handlers;
-  // record whether the app claimed the genuine modifier press first.
   await anchor.evaluate((element, gesture) => {
     element.ownerDocument.defaultView!.addEventListener(gesture === "middle" ? "auxclick" : "click", event => {
       (element.ownerDocument.defaultView as unknown as { linkClaimed: boolean }).linkClaimed = event.defaultPrevented

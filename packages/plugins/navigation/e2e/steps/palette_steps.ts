@@ -1,26 +1,3 @@
-/**
- * The ⌘K palette: opening it, what it lists, what it writes, what it asks and
- * what it said.
- *
- * Its own file because the palette is no longer a shell — the same move
- * `./menu_steps.ts` made away from `./outline_tree_steps.ts`, for the same
- * reason. It has op rows that write the directory, a question before the one
- * verb with a blast radius, a capture line that keeps the modal up on purpose,
- * and two moods to say things in.
- *
- * TONE is the thing these steps are careful about, exactly as the menu's are:
- * a refusal in the ops layer's own words and a remark from a write that landed
- * are drawn in one slot, and a scenario that could not tell them apart would
- * pass against a client that alarmed about a nudge. So `data-tone` is asserted
- * rather than a colour.
- *
- * The other care is that CHOOSING an op row must not assume the palette
- * closes: a write with something to say leaves it up, which is the whole of
- * the silent-errors promise here. `I pick the palette item` (which waits for
- * the modal to go) is kept for the rows that navigate; the writes use
- * `I choose … from the palette`.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -47,13 +24,9 @@ import {
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── opening it, and typing into it ─────────────────────────────────────
-
 When("I press the palette shortcut", async function (this: OlaiWorld) {
-  // `ControlOrMeta` is Playwright's own name for the platform modifier — Meta
-  // on Darwin, where Ctrl+K is kill-line, Control elsewhere — which is exactly
-  // the test `web/src/client/keys.ts` makes. The suite already presses chords
-  // that way (`I press "ControlOrMeta+z"`).
+  // `ControlOrMeta` is Playwright's name for the platform modifier: Meta on
+  // Darwin, Control elsewhere.
   await pressed(this, "ControlOrMeta+k");
 });
 
@@ -69,8 +42,6 @@ Then("the command palette is closed", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-/** The keyboard-shortcuts dialog, which the palette opens and which had no
- *  way out but its scrim until the one-stack work (`palette/Shortcuts.tsx`). */
 Then("the shortcuts are showing", async function (this: OlaiWorld) {
   await this.page
     .locator(SHORTCUTS)
@@ -84,47 +55,29 @@ Then("the shortcuts are put away", async function (this: OlaiWorld) {
   );
 });
 
-/** The palette's own way out for a pointer: a press OUTSIDE the sheet, which
- *  with a modal `<dialog>` lands on the browser's `::backdrop` and reaches
- *  nothing on the page at all — which is what `dismiss_stack.feature` asks it
- *  about. The step keeps its old name because the gesture is the same one;
- *  what changed is who paints the dim. */
 When("I press the palette scrim", async function (this: OlaiWorld) {
-  // ABOVE THE SHEET, measured rather than guessed: the backdrop fills the
-  // viewport and the sheet is somewhere in the middle of it, so a press is
-  // taken halfway between the top of the window and the top of the panel. A
-  // fixed corner would be a guess that the phone's sheet does not reach.
   const box = await this.page.locator(PALETTE).boundingBox();
   assert.ok(box !== null, "the palette is not on screen, so there is no outside to press");
   await this.page.mouse.click(box.x + box.width / 2, Math.max(1, box.y / 2));
   await this.waitForFrame();
 });
 
-/** Escape rather than the chord: a scenario that has just captured is holding
- *  a palette whose box has the caret, and ⌘K there would toggle it shut and
- *  make the step below it read as a race. This is also the gesture a person
- *  makes when they are done capturing. */
 When("I close the palette", async function (this: OlaiWorld) {
   await pressed(this, "Escape");
 });
 
-/** The palette's box, waited for — the one spelling of "how long a scenario
- *  gives the modal to appear", shared by every step that reaches into it. */
 const paletteBox = async (world: OlaiWorld) => {
   const input = world.page.locator(PALETTE_INPUT);
   await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return input;
 };
 
-/** Type into the palette box, waiting for it first — the one spelling every
- *  step that puts words in it is written in terms of. */
 const fillPalette = async (world: OlaiWorld, text: string) => {
   const input = await paletteBox(world);
   await input.fill(text);
   return input;
 };
 
-/** Fill without Enter — search runs as you type; Enter would pick a row. */
 When(
   "I type {string} into the palette",
   async function (this: OlaiWorld, text: string) {
@@ -132,7 +85,6 @@ When(
   },
 );
 
-/** The window `../support/atonce.ts` opens, at this door. */
 When(
   "I retype the palette as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {
@@ -140,9 +92,6 @@ When(
   },
 );
 
-/** ...and the POINTER half of the same window, which is never gated: the row
- *  is pressed while the list is still the last query's, and what it takes is
- *  the row a hand could see. */
 When(
   "I retype the palette as {string} and press the node row {string} at once",
   async function (this: OlaiWorld, text: string, id: string) {
@@ -167,10 +116,6 @@ When(
 Then(
   "the palette box holds {string}",
   async function (this: OlaiWorld, text: string) {
-    // WAITED FOR, not read once. What empties this box after a capture is the
-    // write landing, which is a round trip — and the step before this one waits
-    // a frame, which on a loaded runner is not the same thing. Reading once
-    // asserted on whichever frame the poll happened to catch.
     const box = this.page.locator(PALETTE_INPUT);
     await this.waitUntil(
       async () => (await box.inputValue()) === text,
@@ -180,11 +125,6 @@ Then(
   },
 );
 
-// ── the rows ───────────────────────────────────────────────────────────
-
-/** Every row's label, in the order they are drawn. The confirm's two buttons
- *  carry the same testid, so while a question is up these are its two ways
- *  out — which is what lets `I choose … from the palette` answer one. */
 const rowsOf = async (world: OlaiWorld): Promise<ReadonlyArray<string>> => {
   await world.page
     .locator(PALETTE)
@@ -205,8 +145,6 @@ Then(
 Then(
   "the palette does not offer {string}",
   async function (this: OlaiWorld, label: string) {
-    // Read after a frame rather than polled: the absence has to be true NOW,
-    // and waiting for it would pass on a palette that dropped the row later.
     await this.waitForFrame();
     const rows = await rowsOf(this);
     assert.ok(
@@ -216,9 +154,6 @@ Then(
   },
 );
 
-/** A palette NODE hit, gripped by address — not by visible label. CODE's
- *  rendered text contains the bold title, so hasText would assert both
- *  steps on the same row. */
 const paletteNode = (world: OlaiWorld, id: string) =>
   world.page.locator(`${PALETTE_ITEM}${attr("data-id", `hit-#${id}`)}`);
 
@@ -245,9 +180,6 @@ Then(
   },
 );
 
-/** A hit whose title is still the source it was written in wears the same
- *  waiting face a tree row and a document body do — one rule, so a palette
- *  cannot flash marks a page does not (`support/paints.ts`). */
 Then(
   "the palette item for node {string} is waiting illegibly",
   async function (this: OlaiWorld, id: string) {
@@ -277,14 +209,7 @@ Then(
 Then(
   "the palette lists the node {string}",
   async function (this: OlaiWorld, title: string) {
-    // A debounce and one server round trip sit between the keystroke and the
-    // row, so this waits rather than reads. Wait for THIS query's answer
-    // (`data-asked`) before gripping a row — a wait for any hit is a wait the
-    // previous search satisfies for the next.
     await answered(this, PALETTE, await (await paletteBox(this)).inputValue());
-    // A row's id is its ADDRESS, and a node's address is a bare fragment — so
-    // `hit-#` tells a node hit from a document row and from a shell item that
-    // happens to share a word.
     await this.page
       .locator(`${PALETTE_ITEM}[data-id^="hit-#"]`)
       .filter({ hasText: title })
@@ -296,10 +221,6 @@ Then(
 Then(
   "the palette lists the document {string}",
   async function (this: OlaiWorld, file: string) {
-    // Gripped by its `data-id` rather than by the text: the row's label is the
-    // document's TITLE, and the id is its address, which is the thing a
-    // scenario means. Wait for THIS query first, for `lists the node`'s
-    // reason — a leftover row from the query before is the same id.
     await answered(this, PALETTE, await (await paletteBox(this)).inputValue());
     await this.page
       .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
@@ -310,12 +231,6 @@ Then(
 Then(
   "the palette lists no document {string}",
   async function (this: OlaiWorld, file: string) {
-    // Wait for THIS query to have been answered, then HOLD the absence. One
-    // frame after the keystroke is still the previous search's rows, under
-    // load — the leftover is what "a date filter still lists a document"
-    // named. Asked of the row's own id rather than of the list's text, because
-    // a node hit may well NAME the file this step is claiming has no row of
-    // its own — a top-level node's place line is the outline it lives in.
     await answered(this, PALETTE, await (await paletteBox(this)).inputValue());
     const rows = await this.page
       .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
@@ -323,13 +238,6 @@ Then(
     assert.strictEqual(rows, 0, `the palette lists ${JSON.stringify(file)}`);
   },
 );
-
-// ── how much of the answer it drew ─────────────────────────────────────
-//
-// The ritual is `support/counted.ts`', shared with the header box's steps: one
-// line, one function in the client, one question here. What is the palette's
-// own is the door it is read INSIDE — the modal, so that a scenario says which
-// of the two doors it means even though both draw the line under one name.
 
 Then(
   "the palette found {string}",
@@ -345,8 +253,6 @@ Then(
   },
 );
 
-/** A row that NAVIGATES: it closes the palette, and waiting for that is what
- *  keeps the next step from racing the frame. */
 When(
   "I pick the palette item {string}",
   async function (this: OlaiWorld, label: string) {
@@ -358,35 +264,6 @@ When(
   },
 );
 
-/**
- * A row that WRITES, and the click's own RECEIPT.
- *
- * A frame is not an answer — `support/settling.ts`'s whole argument, one key
- * layer down — so this waits for the thing the palette DOES about the row
- * rather than for a repaint. There are exactly four, and every row this step
- * is pointed at produces one of them:
- *
- *   - the palette GOES — a write that landed with nothing to add;
- *   - it SAYS something — a refusal in the ops layer's own words, or a nudge;
- *   - it ASKS, or stops asking — the one verb with a question, and `Cancel`;
- *   - the BOX changes — the capture row, whose whole answer is the primed
- *     prefix and a caret after it.
- *
- * Without this the step after it is the first thing that waits, and the one
- * that reads rather than polls — `the palette does not offer …` — would be
- * asking before the click had landed.
- */
-/**
- * What the palette's box holds RIGHT NOW, or `null` when there is no box.
- *
- * The four conditions the wait below is made of are read one after another, so
- * the page moves underneath them: the palette can be gone by the time the
- * fourth is asked, and `inputValue` on a locator that matches nothing BLOCKS
- * for the default timeout instead of answering. That is a 30-second stall
- * inside a poll, reported as if the step itself had timed out — which is what
- * it did twice on a loaded runner before this, in two different scenarios,
- * while the thing it was waiting for had already happened.
- */
 const boxHolds = async (world: OlaiWorld): Promise<string | null> => {
   const box = world.page.locator(PALETTE_INPUT);
   if ((await box.count()) === 0) return null;
@@ -416,8 +293,6 @@ When(
   },
 );
 
-// ── the question, and what it said ─────────────────────────────────────
-
 Then(
   "the palette asks {string}",
   async function (this: OlaiWorld, question: string) {
@@ -427,16 +302,6 @@ Then(
   },
 );
 
-/**
- * WHERE THE KEYBOARD IS — asked of `document.activeElement`'s own `data-id`,
- * which is the fact the markup publishes about a row or a way out.
- *
- * A question nobody's keyboard can reach is a question only a mouse may
- * answer, and the palette's Tab trap made that literal until the confirm
- * learned to take the caret (review, 2026-08-14). So the caret is asserted
- * rather than assumed — a screen reader's reading of this panel is the focus
- * moving into it.
- */
 Then(
   "the palette's caret is on {string}",
   async function (this: OlaiWorld, id: string) {
@@ -451,23 +316,11 @@ Then(
         )) === id,
       `the palette's caret to be on ${JSON.stringify(id)}`,
     ).catch(async () => {
-      // WHERE IT ACTUALLY IS, because "not on the verb" and "on the box this
-      // panel opened with" are different bugs and the message decided which
-      // one somebody went looking for.
       assert.fail(`the palette's caret is on ${await where()}, not ${JSON.stringify(id)}`)
     });
   },
 );
 
-/**
- * TAB GOES ROUND AND COMES BACK, which is the claim — not how many stops
- * there are on the way. The cycle is the PLATFORM's now (a modal `<dialog>`
- * contains the keyboard; the hand-written trap that allowed exactly two
- * buttons is gone), so the number of stops is the panel's markup rather than
- * this app's rule, and a scenario that counted them would fail the day a row
- * gained a control. What must hold is both halves of containment: the caret
- * never leaves the modal, and every press eventually brings it back.
- */
 Then(
   "Tab walks the palette and comes back to {string}",
   async function (this: OlaiWorld, id: string) {
@@ -478,11 +331,6 @@ Then(
         const active = document.activeElement
         const dialog = document.querySelector("dialog[open]")
         return {
-          // The document ROOT is a stop the browser wraps through at the end
-          // of a modal's cycle — `document.body` holds the caret for one
-          // press and the next one is back inside. It is not the page: a
-          // control under the modal would be a named element, which is what
-          // this is really asking about.
           inside: active === null || active === document.body || active === document.documentElement
             || (dialog !== null && dialog.contains(active)),
           at: active?.getAttribute("data-id") ?? null,
@@ -499,8 +347,6 @@ Then(
   },
 );
 
-/** Back into the box on purpose — the only way to be typing while a question
- *  is up, and the setup for what Enter means there. */
 When("I click the palette box", async function (this: OlaiWorld) {
   await this.page.locator(PALETTE_INPUT).click();
 });
@@ -511,11 +357,6 @@ Then("the palette is not asking anything", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-/** What it SAID, in the mood it said it — through `../support/said.ts`, which
- *  is where "wait for the line, read it, check `data-tone`" is spelled for
- *  every surface in this app that says something about a write. Two steps
- *  rather than one with a word, because a refusal and a remark are read by
- *  different scenarios for different reasons. */
 Then(
   "the palette says {string}",
   async function (this: OlaiWorld, text: string) {
@@ -530,8 +371,6 @@ Then(
   },
 );
 
-// ── quick capture ──────────────────────────────────────────────────────
-
 When("I wait for the palette write to finish", async function (this: OlaiWorld) {
   await keysSettled(this);
 });
@@ -540,40 +379,11 @@ Then("the palette has no write response", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.locator(PALETTE_SAID).count(), 0);
 });
 
-/**
- * The whole gesture, as a person makes it: the `+` prefix, the line, Enter —
- * and then the palette's own answer, which is what makes a SECOND capture a
- * gesture rather than a race.
- *
- * The palette takes ONE WRITE AT A TIME (`palette/Palette.tsx`'s `sending`,
- * the date picker's rule), and a capture that arrives while the last one is
- * still out is dropped where it stands: no write, no sentence, nothing on
- * screen. The file having the first line does not close that window — the
- * server writes, publishes and only then answers, so a scenario that reads the
- * disk is reading a fact this TAB has not been told yet. Measured under load:
- * `A second capture goes into the inbox that now exists` was one of the
- * scenarios this suite dropped, on the second capture, as a fifteen-second
- * wait for a line nobody had written.
- *
- * The answer is the slot, either mood — the remark a landed capture makes
- * (`captured “…” to <file>`) or the ops layer's refusal — because both are set
- * in the `.then` of the round trip and neither is there while it is out. The
- * scenario next door already says this in words (`⌘Z takes back a capture`:
- * *the palette's own line rather than the disk … it is said in the answer that
- * files the inverse*); here it is the step's, so every caller gets it.
- */
 When(
   "I capture {string} from the palette",
   async function (this: OlaiWorld, line: string) {
     const input = await fillPalette(this, `+ ${line}`);
     await input.press("Enter");
-    // ONE WAIT, and it is the same one every key in this suite ends with. The
-    // remark is set in the `.then` of the round trip, and the count is held
-    // until that round trip has answered AND the frames after it are committed
-    // — a continuation of the answer runs as a microtask, long before the
-    // frames the release waits for. So this covers what the frame-then-poll
-    // pair was reaching for, without a poll that could find the LAST capture's
-    // remark and stop there.
     await keysSettled(this);
   },
 );

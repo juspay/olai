@@ -80,26 +80,11 @@ Feature: The second pane
     And there should be no page errors
 
   Scenario: A split restored from its address lands EVERY pane at its section
-    # A LANDING IS A FACT ABOUT A PANE, and this app kept exactly one for the
-    # whole workspace until it did not. The address is a LIST of routes and any
-    # number of them may name a section inside a page — but the first paint
-    # minted the FOCUSED pane's landing and nothing else's, so a two-pane link
-    # whose panes both named a heading opened one of them at its heading and the
-    # other at the top of its file. There was nothing to be done about it from
-    # the pane: it was one slot, and the pane that got it was whichever one had
-    # focus.
-    #
-    # THE SAME FILE IN BOTH, on purpose. Two panes of one document mint the same
-    # heading ids, so this also holds the half that says a landing is performed
-    # in the column it belongs to rather than in the first copy in document
-    # order (the kind row's page contribution).
     When I open the address "/s/kitchen-sink.md%23code/kitchen-sink.md%23lists"
     Then there are 2 panes
     And pane 0 is showing "/kitchen-sink.md#code"
     And pane 1 is showing "/kitchen-sink.md#lists"
-    # The focused pane, which is the half that always worked…
     And the document in pane 0 is scrolled to the heading "Code"
-    # …and the one that did not.
     And the document in pane 1 is scrolled to the heading "Lists"
     And there should be no page errors
 
@@ -187,34 +172,16 @@ Feature: The second pane
     Then the row "install" holds the caret
     And the address is exactly "/house.olai"
 
-  # THE DESTINATION IS ALREADY DRAWN SOMEWHERE ELSE, which is the false positive
-  # the mirror fix left one step out: a wait satisfied by ANY pane is satisfied
-  # before the pane the reader is in has moved. `mint` is a `garden.olai` record
-  # mirrored into `house.olai`, so zooming it to the right opens a pane whose
-  # drawn file is garden's while the reader stays in house's.
-  #
-  # `router.go` is `goIn(workspace().focus, next)` — a plain link navigates the
-  # pane you are in — so the sidebar click's destination is pane 0, and the wait
-  # behind it has to be about pane 0 and nothing else.
   Scenario: A sidebar click waits for the pane the reader is in, not for a neighbour already showing it
     Given I open the outline "house.olai"
     And I show the done nodes
     When I alt-click the zoom of "mint"
     Then there are 2 panes
     And pane 1 is focused
-    # Establish the neighbour before testing the sidebar click's own wait.
-    # Alt-click only waits for its gesture's frame, not the page subscription.
     And the focused pane is drawing the outline "garden.olai"
     When I focus pane 0
     Then pane 0 is already drawing the outline "house.olai"
     When I click the outline "garden.olai"
-    # READ ONCE: an assertion that waited could not tell a click step that
-    # established the arrival from one that returned early and let the app catch
-    # up while it looked. On an unloaded box this passes under either selector —
-    # a loopback reading lands inside the tick — so what this scenario pins is
-    # the PRECONDITION above, which is timing-free: the destination is already
-    # drawn in a pane that is not the reader's, which is exactly the state that
-    # satisfied the old wait at step entry.
     Then pane 0 is already drawing the outline "garden.olai"
     And pane 0 is showing "/garden.olai"
     And there should be no page errors

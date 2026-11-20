@@ -1,6 +1,3 @@
-/** History and focus activate without layout or renderer. A separate renderer
- * integration owns content registrations; layout withdrawal leaves history and
- * the focused location alive. Each reactivation creates fresh subscriptions. */
 import { references } from "olai-plugin-outlines/references"
 import { nodeTargets } from "./nodes.ts"
 import { followLinks } from "./links.ts"
@@ -52,14 +49,8 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
     }
   })), stop => Effect.sync(stop))
   for(const start of [followKeys, protectComposition]) yield* Effect.acquireRelease(Effect.sync(start),stop=>Effect.sync(stop))
-  // THE PAGE'S GESTURE ARBITER, minted here and OFFERED — one per activation,
-  // rather than a module variable in `@olai/web`'s own door that another row
-  // read across the wall (`./index.ts`'s `Gestures`).
   const ghosts=yield* Effect.acquireRelease(Effect.sync(()=>createGhost(window)),state=>Effect.sync(state.dispose))
   yield* Effect.acquireRelease(Effect.sync(scopePaletteState),stop=>Effect.sync(stop))
-  // WHAT A SIBLING ROW MAY DO TO THE BOX — offered rather than reachable
-  // through a module variable in a declared door (`./index.ts`'s
-  // `PaletteControl`, `./palette/state.ts`).
   yield* (yield* Offers).own("palette",():PaletteControl=>({
     open:paletteOpen, asking:paletteAsking, show:openPalette, showAt:openPaletteAt, ask:askInPalette, dropQuestion, close:closePalette,
   }))
@@ -79,42 +70,18 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   yield* offers.own("links", () => ({ File }))
   yield* offers.own("gestures", () => ({ swallowGhost: ghosts.swallow }))
 }) })
-/**
- * WHAT THIS ROW READS OF THE RENDERER — a COMPONENT, because the row is not
- * allowed to want it.
- *
- * The row's own header is the argument: history and focus activate without a
- * renderer, so naming {@link Faces} or the renderer's own service on the ROW
- * would hold navigation itself `waiting` on a tab that draws nothing. What
- * genuinely depends on the renderer is two readings — which URLs the mounted
- * plugins claim, and what is contributed at a location — and it is those
- * readings that wait, which is the audit's rule that only the integration using
- * a departed service stops. With no renderer there are no contributed routes
- * and no contributed pages, which is the same empty answer both settled before.
- */
 export const components = {
  nodes: definePlugin({ name: "nodes", needs: [references], apply: Effect.gen(function*() {
    const nodes = yield* references
    yield* Effect.acquireRelease(Effect.sync(() => nodeTargets.hold(nodes)), stop => Effect.sync(stop))
  }) }),
- /** The matcher, DECLARED — a component of its own so the palette keeps opening
-  *  and keeps saying *no matcher* when the row is absent
-  *  (`./palette/reading.ts`). */
  matcher:definePlugin({name:"matcher",needs:[readings],apply:Effect.gen(function*(){
   const reading=yield* readings
   yield* Effect.acquireRelease(Effect.sync(()=>holdReading(reading)),stop=>Effect.sync(stop))
  })}),
  renderer:definePlugin({name:"renderer",needs:[Faces,rendererSlots],apply:Effect.gen(function*(){
- // THIS COMPONENT'S OWN HOLD, not one shared with the palette below: the two
- // stop at different moments, and a holder cleared by the departing one is a
- // holder the survivor is still reading through (`./faces.ts`).
  yield* holdRouteFaces(yield* Faces)
  const slots=yield* rendererSlots
- // This integration owns the file-page location under the content container
- // (PageView dispatches the contributed file pages), and it HOSTS the
- // self-drawn plugin pages the claim table below settles: one component for
- // the table and its host, so a page and the claim that names it come and go
- // together. Node pages are outlines' to host (`./SelfDrawnPage.tsx`).
  yield* slots.contribute(content,{matches:selfDrawn,Page:SelfDrawnPage},{children:[pages]})
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
@@ -126,11 +93,8 @@ export const components = {
  yield* Effect.acquireRelease(Effect.sync(()=>holdFiles(files)),stop=>Effect.sync(stop))
 })}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,appShell],apply:Effect.gen(function*(){
  yield* holdPaletteFaces(yield* Faces)
- // The two panel verbs and the breakpoint the palette spends
- // (`./palette/shell.ts`).
  const geometry=yield* appShell
  yield* Effect.acquireRelease(Effect.sync(()=>holdShell(geometry)),stop=>Effect.sync(stop))
- // ...and the clock a `date:` hint is read against (`./palette/clock.ts`).
  const clock=yield* Clocks
  yield* Effect.acquireRelease(Effect.sync(()=>holdClocks(clock)),stop=>Effect.sync(stop))
  const nav=yield* navigation

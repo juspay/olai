@@ -1,7 +1,6 @@
 import { intentOf } from "@olai/surface"
 import { follow, targetOf, type NavigationRouter } from "./routing.tsx"
 
-/** One activation-owned listener; Solid's document handlers settle the press first. */
 export const followLinks = (navigation: NavigationRouter): (() => void) => {
   const click = (event: MouseEvent) => {
     const intent = intentOf(event)

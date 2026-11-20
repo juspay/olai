@@ -1,14 +1,3 @@
-/**
- * WHAT THE PALETTE PUTS IN FRONT OF A PERSON — the rows, the modes and which
- * prefix wins — beside the module that decides it.
- *
- * It was `@olai/web`'s `client/palette/items.test.ts`, in a directory that held
- * this bench and no palette: the box became this row's and its test did not
- * follow, so the boot package went on spelling `olai-plugin-navigation` three
- * times. `@olai/bundle`'s `fence.test.ts` reads that as a general package naming
- * a plugin, which is the one thing it holds an equality against.
- */
-
 import { expect, test } from "bun:test"
 
 import { DocumentPath, type NodeHit, NodeId } from "@olai/format"
@@ -19,15 +8,10 @@ import { atFile, atNode } from "../routes.ts"
 import type { AppChord } from "../slots.ts"
 import { boxOf, chordsIn, prefixesIn, type PalettePrefix, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
 
-/** A face hung, with the plugin's own word beside it — the shape
- *  `@olai/web`'s `client/plugins/runtime.ts` `hung` reads a list slot back as. */
 const hung = <T,>(plugin: string, face: T): Hung<T> => ({ plugin, face })
 
-/** The one every prefix test is written against: an adapter holding `+`. */
 const PREFIX: PalettePrefix = { value: "+", label: "append", empty: "type text", testid: "append", after: "+ ", run: async () => ({ tone: "aside", text: "appended" }) }
 
-/** A hit on a record, with the address every hit carries. Ancestor ids default
- *  to none — the cases about the place line name them where they need them. */
 const node = (fields: Omit<NodeHit, "at" | "pathIds"> & { readonly pathIds?: ReadonlyArray<string> }): NodeHit => ({
   at: { kind: "node", id: NodeId.make(fields.id) },
   pathIds: [],
@@ -44,15 +28,12 @@ test("filter matches label and search haystack", () => {
   expect(filterItems("reset sidebar").map((i) => i.id)).toEqual(["reset-sidebar-width"])
 })
 
-// ⌘J and its row left with the chat dock: nothing in the palette opens an
-// agent panel any more, and nothing still answers to its old words.
 test("no row toggles an agent panel", () => {
   expect(SHELL_ITEMS.some((i) => i.id === "panel-agent")).toBe(false)
   expect(filterItems("toggle agent panel")).toEqual([])
   expect(SHELL_ITEMS.find((i) => i.id === "reset-sidebar-width")?.label).toBe("Reset sidebar width")
 })
 
-/** A document row names its own file and opens it. */
 test("a document hit becomes a row that opens the document", () => {
   const item = hitItem({
     at: { kind: "document", path: DocumentPath.make("notes/cabinets.md") },
@@ -61,9 +42,6 @@ test("a document hit becomes a row that opens the document", () => {
   }, atOnce)
   expect(item.label).toBe("Cabinets")
   expect(item.place).toEqual({ file: "notes/cabinets.md", crumbs: [] })
-  // The face title renders like every title: markdown and `#tags` styled and
-  // hued (`renderTitle`), and relative pictures resolve against the document's
-  // own directory — the same contract a node's title has about its outline.
   expect(item.from).toBe("notes/cabinets.md")
   expect(item.action).toEqual({
     kind: "route",
@@ -82,16 +60,11 @@ test("a search hit becomes a row that jumps to the node", () => {
   }), atOnce)
   expect(item.label).toBe("pick the hinges")
   expect(item.from).toBe("house.olai")
-  // The place is a LINE OF ITS OWN, never an inline hint: an ancestor title
-  // is somebody's prose, and beside the title it starved it to one word per
-  // line and scrolled the palette sideways.
   expect(item.hint).toBeUndefined()
   expect(item.action).toEqual({ kind: "route", route: atNode("hinges") })
 })
 
 test("the place carries the whole path, outermost first", () => {
-  // The line decides how to split it: the middle is all but the last crumb,
-  // the nearest is the last. There is no second, joined encoding to drift.
   const item = hitItem(node({
     id: "hinges",
     title: "pick the hinges",
@@ -134,12 +107,8 @@ test("a node at the top level is placed by its file", () => {
   expect(top.place).toEqual({ file: "errands.olai", crumbs: [] })
 })
 
-/** A second adapter's prefix, for the tests about more than one. */
 const TILDE: PalettePrefix = { ...PREFIX, value: "~", label: "note", testid: "note", after: "~ " }
 
-/** A serve with no palette adapter offering a prefix — which is what a policy
- *  with all rows off produces — has none, so the character is ordinary text and
- *  the box goes on filtering the rows with it. */
 test("with no adapter offering it, a prefix character is just text", () => {
   expect(modeOf("+ buy milk")).toEqual({ kind: "filter" })
   expect(modeOf("+", [])).toEqual({ kind: "filter" })
@@ -155,14 +124,11 @@ test("a `+` line is a capture", () => {
 test("anything else filters the list, and a prefix is only ever the first character", () => {
   expect(modeOf("toggle", [PREFIX, TILDE])).toEqual({ kind: "filter" })
   expect(modeOf("", [PREFIX, TILDE])).toEqual({ kind: "filter" })
-  // A `~` or a `+` INSIDE the line is text, not a mode.
   expect(modeOf("not ~ this", [PREFIX, TILDE])).toEqual({ kind: "filter" })
   expect(modeOf("2 + 2", [PREFIX, TILDE])).toEqual({ kind: "filter" })
 })
 
 test("the box is doing exactly one thing, whichever prefix opened it", () => {
-  // One value rather than one nullable string per prefix, so "noting AND
-  // capturing" is not a state anything downstream has to not be in.
   expect(modeOf("~ plus a + in it", [PREFIX, TILDE])).toEqual({
     kind: "prefix", prefix: TILDE,
     text: "plus a + in it",
@@ -173,11 +139,6 @@ test("the box is doing exactly one thing, whichever prefix opened it", () => {
   })
 })
 
-/** THE FIRST ADAPTER TO CLAIM A CHARACTER KEEPS IT, and the second is skipped
- *  out loud rather than quietly shadowing it — a `+` that captured on one serve
- *  and did something else on another is the silent disagreement the check
- *  exists to refuse. The list arrives in the bundle's order, so the winner is
- *  `olai.yml`'s decision rather than the mount race's. */
 test("two adapters claiming one prefix: the first keeps it", () => {
   const warned = console.warn
   const warnings: Array<string> = []
@@ -186,7 +147,6 @@ test("two adapters claiming one prefix: the first keeps it", () => {
     const taken: PalettePrefix = { ...PREFIX, label: "capture elsewhere", testid: "elsewhere" }
     const kept = prefixesIn([{ owner: "capture", value: PREFIX }, { owner: "other", value: taken }])
     expect(kept).toEqual([PREFIX])
-    // ...and the capture still means capture.
     expect(modeOf("+ buy milk", kept)).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain("other")
