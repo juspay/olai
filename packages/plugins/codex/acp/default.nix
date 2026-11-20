@@ -1,15 +1,8 @@
-# The Codex plugin's complete executable side: one npm pin, the native Codex
-# binary that pin resolves, and the ACP wrapper olai spawns. It lives with the
-# plugin because neither its release clock nor its platform layout is shared by
-# the patched Claude/Pi adapter bundle in nix/acp-agent.nix.
 { lib, stdenv, buildNpmPackage, fetchFromGitHub, fetchpatch, makeWrapper, nodejs }:
 
 let
   adapterVersion = "1.13.1";
-  codexVersion = "0.156.1"; # resolved by this adapter release's package-lock
-  # The optional npm package and the native binary inside it use different
-  # platform vocabularies. One table keeps the pair atomic and makes an
-  # unsupported host fail at evaluation rather than fall into a Darwin branch.
+  codexVersion = "0.156.1";
   codexPlatforms = {
     "x86_64-linux" = { npm = "linux-x64"; target = "x86_64-unknown-linux-musl"; };
     "aarch64-linux" = { npm = "linux-arm64"; target = "aarch64-unknown-linux-musl"; };
@@ -30,8 +23,6 @@ buildNpmPackage {
   };
   npmDepsHash = "sha256-jXXvfg2bPZlvkNBZUw3ptpoOy9wOcvl2B8J0HnpX79c=";
 
-  # Upstream PR #441: a steer that loses the completion race leaves its
-  # message with the host, which owns the next prompt and its completion.
   patches = [
     (fetchpatch {
       name = "codex-steering-idle-fallback.patch";

@@ -78,7 +78,6 @@ describe("Codex MCP startup reports", () => {
   })
 })
 
-// The e2e agent emits these same adapter fixtures.
 import { announced, wrapped } from "./testlib.ts"
 
 test("MCP display reads this adapter's announcement and completion", () => {

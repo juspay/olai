@@ -19,27 +19,15 @@ Feature: Signing in to Codex from inside olai
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"
     And the panel offers a sign-in
-    # NOBODY IS SIGNED IN, and the fake says so: the chooser names no current
-    # account rather than claiming one over the missing signature.
     And the sign-in names no current account
     And the sign-in offers "chat-gpt-device-code"
-    # AN `env_var` METHOD IS NOT OFFERED: a credential box is a feature this
-    # panel does not have, and a button that could not finish what it started
-    # would be worse than no button.
     And the sign-in does not offer "api-key"
     When I press the sign-in for "chat-gpt-device-code"
     Then the card sends them to "chatgpt.com"
     And the card links to "https://chatgpt.com/device"
     And the card says "Sign in to ChatGPT and enter this code: WXYZ-12345"
     When the person finishes signing in
-    # NO "THE CARD IS DONE WITH" HERE, and its absence is the point: the agent
-    # answers the request the moment its own login lands, so the row goes — with
-    # the card in it — rather than ever drawing the completed state. That state
-    # belongs to a card nobody's sign-in is waiting on, which is the scenario
-    # the Claude feature drives (an MCP server's OAuth, in a conversation).
     Then the panel offers no sign-in
-    # THE CONVERSATION OPENS ITSELF once the agent has what it was missing, and
-    # the face that said it could not be opened goes with it.
     And the panel shows no such refusal
     And the agent is idle
 
@@ -51,7 +39,6 @@ Feature: Signing in to Codex from inside olai
     When I open the "codex" agent on node "lane-fresh"
     And the node agent's fold is ready
     Then the agent line says who is signed in as "ChatGPT Plus · you@example.com"
-    # THE CHIP OPENS THE CHOOSER and names the account it would change.
     When I press the account in the agent line
     Then the panel offers a sign-in
     And the sign-in names the current account "ChatGPT Plus · you@example.com"
@@ -59,8 +46,6 @@ Feature: Signing in to Codex from inside olai
     Then the card sends them to "chatgpt.com"
     When the person finishes signing in
     Then the panel offers no sign-in
-    # THE DEVICE-CODE SIGN-IN IS THE AGENT'S OWN, and it reports who it became:
-    # the chip moves without either tab asking.
     And the agent line says who is signed in as "ChatGPT Plus · signed-in@example.com"
 
   @signin
@@ -97,9 +82,6 @@ Feature: Signing in to Codex from inside olai
     Then the card sends them to "chatgpt.com"
     When I cancel the sign-in
     Then the panel offers no sign-in
-    # The agent's own answer to a cancelled login is a refusal, and it must not
-    # put the row back: the press is what a person meant, and the row went when
-    # they made it. A second attempt proves the first is over.
     When I type "/login" into the chat
     And I send the chat message
     And I press the sign-in for "chat-gpt-device-code"
@@ -119,18 +101,10 @@ Feature: Signing in to Codex from inside olai
     And I send the chat message
     And I press the sign-in for "chat-gpt-device-code"
     Then the card sends them to "chatgpt.com"
-    # THE SCOPE GOING AWAY MID-LOGIN. The engine is switched off — the gesture
-    # that actually stops the scope; closing the agent releases the node's
-    # binding and leaves it to be evicted — and what the panel can be held to is
-    # its own face: no row, because the agent it belonged to is gone.
     When I open the plugins panel
     And I switch the plugin "codex" off
     Then the panel offers no sign-in
-    # ... AND THE ACCOUNT GOES WITH THE PROCESS: the chip described a
-    # subprocess that is now stopped.
     And the agent line names no account
-    # Back on, for the scenarios after this one: the switch is remembered by the
-    # scratch vault. The agent the card belonged to does not come back with it.
     When I switch the plugin "codex" on
 
   @signin

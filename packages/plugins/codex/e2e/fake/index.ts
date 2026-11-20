@@ -1,12 +1,3 @@
-/**
- * CODEX'S FAKE DESCRIPTOR — the one fact this plugin contributes to the
- * harness fold (section 13.3). `adapter.exe` is this package's scripted
- * executable, resolved here because this engine owns its own path; `env`
- * turns the harness's `@agent-stored` flag into the stored-sessions env this
- * engine's core reads. (Claude's descriptor contributes the same variable on
- * the same rule, which is fine — the wrapped CLI a scenario isn't pointed at
- * never boots, and both rows sharing the core means both read the one flag.)
- */
 import { resolve } from "node:path";
 import type { Fake } from "@olai/tests/harness/fake.ts";
 
@@ -18,11 +9,6 @@ export const fake: Fake = {
   },
   env: ({ stored }): Readonly<Record<string, string>> => ({
     ...(stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
-    // THE OPERATOR'S CONTRARY CONFIG, on olai's own environment — a
-    // user-level `~/.codex/config.toml` with Codex's own memory ON, plus
-    // another key that must survive the overlay. The fake's `memory` answer
-    // proves this engine's `at` merge won over it: memory off, the other key
-    // intact — the same rule `agent.ts`'s env-wins test pins for claude.
     CODEX_CONFIG: JSON.stringify({ features: { memories: true }, model: "gpt-5" }),
   }),
 };

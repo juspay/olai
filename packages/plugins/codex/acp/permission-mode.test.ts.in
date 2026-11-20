@@ -1,8 +1,3 @@
-/** Runs inside the pinned codex-acp source tree (see default.nix).
- * The .in suffix keeps Bun from discovering this Vitest-only build input.
- * Only authentication/session metadata and the Codex transport are mocked.
- * The adapter's mode selection, prompt mapping and turn runner are real.
- */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCodexMockTestFixture, createTestModel } from "../acp-test-utils";
 import { AgentMode } from "../../AgentMode";
@@ -36,7 +31,6 @@ describe("Olai permission preset contract", () => {
                 vi.spyOn(client, "newSession").mockResolvedValue(metadata);
                 vi.spyOn(client, "loadSession").mockResolvedValue({
                     ...metadata,
-                    // No history or file reads are needed for this mode contract.
                     thread: { id: "session-id", turns: [], path: null, name: null } as any,
                 });
                 if (opening === "new") {
@@ -48,7 +42,6 @@ describe("Olai permission preset contract", () => {
                 await agent.setSessionMode({ sessionId: "session-id", modeId: policy.id });
                 const state = agent.getSessionState("session-id");
                 expect(state.agentMode.sandboxMode).toBe(policy.sandboxMode);
-                // Avoid unrelated automatic title generation after the test turn.
                 state.titleGen = undefined;
                 const turn = { id: "turn-id", items: [], status: "completed" as const, error: null };
                 const start = vi.spyOn(appServer, "turnStart").mockImplementation(async () => {

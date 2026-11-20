@@ -1,10 +1,3 @@
-/**
- * OpenAI's Blossom mark, from the official openai/openai-cookbook asset
- * `examples/agents_sdk/deployment_manager/frontend/src/openai-logomark.svg`.
- * The path is byte-for-byte the supplied 320-unit drawing; only the enclosing
- * scale fits it into core's 16-unit agent-mark box. `currentColor` is the
- * source asset's own fill, so it follows olai's line colour in either theme.
- */
 import type { JSX } from "solid-js"
 
 export const CodexMark = (): JSX.Element => (

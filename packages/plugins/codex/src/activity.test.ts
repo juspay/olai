@@ -1,12 +1,3 @@
-/**
- * Codex's AIR v1 words, over values — the readings that used to sit in
- * `@kolu/acp` and belonged here all along.
- *
- * The CHANNEL they ride is general and is asserted through a real SDK
- * connection in `olai-plugin-chat`; what is asserted here is the only part
- * that is codex's: which five `sessionUpdate` kinds mean what, and that a
- * payload missing what its kind needs is left alone rather than guessed at.
- */
 import { expect, test } from "bun:test"
 
 import { activityIn, AIR } from "./activity.ts"
@@ -47,8 +38,6 @@ test("a payload missing what its kind needs is not a lane anybody drew", () => {
 })
 
 test("a REQUEST is never one of these, however its update is spelled", () => {
-  // The adapter's five words ride notifications. A request carrying one is a
-  // message the SDK must still answer, not a lane.
   expect(activityIn({
     ...update({ sessionUpdate: "subagent_spawned", subagentSessionId: "child", name: "Explorer", task: "inspect" }),
     id: 1,
