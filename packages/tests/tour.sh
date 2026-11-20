@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Run through `just website-tour`, which builds the client and enters the
-# `.#e2e` shell that has Playwright's browsers.
 set -euo pipefail
+
+if [ -z "${PLAYWRIGHT_BROWSERS_PATH:-}" ]; then
+  echo "tour.sh needs Playwright's browsers: run it with just website-tour" >&2
+  exit 2
+fi
 
 cd "$(dirname "$0")"
 . support/serve.sh
