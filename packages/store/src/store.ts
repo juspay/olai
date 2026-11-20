@@ -135,12 +135,12 @@ export const make = <F, S, E>(
     const proved = (stamps: ReadonlyMap<string, Disk.Stamp>) =>
       Effect.flatMap(
         Clock.currentTimeMillis,
-        (at) => Ref.set(standing, { at, stamps }),
+        (at) => Ref.set(standing, { provedAt: at, stamps }),
       )
 
-    const settled = Effect.flatMap(
+    const provedUnchanged = Effect.flatMap(
       Clock.currentTimeMillis,
-      (at) => Ref.update(standing, (before) => ({ ...before, at })),
+      (at) => Ref.update(standing, (before) => ({ ...before, provedAt: at })),
     )
 
     const said = yield* Ref.make<string | null>(null)
@@ -170,7 +170,7 @@ export const make = <F, S, E>(
         const since = yield* Ref.updateAndGet(moved, (before) => absorb(before, found))
         const held = yield* SubscriptionRef.get(snapshot)
         const outcome = already !== undefined &&
-            Probe.sameDecoded(already.files, found.files)
+            Probe.identicalDecodedInOrder(already.files, found.files)
           ? already.outcome
           : options.codec.validate(found.files, sinceOf(held, since))
         if (Result.isFailure(outcome)) {
@@ -185,7 +185,6 @@ export const make = <F, S, E>(
           removed: [...since.removed],
         }))
         yield* Ref.set(moved, NOTHING_MOVED)
-        // THE CURRENCY AXIS, moved with the value and never without it.
         yield* proved(found.stamps)
         yield* clearErrors
         return Result.succeed(next as Snapshot<S>)
@@ -195,7 +194,7 @@ export const make = <F, S, E>(
     const cycle = Effect.tapError(
       Effect.flatMap(
         probe.run(),
-        (found) => found === null ? settled : Effect.asVoid(publish(found)),
+        (found) => found === null ? provedUnchanged : Effect.asVoid(publish(found)),
       ),
       sayUnreadable,
     )
@@ -204,10 +203,7 @@ export const make = <F, S, E>(
     const refresh = (freshness: Vintage.Freshness) =>
       freshness === "cheap" ? cycled : gate.withPermit(
         Effect.gen(function*() {
-          // The forget is inside the same permit the probe holds: a watcher-triggered
-          // cycle interleaved between the forget and the look would re-cache exactly
-          // the stamps that were just dropped.
-          yield* probe.forget((yield* probe.current).keys())
+          yield* probe.forgetStamps((yield* probe.current).keys())
           yield* probe.revalidate
           yield* cycle
         }),
@@ -225,12 +221,11 @@ export const make = <F, S, E>(
             else writes.push({ path: change.path, contents: change.contents })
           }
 
-          // FIRST, and before anything is compared.
           yield* cycle
 
           const drifted = yield* probe.drifted(paths)
           if (drifted.length > 0) {
-            yield* probe.forget(drifted)
+            yield* probe.forgetStamps(drifted)
             yield* cycle
           }
 
@@ -264,18 +259,21 @@ export const make = <F, S, E>(
           const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
           const stopped = options.codec.stopping === undefined
             ? refused
-            : options.codec.stopping(judged.outcome, paths, current.value)
+            : options.codec.stopping({
+              candidateOutcome: judged.outcome,
+              writtenPaths: paths,
+              standingValue: current.value,
+            })
           if (stopped !== null) return Result.fail(stopped)
           if (refused !== null) {
-            const settled = paths.every(
-              (path) => !outstanding.changed.has(path) && !outstanding.removed.has(path),
+            const basePathsMoved = paths.some(
+              (path) => outstanding.changed.has(path) || outstanding.removed.has(path),
             )
             const alreadyBroken = (yield* SubscriptionRef.get(errors)) !== null
-            if (!settled || !alreadyBroken) return Result.fail(refused)
+            const landingIntoABrokenDirectory = alreadyBroken && !basePathsMoved
+            if (!landingIntoABrokenDirectory) return Result.fail(refused)
           }
 
-          // Every file staged before any is renamed: a write that cannot be
-          // written at all must fail with the destinations untouched.
           const staged: Array<{ readonly from: string; readonly to: string }> = []
           yield* Effect.onExit(
             Effect.forEach(writes, (change) =>
@@ -288,15 +286,11 @@ export const make = <F, S, E>(
                 : Effect.forEach(staged, ({ from }) => disk.discard(from)),
           )
           for (const { from, to } of staged) yield* disk.publish(from, to)
-          // The unlinks happen beside the publishes, one per removal, AFTER
-          // every staged write has landed.
           for (const path of removals) yield* disk.remove(path)
 
-          // Only WRITE paths: a removal's stamp is the probe's sole evidence the
-          // file was ever there.
-          yield* probe.forget(writes.map((change) => change.path))
+          yield* probe.forgetStamps(writes.map((change) => change.path))
           const reread = yield* probe.run(promised)
-          if (reread === null) yield* settled
+          if (reread === null) yield* provedUnchanged
           const published = reread === null
             ? Result.succeed(current)
             : yield* publish(reread, judged)
@@ -325,8 +319,6 @@ export const make = <F, S, E>(
       Effect.gen(function*() {
         yield* dirty.await
         yield* Effect.sleep(options.settle ?? DEFAULT_SETTLE)
-        // Close the latch AFTER the settle delay, so every trigger that arrived
-        // during it is absorbed into this probe.
         yield* dirty.close
         yield* Effect.catchCause(
           cycled,
@@ -335,13 +327,6 @@ export const make = <F, S, E>(
       }),
     ).pipe(Effect.forkScoped)
 
-    // LAST, and that order is the point: the watcher is armed first, so the
-    // only changes it can miss are ones that happened before it — and this
-    // probe is what reads those. Boot the other way around and a save landing
-    // between the read and the watch is invisible until the backstop.
-    //
-    // The CHEAP look, because the stamp table it would forget is empty: a boot
-    // reads every file whichever class is asked for.
     yield* cycled
 
     const body = (path: string) => Effect.flatMap(
@@ -349,36 +334,6 @@ export const make = <F, S, E>(
       found => found ? disk.read(path) : Effect.succeed(null),
     )
 
-    /**
-     * ONE READ ANSWERED — the standing set, and the vintage the caller's class
-     * entitles it to.
-     *
-     * THE ORDER OF THE FIRST TWO LINES IS LOAD-BEARING. The proof is taken
-     * before the value, so a publish landing between them makes the answer
-     * NEWER than its vintage claims and never older. Both readings are atomic
-     * on their own and there is no permit here to make them one — which is the
-     * point — so the arrangement is to be wrong only in the direction that
-     * cannot hurt: an age that overstates is a reader looking harder than it
-     * needed to, and an age that understates is the lie this whole change
-     * exists to make unspellable.
-     *
-     * THE `verified` ARM TAKES NO PERMIT and reaches nothing that could.
-     * {@link Vintage.check} is handed the disk, the codec's `match` and the
-     * standing record, and the module it lives in has no way to name the
-     * semaphore at all. So a cycle wedged behind a permit — a commit that
-     * cannot finish, a fiber that died holding it — cannot delay this call and
-     * cannot make it answer `Confirmed`: the walk is the asker's own, and what
-     * it finds is measured against stamps the wedged loop has not been able to
-     * move.
-     *
-     * A CONFIRMED LOOK IS A PROOF, so it advances the standing instant — the
-     * next `cheap` reader inherits an age this fiber earned honestly, and a
-     * directory nobody is writing to does not have to re-walk itself per
-     * question to look current. It does NOT touch the stamp table: the loop's
-     * cache is the loop's, and a read that quietly re-cached what it saw would
-     * be a second publisher with no permit, which is exactly the thing this
-     * door promises not to be.
-     */
     const read = (freshness: Vintage.Freshness): Effect.Effect<Aged<S>> =>
       Effect.gen(function*() {
         const held = yield* Ref.get(standing)
@@ -388,9 +343,8 @@ export const make = <F, S, E>(
           : yield* Vintage.check(disk, options.codec.match, held)
         const now = yield* Clock.currentTimeMillis
         if (proof._tag === "Confirmed") {
-          // ONLY IF NOTHING PUBLISHED WHILE THE LOOK WAS RUNNING.
           yield* Ref.update(standing, (latest) =>
-            latest === held ? { ...held, at: now } : latest)
+            latest === held ? { ...held, provedAt: now } : latest)
         }
         return { vintage: Vintage.vintageOf(held, now, proof), snapshot: value }
       })

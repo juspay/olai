@@ -20,10 +20,10 @@ export const sameStamp = (a: Stamp, b: Stamp): boolean =>
   a.mtime === b.mtime && a.size === b.size
 
 export interface Disk {
-  readonly listing: (
+  readonly listingArmingWatchers: (
     match: (path: string) => boolean,
   ) => Effect.Effect<ReadonlyMap<string, Stamp>, PlatformFailure>
-  readonly survey: (
+  readonly listingOnly: (
     match: (path: string) => boolean,
   ) => Effect.Effect<ReadonlyMap<string, Stamp>, PlatformFailure>
   readonly read: (path: string) => Effect.Effect<string | null, PlatformFailure>
@@ -36,7 +36,6 @@ export interface Disk {
     path: string,
   ) => Effect.Effect<void, PlatformFailure>
   readonly discard: (staged: string) => Effect.Effect<void>
-  /** The caller (the gate) puts it AFTER the last publish. */
   readonly remove: (path: string) => Effect.Effect<void, PlatformFailure>
   readonly resolve: (path: string) => string
   readonly watch: Stream.Stream<void, PlatformFailure>
@@ -73,7 +72,7 @@ export const make = (
 
     let covering: Covering | null = null
 
-    const cover = (directory: string): Effect.Effect<void> =>
+    const armWatcher = (directory: string): Effect.Effect<void> =>
       Effect.suspend(() => {
         const live = covering
         if (live === null || live.covered.has(directory)) return Effect.void
@@ -88,13 +87,7 @@ export const make = (
             fs.watch(absolute(directory), { recursive: true }),
             () => Queue.offer(live.wake, undefined),
           ).pipe(
-            // Guarded on identity, because a path that left and came back has a
-            // newer scope in the map and this fibre must not take it out.
-            Effect.onExit(() =>
-              Effect.sync(() => {
-                if (live.covered.get(directory) === scope) live.covered.delete(directory)
-              })
-            ),
+            Effect.onExit(() => uncoverIfStillOurs(live, directory, scope)),
             Effect.ignore,
             Effect.forkIn(scope),
           )
@@ -149,8 +142,7 @@ export const make = (
         const descend = (directory: string): Effect.Effect<void, PlatformFailure> =>
           Effect.gen(function*() {
             visited.add(directory)
-            // Started before the entries are read.
-            if (arming) yield* cover(directory)
+            if (arming) yield* armWatcher(directory)
             const entries = yield* entriesOf(directory)
 
             const found = yield* Effect.forEach(
@@ -175,13 +167,12 @@ export const make = (
           })
 
         yield* descend("")
-        // Only on a walk that came back whole.
         if (arming) yield* reconcile(visited)
         return stamps
       })
 
-    const listing = (match: (path: string) => boolean) => walk(match, true)
-    const survey = (match: (path: string) => boolean) => walk(match, false)
+    const listingArmingWatchers = (match: (path: string) => boolean) => walk(match, true)
+    const listingOnly = (match: (path: string) => boolean) => walk(match, false)
 
     const read = (path: string) =>
       fs.readFileString(absolute(path)).pipe(
@@ -212,7 +203,17 @@ export const make = (
         Effect.mapError((cause) => new PlatformFailure({ path, cause })),
       )
 
-    return { listing, survey, read, watch, stage, publish, discard, remove, resolve: absolute }
+    return {
+      listingArmingWatchers,
+      listingOnly,
+      read,
+      watch,
+      stage,
+      publish,
+      discard,
+      remove,
+      resolve: absolute,
+    }
   })
 
 interface Covering {
@@ -221,6 +222,15 @@ interface Covering {
   readonly scope: Scope.Scope
   seeded: boolean
 }
+
+const uncoverIfStillOurs = (
+  live: Covering,
+  directory: string,
+  ours: Scope.Closeable,
+): Effect.Effect<void> =>
+  Effect.sync(() => {
+    if (live.covered.get(directory) === ours) live.covered.delete(directory)
+  })
 
 const pruned = (path: string): boolean => {
   const name = path.slice(path.lastIndexOf("/") + 1)

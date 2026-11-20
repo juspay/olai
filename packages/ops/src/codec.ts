@@ -70,14 +70,14 @@ export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claim
       message: `${failure.message} — this file is in the directory and will not open.`,
     }])),
 
-  stopping: (outcome, paths, standing) => {
-    if (Result.isFailure(outcome)) return outcome.failure
+  stopping: ({ candidateOutcome, writtenPaths, standingValue }) => {
+    if (Result.isFailure(candidateOutcome)) return candidateOutcome.failure
     const claims = table.current
-    const departed = paths.filter(path => fileKind(claims, path) === null)
+    const departed = writtenPaths.filter(path => fileKind(claims, path) === null)
     if (departed.length > 0) return verdictOf(departed.map(file => ({
       file, line: 0, code: "unreadable-file" as const,
       message: `No active row claims ${file}, so it cannot be written.`,
     })))
-    return stopping(outcome.success.set, paths, standing.set)
+    return stopping(candidateOutcome.success.set, writtenPaths, standingValue.set)
   },
 })

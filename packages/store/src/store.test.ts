@@ -1,6 +1,6 @@
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
-import { type Duration, Effect, Result, SubscriptionRef } from "effect"
+import { type Duration, Effect, Fiber, FileSystem, Latch, Result, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -75,11 +75,13 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
       : Result.succeed({ text, broken })
   },
 
-  stopping: (outcome, paths, standing) => {
-    stops.push({ paths: [...paths], standing })
-    return Result.isFailure(outcome) &&
-        outcome.failure.some((row) => paths.some((path) => row.startsWith(`${path}:`)))
-      ? outcome.failure
+  stopping: ({ candidateOutcome, writtenPaths, standingValue }) => {
+    stops.push({ paths: [...writtenPaths], standing: standingValue })
+    return Result.isFailure(candidateOutcome) &&
+        candidateOutcome.failure.some((row) =>
+          writtenPaths.some((path) => row.startsWith(`${path}:`))
+        )
+      ? candidateOutcome.failure
       : null
   },
 
@@ -1079,12 +1081,62 @@ test("a base the store has moved past is a StaleWrite naming where it is", () =>
       expect(read("a.txt")).toBe("alpha, from us")
     })))
 
-test("PIN (stage): an interrupted write discards temps, not only a failed one", () => {
-  const src = fs.readFileSync(path.join(import.meta.dirname, "store.ts"), "utf8")
-  const gate = src.slice(src.indexOf("Every file staged before any is renamed"))
-  expect(gate).toContain("Effect.onExit(")
-  expect(gate).toContain("Exit.isSuccess(exit)")
-  expect(gate.indexOf("Effect.onError(")).toBe(-1)
+test("an interrupted write discards every temp it staged, not only a failed one", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-store-"))
+  fs.writeFileSync(path.join(root, "a.txt"), "alpha")
+  fs.writeFileSync(path.join(root, "b.txt"), "beta")
+  const temps = () => fs.readdirSync(root).filter((name) => name.endsWith(".tmp"))
+  try {
+    await Effect.gen(function*() {
+      const real = yield* FileSystem.FileSystem
+      const staging = yield* Latch.make(false)
+      const wedged = yield* Latch.make(false)
+      let written = 0
+      const wedgedAtTheSecondTemp: FileSystem.FileSystem = {
+        ...real,
+        writeFileString: (file, contents, options) =>
+          file.endsWith(".tmp") && ++written === 2
+            ? Effect.andThen(
+              staging.open,
+              Effect.andThen(wedged.await, real.writeFileString(file, contents, options)),
+            )
+            : real.writeFileString(file, contents, options),
+      }
+
+      yield* Effect.gen(function*() {
+        const store = yield* Store.make({
+          root,
+          codec,
+          watch: false,
+          settle: "20 millis",
+        })
+        const base = (yield* snapshotOf(store))?.rev ?? 0
+        const writing = yield* Effect.forkChild(
+          store.commit({
+            baseRev: base,
+            changes: [
+              { path: "a.txt", contents: "alpha, interrupted" },
+              { path: "b.txt", contents: "beta, interrupted" },
+            ],
+          }),
+          { startImmediately: true },
+        )
+
+        yield* staging.await
+        expect(temps().length).toBe(1)
+
+        yield* Fiber.interrupt(writing)
+        expect(temps()).toEqual([])
+        expect(fs.readFileSync(path.join(root, "a.txt"), "utf8")).toBe("alpha")
+        expect(fs.readFileSync(path.join(root, "b.txt"), "utf8")).toBe("beta")
+      }).pipe(
+        Effect.provideService(FileSystem.FileSystem, wedgedAtTheSecondTemp),
+        Effect.scoped,
+      )
+    }).pipe(Effect.provide(NodeServices.layer), Effect.scoped, Effect.runPromise)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
 })
 
 test("a set the codec refuses is not written and leaves no temp behind", () =>
@@ -1204,7 +1256,7 @@ test("every read carries an age, and a boot's is the look that just happened", (
       expect(aged.snapshot?.rev).toBe(1)
       expect(aged.vintage.proof).toEqual({ _tag: "Held" })
       expect(aged.vintage.age).toBeLessThan(5_000)
-      expect(aged.vintage.at).toBeGreaterThan(0)
+      expect(aged.vintage.provedAt).toBeGreaterThan(0)
     })))
 
 test("a directory that never loaded still has an age", () =>
@@ -1233,7 +1285,7 @@ test("a settled probe publishes no revision and still proves the set", () =>
       expect(decodes).toEqual([])
       expect(validations).toEqual([])
       expect(after.vintage.age).toBeLessThan(aging.vintage.age)
-      expect(after.vintage.at).toBeGreaterThan(before.vintage.at)
+      expect(after.vintage.provedAt).toBeGreaterThan(before.vintage.provedAt)
     })))
 
 test("PIN (the rebase shape): the disk moves under a loop that is not looking", () =>
@@ -1342,36 +1394,36 @@ test("PIN (sweep): the verification path cannot reach the loop's permit", () => 
   expect(answering).not.toContain("gate")
 })
 
+type Absent<T, K extends PropertyKey> = K extends keyof T ? false : true
+
+type TakesAFreshnessClass<F extends (...args: never[]) => unknown> = [] extends Parameters<F>
+  ? false
+  : true
+
+type Doors = Store.Store<Loaded, ReadonlyArray<string>>
+type Answer = Store.Aged<Loaded>
+
 test("PIN (type): there is no door to the set that does not carry its age", () => {
-  const doors = (
-    store: Store.Store<Loaded, ReadonlyArray<string>>,
-    answer: Store.Aged<Loaded>,
-  ) => [
+  const carried = (store: Doors, answer: Answer) => [
     store.read("cheap"),
     store.read("verified"),
     store.reads,
     answer.vintage.age,
     answer.vintage.proof._tag,
     answer.snapshot?.rev,
-    // @ts-expect-error — the naked ref of snapshots is gone. It was the door a
-    // consumer could take the set through while learning nothing about how old
-    // it was, which is the whole of what went wrong on 2026-08-25.
-    store.snapshot,
-    // @ts-expect-error — and so is the second look-verb. `resync` differed from
-    // `refresh` by mtime-and-size arithmetic a caller had to read a doc comment
-    // to choose between; the class says what you need, and the store decides
-    // what that costs.
-    store.resync,
-    // @ts-expect-error — a read that states no class does not compile. The
-    // class is the one thing the caller owes, and defaulting it would make one
-    // of the two the quiet answer to a question nobody was asked.
-    store.read(),
-    // @ts-expect-error — nor does a look that states none.
-    store.refresh(),
-    // @ts-expect-error — and the answer is not the set. The revision is inside
-    // it, beside the age, and there is no shape of this that hands over one
-    // without the other.
-    answer.rev,
   ]
-  expect(typeof doors).toBe("function")
+
+  const gone: [
+    Absent<Doors, "snapshot">,
+    Absent<Doors, "resync">,
+    Absent<Answer, "rev">,
+  ] = [true, true, true]
+
+  const classed: [
+    TakesAFreshnessClass<Doors["read"]>,
+    TakesAFreshnessClass<Doors["refresh"]>,
+  ] = [true, true]
+
+  expect(typeof carried).toBe("function")
+  expect([...gone, ...classed]).toEqual([true, true, true, true, true])
 })

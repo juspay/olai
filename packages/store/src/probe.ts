@@ -13,8 +13,7 @@ export interface Found<F, E> {
   readonly removed: ReadonlyArray<string>
 }
 
-/** ORDER COUNTS: this is an answer about the MAP, not about its key set. */
-export const sameDecoded = <F, E>(
+export const identicalDecodedInOrder = <F, E>(
   one: Decoded<F, E>,
   other: Decoded<F, E>,
 ): boolean => {
@@ -41,7 +40,7 @@ export interface Probe<F, E> {
     paths: Iterable<string>,
   ) => Effect.Effect<ReadonlyArray<string>, PlatformFailure>
   readonly decode: (path: string, contents: string) => Promised<F, E>
-  readonly forget: (paths: Iterable<string>) => Effect.Effect<void>
+  readonly forgetStamps: (paths: Iterable<string>) => Effect.Effect<void>
   readonly revalidate: Effect.Effect<void>
 }
 
@@ -124,10 +123,9 @@ export const make = <F, S, E>(
 
       revalidate: Ref.set(revalidation, true),
 
-      forget: (paths: Iterable<string>) =>
+      forgetStamps: (paths: Iterable<string>) =>
         Ref.update(cache, (cached) => {
           if (cached === null) return null
-          // The STAMP is forgotten, never the MEMBERSHIP.
           const kept = new Map(cached)
           for (const path of paths) {
             const entry = kept.get(path)
@@ -145,7 +143,7 @@ export const make = <F, S, E>(
         Effect.gen(function*() {
           const mustRevalidate = yield* Ref.getAndSet(revalidation, false)
           const previous = yield* Ref.get(cache)
-          const stamps = yield* disk.listing(codec.match)
+          const stamps = yield* disk.listingArmingWatchers(codec.match)
 
           const stale = [...stamps].filter(([path, stamp]) => {
             const cached = previous?.get(path)

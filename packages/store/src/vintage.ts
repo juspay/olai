@@ -6,7 +6,7 @@ import type { PlatformFailure } from "./errors.ts"
 export type Freshness = "cheap" | "verified"
 
 export interface Vintage {
-  readonly at: number
+  readonly provedAt: number
   readonly age: number
   readonly proof: Proof
 }
@@ -35,21 +35,18 @@ export const HELD: Held = { _tag: "Held" }
 export const CONFIRMED: Confirmed = { _tag: "Confirmed" }
 
 export interface Standing {
-  readonly at: number
+  readonly provedAt: number
   readonly stamps: ReadonlyMap<string, Stamp>
 }
 
-export const nothingProved = (at: number): Standing => ({ at, stamps: new Map() })
+export const nothingProved = (at: number): Standing => ({ provedAt: at, stamps: new Map() })
 
-/** It takes a {@link Disk} and a {@link Standing} and NOTHING ELSE: no store in
- *  scope, so no semaphore in scope, so no spelling of this function could come to
- *  wait on the publish loop. */
 export const check = (
   disk: Disk,
   match: (path: string) => boolean,
   standing: Standing,
 ): Effect.Effect<Proof> =>
-  Effect.match(disk.survey(match), {
+  Effect.match(disk.listingOnly(match), {
     onFailure: (failure: PlatformFailure): Proof => ({
       _tag: "Unchecked",
       why: failure.message,
@@ -76,8 +73,8 @@ export const divergence = (
 }
 
 export const vintageOf = (standing: Standing, now: number, proof: Proof): Vintage => ({
-  at: proof._tag === "Confirmed" ? now : standing.at,
-  age: proof._tag === "Confirmed" ? 0 : Math.max(0, now - standing.at),
+  provedAt: proof._tag === "Confirmed" ? now : standing.provedAt,
+  age: proof._tag === "Confirmed" ? 0 : Math.max(0, now - standing.provedAt),
   proof,
 })
 

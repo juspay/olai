@@ -1,4 +1,4 @@
-export type { Codec, Since } from "./codec.ts"
+export type { Codec, Since, StopCheck } from "./codec.ts"
 export { PlatformFailure, ROOT_ITSELF, StaleWrite, vanished } from "./errors.ts"
 export {
   type Aged,

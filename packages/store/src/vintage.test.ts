@@ -33,32 +33,32 @@ test("either half of a stamp moving is the file moving", () => {
 
 test("nothing proved diverges on every file there is", () => {
   const nothing = Vintage.nothingProved(1_000)
-  expect(nothing.at).toBe(1_000)
+  expect(nothing.provedAt).toBe(1_000)
   expect(Vintage.divergence(stamps({ "a.txt": [1, 1] }), nothing.stamps)).toEqual(["a.txt"])
 })
 
 test("a held answer's age is how long ago the loop last proved it", () => {
-  const vintage = Vintage.vintageOf({ at: 1_000, stamps: new Map() }, 4_000, Vintage.HELD)
-  expect(vintage).toEqual({ at: 1_000, age: 3_000, proof: { _tag: "Held" } })
+  const vintage = Vintage.vintageOf({ provedAt: 1_000, stamps: new Map() }, 4_000, Vintage.HELD)
+  expect(vintage).toEqual({ provedAt: 1_000, age: 3_000, proof: { _tag: "Held" } })
   expect(Vintage.isStale(vintage)).toBe(false)
 })
 
 test("only a look that agreed resets the age", () => {
-  const standing = { at: 1_000, stamps: new Map() }
+  const standing = { provedAt: 1_000, stamps: new Map() }
   expect(Vintage.vintageOf(standing, 4_000, Vintage.CONFIRMED))
-    .toEqual({ at: 4_000, age: 0, proof: { _tag: "Confirmed" } })
+    .toEqual({ provedAt: 4_000, age: 0, proof: { _tag: "Confirmed" } })
 
   const diverged = Vintage.vintageOf(standing, 4_000, {
     _tag: "Diverged",
     paths: ["a.txt"],
   })
-  expect(diverged.at).toBe(1_000)
+  expect(diverged.provedAt).toBe(1_000)
   expect(diverged.age).toBe(3_000)
   expect(Vintage.isStale(diverged)).toBe(true)
 })
 
 test("a look nobody could take is stale, and a look nobody took is not", () => {
-  const standing = { at: 1_000, stamps: new Map() }
+  const standing = { provedAt: 1_000, stamps: new Map() }
   const unchecked = Vintage.vintageOf(standing, 2_000, {
     _tag: "Unchecked",
     why: "cannot read the served directory",
@@ -69,6 +69,6 @@ test("a look nobody could take is stale, and a look nobody took is not", () => {
 })
 
 test("a clock that stepped backwards is an age of nothing, never a negative one", () => {
-  expect(Vintage.vintageOf({ at: 9_000, stamps: new Map() }, 1_000, Vintage.HELD).age)
+  expect(Vintage.vintageOf({ provedAt: 9_000, stamps: new Map() }, 1_000, Vintage.HELD).age)
     .toBe(0)
 })

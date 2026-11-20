@@ -109,7 +109,7 @@ const named = (said: unknown, root: string, vintage?: Vintage): unknown =>
 
 const stated = (vintage: Vintage): Record<string, unknown> => ({
   stale: isStale(vintage),
-  asOf: new Date(vintage.at).toISOString(),
+  asOf: new Date(vintage.provedAt).toISOString(),
   ageMs: vintage.age,
   proof: vintage.proof._tag.toLowerCase(),
   ...(vintage.proof._tag === "Diverged" ? { diverged: vintage.proof.paths } : {}),
