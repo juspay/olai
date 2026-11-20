@@ -11,13 +11,11 @@ import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import {
   danglingIn,
   markdownPaths,
-  reportAfterCycles,
+  reportCycleWalks,
   reportDeclarations,
   reportDuplicateIds,
-  reportMirrorCycles,
   reportOf,
   reportConventions,
-  reportParentCycles,
   reportParents,
   reportPropValues,
   reportUnknownTargets,
@@ -81,26 +79,29 @@ const NO_UPSERTS: ReadonlyArray<readonly [file: string, entry: FileNodes]> = []
 
 export type Cold = "first" | "rebuilt" | "unledgered" | Decline
 
-/**
- * THREE CHECKS AND THEN THE NARROWING'S OWN THREE, in the order that makes each
- * one cheap: a validation with nothing to follow is turned back before a table
- * is read, and a rebuilt view before the previous one is looked up at all.
- */
+const followingOf = (
+  previous: Previous | undefined,
+  view: Taken,
+): { readonly previous: Previous; readonly ledger: Ledger } | Cold => {
+  if (previous === undefined) return "first"
+  if (!view.patched) return "rebuilt"
+  const ledger = LEDGERS.get(previous.read.derived)
+  return ledger === undefined ? "unledgered" : { previous, ledger }
+}
+
 const narrowly = (
   set: OutlineSet,
   previous: Previous | undefined,
   view: Taken,
   kinds: KindVocabulary,
 ): Ledger | Cold => {
-  if (previous === undefined) return "first"
-  if (!view.patched) return "rebuilt"
-  const followed = LEDGERS.get(previous.read.derived)
-  if (followed === undefined) return "unledgered"
+  const following = followingOf(previous, view)
+  if (typeof following === "string") return following
   const narrowed = incrementally(
     set,
-    previous.read.derived,
-    followed,
-    previous.delta,
+    following.previous.read.derived,
+    following.ledger,
+    following.previous.delta,
     view.derived,
     kinds,
   )
@@ -123,10 +124,8 @@ const wholly = (
   const typed: Typed = { declarations, derived, documents: known, kinds }
   reportDuplicateIds(all, derived, errors)
   reportParents(all, derived, errors)
-  reportParentCycles(all, derived, errors)
+  reportCycleWalks(all, derived, errors)
   reportUnknownTargets(danglingIn(derived), derived, errors)
-  reportAfterCycles(all, derived, errors)
-  reportMirrorCycles(all, derived, errors)
   reportDeclarations(derived, kinds, errors)
   reportPropValues(all, typed, errors)
   return { errors, known, typing: declarations }

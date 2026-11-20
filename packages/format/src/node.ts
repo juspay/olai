@@ -6,14 +6,11 @@ import { basenameOf } from "./paths.ts"
 
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
 
-/**
- * The four MARKS a record may carry, at most one of them, in the order a
- * reader resolves them. The order is precedence, and the two that SETTLE lead
- * it ({@link SETTLED}).
- */
-export const MARKS = ["done", "cancelled", "doing", "todo"] as const
-
 export const SETTLED = ["done", "cancelled"] as const
+
+export const UNSETTLED = ["doing", "todo"] as const
+
+export const MARKS = [...SETTLED, ...UNSETTLED] as const
 
 export const Status = Schema.Literals(MARKS)
 export type Status = typeof Status.Type
@@ -23,9 +20,7 @@ export type Settled = (typeof SETTLED)[number]
 export const settles = (mark: Status): mark is Settled =>
   (SETTLED as ReadonlyArray<Status>).includes(mark)
 
-export const Unfinished = Schema.Literals(
-  MARKS.filter((mark): mark is Exclude<Status, Settled> => !settles(mark)),
-)
+export const Unfinished = Schema.Literals(UNSETTLED)
 export type Unfinished = typeof Unfinished.Type
 
 export const STAMPED = {
@@ -133,7 +128,6 @@ export type LocatedRegular = typeof LocatedRegular.Type
 
 export const isRegular = (at: Located): at is LocatedRegular => !isMirror(at.node)
 
-/** Read in {@link MARKS} order, which is precedence. */
 export const storedMarker = (node: RegularNode): Status | undefined =>
   MARKS.find((mark) => node[mark] !== undefined)
 

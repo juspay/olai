@@ -3,7 +3,7 @@ import { Schema } from "effect"
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 
 import { byDrawOrder, datedIn, DayGroup, groupedOn } from "./dates.ts"
-import { dayAt, type Derived, unfinishedWork } from "./derive.ts"
+import { dayAt, type Derived, owedAmong, unfinishedWork } from "./derive.ts"
 import { keepingDated, type Selected } from "./filter.ts"
 import { type RegularNode, Status } from "./node.ts"
 import { type Dated, dayOf, timeOf } from "./occasion.ts"
@@ -28,16 +28,14 @@ export type Agenda = typeof Agenda.Type
 
 export const UPCOMING_DAYS = 7
 
-export const agendaOf = (derived: Derived, today: string): Agenda => ({
-  overdue: behind(derived, today),
-  // TODAY'S BUCKET IS ASKED FOR BY THE VALUE THE CALLER HANDED OVER, which is
-  // what the bucketed walk this replaced did (`days.get(today)`) and is
-  // deliberately not `dayOf(today)`. Normalising it here would be a performance
-  // change quietly giving a different answer to a question, which is the one
-  // thing this diff may not do.
-  today: owedOn(derived, derived.byDay.get(today) ?? []),
-  upcoming: aheadOf(derived, today),
-})
+export const agendaOf = (derived: Derived, today: string): Agenda => {
+  const day = dayOf(today)
+  return {
+    overdue: behind(derived, day),
+    today: owedOn(derived, derived.byDay.get(day) ?? []),
+    upcoming: aheadOf(derived, day),
+  }
+}
 
 export const nothingDue = (agenda: Agenda): boolean =>
   agenda.overdue.length === 0 &&
@@ -79,13 +77,13 @@ export const owedOf = (agenda: Agenda): Owed => ({
 })
 
 export const owedNow = (derived: Derived, today: string): Owed => {
-  const now = dayOf(today)
+  const day = dayOf(today)
   let overdue = 0
   for (const [date, owed] of derived.owedByDay) {
-    if (date >= now) break
+    if (date >= day) break
     overdue += owed
   }
-  return { overdue, today: derived.owedByDay.get(today) ?? 0 }
+  return { overdue, today: derived.owedByDay.get(day) ?? 0 }
 }
 
 export const owedRows = (
@@ -98,10 +96,7 @@ export const owedRows = (
   if (want === 0) return rows
   const take = (date: string, own: ReadonlyArray<Dated> | undefined): boolean => {
     if (own === undefined) return false
-    const owed: Array<Dated> = []
-    for (const one of own) {
-      if (unfinishedWork(one.at.node)) owed.push(one)
-    }
+    const owed = owedAmong(own)
     owed.sort(byDrawOrder)
     for (const one of owed) {
       if (rows.length >= want) return true
@@ -116,12 +111,12 @@ export const owedRows = (
     }
     return rows.length >= want
   }
-  const now = dayOf(today)
+  const day = dayOf(today)
   for (const date of derived.owedByDay.keys()) {
-    if (date >= now) break
+    if (date >= day) break
     if (take(date, derived.byDay.get(date))) return rows
   }
-  take(today, derived.byDay.get(today))
+  take(day, derived.byDay.get(day))
   return rows
 }
 
@@ -164,14 +159,12 @@ const datedInDays = (days: ReadonlyArray<AgendaDay>): number =>
 
 const behind = (
   derived: Derived,
-  today: string,
+  day: string,
 ): ReadonlyArray<AgendaDay> => {
   const gone: Array<AgendaDay> = []
-  const now = dayOf(today)
   for (const date of derived.owedByDay.keys()) {
-    if (date >= now) break
-    // NOT `?? []`: a key of `owedByDay` is a key of `byDay` by construction.
-    const groups = owedOn(derived, derived.byDay.get(date) as ReadonlyArray<Dated>)
+    if (date >= day) break
+    const groups = owedOn(derived, derived.byDay.get(date) ?? [])
     if (groups.length > 0) gone.push({ date, groups })
   }
   return gone
@@ -180,19 +173,18 @@ const behind = (
 const owedOn = (
   derived: Derived,
   dated: ReadonlyArray<Dated>,
-): ReadonlyArray<DayGroup> =>
-  groupedOn(derived, dated.filter((one) => unfinishedWork(one.at.node)))
+): ReadonlyArray<DayGroup> => groupedOn(derived, owedAmong(dated))
 
 const aheadOf = (
   derived: Derived,
-  today: string,
+  day: string,
 ): ReadonlyArray<AgendaDay> => {
   const ahead: Array<AgendaDay> = []
-  for (let at = dayAt(derived.days, today); at < derived.days.length; at++) {
+  for (let at = dayAt(derived.days, day); at < derived.days.length; at++) {
     const date = derived.days[at] as string
-    if (date <= today) continue
+    if (date <= day) continue
     if (ahead.length === UPCOMING_DAYS) break
-    const groups = owedOn(derived, derived.byDay.get(date) as ReadonlyArray<Dated>)
+    const groups = owedOn(derived, derived.byDay.get(date) ?? [])
     if (groups.length > 0) ahead.push({ date, groups })
   }
   return ahead

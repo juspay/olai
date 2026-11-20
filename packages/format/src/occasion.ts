@@ -36,19 +36,23 @@ export interface Dated extends Occasioned {
   readonly at: LocatedRegular
 }
 
-/**
- * The dates one record puts on a calendar, in PRECEDENCE order: what it is
- * scheduled for, then the instant it was SETTLED at — finished, or called off.
- * The order decides exactly one thing, and only for a node whose two dates land
- * on the SAME day: which occasion that day names (`./dates.ts`'s `datedOn`).
- */
+const scheduledOn = (node: RegularNode): Occasioned | undefined =>
+  node.date === undefined ? undefined : { occasion: "date", date: node.date }
+
+const settledOn = (node: RegularNode): Occasioned | undefined => {
+  const mark = storedMarker(node)
+  if (mark === undefined || !settles(mark)) return undefined
+  const value = node[mark]
+  return typeof value === "string" ? { occasion: mark, date: value } : undefined
+}
+
+const IN_PRECEDENCE = [scheduledOn, settledOn] as const
+
 export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   const dates: Array<Occasioned> = []
-  if (node.date !== undefined) dates.push({ occasion: "date", date: node.date })
-  const mark = storedMarker(node)
-  if (mark !== undefined && settles(mark)) {
-    const value = node[mark]
-    if (typeof value === "string") dates.push({ occasion: mark, date: value })
+  for (const reading of IN_PRECEDENCE) {
+    const dated = reading(node)
+    if (dated !== undefined) dates.push(dated)
   }
   return dates
 }

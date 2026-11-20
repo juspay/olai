@@ -22,18 +22,16 @@ export const customKeys = (custom: Custom): ReadonlyArray<string> =>
 
 export const customOrder = (custom: Custom): ReadonlyArray<string> => Object.keys(custom)
 
-/**
- * A key holding `""` and a key that is gone are one file on disk, and they must
- * be one map in hand too, or the diff a commit message is built from would
- * report a change nobody made.
- */
+export const emptyValue = (value: unknown): boolean =>
+  value === "" || (Array.isArray(value) && value.length === 0)
+
 export const withCustom = (
   custom: Custom | undefined,
   key: string,
   value: CustomValue | undefined,
 ): Custom => {
   const next: Record<string, CustomValue> = { ...custom }
-  if (value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) {
+  if (value === undefined || emptyValue(value)) {
     delete next[key]
   } else {
     next[key] = value

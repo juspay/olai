@@ -209,7 +209,7 @@ test("a duplicate id is reported on the second record, pointing at the first", (
   expect(error.code).toBe("duplicate-id")
   expect([error.file, error.line]).toEqual(["b.olai", 1])
   expect(error.related).toEqual([
-    { file: "a.olai", line: 1, note: "first declared here" },
+    { file: "a.olai", line: 1, note: "first declared here", blamed: true },
   ])
   expect(isCrossFile(error)).toBe(true)
 })
@@ -248,7 +248,7 @@ test("a parent in another file is a foreign-parent, not an unknown one", () => {
   expect([error.file, error.line]).toEqual(["b.olai", 1])
   expect(error.message).toContain("`mirror`")
   expect(error.related).toEqual([
-    { file: "a.olai", line: 1, note: "the parent lives here", broken: false },
+    { file: "a.olai", line: 1, note: "the parent lives here", blamed: false },
   ])
   expect(implicatedBy(error)).toEqual(["b.olai", "a.olai"])
   expect(isCrossFile(error)).toBe(false)
@@ -265,7 +265,7 @@ test("a child of a mirror is refused", () => {
   )
   expect(error.code).toBe("parent-not-a-node")
   expect(error.line).toBe(3)
-  expect(error.related?.[0]).toEqual({ file: "a.olai", line: 2, note: "the mirror is here" })
+  expect(error.related?.[0]).toEqual({ file: "a.olai", line: 2, note: "the mirror is here", blamed: true })
 })
 
 test("a parent cycle is one error naming the whole loop", () => {
@@ -278,7 +278,7 @@ test("a parent cycle is one error naming the whole loop", () => {
   expect(error.code).toBe("parent-cycle")
   expect(error.line).toBe(1)
   expect(error.message).toContain("`a` → `b` → `a`")
-  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop" }])
+  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop", blamed: true }])
 })
 
 test("a dangling target is reported for mirror, after, blocks and see alike", () => {
@@ -380,7 +380,7 @@ test("mirrors that show each other are a mirror-cycle", () => {
   )
   expect(error.code).toBe("mirror-cycle")
   expect(error.message).toContain("`m1` → `m2` → `m1`")
-  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop" }])
+  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop", blamed: true }])
 })
 
 test("a mirror placed inside the subtree it shows is a mirror-cycle", () => {
@@ -522,7 +522,7 @@ test("a bad value's finding names the declaration that judged it", () => {
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.file).toBe("lanes.olai")
   expect(errors[0]?.related).toEqual([
-    { file: "_olai/Properties.olai", line: 5, note: "declared here", broken: false },
+    { file: "_olai/Properties.olai", line: 5, note: "declared here", blamed: false },
   ])
 })
 

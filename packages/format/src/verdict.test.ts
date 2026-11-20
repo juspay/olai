@@ -33,7 +33,7 @@ const rowOf = (
   code,
   message: `${code} in ${file}`,
   ...(related.length === 0 ? {} : {
-    related: related.map(([at, line]) => ({ file: at, line, note: "here" })),
+    related: related.map(([at, line]) => ({ file: at, line, note: "here", blamed: true })),
   }),
 })
 
@@ -105,7 +105,7 @@ test("a declaration a bad value names is related, not broken — the blame and t
       file: "_olai/Properties.olai",
       line: 1,
       note: "declared here",
-      broken: false,
+      blamed: false,
     }],
   } as OutlineError])
   const entries = entriesOf(verdict)
@@ -116,7 +116,7 @@ test("a declaration a bad value names is related, not broken — the blame and t
   expect(admits(entries, ["lanes.olai"])._tag).toBe("implicated")
 })
 
-test("an unmarked related is broken by DEFAULT — a cycle's steps darken both files", () => {
+test("a related the finding blames darkens both files — a cycle's steps are blamed", () => {
   const verdict = verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])])
   expect(entriesOf(verdict).map((one) => one.file)).toEqual(["a.olai", "b.olai"])
 })
@@ -131,7 +131,7 @@ test("a parent a foreign placement names is related, not broken", () => {
       file: "parent.olai",
       line: 1,
       note: "the parent lives here",
-      broken: false,
+      blamed: false,
     }],
   } as OutlineError])
   const entries = entriesOf(verdict)

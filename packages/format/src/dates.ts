@@ -86,25 +86,25 @@ export const byOutline = (
   }
 
   return [...byFile.entries()]
-    .sort(([left], [right]) => Order.String(left, right))
-    .map(([file, nodes]) => ({ file, nodes: nodes.sort(byTime) }))
+    .sort(([left], [right]) => byPath(left, right))
+    .map(([file, nodes]) => ({ file, nodes: nodes.sort(byEntryTime) }))
 }
 
 export const datedIn = (groups: ReadonlyArray<DayGroup>): number =>
   groups.reduce((total, group) => total + group.nodes.length, 0)
 
-const byTime = (left: DayEntry, right: DayEntry): number =>
-  byTimed(left.date, left.shows.line, right.date, right.shows.line)
+const byEntryTime = (left: DayEntry, right: DayEntry): number =>
+  byDateThenLine(left.date, left.shows.line, right.date, right.shows.line)
 
-const byTimed = (leftDate: string, leftLine: number, rightDate: string, rightLine: number): number =>
+const byDateThenLine = (leftDate: string, leftLine: number, rightDate: string, rightLine: number): number =>
   leftDate === rightDate
     ? leftLine - rightLine
     : Order.String(leftDate, rightDate)
 
 export const byDrawOrder = (left: Dated, right: Dated): number => {
-  const file = Order.String(left.at.file, right.at.file)
+  const file = byPath(left.at.file, right.at.file)
   return file === 0
-    ? byTimed(left.date, left.at.line, right.date, right.at.line)
+    ? byDateThenLine(left.date, left.at.line, right.date, right.at.line)
     : file
 }
 

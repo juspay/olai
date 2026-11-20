@@ -22,6 +22,7 @@ import { datesOf, dayOf, monthOf } from "./occasion.ts"
 import { basenameOf } from "./paths.ts"
 import { nothing } from "./write.ts"
 import {
+  MARKS,
   mintedInto,
   PROPERTIES,
   isLeftoverArchive,
@@ -85,14 +86,8 @@ const positionBonus = (haystack: string, needle: string): number => {
   return WORD_EDGE.test(haystack[at - 1] as string) ? 50 : 0
 }
 
-/** `cancelled` is here in MARKS order and not at the end, so the four marks
- *  read as a group in every refusal this list writes ({@link teaching} joins
- *  it verbatim). */
 const IS_VALUES = [
-  "done",
-  "cancelled",
-  "doing",
-  "todo",
+  ...MARKS,
   "marked",
   "blocked",
   "mirrored",
@@ -295,10 +290,11 @@ const alternativeOf = (
   return { kind: "clause", clause, negated: token.negated }
 }
 
-const inCostOrder = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> => {
-  const wordless = (group: Group) => group.every((one) => one.kind === "clause")
-  return [...groups.filter(wordless), ...groups.filter((group) => !wordless(group))]
-}
+const costRank = (group: Group): number =>
+  group.every((one) => one.kind === "clause") ? 0 : 1
+
+const inCostOrder = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> =>
+  [...groups].sort((one, other) => costRank(one) - costRank(other))
 
 const clauseOf = (
   name: Operator,

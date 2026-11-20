@@ -55,14 +55,14 @@ test("an error is cross-file when a related site lives in another file", () => {
   expect(
     isCrossFile(
       error("b.olai", 1, "duplicate-id", [
-        { file: "a.olai", line: 1, note: "first declared here" },
+        { file: "a.olai", line: 1, note: "first declared here", blamed: true },
       ]),
     ),
   ).toBe(true)
   expect(
     isCrossFile(
       error("a.olai", 3, "parent-cycle", [
-        { file: "a.olai", line: 1, note: "also in the loop" },
+        { file: "a.olai", line: 1, note: "also in the loop", blamed: true },
       ]),
     ),
   ).toBe(false)
@@ -71,21 +71,21 @@ test("an error is cross-file when a related site lives in another file", () => {
 
 test("a site the finding NAMES but does not break is on one plane and not the other", () => {
   const named = error("lanes.olai", 3, "bad-prop", [
-    { file: "_olai/Properties.olai", line: 1, note: "declared here", broken: false },
+    { file: "_olai/Properties.olai", line: 1, note: "declared here", blamed: false },
   ])
   expect(implicatedBy(named)).toEqual(["lanes.olai", "_olai/Properties.olai"])
   expect(blamedOn(named)).toEqual(["lanes.olai"])
   expect(isCrossFile(named)).toBe(false)
 
   const shared = error("b.olai", 1, "duplicate-id", [
-    { file: "a.olai", line: 1, note: "first declared here" },
+    { file: "a.olai", line: 1, note: "first declared here", blamed: true },
   ])
   expect(implicatedBy(shared)).toEqual(blamedOn(shared))
   expect(blamedOn(shared)).toEqual(["b.olai", "a.olai"])
 
   const both = error("lanes.olai", 3, "bad-prop", [
-    { file: "a.olai", line: 1, note: "declared here", broken: false },
-    { file: "a.olai", line: 9, note: "first declared here" },
+    { file: "a.olai", line: 1, note: "declared here", blamed: false },
+    { file: "a.olai", line: 9, note: "first declared here", blamed: true },
   ])
   expect(blamedOn(both)).toEqual(["lanes.olai", "a.olai"])
   expect(implicatedBy(both)).toEqual(["lanes.olai", "a.olai"])

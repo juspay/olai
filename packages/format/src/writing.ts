@@ -436,9 +436,6 @@ export const UpdateRequest = Schema.Struct({
         "ISO date (`2026-08-10`) or datetime, scheduling the node; `null` clears it.",
     }),
   ),
-  /** Written BEFORE the mark, like the date it needs, so a call that
-   *  schedules a node, gives it a rule and ticks it in one breath spawns the
-   *  next occurrence off the values this call wrote. */
   repeat: Schema.optionalKey(
     Schema.NullOr(Schema.String).annotate({
       description:

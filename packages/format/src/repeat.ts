@@ -12,17 +12,19 @@ export const printRepeat = (rule: Repeat): string =>
     ? `every week on ${WEEKDAYS[rule.weekday] ?? WEEKDAYS[0]}`
     : `every ${rule.every}`
 
-const PLAIN = {
-  day: { every: "day" },
-  month: { every: "month" },
-  year: { every: "year" },
-} as const satisfies Record<string, Repeat>
+const DAY: Repeat = { every: "day" }
+const MONTH: Repeat = { every: "month" }
+const YEAR: Repeat = { every: "year" }
+
+const PLAIN: ReadonlyMap<string, Repeat> = new Map(
+  [DAY, MONTH, YEAR].map((rule): readonly [string, Repeat] => [rule.every, rule]),
+)
 
 export const REPEAT_RULES: ReadonlyArray<string> = [
-  printRepeat(PLAIN.day),
+  printRepeat(DAY),
   ...WEEKDAYS.map((_, weekday) => printRepeat({ every: "week", weekday })),
-  printRepeat(PLAIN.month),
-  printRepeat(PLAIN.year),
+  printRepeat(MONTH),
+  printRepeat(YEAR),
 ]
 
 export const REPEAT_GRAMMAR =
@@ -34,13 +36,7 @@ export const parseRepeat = (text: string): Repeat | undefined => {
   const rest = words.slice(1)
   if (rest.length === 1) {
     const word = rest[0] as string
-    // `Object.hasOwn` before the lookup, not for tidiness: a bare index on an
-    // object literal answers `every constructor` with a function off the
-    // prototype, which a `Repeat | undefined` cast would wave straight through.
-    const plain = Object.hasOwn(PLAIN, word)
-      ? (PLAIN as Record<string, Repeat>)[word]
-      : undefined
-    return plain ?? weekOf(word)
+    return PLAIN.get(word) ?? weekOf(word)
   }
   if (rest.length === 3 && rest[0] === "week" && rest[1] === "on") {
     return weekOf(rest[2] as string)

@@ -13,17 +13,12 @@ export const flurryOf = (pending: Pending): string =>
       pending.unreadable,
     ])
 
-/**
- * THE CHEAP TERMS COME FIRST, and that is not tidiness: {@link flurryOf}
- * serializes every waiting change, this runs on every published revision, and
- * on the default `manual` server no amount of it could ever arm anything.
- */
 export const armedOn = (
   commit: CommitMode,
   paused: string | null,
   held: boolean,
   pending: Pending,
-): string =>
-  commit !== "auto" || paused !== null || held || !isReady(pending.repo)
-    ? ""
-    : flurryOf(pending)
+): string => {
+  const committing = commit === "auto" && paused === null && !held
+  return committing && isReady(pending.repo) ? flurryOf(pending) : ""
+}

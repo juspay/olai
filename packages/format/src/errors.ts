@@ -50,7 +50,7 @@ export const reportStage = (
 export const Related = Schema.Struct({
   ...Site.fields,
   note: Schema.String,
-  broken: Schema.optionalKey(Schema.Boolean),
+  blamed: Schema.Boolean,
 })
 export type Related = typeof Related.Type
 
@@ -73,7 +73,7 @@ export const implicatedBy = (error: OutlineError): ReadonlyArray<string> =>
   filesOf(error, () => true)
 
 export const blamedOn = (error: OutlineError): ReadonlyArray<string> =>
-  filesOf(error, (related) => related.broken !== false)
+  filesOf(error, (related) => related.blamed)
 
 const filesOf = (
   error: OutlineError,

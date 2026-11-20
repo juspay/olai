@@ -140,10 +140,6 @@ export type Unpushed = typeof Unpushed.Type
 export const Pending = Schema.Struct({
   repo: RepoState,
   changes: Schema.Array(NodeChange),
-  /**
-   * The invariant between the three lists, stated so it can be checked: every
-   * `changes[].file` and every `unreadable[]` is one of these `file`s.
-   */
   outlines: Schema.Array(DirtyOutline),
   others: Schema.Array(Other),
   unreadable: Schema.Array(Schema.String),

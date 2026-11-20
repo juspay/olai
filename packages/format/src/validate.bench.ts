@@ -19,12 +19,10 @@ import { byPath } from "./paths.ts"
 import {
   danglingIn,
   markdownPaths,
-  reportAfterCycles,
+  reportCycleWalks,
   reportDeclarations,
   reportDuplicateIds,
-  reportMirrorCycles,
   reportOf,
-  reportParentCycles,
   reportParents,
   reportPropValues,
   reportUnknownTargets,
@@ -113,10 +111,8 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   const typed: Typed = { declarations, derived: view, documents: known, kinds: NO_KINDS }
   reportDuplicateIds(all, view, errors)
   reportParents(all, view, errors)
-  reportParentCycles(all, view, errors)
+  reportCycleWalks(all, view, errors)
   reportUnknownTargets(danglingIn(view), view, errors)
-  reportAfterCycles(all, view, errors)
-  reportMirrorCycles(all, view, errors)
   reportDeclarations(view, NO_KINDS, errors)
   reportPropValues(all, typed, errors)
   return errors

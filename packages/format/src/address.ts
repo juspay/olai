@@ -50,7 +50,6 @@ export type AtHeading = typeof AtHeading.Type
 export const Address = Schema.Union([AtDocument, AtNode, AtRow, AtHeading])
 export type Address = typeof Address.Type
 
-const documentPath = (path: string): DocumentPath => path as DocumentPath
 const nodeId = (id: string): NodeId => id as NodeId
 const slug = (text: string): Slug => text as Slug
 
@@ -63,9 +62,9 @@ export const addressOf = (
   if (document === null || document === "") {
     return named === null ? null : { kind: "node", id: nodeId(named) }
   }
-  const kind = claimedKind(claims, document)
-  if (kind === null) return null
-  const path = documentPath(document)
+  const claimed = claimedDocument(claims, document)
+  if (claimed === null) return null
+  const { kind, path } = claimed
   if (named === null) return { kind: "document", path }
   return holdsBody(claims, kind)
     ? { kind: "heading", path, slug: slug(named) }
@@ -166,21 +165,42 @@ const escaped = (address: string): string =>
 const relativePath = (path: string): boolean =>
   !path.includes("\\") && path.split("/").every(segment => segment !== "" && segment !== "." && segment !== "..")
 
-const claimedKind = (claims: Claims, path: string): string | null =>
-  relativePath(path) ? fileKind(claims, path) : null
+interface ClaimedDocument {
+  readonly kind: string
+  readonly path: DocumentPath
+}
+
+const claimedDocument = (claims: Claims, path: string): ClaimedDocument | null => {
+  if (!relativePath(path)) return null
+  const kind = fileKind(claims, path)
+  return kind === null ? null : { kind, path: path as DocumentPath }
+}
 
 export const claimedOf = (claims: Claims, path: string): DocumentPath | null =>
-  claimedKind(claims, path) === null ? null : documentPath(path)
+  claimedDocument(claims, path)?.path ?? null
 
 export const outlineAt = (claims: Claims, at: AtDocument): AtOutline | null => {
-  const kind = claimedKind(claims, at.path)
-  return kind !== null && claims.byKind.get(kind)?.holds === "nodes" ? at : null
+  const claimed = claimedDocument(claims, at.path)
+  return claimed !== null && claims.byKind.get(claimed.kind)?.holds === "nodes" ? at : null
 }
 
 export const spellPath = (path: string): string =>
-  PLAIN.test(path) ? path : path.split("/").map(encodeURIComponent).join("/")
+  ENCODE_URI_COMPONENT_UNRESERVED_WITH_SLASH.test(path)
+    ? path
+    : path.split("/").map(encodeURIComponent).join("/")
 
-const PLAIN = /^[A-Za-z0-9\-_.!~*'()/]*$/
+const classed = (characters: ReadonlyArray<string>): string =>
+  characters.map((one) => `\\u${one.charCodeAt(0).toString(16).padStart(4, "0")}`).join("")
+
+const ENCODE_URI_COMPONENT_UNRESERVED_WITH_SLASH = new RegExp(
+  `^[${
+    classed([
+      ...Array.from({ length: 128 }, (_, code) => String.fromCharCode(code))
+        .filter((character) => encodeURIComponent(character) === character),
+      "/",
+    ])
+  }]*$`,
+)
 
 export const readPath = (text: string): string | null => {
   if (!text.includes("%")) return text

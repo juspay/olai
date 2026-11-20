@@ -363,20 +363,21 @@ export const walkedOn = (
 ): ReadonlyArray<DayGroup> => groupedOn(derived, walkedByDay(derived).get(day) ?? [])
 
 export const walkedAgenda = (derived: Derived, today: string): Agenda => {
+  const day = dayOf(today)
   const walked = walkedByDay(derived)
   const days = [...walked.keys()].sort(byDayKey)
   const overdue: Array<AgendaDay> = []
-  for (const date of days.filter((day) => day < dayOf(today))) {
+  for (const date of days.filter((one) => one < day)) {
     const groups = owedWalk(derived, walked.get(date) ?? [])
     if (groups.length > 0) overdue.push({ date, groups })
   }
   const upcoming: Array<AgendaDay> = []
-  for (const date of days.filter((day) => day > today)) {
+  for (const date of days.filter((one) => one > day)) {
     if (upcoming.length === UPCOMING_DAYS) break
     const groups = owedWalk(derived, walked.get(date) ?? [])
     if (groups.length > 0) upcoming.push({ date, groups })
   }
-  return { overdue, today: owedWalk(derived, walked.get(today) ?? []), upcoming }
+  return { overdue, today: owedWalk(derived, walked.get(day) ?? []), upcoming }
 }
 
 export const firstRowsOf = (agenda: Agenda, cap: number): ReadonlyArray<OwedRow> => {

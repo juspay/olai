@@ -186,7 +186,7 @@ export const declarationsIn = (
 ): PropDeclarations => {
   if (file === undefined) return withClaims(NO_TYPING, kinds)
   const declarations = new Map<string, Declared>()
-  for (const located of declaringIn0(derived, file)) {
+  for (const located of declaringInLineOrder(derived, file)) {
     const key = keyOf(located.node.title)
     if (key === undefined || declarations.has(key)) continue
     const type = typeIn(derived, located.node)
@@ -195,6 +195,12 @@ export const declarationsIn = (
   }
   return withClaims(declarations, kinds)
 }
+
+const declaredOver = (
+  defaults: ReadonlyArray<readonly [string, Declared]>,
+  declared: PropDeclarations,
+): PropDeclarations =>
+  defaults.length === 0 ? declared : new Map([...defaults, ...declared])
 
 export const withClaims = (
   vault: PropDeclarations,
@@ -207,15 +213,10 @@ export const withClaims = (
     if (key === undefined) continue
     claimed.push([key, { type: { kind: "contributed", word: kind.kind }, at: "" }])
   }
-  // The claims go in FIRST and every vault row lands on top.
-  return claimed.length === 0 ? vault : new Map([...claimed, ...vault])
+  return declaredOver(claimed, vault)
 }
 
-/**
- * THE DECLARATIONS FILE'S TOP-LEVEL RECORDS, IN LINE ORDER — and the line order
- * is the reconciliation rather than an implementation detail.
- */
-const declaringIn0 = (
+const declaringInLineOrder = (
   derived: Derived,
   file: string,
 ): ReadonlyArray<LocatedRegular> =>

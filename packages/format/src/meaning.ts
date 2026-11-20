@@ -24,12 +24,6 @@ export const Meaning = Schema.Union([
 ])
 export type Meaning = typeof Meaning.Type
 
-/**
- * `prop` AND NOT `key`: the page stream declares `arrayKey: "key"`
- * (juspay/kolu#2190), so a field of that name would make the merge treat this
- * as a KEYED array and identify two doors on two rows by the property they
- * happen to share.
- */
 export const Door = Schema.Struct({
   from: Schema.String,
   prop: Schema.String,
@@ -38,10 +32,6 @@ export const Door = Schema.Struct({
 })
 export type Door = typeof Door.Type
 
-/**
- * `prop` and not `key`, for {@link Door}'s wire reason exactly: a field of that
- * name would make the page stream's merge treat this as a KEYED array.
- */
 export const Licence = Schema.Struct({
   from: Schema.String,
   prop: Schema.String,
@@ -117,22 +107,31 @@ const declaredly = (
   }
 }
 
-/**
- * THE UNDECLARED ARM: the five shape guesses, in the order they are read — a
- * URL, a date, a node id, a vault path, a GitHub reference. The date is read
- * before the id match, though a date is id-shaped.
- */
-const guessed = (vault: Vault, from: string, value: string): Meaning | null => {
-  if (isHttp(value)) return { kind: "away", href: value }
-  const day = dayIn(value)
-  if (day !== null) return day
-  if (vault.declares(value)) return { kind: "node", id: value, titled: false }
-  const served = servedFrom(vault, undefined, from, value)
-  if (served !== null) return served
+type Guess = (vault: Vault, from: string, value: string) => Meaning | null
+
+const urlIn: Guess = (_vault, _from, value) =>
+  isHttp(value) ? { kind: "away", href: value } : null
+
+const dateIn: Guess = (_vault, _from, value) => dayIn(value)
+
+const nodeIdIn: Guess = (vault, _from, value) =>
+  vault.declares(value) ? { kind: "node", id: value, titled: false } : null
+
+const vaultPathIn: Guess = (vault, from, value) => servedFrom(vault, undefined, from, value)
+
+const githubRefIn: Guess = (_vault, _from, value) => {
   const github = GITHUB_REF.exec(value)
-  if (github !== null) {
-    const [, owner, repo, number] = github as unknown as [string, string, string, string]
-    return { kind: "away", href: `https://github.com/${owner}/${repo}/issues/${number}` }
+  if (github === null) return null
+  const [, owner, repo, number] = github as unknown as [string, string, string, string]
+  return { kind: "away", href: `https://github.com/${owner}/${repo}/issues/${number}` }
+}
+
+const GUESSES: ReadonlyArray<Guess> = [urlIn, dateIn, nodeIdIn, vaultPathIn, githubRefIn]
+
+const guessed = (vault: Vault, from: string, value: string): Meaning | null => {
+  for (const guess of GUESSES) {
+    const meaning = guess(vault, from, value)
+    if (meaning !== null) return meaning
   }
   return null
 }

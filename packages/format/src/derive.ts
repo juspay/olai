@@ -42,10 +42,6 @@ export interface Derived {
   readonly taggedBy: ReadonlyMap<string, ReadonlyArray<LocatedRegular>>
   readonly byDay: ReadonlyMap<string, ReadonlyArray<Dated>>
   readonly owedByDay: ReadonlyMap<string, number>
-  /**
-   * THE SAME KEYS AND THE SAME ORDER as `byDay`, never a second opinion about
-   * which days the set has.
-   */
   readonly days: ReadonlyArray<string>
 }
 
@@ -159,10 +155,9 @@ export const derive = (claims: Claims, nodes: ReadonlyArray<Located>): Derived =
   for (const own of byFile.values()) own.sort(byLine)
   for (const siblings of children.values()) siblings.sort(byOrd)
   const byDay = new Map([...dated].sort(([one], [other]) => byDayKey(one, other)))
-  const days: Array<string> = []
+  const days = [...byDay.keys()]
   const owedByDay = new Map<string, number>()
   for (const [day, own] of byDay) {
-    days.push(day)
     const owed = owingOn(own)
     if (owed > 0) owedByDay.set(day, owed)
   }
@@ -268,6 +263,9 @@ export const owingOn = (dated: ReadonlyArray<Dated>): number => {
   }
   return owed
 }
+
+export const owedAmong = (dated: ReadonlyArray<Dated>): Array<Dated> =>
+  dated.filter((one) => unfinishedWork(one.at.node))
 
 export const dayAt = (days: ReadonlyArray<string>, value: string): number => {
   let low = 0

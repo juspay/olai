@@ -1,7 +1,3 @@
-/**
- * THE FIRST TWO MUST ANSWER THE SAME VALUE, and that is asserted before
- * anything is timed.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   derive,
@@ -94,15 +90,19 @@ const arms = { index: vocabularyOf, walk: walked, titles: titlesOnly } as const
 const spelling = (tags: ReadonlyArray<TagUse>): string =>
   tags.map((tag) => `${tagText({ sigil: tag.sigil, tag: tag.name })} ${tag.count}`)
     .join("\n")
-const found = spelling(arms.index(fresh()))
-const walkFound = spelling(arms.walk(fresh()))
-if (found !== walkFound) {
+
+const agreeing = (one: keyof typeof arms, other: keyof typeof arms): void => {
+  const said = spelling(arms[one](fresh()))
+  const alsoSaid = spelling(arms[other](fresh()))
+  if (said === alsoSaid) return
   throw new Error(
-    "the index and the equivalent walk disagree about the set's tags, so neither" +
-      ` number means anything:\n  index: ${found.split("\n").length} tags` +
-      `\n  walk:  ${walkFound.split("\n").length}`,
+    `the ${one} arm and the ${other} arm disagree about the set's tags, so neither` +
+      ` number means anything:\n  ${one}: ${said.split("\n").length} tags` +
+      `\n  ${other}: ${alsoSaid.split("\n").length}`,
   )
 }
+
+agreeing("index", "walk")
 const tags = view.taggedBy.size
 if (tags < 2) throw new Error(`the vault holds ${tags} tags — this measures nothing`)
 const titlesFound = arms.titles(fresh()).length

@@ -1,5 +1,4 @@
 {
-  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in: the set's own word, not the files row.",
   "capture": {
     "src/inbox.ts": 10,
     "src/index.ts": 3,
@@ -42,7 +41,6 @@
     "src/patch.ts": 4,
     "src/searching.ts": 1
   },
-  "//markdown": "The word names the GRAMMAR a file's body is written in — the `Markdown` document, `isMarkdown`, and the set readers `markdownIn`/`markdownAt` — not the markdown row.",
   "markdown": {
     "src/agents.ts": 2,
     "src/dates.ts": 1,

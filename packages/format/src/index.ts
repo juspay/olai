@@ -26,9 +26,6 @@ export {
   stopping,
   withDocuments,
 } from "./set.ts"
-/** WHICH FILE COMES FIRST — the order a directory is read in, and the one
- *  spelling of it: a client ordering paths its own way would be the same
- *  directory read two ways. */
 export {
   basenameOf,
   byPath,

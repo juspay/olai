@@ -598,8 +598,6 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   }))
   expect(before(clear, "a")).toEqual([])
 
-  // THE ORDER HERE IS USER-VISIBLE, which is why it is asserted rather than
-  // sorted away.
   const both = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +

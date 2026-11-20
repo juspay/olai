@@ -1,6 +1,6 @@
 import type { Claims } from "./kinds.ts"
 import { conventionCalled, TRASH, INBOX, PINS } from "./node.ts"
-import { type Derived, drawnFrom } from "./derive.ts"
+import { byCorpus, type Derived, drawnFrom } from "./derive.ts"
 import {
   chainOf,
   compareErrors,
@@ -17,6 +17,7 @@ import {
   PROPERTIES,
   propertiesIn,
   type Site,
+  targetsOf,
 } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
@@ -59,7 +60,7 @@ export const reportDuplicateIds = (
       code: "duplicate-id",
       ...siteOf(located),
       message: `\`${located.node.id}\` is already the id of another node; ids are unique across every file in the served directory`,
-      related: [{ ...siteOf(first), note: "first declared here" }],
+      related: [{ ...siteOf(first), note: "first declared here", blamed: true }],
     })
   }
 }
@@ -87,7 +88,7 @@ export const reportParents = (
         code: "foreign-parent",
         ...siteOf(located),
         message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.olai\` is an independent tree, so cross-file placement is a \`mirror\``,
-        related: [{ ...siteOf(parent), note: "the parent lives here", broken: false }],
+        related: [{ ...siteOf(parent), note: "the parent lives here", blamed: false }],
       })
       continue
     }
@@ -96,13 +97,13 @@ export const reportParents = (
         code: "parent-not-a-node",
         ...siteOf(located),
         message: `\`parent\` is \`${node.parent}\`, which is a mirror; children hang off the node a mirror points at, never off the mirror`,
-        related: [{ ...siteOf(parent), note: "the mirror is here" }],
+        related: [{ ...siteOf(parent), note: "the mirror is here", blamed: true }],
       })
     }
   }
 }
 
-export const reportParentCycles = (
+export const reportCycleWalks = (
   all: ReadonlyArray<Located>,
   derived: Derived,
   errors: Array<OutlineError>,
@@ -113,6 +114,19 @@ export const reportParentCycles = (
     "`parent` pointers close a loop, so this node is its own ancestor",
     errors,
   )
+  reportCycles(
+    findCycles(all, derived, (node) => derived.after.get(node.id) ?? []),
+    "after-cycle",
+    "`after` (with `blocks` normalised into it) closes a loop, so nothing in it can start first",
+    errors,
+  )
+  reportCycles(
+    findCycles(all, derived, (node) => drawnFrom(derived, node))
+      .filter((cycle) => cycle.some((located) => isMirror(located.node))),
+    "mirror-cycle",
+    "this mirror is placed inside the subtree it shows, so expanding it never ends",
+    errors,
+  )
 }
 
 export const danglingIn = (derived: Derived): ReadonlyArray<string> => {
@@ -121,12 +135,24 @@ export const danglingIn = (derived: Derived): ReadonlyArray<string> => {
   return dangling
 }
 
+const byNaming = (derived: Derived, one: string, other: string): number => {
+  const first = derived.namedBy.get(one)?.[0]?.at
+  const second = derived.namedBy.get(other)?.[0]?.at
+  if (first === undefined || second === undefined) return 0
+  if (first !== second) return byCorpus(first, second)
+  for (const [, id] of targetsOf(first.node)) {
+    if (id === one) return -1
+    if (id === other) return 1
+  }
+  return 0
+}
+
 export const reportUnknownTargets = (
   dangling: Iterable<string>,
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  for (const id of dangling) {
+  for (const id of [...dangling].sort((one, other) => byNaming(derived, one, other))) {
     const said = suggest(id, derived)
     for (const naming of derived.namedBy.get(id) ?? []) {
       for (const field of naming.fields) {
@@ -138,34 +164,6 @@ export const reportUnknownTargets = (
       }
     }
   }
-}
-
-export const reportAfterCycles = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  reportCycles(
-    findCycles(all, derived, (node) => derived.after.get(node.id) ?? []),
-    "after-cycle",
-    "`after` (with `blocks` normalised into it) closes a loop, so nothing in it can start first",
-    errors,
-  )
-}
-
-export const reportMirrorCycles = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  const cycles = findCycles(all, derived, (node) => drawnFrom(derived, node))
-
-  reportCycles(
-    cycles.filter((cycle) => cycle.some((located) => isMirror(located.node))),
-    "mirror-cycle",
-    "this mirror is placed inside the subtree it shows, so expanding it never ends",
-    errors,
-  )
 }
 
 export const reportDeclarations = (
@@ -218,7 +216,7 @@ const judgedFrom = (typed: Typed, key: string): ReadonlyArray<Related> => {
   const declaring = declared === undefined ? undefined : typed.derived.byId.get(declared.at)
   return declaring === undefined
     ? []
-    : [{ ...siteOf(declaring), note: "declared here", broken: false }]
+    : [{ ...siteOf(declaring), note: "declared here", blamed: false }]
 }
 
 const findCycles = (
@@ -267,7 +265,7 @@ const reportCycles = (
       message: `${message}: ${
         chainOf([...ordered.map((step) => step.node.id), anchor.node.id])
       }`,
-      related: rest.map((step) => ({ ...siteOf(step), note: "also in the loop" })),
+      related: rest.map((step) => ({ ...siteOf(step), note: "also in the loop", blamed: true })),
     })
   }
 }
@@ -299,7 +297,7 @@ export const reportConventions = (claims: Claims, set: OutlineSet): ReadonlyArra
     for (const file of files) errors.push({
       file, line: 0, code: "ambiguous-convention",
       message: `${stem} is ambiguous: ${files.join(", ")}. Keep only one convention file.`,
-      related: files.filter(other => other !== file).map(file => ({ file, line: 0, note: "competing convention file" })),
+      related: files.filter(other => other !== file).map(file => ({ file, line: 0, note: "competing convention file", blamed: true })),
     })
   }
   return errors

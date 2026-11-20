@@ -1,15 +1,13 @@
 import type { Claims } from "./kinds.ts"
-import { byCorpus, type Derived } from "./derive.ts"
+import type { Derived } from "./derive.ts"
 import { isMarkdown } from "./document.ts"
 import type { OutlineError } from "./errors.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, targetsOf } from "./node.ts"
 import { claimsAreUnique, recordsIn, type SetDelta, touchedBy } from "./patch.ts"
 import {
-  reportAfterCycles,
+  reportCycleWalks,
   reportDeclarations,
-  reportMirrorCycles,
-  reportParentCycles,
   reportParents,
   reportPropValues,
   reportUnknownTargets,
@@ -63,10 +61,8 @@ export const incrementally = (
   }
   reportParents(asking, derived, errors)
 
-  // The three cycle walks, in the full arm's own order so that two findings at
-  // one site cannot come out in two orders.
   const moving = structural(gone, fresh)
-  if (moving) reportParentCycles(derived.nodes, derived, errors)
+  if (moving) reportCycleWalks(derived.nodes, derived, errors)
 
   const named = new Set<string>(moved)
   for (const at of gone) for (const [, id] of targetsOf(at.node)) named.add(id)
@@ -75,19 +71,8 @@ export const incrementally = (
   for (const id of named) {
     if (derived.namedBy.has(id) && !derived.byId.has(id)) dangling.push(id)
   }
-  // PUT BACK IN `namedBy`'s KEY ORDER, which is the order the report promises
-  // for two findings at one site ({@link ./rules.ts}'s `reportUnknownTargets`).
-  dangling.sort((one, other) => byNaming(derived, one, other))
   reportUnknownTargets(dangling, derived, errors)
 
-  if (moving) {
-    reportAfterCycles(derived.nodes, derived, errors)
-    reportMirrorCycles(derived.nodes, derived, errors)
-  }
-
-  // Removals first and then the changes, which is the order a delta is applied
-  // in ({@link ../../store/src/codec.ts}'s `Since` says why a path can be in
-  // both lists).
   const known = new Set(ledger.known)
   const lost: Array<string> = []
   for (const file of delta.removes) if (known.delete(file)) lost.push(file)
@@ -138,18 +123,6 @@ const shapeOf = (at: Located): string =>
     isMirror(at.node) ? null : at.node.after ?? null,
     isMirror(at.node) ? null : at.node.blocks ?? null,
   ])
-
-const byNaming = (derived: Derived, one: string, other: string): number => {
-  const first = derived.namedBy.get(one)?.[0]?.at
-  const second = derived.namedBy.get(other)?.[0]?.at
-  if (first === undefined || second === undefined) return 0
-  if (first !== second) return byCorpus(first, second)
-  for (const [, id] of targetsOf(first.node)) {
-    if (id === one) return -1
-    if (id === other) return 1
-  }
-  return 0
-}
 
 const markdownPath = (claims: Claims, file: string): boolean => {
   const kind = fileKind(claims, file)

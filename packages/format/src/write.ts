@@ -1,7 +1,6 @@
-import { type Custom, type CustomValue, customKeys } from "./custom.ts"
+import { type Custom, type CustomValue, customKeys, emptyValue } from "./custom.ts"
 export const nothing = (value: unknown): boolean =>
-  value === undefined || value === null ||
-  (Array.isArray(value) && value.length === 0) || value === "" ||
+  value === undefined || value === null || emptyValue(value) ||
   (typeof value === "object" && value !== null && !Array.isArray(value) &&
     Object.keys(value).length === 0)
 

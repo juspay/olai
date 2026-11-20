@@ -434,11 +434,11 @@ test("rows on one day come in the order the page draws them: outline, then time"
   expect(rowIds(owedRows(several, "2026-08-20", 10))).toEqual(["bare", "at-two", "late-in-zeta"])
 })
 
-test("a today row is the day the caller named, exactly as the count is", () => {
+test("a today row is the DAY the caller named, exactly as the count is", () => {
   const instant = "2026-08-12T09:00:00-04:00"
   const reading = owedReading(SET, instant, 10)
   expect({ ...reading, rows: rowIds(reading.rows) })
-    .toEqual({ overdue: 2, today: 0, rows: ["permit", "posts"] })
+    .toEqual({ overdue: 2, today: 1, rows: ["permit", "posts", "ferry"] })
 })
 
 test("the rows STOP at the days they need — the days behind them are never read", () => {
