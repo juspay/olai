@@ -39,44 +39,51 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
 <main>
 
 <div class="hero">
-  <div class="wrap hero-grid">
-    <div class="hero-copy">
-      <p class="kicker">a git-native outliner</p>
-      <h1>olai</h1>
-      <p class="tag">An outliner that lives in files you own.</p>
-      <p class="sub">Indent, check off, search. Markdown sits beside the
-      outline. Git records every edit.</p>
-      <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web path/to/outlines</code></pre>
-      <p class="run-hint">one directory. a browser. that’s the whole install.</p>
-      <p class="next">
-        <a class="go" href="/docs/start/">Start in five minutes</a>
-        <a href="/docs/">Read the docs</a>
-      </p>
-      <nav class="chapters" aria-label="On this page">
-        <a href="#compare">compared to others</a>
-        <a href="#agenda">what's due</a>
-        <a href="#find">filter a page</a>
-        <a href="#type">keys</a>
-        <a href="#prefs">colours</a>
-        <a href="#agent">coding agents</a>
-        <a href="#plugins">plugins</a>
-        <a href="#commit">git</a>
-      </nav>
-    </div>
-
-    <div class="hero-stage">
-      <img class="specimen" src="/leaf.jpg" width="1024" height="1365" alt="A palm leaf drawn in ink on sea-glass paper, coral at the tips.">
-      <div class="panel kitchen" aria-label="An olai outline, as the browser draws it">
-        <div class="file">kitchen.olai</div>
-        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
-        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
-        <div class="row d1"><span class="box done"></span><span class="t strike">Pick the counter stone</span></div>
-        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">5 days late</span></div>
-        <div class="pilcrow" title="a note hangs behind the pilcrow">¶</div>
-        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
-        <div class="row d1"><span class="bullet">●</span><span class="t">Paint samples on the north wall</span></div>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="kicker">open source · plain files · the AI agent you choose</p>
+        <div class="brand">
+          <h1>olai</h1>
+          <img class="leafmark" src="/leaf.jpg" width="1024" height="1365" alt="A palm leaf drawn in ink, with coral tips. It is the olai mark.">
+        </div>
+        <p class="tag">Notes and to-do lists that you and an AI agent edit together.</p>
+      </div>
+      <div class="hero-say">
+        <p class="sub">olai is an outliner. An outline is a list of items, and an
+        item can hold more items under it. You write items, mark them done, and
+        give them dates. An AI agent does the same when you ask it. olai saves
+        your work as plain files on your own computer.</p>
+        <p class="next">
+          <a href="#try">What you need to run olai</a>
+        </p>
       </div>
     </div>
+
+    <figure class="shot crop">
+      <img src="/tour/outline-and-chat.png" width="2880" height="1800" alt="olai in a browser. The sidebar on the left lists two outlines. The middle shows the outline Kitchen renovation, with six of seven items marked done. The right shows a chat in which an agent marks items done.">
+    </figure>
+    <p class="caption only-wide">The real app. The middle pane shows an outline. The right pane shows a chat with an agent about that outline. The agent has marked four items done. The agent in this picture is scripted, so that the picture can be made again when olai changes.</p>
+    <p class="caption only-narrow">A close view of the real app. An agent has marked four items of this outline done. The agent in this picture is scripted.</p>
+
+    <ul class="points three">
+      <li><b>Your notes are plain files.</b>
+        <span>olai keeps them in a directory, which is a folder on your computer. An outline is a text file with one item per line, written as JSON. A document is a Markdown file. If you stop using olai, the files stay where they are.</span></li>
+      <li><b>You choose the AI agent.</b>
+        <span>olai has no AI of its own. It runs Claude Code, Codex, OpenCode, Pi, or Oh My Pi with the account that you already have. You pick the agent each time you start a chat.</span></li>
+      <li><b>You see every change.</b>
+        <span>The agent works in a chat beside the outline. Each change appears on the page when the agent makes it. olai records your changes and the agent's changes in git, so you can read them later.</span></li>
+    </ul>
+    <p class="honest"><b>What it takes today.</b> olai is new. It runs on a Mac or a Linux computer, and you start it from a terminal with Nix. olai has no phone app and no account to create. Read <a href="#try">what you need to run olai</a>.</p>
+
+    <nav class="chapters" aria-label="On this page">
+      <a href="#agent">AI agents</a>
+      <a href="#compare">comparison</a>
+      <a href="#agenda">what is due</a>
+      <a href="#find">filter and search</a>
+      <a href="#plugins">plugins</a>
+      <a href="#try">run olai</a>
+    </nav>
   </div>
 </div>
 
@@ -392,24 +399,36 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
   </div>
 </section>
 
+<section id="try">
+  <div class="wrap">
+    <h2>Run olai on a Mac or a Linux computer</h2>
+    <p class="lead">olai is free, and you do not create an account. You need
+    these things to run it today.</p>
+    <div class="try">
+      <div>
+        <ul>
+          <li>A Mac or a Linux computer. olai does not run on Windows.</li>
+          <li>A terminal.</li>
+          <li><a href="https://nixos.org/download/">Nix</a>, a free program that downloads olai and runs it.</li>
+          <li>An account with Claude Code, Codex, OpenCode, Pi, or Oh My Pi, if you want an agent.</li>
+        </ul>
+        <p class="next"><a class="go" href="/docs/start/">Set up olai and write your first line</a></p>
+      </div>
+      <div>
+        <p>This command starts olai on the directory <code>~/notes</code>.</p>
+        <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web ~/notes</code></pre>
+        <p class="caption">The Start page has every step, with the two commands that come before this one.</p>
+        <p class="caption">olai has no installer for people who do not use a terminal, and no hosted version. A new olai release can break things. Keep your notes in git, as the Start page shows.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <div class="wrap"><Fragment set:html={notes} /></div>
 
 </main>
 
 <script is:inline>
-  document.querySelectorAll(".hero .box:not(.done)").forEach((box) => {
-    box.style.cursor = "pointer";
-    box.title = "tick it off";
-    box.addEventListener("click", () => {
-      if (box.classList.contains("done")) return;
-      box.classList.remove("doing");
-      box.classList.add("done", "just-done");
-      const row = box.closest(".row");
-      const title = row && row.querySelector(".t");
-      if (title) title.classList.add("strike");
-    });
-  });
-
   const install = document.getElementById("install");
   if (install) {
     install.addEventListener("click", async () => {
