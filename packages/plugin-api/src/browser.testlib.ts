@@ -1,5 +1,3 @@
-/** Browser API fixture with a real renderer-owned registry but no DOM. The
- * notebook catalog is declared by the fixture shell, never by openApp. */
 import type { Locations } from "@olai/effect-cordis"
 import { Effect } from "effect"
 import { definePlugin, locations, location, mountPlugin, Offers, slotFacade, slotLocation, type App } from "./browser.ts"

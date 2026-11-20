@@ -1,5 +1,3 @@
-/** Generic compatibility facade vocabulary. Capabilities augment the types and
- * own their concrete descriptors; this module has no application catalog. */
 import { location, locationReference, type Location } from "@olai/effect-cordis"
 export type SlotKey = "plugin" | "kind" | "app" | "nothing"
 export interface SlotDefinition<F, K extends SlotKey = SlotKey> {readonly face: F; readonly keyedBy: K}

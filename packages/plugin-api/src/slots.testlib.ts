@@ -1,4 +1,3 @@
-/** Compatibility tests explicitly declare their own fixture catalog. */
 import { slotContract, type SlotDefinition } from "./slots.ts"
 export const TEST_SLOTS = [
   slotContract<unknown>("outline.row.chip","kind"),

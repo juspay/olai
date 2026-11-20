@@ -87,7 +87,6 @@ test("a loader rejects new children as soon as its owner begins draining", async
     const dropping = yield* Effect.forkChild(owner.dispose)
     yield* Deferred.await(cleanup)
     const late = yield* Effect.exit(retained.mount(definePlugin({ name: "late", needs: [], apply: Effect.sync(() => { acquired++ }) })))
-    // Finish the held cleanup even if a subsequent assertion fails.
     yield* Deferred.succeed(release, undefined)
     yield* Fiber.join(dropping)
     expect(Exit.isFailure(late)).toBe(true)

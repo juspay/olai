@@ -1,5 +1,3 @@
-/** Narrow host loading: callers own the children they load. This mechanism
- * knows plugin modules and reports, not source files, approval or compilation. */
 import { serviceTag, provide, mountPlugin, rowReport, type Plugin, type Mounted, type Host, type RowReport } from "@olai/effect-cordis"
 import type { OpFailure } from "@olai/format"
 import { Effect, Exit, Scope } from "effect"
@@ -7,10 +5,6 @@ import { Effect, Exit, Scope } from "effect"
 export interface Catalog {
   readonly names: () => ReadonlyArray<string>
   readonly rows: (reports: ReadonlyMap<string, RowReport>) => ReadonlyArray<unknown>
-  /** A catalog's switch WRITES — a vault plugin's `on` is a property in the
-   *  settings file, like a built row's — so it refuses the way the write door
-   *  refuses, and the press carries the sentence back rather than reporting a
-   *  flip that never landed. */
   readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean, OpFailure>
   readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<boolean, OpFailure>
 }
@@ -35,8 +29,6 @@ export const openLoading = (host: Host, reserved: ReadonlyArray<string>, changed
     acquire: Effect.gen(function*() {
       const parent = yield* Effect.scope
       return { mount: (plugin: Plugin, config?: unknown) => Effect.gen(function*() {
-        // Scope marks itself closed before it starts awaiting child finalizers.
-        // A finalizer-owned flag would revoke admission only after their drain.
         if (parent.state._tag === "Closed") return yield* Effect.die(new Error(`Plugin loader owned by "${owner}" has closed`))
         if (reserved.includes(plugin.name)) return yield* Effect.die(new Error(`Plugin "${plugin.name}" is reserved by the bundle`))
         const scope = yield* Scope.fork(parent)

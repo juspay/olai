@@ -1,82 +1,3 @@
-/**
- * THE SERVICES A SERVER HALF NAMES — the whole of what core offers a plugin,
- * and the door a plugin's `./server` opens.
- *
- * ## What a plugin is now, in one breath
- *
- * ```ts
- * export default definePlugin({
- *   name,
- *   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
- *   apply: Effect.gen(function*() {
- *     const kinds = yield* Kinds
- *     for (const kind of ours) yield* kinds.register(kind)
- *   }),
- * })
- * ```
- *
- * `needs` is the list; the `R` of `apply` is computed from the SAME list, so a
- * plugin that yields a tag it did not name is a `tsc` error at its own
- * `definePlugin` call. `register` returns an Effect whose undo is a finalizer on
- * the plugin's `Scope`, so unloading the plugin takes the registration with it
- * and nothing on either side of the wall remembers to say so. Nobody calls
- * `ctx.effect`, and nothing here imports `cordis` — `@olai/effect-cordis` is the
- * one package that does.
- *
- * ## What replaced what
- *
- * It was `PluginServices`: one blob of seven fields, built per plugin by the
- * composition root and pushed in whole, so every plugin received everything
- * whether or not it had any use for it. Then it was ten `Service`
- * classes, which fixed the blob and left two runtimes meeting in the open —
- * `Effect.promise` around the mount, `ring(Effect.logWarning(line))` callbacks
- * back out of every service, and plugin bodies that were plain TypeScript
- * reaching into Effect by hand. Each of those was an escape hatch and each new
- * plugin copied them.
- *
- * Three things fall out of the tags, and none of them is a convenience:
- *
- *   - **A plugin that does not name `Deliveries` never sees it.** The runtime
- *     holds the fiber PENDING until every named service exists, unloads it when
- *     one leaves, and re-applies it when one returns. The compiler holds the
- *     same line one step earlier.
- *   - **The per-plugin STAMP is not threaded and cannot be spelled.** A keyed
- *     service is a {@link Provision} — a function from the plugin's word to that
- *     plugin's own view of it — and the facade calls it once, with the name it
- *     read off the fiber. So `deliveries.deliver(...)` has no parameter for
- *     "who", and there is no arm of this file where one could be added.
- *   - **A registration carries its own undo.** Every `register` here is an
- *     `Effect.acquireRelease` on the calling plugin's scope, so a plugin whose
- *     `apply` died before it reached one installed nothing at all, and one that
- *     unloads unregisters exactly what it registered, in reverse.
- *
- * ## `log` is gone, and its absence is the phase
- *
- * There was a `Log` service with a `say` and a `warn`, wired by the composition
- * root to `ring(Effect.logDebug(line))` and `ring(Effect.logWarning(line))` — an
- * Effect run from a callback, per line, because the plugin had no fiber to emit
- * from. A plugin's `apply` IS a fiber now, so `Effect.logDebug` and
- * `Effect.logWarning` are what a plugin says its lines with, and they arrive
- * with the level the operator asked for, the annotations the serve set and the
- * span it was inside. WHICH LEVEL a sentence goes at is still the plugin's
- * decision and still the same one: routine narration at debug, because on a
- * machine that is not running the tool it is a line every few seconds and it is
- * not news; what the OWNER must read at warning, because the default console
- * level is `info`.
- *
- * ## What is NOT here
- *
- * No browser face, and the door's whole discipline is that: this module names
- * `@olai/effect-cordis`, `effect` and `./contract.ts`, so a process that renders
- * nothing can reach it. `./plugin.ts` — what a browser half is written against —
- * returns `JSX.Element` from every field and is deliberately on the other side
- * of the package.
- *
- * No `intercept` on the vault, either, and that is a phase and not an oversight:
- * node-agent scopes arrive with a credential, not with interception metadata
- * on {@link Vault}.
- */
-
 import type { Engine, Registering } from "@kolu/acp/engine"
 import {
   broadcast,
@@ -118,87 +39,13 @@ import {
   type Wake,
 } from "./contract.ts"
 
-/** WHAT A PLUGIN IS WRITTEN WITH, re-exported so a server half opens ONE door —
- *  {@link ./runtime.ts}, which is the same list `./index.ts` hands the browser
- *  half and which argues there why it is one list. */
 export * from "./runtime.ts"
 
-/**
- * WHAT THE PROCESS CAN SEE, plus the one seam a test fills.
- *
- * `vars` is what a plugin's rendezvous is decided from — `$PADI_SOCKET`,
- * `$OLAI_REPOS_DIR` — read here so a composition root is the one place a real
- * environment is reached for. A plugin that read `process.env` itself would be a
- * plugin a test cannot drive.
- *
- * `dial` is THE INJECTABLE, for a test: a fake padi, a fake coordinator,
- * whatever the calling plugin talks to. `unknown`, and the honesty of that is
- * the point rather than a gap — core cannot type a plugin's own test double
- * without learning what the plugin talks to, which is the one thing this whole
- * arrangement exists to prevent. It travels opaque and is narrowed by the
- * plugin, once, at its own edge.
- *
- * IT IS A VALUE AND NOT A LOOKUP, which is the stamp doing its job: the root
- * used to close over `dials[plugin.name]` and then a service read
- * `this.ctx.fiber.name` off a shadow. The provision resolves it once, from the
- * word the registry bound the fiber under, so a plugin cannot ask for another's
- * double by spelling its name — there is no name to spell. A fiber with no entry
- * gets `undefined`, which is every real serve.
- */
 export interface Env {
   readonly vars: Record<string, string | undefined>
   readonly dial: unknown
 }
 export const Env = serviceTag<Env>("env")
-
-/**
- * ## `HostServices` IS GONE, and the absence is the phase
- *
- * There was a capability here whose whole shape was *give me whatever stands
- * behind this key* — `current: <A>(key: ServiceKey<A>) => A | undefined`, over
- * the host, for any key. Two rows named it: the MCP row spent it on `Directory`,
- * `Ops` and `Ledger`, and the vault row's settings on `Ledger` and `Search`.
- * None of those five dependencies was DECLARED anywhere, so the graph a person
- * reads — a row's `needs`, `plugins.inspect`, the panel's sentence about what
- * would go `waiting` if this row were turned off — said one thing while the
- * code did another (the Cordis audit's §5).
- *
- * ## A COMPONENT IS THE WRONG REPAIR, and the reason cost a CI run
- *
- * The obvious answer is a component per optional key: the runtime holds it
- * `waiting` while its provider is absent, says which key on the panel, and
- * unwinds it when the provider leaves. It is wrong, and the paragraph is here
- * because nothing else on this page would tell you why: a row's report FOLDS
- * its components, so a component waiting for a provider that will never arrive
- * makes the whole ROW read `waiting` — and `@olai/server`'s runtime reports a
- * row as `running` only when it does not. A vault short of git would have
- * stopped being loaded by the tab at all. A component is for a half that is
- * *optional to have*; it is not for a provider that is *optional to exist*.
- *
- * ## What replaced it is two shapes, and both are declared
- *
- * The PROVIDER REGISTERS, wherever the arrow can be turned around:
- * {@link VaultViews} is a door the vault stands behind, and git and search tell
- * it about their {@link Ledger} and {@link Search}. Both already name
- * {@link Vault}, so neither gains a wait, the edge is in the graph at the end
- * that can carry it, and the registration is a finalizer on the PROVIDER's
- * scope. It is the shape {@link Kinds.register}, {@link Surfaces.register} and
- * {@link Wakes.register} already have.
- *
- * ...and a NARROW BROKER where it cannot: {@link Served} carries the served
- * directory and its write gate for MCP, which must stand up with no vault at
- * all and cannot invert (a vault registering its gate with the transport would
- * be the directory knowing what an MCP endpoint is). What makes that legitimate
- * where `HostServices` was not is that it is CLOSED — two readings, named in
- * the type, about one provider — rather than a lookup over every key there is.
- *
- * The fifth reach was DEAD: `bindAgent` took a `ledger` predicate the lookup
- * answered and no line in that package ever read.
- *
- * Every optional behaviour the lookup was reached for is kept — **MCP works
- * without a vault, and the vault works without git** — and neither shape
- * introduces the cycle a mandatory `needs` would.
- */
 
 /** Inert module declarations from the selected bundle, including disabled rows. */
 export interface BundleModules {
@@ -219,46 +66,6 @@ export interface Clock {
 }
 export const Clock = serviceTag<Clock>("clock")
 
-/**
- * THE DIRECTORY THIS SERVE IS ABOUT, and the two doors its revisions ring.
- *
- * ## Why the served path is the vault's and not the environment's
- *
- * It is half of where a relative path in a property resolves to, and it is a
- * fact about the SERVE rather than about whoever asked — a plugin that read it
- * off the store would be a second answer to a question the composition root
- * already holds.
- *
- * ## The doors, and the one that is NOT teardown
- *
- * {@link revision} is rung once per published revision, carrying the whole
- * snapshot, and every listener narrows it in its own signature to the part it
- * reads. {@link unloaded} means THE STORE HAS NEVER PUBLISHED: a directory the
- * server can no longer see, so whatever a plugin derived FROM the vault is
- * yesterday's reading and says so, while what it holds from its own daemon is
- * untouched. A half that has teardown beyond its own registrations puts it in a
- * finalizer on its own scope, which is where the runtime looks for one; reading
- * `unloaded` as a teardown hook would disown a live daemon every time a disk
- * went away for a beat.
- *
- * ## HANDLERS, and not a `Stream`
- *
- * The phase's design says these two become `Stream`s, and they are not, for one
- * reason that outranks the shape: the root publishes a revision from inside the
- * directory binding's own connector, and the statements AFTER that line write
- * the collections, the heads and the roster off a world every plugin has
- * already re-derived. A `Stream` subscriber is a fiber of its own, so the
- * publisher could only offer and walk on — and "the vault moved, and every
- * reading of it has moved with it" would stop being one statement. So the door
- * takes a handler that answers an Effect and the publisher AWAITS every one of
- * them, in subscription order, which is exactly what the synchronous loop it
- * replaces did.
- *
- * What the Effect buys instead is the containment that loop never had: a
- * handler that dies is caught HERE, with the calling plugin's word on the line,
- * so one plugin throwing on a revision cannot take the later ones down with it
- * — nor the owned fiber that published it.
- */
 /** One scoped owner publishes the Inbox convention; absence never waits on a plugin.
  * The vault owns the registry, while the registering scope owns its entry. */
 export interface InboxRegistry {
@@ -278,35 +85,14 @@ export interface Vault {
    * A published revision reached the store — for as long as this plugin is
    * loaded.
    *
-   * THE PAYLOAD IS THE HANDLER'S TO NAME, and each of the three halves that
-   * takes one names a different part of it: a snapshot carries the whole
-   * published world, and no plugin wants all of it. So the narrowing is
-   * INFERRED from the handler's own signature and written in the plugin's own
-   * file, which is where a reader looking for what this half reads would go.
+   * THE PAYLOAD IS THE HANDLER'S TO NAME: a snapshot carries the whole
+   * published world, and the narrowing is INFERRED from the handler's own
+   * signature.
    *
-   * ## THE ANNOTATION IS A CLAIM, NOT A CHECK. Say it plainly.
-   *
-   * `A` is free — the CALLER picks it — so nothing holds a handler's parameter
-   * type against what the root actually rings, and the provision below satisfies
-   * this signature with one `as`. A half that named a field the snapshot does
-   * not carry would compile and read `undefined` at runtime, exactly as it would
-   * have through the cast this replaced.
-   *
-   * What changed is the count and the honesty, not the soundness. It was
-   * `unknown`, and all three halves opened with the same `snapshot as
-   * VaultRevision` under a paragraph saying the compiler had checked it: three
-   * casts and three copies of a false sentence. There is one `as` now, in the
-   * provision, and the plugins' paragraphs say what they are doing.
-   *
-   * A CHECKED version needs a type both ends can spell, and the shape is
-   * `@olai/format`'s (`OutlineSet`, `Derived`) — which this package refuses as a
-   * dependency for the reason its manifest gives: the kind table travels as
-   * DATA, and a floor package importing the vocabulary would be the format
-   * learning what a terminal is. Naming the fields structurally instead would
-   * not help, because `derived: unknown` is not assignable to `derived: Derived`
-   * and every half would be back to a cast. The sound version is a schema the
-   * root supplies and each half DECODES, which can fail and so is a behaviour
-   * change rather than a signature.
+   * THE ANNOTATION IS A CLAIM, NOT A CHECK. `A` is free — the CALLER picks it
+   * — so nothing holds a handler's parameter type against what the root
+   * actually rings, and a half that named a field the snapshot does not carry
+   * would compile and read `undefined` at runtime.
    */
   readonly revision: <A>(
     handler: (snapshot: A) => Effect.Effect<void>,
@@ -394,86 +180,9 @@ export const vaultEvents = (served: string) => {
   }
 }
 
-/**
- * THE DOORBELL'S DOOR — which conversations opted into the CALLING plugin's
- * wakes, and the one write-only verb that reaches them.
- *
- * ## The keying is the fence, and there is no argument for it
- *
- * A door keyed by nobody would hand one plugin the conversations a person
- * scoped to another, and would let one plugin sign another's name onto a row
- * that reaches an agent. Neither verb here takes a plugin: the door was minted
- * from the word the registry bound this fiber under.
- *
- * ## Still write-only, and that is the load-bearing half
- *
- * There is no `read`, no `transcript`, no `history`, and there is no arm of this
- * service where one could be added without saying so in the type. A plugin can
- * put a sentence INTO a conversation and can never learn what is in one.
- *
- * ## `scopes` is synchronous and `deliver` is not
- *
- * The list is an in-memory table core mirrors, read from inside a doorbell's own
- * derivation — often from a heartbeat that is counting rows. The delivery is a
- * real effect on a conversation and answers an Effect, which is also what
- * carries a plugin's log lines and the chat's own fiber settings with it.
- *
- * ## The chat arrives LATE, and the door is asked for per call
- *
- * The plugin fibers mount before the store opens — they have to, because a
- * plugin teaches the vault its vocabulary and the store validates through it —
- * and the chat is built after. A serve with no ACP agent installed has no chat
- * at all and never will. Both are the same answer: `scopes()` is the empty list
- * and `deliver` is a no-op, which is the honest machine-without-the-tool state
- * and needs no failure channel on a verb that cannot fail.
- */
 export interface Deliveries extends DeliveryDoor {}
 export const Deliveries = serviceTag<Deliveries>("deliveries")
 
-/**
- * STARTING A CONVERSATION, AND SAYING SOMETHING INTO ONE — the door a row
- * stands behind when it can run a chat, and the second of the two things core
- * knows about conversations.
- *
- * {@link Deliveries} is speaking into one that already exists, which is a
- * doorbell's whole need. This is the other half: a row that offers a person a
- * BUTTON which brings a conversation into being — *New plugin*, today — and
- * then hands it its first message with whatever the row needs the agent to
- * know before it starts.
- *
- * ## `teach` RIDES THE PROVIDER'S OWN SEAM, and that is the point of it being
- * here rather than a message the caller composes
- *
- * Whatever olai says to an agent beside a person's words is said in one lane,
- * marked, and delivered once per conversation. A caller that composed a first
- * message by hand would be a second channel with none of that — re-taught on
- * every turn, unmarked, and put in the person's mouth on replay. So the lines
- * are an input and the provider's teaching seam is what carries them.
- *
- * ## WRITE-ONLY, like the delivery door beside it
- *
- * There is no read of a transcript on this type and no arm where one could be
- * added without saying so. A row may create a conversation and may speak into
- * one; it can never learn what is in one. {@link Conversations.say} lands the
- * way a delivery does — an idle agent takes it as a turn, a running one takes
- * it at the boundary — and which arm it took is deliberately not reported back
- * either: a caller that could tell them apart would be reading the state of a
- * conversation through the one door that promises it cannot.
- *
- * ## WHY THIS IS CORE'S KEY, and was briefly chat's own
- *
- * It was `chat.conversations`, offered by chat with `Offers.own`, and a
- * consumer named it on a component of its own. That is the right shape for a
- * provider which is optional to HAVE and the wrong one for a provider which is
- * optional to EXIST — the `HostServices` paragraph above says why, and a serve
- * proved it: a row's report FOLDS its components, so the component waiting for
- * a chat that was switched off made the whole `vault-plugins` row read
- * `waiting`, out of the roster, chunk never loaded, and a plugin's page that
- * has nothing to do with chat gone with it. So the key is core's, it is in
- * `OFFERABLE` for chat to stand behind, and the optionality is brokered one
- * door down ({@link ConversationsWatch}) where absence is a value rather than
- * a wait.
- */
 export interface Conversations {
   /** Open the chat OF AN ITEM — a node or a note that already exists — start
    *  it on `engine`, and send `say` as its first message with `teach` riding
@@ -482,19 +191,12 @@ export interface Conversations {
    *  refused is started again on the same item rather than given a second
    *  chat.
    *
-   *  NOTHING IS MINTED, which is the whole of why only a refusal comes back:
-   *  the item is the caller's own — a `README.md` it has just written, a node
-   *  it is looking at — so there is no new address for this door to report. A
-   *  conversation that exists and has not begun is something a person can open
-   *  later, from the item itself.
+   *  NOTHING IS MINTED, which is why only a refusal comes back: the item is
+   *  the caller's own, so there is no new address for this door to report.
    *
-   *  THAT PROMISE HOLDS WHEN THE PROVIDER GOES AWAY MID-CALL, which is the one
-   *  case worth stating because it is the one a reader would assume otherwise.
-   *  A caller reaches this door through {@link ConversationsWatch} and does not
-   *  name {@link Conversations}, so chat being switched off does not unload the
-   *  caller: the acts stop where they got to, a tie already written to the
-   *  vault STAYS written, and the call answers with the refusal rather than
-   *  failing whole. */
+   *  THAT PROMISE HOLDS WHEN THE PROVIDER GOES AWAY MID-CALL: the acts stop
+   *  where they got to, a tie already written to the vault STAYS written, and
+   *  the call answers with the refusal rather than failing whole. */
   readonly open: (input: {
     readonly about: AgentItem
     readonly engine: string
@@ -529,40 +231,6 @@ export interface Conversations {
 }
 export const Conversations = serviceTag<Conversations>("conversations")
 
-/**
- * ...AND CORE'S NARROW BROKER OVER IT, which is the whole reason a row can
- * offer a person a *New plugin* button on a serve with no chat at all.
- *
- * {@link ConfigurationWatch}'s arrangement, one door over, for the reason that
- * one gives and the `HostServices` paragraph above states as a rule: a row that
- * named {@link Conversations} directly would go `waiting` with chat switched
- * off — and a row's report folds its components, so a COMPONENT naming it does
- * the same to the whole row. For a plugin whose conversations are an optional
- * half of one feature that is the wrong answer twice over: the row leaves the
- * roster, the tab stops loading its chunk, and a page that had nothing to do
- * with chat goes with it.
- *
- * `undefined` is the absence, and every consumer draws its own arm for it —
- * here, a folder that is minted with nobody building it and a page that says
- * so. Read PER CALL, because the roster moves under a standing reader.
- *
- * ## WHAT RIDES THROUGH, and why a broker that dropped it would be worse than
- * no broker
- *
- * A broker is a provision over a provision, and both halves of what the facade
- * stamps an activation with have to survive the hop: the consumer's WORD, so a
- * message lands under the row that asked for it and no row can sign another's
- * name to one; and the consumer's LIFETIME, so a row that has since unloaded
- * cannot have words land under its name at all. The door behind this one gates
- * `say` on that lifetime because a delivered body may be HELD for the length
- * of a turn — or until somebody opens a conversation nobody is in, which can
- * be days. Core forwards the lifetime it was handed; a `current()` read
- * without one would hand every consumer a door whose gate always answers
- * "still here", which is precisely the fence the provider thinks it has.
- *
- * The door is the consuming ACTIVATION's, not the plugin's: a row that unloads
- * and comes back asks again and is handed a door gated on the new activation.
- */
 export interface ConversationsWatch {
   /** The door while a provider stands behind it, gated on the asking
    *  activation, and `undefined` while none does. */
@@ -570,28 +238,6 @@ export interface ConversationsWatch {
 }
 export const ConversationsWatch = serviceTag<ConversationsWatch>("conversations-watch")
 
-/**
- * WHAT THE PLUGINS TEACH THE VAULT'S VOCABULARY — a table the format takes as
- * data and never imports.
- *
- * ## The word is composed HERE, from the fiber
- *
- * A plugin contributes the bare kind `terminal` and a vault declares
- * `kolu-terminal`. The prefix is the plugin's word, read off the registry
- * binding and closed over by the provision, never off the row the caller handed
- * over — which is what makes a plugin's built-in declaration claim the key equal
- * to its own composed word and nothing else, and is why a person's own
- * `terminal` column is not something a flag on the machine can take over.
- *
- * ## Two plugins may not claim one word
- *
- * Prefixing makes that unreachable and it is counted anyway, because the
- * assembly underneath is a `Map.set` and a collision would resolve silently in
- * favour of whichever registered last — one plugin's `admits` quietly judging
- * another plugin's values, with nothing red anywhere. A collision DIES out of
- * `register`, which lands the offending fiber in `FAILED` with its siblings
- * untouched rather than killing the boot.
- */
 export interface Kinds {
   readonly current: () => ReadonlyMap<string, ComposedKind>
   readonly changes: Stream.Stream<void>
@@ -610,21 +256,6 @@ export interface ComposedKind extends PropKind {
   readonly by: string
 }
 
-/**
- * ONE SIBLING SURFACE, as its plugin hands it over.
- *
- * The three fields that are a plugin's wire identity, plus what a composition
- * root needs to IMPLEMENT it: the deps (opaque here — the plugin annotates them
- * against its own spec inside its own package) and an optional hand-back for the
- * sibling's own write face.
- *
- * NO `name`. It used to be the first field of every one of these shapes and it
- * was always the same word twice: the plugin's manifest said it, the registry
- * keyed by it, and the composition root re-read it off the value it had already
- * filed. {@link Surfaces.register} takes it off the FIBER instead — so a half
- * cannot register under a name that is not the one it was mounted as, and there
- * is no line anywhere for the two to drift apart on.
- */
 export interface Sibling {
   /** Public procedure tags whose calls use transport-supplied attribution,
    * named as this plugin's OWN surface spells them. The composition root is
@@ -635,53 +266,25 @@ export interface Sibling {
    *  wall for the reason `deps` is. */
   readonly surface: { readonly spec: unknown }
   /** Which of its members each face may see — its own `ExposeMap` per face,
-   *  written against its own spec.
-   *
-   * ONE GRANT, NOT TWO. This used to have a `scopedFaces` beside it, because a
-   * row could register `root: true` and keep its members answering under the
-   * monolith's bare tags as well: `faces` granted those and `scopedFaces`
-   * granted the qualified ones, and a member could be on one and not the other.
-   * #546 deleted the bare tags, so a member has one name and this is the map
-   * that says who may reach it. */
+   *  written against its own spec. ONE GRANT, NOT TWO: a member has one name
+   *  and this is the map that says who may reach it. */
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /**
    * WHICH OF ITS MEMBERS AN AGENT MAY ADDRESS AS A `surface://` RESOURCE — this
    * row's OWN `ExposeMap`, written against its own spec, opaque here for the
    * reason `faces` is.
    *
-   * A SECOND MAP RATHER THAN A READING OF `faces.agent`, and the difference is
-   * the one `olai-plugin-markdown`'s `surface.ts` argues: `faces.agent` is what
-   * a caller may CALL, and every `ops.*` on it is reachable and is no resource,
-   * because a procedure is not a thing with an address. Deriving one from the
-   * other would either publish a URI for a verb or take a resource away from a
-   * row that grants both.
+   * A SECOND MAP RATHER THAN A READING OF `faces.agent`: `faces.agent` is what
+   * a caller may CALL, and a procedure is not a thing with an address.
    *
-   * ABSENT ON MOST ROWS, and that is the ordinary case rather than an omission:
-   * a row whose whole agent face is verbs publishes nothing addressable. It is
-   * still a sibling of the served bundle — EVERY standing row is, whatever it
-   * declares — because its `tools` ride the same entry and that is what makes a
-   * verb leave with the row that brought it. An empty map beside them says it
-   * has no addresses to give.
-   *
-   * IT WAS `@olai/bundle`'s `MCP`, one flat map naming three rows' members from
-   * a package none of them could edit, resolved against one flat aggregate
-   * spec. #546 sent each line home to its row and juspay/kolu#2234 made the
-   * per-sibling map the framework's own shape; this field is the wall those
-   * maps travel across, and without it the served bundle has no siblings at all
-   * — `@olai/server`'s `mcp/face.test.ts` reads the URIs that proves.
+   * ABSENT ON MOST ROWS: a row whose whole agent face is verbs publishes
+   * nothing addressable, and is a sibling of the served bundle anyway.
    */
   readonly resources?: Readonly<Record<string, unknown>>
   /**
    * THIS ROW'S AGENT VERBS — the tools an MCP host is offered while this row is
-   * standing, opaque here for the reason `deps` and `faces` are.
-   *
-   * They used to be one closed table in `@olai/ops`, thirty entries naming
-   * every row's vocabulary from a general package, with a second table in
-   * `olai-plugin-mcp` saying which row each one belonged to. That is the same
-   * permissions duplication `faces` was pulled apart to end, one seam over: a
-   * row switched off left its verbs advertised until somebody edited a filter
-   * two packages away. A tool leaves with its row now, because the row is what
-   * brought it.
+   * standing, opaque here for the reason `deps` and `faces` are. A tool leaves
+   * with its row, because the row is what brought it.
    */
   readonly tools?: ReadonlyArray<unknown>
   /**
@@ -689,29 +292,10 @@ export interface Sibling {
    * caller as an application rather than as a set of verbs, and, like
    * {@link tools}, present only while the row is standing.
    *
-   * The prose twin of `tools`. `olai-plugin-mcp` composes the two the same
-   * way: `initialize`'s `instructions` is its own transport paragraph followed
-   * by every standing row's charter, read off the roster at each host
-   * connection, so a sentence leaves with its row for the reason a verb does.
-   * A row that is off has no verbs on the list and no sentence in the text.
-   *
-   * IT WAS ONE STATIC STRING IN `@olai/surface`, and that was the tools table
-   * in `@olai/ops` again in words: core asserting that a person reads the
-   * answer in a chat panel, that a backticked id there is pressable, that a
-   * link is followed in place — every one of them `olai-plugin-chat`'s
-   * behaviour, on a serve that may run `mcp` with no `chat` row at all
-   * (`@olai/server`'s `mcp/face.test.ts` mounts exactly that), and to an
-   * external host that dials `/mcp` with no panel anywhere. A charter an agent
-   * can disprove teaches that the rest of the text is decoration; this field is
-   * what lets the sentence be true, because the row that makes it true is the
-   * one that says it.
-   *
-   * ABSENT ON MOST ROWS, and that is the ordinary case: a row whose whole
-   * contribution is verbs is already described by them. Only a row that owns a
-   * fact about where an agent's words LAND — who reads them, what is pressable
-   * — has a paragraph to add, and it is one paragraph: Claude Code truncates
-   * server instructions at 2 KB, silently, and the composed whole is held
-   * under that by `@olai/server`'s `profiles.test.ts`.
+   * ABSENT ON MOST ROWS: only a row that owns a fact about where an agent's
+   * words LAND has a paragraph to add, and it is one paragraph — Claude Code
+   * truncates server instructions at 2 KB, silently, and the composed whole is
+   * held under that by `@olai/server`'s `profiles.test.ts`.
    */
   readonly charter?: string
   /** This plugin's `ImplementSurfaceDeps`, against its own spec. */
@@ -722,41 +306,10 @@ export interface Sibling {
   readonly published?: (ctx: unknown) => void
 }
 
-/**
- * ...AND ONE AS THE COMPOSITION ROOT HOLDS IT — the sibling with the name the
- * fiber stamped on it.
- *
- * A separate type from {@link Sibling} rather than an optional field, because
- * the two are read by different people: a plugin writes the first and can never
- * write the second, and a root reads the second and never has to trust the first
- * about who it belongs to.
- */
 export interface Registered extends Sibling {
   readonly name: string
 }
 
-/**
- * EVERY SIBLING SURFACE THIS SERVE COMPOSES — the registry a composition root
- * re-composes from, and the one service whose registrations move the wire.
- *
- * ## The re-composition is the ROOT's and not this service's
- *
- * A `recompose` inside the service would re-implement every SURVIVING sibling on
- * every register, so a plugin that had been serving since boot would get a new
- * runtime, new connectors and new channels because a different plugin arrived.
- * What this service does is hold the table and say when it moved; the root
- * composes existing runtimes with the new one and swaps what is served.
- *
- * ## What a live change reaches, and what it does not
- *
- * The roster cell moves and the fused group and handler record are replaced, so
- * nothing downstream is left holding the previous fusion. A CONNECTION that is
- * already open is a different matter: the framework takes a group and a handler
- * record at the moment it listens, and takes its sibling map at the call, so a
- * socket opened before the change keeps serving the roster it dialed. Until the
- * framework ask lands the documented contract is RECONNECT-PER-ROSTER-CHANGE,
- * and the roster cell moving is what tells a browser to.
- */
 export interface Surfaces {
   /** Compose one sibling under the CALLING plugin's name, for as long as that
    *  plugin is loaded. Unloading it drops the sibling and re-composes, which is
@@ -767,40 +320,6 @@ export interface Surfaces {
 }
 export const Surfaces = serviceTag<Surfaces>("surfaces")
 
-/**
- * WHICH PLUGINS RING AT ALL, and what each says when its doorbell stops
- * watching — the declaration `chat.scope` refuses a plugin for not having.
- *
- * It was a field on the server door read off the enabled halves at composition.
- * It is a registration now, for the reason every other one here is: a plugin
- * that unloads takes its declaration with it, so a scope written for a plugin
- * that is no longer mounted is refused by the same check that refuses one for a
- * plugin that never declared a wake — rather than by a second list somebody
- * remembered to update.
- *
- * ## ...AND IT IS THE ONE REGISTRY WITH A READ SIDE ON THE PLUGIN'S DOOR
- *
- * Every other table on this page is written by plugins and read only by a
- * composition root, and the asymmetry is the fence: a plugin cannot read the
- * vocabulary, cannot enumerate the siblings, cannot list the engines. This one
- * is different because the thing that ASKS the question is moving.
- *
- * `chat.scope` refuses a scope written for a plugin that declared no wake, and
- * the fault walk composes a doorbell's two broken-scope sentences out of the same
- * table. Both are the CHAT's readings, and the chat is becoming a row — so either
- * this door grows a read side or those two procedures stay behind in a
- * composition root that has stopped owning them.
- *
- * READ AFRESH, in the grain of {@link Plugins.sessionStart} and for the same
- * reason: a plugin that unloaded between one scope check and the next has taken
- * its declaration with it, and a caller holding a snapshot would go on offering
- * a doorbell nobody is behind.
- *
- * It is a READ and not a capability. What comes back is what plugins declared
- * about themselves — the sentence the strip draws and the two a broken scope is
- * owed — and there is no arm of it that reaches a conversation, a vault or
- * another plugin's registrations.
- */
 export interface Wakes {
   readonly register: (wake: Wake) => Effect.Effect<void, never, Scope.Scope>
   /** The same live declarations for synchronous delivery-scope readers. */
@@ -811,69 +330,14 @@ export interface Wakes {
 }
 export const Wakes = serviceTag<Wakes>("wakes")
 
-/**
- * WHICH ACP ENGINES THIS BUILD CAN SEAT — one registration per engine plugin,
- * and the table `olai-plugin-chat`'s roster is read off.
- *
- * ## What it replaced, and why the shape had to change
- *
- * A hardcoded `KINDS` array in `olai-plugin-chat`, three rows deep, with
- * `@olai/surface`'s `AGENTS` beside it as a closed union so that every table
- * keyed by an agent id — the picker's rows, the install face, the marks, the
- * memory's fallback — was keyed by a type only a core PR could widen. A fourth
- * engine was an edit in two general packages plus a nix patch set; a THIRD
- * engine's adapter bump was an edit in a file the other two share.
- *
- * The engines are plugins now, and the three arguments for that are the same
- * three the tenants make. They share no release clock (the Claude adapter's pin
- * moved five times in a month and opencode's has never moved). the file’s row selection
- * enables them one at a time, so a policy selecting only opencode, pi is a serve with no
- * Claude row, no probe of it, and no mark for it anywhere. And each brings its
- * own adapter pin, its own patches and its own install sentence into its own
- * directory, so nothing general spells an engine at all.
- *
- * ## What a registration is, and what it deliberately is NOT
- *
- * {@link Registering} — a name a person reads, the leg that reads this agent's
- * wire, a probe that answers `Adapter | NotHere` for this host, and the channel
- * its standing prompt rides. HOW A PERSON GETS ONE is in that answer now: the
- * `NotHere` arm is the engine's own install sentence, spelled once in its
- * `install.ts` and spent where the reading is published — the roster's row, the
- * picker's greyed entry and the log's `missing` line — where for one revision
- * it rode this registration read by nothing, beside a browser slot nobody has
- * since kept.
- * The ID IS THE FIBER'S WORD and there is no field for one, so a plugin cannot
- * register under another's name.
- *
- * What is NOT here is anything about a CONVERSATION. An engine plugin does not
- * spawn, does not send, does not remember and never sees a transcript: it hands
- * over data and pure functions, and `olai-plugin-chat` does the talking. That is the
- * same wall {@link Deliveries} keeps from the other side.
- *
- * ## Two plugins may not claim one id, which is unreachable and counted anyway
- *
- * The id is the row's, and the loader will not mount two rows under one word —
- * so the reachable case is a plugin registering twice, which is a mistake in
- * that plugin. It DIES out of `register`, landing that fiber in `FAILED` with
- * its siblings untouched, exactly as the three registries above it do.
- */
 export interface Agents {
   /**
    * Offer this engine, for as long as the calling plugin is loaded.
    *
-   * READ ONCE, WHEN THE CHAT IS BUILT, and the sentence that said otherwise is
-   * worth keeping as a warning: it read "unloading it takes the row out of the
-   * picker". The registry entry is genuinely scope-held and disappears from
-   * the engines table on unload — and the roster re-reads that table on every
-   * move now (`olai-plugin-chat`'s `agents/roster.ts`'s `detecting`), so the
-   * row genuinely does leave the picker and re-enter when the plugin comes
-   * back. What stays frozen is the MACHINE's half: which engines are
-   * installed is asked once per id and held, because re-deciding it under a
-   * reader would flip the panel's whole face while somebody was using it.
-   *
-   * The BROWSER half is the half that does unwind — its faces are finalizers on
-   * its own scope, so a mark does leave the tab. The asymmetry is real and is
-   * the roster's, not this door's.
+   * The entry is scope-held and leaves the engines table on unload. What stays
+   * frozen is the MACHINE's half: which engines are installed is asked once
+   * per id and held, because re-deciding it under a reader would flip the
+   * panel's whole face while somebody was using it.
    */
   readonly register: (engine: Registering) => Effect.Effect<void, never, Scope.Scope>
 }
@@ -883,15 +347,10 @@ export const Agents = serviceTag<Agents>("agents")
  * CONVERSATION EVENTS, PUSHED — doorbells that landed, agent replies that
  * settled, turns that started or ended ({@link ConversationSeen}).
  *
- * A plugin that mirrors a conversation never READS one. Core pushes what
- * happened, and human messages are simply not among the events. `deliveries`
- * stays write-only; this is a second door, the other direction, and still not a
- * transcript.
- *
- * `subscribe` is a registration on the calling plugin's scope, so a plugin that
- * unloads stops being told — which is the part a hand-rolled bus gets wrong. The
- * handler is contained here rather than at every call, because a mirror that
- * died on one event must not take a conversation's turn down with it.
+ * A plugin that mirrors a conversation never READS one: human messages are not
+ * among the events. `subscribe` is a registration on the calling plugin's
+ * scope, so a plugin that unloads stops being told, and the handler is
+ * contained here rather than at every call.
  */
 export interface Watching {
   readonly subscribe: (
@@ -902,30 +361,17 @@ export const Watching = serviceTag<Watching>("watching")
 
 /**
  * A SMALL RECORD THIS PLUGIN KEEPS about this serve, in the state home — not the
- * vault.
- *
- * Core owns the file and keys it by the calling plugin's word, the way the
- * doorbell's door is keyed and for the same reason: a record keyed by nobody
- * would let one plugin read and overwrite another's. What the record SAYS is the
- * plugin's; core does not open it.
+ * vault. Core owns the file and keys it by the calling plugin's word; what the
+ * record SAYS is the plugin's.
  *
  * `load` is the last snapshot that landed, or `null` on a first serve and on a
- * file that would not parse (core has already warned). `save` is ORDERED:
- * successive snapshots of one in-memory state land in the order they were handed
- * over, so a drain that persisted `queue:[B]` and then `queue:[]` cannot have
- * the empty lose the rename race to the earlier one and come back on the next
- * boot as a digest already posted. THE DOOR IS MINTED ONCE PER PLUGIN NAME, which
- * is what makes that true: the chain that orders the writes lives on the door, so
- * a second door is a second chain and orders nothing against the first.
- * The save effect settles only when its own write lands and returns the core
- * refusal when it does not; a gesture can never be told success for queued IO.
- *
- * It was minted per CALL — every save started a fresh chain and the ordering this
- * paragraph promised was not happening at all — and then per ACTIVATION, which
- * closed the reachable half and left the other one open: a plugin that unloads
- * and comes back is two fibers writing ONE FILE, and the file does not care which
- * fiber a snapshot came from. Keyed by the NAME, because the name is what the
- * file is keyed by.
+ * file that would not parse. `save` is ORDERED: successive snapshots of one
+ * in-memory state land in the order they were handed over. THE DOOR IS MINTED
+ * ONCE PER PLUGIN NAME, which is what makes that true: the chain that orders
+ * the writes lives on the door, so a second door is a second chain and orders
+ * nothing against the first. The save effect settles only when its own write
+ * lands and returns the core refusal when it does not; a gesture can never be
+ * told success for queued IO.
  */
 export interface LocalState {
   readonly load: Effect.Effect<Record<string, unknown> | null>
@@ -949,84 +395,19 @@ export interface LocalRefusal extends Refusal {
 }
 export const LocalState = serviceTag<LocalState>("localState")
 
-/**
- * WHAT TO ASK THIS HOST WHEN A CONVERSATION OPENS — the door that replaced
- * `probe()`.
- *
- * `probe` had to answer both halves at once, an invariant with an incident
- * behind it: a caller that asked once for the entry to hand over and again for
- * the sentence would start somebody's daemon twice per conversation and could
- * answer the two questions about two different instants. ONE READING per session
- * open is that invariant for free — {@link Probed}'s two fields come off one
- * answer, because there is only one answer in hand to read.
- *
- * ## WHAT IS REGISTERED IS THE ASKING, and not the answer
- *
- * A plugin hands over the Effect it WOULD run rather than what it found, and the
- * reasons are two. The list is collected per SESSION OPEN, so a plugin that
- * unloaded between conversations contributes nothing to the next one without
- * anybody keeping a second list. And the asking is then the caller's to
- * schedule: `olai-plugin-chat` runs them with a bounded concurrency because a probe
- * starts a subprocess on the session-open path, and running them one after
- * another would multiply that window by the number of plugins — the same defect
- * the bound exists to prevent, with a different shape.
- *
- * ## THE TWO THINGS THIS DOOR USED TO HAVE THAT NO OTHER DID
- *
- * A plugin SIGNED ITS OWN NAME here — `start.asking.push({ name, ask })` — where
- * every other keyed door reads the word off the fiber and gives the caller no
- * parameter to put one in. And `ask` answered a PROMISE, where everything else a
- * plugin hands over is an Effect.
- *
- * Both were the same fact about the shape: it was a WATERFALL over a plain
- * record, so what a link put in the record was whatever the record's type said,
- * and neither the stamp nor the effect channel was anything the door could
- * enforce. Both are gone, and what fixed them is that this stopped being a
- * waterfall.
- *
- * ## Why a keyed REGISTRATION rather than a waterfall
- *
- * The waterfall's own powers — transform what the later links see, decline to
- * call through and short-circuit the rest — were never used here and could not
- * honestly be: the order the links run in is the order two dynamic imports came
- * back in, so a link that short-circuited would silence a set of plugins that
- * moved between boots. What this event actually is is a COLLECTION, and a
- * collection keyed by the calling plugin is the shape every other door on this
- * page already has: `Kinds`, `Wakes`, `Watching`, `Surfaces`.
- *
- * So the name is stamped by the provision, out of the word the registry bound
- * the fiber under, and there is no parameter to put one in; the registration is
- * a finalizer on the calling plugin's scope, so a plugin that unloads stops
- * being asked; and `ask` is an Effect because everything a plugin hands core is.
- *
- * The waterfall PRIMITIVE stays where it was (`@olai/effect-cordis`), because it
- * is the translation of a Cordis dispatch mode rather than this event's
- * mechanism — the delivery policy the design names next (`chat/deliver`, whose
- * rules genuinely do short-circuit one another) is what it is for.
- */
 export interface SessionStart {
   /**
    * Ask this host, once per conversation opening, for as long as the calling
    * plugin is loaded.
    *
-   * IT NEVER FAILS: every way of failing is an ARM of {@link Probed}, which is
-   * the whole reason that type has two fields rather than an error channel —
-   * "the tool is not here" is an answer and not a fault, and "it is here and
-   * would not work" is a SENTENCE somebody has to read.
+   * IT NEVER FAILS: every way of failing is an ARM of {@link Probed} — "the
+   * tool is not here" is an answer and not a fault, and "it is here and would
+   * not work" is a SENTENCE somebody has to read.
    *
-   * AND NOTHING CONTAINS A PROBE THAT DIES, which is why the type is the whole
-   * of the contract rather than a preference. This line used to end "a probe
-   * that dies is contained by the caller and costs that plugin its row", and no
-   * such containment exists: the chain from here is `askingAt`
-   * (`@olai/server`'s `probes.ts`) into `olai-plugin-chat`'s `probed`, which is an
-   * `Effect.forEach` with no `catchAllDefect` anywhere on it, and its answer is
-   * awaited inside `session/new`. So a defect here does not cost one plugin its
-   * row — it fails the conversation open, for every plugin and for the person.
-   *
-   * Answer the arms. A probe that cannot say what it found says
-   * `{ server: null, missing: … }` and describes the failure in `missing.why`,
-   * which is the sentence somebody reads; a probe that throws is a bug in that
-   * plugin with a blast radius this door cannot shrink for it.
+   * AND NOTHING CONTAINS A PROBE THAT DIES: a defect here fails the
+   * conversation open, for every plugin and for the person. A probe that
+   * cannot say what it found says `{ server: null, missing: … }` and describes
+   * the failure in `missing.why`.
    */
   readonly ask: (probe: Effect.Effect<Probed>) => Effect.Effect<void, never, Scope.Scope>
 }
@@ -1034,38 +415,18 @@ export const SessionStart = serviceTag<SessionStart>("session-start")
 
 /**
  * ONE THING TO ASK, as the collector holds it — the plugin's own word and the
- * Effect it registered.
+ * Effect it registered. THE NAME IS FOR THE LOG LINE and for the ORDER, and
+ * for nothing else.
  *
- * THE NAME IS FOR THE LOG LINE and for the ORDER, and for nothing else. What a
- * roster row is called comes off the ANSWER, where whoever found the server
- * named it.
- *
- * IN NO ORDER, and the line that said otherwise is worth keeping as a warning:
- * it read "pushed in dispatch order, which is registration order, which is the
- * bundle's". The first two clauses were true and the third does not follow — a
- * plugin registers when its `apply` runs, and a row's `apply` runs when the
- * loader's `import()` for that row comes back. Two rows raced, a conversation
- * drew the winner, and the servers a session reported changed between boots of
- * one serve. Nothing that reads {@link Plugins.sessionStart} may take the order
- * it arrives in as meaningful; imposing one is the composition root's, against
- * the build's own list of rows.
+ * IN NO ORDER: nothing that reads {@link Plugins.sessionStart} may take the
+ * order it arrives in as meaningful; imposing one is the composition root's,
+ * against the build's own list of rows.
  */
 export interface Asked {
   readonly name: string
   readonly ask: Effect.Effect<Probed>
 }
 
-/**
- * THE LEDGER — what is waiting, record these with this writer, push.
- *
- * Core defines the door and does not stand behind it. The git row offers it;
- * `ops.commit` / `ops.push` call through it and refuse in words when nobody
- * is mounted, which is what `GIT_OFF` used to say with a mode.
- *
- * Types are structural rather than `@olai/format`'s: this package does not
- * import the floor, and a request that has a message and a list of paths is
- * the whole of what a record needs.
- */
 /** One waiting outline, in the two names it has — see {@link Ledger.waiting}. */
 export interface WaitingOutline {
   /** Served-root-relative: the store's own key, and what a plugin knows a file
@@ -1075,6 +436,14 @@ export interface WaitingOutline {
   readonly path: string
 }
 
+/**
+ * THE LEDGER — what is waiting, record these with this writer, push. Core
+ * defines the door and does not stand behind it: the git row offers it, and
+ * `ops.commit` / `ops.push` refuse in words when nobody is mounted.
+ *
+ * Types are structural rather than `@olai/format`'s: this package does not
+ * import the floor.
+ */
 export interface Ledger {
   /** A write landed and is waiting. No-op when the ledger has not yet opened. */
   readonly wrote: (writer: string) => void
@@ -1085,15 +454,7 @@ export interface Ledger {
    * uses (served-root-relative, which is the only name a plugin knows its files
    * by) and the name git and a commit request use (repository-root-relative).
    *
-   * THE PAIR RATHER THAN ONE OF THEM, and this is the whole of why the member
-   * exists: a caller that wants to commit exactly the files it wrote knows them
-   * as the set does, and the commit door takes them as git does, and the two are
-   * the same string only when olai serves the repository root. A caller left to
-   * build the other spelling itself would be guessing at a subdirectory.
-   *
-   * UNFAILING and empty where nobody records anything: what is waiting is a
-   * question a reader is entitled to an answer to, and "nothing" is the honest
-   * one for a directory with no history.
+   * UNFAILING and empty where nobody records anything.
    */
   readonly waiting: Effect.Effect<ReadonlyArray<WaitingOutline>>
   /** Record what is waiting, or exactly these paths, signed by this writer. */
@@ -1106,25 +467,18 @@ export interface Ledger {
   /**
    * KEEP THE QUIET WINDOW SHUT for as long as the caller's scope is open, so a
    * caller that is about to write several times and then commit them itself does
-   * not have the window commit half of it in between — under `commit: auto`,
-   * where the window is what records writes nobody asked about.
+   * not have the window commit half of it in between — under `commit: auto`.
    *
-   * AN ACQUISITION, so it is taken and released by the ordinary scope rules and
-   * there is no way to leave one out: the release is registered in the same step
-   * that takes it (`@olai/plugin-api`'s acquisition rule). HELD PER LEDGER — a
-   * count rather than a flag, so a second holder cannot release the first's —
-   * which is what makes the replacement note below a fact about this door rather
-   * than a caveat about directories.
+   * AN ACQUISITION, released by the ordinary scope rules, HELD PER LEDGER — a
+   * count rather than a flag, so a second holder cannot release the first's.
    *
    * TWO FACTS A CALLER MUST KNOW. Where nobody stands behind {@link Ledger} the
-   * acquisition succeeds and holds nothing (there is no window to keep shut);
-   * and a ledger REPLACED while a hold is out starts unheld, because the hold
-   * was state on the ledger that left — so a git restart mid-hold may produce
-   * one `auto` commit beside the caller's own. Both are argued in
-   * `website/docs/architecture/cordis.md`.
+   * acquisition succeeds and holds nothing; and a ledger REPLACED while a hold
+   * is out starts unheld, so a git restart mid-hold may produce one `auto`
+   * commit beside the caller's own.
    *
    * A person's Commit button is never blocked by one: this closes the TIMER,
-   * not the door. Holding is a statement about writes nobody asked about.
+   * not the door.
    */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
 }
@@ -1148,40 +502,6 @@ export interface Person {
   readonly picture: string | null
 }
 
-/**
- * THE MATCHER — this query, over this reading, answered.
- *
- * Core defines the door and does not stand behind it. The search row offers it;
- * `search.nodes` and the `search_nodes` tool are one member and one table entry
- * that call through it, and refuse in words when nobody is mounted — which is
- * the state a serve minus this row is in, at all five doors at once.
- *
- * ## Why the payloads are opaque, and what checks them instead
- *
- * Everything a search says is `@olai/format`'s — a `Reading`, a `SearchRequest`,
- * a `KindVocabulary`, a `SearchAnswer` — and this package does not import the
- * floor, for the reason its manifest gives and {@link Vault.revision} argues at
- * length: the vocabulary travels as DATA, and a floor package that imported it
- * would be the format learning what a terminal is. Naming the fields
- * structurally would buy nothing either, because `derived: unknown` is not
- * assignable to `derived: Derived` and both ends would be back to a cast.
- *
- * So the four are `unknown` here and TYPED AT BOTH ENDS: `@olai/ops` spells the
- * door with the floor's own types (`Search` there), the row's `apply` satisfies
- * that spelling, and the composition root is the one file holding both — which
- * makes a drift between them a type error in one place rather than a field that
- * type-checks clean and arrives `undefined`. It is the {@link Ledger}
- * arrangement with a wider vocabulary, and the same single `as`.
- *
- * ## One call, and the reading comes IN
- *
- * A door that read the vault for itself would answer a revision of its own
- * choosing — and search's whole correctness argument is that the candidates and
- * the records they are resolved against are one snapshot (`olai-plugin-search`'s
- * `table.ts`: *it follows the reading at the door*). So the caller hands over
- * the very reading the answer is about, the clock it is asking at, and the
- * kind vocabulary this serve runs, and gets an answer about that reading.
- */
 export interface Search {
   readonly nodes: (ask: {
     /** The `Reading` this answer is about — both halves, because a query
@@ -1199,44 +519,6 @@ export interface Search {
 }
 export const Search = serviceTag<Search>("search")
 
-/**
- * WHERE AN OPTIONAL VIEW OF THE SET REGISTERS — the door a row that PROVIDES
- * one tells the store about it through, and the vault's half of the audit's §5.
- *
- * ## Why the arrow points this way
- *
- * The store is built over two readings that may have nobody behind them: where
- * a write is RECORDED ({@link Ledger}) and what a query is ANSWERED BY
- * ({@link Search}). Neither can be a `needs` on the vault row — git needs the
- * vault, so requiring its ledger would be an activation cycle, and the file’s row selection
- * composes serves with neither.
- *
- * It was a LOOKUP: `HostServices.current(Ledger)`, over the whole host, for a
- * key the vault never declared. What replaced it cannot be a component of the
- * vault either, and the reason is worth writing down because it is not obvious:
- * a row's report folds its components, and a row that reads `waiting` is a row
- * the roster reports as not running — so a vault with an optional integration
- * short of its provider would stop being loaded by the tab at all.
- *
- * So the PROVIDER registers, which is the shape every other table on this page
- * already has ({@link Kinds.register}, {@link Surfaces.register},
- * {@link Wakes.register}): git and search already name `Vault`, so they are
- * already waiting for this row, and registering costs them no new wait. The
- * registration is a finalizer on the CALLING plugin's scope, so a provider that
- * unloads takes its view with it and the store falls back to refusing in the
- * vault's own words.
- *
- * ONE VIEW EACH, and a second registration of either is REFUSED — a defect, the
- * way every other double-claim on this page is one: two rows answering "where is
- * this write recorded" would resolve silently in favour of whichever mounted
- * last. That sentence stood here for a commit while the implementation wrote
- * unconditionally; it is `olai-plugin-vault`'s `views.ts` that keeps it.
- *
- * ONE TABLE PER VAULT ACTIVATION is the other half, and it is the vault's to
- * keep rather than this door's: what a provider registers into belongs to the
- * activation that stood behind this key, so two hosts in one process are two
- * tables. A module variable would be private to a package and owned by nobody.
- */
 export interface VaultViews {
   /** Record writes through this ledger, for as long as the calling plugin is
    *  loaded. */
@@ -1247,30 +529,14 @@ export interface VaultViews {
 export const VaultViews = serviceTag<VaultViews>("vault-views")
 
 /**
- * THE SERVED DIRECTORY, AS A ROW THAT MAY BE WITHOUT ONE READS IT — the narrow
- * broker §5 permits, and MCP's half of the same finding.
+ * THE SERVED DIRECTORY, AS A ROW THAT MAY BE WITHOUT ONE READS IT — TWO
+ * readings about ONE provider, named in the type. MCP's protocol server, its
+ * carrier, its route and its ticket mint stand up on a serve with no vault at
+ * all.
  *
- * ## Why a broker here and a registration one door up
- *
- * The vault's two views could invert, because their providers already wait for
- * the vault. MCP's cannot: the protocol server, its carrier, its route and its
- * ticket mint stand up on a serve with **no vault at all**, and a vault that
- * registered its gate with the transport would be the directory knowing what an
- * MCP endpoint is.
- *
- * A COMPONENT cannot do it either, for {@link VaultViews}' reason: a row that
- * reads `waiting` is reported as not running, and `/mcp` must keep answering
- * through a failed vault and a provider stopped by its session switch.
- *
- * So this is the audit's other permitted answer — *a service whose documented
- * job includes handling the arrival and departure of its backing providers*. Its
- * job is exactly that and nothing else: TWO readings about ONE provider, named
- * in the type, where `HostServices` was `current<A>(key: ServiceKey<A>)` and a
- * row could reach anything at all with nothing in its `needs` to say so.
- *
- * BOTH ARE READ PER CALL, because the roster moves under a standing connection:
- * a vault switched off mid-session must refuse the NEXT tool call rather than
- * the one after the next reconnect.
+ * BOTH ARE READ PER CALL, because the roster moves under a standing
+ * connection: a vault switched off mid-session must refuse the NEXT tool call
+ * rather than the one after the next reconnect.
  */
 export interface Served {
   /** The directory this serve opened, or nothing. Opaque here for
@@ -1281,46 +547,6 @@ export interface Served {
 }
 export const Served = serviceTag<Served>("host.served")
 
-/**
- * IDENTITY — who is this request, from the headers it arrived with.
- *
- * Core defines the door and does not stand behind it. The identity row offers
- * it; the listener reads it at the upgrade (the per-connection `who.get`), the
- * plain-HTTP door reads it at `GET /olai/who`, and the MCP route reads it to
- * attribute a write to whoever the proxy in front says made it. No row mounted
- * is every request being nobody — which is exactly what a serve with no proxy
- * in front of it already was, so the absence needs no second vocabulary.
- *
- * WHICH names are trusted and WHICH picture a person wears are the offering
- * row's, whole: header names, an avatar template and a gravatar are how a
- * DEPLOYMENT is wired, and core knowing any of it is the second place that
- * decides it.
- *
- * ## `headers` IS READ PER ACCEPT, and there is no seam left
- *
- * A websocket carries what the upgrade was allowed to keep, and that allowlist
- * used to be fixed when the port bound — so a row offering this door mid-serve
- * named its headers at the NEXT START, the bargain {@link Agents} still takes
- * one door up. juspay/kolu#2229 closed it: `@kolu/surface-app`'s
- * `upgradeHeaders` takes a thunk read at each accept, core hands it
- * `() => identity().headers`, and a row switched on at the panel is read by the
- * next upgrade. Flipping the row OFF was always immediate, because every
- * reading goes back through {@link Identity.who} and there is nobody behind it
- * any more; switching it ON is now immediate too, for the socket as well as for
- * the two doors that read a raw request (`GET /olai/who` and `/mcp`, which have
- * no allowlist at all and always followed the row both ways).
- *
- * WHAT A LIVE LIST COSTS is worth knowing where the door is declared: a list
- * this seam cannot serve — a name outside HTTP's grammar, one wire header named
- * twice — cannot take a socket down without one row's defect reaching every
- * other tenant of the wire, so upstream serves that connection with NO named
- * headers and narrates the refusal. What is NOT quiet is the serve that came up
- * that way: the composition root spends the framework's own
- * `checkUpgradeHeaders` on the list it starts with, so an operator's typo stops
- * the boot rather than every socket. A row is asked for names, never for a
- * check — the grammar is the framework's, and a row holding an opinion about it
- * would be a second one to keep in step.
- */
 export interface Identity {
   /** The header names this deployment trusts, unique — the allowlist the
    *  upgrade takes, in whatever order the offering row lists them. */
@@ -1333,19 +559,6 @@ export interface Identity {
 export const Identity = serviceTag<Identity>("identity")
 
 /**
- * THE SEVEN DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
- * most of the safety.
- *
- * Four of them are the chat row's: what engines this build seats, where a
- * doorbell may deliver, what a plugin may be told a conversation did, and what
- * to ask this host when one opens. The fifth is the git row's ledger, the sixth
- * is the search row's matcher, and the seventh is the identity row's reading of
- * who is looking. The set of core keys is closed; their providers are replaceable.
- * Plugins contribute new keys through Offers.own, under their own namespace.
- */
-
-
-/**
  * PROVIDING A SERVICE WITHOUT HANDING OVER THE HOST.
  *
  * A plugin gets Offers, never provide or openHost. A host would let it mount
@@ -1355,16 +568,7 @@ export const Identity = serviceTag<Identity>("identity")
  *
  * Two independent choices meet here: offer selects a core-defined key from
  * OFFERABLE; own composes a new key from the fiber name and a local word.
- * Any row may provide a core door. Cordis refuses a second provider, and
- * both paths share the same activation, conflict reporting and scoped undo.
- * The bridge withholds provisions until initialization succeeds and awaits
- * dependent cleanup before releasing the provider resources.
- *
- * serviceTag is deliberately part of the plugin vocabulary: a consumer
- * names a plugin-owned key and its shape once, then uses that tag in needs
- * and yields it in apply. Minting a tag only names a dependency; it grants
- * no provision or host access. Offering remains a stamped capability the
- * provider must explicitly name in needs.
+ * Any row may provide a core door. Cordis refuses a second provider.
  */
 export interface Offers extends OwnServices {
   /**
@@ -1372,13 +576,9 @@ export interface Offers extends OwnServices {
    * The declaration promises that this plugin authors these local words; the
    * same namespace grammar and owner stamp apply as for own. It does not
    * provide a server dependency, validate the browser implementation's shape,
-   * or prove that any tab loaded or activated that implementation.
-   *
-   * This is why inspect says `declared`, not `provided`. Browser activation
-   * belongs to each tab's host and its panel; discovery belongs to the server
-   * an agent can ask without opening a tab. Unloading the declaring scope
-   * withdraws its entries, so discovery does not retain a stopped author's
-   * claims. Built plugins share their word constants between both halves.
+   * or prove that any tab loaded or activated that implementation — which is
+   * why inspect says `declared`, not `provided`. Unloading the declaring scope
+   * withdraws its entries.
    */
   readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
@@ -1407,24 +607,6 @@ export interface Offers extends OwnServices {
 }
 export const Offers = serviceTag<Offers>("offers")
 
-/**
- * AN MCP SERVER TO HAND A SESSION, in olai's terms — the vault's own tools, as an
- * address and a bearer token.
- *
- * ## Re-declared here rather than imported, and that is the fence rather than a
- * ## duplication
- *
- * The shape is `olai-plugin-chat`'s (`agent.ts`'s `ToolServer`, which `mcpServersOf`
- * renders into what the protocol wants). This package may not import it and never
- * will: `olai-plugin-chat` is on its way to being a ROW, and a core tag that imported a
- * plugin-to-be would be the registry arrow pointing backwards — the exact cycle
- * `@olai/plugin-api` names no plugin in order to avoid.
- *
- * Three fields, structurally identical, and contravariance makes the agreement
- * the STRONG direction: whoever completes {@link PluginsConfig.tools} hands over
- * a value that has to satisfy both spellings at the composition root, so a drift
- * between them is a type error in the one file that holds both.
- */
 export interface ToolServer {
   readonly name: string
   readonly url: string
@@ -1440,23 +622,11 @@ export interface Advertised { readonly title: string; readonly owner: string }
 /**
  * THE VAULT'S OWN MCP TOOL SERVER, once the listener has bound.
  *
- * AN EFFECT THAT WAITS, and that is the design rather than a convenience. The
- * address is not knowable until `listen` returns, which is long after every
- * plugin fiber was mounted — so the tag is PROVIDED EARLY and RESOLVED LATE.
- *
- * The earliness is load-bearing and it has a defect behind it. A plugin naming a
- * key nobody has provided sits PENDING, and the vocabulary is read two statements
- * after the bundle is mounted — so a `Tools` that only appeared after `listen`
- * would leave every plugin that named it un-applied at exactly the moment the
- * store's codec is built, and the codec holds its answer for the life of the
- * process. A tenant's property kind would go missing from a serve, silently,
- * until the next start.
- *
- * READING IT IS ALSO THE ONE SIGNAL CORE HAS THAT THE SERVE IS UP, which is what
- * a boot conversation wants to be gated on: the composition root's hand-kept
- * "the chat is built, the surface is bound, and only then is the agent started"
- * becomes an Effect dependency that a reader can see rather than a comment
- * guarded by a loud throw.
+ * AN EFFECT THAT WAITS: the address is not knowable until `listen` returns,
+ * which is long after every plugin fiber was mounted — so the tag is PROVIDED
+ * EARLY and RESOLVED LATE. A `Tools` that only appeared after `listen` would
+ * leave every plugin that named it un-applied at the moment the store's codec
+ * is built.
  */
 export interface Tools {
   /** Deliberately carried by Tools rather than a second optional broker.
@@ -1468,25 +638,16 @@ export interface Tools {
    * ...AND A CREDENTIAL FOR ONE SESSION.
    *
    * A node agent's door is the same write door loopback MCP has, under the
-   * node's credential. The remaining rule is the keys on {@link Forbidden}: an
-   * agent may not rewrite who is seated where, its own binding included. The
-   * ENFORCEMENT is `@olai/ops`', between `plan` and `commit`; the CHANNEL is
-   * a bearer the MCP route resolves per request; and what is minted here is
-   * the pairing of the two, so a session handed this bearer reaches a door
-   * that is the same face with that property rule on it.
+   * node's credential, with the keys on {@link Forbidden} refused. The
+   * ENFORCEMENT is `@olai/ops`', between `plan` and `commit`; the CHANNEL is a
+   * bearer the MCP route resolves per request.
    *
-   * A FUNCTION AND NOT A VALUE, and it is read per request rather than
-   * closed over. The list is asked because the keys a vault declares this
-   * kind on may move mid-conversation — a migration row landing is a
-   * different forbidden table, which is exactly the reading the plugin
-   * holding the sessions has and core does not.
+   * `forbidden` is A FUNCTION AND NOT A VALUE, read per request: the keys a
+   * vault declares this kind on may move mid-conversation.
    *
-   * `writer` is the session provider’s attribution, validated by the host’s
-   * ledger vocabulary; the transport does not choose a plugin’s name.
-   *
-   * `release` is the session's own teardown, and it is the whole point of the
-   * ticket being a value: reaping a node scope drops its MCP footprint in the
-   * same breath rather than leaving a bearer alive for a session that is gone.
+   * `writer` is the session provider's attribution, validated by the host's
+   * ledger vocabulary. `release` is the session's own teardown, so reaping a
+   * node scope drops its MCP footprint in the same breath.
    */
   readonly ticket: (
     forbidden: () => ReadonlyArray<Forbidden>,
@@ -1505,30 +666,15 @@ export const Tools = serviceTag<Tools>("tools")
 /**
  * THE VAULT'S WRITE GATE, as narrow as the gestures that need it.
  *
- * ## What this is, and the door it deliberately is NOT
+ * The complete gate is carried opaquely; the convenience methods retain the
+ * gestures plugins already use. {@link PropWrite} is one key on one node, and
+ * {@link reading} answers a value rather than the layer that produced it. What
+ * judges the write is unchanged: the same planner, the same validator, the same
+ * ledger commit a keystroke goes through.
  *
- * `@olai/server`'s `runtime.ts` composed the things a plugin now owns: the
- * reading a message's armed ids are resolved against, the property write that
- * binds a node to a conversation, the page a plugin face draws, and the refusal
- * a person sees in their transcript when a tool call was turned down. They were composed there
- * because that was the only place both halves were in hand — and a plugin that
- * owns the conversation owns one of the halves.
- *
- * The complete gate is carried opaquely for core’s readers; the convenience
- * methods retain the gestures plugins already use. {@link PropWrite} is one key on one node, and
- * {@link reading} answers a value rather than the layer that produced it, so
- * those convenience methods do not add a second planner. What judges the write is
- * unchanged: the same planner, the same validator, the same ledger commit a
- * keystroke goes through, under the writer the composition root bound.
- *
- * ## THE READING IS OPAQUE, and it is {@link Vault.revision}'s bargain
- *
- * A reading is `@olai/format`'s `Reading`, which this package refuses as a
- * dependency for the reason its manifest gives. So the value travels `unknown`
- * and the plugin narrows it once, at its own edge, in its own file — which is
- * where a reader looking for what a half reads would go. As with the revision
- * door, the narrowing is a CLAIM and not a check, and this sentence is here so
- * nobody has to find that out.
+ * THE READING IS OPAQUE, and it is {@link Vault.revision}'s bargain: the value
+ * travels `unknown` and the plugin narrows it once, at its own edge. The
+ * narrowing is a CLAIM and not a check.
  */
 export interface Ops {
   /** The complete gate, opaque here because its vocabulary belongs to the
@@ -1585,42 +731,11 @@ export const OFFERABLE = [
 /** The vault row owns refusal subscriptions with its gate. */
 export const opsEvents = () => broadcast<Refused>("a refused write")
 
-/**
- * WHERE A PLUGIN SITS IN THE BUILD'S OWN LIST OF ROWS.
- *
- * Registration order is the order two dynamic `import()`s came back in — a fact
- * about the filesystem and the module cache on the day rather than about
- * `olai.yml` — and {@link Asked} records what that cost: a person reads these
- * lists, and a list that reshuffles itself between boots is a list nobody can
- * read twice. There is an e2e failure behind that sentence.
- *
- * Imposing the bundle's order was the composition root's job while the root owned
- * the tables. A plugin that owns them owns the readings, and it may not import
- * `@olai/bundle` — the registry imports every plugin, so the arrow cannot point
- * back. So the rank arrives as DATA, the same way the kind vocabulary does.
- *
- * A RANK AND NOT A ROW LIST, deliberately. `rows(): ReadonlyArray<string>` would
- * answer every question this one does and one more — who my siblings are — and
- * nothing in this tree should hand a plugin that. The next reader would key
- * something by it.
- *
- * A stranger ranks LAST rather than first, which is what an out-of-tree plugin
- * will want the day `olai plugin add` lands.
- */
 export interface Bundle {
   readonly rank: (plugin: string) => number
 }
 export const Bundle = serviceTag<Bundle>("bundle")
 
-/**
- * WHAT A COMPOSITION ROOT HOLDS — the other end of every door above, plus the
- * host the bundle is mounted on.
- *
- * The registries are READ here and WRITTEN by the plugins, which is why they are
- * two different shapes rather than one: `Kinds` has a `register` and no `table`,
- * and this has a `table` and no `register`. A plugin cannot read the vocabulary
- * and a root cannot teach it a word.
- */
 export interface Plugins {
   /** Where the fibers hang — handed to `@olai/bundle` to mount the rows on, and
    *  opaque to everybody. */
@@ -1636,25 +751,6 @@ export interface Plugins {
   /** What each ringing plugin declared, keyed by its name. A name with no entry
    *  is a plugin that wakes nobody, which is a whole plugin. */
   readonly declared: () => ReadonlyMap<string, Wake>
-  /**
-   * WHO STANDS BEHIND WHICH DOOR — the offers table, keyed by the service tag
-   * and answering the plugin's name.
-   *
-   * Read by the composition root and by nothing else, for one question: which
-   * rows would go `waiting` if this row were turned off. That is a JOIN of two
-   * live readings — this one, and which keys each running fiber names — and it
-   * is the sentence the panel's switch owes a person before they press it
-   * (`@olai/surface`'s `BuiltPlugin.carrying`).
-   *
-   * KEYED BY THE DOOR because that is what the table IS: a door stands behind
-   * one row, which is the claim {@link Offers.offer} refuses a second of. The
-   * inverse — a plugin and the doors it holds — would be the same fact with the
-   * uniqueness rule no longer visible in the shape.
-   *
-   * Core row offers and plugin-owned keys appear here. Host services are
-   * provided before any row is mounted and are nobody's to hold, so a row can never be
-   * carrying another on `clock`.
-   */
   readonly offers: () => ReadonlyMap<string, string>
   /** Public discovery: the stable authoring catalog plus currently offered
    * plugin-owned keys. Ownership also tracks internal core doors, which this
@@ -1664,42 +760,6 @@ export interface Plugins {
   readonly browserKeys: () => ReadonlyArray<string>
 }
 
-/**
- * WHAT THE ROOT SUPPLIES, which is everything a plugin must not reach for
- * itself.
- *
- * ## Why it is one field per service rather than a shape
- *
- * Because the alternative is the composition root calling `provide(host,
- * Deliveries, plugin => …)` for itself, which puts the PER-PLUGIN KEYING back in
- * the root — and the keying is the fence. One package decides what a plugin's
- * own view of a service is; this interface is the price of that, and the price
- * is a field count.
- *
- * ## The late one is {@link ./runtime.ts}'s `Provision`, spelled
- *
- * `localStateFor` is `(plugin: string) => X`, which is the bridge's own name for
- * exactly that. It is typed with it rather than re-described, so a reader who has
- * met the shape once meets it once.
- *
- * ## ONE ANSWER TO "NOT READY YET", and this file no longer holds a second
- *
- * Browser providers publish their scoped services through Offers; a half that
- * precedes its provider simply sits `waiting` on the runtime's own mechanism. This file used to answer it a second way,
- * with a LOOKUP ASKED PER CALL, so `deliveries` was always present and answered
- * `[]` and a no-op where there was no chat.
- *
- * The fear behind that was a provider that might never exist: a machine with no
- * ACP agent builds no chat, and kolu and odu would sit PENDING for ever. What
- * answered it is that a chat is a ROW: the row always mounts, and the emptiness
- * moved inside the door — `scopes()` is the empty list and `deliver` is a no-op,
- * which is the same honest machine-without-the-tool answer, one closure further
- * in. A serve composed with no chat row is a different thing and is a RULING
- * rather than a defect: kolu sits `waiting`, and its row says on whose account.
- *
- * So the lookup is gone, and with it the field that fed it. PENDING is the
- * answer on both faces now.
- */
 export interface PluginsConfig {
   /** The variables, as the process was started with them. */
   readonly vars: Record<string, string | undefined>
@@ -1712,30 +772,17 @@ export interface PluginsConfig {
   /**
    * THE VAULT'S MCP SERVER, COMPLETED AFTER `listen` — see {@link Tools}.
    *
-   * A `Deferred` rather than a value or a thunk, because the two facts about it
-   * are "not knowable yet" and "knowable exactly once", and that is what a
-   * Deferred IS. A thunk answering `ToolServer | null` would put the waiting back
-   * on every caller and give each of them a null arm to invent an answer for.
-   *
-   * OPTIONAL, and absent means NO LISTENER EVER: a root that serves nothing (the
-   * headless faces, every bench in this tree) has no address, so {@link
-   * Tools.server} never settles and a plugin gated on it stays gated. That is the
-   * honest reading rather than a fabricated address, and it is not a failure —
-   * nothing in a process with no listener was going to talk to one.
+   * OPTIONAL, and absent means NO LISTENER EVER: a root that serves nothing has
+   * no address, so {@link Tools.server} never settles and a plugin gated on it
+   * stays gated.
    */
   readonly tools?: Deferred.Deferred<ToolServer>
   /**
-   * ...AND THE SESSION CREDENTIAL MINTED OFF IT — see {@link Tools.ticket}.
+   * ...AND THE SESSION CREDENTIAL MINTED OFF IT — see {@link Tools.ticket}. A
+   * THUNK, answering `null` until the listener has bound, because a ticket is
+   * minted per SESSION at a moment the plugin chooses.
    *
-   * A THUNK rather than a value, and it answers `null` until the listener has
-   * bound, for the reason the address above is a `Deferred` and this is not: a
-   * ticket is minted per SESSION, at a moment the plugin chooses, and a plugin
-   * that spawned one before there was a face to mint against would be asking
-   * for a bearer onto nothing. `null` is that state said out loud, and the one
-   * caller refuses to seat a session on it rather than inventing one.
-   *
-   * OPTIONAL, and absent means NO CREDENTIAL EVER — the headless faces and
-   * every bench, which have no MCP face to mint against.
+   * OPTIONAL, and absent means NO CREDENTIAL EVER.
    */
   readonly ticketFor?: (
     forbidden: () => ReadonlyArray<Forbidden>,
@@ -1744,15 +791,6 @@ export interface PluginsConfig {
   ) => MintedTicket | null
   /** Optional live display lookup; absence means no tool is recognized as ours. */
   readonly advertisedFor?: Tools["advertised"]
-  /**
-   * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
-   *
-   * OPTIONAL, and absent means ONE RANK FOR EVERYBODY: a root with no bundle
-   * behind it has no list to be a position in, and `Array.prototype.sort` is
-   * stable, so a plugin sorting by it gets arrival order back. A default of `0`
-   * rather than a refusal, because "this root has no opinion" is a real state
-   * (every bench here) and not a misconfiguration.
-   */
   readonly rank?: (plugin: string) => number
   /** Told after every surface register and every dispose — the composition
    *  root's re-compose. Absent on a runtime nobody is serving from, which is
@@ -1767,12 +805,9 @@ export interface PluginsConfig {
  * OPEN THE PLUGIN RUNTIME — the host, the services on it, and the doors back.
  *
  * SCOPED, because every `provide` is: the services stand for as long as the
- * enclosing scope is open, and a plugin whose service is revoked unloads. In a
- * serve that scope is the serve's, which is the whole process.
+ * enclosing scope is open, and a plugin whose service is revoked unloads.
  *
- * NOTHING IS MOUNTED HERE. What plugins this build has is `@olai/bundle`'s
- * question, and it is asked of {@link Plugins.host} on the next line up — this
- * function has never heard of a row.
+ * NOTHING IS MOUNTED HERE.
  */
 export const openPlugins = (
   config: PluginsConfig,
@@ -1785,28 +820,6 @@ export const openPlugins = (
       dial: config.dials?.[plugin],
     }))
     yield* provide(host, Clock, () => ({ now: config.now }))
-    /**
-     * THE DOORS THAT CORE DOES NOT PROVIDE, which is the whole
-     * of this phase and reads here as an absence.
-     *
-     * Four of {@link OFFERABLE} are the chat row's to keep; {@link Ledger} is
-     * the git row's, {@link Search} the search row's and {@link Identity} the
-     * identity row's; Vault and Directory belong to the vault row. Offered from the
-     * offering plugin's own `apply`
-     * ({@link Offers}). Core standing behind them was scaffolding
-     * with a date on it: a stand-in whose door was `undefined` answered every
-     * question with nothing — no scopes, no doorbells, and a delivery that
-     * resolved into `Effect.void` — so a serve composed without a chat looked to
-     * kolu and odu exactly like a serve with one that never rang. That is the
-     * silence this arrangement was meant to prevent, wearing the shape of the
-     * thing it prevented.
-     *
-     * WHAT IS TRUE INSTEAD is what the fibers already say: a plugin that names
-     * `deliveries` with no row behind it is `waiting`, the reading names the tag
-     * it is waiting on, and the preferences panel says on whose account. Under
-     * a policy selecting only kolu alone, kolu is waiting — the paper's rule, and its
-     * accepted cost.
-     */
 
     const kindListeners = new Set<() => void>()
     const kinds = registry<string, ComposedKind>(() => { for (const notify of kindListeners) notify() })
@@ -1828,12 +841,6 @@ export const openPlugins = (
           return kinds.claim(
             word,
             { ...kind, kind: word, claims: word, by: plugin },
-            // REFUSED UNCONDITIONALLY, including a plugin claiming its own word
-            // twice — which is the reachable half on a well-formed bundle, since
-            // the prefix IS the row's id and the loader will not mount two rows
-            // under one. A plugin that unloads and comes back is not this case:
-            // its finalizer took the word out of the table before its `apply`
-            // ran again.
             (already) =>
               `plugins: "${already.by}" and "${plugin}" both contribute the property `
                 + `kind "${word}" — a vault declaring it would be judged by whichever `
@@ -1855,33 +862,21 @@ export const openPlugins = (
         ),
     }))
 
-    // KEYED BY THE PLUGIN AND REFUSED THE SAME WAY, which it was not: this table
-    // was a bare `set`, so a second declaration replaced the first silently and
-    // the FIRST registration's finalizer then deleted the SECOND's entry. Both
-    // are unreachable on a well-formed bundle for the reason the sibling above
-    // gives — one row, one plugin, one `apply` — and the asymmetry with its three
-    // neighbours was the only thing keeping it so.
     const wakes = registry<string, Wake>()
     yield* provide(host, Wakes, (plugin) => ({
       register: (wake) =>
         wakes.claim(
           plugin,
-          // A registration is one activation, even when the module reuses its
-          // constant declaration after unload. Readers can retain its lifetime.
           { ...wake },
           () =>
             `plugins: "${plugin}" declared a second wake — a plugin rings under one `
               + "declaration, and the second would silently replace the first.",
         ),
-      // READ AFRESH, and the same `read` a composition root gets: this table has
-      // one truth and both ends of the wall are looking at it. A copy is handed
-      // over, so a reader that wrote into it would be writing into its own.
       declared: Effect.sync(wakes.read),
       current: wakes.read,
     }))
 
 
-    // This table reports ownership; Cordis itself refuses duplicate providers.
     const offered = new Map<string, { readonly plugin: string }>()
     const browserKeys = registry<string, string>()
     yield* provide(host, Offers, (plugin) => {
@@ -1924,71 +919,28 @@ export const openPlugins = (
     })
 
     yield* provide(host, Tools, () => ({
-      // NEVER, and not a null: a root with no listener has no address, and a
-      // plugin gated on one is gated for the life of that process. See
-      // {@link PluginsConfig.tools}.
       server: config.tools === undefined ? Effect.never : Deferred.await(config.tools),
-      // ...and NULL rather than never for the credential, because this one is
-      // asked per session and a caller has somewhere to put the absence: a root
-      // with no MCP face seats a session with no remaining write rule, which is
-      // the state it was already in ({@link PluginsConfig.ticketFor}).
       advertised: (server, tool) => config.advertisedFor?.(server, tool) ?? null,
       ticket: (forbidden, writer, confined) => config.ticketFor?.(forbidden, writer, confined) ?? NO_TICKET,
     }))
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
 
-    // TWO READINGS ABOUT ONE PROVIDER, and the only lookup left in this file.
-    // {@link Served} carries the whole of why it is allowed to be one: MCP is a
-    // row that must stand up with no vault and cannot invert the arrow, and a
-    // component would take the row out of the roster. Per call, because the
-    // roster moves under a standing connection.
     yield* provide(host, Served, (plugin) => ({
       directory: () => readOffered(host, Directory, plugin),
       gate: () => readOffered(host, Ops, plugin)?.gate,
     }))
 
-    // THE CONFIGURATION BROKER: the settings reader is optional to exist, and a
-    // row naming it directly would unload with it. `undefined` is that absence;
-    // followers keep their last value ({@link ConfigurationWatch}).
     yield* provide(host, ConfigurationWatch, (plugin) => ({
       current: () => readOffered(host, ConfigurationSource, plugin)?.current(),
       changes: Stream.switchMap(serviceChanges(host, ConfigurationSource), (source) =>
         source === undefined ? Stream.succeed(undefined) : source.changes),
     }))
 
-    // ...AND THE CONVERSATION BROKER, for the same reason one door over: a row
-    // that can ask an agent to build something must still stand up on a serve
-    // with no chat, and both a `needs` and a component would take it out of the
-    // roster when there is none ({@link ConversationsWatch}).
-    //
-    // THE CONSUMER'S LIFETIME RIDES THROUGH, and it is the whole difference
-    // between a broker and a hole in a fence. The door behind this one gates
-    // `say` on the asking activation still being here, because a body it
-    // delivers may be HELD for the length of a turn; a broker that read it
-    // with no lifetime would hand every consumer a door whose gate is "nobody
-    // said, so everybody is still here", and words would land under the name
-    // of a row switched off minutes ago. The facade hands this provision the
-    // consuming activation's lifetime; it goes straight on to the provider,
-    // with the same word.
     yield* provide(host, ConversationsWatch, (plugin, lifetime) => ({
       current: () => readOffered(host, Conversations, plugin, lifetime),
     }))
 
-    // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
-    // that orders a plugin's saves lives on the door, and this provision runs
-    // once per ACTIVATION — so a plugin that unloads and comes back used to get a
-    // second chain, and a save still in flight could land after a later one, on
-    // the same file, with the earlier record winning. That is precisely the
-    // defect {@link LocalState}'s own paragraph says was fixed by minting the door once
-    // per plugin; it was fixed per CALL and left open per ACTIVATION.
-    //
-    // Unreachable while nothing unloaded a server half mid-serve — and a row that
-    // stands behind another row's doors is one blip away from making it routine.
-    //
-    // KEYED BY THE NAME rather than by the fiber, because the name is what the
-    // FILE is keyed by: two activations of one plugin are two fibers writing one
-    // path, which is the whole of what has to be ordered.
     const localStates = new Map<string, LocalState | null>()
     yield* provide(host, LocalState, (plugin) => {
       if (!localStates.has(plugin)) {
@@ -2029,54 +981,8 @@ export type {
 } from "./contract.ts"
 export { exposeMapsOf, kindWordOf, NO_TICKET, NOWHERE_TO_WRITE, surfacesOf } from "./contract.ts"
 
-/**
- * WHAT AN ENGINE PLUGIN HANDS {@link Agents} — the one name off
- * `@kolu/acp/engine` this door repeats, because it is the argument of a verb
- * declared here.
- *
- * IT WAS FIVE. `Adapter`, `Engine`, `PromptChannel` and `Where` came with it, on
- * the argument that a server half should "open one door for its whole
- * registration" — and none of the four was ever imported from here by anything.
- * The door was not one either: the re-export is types-only and a probe needs
- * VALUES, so three of the four engines go to `@kolu/acp/engine` for `adapterFrom`
- * and `AGENT_ENV` regardless. A convenience nobody walked through, arguing a
- * property it did not have.
- */
 export type { Registering } from "@kolu/acp/engine"
 
-/**
- * WHAT A HALF MAY NAME — the two catalogs `plugins.inspect` answers with, and
- * the one place either is written down.
- *
- * ## Why a SERVE reads them at all
- *
- * Phase 12: an agent writes a plugin into a vault, and before it does it asks
- * *what may I name* (`plugins.inspect`). The honest answer is these two lists —
- * the services a server half may put in its `needs`, and the slots a browser
- * half may register a face into — and the only wrong way to answer is a second
- * copy in the composition root, which would agree with these until somebody
- * added a service and then send an agent to name a door that is not there.
- *
- * ## The service list is the TAGS, read for their keys
- *
- * A tag knows the word it is bound under, so this is the same table the runtime
- * resolves against rather than a description of it. A tag added above and left
- * out of this list is a service `plugins.inspect` does not mention, which is a
- * missing sentence rather than a wrong one — and the array is `as const` so the
- * omission is at least visible in one place.
- *
- * `Offers` is deliberately in it: a plugin that stands behind a door names that
- * tag like any other, and an agent-written plugin that wanted to is written the
- * same way a shipped one is.
- *
- * ...and so are the OFFERABLE doors a plugin may consume rather than only
- * provide. {@link Agents}, {@link Watching} and {@link Identity} are keys a row
- * NAMES to read what another row stands behind — who is looking, what a
- * conversation did — and a door an agent cannot find is a door it will not
- * write against. {@link Ledger} is not, and the asymmetry is not a rule: it is
- * that `ops.commit` and `ops.push` are how a plugin records a write, so a row
- * naming that key would be reaching past a door it already has.
- */
 export const SERVICES = [
   BundleModules,
   Served,

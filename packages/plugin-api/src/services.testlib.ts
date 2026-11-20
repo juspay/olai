@@ -1,5 +1,3 @@
-/** Unit fixtures explicitly supply a vault. Product openPlugins leaves Vault
- * absent until a provider row finishes acquiring its directory. */
 import { provide } from "@olai/effect-cordis"
 import { Effect } from "effect"
 import { openPlugins, Ops, opsEvents, NOWHERE_TO_WRITE, Vault, vaultEvents, type PluginsConfig } from "./services.ts"

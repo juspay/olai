@@ -48,7 +48,6 @@ test("browser consumers wait, release faces before provider resources, and resta
   yield* settled(app.host, ["reader"])
   yield* app.settled
   expect(app.only("app.viewer")?.face()).toBe("v2:reader")
-  // The enclosing host scope now checks the same cleanup ordering on shutdown.
 })))
 
 for (const word of ["", "other.reading", "Reading", "../slots"]) {

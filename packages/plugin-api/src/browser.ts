@@ -1,15 +1,4 @@
 import { createLandings, type Landings as LandingTable } from "./carry.ts"
-/** Browser capabilities and notebook compatibility contracts.
- *
- * The renderer owns the sole location registry. Slots and Faces retain the
- * notebook extension vocabulary as a typed adapter; openApp supplies no slot
- * tables. Child locations belong to consuming entries, and contributions wait
- * until those entries activate. The host binds contributor identity and batches
- * notifications across roster changes to preserve provider/editor lifetimes.
- *
- * Clocks and Bar are compatibility names for renderer/layout-owned services.
- * Links remains a transitional host service pending navigation extraction.
- */
 
 import {
   type Host,
@@ -43,9 +32,6 @@ import type {
   PillLook,
 } from "./plugin.ts"
 
-/** WHAT A BROWSER HALF IS WRITTEN WITH, re-exported so it opens ONE door —
- *  {@link ./runtime.ts}, which is the same list `./services.ts` hands the server
- *  half. This module's own bench opens it here; a plugin opens `./index.ts`. */
 export * from "./runtime.ts"
 
 /** Generic key rules; concrete location descriptors belong to their capabilities. */
@@ -59,9 +45,6 @@ export const Offers = serviceTag<Offers>("offers")
 /** A location declared by an imported capability contract. */
 export type SlotName = keyof SlotDefinitions & string
 
-/** The capability declarations one key rule holds — the four names below are this
- *  applied four times, and they are four names rather than one generic because
- *  the register doors and the reads are written against them by name. */
 type SlotsKeyedBy<K extends SlotKey> = {
   [S in SlotName]: SlotDefinitions[S] extends {readonly keyedBy: K} ? S : never
 }[SlotName]
@@ -78,158 +61,18 @@ export type ListSlot = SlotsKeyedBy<"nothing">
 /** ...and the one the APP keys, which is what makes it the only one. */
 export type SingleSlot = SlotsKeyedBy<"app">
 
-/**
- * WHAT GOES IN EACH SLOT.
- *
- * The three `outline.row.*` faces take the drawer's context, which is the one
- * thing they cannot close over: a chip is drawn per value and has to be told
- * WHICH value ({@link ./plugin.ts}'s `BlockContext`). Everything else closes
- * over the services its own `apply` injected rather than taking the whole
- * furniture as a prop.
- *
- * `app.mount` is the exception and it is structural rather than a contract
- * the app owes: a mount WRAPS, so it must be handed what it wraps.
- *
- * SOME CONTRIBUTIONS ARE NOT FACES, and the split is working rather than
- * eroding: a menu verb is words and a press, a chord is a key and a press, a
- * sidebar section is a heading and a body. In each the box is core's — the
- * menu's row and where in the list it sits, the shortcut list's spelling of
- * the chord, the sidebar's region and its height budget — and what core cannot
- * write is the words and what the press does.
- */
 export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly face: infer F} ? F : never }
 
-/** The transport-shaped part of a standing page reading. Kept structural so
- * the plugin API does not import either Solid or the vault's format. */
 
 
 
 
-/** One declarative claim on the app's URL namespace. Exact words and prefixes
- * are enough for the address grammars plugins can own, and unlike an arbitrary
- * parser they can be checked against every other mounted claim. */
 
 
-/** One plugin-owned URL grammar and standing reading. The heterogeneous value
- * positions are deliberately erased at this floor; `@olai/web`'s
- * `defineAppRoute` is the typed adapter that may construct one. */
 
 
-/** The complete page registration: one route source and the drawing of its
- * answer, acquired and released in the same plugin scope. */
 
 
-/** A plugin's one seat in the app's bar, and which of the two the shell should
- * put it in. `cluster` is the standing row of pills — desktop only, after the
- * connection state; `lead` is the seat ahead of them that may shrink to nothing
- * and that a phone still draws. The shell decides what either costs when the
- * width runs out; a plugin cannot spell an ordering of its own. */
-
-
-/** A plugin-owned directory entry. The shell decides where the two supported
- * placements sit; the optional rail face travels with the same entry. */
-
-
-/** An ordinary palette navigation row. A URL is the shared navigation currency;
- * the shell resolves it against the same exclusive claims as the address bar. */
-
-
-/**
- * A PLUGIN'S VERBS ON A ROW'S ••• MENU — `outline.row.action`.
- *
- * A FUNCTION OF NOTHING THAT ANSWERS A LIST, rather than one verb per
- * registration, and the shape is the whole of what this slot learned from its
- * first tenant. The chat panel offers *Start an agent
- * session* ONCE PER INSTALLED ENGINE — a count that is not knowable when the
- * plugin's `apply` runs, because the roster arrives over a wire the tab dials
- * after it. A plugin registering N faces would have had to know N at
- * registration; a plugin registering one face that ANSWERS N reads its own live
- * state at the walk, where the app is already re-reading this table inside a
- * tracked memo.
- *
- * It also makes the empty answer expressible, which the old shape could not: a
- * machine with no agent installed offers no *start* row at all, and an entry
- * whose only outcome is "there is nothing to start" teaches nobody anything.
- *
- * ## AND IT TAKES THE NODE, because the count depends on the row as well
- *
- * A node already talking through a conversation is offered no *start* at all,
- * and one that names an engine is offered THAT engine rather than a choice —
- * three different lists on three rows of one outline. The reading answered
- * nothing for one revision and could not express any of it; what it costs to
- * take the node is nothing, because the walk is per row already.
- *
- * THE NODE THE ROW SHOWS, which is the same id a press is handed and is core’s
- * arithmetic over mirrors and folds, spent once before either call.
- *
- * The plugin-facing subset of what `@olai/web`'s own catalog builds. There is no
- * `divider` and no `confirm`: a rule is core's statement about which half of its
- * own list a reader is in, and the question a verb asks before it runs is drawn
- * in core's words, which a plugin's verb is not core's to compose.
- *
- * ## WHICH HALF, THOUGH — and that one the plugin has to say
- *
- * The row menu puts every READ above a rule and every WRITE below it, and the
- * rule is a safety property rather than a habit: everything above it changes
- * what this tab is looking at, everything below it changes the directory, and a
- * person reaching for *Collapse all* and hitting *Move to Trash* is a mistake
- * the ORDER prevents. Appending a plugin's verbs after both halves was the first
- * shape here and it broke exactly that: the former *Ask agent* verb — which
- * armed a composer and wrote nothing (`writes: false`) — landed under *Move to Trash*.
- *
- * Core cannot tell which a verb is, and a plugin cannot be trusted with the
- * POSITION. So {@link writes} is the one fact that crosses: the plugin says what
- * kind of act its verb is, and core places it. That is this table's own split
- * said once more — core keeps the shape, the plugin brings the fact.
- *
- * ## What a press is handed, and what it is not
- *
- * THE NODE'S OWN ID, and only that. Not the record: `@olai/format`'s `Row` is
- * core's shape, and a slot that handed it over would put core's whole reading
- * vocabulary — the fold, the mirror rule, the licence — inside every tenant that
- * wanted one verb. And not the row's own id either but the node the row SHOWS,
- * which is core's arithmetic over mirrors and folds and is spent before the
- * press is called, so a plugin cannot get that distinction wrong by not knowing
- * it exists.
- *
- * A plugin that needs the node's FILE asks its own server half, which is where a
- * node's file is a fact it already holds.
- *
- * `run` may return a refusal sentence for the menu to display beside the row.
- * The plugin owns its wording; core supplies the alarm presentation. Successful
- * actions return nothing and let their visible effect speak for itself.
- */
-
-
-/** One of them. */
-
-
-/**
- * A SECTION IN THE SIDEBAR — `sidebar.section`.
- *
- * A heading and a body rather than one face, and the reason is the shape of
- * the box: the region's box, the heading's type and the column's height
- * budget are core's, and a face would have to carry
- * core's classes into every tenant to sit right in it — three byte-identical
- * copies drifting from `@olai/web` the first time the sidebar is restyled.
- *
- * The cost, said plainly: a section that wants a control IN its heading (a count,
- * a toggle) cannot have one yet. The day one does, the heading grows a face
- * beside `said` and the argument above is what that change has to answer.
- */
-
-/**
- * A KEYBOARD CHORD — `app.keys`.
- *
- * The modifier is not here and is not an omission: every chord this app answers
- * is ⌘ on an Apple platform and Ctrl everywhere else, which is one decision
- * `client/keys.ts` makes once for all of them. A plugin naming its own modifier
- * would be a plugin that can be wrong about a platform it cannot see.
- *
- * `said` is the words for the shortcut list, and the app spells the CHORD beside
- * them (`⌘J / Ctrl+J`) out of `key` and `shift` — core keeps the shape, the
- * plugin brings the words, one more time.
- */
 
 
 /** One face, with the plugin that hung it — what a walk over a plugin-keyed slot
@@ -245,52 +88,6 @@ export interface Hung<F> {
   readonly face: F
 }
 
-/**
- * EVERY FACE THIS TAB HAS RIGHT NOW — the browser's twin of `Surfaces`, and the
- * one service whose registrations move the page.
- *
- * ## The re-read is the APP's and not this service's
- *
- * The runtime holds the table and says when it moved; what re-reads it is
- * `@olai/web`, through {@link AppConfig.changed}. That is exactly the split
- * `Surfaces` keeps on the server and for the same reason: a service that
- * re-rendered would be a service that knew what a render is, and this one has
- * never heard of Solid. The app wires `changed` to a signal, and every walk over
- * a slot is a read of it.
- *
- * ## A DUPLICATE IS REFUSED WHERE THERE IS A KEY TO DUPLICATE
- *
- * Two plugins hanging a chip on one composed kind word cannot happen — the
- * prefix is the row's id and the loader will not mount two rows under one — so
- * the reachable case is a plugin registering the same slot twice, which is a
- * mistake in that plugin and is worth refusing at the moment it is made. The
- * refusal DIES inside `acquire`, which lands the plugin in `failed` having
- * installed nothing: one plugin's faces are absent, and every other plugin's are
- * untouched.
- *
- * THE SINGLE SLOT IS THE ONE WHERE TWO PLUGINS REALLY DO COLLIDE, because its
- * key is the slot itself and every plugin claims the same one. So it is the one
- * refusal that names BOTH — the plugin being turned away and the plugin already
- * in the seat — since neither is in the key and a sentence naming only the
- * loser tells a reader nothing about what to take out.
- *
- * A LIST REFUSES NOTHING. There is no key, so there is no collision, and a
- * plugin hanging four verbs is four verbs. Where a collision in a list matters
- * (two plugins claiming one chord) it is a collision in something the READER
- * holds, not in this table, and this table refusing on its behalf would be this
- * table pretending to know what a keyboard is.
- *
- * ## THE KEY IS NEVER AN ARGUMENT
- *
- * Three of the four rules take no key from the caller at all — the fiber's own
- * name, the slot's own name, or nothing — and the fourth takes the BARE kind
- * word, which is composed here with the plugin's own name: the same `kindWordOf`
- * the server's `Kinds` uses, so the word a face is looked up by and the word a
- * vault declares cannot be two spellings. The name comes off the registry
- * binding, which is what makes "a plugin cannot sign another's registration" a
- * shape rather than a rule — and it is why there are still exactly two doors
- * below for four cardinalities.
- */
 export type SlotOptions = Omit<NonNullable<Parameters<LocationOwner["contribute"]>[2]>, "key">
 export interface Slots {
   /** Hang a face where the caller names no key: this plugin's one face in a
@@ -313,57 +110,6 @@ export interface Slots {
 }
 export const Slots = serviceTag<Slots>("ui-renderer.legacy-slots")
 
-/**
- * ...AND THE READ SIDE OF THE SAME TABLE — the door a plugin that DRAWS what
- * other plugins hung is written against.
- *
- * ## Why this exists at all, which is a thing that changed under the table
- *
- * Every slot used to be read by `@olai/web` and written by a plugin, and the
- * two shapes said so: `Slots` had a `register` and no `hung`, {@link App} had
- * `hung` and no `register`, and the asymmetry was the whole design. It survives
- * — neither of those two shapes has grown the other half — but the CLAIM under
- * it does not: `delivery.mark` and `tool.reply` are read by the chat
- * panel, and the chat panel is a plugin. Six plugins register a mark
- * and the reader of all six is a seventh, which no shape in this
- * file could spell.
- *
- * A THIRD TAG rather than three fields on {@link Slots}, and the reason is what a
- * `needs` list is for. Reading a slot somebody else fills is a real dependency on
- * a real table, and a plugin that has it should have said so in the one list this
- * runtime holds it `waiting` against — the same list a reader of the plugins
- * panel, the fence and `website/docs/plugins/<name>.md` read to find out what a plugin
- * touches. Folded into `Slots`, every plugin that hangs one chip would silently
- * carry the right to walk every slot in the app.
- *
- * ## THE FENCE: what reading a slot may and may not teach a plugin
- *
- * It may learn WHO IS IN THE SLOT IT NAMED and what they hung there: the faces,
- * in the bundle's order, each with the plugin's own word beside it. That is the
- * whole point — a panel cannot draw six engines' marks without the six marks.
- *
- * It may NOT learn the roster. A slot is not a census: a plugin absent from
- * `delivery.mark` may be mounted, running and drawing everywhere else, and a
- * plugin that read an empty slot as "kolu is not here" would be wrong on the
- * first serve where kolu simply has no mark. What is mounted is the plugins
- * panel's fact, off the server's own report, and it is not on this door.
- *
- * It may NOT reach a sibling through what it read. The word on a {@link Hung}
- * row is for a testid, a lookup and a sort — never an address. `Wired` mints a
- * client from the ASKING fiber's name, so a plugin holding another's word still
- * cannot ask for that plugin's members, and this door does not weaken that.
- *
- * It may NOT write. There is no `register` here, and `Slots.register` stamps the
- * registering fiber's own name, so a reader cannot hang, replace or remove
- * anybody's face — including by mutating what it read, since both tables
- * underneath hand back a copy.
- *
- * And the cost, stated rather than hidden: a plugin that reads a slot is coupled
- * to that slot's FACE TYPE, which is why every face type in this app is declared
- * HERE and not by whichever plugin happens to own the slot's tenant today. The
- * chat panel reading `delivery.mark` reads `SlotFaces["delivery.mark"]`
- * — core's declaration — and takes no dependency on the six plugins filling it.
- */
 export interface Faces {
   /**
    * WHAT IS HUNG IN A PLUGIN-KEYED OR LIST SLOT, in REGISTRATION order — which
@@ -385,116 +131,22 @@ export interface Faces {
 export const Faces = serviceTag<Faces>("ui-renderer.faces")
 
 /**
- * ONE ROW'S OWN HOLD ON THE TABLE IT READS — the shape a plugin whose FACES
- * read a slot is written with, and the reason no plugin imports the tab's
- * runtime any more.
- *
- * ## The problem it is the answer to
- *
- * A read of {@link Faces} happens where the drawing does: three levels inside a
- * component, in a memo, in a `<For>`. The service arrives where the DEPENDENCY
- * is declared, which is an `apply`. Threading it between those two places makes
- * every component's signature a function of what one descendant needs — so five
- * plugins reached for `@olai/web`'s `client/plugins/runtime.ts` instead, which
- * is the module that assembles the whole browser application and carries the
- * mount table, the redial's client holder and every failure report beside the
- * three reads they wanted.
- *
- * ## What this is, and the two rules that make it safe
- *
- * A FACTORY, not a place. Calling it mints one holder; a package calls it once
- * in a module of its own, and that module is private to the package — this
- * function is what makes the algorithm shared without the STATE being shared.
- * Nothing here is module scope: two callers get two holders, and a package that
- * re-exported its holder through a door would be publishing live state across a
- * package boundary, which `@olai/bundle`'s fence refuses by name.
- *
- * {@link HeldFaces.hold} is an acquisition on the CALLING activation's scope
- * and clears BY THE HOLD, so a stopped activation cannot clear the value a
- * replacement installed — the rule every holder in this tree keeps and the four
- * that did not were the audit's §4.
- *
- * BY THE HOLD and not by the VALUE, which is a distinction that cost a review
- * finding: the release used to ask `held === faces`, and the service value is
- * one object the provider hands to everybody — so two components of one row
- * holding the same `Faces` made the second's release match the first's hold and
- * clear it. A token minted per call cannot be mistaken for another call's.
- *
- * IT IS ONE SLOT, THOUGH, and a token does not change that: a second hold
- * displaces the first, and releasing the second leaves the first consumer
- * reading the empty answer. So a holder belongs to ONE consumer — two
- * consumers with two lifetimes are two holders, which is what this being a
- * factory is for. `olai-plugin-navigation`'s `faces.ts` is the worked example,
- * and the finding.
- *
- * ## An empty answer rather than a throw, where nobody is holding
- *
- * A read before the hold is a face drawing without its own row's renderer
- * dependency satisfied, and the honest reading of the table then is that
- * nothing is hung — which is exactly what the tab itself answered before any
- * renderer was offered. A throw would take down a page for a state that has a
- * true empty answer. What it costs is that such a read is UNTRACKED: the
- * tracking is `Faces`' own (`AppConfig.reading`), so there is nothing to
- * subscribe to while the service is absent. That is not reachable for a face
- * drawn by the row that holds — the hold precedes every contribution it makes —
- * and it is why this is a holder rather than a signal.
- */
-/**
  * WHERE A VERB'S WRITE GOES — the browser's twin of {@link Kinds},
  * {@link Surfaces} and {@link Wakes}, and one table per attached app.
  *
- * ## What it is about
- *
  * A row that owns an `edit.apply` arm CLAIMS the verbs it implements; anything
- * with an edit in hand SPENDS one. The two are usually different rows and often
- * different packages, because history contains inverses from several providers:
- * ⌘Z over a mark, a move to the Trash and a document's rename come off one
- * stack and go to three rows' sibling clients. A surviving editor must not send
- * every inverse through its own.
+ * with an edit in hand SPENDS one. {@link openApp} supplies the table, so no
+ * row stands behind it and naming it costs a consumer no wait.
  *
- * ## THE TABLE WAS A MODULE VARIABLE, and that was the audit's §12
- *
- * `const writers = new Map()` lived at `@olai/edit-history`'s module scope —
- * a general package. Five plugin activations wrote into it and four packages
- * read it, with nothing declared anywhere. The fence allowed it by name for one
- * commit on the reasoning that the entries were each one activation's and a
- * second claimant was refused; that is lifetime discipline, and it is not
- * ownership. Nothing in the runtime said that markdown's editor spends
- * outlines' writer, and nothing withdrew when a provider left except a
- * finalizer the module trusted its callers to run.
- *
- * ## Why HERE, and not in the package that owns the edit algorithm
- *
- * Two reasons, and the second is the fence's. Which row implements which verb
- * is a fact about the COMPOSITION rather than about editing — it is the same
- * question `Kinds` and `Surfaces` answer on the server, and those live beside
- * this one. And the table has to be stood behind by something every browser
- * plugin can name without waiting: {@link openApp} supplies it, the way it
- * supplies {@link Offers} and {@link Wired}, so no row stands behind it, no row
- * leaving takes it away, and naming it costs a consumer no wait. The browser
- * host is the only other place that could have minted one, and the composition
- * root may not carry a feature package (`@olai/bundle`'s fence says so, and
- * caught the attempt).
- *
- * ## The `unknown` is one cast at each end, deliberately
- *
- * An `Edit` and an `Applied` are `@olai/surface`'s, and that package names this
- * one — so the door is spelled structurally here and with the real types at
- * both ends, which is exactly what {@link Ledger} and {@link Search} do for the
- * floor. `@olai/web`'s `client/writes.ts` casts once on the reading side; each
- * row's `browser.tsx` casts once on the claiming side.
+ * An `Edit` and an `Applied` are `@olai/surface`'s, so the door is spelled
+ * structurally here and cast with the real types at both ends.
  */
 export interface EditWriters {
   /**
    * CLAIM THESE VERBS for as long as the calling activation stands, and clear
    * BY IDENTITY — so a stopped activation whose finalizer runs after a
    * replacement claimed the verb cannot take the replacement's writer out from
-   * under an edit in flight.
-   *
-   * A DEFECT on a second claimant, which is what the throw it replaces always
-   * was: the bundle's `edit.apply` arms are exhaustive and disjoint by
-   * construction (each row's `surface.ts` says so), so two rows claiming one
-   * verb is a composition that is wrong rather than a state to draw.
+   * under an edit in flight. A second claimant is a DEFECT.
    */
   readonly register: (
     verbs: ReadonlyArray<string>,
@@ -506,15 +158,10 @@ export interface EditWriters {
 export const Edits = serviceTag<EditWriters>("edit-writers")
 
 /**
- * ONE ROW'S WRITE, for the moment its client may already be gone.
- *
- * `Edits.register`'s handler runs when an edit is dispatched, and a roster
+ * ONE ROW'S WRITE, for the moment its client may already be gone — a roster
  * redial can withdraw the row that owns the verb between the gesture and the
- * dispatch — `Wired.client()` is then `null`. Reaching through it was a
- * `TypeError` inside a page error, which is not a sentence anybody can act on;
- * this refuses through the same door every other departed-client path lands on
- * (`@olai/web`'s `run.ts`, fourth exit), so the reader sees the ordinary "the
- * wire was replaced, try again" rather than a crash.
+ * dispatch, and `Wired.client()` is then `null`. Refuses through the same door
+ * every other departed-client path lands on rather than reaching through it.
  */
 export const editApply = (
   client: {
@@ -551,22 +198,6 @@ export const NO_EDITS: EditWriters = {
 const editWriters = (): EditWriters => {
   const writers = new Map<string, (edit: never) => Effect.Effect<unknown, unknown>>()
   return {
-    /**
-     * THE CHECK AND EVERY INSERTION ARE ONE STEP.
-     *
-     * This was `Effect.suspend(() => taken.length ? die : acquire)` — look at
-     * the table in one Effect, fill it in the next — and Effect can yield
-     * between two Effects. A review reproduced two claimants both finding
-     * their verbs free and both installing, with the dispatch then answering
-     * through the second. The synchronous `registerWriter` this replaced had
-     * no such gap, which is the sort of thing a migration loses quietly.
-     *
-     * So the acquisition is ONE `Effect.sync`: it decides and writes inside a
-     * single synchronous body, and a partial claim installs NOTHING — the
-     * overlap is computed before the first `set`, so a claim on two verbs one
-     * of which is taken leaves the other free. Uninterruptible would not have
-     * done it; uninterruptible is about interruption, not about yielding.
-     */
     register: (verbs, write) =>
       Effect.acquireRelease(
         Effect.sync((): ReadonlyArray<string> => {
@@ -574,9 +205,6 @@ const editWriters = (): EditWriters => {
           if (taken.length === 0) for (const verb of verbs) writers.set(verb, write)
           return taken
         }),
-        // A LOSER RELEASES NOTHING: its scope closes like any other — the die
-        // below is raised after this finalizer is on it — and a release that
-        // did not ask would take the WINNER's writer out of the table.
         (taken) => Effect.sync(() => {
           if (taken.length > 0) return
           for (const verb of verbs) if (writers.get(verb) === write) writers.delete(verb)
@@ -596,12 +224,30 @@ const editWriters = (): EditWriters => {
   }
 }
 
+/**
+ * ONE ROW'S OWN HOLD ON THE TABLE IT READS — the shape a plugin whose FACES
+ * read a slot is written with.
+ *
+ * A FACTORY, not a place. Calling it mints one holder; two callers get two
+ * holders, and nothing here is module scope.
+ *
+ * {@link HeldFaces.hold} is an acquisition on the CALLING activation's scope
+ * and clears BY THE HOLD, so a stopped activation cannot clear the value a
+ * replacement installed.
+ *
+ * IT IS ONE SLOT: a second hold displaces the first, and releasing the second
+ * leaves the first consumer reading the empty answer. So a holder belongs to
+ * ONE consumer — two consumers with two lifetimes are two holders.
+ *
+ * A read before the hold answers the empty table rather than throwing, and
+ * such a read is UNTRACKED: the tracking is `Faces`' own
+ * (`AppConfig.reading`), so there is nothing to subscribe to while the service
+ * is absent.
+ */
 export interface HeldFaces extends Faces {
   readonly hold: (faces: Faces) => Effect.Effect<void, never, Scope.Scope>
 }
 export const heldFaces = (): HeldFaces => {
-  // WRAPPED, so the token is this call's and not the service's — the same
-  // reason `@olai/ui-primitives`' `heldService` wraps, one door over.
   let held: { readonly faces: Faces } | undefined
   return {
     hold: (faces) => Effect.suspend(() => {
@@ -617,40 +263,14 @@ export const heldFaces = (): HeldFaces => {
   }
 }
 
-/**
- * THE APP'S CLOCK, and the register it ticks in.
- *
- * Every field is the app's own arithmetic ({@link AppClocks}), handed over
- * rather than restated, because each of them fails the same silent way: a chip
- * whose duration ladder drifted reads plausibly and is wrong, and nothing
- * anywhere goes red.
- *
- * ## THE FACADE IS GONE, and with it a whole class of bug
- *
- * This was a CLASS that restated every member of the record it wrapped, and a
- * class's prototype method is not a value: `clocks.tickingOf`, detached from its
- * receiver, read `this.config` off `undefined` and threw deep inside a render,
- * on a page that happened to draw a live CI chip. Every function had to be
- * re-declared as a bound `=` property to get back what the record already was.
- *
- * A tag's shape IS the record. There is nothing to restate, nothing to bind, and
- * no line for a new field to fail to appear on.
- */
 export type Clocks = AppClocks
 export const Clocks = serviceTag<Clocks>("ui-renderer.clocks")
 
 /**
  * THE BAR — its geometry, its breakpoint and the popover that shares its one
- * focus cycle.
- *
- * Three facts about one place, which is why they are one service and the clock
- * is another: a readout that wants the pill's classes wants the breakpoint and
- * the panel too, and a plugin that draws no chrome at all wants none of the
- * three and says so by leaving this out of its `needs`.
- *
- * `desktop` is here rather than on its own because it is the BAR's fact: the
- * pills are desktop-only, and a plugin answering that out of its own media query
- * would be a second answer to the app's breakpoint.
+ * focus cycle. `desktop` is the BAR's fact: the pills are desktop-only, and a
+ * plugin answering that out of its own media query would be a second answer to
+ * the app's breakpoint.
  */
 export interface Bar {
   readonly desktop: () => boolean
@@ -673,58 +293,22 @@ export interface Links {
 export const Links = serviceTag<Links>("navigation.links")
 
 /**
- * THIS PLUGIN'S OWN SIBLING CLIENT — the browser twin of `Surfaces`, read the
- * way `Deliveries` is read.
+ * THIS PLUGIN'S OWN SIBLING CLIENT, KEYED BY THE PLUGIN and not by an
+ * argument: a client addressed by a name a caller supplies is a client one
+ * plugin can ask for another's members through.
  *
- * KEYED BY THE PLUGIN and not by an argument, for that door's reason exactly: a
- * client addressed by a name a caller supplies is a client one plugin can ask
- * for another's members through. The key is the sibling key the framework
- * composed this plugin's members under, which is the one word core has about it.
+ * `unknown`, because core cannot type a plugin's client without learning its
+ * members. It travels opaque and is narrowed by the plugin, once, at its own
+ * edge.
  *
- * `unknown`, and the honesty of that is the point: core cannot type a plugin's
- * client without learning its members, which is the one thing this arrangement
- * exists to prevent. It travels opaque and is narrowed by the plugin, once, at
- * its own edge.
- *
- * `null` is a plugin whose sibling this wire does not carry, which after the
- * roster drives the mount is a state that should not be reachable — the tab
- * mounts a plugin only for a name the roster named, and it dials that name in
- * the same breath. It is `null` rather than a failure because the honest answer
- * to "your members are not on this wire" is a plugin that draws its
- * nothing-here arm.
- *
- * ## A FUNCTION, and holding one is safe now
- *
- * It was a prototype method deliberately left unbound, because it read the
- * CALLING fiber off a tracker proxy and a bound copy would have handed every
- * plugin whichever client the service was constructed under — a quiet wrong
- * answer where an unbound one at least threw. There is no proxy: this plugin's
- * client was resolved from this plugin's own word before the plugin ever ran, so
- * `const c = wired.client; c()` is exactly as correct as calling it in place.
+ * `null` is a plugin whose sibling this wire does not carry, which is a plugin
+ * that draws its nothing-here arm rather than a failure.
  */
 export interface Wired {
   readonly client: () => unknown
 }
 export const Wired = serviceTag<Wired>("wired")
 
-/**
- * THE TAB'S SIDE OF THE TABLE — what `@olai/web` holds, and the other end of
- * every door above.
- *
- * The registries are READ here and WRITTEN by the plugins, which is why they are
- * two different shapes rather than one: `Slots` has a `register` and no `hung`,
- * and this has `hung` and no `register`. That asymmetry stands; what stopped
- * being true is that the reader was always the TAB, which is why the three reads
- * are {@link Faces} now and this extends it. The tab and a plugin ask the same
- * table the same three questions — the tab is not a privileged reader, it is
- * merely the one that also holds the host and hands over the furniture.
- *
- * It said "mount order is BUNDLE order, because that is the order the rows are
- * mounted in". The first clause is true of a first load and false of every frame
- * after one: a re-compose skips the plugins already up, so a plugin that arrives
- * later is appended after them whatever the file says. That argument now lives on
- * {@link Faces.hung}, with the read it is about.
- */
 export interface App extends Faces {
   readonly settlePlugins: (ids: ReadonlyArray<string>) => Effect.Effect<void>
   readonly settled: Effect.Effect<void>
@@ -746,36 +330,10 @@ export interface App extends Faces {
 
 }
 
-/** WHAT THE TAB SUPPLIES — everything a plugin must not reach for itself. */
 export interface AppConfig {
-  /** A component has its own activation name, but spends its owning row's
-   * namespace, sibling client and slot keys. Only the composition root supplies
-   * this binding; plugins cannot choose an owner through a service argument. */
   readonly ownerFor?: (fiber: string) => string
-  /** TOLD WHEN A FACE ARRIVES OR LEAVES. The app wires it to a signal; this
-   *  runtime has never heard of Solid, which is the same split `Surfaces` keeps
-   *  one door over. */
   readonly changed?: () => void
-  /**
-   * ...AND TOLD THAT SOMEBODY IS READING, which is the other half of the same
-   * split and arrived with {@link Faces}.
-   *
-   * `@olai/web` tracks its own walks by reading its signal on the way in
-   * (`hung()` calls `moved()` before it reads). A PLUGIN reading the same table
-   * cannot: that signal is a module-scoped value in `@olai/web`, which a plugin
-   * may not import, so a panel drawing six plugins' marks would draw them once
-   * and never again — the exact failure the whole "no plugin, no slot entry"
-   * arrangement is meant to make unspellable, arriving from the other side.
-   *
-   * So the app says how a read is tracked, the same way it says how a change is
-   * published, and this runtime still has never heard of Solid. It is called on
-   * every read through this door INCLUDING the tab's own, because "somebody is
-   * reading" is true either way and one implementation with no caller-dependent
-   * branch is one fewer thing to get wrong.
-   */
   readonly reading?: () => void
-  /** One plugin's own sibling client, by name — `null` where this wire does not
-   *  carry it. */
   readonly clientFor?: (plugin: string) => unknown
 }
 
@@ -803,15 +361,11 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
     yield* provide(host, Wired, forOwner((plugin) => ({
       client: () => config.clientFor?.(plugin) ?? null,
     })))
-    // ONE EDIT TABLE PER APP, supplied rather than offered for {@link Edits}'
-    // own reason: no row stands behind it, so naming it costs no wait.
     const landings = createLandings()
     yield* provide(host, Landings, () => landings)
     const edits = editWriters()
     yield* provide(host, Edits, () => edits)
 
-    // Compatibility reads resolve the renderer's live facade. No slot storage
-    // or slot provider exists on the permanent host.
     const faces: Faces = {
       hung: (slot) => { config.reading?.(); return offered(host, Faces)?.hung(slot) ?? [] },
       dressed: (slot) => { config.reading?.(); return offered(host, Faces)?.dressed(slot) ?? new Map() },
@@ -839,8 +393,6 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
  * owning UI entry must declare them before registered faces become active. */
 export const slotLocation = <S extends SlotName>(slot: S) => slotReference<SlotFaces[S]>(slot)
 
-/** Adapter only: key rules and face types are notebook API policy. Reservation,
- * activation, cleanup, identity, and diagnostics all belong to Locations. */
 const SlotManagement = serviceTag<Pick<Locations, "inspect" | "settled" | "retry">>("ui-renderer.integrations")
 export const slotFacade = (
   store: Locations,
@@ -862,9 +414,6 @@ export const slotFacade = (
     }) as Slots["register"],
   }),
   faces: {
-    // IN THE BUILD'S ORDER, imposed here and nowhere else — see
-    // {@link BrowserMount.rank}. `sort` is stable, so one plugin's four verbs
-    // stay in the order that plugin registered them.
     hung: (slot) => {
       reading?.()
       return store.read(slotLocation(slot)).map((entry) => entry.value)

@@ -1,4 +1,3 @@
-/** Static interpretation of file picks. Callers supply their own live reading. */
 import { fileKind, nearestAtOrAbove, type Claims, type Derived } from "@olai/format"
 import type { Deliveries, LocalState } from "./services.ts"
 import { Effect, Semaphore } from "effect"

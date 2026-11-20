@@ -1,165 +1,11 @@
-/**
- * WHAT A PLUGIN DRAWS, as types — the shapes on both sides of the browser
- * seam, and the whole of what core knows about kolu, odu and xyne-spaces.
- *
- * ## THE MANIFEST IS GONE, and this file is what is left of it
- *
- * `OlaiPlugin` was a VALUE: an object with `dressings`, `chrome`, `mount` and
- * `mark` on it, listed in a compiled-in registry and walked by four modules in
- * `@olai/web`. A browser half is a PLUGIN now — `name`, `needs`,
- * `apply(ctx)`, exactly its server half — and what it used to declare it now
- * REGISTERS, into the six slots `./browser.ts` declares. So the hooks retired
- * with the object that carried them and what stayed here is the DRAWING
- * contract: what a face is handed, what it may answer with, and the three
- * paragraphs about a mark that are the whole of what makes one column of them
- * legible.
- *
- * Why the object could not survive is one sentence: a manifest is present
- * whether or not this serve composed the plugin, so every walk over it had to
- * carry a LICENCE beside it — and the two licences pointed opposite ways, which
- * took a module of its own to argue. A fiber the roster never named registers
- * nothing, so there is nothing to license.
- *
- * ## Why there is an interface at all, which reverses a ruling
- *
- * `olai-plugin-kolu/appliance`'s wire header says, in as many words: *"A generic
- * extension mechanism was considered and killed 3-0. The framework already
- * owns that axis, and there is no second foreign slice anywhere in git or the
- * roadmap — a plug-in system with a population of one is speculative
- * generality."* That was true when it was written and it is not true now. The
- * population is three — odu arrived (#433) and grew a cell, a dressing, a vault
- * walk and a probe of its own, every one of them the kolu block with the nouns
- * changed; xyne-spaces arrived as the outbound mirror, with no appliance-client
- * package one floor down. A second tenant is not speculation; it is the
- * evidence the first ruling asked for, and a third is the same evidence spent
- * again.
- *
- * What the reversal costs is named here rather than left for a reader to find:
- * the named spread was LEGIBLE — `...koluMembers.cells` beside
- * `...oduMembers.cells` is two lines that say exactly what is in the spec — and
- * a registry is one line that does not. The trade is bought back by the
- * framework's own composition, which was here the whole time
- * (`@olai/bundle`'s `composition.test.ts`, which moved with the registry): a
- * plugin declares a WHOLE SURFACE in its own package
- * and core composes it as a SIBLING under the plugin's name, so what reaches
- * the wire is `surface/kolu/fleet/get` — computed by
- * `composeSurfaceContracts` and by nothing olai wrote. The composed group
- * still reads as a list of who contributed what, and no general package holds
- * a plugin's member name at all.
- *
- * A first attempt did rebuild it: a mount of core's own devising that put a
- * separator inside MEMBER NAMES. That is recorded rather than deleted, because
- * the way it was wrong is worth knowing — a member name is not a namespace,
- * and `@kolu/surface` mints channel names, MCP resource paths and tool names
- * out of one. A punctuated member name aliases another member's channel, has
- * to be percent-encoded to be read as a resource, and produces a tool name
- * outside the character set a strict MCP host accepts. The framework refuses
- * `/` in a member name for the first of those reasons and offers sibling
- * composition for the rest; taking the offer is the whole of this design.
- *
- * ## The plugin MAY import this file now, and that reverses a second ruling
- *
- * It could not, for one reason: this package held the REGISTRY as well as the
- * interface, so a plugin that imported it would be a cycle the manifests could
- * not express. A plugin's half was therefore a plain `as const` object with no
- * annotation on it, and the agreement was proved at the registry's `satisfies`
- * instead — the same move `@olai/ops` makes with the surface's `Status`, and the
- * same one `olai-plugin-kolu`'s `appliance/props/block.ts` makes with the
- * drawer's entry.
- *
- * The registry moved to `@olai/bundle` and the premise went with it. This
- * package names no plugin at all now, so the arrow is one-way and a plugin
- * importing what it is written against is an ordinary import — which is what
- * every tenant's `./server.ts` and `./browser.tsx` do.
- *
- * The `satisfies` did not survive the move and could not have: `@olai/bundle` is
- * ROWS, each naming a module a loader resolves at mount, and there is no list of
- * imported halves left for a type to be asserted over. That is a stronger
- * arrangement rather than a lost check, because the proof went to the line that
- * is wrong instead of to a list far from it: a half hands its `surface` and its
- * `faces` to `Surfaces.register` ({@link ./services.ts}) and its drawn faces
- * to `Slots.register` ({@link ./browser.ts}), so a member name it got wrong
- * or a slot this app does not declare is red in that plugin's own package, on
- * the call that made the mistake — where the `satisfies` could only ever report
- * it at one line of one list in a package the plugin's author was not editing.
- *
- * It is what the SERVER half already does, and there the import is not
- * optional: a server half is an Effect now, and `needs` names the
- * services in `./services.ts`.
- *
- * ## Everything is optional but the name, the surface and its faces
- *
- * A plugin that contributes one cell is a whole plugin — odu is. Nothing else
- * here is required for a plugin to be enabled, disabled, drawn in preferences
- * or documented, because the ABSENT arm of every hook is the state a machine
- * without the tool already shows, and that state already had to work.
- */
-
 import type { JSX } from "solid-js"
 
 
-/**
- * WHAT THE APP HANDS A PLUGIN'S BROWSER HALF — the furniture, and the whole of
- * why a plugin is given it rather than reaching for it.
- *
- * ## The precedent, and why it is the RULE here rather than a courtesy
- *
- * `@olai/web`'s live seam already hands one piece of furniture across a package
- * wall — {@link BlockChrome}, the fact line every property in the drawer's run
- * wears — and its argument is exactly the one that governs everything below: *a
- * face that spelled `"prop"` itself would be a second spelling of the drawer's
- * contract, free to drift the day the drawer changed it, with the drawer's own
- * suite still green because the face it broke is somewhere else.* A dressing's
- * testid was one string. A plugin's browser half is a chip that TICKS, a pill in
- * the app's bar, a panel that hangs off it and a link into the served set — four
- * more contracts of exactly that kind, and every one of them fails the same
- * silent way.
- *
- * So the wall is drawn in the same place: the plugin owns what it DRAWS, the app
- * owns the CONTRACT it is drawn against, and the contract crosses as a value.
- * The rejected alternative was for each plugin to import `@olai/web` for the
- * dozen names it wants — the clock, the pill's classes, the popover, the layer
- * table, the anchor arithmetic, the router's `Link`. That is not merely a cycle
- * (it is one: `@olai/web` mounts every plugin); it is the app's whole chrome
- * contract re-spelled once per tenant, and a second tenant is where two
- * spellings start disagreeing.
- *
- * ## STRUCTURAL on the plugin's side, and each declares only its own half
- *
- * A plugin MAY import this file (the registry moved to `@olai/bundle`, so the
- * arrow is one-way), and several still re-declare what they read instead — so a
- * plugin re-declares the parts of the furniture it reads, exactly as
- * `olai-plugin-kolu`'s `appliance/props/block.ts` already does with the drawer's
- * entry. That is a STRONGER agreement than a shared import rather than a weaker
- * one: a plugin's own declaration names exactly what it touches, function
- * parameters are contravariant, and so a plugin asking for something the app
- * does not hand over is a type error — while the app's richer furniture
- * satisfies every narrower reading and no plugin can see a field it did not ask
- * for.
- *
- * WHERE that error lands moved with the manifest. It used to be the registry's
- * `satisfies`, one line of one list, with the plugin's name on it; there is no
- * such list, and the reading is now composed inside the plugin's own `apply` out
- * of the services it named (`olai-plugin-kolu`'s `browser.tsx` builds its
- * `KoluApp` from the `Bar`, `Clocks` and `Links` tags). So a field asked for
- * that the app does not hand over is red on the line that composes it, in the
- * package that asked, which is nearer the mistake than the registry ever was.
- */
 export interface AppClocks {
   /**
    * WHAT DAY IT IS, in the reader's own time zone, as the ISO text the format
-   * stores.
-   *
-   * An ACCESSOR, because today MOVES — at the next local midnight, and whenever
-   * a sleeping tab comes back — and a value would be the day the page mounted
-   * on, which is exactly the stale thing this app promises never to show.
-   *
-   * It is here rather than beside the factories because it is the same
-   * activation's: the renderer's `clocks` component mints the clock and offers
-   * this door, so what a row reads and what the app ticks cannot be two
-   * answers. It reached five rows as a module variable in `@olai/web`'s
-   * `client/today.tsx` before — a live value on a general package's door, with
-   * no consumer declaring anything (the Cordis audit's §12).
+   * stores. An ACCESSOR, because today MOVES — at the next local midnight, and
+   * whenever a sleeping tab comes back.
    */
   readonly today: () => string
   /** The ladders' units, read rather than re-typed: a readout spelling `1000`
@@ -201,14 +47,9 @@ export interface PillLook {
 
 /**
  * A PANEL THAT HANGS OFF A CHROME PILL — whether it is up, where it sits, and
- * the one focus cycle the trigger and the panel make between them.
- *
- * The app hands the WHOLE thing rather than its parts. A plugin given the
- * popover primitive alone would still have had to spell the portal, the layer
- * number, the anchor's five style keys and the `tabindex="-1"` the focus cycle
- * requires — four of the app's contracts, restated per tenant, each silent when
- * wrong: a panel at the wrong layer paints under the bar, and a panel whose
- * `top`/`bottom` came out of a computed key sits just below the fold.
+ * the one focus cycle the trigger and the panel make between them. The app
+ * hands the WHOLE thing rather than its parts: the portal, the layer, the
+ * anchor's style keys and the `tabindex="-1"` the focus cycle requires.
  */
 export interface AppPopover {
   readonly open: () => boolean
@@ -249,78 +90,23 @@ export type FileLink = (props: {
   readonly children: JSX.Element
 }) => JSX.Element
 
-/* THE BLOB IS GONE, and the four services took its place.
- *
- * `AppFurniture` was one record with five fields, handed to every face as a
- * prop, and the argument for one blob was the argument `PluginServices` made
- * on the other side of the wire: a field per appliance is a general package
- * naming one. That argument is intact and is not what retired it. What retired
- * it is that a browser half is a FIBER now, so there is something to inject
- * INTO — a plugin NAMES what it needs in its `needs` and the runtime holds it
- * `waiting` until it exists, which is the same guarantee its server half has
- * had since the bundle became rows. `./browser.ts` declares the four; the
- * shapes above are what each of them carries, unchanged. */
-
-/** ONE PROPERTY, as the drawer hands it to a face — the four fields a dressing
- *  may read and no more. A face that needed the node, the page or the wire would
- *  be a face the drawer has to know something about, and the point of the seam
- *  is that it does not. */
 
 
-/** What a face is handed to wear the RUN'S OWN CONTRACT — `@olai/web`'s
- *  `BlockChrome`, unchanged, and the precedent {@link AppClocks}' header
- *  extends. */
 
-
-/** What a BLOCK or a PANE face is handed. */
-
-
-/** What a CHIP face is handed — {@link BlockContext} plus the one thing a chip
- *  has that a block does not: whether its pane is open, and the verb that
- *  toggles it. The state is the DRAWER'S, so opening a second pane closes the
- *  first — a chip holding its own `open` could not know that. */
-
-
-/** A face that draws IN the run, immediately after the property's own chip —
- *  and draws NOTHING whenever the thing it is about is not alive, which is most
- *  of the time and is not a special case. */
-
-/** ...what its press opens, below the run. */
-
-/** ...and a face that owns a row whether or not anything is happening. */
 
 
 
 /**
- * WHAT THE PLUGIN'S OWN FACE IS, and the three paragraphs that are the whole of
- * the contract — kept here rather than on a slot's value type because they are
- * about DRAWING, and `./browser.ts` is about where a drawing hangs.
+ * WHAT THE PLUGIN'S OWN FACE IS — the mark the panel draws beside a row a
+ * plugin wrote. A plugin that hangs none is drawn with a plain generic, and
+ * never another plugin's mark.
  *
- * A plugin may write a sentence into a person's chat lane
- * ({@link ./contract.ts}'s `Deliveries`), and the panel draws such a row as a
- * THIRD speaker beside the human and the agent. Every speaker there wears a
- * mark, and this is where a plugin's comes from: the plugin, and nowhere else.
- * A plugin that hangs none is drawn with a plain generic, which is the same
- * bargain an agent olai has no shape for already gets — and never another
- * plugin's mark, which would teach a reader something false the first time a
- * third tenant arrived.
+ * It answers with the SHAPES and not a whole `<svg>`: a `<g>` of paths in a
+ * `0 0 16 16` box, `currentColor` throughout, so a column of marks is one size
+ * and one stroke weight.
  *
- * ## What it answers with: the SHAPES, inside a `0 0 16 16` box
- *
- * Not a whole `<svg>`, and this is the part worth spelling. The marks in a
- * transcript are read as a COLUMN — the person, the agent, the plugin, one
- * under another — so they must be one size and one stroke weight, and a plugin
- * that answered with its own `<svg>` would own the two attributes that decide
- * both. So the app draws the element and the plugin fills it: a `<g>` of paths
- * in a sixteen-unit square, `currentColor` throughout. A plugin wanting a
- * different size is asking for its row to look unlike the rows around it, which
- * is a request the panel should refuse.
- *
- * ### The sixteen-unit square is CORE'S VIEWPORT, not the plugin's coordinates
- *
- * A mark whose shapes are an EXISTING ASSET rather than a drawing made for this
- * column will have a coordinate system of its own, and it is permitted one: the
- * `<g>` may open a nested viewport inside itself.
+ * A mark whose shapes are an EXISTING ASSET may open a nested viewport inside
+ * the `<g>`:
  *
  * ```tsx
  * <g>
@@ -330,37 +116,13 @@ export type FileLink = (props: {
  * </g>
  * ```
  *
- * That is a granted permission with its bound written into it rather than a
- * loophole the first real asset routed around. `width="100%"`/`height="100%"`
- * resolve against whatever viewport core established, so the plugin still never
- * spells `16`, and `preserveAspectRatio="xMidYMid meet"` centres and fits the
- * artwork without distorting it. The `<g>` stays: a plugin still does not get to
- * be the outer `<svg>`, and still cannot touch the two attributes that decide
- * the column's size and weight.
+ * Such a mark carries its own palette, so it will not dim with a muted row or
+ * invert with the theme.
  *
- * ### `currentColor` is the DEFAULT, not the rule
- *
- * It stays the rule for a DRAWN mark — the generic and any hand-drawn glyph take
- * nothing and inherit the ink of the line they sit on, which is what makes them
- * legible in every theme with no palette of their own. A mark that IS a brand
- * asset carries its own palette, and the plugin is the only place that knows it
- * has one. The cost travels with the permission: such a mark will not dim with
- * a muted row, will not invert with the theme, and may carry a shadow tuned for
- * the background its own designer had in mind.
- *
- * ### A mark that declares an `id` owns its uniqueness, PER INSTANCE
- *
- * SVG ids are global to the DOM DOCUMENT and `url(#…)` resolves against the
- * document, so a plugin shipping `id="lift"` has claimed that word from every
- * other element on the page — and the mark is drawn once per rung row, so two
- * rows are two claims. Core cannot namespace it: computing an address out of a
- * plugin's name is precisely what `@olai/bundle`'s `fence.test.ts` exists to
- * refuse. So the uniqueness is the plugin's, held by the plugin's own build and
- * minted at its own render (`createUniqueId`).
+ * A mark that declares an `id` owns its uniqueness PER INSTANCE: SVG ids are
+ * global to the DOM document and the mark is drawn once per row, so the id is
+ * minted at the plugin's own render (`createUniqueId`).
  */
 export type PluginMark = () => JSX.Element
 
-/** Solid's element type, re-exported so a plugin's component fields have a
- *  return type without every reader of this file importing `solid-js` for the
- *  one word. */
 export type { JSX }

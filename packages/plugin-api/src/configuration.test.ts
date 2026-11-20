@@ -27,6 +27,5 @@ test("a declaration marks a leaf a preference, and the flag travels on its readi
   const values = decodePolicy(Config, [], undefined, () => {}).values
   expect(values.find(one => one.key === "plain")?.preference).toBeUndefined()
   expect(values.find(one => one.key === "promoted")?.preference).toBe(true)
-  // The two annotations MERGE: promoting a leaf does not cost it its description.
   expect(values.find(one => one.key === "promoted")?.says).toBe("drawn in Preferences")
 })

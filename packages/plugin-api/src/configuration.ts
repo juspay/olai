@@ -1,4 +1,3 @@
-/** Static configuration protocol. Live readings are owned by the offering row. */
 import { type Claims, fileKind, stemOf, customText, isRegular, UsageFailure, type WriteRequest, type Located, type Reading } from "@olai/format"
 import { Schema, SchemaAST, type Stream } from "effect"
 import { serviceTag } from "@olai/effect-cordis"
@@ -78,8 +77,6 @@ export const coerceLeaf = (schema: Schema.ConstraintDecoder<unknown, never>, raw
     : control.kind === "switch" ? (raw === "yes" ? true : raw === "no" ? false : raw) : raw
   const decode = Schema.decodeUnknownSync(schema)
   if (input === raw) return decode(raw)
-  // Some declarations already own a string-to-value codec. Give that encoding
-  // its ordinary input before adapting a bare number or boolean schema.
   try { return decode(raw) } catch { return decode(input) }
 }
 
@@ -201,7 +198,6 @@ export const environmentReadings = (
     : { key, kind: "resource", set, says, ...(set ? { value: publicResource(value) } : {}), ...(vars.OLAI_WRAPPER_DEFAULTS?.split(",").includes(key) ? { source: "wrapper" as const } : {}) }
 })
 
-/** URL userinfo is credential material even on an otherwise public resource. */
 const publicResource = (value: string): string => {
   try {
     const url = new URL(value)
