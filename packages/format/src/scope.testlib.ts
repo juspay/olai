@@ -22,7 +22,7 @@ import { parseOutline } from "./fixtures.testlib.ts"
 import { assemble } from "./set.ts"
 import { reading, type Reading } from "./validate.ts"
 
-export const walkedMatching = (
+export const referenceMatching = (
   derived: Derived,
   filter: Filter,
   scope: Scope = {},
@@ -107,13 +107,13 @@ export const differential = (
     const filter = parseFilter(ask.text, now)
     const answered = narrow?.(at, filter)
     const named = answered === null || answered === undefined ? undefined : [...answered]
-    const walked = walkedMatching(at.derived, filter, ask.scope, named)
+    const walked = referenceMatching(at.derived, filter, ask.scope, named)
     const narrowed = matching(at.derived, filter, ask.scope, named)
     asked += 1
     hits += walked.length
     if (named !== undefined) candidates += 1
     if (isScoped(ask.scope) && walked.length > 0) {
-      const whole = walkedMatching(at.derived, filter, trashOnly(ask.scope), named)
+      const whole = referenceMatching(at.derived, filter, trashOnly(ask.scope), named)
       if (walked.length < whole.length) narrowing += 1
     }
     for (const line of differing(ask, walked, narrowed)) divergences.push(line)

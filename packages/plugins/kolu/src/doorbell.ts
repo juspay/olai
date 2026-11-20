@@ -92,7 +92,6 @@ export const walkedIn = (
   }
   return {
     claimed: claims.sort((a, b) => a.rank - b.rank).map(({ rank: _rank, ...claim }) => claim),
-    // The exclusions are NOT re-ordered.
     excluded,
   }
 }
@@ -463,12 +462,7 @@ const suffixed = (from: string, to: string, word: string): string => {
   return `, ${spanOf(now - at)} ${word}`
 }
 
-/**
- * This module has no gone-detection of its own and must never grow one: if
- * `scopes()` lists it, it is watched.
- */
 export interface Heartbeat {
-  /** A BEAT IS NOT AN EVENT and must never be stamped here. */
   readonly saw: (at: string) => void
   readonly delivered: (to: Conversation) => void
   readonly beat: (everyMs: number) => void
@@ -491,9 +485,6 @@ export const makeHeartbeat = (deps: {
   let lastEvent: string | null = null
   const spoken = new Set<string>()
   let armedAt: number | null = null
-  /** `\0` as an ESCAPE and never as the byte: a literal NUL
-   *  makes this file read as BINARY to grep and to review tooling, which is how
-   *  a reviewer stops being able to see it at all. */
   const keyOf = (to: Conversation): string => `${to.agent}\0${to.session}`
   return {
     saw: (at) => {

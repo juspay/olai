@@ -16,7 +16,7 @@ import {
   readingOfVault,
   TANGLED,
   vaultAt,
-  walkedMatching,
+  referenceMatching,
 } from "./scope.testlib.ts"
 import { assemble, nodesIn } from "./set.ts"
 import { reading } from "./validate.ts"
@@ -191,7 +191,7 @@ test("a write leaves the narrowing answering what the walk does", () => {
   const say = (): string =>
     ["d3n1", "d4r", "d8r", "d6r"]
       .map((under) =>
-        walkedMatching(read.derived, parseFilter("kitchen OR garden", NOW), { under })
+        referenceMatching(read.derived, parseFilter("kitchen OR garden", NOW), { under })
           .map((one) => one.at.node.id).join(",")
       )
       .join(" | ")

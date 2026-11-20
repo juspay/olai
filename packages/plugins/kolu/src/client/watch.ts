@@ -60,7 +60,6 @@ const sameQuestion = (a: WatchConfig, b: WatchConfig): boolean =>
 
 const HELD_BUCKETS: ReadonlySet<string> = new Set(WATCH_DEFAULT_STATES)
 
-/** EXPORTED FOR THE ONE READER THAT MUST NOT RE-DERIVE IT. */
 export const heldStateOf = (row: FleetTerminal): HeldState | null => {
   const narrowed = narrowAgentState(row.agentState)
   if (narrowed.state === undefined) return null
@@ -143,9 +142,6 @@ export const makeWatch = (
     }
   }
 
-  /** The beat is stamped LAST so a conversation rung by this frame is already
-   *  said before its floor is asked about — the events-first ordering the
-   *  ledger reads. */
   const onBatch = (token: Run, batch: readonly PadiStateEvent[]): void => {
     if (run !== token) return
     for (const ev of batch) {

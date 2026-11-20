@@ -1,8 +1,3 @@
-/**
- * This module imports nothing, and must not — a testid door that
- * pulled a component would put SolidJS and an emulator on the graph of a
- * cucumber process with no browser in it.
- */
 import { testIds } from "./testIds.ts"
 
 export const TESTID = testIds({

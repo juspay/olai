@@ -15,7 +15,6 @@ const bench = (): { trace: Trace; lines: ReadonlyArray<string> } => {
 test("a line is the prefix, the moment, then the facts in the caller's order", () => {
   const it = bench()
   it.trace("classified", { terminal: "11e565c0", file: "lanes.olai", meaning: "none" })
-  // THE ORDER IS THE CALLER'S and is never sorted.
   expect(it.lines[0]).toBe(
     "kolu doorbell classified terminal=11e565c0 file=lanes.olai meaning=none",
   )

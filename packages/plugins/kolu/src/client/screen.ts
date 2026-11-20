@@ -1,11 +1,3 @@
-/**
- * padi's `screen.text` window (`startLine`/`endLine`) is ABSOLUTE line numbers
- * into the scrollback and kaval clamps only low-side, so `startLine: N` yields
- * the empty string for any terminal shorter than N rather than a tail, and
- * there is no way to spell "the last N lines" without knowing the buffer
- * length. The window is therefore never sent and the tail is taken here.
- */
-
 import { type Snapshot, SnapshotRefused } from "./wire/index.ts"
 import { tailLines } from "@kolu/padi-client/screenTail"
 

@@ -17,8 +17,6 @@ export const mountLater = <A>(
   onMount(() => {
     let release: (() => void) | undefined
     let closed = false
-    // THE WHOLE OF THE REPAIR IS THIS LINE'S POSITION: before any await, inside
-    // the owned frame, over a slot that is still empty.
     onCleanup(() => {
       closed = true
       const releasing = release

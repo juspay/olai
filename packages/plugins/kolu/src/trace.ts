@@ -1,8 +1,5 @@
 export type Fact = string | number | boolean | null
 
-/**
- * The order is the CALLER'S and is never sorted.
- */
 export type Trace = (moment: string, facts: Readonly<Record<string, Fact>>) => void
 
 const PREFIX = "kolu doorbell"

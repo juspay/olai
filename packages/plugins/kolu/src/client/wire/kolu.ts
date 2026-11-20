@@ -88,12 +88,6 @@ export type FleetTerminal = typeof FleetTerminal.Type
 
 export const SnapshotRequest = Schema.Struct({
   terminal: Schema.String,
-  /**
-   * How many lines from the END of the buffer; a count-back, not padi's
-   * `startLine`/`endLine` window. padi's window is ABSOLUTE from the start of
-   * scrollback, so passing this count as `startLine` returns the empty string
-   * for any terminal shorter than `lines`.
-   */
   tailLines: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThan(0))),
 })
 export type SnapshotRequest = typeof SnapshotRequest.Type

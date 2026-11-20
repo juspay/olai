@@ -3,7 +3,7 @@ import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter, type Scope } from "./filter.ts"
 import { median, timed } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
-import { walkedMatching } from "./scope.testlib.ts"
+import { referenceMatching } from "./scope.testlib.ts"
 
 const FILES = 200
 const PER_FILE = 100
@@ -66,14 +66,14 @@ console.log(
     `${"selected".padStart(11)}`,
 )
 for (const [what, scope] of SCOPES) {
-  const before = runs(asking(walkedMatching, scope))
+  const before = runs(asking(referenceMatching, scope))
   const after = runs(asking(matching, scope))
   const selected = ASKED.reduce(
     (count, text) => count + matching(set, parseFilter(text, NOW), scope).length,
     0,
   )
   const walked = ASKED.reduce(
-    (count, text) => count + walkedMatching(set, parseFilter(text, NOW), scope).length,
+    (count, text) => count + referenceMatching(set, parseFilter(text, NOW), scope).length,
     0,
   )
   if (selected !== walked) {

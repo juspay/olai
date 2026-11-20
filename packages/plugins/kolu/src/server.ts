@@ -172,8 +172,6 @@ export default definePlugin({
           state: event.row?.state ?? null,
         })
         if (event.row === null) return
-        // Stamped BEFORE the vault gate below,
-        // because it is a fact about the WATCHER and not about the vault.
         heart.saw(event.at)
         const at = derived
         if (at === undefined) {
@@ -314,16 +312,6 @@ export default definePlugin({
 
     yield* opening.ask(Effect.promise(() => probe(env.vars)))
 
-    /**
-     * ## LAST REGISTERED, SO FIRST RUN
-     *
-     * The accumulator unwinds in reverse. That order is load-bearing here and
-     * not merely tidy: a beat that lands mid-teardown forks {@link beats}
-     * through the detached seam and `heart.beat` reads `scopes()` and
-     * may hand core a delivery — a doorbell ringing out of a plugin that is
-     * being taken down. Stopping the timers before the surface, the wake and
-     * the listeners come off is what makes the last beat the last one.
-     */
     yield* Effect.addFinalizer(() => Effect.sync(() => half.stop()))
   }),
 })

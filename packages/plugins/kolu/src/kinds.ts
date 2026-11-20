@@ -12,9 +12,6 @@ export const kinds = [{
   admits: admitsTerminal,
 }] as const
 
-/** What it must NOT do is spell the
- *  precedence itself — it hands this to the shared fold and gets back one map,
- *  like every consumer in the tree. */
 const OWN = new Map(
   kinds.map((one) => [TERMINAL_TYPE, { ...one, kind: TERMINAL_TYPE, claims: TERMINAL_TYPE }]),
 )
