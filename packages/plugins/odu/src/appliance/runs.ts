@@ -1,19 +1,3 @@
-/**
- * THE CI BOARD — boarded ids, catalog holds, nodes streams, first-red / settle.
- *
- * This module does not dial. The service cell starts `runLink`; `attach` /
- * `detach` are the flap. Discovery is board-driven: each boarded id holds
- * `runs.get` for that key. A boarded run holds `streams.nodes` until `done`,
- * including a run first seen already settled, so the matrix has cells.
- *
- * THE TWO NOTICES, per subscription:
- *   - first-red: once, on the first frame carrying a red node. A live run
- *     first seen already red rings. A settled run first seen red does not.
- *   - settle: once per settlement observed by this subscription, when `live`
- *     goes from true to false. A run first seen already settled rings
- *     nothing.
- */
-
 import type { NodesFrame, RunRow } from "@odu/service-client/surface"
 import type { ServiceConnection } from "@odu/service-client/dial"
 import { unenrolledStreamCall } from "@kolu/surface/client"
@@ -63,8 +47,6 @@ interface Held {
   nodes?: Fiber.Fiber<void, never>
 }
 
-/** First-sight and later crossings for one boarded id. Pure, so the bench
- *  can name a `provisioning → settled` settle without a live websocket. */
 export const advanceSub = (
   prev: Sub | undefined,
   row: CiRun,
@@ -103,9 +85,6 @@ export const advanceSub = (
   return { sub, notices }
 }
 
-/** Collection members are on the runtime face. `SurfaceReadFace` types
- *  cells, streams and procedures only, so `runs.get` is reached by a cast
- *  rather than by a typed field. */
 const runsGet = (
   client: ServiceConnection["client"],
 ): ((input: { readonly key: string }) => Stream.Stream<RunRow, unknown>) =>
@@ -264,8 +243,6 @@ export const makeBoard = (deps: BoardDeps): Board => {
       fork(dropSlot(one, "catalog"))
       fork(dropSlot(one, "nodes"))
     }
-    // Chips vanish for the redial gap rather than lingering as a last
-    // reading. A reconnect is a new first sight.
     publish()
   }
 

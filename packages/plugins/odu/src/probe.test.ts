@@ -1,36 +1,3 @@
-/**
- * What counts as "odu's `mcp` is here", against real subprocesses.
- *
- * The probe is a handshake, so the fixtures are executables: an `odu` written
- * into a directory this test names as the PATH, answering (or refusing to)
- * the way a real one would. Nothing here talks to a coordinator — the
- * question the probe asks is whether the BINARY speaks the shape, and a
- * script can answer it. `olai-plugin-kolu`'s `./probe.test.ts` is the pattern,
- * verbatim: the environment is a PARAMETER, so every case hands over the
- * environment it is a claim about, and a machine really running odu decides
- * none of them.
- *
- * WHAT IS PINNED: absence is a MISSING ROW, never quiet (a packaged olai
- * bakes the binary onto the server's PATH, so a resolve that finds nothing
- * names the command and says so, with no `where` — nothing was resolved);
- * an answer carrying the six verbs, each with the key that AIMS it, is
- * the server a session gets (path pinned, args are `mcp`, env empty); a
- * missing VERB and a missing aim are TWO sentences, because they are
- * two different fixes; a wedged server and a hung-up one are told apart by
- * which verdict comes back (`timedOut` against a fixture that reads and never
- * answers, `closed` against one that exits); the shared transport owns timeout, pagination and notification cases in
- * plugin-kit. This file owns the judgement over the returned tools.
- *
- * AND WHAT THIS FILE CANNOT PIN, which is why it is not the only check on the
- * shape. Every `odu` here is a script this file wrote, so the surface it
- * answers with is whatever this file says it is — which is exactly what let a
- * pin bump to an odu that had renamed every one of these verbs leave this
- * suite green while the panel drew a missing row in every conversation.
- * `just odu-surface` asks the SAME question of the binary the build actually
- * bakes (scripts/check-odu-surface.ts); these cases pin the judgement, that
- * one pins the pin.
- */
-
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -40,18 +7,11 @@ import { Effect, Fiber } from "effect"
 
 import { ODU_COMMAND, type Probed, probing } from "./probe.ts"
 
-/** ONE WHOLE PROBE, over its own scope — which is what the child belongs to
- *  now, so a probe that answers has already killed the `odu mcp` it asked.
- *  The cases below read like the promise-shaped `probe` they were written
- *  against; what changed is who owns the subprocess. */
 const probe = (env: Record<string, string | undefined>): Promise<Probed> =>
   Effect.runPromise(Effect.scoped(probing(env)))
 
-/** Every directory this test made, removed after each case. */
 const made: Array<string> = []
 
-/** WHERE THIS CASE'S `odu` IS — the PATH the probe is handed, never this
- *  process's own. */
 let where = ""
 
 afterEach(() => {
@@ -59,9 +19,6 @@ afterEach(() => {
   where = ""
 })
 
-/** An `odu` on the probed PATH, running the given script under the
- *  interpreter this test itself runs under — so the fixture needs nothing on
- *  PATH, which is the one thing this test is rearranging. */
 const oduOnPath = (body: string): string => {
   const dir = mkdtempSync(join(tmpdir(), "olai-odu-"))
   made.push(dir)
@@ -72,10 +29,6 @@ const oduOnPath = (body: string): string => {
   return bin
 }
 
-/** The fixtures' own half of the protocol: read lines, and for each `id`
- *  seen write the answer for that id back. A fixture's ANSWERS are the case's
- *  claim, so the body takes them verbatim. `initialized` carries no id, and
- *  is what lets this helper emit one to prove the probe hears past it. */
 const answering = (answers: Record<number, unknown>): string => `
   const lines = require("node:readline").createInterface({ input: process.stdin })
   lines.on("line", (line) => {
@@ -94,9 +47,6 @@ const answering = (answers: Record<number, unknown>): string => `
   })
 `
 
-/** One tool as odu's `tools/list` would carry it, under the input keys named
- *  — `aims` is the whole property set, so a case can hand over a verb aimed
- *  by the wrong key as easily as one aimed by none. */
 const tool = (name: string, ...aims: ReadonlyArray<string>): Record<string, unknown> => ({
   name,
   inputSchema: {
@@ -105,9 +55,6 @@ const tool = (name: string, ...aims: ReadonlyArray<string>): Record<string, unkn
   },
 })
 
-/** The whole answer a build of the right shape gives on the second request —
- *  the real spelling, as of juspay/odu#105: the directory verbs aimed by
- *  `checkout`, the run verbs by a globally-resolvable `runId`. */
 const SURFACE = {
   tools: [
     tool("run_start", "checkout", "expectedSha", "requestId"),
@@ -116,7 +63,6 @@ const SURFACE = {
     tool("run_wait", "runId", "after", "deadlineMs"),
     tool("venue_hold", "checkout", "requestId"),
     tool("venue_release", "checkout", "requestId"),
-    // ...and the ones the shape ALSO carries, which the probe asks nothing of:
     tool("run_read", "runId"),
     tool("log_read", "key"),
     tool("pipeline_read", "checkout"),
@@ -124,10 +70,6 @@ const SURFACE = {
   ],
 }
 
-/** The surface of an odu from BEFORE juspay/odu#105 — every capability there
- *  under its old name. Kept as a fixture because "an older odu" is a real
- *  thing a machine can have, and what it must draw is a sentence rather than
- *  a conversation quietly holding tools that answer to nothing. */
 const SURFACE_BEFORE_105 = {
   tools: [
     tool("run", "checkout"),
@@ -139,8 +81,6 @@ const SURFACE_BEFORE_105 = {
   ],
 }
 
-/** One full handshake's worth of answers, from which each case varies one
- *  fact. */
 const handshake = (tools: Record<string, unknown> = SURFACE): Record<number, unknown> => ({
   1: { protocolVersion: "2025-06-18", capabilities: {}, serverInfo: { name: "odu", version: "0.1.0" } },
   2: tools,
@@ -156,9 +96,6 @@ describe("odu's mcp, asked for fresh", () => {
     expect(found.missing?.where).toBeNull()
     expect(found.missing?.why).toContain("no `odu`")
     expect(found.missing?.why).toContain("PATH")
-    // The distinctive half, pinned rather than shape-checked: the promise
-    // the bake makes, in the sentence itself — it is the part a drift in
-    // the ruling would quietly take away.
     expect(found.missing?.why).toContain("a packaged olai carries one")
   })
 
@@ -171,9 +108,6 @@ describe("odu's mcp, asked for fresh", () => {
   })
 
   test("a file that is THERE but will not run does not shadow the one behind it", async () => {
-    // `accessSync` walks past it the way execvp walks past an EACCES: the
-    // later entry is the one that answers, and the failure mode a plain
-    // `existsSync` would find is pinned as unreachable.
     const dir = mkdtempSync(join(tmpdir(), "olai-odu-"))
     made.push(dir)
     const bin = join(dir, ODU_COMMAND)
@@ -197,10 +131,6 @@ describe("odu's mcp, asked for fresh", () => {
   })
 
   test("an odu from BEFORE juspay/odu#105 is a missing-verb sentence, not a handover", async () => {
-    // THE CASE THE PIN BUMP TAUGHT, from the other side. Every capability is
-    // there under the name it had before #105 renamed the face — an odu that
-    // can genuinely run CI, and cannot be spoken to by this olai. What it must
-    // NOT do is answer close enough to be handed over.
     oduOnPath(answering(handshake(SURFACE_BEFORE_105)))
     const found = await probe({ PATH: where })
     expect(found.server).toBeNull()
@@ -210,8 +140,6 @@ describe("odu's mcp, asked for fresh", () => {
   })
 
   test("a whole tool surface aimed by nothing is the OTHER sentence — the one with a different fix", async () => {
-    // The dangerous half: this odu genuinely RUNS runs, and a conversation
-    // spanning lanes would aim every one of them at olai's served root.
     oduOnPath(answering(handshake({
       tools: SURFACE.tools.map((one) => tool(String(one["name"]))),
     })))
@@ -232,10 +160,6 @@ describe("odu's mcp, asked for fresh", () => {
   })
 
   test("a run verb aimed by `checkout` instead of `runId` is refused too — aim is per verb", async () => {
-    // The regression the old blanket check could not have seen: this
-    // `run_wait` reads as aimed, and waits on whatever run the SERVER's own
-    // directory happens to hold rather than on the one the agent started in a
-    // lane. `runId` is global; a checkout is a guess about where you are.
     oduOnPath(answering(handshake({
       tools: [...SURFACE.tools.filter((one) => one["name"] !== "run_wait"), tool("run_wait", "checkout")],
     })))
@@ -246,9 +170,6 @@ describe("odu's mcp, asked for fresh", () => {
   })
 
   test("a newer odu shipping an extra unaimed tool is still handed over", async () => {
-    // Presence and aim are checked against the verbs a conversation is
-    // promised, and nothing wider: a newer odu growing a tool this olai
-    // does not aim is not a reason to refuse the six that do.
     oduOnPath(answering(handshake({
       tools: [...SURFACE.tools, tool("future_verb")],
     })))
@@ -269,11 +190,6 @@ describe("odu's mcp, asked for fresh", () => {
   })
 
   test("a probe that is called off kills the `odu mcp` it started, without waiting out the deadline", async () => {
-    // THE CHILD IS THE ASKING'S, and this is what that buys. A conversation
-    // whose open is abandoned — the session goes away, the plugin stops —
-    // used to leave a wedged `odu mcp` running until the five-second deadline
-    // let the old `probe` reach its kill. Interrupting the ask closes its
-    // scope, and the scope is what holds the child.
     const dir = mkdtempSync(join(tmpdir(), "olai-odu-"))
     made.push(dir)
     const pidFile = join(dir, "pid")
@@ -285,10 +201,6 @@ describe("odu's mcp, asked for fresh", () => {
     await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
       const asking = yield* Effect.forkChild(Effect.scoped(probing({ PATH: where })))
       yield* Effect.promise(() => until(() => existsSync(pidFile)))
-      // IT RETURNS, which is half the claim: an ask parked in an
-      // uninterruptible wait would stand here for the whole deadline and this
-      // case would die on the runner's own timeout rather than on an
-      // expectation.
       yield* Fiber.interrupt(asking)
     })))
     const pid = Number(readFileSync(pidFile, "utf8"))
@@ -298,16 +210,12 @@ describe("odu's mcp, asked for fresh", () => {
   })
 })
 
-/** Poll a fact into being, or give up — a budget well under the probe's own
- *  five-second deadline, so a child that is only killed by the deadline fails
- *  this rather than passing it slowly. */
 const until = async (fact: () => boolean): Promise<void> => {
   for (let waited = 0; waited < 1_500 && !fact(); waited += 10) {
     await new Promise((resume) => { setTimeout(resume, 10) })
   }
 }
 
-/** Is that process still there? `signal 0` is the ask that sends nothing. */
 const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0)

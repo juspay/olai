@@ -32,11 +32,6 @@ test("an olai watching no odu at all says so rather than naming a blank origin",
 })
 
 test("a refused service is an alarm, and says what odu said", () => {
-  // The sentence is odu's, whatever it is — this face never made the
-  // comparison and has no business composing words about it, so the claim is
-  // that the words travel UNCHANGED. Spelling odu's current wording here would
-  // make the test a stale specimen of another repo's prose. No run can be read
-  // until one side moves, so the dot is red.
   const said = oduSaid(link({ status: "skew", refusal: "whatever odu said" }))
   expect(said.label).toBe("odu: update needed")
   expect(said.tone).toBe("alarm")

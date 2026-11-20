@@ -1,18 +1,3 @@
-/**
- * THE LINK AT ITS BENCH — who odu lets this build read, and what the face is
- * told when it does not.
- *
- * The admission is odu's own (`admitService`, against the `ci` row this build
- * declares), so what is worth testing here is not the comparison — odu owns
- * that and tests it beside the versions — but the three things olai does with
- * the verdict: adopt, refuse in odu's words, and stay adopted when a row olai
- * never reads moves. The last one is the whole reason the rows are declared;
- * before juspay/odu#141 a cache release locked this readout out.
- *
- * The service is the real websocket `./testlib/fake-service.ts` serves, so the
- * cell travels odu's schema rather than a shape written here.
- */
-
 import { Effect, Fiber } from "effect"
 import { expect, test } from "bun:test"
 
@@ -73,9 +58,6 @@ test("a daemon whose runs moved a major is refused, in odu's own sentence", asyn
   const it = await bench("skew")
   try {
     const link = await it.settled("skew")
-    // The fixture's own number and this dial's own origin — the two facts olai
-    // owns. What odu words the rest with is odu's, and asserting it here would
-    // pin another repo's prose.
     expect(link.refusal).toContain("99.0")
     expect(link.refusal).toContain(it.odu.origin)
     expect(it.warned).toContain(`olai: ${link.refusal}`)
@@ -86,9 +68,6 @@ test("a daemon whose runs moved a major is refused, in odu's own sentence", asyn
 })
 
 test("a row this build never reads may move a major without locking olai out", async () => {
-  // The cache is mounted beside the runs and olai reads none of it. Under one
-  // number for the whole composed wire this daemon was unreadable; under the
-  // declared `ci` need it is an ordinary connected service.
   const it = await bench("cache-ahead")
   try {
     const link = await it.settled("connected")

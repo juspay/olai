@@ -1,7 +1,3 @@
-/**
- * THE CI CHIP AND THE ODU READOUT — attributes, never colours.
- */
-
 import * as assert from "node:assert"
 
 import { Then } from "@olai/tests/harness/runner.ts"
@@ -38,7 +34,6 @@ Then(
 Then(
   "the odu readout is {word}",
   async function (this: OlaiWorld, status: string) {
-    // A row of the health popover on a desktop, read with it up.
     await this.readStatus(async () => {
       const pill = this.page.locator(attr("data-testid", TESTID.odu)).first()
       await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT })

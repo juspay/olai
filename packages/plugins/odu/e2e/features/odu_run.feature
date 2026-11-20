@@ -39,8 +39,6 @@ Feature: A lane names its CI run by odu's run id
   Scenario: No odu is said in the header
     Given I open the outline "board.olai"
     Then the odu readout is absent
-    # Olai never starts the service, so its absence is ordinary: the row is
-    # quiet and the bar's one dot stays green.
     And the health dot is "healthy"
     And there should be no page errors
 
@@ -55,17 +53,12 @@ Feature: A lane names its CI run by odu's run id
   Scenario: A service whose runs moved a major is refused, in odu's words
     Given I open the outline "board.olai"
     Then the odu readout is skew
-    # Two builds that cannot speak: the bar's one dot is red and names the row's
-    # own words with the popover shut.
     And the health dot is "alarm"
     And the health dot names "odu: update needed"
     And there should be no page errors
 
   @scratch:odu-run @odu-service:cache-ahead
   Scenario: A service whose cache moved is still the quiet odu face
-    # olai declares the rows it reads — the runs and nothing else — so a daemon
-    # that released its cache a major ahead is an ordinary connected service.
-    # One number for the whole composed wire used to take this readout away.
     Given I open the outline "board.olai"
     Then the odu readout is connected
     And the health dot is "healthy"
@@ -121,8 +114,6 @@ Feature: A lane names its CI run by odu's run id
       {"id":"lane-a","parent":"board","ord":"a0","title":"the seam","doing":true,"custom":{"odu-run":"m1kb0e11-2c8d"}}
       {"id":"door-live","parent":"board","ord":"a3","title":"watch the connector","doing":true,"custom":{"agent-session":"claude:fake-session-1"}}
       """
-    # The chip is on lane-a's ROW, a sibling of the conversation's node, so
-    # the file is where it is drawn — the row press left the reader on the page.
     When I return to the conversation's outline
     Then the CI chip on "lane-a" is ok
     And the chat shows no sentence no person typed

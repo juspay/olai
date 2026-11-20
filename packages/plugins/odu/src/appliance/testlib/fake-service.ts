@@ -1,11 +1,4 @@
 #!/usr/bin/env bun
-/**
- * AN ODU SERVICE THAT IS NOT ODU — the board and nodes a chip draws, standing
- * on a real websocket, so a face can be photographed without a CI run.
- *
- * Usage: `fake-service.ts <port> <fixture.json>` — prints `listening <origin>`
- * on stdout when it is bound.
- */
 
 import { readFileSync, watchFile } from "node:fs"
 import { Effect, Stream } from "effect"
@@ -30,16 +23,6 @@ if (!Number.isFinite(port) || fixturePath === undefined) {
 }
 
 interface Fixture {
-  /**
-   * PER-ROW CONTRACT VERSIONS, MERGED OVER THE REAL ONES — `{ "ci": "99.0" }`
-   * is a daemon whose runs moved a major, `{ "cache": "99.0" }` one whose
-   * cache did and whose runs did not.
-   *
-   * Merged rather than replacing, so a fixture never has to spell the version
-   * this build actually reads: pinning it here would make every fixture a
-   * second ledger of odu's numbers, and the day odu bumped one they would all
-   * be claims about a daemon that no longer exists.
-   */
   readonly rows?: Record<string, string>
   readonly runs?: Record<string, { readonly row: RunRow; readonly frame?: NodesFrame }>
 }
@@ -56,8 +39,6 @@ const serviceOf = (): ServiceCell => ({
     origin: `http://127.0.0.1:${port}`,
     protocolVersion: HOST_CONTRACT_VERSION,
     storageVersion: 1,
-    // The one row this fake really serves is the runs; a fixture may claim
-    // others to stand for a daemon mounting more than olai reads.
     rows: { [CI_ROW]: CI_CONTRACT_VERSION, ...fixture.rows },
   },
   readiness: { state: "ready", since: Date.now(), reconciled: 0 },

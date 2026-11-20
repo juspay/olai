@@ -1,17 +1,3 @@
-/**
- * olai-plugin-odu/appliance — HOW OLAI REACHES ODU, and the only place that knows how.
- *
- * One package holds the link to the per-user service, the board and stream
- * holds, and the projection into olai's own vocabulary. What leaves is
- * `./wire`'s shapes — a `CiRun`, a `RunCell`, an `OduLink` — so a change to
- * odu's contract is a change HERE and stops.
- *
- * The appliance is a service client. One websocket to the origin
- * `ODU_WEB_ORIGIN` names. Olai never starts the service. Discovery stays
- * board-driven: the set of watched runs is the `odu-run` values the vault
- * names.
- */
-
 import { inMemoryStore } from "@kolu/surface/server"
 import { Effect } from "effect"
 

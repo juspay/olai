@@ -1,11 +1,3 @@
-/**
- * ODU'S RECORD → OLAI'S ROW. The one place the two vocabularies meet.
- *
- * A board row plus an optional nodes frame become a `CiRun`. Settled runs
- * cost nothing beyond the row; a live run's cells, phase and lanes come from
- * the frame. A boarded id the service has not named becomes an `unknown` row.
- */
-
 import type { NodesFrame, RunLane, RunNode, RunRow } from "@odu/service-client/surface"
 import { STATUS_META } from "@odu/service-client/surface"
 import { splitFanId } from "@odu/run-client/nodeId"
@@ -48,7 +40,6 @@ const cellsOf = (frame: NodesFrame): ReadonlyArray<RunCell> => {
   return cells
 }
 
-/** A boarded id the service does not know. */
 export const unknownOf = (id: string): CiRun => ({
   id,
   repoRoot: "",
@@ -63,7 +54,6 @@ export const unknownOf = (id: string): CiRun => ({
   cells: [],
 })
 
-/** A LIVE or SETTLED run, joined from the board row and the latest frame. */
 export const runOf = (row: RunRow, frame: NodesFrame | undefined): CiRun => ({
   id: row.runId,
   repoRoot: row.repoRoot,

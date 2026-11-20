@@ -1,19 +1,3 @@
-/**
- * THE GENERATED MARK, held to what a pin bump may not quietly change — and,
- * before any of that, the sentence `bun test` cannot otherwise say.
- *
- * `./mark.generated.ts` is written by {@link ../../default.nix} out of the
- * pinned odu's `logo.svg` and copied into place by `just install`. The
- * transform is `@olai/plugin-kit`'s; this file holds the pin-bump invariants
- * over what actually got generated for THIS tenant.
- *
- * A fixture of the emitted body would be a vendored copy of odu's mark one
- * indirection removed. What is asserted instead is what must be true of ANY
- * mark the transform emits, plus the one claim about odu specifically: the
- * wordmark and a linearGradient are the logo, and a "mark" that arrived with
- * neither is a build that succeeded at producing the wrong picture.
- */
-
 import { existsSync } from "node:fs"
 import { expect, test } from "bun:test"
 

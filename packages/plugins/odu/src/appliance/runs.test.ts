@@ -1,11 +1,3 @@
-/**
- * THE CI BOARD at its bench — first-sight, settle, streams, reclaim.
- *
- * The fake service is a real websocket; the board `attach`s odu's own client
- * pointed at that origin. Nothing here needs a browser. The dial lives on the
- * service cell, not here.
- */
-
 import { Effect, Fiber } from "effect"
 import { expect, test } from "bun:test"
 
@@ -81,8 +73,6 @@ test("a run first seen settled rings nothing and still has cells", async () => {
   const it = await bench("settled")
   try {
     it.board.reclaim([...BOARD])
-    // Catalog `get` can publish the settled row before `nodes` has a frame.
-    // The matrix's cells are the frame; wait for both, not the row alone.
     await waitUntil(
       () =>
         it.board.rows().some((one) =>

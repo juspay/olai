@@ -1,10 +1,4 @@
 import { createMemo } from "solid-js"
-/**
- * THE ODU READOUT — whether this olai can see the per-user service.
- *
- * Same three-state pill kolu's padi readout keeps. Desktop only, like the
- * pills it sits with.
- */
 
 import { Show, type Accessor } from "solid-js"
 
@@ -17,8 +11,6 @@ import { TONE } from "olai-plugin-layout/slots"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
-/** The furniture this face spends of the app's bar — redeclared so this
- *  package does not import kolu. */
 export interface OduBar {
   readonly desktop: () => boolean
   readonly pill: {
@@ -36,10 +28,6 @@ export function OduReadout(props: {
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>
-      {/* A READOUT, not a control: the sentence rides a hidden twin after the
-          pill, because an `aria-label` on a bare span names nothing a screen
-          reader will read. The tip draws the same words for a pointer, over
-          the bar the pill sits in. */}
       <Tip text={detail() ?? ""} layer={LAYER.over} disabled={detail() === undefined}>
         <span
           class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}

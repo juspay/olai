@@ -1,12 +1,4 @@
 /**
- * ODU'S SLICE OF OLAI'S WIRE — what a reader is told about a CI run, and
- * whether the per-user service is speaking.
- *
- * Two cells: `ci` (the boarded runs) and `service` (the three-state readout).
- * Nothing here imports `@odu/*`. odu's board row and nodes frame are the
- * service's own records; what a chip and a matrix need is a flat projection.
- * The mapping lives in `../project.ts`.
- *
  * THE ENTRY'S OWN FENCE: `@olai/surface` depends on this module, so it may
  * import `effect` and NOTHING ELSE — no `@odu/*`, no `solid-js`, no
  * `@olai/format`. `packages/bundle/src/fence.test.ts` asserts it.
@@ -14,45 +6,14 @@
 
 import { Schema } from "effect"
 
-// ── The service readout ───────────────────────────────────────────────────
-
-/**
- * WHETHER THERE IS AN ODU SERVICE, in three states rather than a boolean —
- * kolu's link cell, pointed at the other appliance.
- *
- * `connected` is the quiet face. `absent` is ordinary: olai never starts the
- * service; `odu mcp` bootstraps it, and a conversation holding odu's tools has
- * already brought it up. `skew` is the loud one: odu read its own greeting
- * against the rows this build declares and REFUSED it, and until one side
- * moves there is no run to read.
- */
 export const OduLink = Schema.Struct({
   status: Schema.Literals(["connected", "absent", "skew"]),
-  /** The origin this olai dials (`ODU_WEB_ORIGIN`, else `127.0.0.1:18440`). */
   origin: Schema.String,
-  /**
-   * WHY ODU REFUSED THIS BUILD, in odu's own whole sentence — `admitService`'s
-   * `message`, verbatim.
-   *
-   * Not two version numbers: since juspay/odu#141 there is no single number to
-   * name. The host carries one contract and every mounted row (`ci`, `cache`,
-   * the door, the tunnel) carries its own, and a refusal is about exactly one
-   * of them — the host's major, the `ci` row's major, or a `ci` row the daemon
-   * does not mount at all. odu composes the sentence beside the versions it is
-   * about; a face that re-spelled it from parts would be a second authority on
-   * a comparison it never made.
-   *
-   * `null` off the `skew` arm, which is the one arm that has a reason —
-   * `SpacesLink.why`'s spelling, because a link cell saying "the refusal,
-   * whole, or nothing" twice in two ways is two things to learn.
-   */
   refusal: Schema.NullOr(Schema.String),
   since: Schema.String,
 })
 export type OduLink = typeof OduLink.Type
 
-/** The seed every face starts at: not yet dialed. Spelled `absent` rather than
- *  given a fourth arm, for `KOLU_UNDIALED`'s reason. */
 export const ODU_UNDIALED: OduLink = {
   status: "absent",
   origin: "",
@@ -62,10 +23,7 @@ export const ODU_UNDIALED: OduLink = {
 
 export const sameOdu: (a: OduLink, b: OduLink) => boolean = Schema.toEquivalence(OduLink)
 
-// ── One node of a run ─────────────────────────────────────────────────────
-
 export const RunCell = Schema.Struct({
-  /** odu's node id, verbatim: `<namepath>@<platform>`. */
   id: Schema.String,
   name: Schema.String,
   platform: Schema.String,
@@ -75,11 +33,8 @@ export const RunCell = Schema.Struct({
   red: Schema.Boolean,
   startedAt: Schema.NullOr(Schema.Number),
   ms: Schema.NullOr(Schema.Number),
-  /** 1-based; the highest attempt recorded for this node. */
   attempt: Schema.Int,
-  /** The machine the work ran on, null while a lane is still claiming one. */
   host: Schema.NullOr(Schema.String),
-  /** How to ask for this attempt's output — the encoded log key. */
   logKey: Schema.String,
 })
 export type RunCell = typeof RunCell.Type
@@ -91,7 +46,6 @@ export interface RunTally {
   readonly red: number
 }
 
-/** THE RUN'S OWN NAME FOR ITSELF — odu's `<name> <sha7>#<seq>+dirty` spelling. */
 export const identityOf = (run: CiRun): string =>
   run.sha7 === ""
     ? run.name === "" ? run.id : run.name
@@ -112,18 +66,9 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
 export const settledOf = (tally: RunTally): boolean =>
   tally.total > 0 && tally.settled === tally.total
 
-/** Work still in flight on the board: `provisioning` or `running`. */
 export const liveOf = (state: string): boolean =>
   state === "provisioning" || state === "running"
 
-/**
- * WHAT THE RUN CAME TO, in odu's own three words, or `null` while it has not.
- *
- * The board row's `outcome` is the authority where the catalog has one. The
- * fold over cells is the live reading: red wins early as `failed`; a fully
- * settled roster with a cancelled node is `incomplete`; otherwise `passed`.
- * `ended` is gone.
- */
 export const verdictOf = (run: CiRun): string | null => {
   if (run.outcome !== null) return run.outcome
   const tally = tallyOf(run.cells)
@@ -133,34 +78,13 @@ export const verdictOf = (run: CiRun): string | null => {
   return "passed"
 }
 
-// ── The run ───────────────────────────────────────────────────────────────
-
-/**
- * ONE BOARDED RUN, as olai holds it.
- *
- * THE KEY IS THE RUN ID. `id` is the `odu-run` property's value exactly as
- * a receipt spelled it, because the join a chip performs is against the value
- * it is drawing. Where it ran (`repoRoot`) is the service's fact, not the
- * board's.
- *
- * A ROW SURVIVES ITS SETTLE. The catalog remembers a finished run, so a run
- * that settled while olai was not running still draws its verdict. In-flight
- * is `liveOf(state)` (`provisioning` / `running`), not a second field.
- *
- * A boarded id the service does not know is still a row, with `state` `unknown`.
- */
 export const CiRun = Schema.Struct({
-  /** The run id, verbatim as the board wrote it — the join key. Also the
-   *  `arrayKey` at this depth (cells use `id` for the node). */
   id: Schema.String,
   repoRoot: Schema.String,
   name: Schema.String,
   sha7: Schema.String,
   dirty: Schema.Boolean,
   seq: Schema.NullOr(Schema.Int),
-  /** Board state, verbatim: `provisioning`, `running`, `settled`,
-   *  `owner_lost`, `expired` — or `unknown` for a boarded id the service has
-   *  not named. */
   state: Schema.String,
   outcome: Schema.NullOr(Schema.String),
   phase: Schema.String,
@@ -178,17 +102,8 @@ export const NO_RUNS: CiRuns = { runs: [] }
 
 export const sameCi: (a: CiRuns, b: CiRuns) => boolean = Schema.toEquivalence(CiRuns)
 
-// ── The members ───────────────────────────────────────────────────────────
-
 export const oduMembers = {
   cells: {
-    /**
-     * EVERY BOARDED RUN — the live-properties seam's second tenant, keyed by
-     * the run id the vault named.
-     *
-     * `arrayKey: "id"` reaches both arrays — the runs and the nodes inside
-     * each — because every element of both carries an `id`.
-     */
     ci: {
       schema: CiRuns,
       default: NO_RUNS,
@@ -196,10 +111,6 @@ export const oduMembers = {
       equals: sameCi,
       arrayKey: "id",
     },
-    /**
-     * WHETHER THERE IS AN ODU SERVICE — the header readout's cell, the same
-     * three-state contract kolu's `link` keeps.
-     */
     service: {
       schema: OduLink,
       default: ODU_UNDIALED,
