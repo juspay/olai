@@ -73,6 +73,9 @@ export const isolateEnv = (
   delete host.PADI_SOCKET;
   delete host.ODU_WEB_ORIGIN;
   for (const knob of KNOBS) delete host[knob];
+  // The harness sets `OLAI_HIMALAYA` and `OLAI_MAIL_GOOGLE` on every spawn
+  // (`hooks.ts`), so deleting them here is not "absent", it is "the scenario's
+  // to decide": a fake, or the off switch, or the un-routable default.
   for (const door of MAIL_DOOR_NAMES) delete host[door];
   const env: NodeJS.ProcessEnv = {
     ...host,

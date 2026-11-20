@@ -391,8 +391,8 @@ const startServerChild = async (
         // Always set: odu's client defaults to `127.0.0.1:18440`, which is this
         // machine's real per-user service on CI.
         ODU_WEB_ORIGIN: spawnOptions.oduOrigin ?? "http://127.0.0.1:1",
-        // Always set, because the packaged wrapper bakes the pinned Himalaya
-        // into this variable with `--set-default` (default.nix). The empty
+        // `OLAI_HIMALAYA` is always set, because the packaged wrapper bakes the
+        // pinned Himalaya into this variable with `--set-default` (default.nix). The empty
         // string is the row's own off switch — `./src/server.ts`'s `doorOf`
         // reads a blank value as *not set* — and `--set-default` is what lets
         // it survive the wrapper.
