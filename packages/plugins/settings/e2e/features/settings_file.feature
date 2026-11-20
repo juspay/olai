@@ -9,10 +9,6 @@ Feature: The vault settings file applies policy to running rows
   reader and Cordis reconciles the row; malformed leaves keep defaults.
 
   Scenario: Editing one leaf preserves valid siblings and updates the panel
-    # A PROMOTED LEAF IS DRAWN IN THE PREFERENCES PANEL (git's `commit` and
-    # `push` are), so that is where the decoded value is read. Each rewrite
-    # replaces the whole file, which is why these read the promoted rows rather
-    # than pinning Preferences off in every block.
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """

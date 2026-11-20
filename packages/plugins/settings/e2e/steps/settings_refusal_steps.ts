@@ -1,6 +1,3 @@
-/** Transport fault injection complements configuration.test.ts's real withdrawal race.
- * The write reaches the server; its settlement answer is replaced at the wire
- * so the browser's refusal path is deterministic even on a fast local disk. */
 import { Given } from "@olai/tests/harness/runner.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 

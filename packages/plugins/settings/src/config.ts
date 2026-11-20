@@ -1,4 +1,3 @@
-/** The only settings reader: one vault revision, all row namespaces. */
 import { customText, type Reading } from "@olai/format"
 import { configurationNodes, configurationNode, decodePolicy, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
 import type { Schema } from "effect"
@@ -22,7 +21,6 @@ export const readConfiguration = (reading: Pick<Reading, "set" | "derived">, dec
   return { revision, rows, nodes, ...(file === undefined ? {} : { file }), ...(broken === undefined ? {} : { broken: `${file}: malformed settings file` }) }
 }
 
-/** One warning per malformed shape for this reader's activation. */
 export const warningsOnce = (say: (line: string) => void) => {
   const seen = new Set<string>()
   return (line: string) => { if (!seen.has(line)) { seen.add(line); say(line) } }

@@ -33,8 +33,6 @@ export default definePlugin({
       const next = readConfiguration(revision.value, declarations, revision.rev, warn)
       if (next.file !== undefined) selected = next.file
       if (claimedOf(revision.value.claims, selected) === null) {
-        // An unavailable storage reader is absence, not a defaults publication.
-        // The host consequently retains patches it already applied to other rows.
         yield* withdraw
         return
       }

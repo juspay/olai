@@ -1,4 +1,3 @@
-/** Reserved against the agent face even when this reader is off. */
 export const writeReservations = [{
   key: "on",
   file: "settings.olai",
