@@ -44,6 +44,9 @@ const palettes = [
   ...PALETTES.map((p) => `${p.name === DEFAULT_THEME ? ":root," : ""}[data-theme="${p.name}"]{${tokens(p)}}`),
   `@media (prefers-color-scheme: dark){:root:not([data-theme]){${tokens(DEFAULT_DARK_PALETTE)}}}`,
 ].join("\n")
+const PALETTE_KEY = "olai-site-palette"
+const paletteNames = PALETTES.map((p) => p.name)
+const applyStored = `try{const n=localStorage.getItem(${JSON.stringify(PALETTE_KEY)});if(${JSON.stringify(paletteNames)}.includes(n))document.documentElement.dataset.theme=n}catch{}`
 ---
 
 <!doctype html>
@@ -77,6 +80,7 @@ const palettes = [
       rel="stylesheet"
     />
     <style is:inline set:html={palettes} />
+    <script is:inline set:html={applyStored} />
   </head>
   <body>
     <header class="site">
@@ -86,6 +90,15 @@ const palettes = [
           {nav.map((link) => <a href={link.href} aria-current={link === lit ? "page" : undefined}>{link.label}</a>)}
           <a href={github}>GitHub</a>
         </nav>
+        <div class="palette">
+          <button type="button" class="palette-button" popovertarget="palette-menu" aria-label="Colours" title="Colours" hidden><span class="swatch"></span></button>
+          <div id="palette-menu" class="palette-menu" popover role="menu" aria-label="Colours">
+            {PALETTES.map((p) => (
+              <button type="button" role="menuitemradio" aria-checked="false" data-pick={p.name}><span class="swatch" data-theme={p.name}></span>{p.name}</button>
+            ))}
+            <button type="button" role="menuitemradio" aria-checked="false" data-pick="">Match my device</button>
+          </div>
+        </div>
       </div>
     </header>
     <slot />
@@ -143,6 +156,52 @@ const palettes = [
       })
       addEventListener("scroll", place, { passive: true })
       addEventListener("resize", place)
+    })()
+  </script>
+  <script is:inline define:vars={{ key: PALETTE_KEY, names: paletteNames }}>
+    (() => {
+      const root = document.documentElement
+      const stored = () => {
+        try {
+          const name = localStorage.getItem(key)
+          return names.includes(name) ? name : ""
+        } catch {
+          return ""
+        }
+      }
+      const mark = () => {
+        const picked = stored()
+        document.querySelectorAll("[data-pick]").forEach((el) => {
+          const on = el.dataset.pick === picked
+          el.classList.toggle("on", on)
+          if (el.getAttribute("role") === "menuitemradio") el.setAttribute("aria-checked", String(on))
+        })
+      }
+      const menu = document.getElementById("palette-menu")
+      const button = document.querySelector(".palette-button")
+      if (button) button.hidden = false
+      mark()
+      document.addEventListener("click", (event) => {
+        const el = event.target instanceof Element && event.target.closest("[data-pick]")
+        if (!el) return
+        const name = names.includes(el.dataset.pick) ? el.dataset.pick : ""
+        try {
+          if (name) localStorage.setItem(key, name)
+          else localStorage.removeItem(key)
+        } catch {}
+        if (name) root.dataset.theme = name
+        else delete root.dataset.theme
+        mark()
+        if (menu && menu.matches(":popover-open")) menu.hidePopover()
+      })
+      if (menu && button) {
+        menu.addEventListener("beforetoggle", (event) => {
+          if (event.newState !== "open") return
+          const at = button.getBoundingClientRect()
+          menu.style.top = `${at.bottom + 8}px`
+          menu.style.right = `${Math.max(12, root.clientWidth - at.right)}px`
+        })
+      }
     })()
   </script>
   </body>

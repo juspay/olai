@@ -1,5 +1,5 @@
 ---
-import { DEFAULT_THEME, PALETTES } from "../../../packages/appearance/src/palettes.ts"
+import { PALETTES } from "../../../packages/appearance/src/palettes.ts"
 import { agentList } from "../agents.ts"
 import { OTHERS, READ_ON, ROWS, sourcesOf } from "../compare.ts"
 import Base from "../layouts/Base.astro"
@@ -409,10 +409,11 @@ const dark = PALETTES.length - light
       <div>
         <h3>Colours</h3>
         <p>olai has {PALETTES.length} colour palettes, {light} light and {dark}
-        dark. Click a palette name, and this page changes to it.</p>
-        <div class="chips" role="list">
+        dark. Click a palette name, and this page changes to it. The round button in the header
+        does the same on every page.</p>
+        <div class="chips">
           {PALETTES.map((palette) => (
-            <span class:list={["chip", { on: palette.name === DEFAULT_THEME }]} data-theme={palette.name} role="listitem">{palette.name}</span>
+            <button type="button" class="chip" data-theme={palette.name} data-pick={palette.name}>{palette.name}</button>
           ))}
         </div>
       </div>
@@ -435,16 +436,5 @@ const dark = PALETTES.length - light
       }
     });
   }
-
-  document.querySelectorAll(".chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const name = chip.getAttribute("data-theme");
-      if (!name) return;
-      document.documentElement.setAttribute("data-theme", name);
-      document.querySelectorAll(".chip").forEach((other) => {
-        other.classList.toggle("on", other === chip);
-      });
-    });
-  });
 </script>
 </Base>
