@@ -1,7 +1,10 @@
 import {
   armedOn,
+  type DirtyOutline,
   type How,
   type Lock,
+  type NodeChange,
+  type Other,
   type Pending,
   type Reason,
   type RepoState,
@@ -22,15 +25,45 @@ export type Face =
   | "committed"
   | "never"
 
-export const waitingIn = (pending: Pending): number => {
-  const changed = new Set(pending.changes.map((change) => change.file))
-  const unreadable = new Set(pending.unreadable)
-  const silent = pending.outlines.filter((outline) =>
-    !changed.has(outline.file) && !unreadable.has(outline.file)
-  )
-  return pending.changes.length + pending.others.length + pending.unreadable.length +
-    silent.length
+export interface Group {
+  readonly outline: DirtyOutline
+  readonly changes: ReadonlyArray<NodeChange>
 }
+
+export interface Waiting {
+  readonly groups: ReadonlyArray<Group>
+  readonly others: ReadonlyArray<Other>
+  readonly unreadable: ReadonlyArray<string>
+  readonly rows: number
+}
+
+const NO_CHANGES: ReadonlyArray<NodeChange> = []
+
+export const waitingOn = (pending: Pending): Waiting => {
+  const unreadable = new Set(pending.unreadable)
+  const byFile = new Map<string, Array<NodeChange>>()
+  for (const change of pending.changes) {
+    const had = byFile.get(change.file)
+    if (had === undefined) byFile.set(change.file, [change])
+    else had.push(change)
+  }
+  const groups = pending.outlines.map((outline) => ({
+    outline,
+    changes: byFile.get(outline.file) ?? NO_CHANGES,
+  }))
+  return {
+    groups,
+    others: pending.others,
+    unreadable: pending.unreadable,
+    rows: groups.reduce(
+      (rows, group) =>
+        rows + (unreadable.has(group.outline.file) ? 0 : Math.max(1, group.changes.length)),
+      pending.others.length + pending.unreadable.length,
+    ),
+  }
+}
+
+export const waitingIn = (pending: Pending): number => waitingOn(pending).rows
 
 export const faceOf = (pending: Pending, heard: boolean, git: GitState): Face => {
   if (!heard) return "unknown"
@@ -131,34 +164,62 @@ export const LOCK_HELD =
 export const lockRefused = (git: GitState): Lock | null =>
   git.status === "error" ? git.lock : null
 
-export const explain = (face: Face, pending: Pending, git: GitState): string =>
-  alsoPaused(alsoUnpushed(sentence(face, pending, git), pending, git), git)
+interface Clause {
+  readonly words: string | null
+  readonly says: (words: string) => string
+  readonly again: string
+}
 
-const sentence = (face: Face, pending: Pending, git: GitState): string => {
+const plainly = (says: string): Clause => ({ words: null, says: () => says, again: says })
+
+const joined = (clauses: ReadonlyArray<Clause>): string => {
+  const already = new Set<string>()
+  return clauses
+    .map((clause) => {
+      const words = clause.words
+      if (words === null || words === "") return clause.again
+      const fresh = !already.has(words)
+      already.add(words)
+      return fresh ? clause.says(words) : clause.again
+    })
+    .join(" · ")
+}
+
+export const explain = (face: Face, pending: Pending, git: GitState): string =>
+  joined([
+    headline(face, pending, git),
+    ...alsoUnpushed(pending, git),
+    ...alsoPaused(git),
+  ])
+
+const headline = (face: Face, pending: Pending, git: GitState): Clause => {
   switch (face) {
     case "error": {
-      if (git.lock !== null) return lockSays(git.lock.since, null)
+      if (git.lock !== null) {
+        const olais = lockSays(git.lock.since, null)
+        return { words: git.said, says: () => olais, again: olais }
+      }
       const words = git.said === null || git.said === ""
         ? verbatim(pending.repo) ?? ""
         : git.said
-      return words === "" ? DETAIL.error : `${DETAIL.error} — ${words}`
+      return { words, says: (said) => `${DETAIL.error} — ${said}`, again: DETAIL.error }
     }
     case "waiting":
-      return `${counted(pending)} ${DETAIL.waiting}`
+      return plainly(`${counted(pending)} ${DETAIL.waiting}`)
     case "blocked":
-      return `${counted(pending)} ${DETAIL.blocked}. ${because(pending.repo)}`
+      return plainly(`${counted(pending)} ${DETAIL.blocked}. ${because(pending.repo)}`)
     default:
-      return DETAIL[face]
+      return plainly(DETAIL[face])
   }
 }
 
-const alsoUnpushed = (said: string, pending: Pending, git: GitState): string => {
+const alsoUnpushed = (pending: Pending, git: GitState): ReadonlyArray<Clause> => {
   const unpushed = unpushedOf(pending)
-  if (git.pushSaid !== null) {
-    const count = unpushed === null ? "" : `${unpushed} · `
-    return `${said} · ${count}${PUSH_REFUSED}: ${git.pushSaid}`
+  if (git.pushSaid === null) {
+    return unpushed === null ? [] : [plainly(`${unpushed}. Open it to push`)]
   }
-  return unpushed === null ? said : `${said} · ${unpushed}. Open it to push`
+  const refused = `${unpushed === null ? "" : `${unpushed} · `}${PUSH_REFUSED}`
+  return [{ words: git.pushSaid, says: (said) => `${refused}: ${said}`, again: refused }]
 }
 
 export const PUSH_REFUSED = "Push refused"
@@ -170,13 +231,12 @@ export const loopIn = (git: GitState): "off" | "armed" | "paused" =>
 
 const RESUME_GESTURE = "Press Resume in the commit panel to start it again."
 
-const autoSays = (paused: string): string =>
-  `Auto-commit is paused: ${paused}. ${RESUME_GESTURE}`
-
-const AUTO_SAYS_AGAIN = `Auto-commit is paused. ${RESUME_GESTURE}`
-
-const quoted = (git: GitState): boolean =>
-  git.paused === git.pushSaid || git.paused === git.said
+const alsoPaused = (git: GitState): ReadonlyArray<Clause> =>
+  git.paused === null ? [] : [{
+    words: git.paused,
+    says: (said) => `Auto-commit is paused: ${said}. ${RESUME_GESTURE}`,
+    again: `Auto-commit is paused. ${RESUME_GESTURE}`,
+  }]
 
 export const AUTO_STOPPED =
   `Auto-commit is paused. Git's message is below. ${RESUME_GESTURE}`
@@ -186,11 +246,6 @@ export const willRecord = (pending: Pending, git: GitState): boolean =>
 
 export const AUTO_ARMED =
   "Auto-commit will commit all of this once you stop editing."
-
-const alsoPaused = (said: string, git: GitState): string =>
-  git.paused === null
-    ? said
-    : `${said} · ${quoted(git) ? AUTO_SAYS_AGAIN : autoSays(git.paused)}`
 
 const counted = (pending: Pending): string => {
   const waiting = waitingIn(pending)

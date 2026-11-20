@@ -42,6 +42,7 @@ import {
   COMMIT_UNPUSHED,
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+import { isRoot } from "../../src/git/fixtures.testlib.ts";
 
 const COMMIT_BANNER = selector(PLUGIN_TESTID.gitNews);
 
@@ -537,21 +538,14 @@ Given("a fresh lock file sits in the repository", function (this: OlaiWorld) {
   plantLock(this, 0);
 });
 
-/**
- * Root can unlink from a directory it cannot write, so the step is PENDING
- * there rather than inverted.
- */
+// Root can unlink from a directory it cannot write, so the step is PENDING there.
 Given("the git directory cannot be written to", async function (this: OlaiWorld) {
-  if (typeof process.getuid === "function" && process.getuid() === 0) {
-    return "pending";
-  }
+  if (isRoot()) return "pending";
   fs.chmodSync(gitDirIn(this), 0o500);
 });
 
 When("the git directory can be written to again", async function (this: OlaiWorld) {
-  if (typeof process.getuid === "function" && process.getuid() === 0) {
-    return "pending";
-  }
+  if (isRoot()) return "pending";
   fs.chmodSync(gitDirIn(this), 0o700);
 });
 

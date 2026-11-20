@@ -5,10 +5,15 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { gitIn as git, repoAt } from "./fixtures.testlib.ts"
+import { gitIn as git, isRoot, repoAt } from "./fixtures.testlib.ts"
 import { type Audit, type Dirt, open, type Repo } from "./git.ts"
 
 const OLAI: Audit = { prefix: "olai", trailer: "X-Olai-Writer" }
+
+// The default five seconds can kill an otherwise healthy git when shards
+// compete for one runner.
+const GIT_SUITE_TIMEOUT = 30_000
+const WEDGED_SUITE_TIMEOUT = GIT_SUITE_TIMEOUT * 2
 
 const loose = (): { readonly root: string; readonly file: string } => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-")))
@@ -111,7 +116,7 @@ test("dirty keeps how each file moved", async () => {
   fs.writeFileSync(path.join(root, "fresh.md"), "brand new\n")
   fs.writeFileSync(path.join(root, "staged.md"), "added to the index by hand\n")
   run("add", "staged.md")
-  // A rename git only sees once both halves are staged.
+  // A rename is only detected once both halves are staged.
   run("add", "-A", "moved.md", "landed.md")
 
   const how = new Map(
@@ -328,10 +333,7 @@ test("dirty says where the branch stands against its upstream", async () => {
   expect((await surveyed(root)).upstream)
     .toEqual({ name: "origin/main", ahead: 0 })
   expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("one of mine")
-// Real repository creation, status, commit and two pushes share this budget.
-// The default five seconds can terminate an otherwise successful Git process
-// when browser shards compete for the same runner.
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("a push git refuses is an answer carrying its words", async () => {
   const { root } = repo()
@@ -578,8 +580,8 @@ test("unlock holds a fresh lock, removes a stale one, and is Absent with none at
 })
 
 test("a lock that cannot be removed fails with the errno's own words, and stays", async () => {
-  // Root ignores the mode, so the test skips there.
-  if (typeof process.getuid === "function" && process.getuid() === 0) return
+  // Root ignores the directory mode, so the unwritable case cannot be provoked there.
+  if (isRoot()) return
   const { root } = repo()
   const at = lockAt(root)
   plantLock(at, 10 * 60_000)
@@ -632,8 +634,8 @@ test("a lock in a linked worktree is found under that worktree's own git directo
 test("a commit stopped before it lands stages nothing and leaves no backup behind", async () => {
   const { root } = repo()
   const run = git(root)
-  // A CLEAN FILTER THAT SLEEPS, which is how `git add` is made slow without a
-  // hook: filters run on the way INTO the index.
+  // A clean filter runs on the way INTO the index, which is how `git add` is
+  // made slow without a hook.
   fs.writeFileSync(path.join(root, ".gitattributes"), "slow.md filter=slow\n")
   run("config", "filter.slow.clean", "sh -c 'sleep 3; cat'")
   run("add", ".gitattributes")
@@ -654,13 +656,12 @@ test("a commit stopped before it lands stages nothing and leaves no backup behin
   expect(run("log", "--format=%s")).toBe(before)
   expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
     .toEqual([])
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("a commit stopped after it lands keeps it, and does not un-stage what it recorded", async () => {
   const { root } = repo()
   const run = git(root)
-  // `--no-verify` skips the hooks that could REFUSE a commit; `post-commit`
-  // runs after the commit is already in, which is exactly the window.
+  // `post-commit` runs after the commit is already in, which is the window.
   const hook = path.join(root, ".git", "hooks", "post-commit")
   fs.writeFileSync(hook, "#!/bin/sh\nsleep 3\n")
   fs.chmodSync(hook, 0o755)
@@ -679,7 +680,7 @@ test("a commit stopped after it lands keeps it, and does not un-stage what it re
   expect(run("status", "--porcelain").trim()).toBe("")
   expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
     .toEqual([])
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("a commit whose hook outlives the budget is not un-staged over a landed commit", async () => {
   const { root } = repo()
@@ -696,7 +697,7 @@ test("a commit whose hook outlives the budget is not un-staged over a landed com
   expect(run("status", "--porcelain").trim()).toBe("")
   expect(fs.readdirSync(path.join(root, ".git")).filter((one) => one.startsWith("olai-index-")))
     .toEqual([])
-}, 60_000)
+}, WEDGED_SUITE_TIMEOUT)
 
 test("a commit that lands leaves the index agreeing with it", async () => {
   const { root } = repo()
@@ -816,7 +817,7 @@ test("fetch moves the remote-tracking ref; a remote that cannot be reached is Re
   expect(refused._tag).toBe("Refused")
   if (refused._tag === "Refused") expect(refused.said).not.toBe("")
   expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("theirs")
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("standing reads ahead and behind and the upstream, and is null with no upstream", async () => {
   const { root } = await diverged()
@@ -839,7 +840,7 @@ test("standing reads ahead and behind and the upstream, and is null with no upst
   const unborn = repo()
   git(unborn.root)("checkout", "--quiet", "-b", "feature")
   expect(await asked(unborn.root, (g) => g.standing)).toBe(null)
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("integrate rebases the unpushed commits onto the upstream, and cleans up after itself", async () => {
   const { root, file, bare } = await diverged()
@@ -865,7 +866,7 @@ test("integrate rebases the unpushed commits onto the upstream, and cleans up af
   expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("theirs")
   expect((await Effect.runPromise(open(root)))._tag).toBe("Opened")
   fs.rmSync(path.join(root, "theirs.md"), { force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("integrate preserves a hand-staged entry and an unstaged edit for a path the upstream did not change", async () => {
   const { root, file } = await diverged()
@@ -886,7 +887,7 @@ test("integrate preserves a hand-staged entry and an unstaged edit for a path th
   expect(run("diff", "--cached", "--", file).trim()).toContain('"staged"')
   expect(run("diff", "--", file).trim()).toContain("still working")
   fs.rmSync(path.join(root, "theirs.md"), { force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("integrate with an uncommitted edit in a path the upstream changed is Overlapped, nothing moved", async () => {
   const { root, file, theirs } = await diverged()
@@ -905,7 +906,7 @@ test("integrate with an uncommitted edit in a path the upstream changed is Overl
   expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("half a thought\n")
   expect(run("worktree", "list").trim().split("\n")).toHaveLength(1)
   fs.rmSync(theirs, { recursive: true, force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("integrate with an untracked file where the upstream added one is Overlapped, nothing moved", async () => {
   const { root, theirs } = await diverged()
@@ -925,7 +926,7 @@ test("integrate with an untracked file where the upstream added one is Overlappe
   expect(run("rev-parse", "HEAD").trim()).toBe(old)
   expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("mine is here\n")
   fs.rmSync(theirs, { recursive: true, force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("integrate on a conflict is Conflicted naming the path, tree clean, nothing left behind", async () => {
   const made = repo()
@@ -996,7 +997,7 @@ test("interrupting integrate mid-rebase removes the worktree", async () => {
   expect(fs.readdirSync(path.join(root, ".git")).filter((n) => n.startsWith("olai-integrate-")))
     .toHaveLength(0)
   fs.rmSync(theirs, { recursive: true, force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 
 const manyCommits = (root: string, run: (...argv: ReadonlyArray<string>) => string, n: number): void => {
@@ -1027,7 +1028,7 @@ test("a stale olai-integrate-<deadpid> worktree is swept at the start of the nex
   expect(worktreeCount(run)).toBe(1)
   expect(fs.existsSync(stale)).toBe(false)
   fs.rmSync(theirs, { recursive: true, force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 test("integrate's compare-and-swap refuses when a terminal commit landed, and does not drop it", async () => {
   const { root, theirs } = await diverged()
   const run = git(root)
@@ -1053,7 +1054,7 @@ test("integrate's compare-and-swap refuses when a terminal commit landed, and do
   expect(worktreeCount(run)).toBe(1)
   fs.unlinkSync(path.join(hooks, "post-checkout"))
   fs.rmSync(theirs, { recursive: true, force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 
 test("the served survey stays Ready and worktree-free while an integrate is in flight", async () => {
   const { root, theirs } = await diverged()
@@ -1086,5 +1087,5 @@ test("the served survey stays Ready and worktree-free while an integrate is in f
   expect(fs.readdirSync(path.join(root, ".git")).filter((n) => n.startsWith("olai-integrate-")))
     .toHaveLength(0)
   fs.rmSync(theirs, { recursive: true, force: true })
-}, 30_000)
+}, GIT_SUITE_TIMEOUT)
 

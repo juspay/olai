@@ -8,9 +8,8 @@ import type { How, Lock, Reason, RepoState, UnlockResult } from "@olai/format"
 const BUDGET = 10_000
 
 /**
- * The INDEX GATE: `git status` refreshes the index and `git commit` writes it,
- * so two fibers doing both lose to `index.lock`. One permit per git directory,
- * keyed on `gitDir` so two handles of one repository share it.
+ * `git status` refreshes the index and `git commit` writes it, so two fibers
+ * doing both lose to `index.lock`.
  */
 const indexGates = new Map<string, Semaphore.Semaphore>()
 
@@ -41,10 +40,8 @@ const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
         cwd: root,
         timeout: BUDGET,
         maxBuffer: 32 * 1024 * 1024,
-        // `LC_ALL=C` so git's own sentences are the ones {@link NOT_A_REPO}
-        // reads — a translated git would be reported as unusable rather than
-        // as no repository. `GIT_TERMINAL_PROMPT=0` so a repository that wants
-        // a credential fails instead of sitting on a prompt nobody can answer.
+        // `LC_ALL=C` pins git's own sentences for the matches below;
+        // `GIT_TERMINAL_PROMPT=0` turns a credential prompt into a refusal.
         env: { ...process.env, LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" },
       })
       return { ok: result.ok, said: result.said, out: result.out }
@@ -60,9 +57,9 @@ interface Placement {
   readonly top: string
 }
 
-/** git's own answer for "there is no repository here", pinned to English by the
- *  `LC_ALL=C` the runner sets. Matched rather than inferred from the exit code
- *  because 128 is also what a repository git REFUSES to use answers with. */
+/** git's words for "there is no repository here". Matched rather than inferred
+ *  from the exit code, because 128 is also what a repository git refuses to use
+ *  answers with. */
 const NOT_A_REPO = /not a git repository/i
 
 type Placing =
@@ -88,12 +85,12 @@ const place = (root: string): Effect.Effect<Placing> =>
       }
       // `--show-prefix` prints an EMPTY line at the repository root, which is
       // why the raw stdout is split rather than the trimmed message.
-      const lines = out.split("\n")
-      // A bare repository answers `false`: there is nowhere for the files to be.
-      if (lines[0]?.trim() !== "true") return NO_REPO
-      const gitDir = lines[1]?.trim()
+      const [insideWorkTree, absoluteGitDir, showPrefix] = out.split("\n")
+      // A bare repository answers `--is-inside-work-tree` with `false`.
+      if (insideWorkTree?.trim() !== "true") return NO_REPO
+      const gitDir = absoluteGitDir?.trim()
       if (gitDir === undefined || gitDir === "") return NO_REPO
-      const prefix = lines[2]?.trim() ?? ""
+      const prefix = showPrefix?.trim() ?? ""
       return {
         _tag: "Placed",
         placement: { gitDir, prefix, top: topOf(root, prefix) },
@@ -102,19 +99,15 @@ const place = (root: string): Effect.Effect<Placing> =>
   )
 
 /**
- * A BARE repository makes `rev-parse --show-toplevel` fail — "this operation
- * must be run in a work tree" — so the root is climbed from the prefix instead.
- * Asking git would also answer with its realpath, where climbing keeps the
- * caller's own spelling, symlinks and all.
+ * A bare repository makes `rev-parse --show-toplevel` fail — "this operation
+ * must be run in a work tree" — and git answers it with its realpath, where
+ * climbing the prefix keeps the caller's own spelling, symlinks and all.
  */
 const topOf = (root: string, prefix: string): string =>
   prefix === ""
     ? root
     : resolve(root, prefix.split("/").filter((step) => step !== "").map(() => "..").join("/"))
 
-/** A rebase leaves a detached HEAD behind, so this list is checked
- *  BEFORE the branch is asked for — otherwise every rebase would report as
- *  "detached", which is true and not the useful half. */
 const IN_PROGRESS: ReadonlyArray<readonly [string, Reason]> = [
   ["rebase-merge", "rebase"],
   ["rebase-apply", "rebase"],
@@ -218,10 +211,6 @@ export type Dirt =
 /**
  * `--porcelain -z` because the plain form quotes anything unusual and `-z` does
  * not; `-uall` because a brand-new outline is untracked.
- *
- * `status.relativePaths=false` is pinned rather than assumed: the parsing below
- * strips the served prefix off what git printed, which is only right while git
- * prints repo-relative paths.
  */
 const dirty = (
   root: string,
@@ -229,8 +218,6 @@ const dirty = (
 ): Effect.Effect<Dirt> =>
   Effect.gen(function*() {
     const status = yield* git(root, [
-      "-c",
-      "status.relativePaths=false",
       "status",
       "--porcelain",
       "-z",
@@ -271,8 +258,7 @@ const dirty = (
       if (entry.length < 4) continue
       const how = howOf(entry[0] ?? " ", entry[1] ?? " ")
       // A rename or a copy is followed by a SECOND token naming where it came
-      // from. BOTH consume it — the cursor has to move either way or every
-      // entry after this one is read as a path — and only a RENAME keeps it.
+      // from, which the cursor has to consume either way.
       const paired = entry[0] === "R" || entry[0] === "C"
       const other = paired ? tokens[++at] : undefined
       take(entry.slice(3), how, entry[0] === "R" ? other : undefined)
@@ -312,12 +298,9 @@ const ABSENT = { _tag: "Absent" } as const
 
 /**
  * git's own words for "that commit does not have that path", both of the
- * spellings it has, pinned to English by the same `LC_ALL=C`. Matched rather
- * than inferred from the exit code: 128 is also what an invalid revision, a
- * repository git refuses to use and a hook that wrote to stderr answer with.
- *
- * The path itself is not matched across a newline (`.` does not), so a file
- * whose name contains one falls through to `Unusable`.
+ * spellings it has. Matched rather than inferred from the exit code: 128 is
+ * also what an invalid revision, a repository git refuses to use and a hook
+ * that wrote to stderr answer with.
  */
 const NOT_IN_COMMIT = /^fatal: path .*(?:does not exist in|exists on disk, but not in) '/m
 
@@ -378,7 +361,7 @@ export type Done =
  * whose target is gone is still a file git tracks and still a file a commit
  * must be able to name.
  */
-const there = (at: string): boolean =>
+const inWorkingTree = (at: string): boolean =>
   fs.lstatSync(at, { throwIfNoEntry: false }) !== undefined
 
 export interface CommitInput {
@@ -388,16 +371,13 @@ export interface CommitInput {
 
 /**
  * `--no-verify` skips hooks and skips nothing else, so a repository configured
- * to SIGN its commits with no key to sign them refuses every olai commit — and
- * the `add` before it staged the selection every time. So the index file is
- * copied before the staging and put back if anything goes wrong, by a rename,
- * which is atomic.
+ * to SIGN its commits with no key to sign them refuses every commit — after the
+ * `add` has already staged the selection.
  *
- * Doing the whole thing under a temporary `GIT_INDEX_FILE` instead is wrong:
- * commit an untracked `b.txt` that way and the real index, which never learnt
- * about it, reads `D  b.txt` — a file present in HEAD and absent from the index
- * is a staged DELETION. Git's own `git commit -- <paths>` writes the committed
- * paths back into the real index for exactly that reason.
+ * A temporary `GIT_INDEX_FILE` is not an alternative: commit an untracked
+ * `b.txt` that way and the real index, which never learnt about it, reads
+ * `D  b.txt` — a path present in HEAD and absent from the index is a staged
+ * DELETION.
  */
 interface Index {
   readonly keep: () => void
@@ -438,13 +418,9 @@ export class UnlockRefused extends Error {
 }
 
 /**
- * GIT'S OWN WORDS WHEN A LOCK FILE IS IN THE WAY, pinned to English by the
- * `LC_ALL=C` the runner sets.
- *
- * The path inside it is never used: what olai stats and what olai unlinks is
- * `join(gitDir, INDEX_LOCK)`, because a LINKED WORKTREE's
- * `--absolute-git-dir` is `.git/worktrees/<name>`, so its lock is the one in
- * THERE, which is the git directory this handle already has.
+ * GIT'S OWN WORDS WHEN A LOCK FILE IS IN THE WAY. The path inside it is never
+ * used: a LINKED WORKTREE's `--absolute-git-dir` is `.git/worktrees/<name>`, so
+ * its `index.lock` is the one in there rather than the main repository's.
  */
 const LOCK_SAID = /Unable to create '.+\/index\.lock': File exists/
 
@@ -463,13 +439,8 @@ const lockBehind = (placed: Placement, said: string): Lock | null => {
 }
 
 /**
- * Remove the stale `index.lock` git refused a write over, or say why not.
- *
- * A lock younger than {@link BUDGET} may belong to a git that is still writing
- * it — olai's own git gets exactly that long — and removing somebody else's
- * lock mid-write is how two writers corrupt one index. git's `index.lock`
- * carries no pid, so nothing can ask whether the process that left it is
- * alive, and the mtime is the only signal there is.
+ * git's `index.lock` carries no pid, so nothing can ask whether the process
+ * that left it is alive and the mtime is the only signal there is.
  */
 const unlock = (placed: Placement): Effect.Effect<UnlockResult, UnlockRefused> =>
   Effect.gen(function*() {
@@ -486,12 +457,19 @@ const unlock = (placed: Placement): Effect.Effect<UnlockResult, UnlockRefused> =
   })
 
 /**
- * `--no-verify` because a served directory's hooks belong to whatever project
- * it is part of: a linter refusing an outline write would leave the bytes on
- * disk and the reason somewhere nobody is looking. It skips hooks and nothing
- * else, so where the repository signs its commits olai's are signed too, and
- * where no key exists every commit in it fails the same way in a terminal.
+ * `git commit -- <paths>` writes those paths back into the real index, so a
+ * commit that landed leaves nothing staged for them while one that never ran
+ * leaves what the `add` staged.
  */
+const landedAlready = (
+  root: string,
+  paths: ReadonlyArray<string>,
+): Effect.Effect<boolean> =>
+  Effect.map(
+    git(root, ["diff", "--cached", "--name-only", "--", ...paths]),
+    (staged) => staged.ok && staged.out.trim() === "",
+  )
+
 const commit = (
   root: string,
   placed: Placement,
@@ -501,13 +479,10 @@ const commit = (
     Effect.sync(() => keptIndex(placed)),
     (index) =>
       Effect.gen(function*() {
-        // `git add` looks at the working tree and the index and NOWHERE ELSE:
-        // the departing half of a staged `git mv` is in neither, so handing it
-        // that path refuses the whole call with
-        // `fatal: pathspec '<old>' did not match any files`. Skipping it loses
-        // nothing — `git commit -- <paths>` records a departure out of HEAD
-        // and the index without any staging at all.
-        const staging = what.paths.filter(there)
+        // `git add` looks at the working tree and the index and NOWHERE ELSE,
+        // so the departing half of a staged `git mv` refuses the whole call
+        // with `fatal: pathspec '<old>' did not match any files`.
+        const staging = what.paths.filter(inWorkingTree)
         if (staging.length > 0) {
           const staged = yield* Effect.uninterruptible(git(root, ["add", "--", ...staging]))
           if (!staged.ok) {
@@ -533,14 +508,7 @@ const commit = (
             return said
           }
           if (said.hung !== true) return said
-          // `git commit -- <paths>` writes those paths back into the real
-          // index, so a landed commit leaves nothing staged for them and a
-          // commit that never ran leaves what the `add` staged. git's own
-          // window between moving the ref and writing the index back is
-          // microseconds wide, and the budget's kill lands in a HOOK, which is
-          // after both; nothing here can narrow it further.
-          const staged = yield* git(root, ["diff", "--cached", "--name-only", "--", ...what.paths])
-          if (staged.ok && staged.out.trim() === "") index.keep()
+          if (yield* landedAlready(root, what.paths)) index.keep()
           return said
         }))
         if (!committed.ok) {
@@ -641,20 +609,124 @@ const refusalPaths = (said: string): ReadonlyArray<string> =>
 
 let integrations = 0
 
+const STALE_WORKTREE = /^worktree (.*\/olai-integrate-(\d+)-(\d+))$/
+
+const sweepStaleWorktrees = (root: string): Effect.Effect<void> =>
+  Effect.gen(function*() {
+    const listed = yield* git(root, ["worktree", "list", "--porcelain"])
+    if (!listed.ok) return
+    for (const entry of listed.out.split("\n")) {
+      const match = STALE_WORKTREE.exec(entry)
+      if (match === null) continue
+      const pid = match[2]
+      if (pid === undefined || pid === String(process.pid)) continue
+      if (isAlive(Number(pid))) continue
+      const at = match[1]
+      if (at === undefined) continue
+      yield* git(root, ["worktree", "remove", "--force", at])
+    }
+    yield* git(root, ["worktree", "prune"])
+  })
+
 /**
- * `--no-checkout` plus `reset --hard` is what keeps the project's
- * `post-checkout` hook from running, and the served tree's `status` does not
- * see the worktree at all. The rebase is configured with config keys rather
- * than flags so an older git ignores them instead of refusing them.
- * `read-tree -m -u` refuses before writing anything when a path the upstream
- * changed has local changes (`Entry 'x' not uptodate. Cannot merge.`) or an
- * untracked file would be overwritten, which is the OVERLAP answer; the third
- * argument to `update-ref` is a compare-and-swap, so a commit typed in a
- * terminal during the rebase makes it refuse rather than be dropped.
- *
- * Next to nothing here is index-gated, but THIS is: no olai commit may land
- * between the rebase reading `HEAD` and the ref moving.
+ * `--no-checkout` plus `reset --hard` leaves the project's `post-checkout` hook
+ * unrun, where a plain `worktree add` runs it.
  */
+const addWorktree = (
+  root: string,
+  worktree: string,
+  from: string,
+): Effect.Effect<Said> =>
+  Effect.gen(function*() {
+    const added = yield* git(root, ["worktree", "add", "--no-checkout", "--detach", worktree, from])
+    if (!added.ok) return added
+    return yield* git(root, ["-C", worktree, "reset", "--hard", "--quiet", "HEAD"])
+  })
+
+const dropWorktree = (root: string, worktree: string): Effect.Effect<void> =>
+  Effect.gen(function*() {
+    yield* git(root, ["worktree", "remove", "--force", worktree])
+    yield* git(root, ["worktree", "prune"])
+  })
+
+type Rebased =
+  | { readonly _tag: "Rebased" }
+  | { readonly _tag: "Conflicted"; readonly said: string; readonly paths: ReadonlyArray<string> }
+  | { readonly _tag: "Refused"; readonly said: string }
+
+const CONFLICTED = /CONFLICT \(content\)|CONFLICT \(modify\/delete\)|CONFLICT \(add\/add\)/
+
+/** The rebase is configured with config keys rather than flags, so a git too old
+ *  for one of them ignores it instead of refusing the call. */
+const rebaseInWorktree = (
+  root: string,
+  worktree: string,
+  onto: Standing,
+): Effect.Effect<Rebased> =>
+  Effect.gen(function*() {
+    const rebased = yield* git(root, [
+      "-C",
+      worktree,
+      "-c",
+      "rebase.updateRefs=false",
+      "-c",
+      "rebase.autoStash=false",
+      "-c",
+      "rerere.enabled=false",
+      "rebase",
+      "--no-verify",
+      onto.upstream,
+    ])
+    if (rebased.ok) return { _tag: "Rebased" } as const
+    if (!CONFLICTED.test(rebased.said)) {
+      return { _tag: "Refused", said: rebased.said } as const
+    }
+    yield* git(root, ["-C", worktree, "rebase", "--abort"])
+    yield* Effect.annotateLogs(
+      Effect.logWarning("olai git: the take-in conflicted, nothing moved"),
+      { said: rebased.said },
+    )
+    return { _tag: "Conflicted", said: rebased.said, paths: refusalPaths(rebased.said) } as const
+  })
+
+/**
+ * `read-tree -m -u` refuses before writing anything when a path the upstream
+ * changed has local changes or an untracked file would be overwritten, and
+ * `update-ref`'s third argument is a compare-and-swap, so a commit typed in a
+ * terminal during the rebase makes it refuse rather than be dropped.
+ */
+const moveServedTree = (
+  root: string,
+  worktree: string,
+  from: string,
+  onto: Standing,
+): Effect.Effect<Integrated> =>
+  Effect.uninterruptible(Effect.gen(function*() {
+    const to = (yield* git(root, ["-C", worktree, "rev-parse", "HEAD"])).out.trim()
+    if (to === "" || to === from) {
+      return { _tag: "Integrated", from, to: to === "" ? from : to, taken: 0 } as const
+    }
+    const moved = yield* git(root, ["read-tree", "-m", "-u", from, to])
+    if (!moved.ok) {
+      return { _tag: "Overlapped", said: moved.said, paths: refusalPaths(moved.said) } as const
+    }
+    const branch = (yield* git(root, ["symbolic-ref", "--short", "HEAD"])).out.trim()
+    const ref = branch === "" ? "HEAD" : `refs/heads/${branch}`
+    const set = yield* git(root, [
+      "update-ref",
+      "-m",
+      `olai: integrated ${onto.name}`,
+      ref,
+      to,
+      from,
+    ])
+    if (set.ok) {
+      return { _tag: "Integrated", from, to, taken: onto.behind } as const
+    }
+    yield* git(root, ["read-tree", "-m", "-u", to, from])
+    return { _tag: "Refused", said: set.said } as const
+  }))
+
 const integrate = (
   root: string,
   placed: Placement,
@@ -666,105 +738,27 @@ const integrate = (
       return { _tag: "Refused", said: head.said } as const
     }
     const from = head.out.trim()
-    const worktreeName = `olai-integrate-${process.pid}-${++integrations}`
-    const worktree = join(placed.gitDir, worktreeName)
+    const worktree = join(placed.gitDir, `olai-integrate-${process.pid}-${++integrations}`)
 
-    const sweep = yield* git(root, ["worktree", "list", "--porcelain"])
-    if (sweep.ok) {
-      for (const entry of sweep.out.split("\n")) {
-        const match = /^worktree (.*\/olai-integrate-(\d+)-(\d+))$/.exec(entry)
-        if (match === null) continue
-        const pid = match[2]
-        if (pid === undefined || pid === String(process.pid)) continue
-        if (isAlive(Number(pid))) continue
-        const at = match[1]
-        if (at === undefined) continue
-        yield* git(root, ["worktree", "remove", "--force", at])
-      }
-      yield* git(root, ["worktree", "prune"])
-    }
+    yield* sweepStaleWorktrees(root)
 
     return yield* holdIndex(
       placed.gitDir,
       Effect.acquireUseRelease(
-        Effect.gen(function*() {
-          const added = yield* git(root, ["worktree", "add", "--no-checkout", "--detach", worktree, from])
-          // `-C`, never `--git-dir`: the checkout directory holds a `.git`
-          // file pointing at `.git/worktrees/<name>`, which is where the
-          // rebase's state lives, and `--git-dir` does not follow it.
-          if (!added.ok) return added
-          return yield* git(
-            root,
-            ["-C", worktree, "reset", "--hard", "--quiet", "HEAD"],
-          )
-        }),
+        addWorktree(root, worktree, from),
         (prepared) =>
-          Effect.gen(function*() {
-            if (!prepared.ok) {
-              return { _tag: "Refused", said: prepared.said } as const
-            }
-            const rebased = yield* git(root, [
-              "-C",
-              worktree,
-              "-c",
-              "rebase.updateRefs=false",
-              "-c",
-              "rebase.autoStash=false",
-              "-c",
-              "rerere.enabled=false",
-              "rebase",
-              "--no-verify",
-              onto.upstream,
-            ])
-            if (!rebased.ok) {
-              if (/CONFLICT \(content\)|CONFLICT \(modify\/delete\)|CONFLICT \(add\/add\)/.test(rebased.said)) {
-                yield* git(root, ["-C", worktree, "rebase", "--abort"])
-                yield* Effect.annotateLogs(
-                  Effect.logWarning("olai git: the take-in conflicted, nothing moved"),
-                  { said: rebased.said },
-                )
-                return { _tag: "Conflicted", said: rebased.said, paths: refusalPaths(rebased.said) } as const
-              }
-              return { _tag: "Refused", said: rebased.said } as const
-            }
-
-            return yield* Effect.uninterruptible(Effect.gen(function*() {
-              const to = (yield* git(root, ["-C", worktree, "rev-parse", "HEAD"])).out.trim()
-              if (to === "" || to === from) {
-                return { _tag: "Integrated", from, to: to === "" ? from : to, taken: 0 } as const
-              }
-              const moved = yield* git(root, ["read-tree", "-m", "-u", from, to])
-              if (!moved.ok) {
-                return { _tag: "Overlapped", said: moved.said, paths: refusalPaths(moved.said) } as const
-              }
-              const branch = (yield* git(root, ["symbolic-ref", "--short", "HEAD"])).out.trim()
-              const ref = branch === "" ? "HEAD" : `refs/heads/${branch}`
-              const set = yield* git(root, [
-                "update-ref",
-                "-m",
-                `olai: integrated ${onto.name}`,
-                ref,
-                to,
-                from,
-              ])
-              if (set.ok) {
-                return { _tag: "Integrated", from, to, taken: onto.behind } as const
-              }
-              yield* git(root, ["read-tree", "-m", "-u", to, from])
-              return { _tag: "Refused", said: set.said } as const
-            }))
-          }),
-        () =>
-          Effect.gen(function*() {
-            yield* git(root, ["worktree", "remove", "--force", worktree])
-            yield* git(root, ["worktree", "prune"])
-          }),
+          prepared.ok
+            ? Effect.gen(function*() {
+              const rebased = yield* rebaseInWorktree(root, worktree, onto)
+              if (rebased._tag !== "Rebased") return rebased
+              return yield* moveServedTree(root, worktree, from, onto)
+            })
+            : Effect.succeed({ _tag: "Refused", said: prepared.said } as const),
+        () => dropWorktree(root, worktree),
       ),
     )
   })
 
-/** Whether a pid belongs to a live process. `kill(pid, 0)` answers without
- *  signalling. */
 const isAlive = (pid: number): boolean => {
   try {
     process.kill(pid, 0)

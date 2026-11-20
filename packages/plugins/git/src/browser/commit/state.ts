@@ -11,14 +11,33 @@ import { type Accessor, createSignal } from "solid-js"
 
 import { gitWire } from "../wire.ts"
 import { waitingIn } from "./said.ts"
+import type { Picked } from "./selection.ts"
 import { submittedPreparation } from "./preparation.ts"
 import { run } from "@olai/web/client/run.ts"
 
+export type Control = "commit" | "push" | "resume" | "unlock"
+
+type Refusals = Readonly<Record<Control, string | null>>
+
+const NOTHING_REFUSED: Refusals = { commit: null, push: null, resume: null, unlock: null }
+
+interface Refused {
+  readonly refusedBy: (control: Control) => string | null
+  readonly refuse: (control: Control, said: string | null) => void
+}
+
+const createRefusals = (): Refused => {
+  const [refusals, setRefusals] = createSignal<Refusals>(NOTHING_REFUSED)
+  return {
+    refusedBy: (control) => refusals()[control],
+    refuse: (control, said) => setRefusals((was) => ({ ...was, [control]: said })),
+  }
+}
+
 export interface GitPolicySeam {
   readonly git: Accessor<GitState>
-  readonly resumeRefused: Accessor<string | null>
+  readonly refusedBy: (control: Control) => string | null
   readonly resume: () => void
-  readonly unlockRefused: Accessor<string | null>
   readonly unlock: (onAnswer: (answer: UnlockResult) => void) => void
 }
 
@@ -27,8 +46,7 @@ export interface Commit extends GitPolicySeam {
   readonly heard: Accessor<boolean>
   readonly waiting: Accessor<number>
   readonly working: Accessor<boolean>
-  readonly refused: Accessor<string | null>
-  readonly commit: (message: string, paths?: ReadonlyArray<string>) => void
+  readonly commit: (message: string, picked: Picked) => void
   readonly pushing: Accessor<boolean>
   readonly push: () => void
 }
@@ -36,27 +54,24 @@ export interface Commit extends GitPolicySeam {
 export const canRecord = (working: boolean, pushing: boolean): boolean =>
   !working && !pushing
 
-export const createGitPolicy = (): GitPolicySeam => {
+export const createGitPolicy = (refusals: Refused): GitPolicySeam => {
   const git = gitWire().cells.git.use()
-  const [resumeRefused, setResumeRefused] = createSignal<string | null>(null)
-  const [unlockRefused, setUnlockRefused] = createSignal<string | null>(null)
 
   return {
     git: () => git.value() ?? GIT_OFF,
-    resumeRefused,
+    refusedBy: refusals.refusedBy,
     resume: () => {
-      setResumeRefused(null)
+      refusals.refuse("resume", null)
       run(
         gitWire().procedures.git.resume({}),
-        (failure) => setResumeRefused(failure.message),
+        (failure) => refusals.refuse("resume", failure.message),
       )
     },
-    unlockRefused,
     unlock: (onAnswer) => {
-      setUnlockRefused(null)
+      refusals.refuse("unlock", null)
       run(
         gitWire().procedures.git.unlock({}),
-        (failure) => setUnlockRefused(failure.message),
+        (failure) => refusals.refuse("unlock", failure.message),
         onAnswer,
       )
     },
@@ -65,22 +80,27 @@ export const createGitPolicy = (): GitPolicySeam => {
 
 export const createCommit = (): Commit => {
   const cell = gitWire().cells.pending.use()
-  const policy = createGitPolicy()
+  const refusals = createRefusals()
+  const policy = createGitPolicy(refusals)
   const [working, setWorking] = createSignal(false)
   const [pushing, setPushing] = createSignal(false)
-  const [refused, setRefused] = createSignal<string | null>(null)
 
   const pending = (): Pending => cell.value() ?? NOTHING_PENDING
+
+  const clearWrites = (): void => {
+    refusals.refuse("commit", null)
+    refusals.refuse("push", null)
+  }
 
   const send = (): void => {
     if (pushing()) return
     setPushing(true)
-    setRefused(null)
+    clearWrites()
     run(
       gitWire().procedures.git.push({}),
       (failure) => {
         setPushing(false)
-        setRefused(failure.message)
+        refusals.refuse("push", failure.message)
       },
       (_result: PushResult) => setPushing(false),
     )
@@ -88,24 +108,23 @@ export const createCommit = (): Commit => {
 
   return {
     ...policy,
-    refused,
     pending,
     heard: () => cell.value() !== undefined,
     waiting: () => waitingIn(pending()),
     working,
-    commit: (message, paths) => {
+    commit: (message, picked) => {
       if (!canRecord(working(), pushing())) return
       const complete = submittedPreparation()
       setWorking(true)
-      setRefused(null)
+      clearWrites()
       run(
         gitWire().procedures.git.commit({
           ...(message.trim() === "" ? {} : { message }),
-          ...(paths === undefined ? {} : { paths }),
+          ...(picked._tag === "FullSweep" ? {} : { paths: picked.paths }),
         }),
         (failure) => {
           setWorking(false)
-          setRefused(failure.message)
+          refusals.refuse("commit", failure.message)
         },
         (result: CommitResult) => {
           if (result._tag === "Committed") complete()

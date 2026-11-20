@@ -44,7 +44,7 @@ test("everything is ticked, and a full selection is no selection at all", () => 
   over(WAITING, (selection) => {
     expect(selection.ticked("docs/roadmap.olai")).toBe(true)
     expect(selection.ticked("README.md")).toBe(true)
-    expect(selection.paths()).toBeUndefined()
+    expect(selection.paths()).toEqual({ _tag: "FullSweep" })
     expect(selection.changes()).toHaveLength(1)
     expect(selection.others()).toHaveLength(2)
   })
@@ -54,13 +54,13 @@ test("unticking a file drops it, its node changes, and its name from the message
   over(WAITING, (selection) => {
     selection.toggle("docs/roadmap.olai")
 
-    expect(selection.paths()).toEqual(["README.md", "notes/todo.md"])
+    expect(selection.paths()).toEqual({ _tag: "Subset", paths: ["README.md", "notes/todo.md"] })
     expect(selection.changes()).toEqual([])
     expect(selection.message()).not.toContain("Kolu integration")
     expect(selection.message()).toContain("README.md")
 
     selection.toggle("README.md")
-    expect(selection.paths()).toEqual(["notes/todo.md"])
+    expect(selection.paths()).toEqual({ _tag: "Subset", paths: ["notes/todo.md"] })
     expect(selection.message()).not.toContain("README.md")
     expect(selection.message()).toContain("notes/todo.md")
   })
@@ -71,7 +71,7 @@ test("unticking everything is an empty selection, which is not the same as no se
     for (const path of ["docs/roadmap.olai", "README.md", "notes/todo.md"]) {
       selection.toggle(path)
     }
-    expect(selection.paths()).toEqual([])
+    expect(selection.paths()).toEqual({ _tag: "Subset", paths: [] })
     expect(selection.message()).toBe("olai: nothing")
   })
 })
@@ -86,6 +86,7 @@ test("a file that arrives while the panel is open is ticked", () => {
 
     expect(selection.ticked("later.md")).toBe(true)
     expect(selection.ticked("README.md")).toBe(false)
-    expect(selection.paths()).toEqual(["docs/roadmap.olai", "notes/todo.md", "later.md"])
+    expect(selection.paths())
+      .toEqual({ _tag: "Subset", paths: ["docs/roadmap.olai", "notes/todo.md", "later.md"] })
   })
 })

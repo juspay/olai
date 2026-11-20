@@ -175,7 +175,7 @@ export interface Committing {
   readonly whyWaiting: (writer: Writer) => Effect.Effect<string>
   readonly wrote: (writer: Writer) => void
   readonly observe: (pending: Pending) => Effect.Effect<void>
-  readonly hold: Effect.Effect<void, never, Scope.Scope>
+  readonly holdQuietWindow: Effect.Effect<void, never, Scope.Scope>
   readonly loop: Effect.Effect<void>
   readonly catchUp: Effect.Effect<void>
   readonly resume: Effect.Effect<void>
@@ -577,7 +577,7 @@ export const make = (options: Options): Committing => {
     return SubscriptionRef.set(arming, armedOn(mode(), settled.paused, holding > 0, pending))
   }
 
-  const hold: Effect.Effect<void, never, Scope.Scope> = Effect.acquireRelease(
+  const holdQuietWindow: Effect.Effect<void, never, Scope.Scope> = Effect.acquireRelease(
     Effect.gen(function*() {
       holding += 1
       yield* SubscriptionRef.set(arming, "")
@@ -659,7 +659,7 @@ export const make = (options: Options): Committing => {
     whyWaiting,
     wrote,
     observe,
-    hold,
+    holdQuietWindow,
     loop,
     catchUp,
     resume,

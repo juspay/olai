@@ -1,29 +1,24 @@
 import { servedDirectory } from "../vault.ts"
-import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "olai-plugin-outlines/changes"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { Moved } from "./Moved.tsx"
-import { HOW, HOW_TONE, localOf } from "./said.ts"
+import { type Group, HOW, HOW_TONE, localOf } from "./said.ts"
 import type { Selection } from "./selection.ts"
 import { TESTID } from "../../testids.ts"
 import { Tick } from "./Tick.tsx"
 import { Tip } from "@olai/web/client/Tip.tsx"
 
 export function Outlines(props: {
-  readonly outlines: ReadonlyArray<DirtyOutline>
-  readonly changes: ReadonlyArray<NodeChange>
+  readonly groups: ReadonlyArray<Group>
   readonly served: string
   readonly selection: Selection
 }) {
-  const changesIn = (file: string): ReadonlyArray<NodeChange> =>
-    props.changes.filter((change) => change.file === file)
-
   return (
-    <For each={props.outlines}>
-      {(outline) => (
+    <For each={props.groups}>
+      {({ outline, changes }) => (
         <div
           data-testid={TESTID.commitGroup}
           data-file={outline.file}
@@ -49,7 +44,7 @@ export function Outlines(props: {
             </Show>
           </p>
           <ul class="pl-5">
-            <For each={changesIn(outline.file)}>
+            <For each={changes}>
               {(change) => (
                 <li
                   class="flex items-baseline gap-2 py-0.5"

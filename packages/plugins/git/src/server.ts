@@ -124,7 +124,7 @@ export default definePlugin({
       push: commits.push,
       resume: commits.resume,
       waiting: commits.waiting,
-      hold: commits.hold,
+      hold: commits.holdQuietWindow,
     }
     yield* offers.offer(Ledger, () => ledger)
     yield* (yield* VaultViews).ledger(ledger)

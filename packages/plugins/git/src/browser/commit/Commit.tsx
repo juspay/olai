@@ -1,29 +1,28 @@
-import { createMemo } from "solid-js"
-
-import { For, Show } from "solid-js"
+import { createMemo, For, type JSX, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import {
+  type Face,
   faceOf,
   readingOf,
   isInert,
   loopIn,
   newsSays,
+  type Reading,
   unpushedIn,
 } from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../shell.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { BANNER, DOT, PILL, TONE } from "@olai/web/client/readout.ts"
-import { createPopover } from "@olai/web/client/popover.ts"
-import { createCommit } from "./state.ts"
+import { createPopover, type Popover } from "@olai/web/client/popover.ts"
+import { type Commit as CommitState, createCommit } from "./state.ts"
 import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 
 export function Commit() {
   const commit = createCommit()
-  const auto = () => loopIn(commit.git())
   const panel = createPopover()
   const now = createNow()
 
@@ -37,10 +36,6 @@ export function Commit() {
     return face() === "committed" && last !== null ? agoOf(last.at, now()) : ""
   }
 
-  const unpushed = () => unpushedIn(commit.pending())
-
-  const pushSaid = () => commit.git().pushSaid
-
   const showPill = () => desktop()
   const showBanner = () => !desktop() && (read().tone === "notice" || read().tone === "alarm")
   const line = createMemo(() => newsSays(face(), commit.pending(), commit.git()))
@@ -48,64 +43,30 @@ export function Commit() {
   return (
     <>
       <Show when={showPill()}>
-      <Tip text={said()} layer={LAYER.over}>
-        <button
-          type="button"
-          ref={panel.setTrigger}
-          class={`${PILL} min-w-9 max-w-[9rem] sm:max-w-none ${
-            inert() ? "opacity-60" : ""
-          }`}
-          data-testid={TESTID.commitPill}
-          data-state={face()}
-          data-uncommitted={commit.waiting()}
-          data-unpushed={unpushed()}
-          data-repo={commit.pending().repo._tag}
-          data-auto={auto()}
-          data-push-refused={pushSaid() === null ? undefined : "true"}
-          aria-expanded={inert() ? undefined : panel.open()}
-          aria-disabled={inert() ? true : undefined}
-          aria-label={said()}
-          onClick={() => {
-            if (!inert()) panel.toggle()
-          }}
-        >
-          <span class={`${DOT} ${TONE[read().tone].dot}`} data-health={read().tone} aria-hidden="true" />
-          <span class="min-w-0 truncate">{read().says}</span>
-          <Show when={ago() !== ""}>
-            <span class="hidden shrink-0 sm:block">· {ago()}</span>
-          </Show>
-          <For each={read().riders}>
-            {(rider) => <span class={`shrink-0 ${TONE[read().tone].text}`}>· {rider}</span>}
-          </For>
-          <Show when={!inert()}>
-            <span class="ml-auto hidden shrink-0 text-muted sm:inline" aria-hidden="true">
-              {panel.open() ? "▴" : "▾"}
-            </span>
-          </Show>
-        </button>
-      </Tip>
+        <Tip text={said()} layer={LAYER.over}>
+          <Trigger
+            commit={commit}
+            panel={panel}
+            face={face()}
+            testid={TESTID.commitPill}
+            class={`${PILL} min-w-9 max-w-[9rem] sm:max-w-none ${inert() ? "opacity-60" : ""}`}
+            label={said()}
+          >
+            <Says read={read()} ago={ago()} open={panel.open()} inert={inert()} />
+          </Trigger>
+        </Tip>
       </Show>
       <Show when={showBanner()}>
-        <button
-          type="button"
-          ref={panel.setTrigger}
+        <Trigger
+          commit={commit}
+          panel={panel}
+          face={face()}
+          testid={TESTID.gitNews}
           class={`${BANNER} justify-between ${TONE[read().tone].text}`}
-          data-testid={TESTID.gitNews}
-          data-state={face()}
-          data-uncommitted={commit.waiting()}
-          data-unpushed={unpushed()}
-          data-repo={commit.pending().repo._tag}
-          data-auto={auto()}
-          data-push-refused={pushSaid() === null ? undefined : "true"}
-          aria-expanded={inert() ? undefined : panel.open()}
-          aria-disabled={inert() ? true : undefined}
-          aria-label={said()}
-          onClick={() => {
-            if (!inert()) panel.toggle()
-          }}
+          label={said()}
         >
           {line()}
-        </button>
+        </Trigger>
       </Show>
       <Show when={panel.open() && !inert() ? panel.at() : null}>
         {(at) => (
@@ -113,6 +74,70 @@ export function Commit() {
             <Panel commit={commit} now={now()} at={at()} inside={panel.setPanel} />
           </Portal>
         )}
+      </Show>
+    </>
+  )
+}
+
+function Trigger(props: {
+  readonly commit: CommitState
+  readonly panel: Popover
+  readonly face: Face
+  readonly testid: string
+  readonly class: string
+  readonly label: string
+  readonly children: JSX.Element
+}) {
+  const inert = () => isInert(props.face)
+
+  return (
+    <button
+      type="button"
+      ref={props.panel.setTrigger}
+      class={props.class}
+      data-testid={props.testid}
+      data-state={props.face}
+      data-uncommitted={props.commit.waiting()}
+      data-unpushed={unpushedIn(props.commit.pending())}
+      data-repo={props.commit.pending().repo._tag}
+      data-auto={loopIn(props.commit.git())}
+      data-push-refused={props.commit.git().pushSaid === null ? undefined : "true"}
+      aria-expanded={inert() ? undefined : props.panel.open()}
+      aria-disabled={inert() ? true : undefined}
+      aria-label={props.label}
+      onClick={() => {
+        if (!inert()) props.panel.toggle()
+      }}
+    >
+      {props.children}
+    </button>
+  )
+}
+
+function Says(props: {
+  readonly read: Reading
+  readonly ago: string
+  readonly open: boolean
+  readonly inert: boolean
+}) {
+  return (
+    <>
+      <span
+        class={`${DOT} ${TONE[props.read.tone].dot}`}
+        data-health={props.read.tone}
+        aria-hidden="true"
+      />
+      <span class="min-w-0 truncate">{props.read.says}</span>
+      <Show when={props.ago !== ""}>
+        <span class="hidden shrink-0 sm:block">· {props.ago}</span>
+      </Show>
+      <For each={props.read.riders}>
+        {(rider) => <span class={`shrink-0 ${TONE[props.read.tone].text}`}>· {rider}</span>}
+      </For>
+      <Show when={!props.inert}>
+        <span class="ml-auto hidden shrink-0 text-muted sm:inline" aria-hidden="true">
+          {props.open ? "▴" : "▾"}
+        </span>
       </Show>
     </>
   )

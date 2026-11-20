@@ -13,7 +13,7 @@ import { Cause, Effect, Exit, type Scope } from "effect"
 import { codecFor } from "@olai/ops"
 import type { Reading, Verdict } from "@olai/format"
 import type * as StoreModule from "@olai/store"
-import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "../git/fixtures.testlib.ts"
+import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, isRoot, repoAt, writerOf } from "../git/fixtures.testlib.ts"
 import * as Ops from "@olai/ops"
 import {
   COMMIT_TOOL,
@@ -36,7 +36,7 @@ const HOUSE = [
 
 type GitOps = Ops.Ops & Pick<
   Committing,
-  "pending" | "waiting" | "status" | "observe" | "hold" | "loop" | "git" | "catchUp" | "unlock"
+  "pending" | "waiting" | "status" | "observe" | "holdQuietWindow" | "loop" | "git" | "catchUp" | "unlock"
 >
 
 interface Fixture {
@@ -70,8 +70,6 @@ const withRepo = <A>(
   }
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
-  // git reads the ident from the environment first: an empty `GIT_AUTHOR_NAME`
-  // beats local `user.name`, so the ident is pinned in the env here.
   const savedIdent = Object.fromEntries(
     GIT_IDENT_KEYS.map((key) => [key, process.env[key]]),
   )
@@ -126,7 +124,7 @@ const withRepo = <A>(
           record: ledger.commit,
           push: ledger.push,
           resume: ledger.resume,
-          hold: ledger.hold,
+          hold: ledger.holdQuietWindow,
           waiting: ledger.waiting,
         },
         context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
@@ -135,7 +133,7 @@ const withRepo = <A>(
       status: ledger.status,
       waiting: ledger.waiting,
       observe: ledger.observe,
-      hold: ledger.hold,
+      holdQuietWindow: ledger.holdQuietWindow,
       loop: ledger.loop,
       git: ledger.git,
       catchUp: ledger.catchUp,
@@ -828,8 +826,7 @@ describe("a repository that cannot take a commit", () => {
 
 /**
  * git refuses every write while `.git/index.lock` exists and removes it only on
- * exits it controls, so a killed process leaves one behind for ever. `git status`
- * still answers with one in place: only the write verbs refuse.
+ * exits it controls, while `git status` still answers with one in place.
  */
 describe("the stale lock file", () => {
   const staleLock = (fixture: Fixture): string => {
@@ -900,7 +897,7 @@ describe("the stale lock file", () => {
   test("an unlock that could not remove the file fails, and clears nothing", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        if (typeof process.getuid === "function" && process.getuid() === 0) return
+        if (isRoot()) return
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         yield* fixture.refresh
         const lock = staleLock(fixture)
@@ -1072,7 +1069,7 @@ describe("commit: auto: the quiet window", () => {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
 
         yield* Effect.scoped(Effect.gen(function*() {
-          yield* fixture.ops.hold
+          yield* fixture.ops.holdQuietWindow
           yield* Effect.orDie(fixture.ops.run({ op: "done", id: "install" }, "sleep"))
           yield* fixture.observe
           yield* Effect.sleep(160)
@@ -1091,9 +1088,9 @@ describe("commit: auto: the quiet window", () => {
       Effect.gen(function*() {
         yield* Effect.forkScoped(fixture.ops.loop)
         yield* Effect.scoped(Effect.gen(function*() {
-          yield* fixture.ops.hold
+          yield* fixture.ops.holdQuietWindow
           yield* Effect.scoped(Effect.gen(function*() {
-            yield* fixture.ops.hold
+            yield* fixture.ops.holdQuietWindow
             yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "sleep"))
             yield* fixture.observe
           }))
@@ -1112,7 +1109,7 @@ describe("commit: auto: the quiet window", () => {
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
         yield* Effect.scoped(Effect.gen(function*() {
-          yield* fixture.ops.hold
+          yield* fixture.ops.holdQuietWindow
           const swept = yield* fixture.ops.commit({}, "chat-agent")
           expect(swept._tag).toBe("Failed")
           expect(swept._tag === "Failed" ? swept.said : "").toContain("names no paths")
@@ -1125,7 +1122,7 @@ describe("commit: auto: the quiet window", () => {
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         yield* Effect.scoped(Effect.gen(function*() {
-          yield* fixture.ops.hold
+          yield* fixture.ops.holdQuietWindow
           expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
         }))
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)

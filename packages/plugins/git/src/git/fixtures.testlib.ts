@@ -1,9 +1,7 @@
 import { execFileSync } from "node:child_process"
 
-/**
- * Env beats config, and an empty `GIT_AUTHOR_NAME` (some CI, some load-bearing
- * shells) is empty, not unset — so a repository-local `user.name` is not enough.
- */
+/** Env beats config, and an empty `GIT_AUTHOR_NAME` is set-but-empty, which
+ *  gives `fatal: empty ident name` however the repository's `user.name` reads. */
 export const GIT_IDENT = {
   GIT_AUTHOR_NAME: "olai tests",
   GIT_AUTHOR_EMAIL: "test@olai.invalid",
@@ -23,11 +21,7 @@ export const gitIn = (root: string) =>
     env: { ...process.env, ...GIT_IDENT },
   })
 
-/**
- * An empty `GIT_AUTHOR_NAME` in the ambient env would otherwise empty the
- * ident, and the branch is named explicitly so a machine whose
- * `init.defaultBranch` differs reads the same as every other.
- */
+/** `init.defaultBranch` varies per machine, so the branch is named explicitly. */
 export const repoAt = (
   root: string,
   options: {
@@ -57,3 +51,6 @@ export const subjectsIn = (root: string): ReadonlyArray<string> =>
 
 export const writerOf = (root: string): string =>
   gitIn(root)("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()
+
+export const isRoot = (): boolean =>
+  typeof process.getuid === "function" && process.getuid() === 0

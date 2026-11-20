@@ -3,10 +3,16 @@ import { createSelector } from "solid-js"
 import { type Claims, composed, type NodeChange, type Other, type Pending } from "@olai/format"
 import { type Accessor, createSignal, type Signal } from "solid-js"
 
+export type Picked =
+  | { readonly _tag: "FullSweep" }
+  | { readonly _tag: "Subset"; readonly paths: ReadonlyArray<string> }
+
+const FULL_SWEEP = { _tag: "FullSweep" } as const
+
 export interface Selection {
   readonly ticked: (path: string) => boolean
   readonly toggle: (path: string) => void
-  readonly paths: Accessor<ReadonlyArray<string> | undefined>
+  readonly paths: Accessor<Picked>
   readonly changes: Accessor<ReadonlyArray<NodeChange>>
   readonly others: Accessor<ReadonlyArray<Other>>
   readonly message: Accessor<string>
@@ -44,13 +50,13 @@ export const createSelection = (
   const changes = () => { const kept = files(); return pending().changes.filter(change => kept.has(change.file)) }
   const others = () => pending().others.filter((other) => ticked(other.path))
 
-  const paths = (): ReadonlyArray<string> | undefined => {
+  const paths = (): Picked => {
     const every = [
       ...pending().outlines.map((outline) => outline.path),
       ...pending().others.map((other) => other.path),
     ]
     const kept = every.filter(ticked)
-    return kept.length === every.length ? undefined : kept
+    return kept.length === every.length ? FULL_SWEEP : { _tag: "Subset", paths: kept }
   }
 
   return {

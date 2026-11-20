@@ -16,7 +16,7 @@ import {
   lockSays,
   scopeOf,
   verbatim,
-  waitingIn,
+  waitingOn,
   WHO,
   wroteOf,
   willRecord,
@@ -42,9 +42,16 @@ export function Panel(props: {
   const [typed, setTyped] = preparation.typed
   const draft = () => typed() ?? selection.message()
 
-  const anything = () => waitingIn(pending()) > 0
+  const waiting = () => waitingOn(pending())
 
-  const nothingTicked = () => selection.paths()?.length === 0
+  const anything = () => waiting().rows > 0
+
+  const picked = () => selection.paths()
+
+  const nothingTicked = () => {
+    const chosen = picked()
+    return chosen._tag === "Subset" && chosen.paths.length === 0
+  }
 
   const promised = () => willRecord(pending(), props.commit.git())
 
@@ -95,24 +102,23 @@ export function Panel(props: {
         </Show>
       </p>
 
-      <Show when={pending().outlines.length > 0}>
+      <Show when={waiting().groups.length > 0}>
         <Rule>Outlines</Rule>
         <Outlines
-          outlines={pending().outlines}
-          changes={pending().changes}
+          groups={waiting().groups}
           served={pending().served}
           selection={selection}
         />
       </Show>
 
-      <Show when={pending().others.length > 0}>
+      <Show when={waiting().others.length > 0}>
         <Rule>Other files</Rule>
-        <Others others={pending().others} selection={selection} />
+        <Others others={waiting().others} selection={selection} />
       </Show>
 
-      <Show when={pending().unreadable.length > 0}>
+      <Show when={waiting().unreadable.length > 0}>
         <p class="wrap-anywhere text-label text-muted" data-testid={TESTID.commitUnreadable}>
-          {pending().unreadable.join(", ")} changed, but can't be read, so its
+          {waiting().unreadable.join(", ")} changed, but can't be read, so its
           changes can't be shown.
         </p>
       </Show>
@@ -143,7 +149,7 @@ export function Panel(props: {
         >
           Resume
         </button>
-        <Show when={props.commit.resumeRefused()}>
+        <Show when={props.commit.refusedBy("resume")}>
           {(said) => (
             <p
               class="wrap-anywhere text-label text-alarm"
@@ -207,12 +213,12 @@ export function Panel(props: {
                 return
               }
               setGuarded(null)
-              props.commit.commit(draft(), selection.paths())
+              props.commit.commit(draft(), picked())
             })}
         >
           Remove lock file & retry
         </button>
-        <Show when={props.commit.unlockRefused()}>
+        <Show when={props.commit.refusedBy("unlock")}>
           {(said) => (
             <p
               class="wrap-anywhere text-label text-alarm"
@@ -229,7 +235,7 @@ export function Panel(props: {
         </Show>
       </Show>
 
-      <Show when={props.commit.refused()}>
+      <Show when={props.commit.refusedBy("commit") ?? props.commit.refusedBy("push")}>
         {(said) => (
           <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitCallRefused}>
             {said()}
@@ -255,7 +261,7 @@ export function Panel(props: {
             !canRecord(props.commit.working(), props.commit.pushing()) ||
             nothingTicked()
           }
-          onClick={() => props.commit.commit(draft(), selection.paths())}
+          onClick={() => props.commit.commit(draft(), picked())}
         >
           {props.commit.working()
             ? "Committing…"

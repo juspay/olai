@@ -5,8 +5,8 @@ import type {} from "olai-plugin-layout/slots"
 import { definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { desktop, holdShell } from "./browser/shell.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
-import { Effect } from "effect"
-import { createRoot, createSignal, createMemo, createComputed, on, onCleanup, Show } from "solid-js"
+import { Effect, Scope } from "effect"
+import { type Accessor, createRoot, createSignal, createMemo, createComputed, on, onCleanup, Show } from "solid-js"
 
 import { Commit } from "./browser/commit/Commit.tsx"
 import { createGitStatus } from "./browser/commit/status.ts"
@@ -25,7 +25,6 @@ export default definePlugin({
     const wired = yield* Wired
     yield* holdGitWire(() => wired.client() as GitClient)
 
-    const [live, setLive] = createSignal(true)
     const preparation = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const identity = gitWire().cells.repository.use()
       const repository = createMemo<string | undefined>(previous => identity.value() ?? previous)
@@ -41,19 +40,32 @@ export default definePlugin({
       owned => Effect.sync(owned.dispose),
     )
 
-    yield* slots.register("app.header", {
-      place: "cluster",
-      body: () => <Show when={live() && preparation.ready()}><Commit /></Show>,
-      status: status.read,
-    })
-    yield* slots.register("app.banner", () => (
-      <Show when={live() && preparation.ready() && !desktop()}>
-        <Commit />
-      </Show>
-    ))
-    yield* Effect.acquireRelease(Effect.void, () => Effect.sync(() => setLive(false)))
+    yield* whileStanding((standing) =>
+      Effect.gen(function*() {
+        yield* slots.register("app.header", {
+          place: "cluster",
+          body: () => <Show when={standing() && preparation.ready()}><Commit /></Show>,
+          status: status.read,
+        })
+        yield* slots.register("app.banner", () => (
+          <Show when={standing() && preparation.ready() && !desktop()}>
+            <Commit />
+          </Show>
+        ))
+      })
+    )
   }),
 })
+
+const whileStanding = <A, E, R>(
+  faces: (standing: Accessor<boolean>) => Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R | Scope.Scope> =>
+  Effect.gen(function*() {
+    const [standing, withdraw] = createSignal(true)
+    const registered = yield* faces(standing)
+    yield* Effect.addFinalizer(() => Effect.sync(() => withdraw(false)))
+    return registered
+  })
 
 export const components = {
   shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {

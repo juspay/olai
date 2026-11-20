@@ -3,6 +3,10 @@ import { Effect } from "effect"
 
 import { outline, type Session, withArms } from "./pending.testlib.ts"
 
+// Every step of this differential spawns real git on both arms; bun's default
+// per-test budget is five seconds.
+const SESSION_TIMEOUT = 30_000
+
 const HOUSE = outline(
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
@@ -236,8 +240,6 @@ const holds = (report: Report): void => {
   expect(report.cachedSpawns).toBeLessThan(report.plainSpawns)
 }
 
-// This differential runs real Git subprocesses for the complete session in both
-// implementations. Shared CI workers need a bounded integration-test budget.
 test("a scripted git session answers what re-reading HEAD answers, at every step", async () => {
   holds(
     await replay(
@@ -245,7 +247,7 @@ test("a scripted git session answers what re-reading HEAD answers, at every step
       script(""),
     ),
   )
-}, { timeout: 30_000 })
+}, { timeout: SESSION_TIMEOUT })
 
 test("... and the same session in a served subdirectory", async () => {
   holds(
@@ -255,7 +257,7 @@ test("... and the same session in a served subdirectory", async () => {
       { serve: "docs" },
     ),
   )
-}, { timeout: 30_000 })
+}, { timeout: SESSION_TIMEOUT })
 
 test("a repository with no commits yet has no committed side, on both arms", async () => {
   const report = await replay(

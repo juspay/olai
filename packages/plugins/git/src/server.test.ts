@@ -23,8 +23,6 @@ import git from "./server.ts"
 
 const scratch = (prefix: string): string => mkdtempSync(join(tmpdir(), prefix))
 
-/** git reads the ident from the environment first: an empty `GIT_AUTHOR_NAME`
- *  beats a repository-local `user.name`, so it is pinned in the env. */
 const withIdent = <A>(run: () => Promise<A>): Promise<A> => {
   const saved = Object.fromEntries(GIT_IDENT_KEYS.map((key) => [key, process.env[key]]))
   Object.assign(process.env, GIT_IDENT)
