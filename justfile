@@ -439,6 +439,13 @@ runtime:
 website:
     nix build .#website --no-link --print-out-paths --accept-flake-config
 
+[doc("Make the website's pictures of the real app")]
+website-tour what="all":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{ what }}" != card ]; then just build-client; fi
+    {{ nix_shell_e2e }} bash packages/tests/tour.sh {{ what }}
+
 # The website while you write it: Astro's dev server, reloading on every save
 # of a page or a component, on http://127.0.0.1:4321. Its own `bun install`,
 # because website/ is its own package (see `bun_roots`).

@@ -455,3 +455,29 @@ replace it, so the consumer's kind starts admitting a different set of colours.
 
 Consent is absent here too, so each plugin is turned on at its page in the order
 a scenario means to prove something about.
+
+## `tour/` — the directory the website's pictures are taken in
+
+No scenario names this corpus. `../tour.sh` copies it to a scratch directory
+and serves the copy, and `../tour.ts` photographs and records that server for
+olai.page (`just website-tour`). Nothing serves this tree itself.
+
+Every date is written as though today were `2026-08-12`, the docs' example
+day. `tour.sh` moves each date in the copy by the days between that day and
+the real one, because the Agenda counts from the server's clock:
+
+| row | mark and date | on the Agenda |
+|---|---|---|
+| `cabinets` | `doing`, `2026-08-07` | 5 days late |
+| `plumber` | `todo`, `2026-08-12` | today |
+| `deposit` | `todo`, `2026-08-15` | in 3 days |
+| `tiler` | `todo`, `2026-08-26` | in 2 weeks |
+
+`paint` has no mark until the scripted agent marks it done. The ids
+`paint`, `deposit`, `tiler`, and `plumber` are the ones the exchanges in
+`../tour-agent.ts` name.
+
+`_olai/Settings.olai` switches off `odu` and `kolu`, which would reach for
+services on the machine, and the four agents other than Claude Code, which the
+tour does not set up. The Plugins panel would otherwise list each of them
+under *Needs attention*.
