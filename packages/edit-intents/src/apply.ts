@@ -1,5 +1,3 @@
-/** Resolve a UI intent against the authoritative vault gate. The capability
- * registering the wire handler decides which intent variants it owns. */
 import { Effect } from "effect"
 import type { Ops, Caller } from "@olai/ops"
 import { runResolved } from "@olai/ops/resolved-gate"
