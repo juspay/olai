@@ -1,105 +1,3 @@
-/**
- * WHERE THIS MACHINE KEEPS OLAI'S OWN FILES — the two per-user homes, one name
- * per served directory under either, and the two verbs that read and write a
- * small record there.
- *
- * **Nothing olai keeps for itself goes in the vault.** A vault is somebody's git
- * repository or notes app: the store probes every file in it, the sidebar lists
- * them, and a commit sweeps them — so a lockfile or a panel's last conversation
- * would each be a file olai left behind, offered up for committing, and
- * carried to every clone by `git pull`. A personal clone of a team's outlines
- * must not inherit the team's last chat, and a vault on a read-only mount
- * still serves.
- *
- * TWO HOMES, because they answer two different questions:
- *
- *   - the RUNTIME home is for a claim that must not outlive the process that
- *     made it — the one-brain lock (`@olai/server`'s `lock.ts`). The machine
- *     clears it.
- *   - the STATE home is for something that SHOULD survive a restart and means
- *     nothing to anybody else — one document per plugin and served directory,
- *     handed to that plugin through core's `LocalState` service.
- *
- * ONE FILE PER SERVED DIRECTORY under either, named by a DIGEST of the path
- * rather than by the path itself: an encoded path is a filename that can
- * outgrow the 255 bytes a component gets, and a single index shared by every
- * directory is a read-modify-write two olai servers can lose an update through.
- * The path is written INSIDE the file ({@link LocalRecord.cwd}), which is what makes
- * these directories readable by the person whose state it is and is read back
- * as a guard: a file that is about some other directory is not this one's.
- *
- * The digest is over the REALPATH, and that half is load-bearing: a person
- * types `olai web ~/notes` in one terminal and `olai web .` from inside a
- * symlink to it in another; `resolve` answers those two differently and
- * `realpath` answers them the same. Two brains over one vault is what the
- * difference would buy the lock; two remembered conversations over one vault
- * is what it would buy the other.
- *
- * Both homes are read AT CALL TIME rather than at import, so a test can point a
- * process somewhere of its own — which is exactly what the e2e harness does
- * (`XDG_STATE_HOME` per worker).
- *
- * ## Why this is a package
- *
- * It was written more than once before it was one, which is the bar: the lock's
- * runtime home and digest, and persistent plugin records. It is a LEAF for the
- * same reason `@olai/git` is: it knows about a filesystem and nothing about
- * outlines, git, a wire, a plugin package or a writer. Core is its only
- * state-home consumer; plugins receive an opaque door instead.
- *
- * ## What it does with a failure
- *
- * Nothing kept here is load-bearing enough to stop a boot, and none of it is
- * quiet either — never silently ignore an error. Both verbs FAIL
- * with a reason and the caller decides — a memory that cannot be read means the
- * panel opens the newest conversation and says why.
- *
- * A MISSING FILE IS NOT A FAILURE. It is the answer on the first serve of a
- * directory, and the answer after the state directory has been cleaned out.
- *
- * ## The record whose directory is gone
- *
- * A record outlives the directory it is about all the time: every temp copy a
- * test or a script ever served leaves one, and nothing was ever asking. So the
- * home grew a file per /tmp directory the machine had ever seen. {@link
- * pruneGone} is the answer, run once per server boot next to the runtime
- * home's own sweep (`@olai/server`'s `lock.ts`): a record whose `cwd` answers
- * ENOENT is dropped.
- *
- * WHY AT BOOT and not on the read path: the read path can never meet the
- * record that needs dropping — it is only ever asked about the directory
- * being served right now, which by construction exists. The records for
- * directories that died are exactly the ones nobody ever reads. The sweep
- * runs once on the boot that holds the vault (packages/server/src/lock.ts),
- * forked so its unbounded walk never stands between the person and the bind.
- *
- * CONSERVATIVE by one rule: ONLY ENOENT counts. A directory whose answer is
- * anything else — a network mount that will not answer, a permission that
- * moved — is not a dead directory, and its record stays. Even ENOENT is not
- * always "gone": a vault on a bind mount the host does not see, an unplugged
- * removable volume, an autofs path whose server is down — all answer the
- * same, and the runtime lock's ledger keeps its file on exactly this
- * evidence. Here the same evidence takes the opposite verdict on purpose,
- * and the asymmetry is the stakes: the lock guards two brains over one
- * vault, and a record guards a convenience note the next serve rewrites. The
- * same conservatism governs the record: bytes that are not JSON, a record
- * that names no `cwd`, a RELATIVE one (whose stat would resolve against
- * wherever this process happens to sit, "dead" from one boot and "alive"
- * from the next), a staged `.tmp` nobody renamed away — all left alone. This
- * is hygiene, not validity, the same posture the runtime sweep takes: a file
- * the sweep cannot read or cannot unlink is left, and the boot continues.
- * One asymmetry between the two sweeps wants naming: the runtime one refuses
- * to read a home that is not a private owned directory; this one has no
- * equivalent, and that is defensible twice over — the state home sits under
- * the user's own tree rather than in world-writable `/tmp`, and unlinking a
- * symlink somebody planted removes the link, never its target.
- *
- * EVERY tenant directory is swept, not only the kinds THIS build knows: the
- * home is one per machine across olai versions, the `mirror` records of an
- * older build among them, and a record's contract — `cwd` inside the file —
- * is older than any tenant list.
- */
-
 import { Data, Effect } from "effect"
 import { createHash } from "node:crypto"
 import * as fs from "node:fs"
@@ -107,17 +5,6 @@ import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
 
-/**
- * `$XDG_RUNTIME_DIR/olai`, or the fixed per-user `/tmp/olai-$UID` where there
- * is no runtime directory — the convention kolu's rendezvous sockets use.
- *
- * NOT `os.tmpdir()`, and that is the whole reason this is not one line: it
- * honours `$TMPDIR`, which differs by LAUNCH CONTEXT — a launchd- or
- * systemd-started olai and one a person types into a terminal get different
- * ones — so the same vault would be locked at two paths and neither process
- * would see the other. `/tmp` is present and identical in every process on both
- * platforms, and `-$UID` keeps it per-user.
- */
 export const runtimeHome = (): string => {
   const xdg = process.env["XDG_RUNTIME_DIR"]
   return xdg !== undefined && xdg !== ""
@@ -125,8 +12,6 @@ export const runtimeHome = (): string => {
     : `/tmp/olai-${process.getuid?.() ?? "shared"}`
 }
 
-/** `$XDG_STATE_HOME/olai`, or the default the spec names — where a fact that
- *  should outlive this process goes. */
 export const stateHome = (): string => {
   const set = process.env["XDG_STATE_HOME"]
   return join(
@@ -135,27 +20,9 @@ export const stateHome = (): string => {
   )
 }
 
-/**
- * What one served directory is CALLED under either home.
- *
- * Sixteen hex characters of a SHA-256, enough that two vaults on one machine
- * colliding is not a thing anybody will meet and short enough to read in a
- * directory listing.
- *
- * IT TAKES THE CANONICAL PATH and does not compute one, so a caller that also
- * wants the spelling — every caller here does, since it goes inside the file as
- * the guard — pays for one `realpath` rather than two.
- */
 export const digestOf = (cwd: string): string =>
   createHash("sha256").update(cwd).digest("hex").slice(0, 16)
 
-/**
- * The served root, spelled the one way everything here keys on.
- *
- * A path that does not exist has no realpath and falls back to the resolved
- * spelling: a caller is about to fail on the missing directory anyway, and this
- * must not be what tells them so.
- */
 export const canonical = (root: string): string => {
   try {
     return fs.realpathSync(resolve(root))
@@ -164,8 +31,6 @@ export const canonical = (root: string): string => {
   }
 }
 
-/** Reading, or writing, a kept record went wrong. Reported to a person and
- *  never fatal — see this file's header. */
 export class StateFailure extends Data.TaggedError("StateFailure")<{
   readonly why: string
 }> {
@@ -174,14 +39,6 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
   }
 }
 
-/**
- * Where one plugin's machine-local document lives for one served directory.
- *
- * THE PLUGIN'S NAME IS A FILENAME, not a path: a slash or a `..` would
- * escape the plugin directory. Refused here rather than sanitised, because a
- * name that is not a filename is a registry bug, not a spelling to tidy.
- * This leaf does not name any plugin.
- */
 export const fileForLocal = (plugin: string, cwd: string): string => {
   if (plugin.length === 0 || /[^\w.-]/.test(plugin)) {
     throw new Error(`local state: plugin name ${JSON.stringify(plugin)} is not a filename`)
@@ -189,42 +46,11 @@ export const fileForLocal = (plugin: string, cwd: string): string => {
   return join(stateHome(), plugin, `${digestOf(cwd)}.json`)
 }
 
-/**
- * ...and where one plugin's machine-local DIRECTORY lives for one served
- * directory: the record's sibling, `<plugin>/<digest>/` beside
- * `<plugin>/<digest>.json`.
- *
- * A record is a convenience note the next serve rewrites; some state is not a
- * note. A browser profile is a tree of files another program writes, and the
- * one tenant that needs it (`olai-plugin-browsing`) cannot spell this home —
- * the fence keeps plugins off this package — so core hands it the path through
- * the same `LocalState` door the record rides. Same name rule, same digest.
- */
 export const directoryForLocal = (plugin: string, cwd: string): string =>
   fileForLocal(plugin, cwd).slice(0, -".json".length)
 
-/** The guard a local directory carries: the served path, written inside it,
- *  for {@link LocalRecord.cwd}'s reason — a person reading the home can tell
- *  whose it is, and the prune can tell when its directory is gone. */
 export const LOCAL_DIRECTORY_MARK = ".olai-cwd"
 
-/**
- * Make (or reopen) one local directory, owner-only, and answer its path.
- *
- * IT REFUSES A DIRECTORY ABOUT ANOTHER VAULT, where {@link readLocal} answers
- * `null` for a record about one. The stakes differ: a stale record is a
- * convenience lost, and a directory handed to the wrong served path would be
- * one vault's browser sign-ins served to another. A digest collision or a
- * copied home is news, so it comes out the error channel.
- *
- * The mode is re-asserted on every open rather than only at `mkdir`: a
- * directory that already existed keeps whatever mode it was made with, and the
- * promise is owner-only. That includes the PLUGIN's directory above it,
- * `<state>/olai/<plugin>/`, which also holds that plugin's JSON records:
- * `writeLocal` makes it 0700 when it creates it, but one that already existed
- * with a looser mode kept it, and a private tree under a listable parent still
- * names whose vaults it serves. The chmod there is deliberate, not a stray.
- */
 export const openLocalDirectory = (
   at: string,
   cwd: string,
@@ -251,35 +77,16 @@ export const openLocalDirectory = (
       new StateFailure({ why: `\`${at}\` could not be opened: ${reasonOf(cause)}` }),
   })
 
-/** What every record here carries beside its own fields — see the header for
- *  why the path is written inside the file it is named after. */
 export interface LocalRecord {
   readonly cwd: string
 }
 
-/**
- * Read one back, or `null` for a directory nothing has been written down for —
- * and `null` again for a file that is about some OTHER directory.
- *
- * That second `null` is not damage and is not refused: it is a digest collision
- * or a state directory somebody copied, and the honest answer is that nothing
- * here says. Every other way a read fails (a state directory whose permissions
- * moved, a disk that will not answer, bytes that are not JSON) is news and
- * comes out the error channel.
- *
- * The FIELDS are the caller's to read leniently. This answers with the object
- * verbatim once it has checked the one thing it owns, because what a missing or
- * strange field means differs per record — the caller knows which of its own
- * halves it can do without.
- */
 export const readLocal = (
   at: string,
   cwd: string,
 ): Effect.Effect<Record<string, unknown> | null, StateFailure> =>
   Effect.flatMap(
     Effect.tryPromise({
-      // ENOENT is the ordinary answer rather than a fault, so it is answered
-      // INSIDE the promise, where the file's own reason is.
       try: async (): Promise<string | null> => {
         try {
           return await readFile(at, "utf8")
@@ -307,64 +114,8 @@ export const readLocal = (
       ),
   )
 
-/** How many records this process has staged — the tail of a staged file's
- *  name, so two overlapping writes to one destination stage through two files
- *  and only one of them is ever renamed away. See {@link writeLocal}: it has to
- *  differ from the other names in the air right now, and nothing more. */
 let staging = 0
 
-/**
- * ... and writing one down, staged beside its destination and renamed onto it.
- *
- * The way every other file olai writes lands: a half-written record read by the
- * next boot would be a parse failure reported to somebody who did nothing
- * wrong, and `rename` within one directory is atomic. The home is minted
- * owner-only, and so is the file.
- *
- * `undefined` is how `JSON.stringify` spells a field that is not there, which
- * is what a half nobody has chosen IS on disk — so a caller passes `undefined`
- * rather than inventing a null.
- *
- * ## The staged name is unique per CALL, and that is the whole of a defect
- *
- * ONE PROCESS CAN HAVE TWO OF THESE IN THE AIR AT ONCE — two tabs on one
- * panel, a double-click on a picker, a boot fiber and a protocol callback
- * writing the same record — and two calls sharing one staged name do not lose a
- * byte, they LIE. A writes the stage; B overwrites it; A renames it onto the
- * destination; B's rename then fails ENOENT, so B reports a failure to the
- * person who just made the gesture for bytes that are on the disk. A refusal
- * over a write that landed is the worst answer available here, because it is
- * the one a caller acts on: {@link StateFailure} is the channel that tells
- * somebody their pick did not stick, and the record it names says it did.
- * {@link staging} makes the name a call's own; the pid stays in front of it, so
- * a leftover still names the process that left it, and two olai servers over
- * one home never meet in the same file. `@olai/store`'s `disk.ts` stages by pid
- * and counter for exactly this reason.
- *
- * NOT a `mkdtemp` per call and not a random suffix: the only writers that can
- * collide on this name are calls inside THIS process — every other process is
- * already held off by its own pid — so a counter that never repeats within a
- * process is the whole requirement, at no syscall and no entropy. And not a
- * lock file, which is a second thing on disk to leave behind and to clean up
- * after a kill, to buy an ordering nobody here wants: these two writes are
- * genuinely concurrent and either may win.
- *
- * The `rm` on the failure path is unchanged and is still exactly right — with a
- * name per call it removes the file this call wrote and cannot reach into
- * another call's.
- *
- * IT USED TO BE `<file>.<pid>.tmp`, one name per destination per process, and
- * the hazard was patched TWICE ABOVE before it was closed here: `olai-plugin-chat`'s
- * `agent.ts` put a semaphore around the one writer of its memory note, and
- * `scopes.ts` took a second one on the strength of the same reading. A leaf
- * that is only correct while every tenant remembers to queue is a leaf that is
- * wrong on the next tenant — nothing in this file's types says a caller owes it
- * a permit, and the second tenant learnt the rule by reading the first. So the
- * fix belongs at the name. The permits above stay, because each has a job of
- * its own that no staging name provides: `scopes.ts` reads, modifies and writes
- * an in-memory mirror and would lose a pick without one, and `agent.ts` orders
- * two writes that must land in the order they were made.
- */
 export const writeLocal = (
   at: string,
   local: LocalRecord & Record<string, unknown>,
@@ -385,18 +136,6 @@ export const writeLocal = (
       new StateFailure({ why: `\`${at}\` could not be written: ${reasonOf(cause)}` }),
   })
 
-/**
- * Drop every record whose served directory no longer exists. Returns how many
- * it dropped, so the boot that ran it can say so.
- *
- * See the header for the whole ruling: run at server start, ONLY ENOENT is a
- * dead directory, and anything unreadable, unparseable, `cwd`-less, staged or
- * unanswerable is LEFT — a record is never pruned on a non-answer.
- *
- * Plain and synchronous rather than an {@link Effect}, for `sweepRuntime`'s
- * reason: it sweeps, and a sweep that cannot reach one file moves on to the
- * next. Where THAT one runs is `holdVault`, beside this one's.
- */
 export const pruneGone = (): number => {
   const home = stateHome()
   let tenants: ReadonlyArray<fs.Dirent>
@@ -424,18 +163,6 @@ export const pruneGone = (): number => {
   return pruned
 }
 
-/**
- * One record's hearing: dead or not.
- *
- * The `cwd` inside the file is the question — a record is ABOUT the directory
- * it names, and the file's own name is only a digest of it. A `stat` that
- * answers is the whole ruling: ENOENT says the directory is gone and the
- * record may go; any other answer, or no answer, keeps it. A relative `cwd`
- * keeps it too, and it is the one ruling this sweep could otherwise get wrong:
- * the stat would resolve against wherever this process happened to be
- * started, so the same record would be "dead" from one boot and "alive" from
- * the next. The unlink's own failure keeps the record too, and is not counted.
- */
 const goneRecord = (at: string): boolean => {
   let held: unknown
   try {
@@ -459,13 +186,6 @@ const goneRecord = (at: string): boolean => {
   }
 }
 
-/**
- * ...and one local directory's: the same ruling over its {@link
- * LOCAL_DIRECTORY_MARK}. Anything that is not a directory carrying a readable
- * absolute mark is left, so a staged `.tmp` or a stranger's file is never
- * touched; a removal that fails part-way keeps what it could not remove and is
- * not counted.
- */
 const goneDirectory = (at: string): boolean => {
   let cwd: string
   try {
@@ -489,8 +209,5 @@ const goneDirectory = (at: string): boolean => {
   }
 }
 
-/** What went wrong, in the words the thing that failed used. Spelled here
- *  rather than taken from `@olai/log`, because that would be a workspace
- *  sibling on a leaf whose whole claim is that it has none. */
 const reasonOf = (cause: unknown): string =>
   cause instanceof Error ? cause.message : String(cause)

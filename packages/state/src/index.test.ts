@@ -1,14 +1,3 @@
-/**
- * The two claims this leaf makes, and neither is testable through a consumer.
- *
- * WHICH FILE a directory gets is what two processes have to agree on — a lock
- * and a remembered conversation over one vault — and the interesting half of
- * it is the realpath: a person types `olai web ~/notes` in one terminal and
- * `olai web .` from inside a symlink to it in another. `olai-plugin-chat`'s memory
- * exercises the read/write pair as its own record; what is here is the naming,
- * and the guard that keeps one directory's file from being read as another's.
- */
-
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import * as fs from "node:fs"
@@ -29,9 +18,6 @@ import {
   writeLocal,
 } from "./index.ts"
 
-/** A temp directory, and the environment put back afterwards — both homes are
- *  read at call time so a test may point them anywhere, which is the whole
- *  reason they are functions. */
 const withState = async (use: (dirs: {
   readonly root: string
   readonly home: string
@@ -56,9 +42,6 @@ test("both homes are read at call time, so a process can be pointed anywhere", (
     process.env["XDG_RUNTIME_DIR"] = "/somewhere/run"
     expect(stateHome()).toBe("/somewhere/state/olai")
     expect(runtimeHome()).toBe("/somewhere/run/olai")
-    // No runtime directory is the fixed per-user `/tmp` path rather than
-    // `os.tmpdir()`, which differs by launch context — a systemd-started olai
-    // and one a person typed would otherwise lock two different files.
     delete process.env["XDG_RUNTIME_DIR"]
     expect(runtimeHome()).toStartWith("/tmp/olai-")
   } finally {
@@ -69,32 +52,20 @@ test("both homes are read at call time, so a process can be pointed anywhere", (
   }
 })
 
-/**
- * THE REALPATH, which is the load-bearing half.
- *
- * Two spellings of one directory must be one file, or a vault reached through a
- * symlink is a second brain and a second remembered conversation.
- */
 test("one directory is one name, however it was spelled", () =>
   withState(async ({ root }) => {
     const link = `${root}-link`
     fs.symlinkSync(root, link)
     try {
-      // The resolving is `canonical`'s; `digestOf` names whatever it is handed,
-      // so one `realpath` serves the file's name and the guard inside it.
       expect(canonical(link)).toBe(root)
       expect(canonical(`${root}/`)).toBe(root)
       expect(digestOf(canonical(link))).toBe(digestOf(canonical(root)))
-      // ... and two DIFFERENT directories are two names.
       expect(digestOf(root)).not.toBe(digestOf(`${root}-other`))
     } finally {
       fs.unlinkSync(link)
     }
   }))
 
-/** A path that does not exist has no realpath and falls back to the resolved
- *  spelling: a caller is about to fail on the missing directory anyway, and
- *  this must not be what tells them so. */
 test("a directory that is not there still has a name", () => {
   expect(canonical("/no/such/place")).toBe("/no/such/place")
   expect(digestOf(canonical("/no/such/place"))).toHaveLength(16)
@@ -124,46 +95,25 @@ test("what is written comes back, under a home that did not exist", () =>
     await Effect.runPromise(writeLocal(at, { cwd: root, session: "abc" }))
     expect(await Effect.runPromise(readLocal(at, root)))
       .toMatchObject({ cwd: root, session: "abc" })
-    // Owner-only, both the home and the file: this is somebody's state
-    // directory, not a shared one.
     expect(fs.statSync(at).mode & 0o777).toBe(0o600)
     expect(fs.statSync(path.dirname(at)).mode & 0o777).toBe(0o700)
-    // ... and nothing is left staged beside it.
     expect(fs.readdirSync(path.dirname(at))).toEqual([path.basename(at)])
   }))
 
-/**
- * TWO WRITES IN THE AIR AT ONCE, which is what a staged name per PROCESS used
- * to turn into a lie.
- *
- * A and B stage, one of them renames first, and the other's rename found
- * nothing there — so a caller was told its write failed for bytes that had
- * landed. Both must succeed, and the file must hold ONE OF THE TWO WHOLE:
- * either is a correct answer here, since the two are genuinely concurrent and
- * nothing orders them; a mixture of the two is not.
- */
 test("two writes at once both land, and the file holds one of them whole", () =>
   withState(async ({ root }) => {
     const at = fileForLocal("chat", root)
-    // Long enough that a shared stage would show as a torn record rather than
-    // one that happened to be the same length as the other.
     const a = "a".repeat(4096)
     const b = "b".repeat(4096)
     await Effect.runPromise(Effect.all(
       [writeLocal(at, { cwd: root, session: a }), writeLocal(at, { cwd: root, session: b })],
       { concurrency: "unbounded" },
     ))
-    // A read that got a mixture would not parse, so arriving here at all is
-    // half the claim; which of the two it is, is nobody's to say.
     const held = await Effect.runPromise(readLocal(at, root))
     expect([a, b]).toContain(held?.["session"] as string)
-    // ... and neither call left its stage behind.
     expect(fs.readdirSync(path.dirname(at))).toEqual([path.basename(at)])
   }))
 
-/** A file about some OTHER directory is not this one's. Not damage either — a
- *  digest collision, or a state home somebody copied — so the honest answer is
- *  that nothing here says. */
 test("a record about another directory is answered as nothing", () =>
   withState(async ({ root }) => {
     const at = fileForLocal("chat", root)
@@ -171,8 +121,6 @@ test("a record about another directory is answered as nothing", () =>
     expect(await Effect.runPromise(readLocal(at, root))).toBeNull()
   }))
 
-/** Bytes that are not JSON ARE damage, and come out the error channel with the
- *  path on them — a caller renders it and carries on. */
 test("a record that will not parse is news", () =>
   withState(async ({ root }) => {
     const at = fileForLocal("chat", root)
@@ -186,13 +134,6 @@ test("a record that will not parse is news", () =>
     }
   }))
 
-/**
- * THE SWEEP over records whose directories are gone — the boot-time half of
- * what keeps the home from growing one file per /tmp directory the machine
- * ever served. What is pinned here is the CONSERVATISM the header rules:
- * ENOENT alone is a dead directory, and the home otherwise keeps what it
- * holds.
- */
 test("a record whose directory answers ENOENT is pruned; a live one stays", () =>
   withState(async ({ root, home }) => {
     const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
@@ -204,15 +145,12 @@ test("a record whose directory answers ENOENT is pruned; a live one stays", () =
     expect(pruneGone()).toBe(1)
     expect(fs.existsSync(dead)).toBe(false)
     expect(fs.existsSync(alive)).toBe(true)
-    // Second sweep is a no-op: what is gone stays gone, nothing double-counts.
     expect(pruneGone()).toBe(0)
     expect(fs.existsSync(path.join(home, "olai"))).toBe(true)
   }))
 
 test("a sweep walks every tenant directory, not only the kinds this build knows", () =>
   withState(async ({ home }) => {
-    // `mirror` is no kind this build names; a machine's home holds older
-    // builds' tenants too, and a record is its `cwd`, not its subdirectory.
     const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
     fs.rmSync(gone, { recursive: true, force: true })
     const foreign = path.join(home, "olai", "mirror", `${digestOf(gone)}.json`)
@@ -234,11 +172,6 @@ test("a plugin's local state whose directory is gone is pruned too", () =>
 
 test("a record whose directory merely fails to answer stays — only ENOENT is dead", () =>
   withState(async ({ root, home }) => {
-    // The parent made unreadable, the file under it unanswerable: EACCES
-    // where root does not rule. Under root (CI) this case still ends 0 —
-    // root reads straight through the wall and the record stays VIA the
-    // stat answering rather than via the error: a success on the keep
-    // branch. The ENOTDIR half below pins the branch itself.
     const wall = path.join(root, "walled")
     fs.mkdirSync(wall)
     const beyond = path.join(wall, "vault")
@@ -252,9 +185,6 @@ test("a record whose directory merely fails to answer stays — only ENOENT is d
     } finally {
       fs.chmodSync(wall, 0o700)
     }
-    // ENOTDIR: `<file>/vault` can never be a directory, and statSync's
-    // answer is ENOTDIR for every user, root included — the non-ENOENT keep
-    // branch, with no way to be satisfied by success.
     const blocker = path.join(root, "afile")
     fs.writeFileSync(blocker, "not a directory\n")
     const pinned = path.join(home, "olai", "chat", `${digestOf(`${blocker}/vault`)}.json`)
@@ -291,25 +221,12 @@ test("no home is no sweep rather than a failure", () => {
   }
 })
 
-/**
- * The AMBIENT half of the test-harness ruling: a `bun test` run never lets a
- * boot (in-process or spawned) fall through to the developer's own state
- * home — `scripts/bun-test-preload.ts` hands the whole process a temp
- * `$XDG_STATE_HOME` before any file loads, the way it already hands it a
- * runtime directory. Every test above re-points the variable per case; THIS
- * one is about the answer a test gets when it does not.
- */
 test("bun test never answers with the developer's own state home by default", () => {
   expect(process.env["XDG_STATE_HOME"]).toBeDefined()
   expect(process.env["XDG_STATE_HOME"]).not.toBe("")
   expect(stateHome()).not.toBe(path.join(os.homedir(), ".local", "state", "olai"))
 })
 
-/**
- * THE LOCAL DIRECTORY — the record's sibling for state that is a tree of files
- * rather than a note: owner-only, guarded by its served path, refused when it
- * belongs to another one, and swept like a record when that path is gone.
- */
 test("a local directory sits beside the record, owner-only, and reopens to the same path", () =>
   withState(async ({ root, home }) => {
     const at = directoryForLocal("browsing", root)
