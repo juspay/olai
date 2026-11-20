@@ -1,5 +1,3 @@
-/** Glyph contributions are derived once per location change, owned by the
- * sidebar activation. Claim lookup still reads the current vault snapshot. */
 import { forFileClaim } from "@olai/plugin-api/file-kinds"
 import type { Locations } from "@olai/plugin-api/contracts"
 import { heldService } from "@olai/ui-primitives/held.ts"

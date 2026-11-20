@@ -1,4 +1,3 @@
-/** File glyph presentation; contribution lifetime belongs to drawings.ts. */
 import { Dynamic } from "solid-js/web"
 import { drawingOf } from "./drawings.ts"
 import { TESTID } from "./testids.ts"

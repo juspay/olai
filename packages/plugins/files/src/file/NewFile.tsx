@@ -1,40 +1,3 @@
-/**
- * The sidebar's way to a file that does not exist yet — ONE box, for both kinds
- * of file the directory holds.
- *
- * It was one component and then, three days later, two: `+ New outline` was
- * written by copying `+ New document`, which is the concept-multiplication
- * every review catches (`parity-create-outline`). What the two actually differ
- * about is FOUR WORDS and where a landed write goes; everything else — the
- * menu item that opens a path box, the caret arriving in it, Enter,
- * Escape, the empty box that asks for nothing, the refusal drawn verbatim
- * underneath, the click that must not close the mobile drawer — was the same
- * decision twice, free to drift the day one of them grew a fifth.
- *
- * ## Nothing here judges a path, and one thing completes one
- *
- * A path that is absolute, climbs with `..` or names a file the set already
- * holds is refused by `files_create` / `markdown_create` in its own words,
- * and that sentence is what is drawn. A browser that pre-checked any of it
- * would be a second rule, free to disagree with the one an agent meets — which
- * is the consistency rule read at the smallest scale there is.
- *
- * What this box does do to what was typed is COMPLETE it: a door knows which
- * kind of file it makes and the wire deliberately does not, so `Foo` at the
- * outline door is asked for as `Foo.olai` (`./completing.ts` holds that rule,
- * the argument for it, and the one refusal that is the box's own rather than
- * the ops layer's). Every other verdict is still the ops layer's, over the path
- * this hands it.
- *
- * ## The two halves that differ
- *
- * {@link Making} is the WORDS — a value, so the two doors cannot end up called
- * different things by two components — and `create` is the write, handed in
- * because the two really do land differently: a minted document opens its
- * editor through a one-shot hand-off (`../document/minted.ts`), and a minted
- * outline opens its page, where the first row is already offered. Both answer
- * the same way: the refusal to draw, or `null` for a write that landed.
- */
 import { servedDirectory } from "../vault.ts"
 import { createSignal,Show } from "solid-js"
 
@@ -51,8 +14,6 @@ const newDraft = () => ({
   revision: 0,
 })
 
-// Sidebar components rebuild when plugins change. Each file kind keeps its
-// draft and pending response identity until the user closes or submits it.
 const drafts = new Map<Making["of"], ReturnType<typeof newDraft>>()
 const draftOf = (of: Making["of"]) => {
   const draft = drafts.get(of) ?? newDraft()
@@ -60,21 +21,12 @@ const draftOf = (of: Making["of"]) => {
   return draft
 }
 
-/** OPEN THE BOX for one kind of file — what the Outlines heading's `+` menu
- *  does when a reader picks `New outline` or `New document` (`../NewMenu.tsx`).
- *  The box itself is still the kind's own `Create`, drawn under the heading;
- *  this only says it is asked for. A box already open keeps what it holds. */
 export const openNewFile = (of: Making["of"]): void => {
   draftOf(of).open[1](true)
 }
 
 export function NewFile(props: {
-  /** What this door is called, and the names the browser tests find it by. */
   readonly making: Making
-  /** Mint it, at the path the box completed ({@link meantAt}) rather than at
-   *  the characters that were typed. Answers with the refusal to draw,
-   *  verbatim, or `null` when the write landed — at which point the box puts
-   *  itself away. */
   readonly create: (file: string) => Promise<string | null>
 }) {
   const draft = draftOf(props.making.of)
@@ -92,16 +44,10 @@ export function NewFile(props: {
 
   const send = async (): Promise<void> => {
     if (sending()) return
-    // THREE THINGS the box does with what is in it, and which of them is
-    // `./completing.ts`'s answer rather than a reading of its own: an empty box
-    // is not a refusal to draw — nobody has asked for anything yet.
     const claims = servedDirectory()?.claims()
     if (claims === undefined) return
     const meant = meantAt(claims, props.making.of, path())
     if (meant === null) return
-    // ONE LINE draws both sentences, and that is the point of drawing the box's
-    // own one here rather than beside it: which layer refused a path is not a
-    // difference the person who typed it should have to see.
     if ("refused" in meant) {
       setSaid(meant.refused)
       return
@@ -110,8 +56,6 @@ export function NewFile(props: {
     const submitted = draft.revision
     try {
       const refused = await props.create(meant.file)
-      // Typing another name, or dismissing and reopening the box, gives it
-      // a new draft. An earlier response cannot clear or annotate that draft.
       if (draft.revision !== submitted) return
       if (refused === null) close()
       else setSaid(refused)
@@ -120,10 +64,6 @@ export function NewFile(props: {
     }
   }
 
-  // CLOSED, IT DRAWS NOTHING: the way in is the Outlines heading's `+` menu
-  // (`../NewMenu.tsx`), which opens this draft by kind ({@link openNewFile}).
-  // The quiet `+ New …` row each kind used to draw under the tree left with
-  // the 2026-09 simplification.
   return (
     <Show when={open()}>
       <div class="mb-1 px-1">
@@ -134,30 +74,13 @@ export function NewFile(props: {
           aria-label={props.making.aria}
           aria-busy={sending()}
           placeholder={props.making.placeholder}
-          // `done`, because that is literally what the return key does here:
-          // `send()` makes the file and `close()` takes the box off the screen
-          // (`onKeyDown`, below). Not `go` — nothing is navigated to from the
-          // box itself — and not `next`, which would promise a second field
-          // this draft does not have.
-          //
-          // No `inputmode`. A path is typed on the ordinary keyboard: `url`
-          // would hand somebody a `.com` key for a name like
-          // `notes/garden.olai`, which is a worse keyboard than the default
-          // rather than a better one.
-          //
-          // A FILE NAME IS AN IDENTIFIER, so the corrections go off. The
-          // capital is the one that bit on a phone: iOS shifts the first
-          // letter of an empty box, so `Garden.olai` is the file somebody got
-          // after typing `garden.olai`, and the tree sorts and matches on what
-          // was written. `spellcheck` already said the same thing one line up.
+          // iOS shifts the first letter of an empty box, so `garden.olai`
+          // would arrive as `Garden.olai` on disk.
           enterkeyhint="done"
           autocorrect="off"
           autocapitalize="none"
           spellcheck={false}
           value={path()}
-          // The caret in the box the moment it is drawn, on the microtask the
-          // date picker's own field uses — a timer here would be a third
-          // spelling of one gesture.
           ref={(box) => queueMicrotask(() => box.focus())}
           onClick={(event) => event.stopPropagation()}
           onInput={(event) => {
@@ -168,16 +91,8 @@ export function NewFile(props: {
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault()
-              // THE IME'S ENTER IS NOT THIS BOX'S ENTER. Confirming a candidate
-              // in Japanese, Chinese or Korean is a `keydown` whose `key` reads
-              // `Enter` — so without this, picking the first candidate of a
-              // filename would create the file under whatever was half-written.
-              // Navigation installs a window-capture guard that stops a
-              // composing key reaching any handler, but this box is OFFERED
-              // (`files.state`'s `New`) and drawn by whoever asks, including
-              // rows that declare nothing of navigation's — so the guard being
-              // installed is a fact about the page rather than a promise to
-              // this component.
+              // Confirming an IME candidate (Japanese, Chinese, Korean) is a
+              // `keydown` whose `key` reads `Enter`.
               if (composing(event)) return
               void send()
             }

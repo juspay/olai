@@ -37,12 +37,7 @@ Feature: The files olai names for itself, and the doors onto them
   Background:
     Given I open the outline "house.olai"
 
-  # ── the tree stops drawing them; the group at the foot keeps them ────
-
   Scenario: A minted shelf is the shelf, and not also a row in the tree
-    # THE BUG, as a scenario. Pinning mints `_olai/Pins.olai`; before this
-    # change the tree grew an `_olai` folder holding a `Pins` row, a second way
-    # into the file the shelf directly above it already draws.
     When I pin the page
     Then the pinned shelf holds "/house.olai"
     And "_olai/Pins.olai" holds a node titled "/house.olai"
@@ -51,21 +46,13 @@ Feature: The files olai names for itself, and the doors onto them
     And there should be no page errors
 
   Scenario: The reader's own files are untouched by the rule
-    # The fence against a filter that reached too far: only `_olai/` goes, and
-    # only at the root. Folders start collapsed, so a file inside one is
-    # reached the way a reader reaches it.
     When I pin the page
     Then the outline list links to "house.olai"
     And the file tree shows the folder "Daily"
     When I expand the folder "Daily"
     Then the outline list links to "Daily/2026-08.olai"
 
-  # ── the vault group: a home, not a switch ────────────────────────────
-
   Scenario: The vault group is the way into the files olai named
-    # THE REPLACEMENT RULING. Where the Prefs switch needed finding and
-    # flipping, the group needs nothing: the pin mints the file and the row
-    # is THERE, in Trash's register, below every row of the reader's own.
     When I pin the page
     Then the vault group links to "_olai/Pins.olai"
     And the vault group sits below the file tree
@@ -76,11 +63,6 @@ Feature: The files olai names for itself, and the doors onto them
     And there should be no page errors
 
   Scenario: The furniture nests under one parent, and the Trash stands at the foot
-    # THE 2026-08-31 RULING kept: one mechanism, one parent for the house's
-    # own furniture, a row named for the house that is no page and no fold.
-    # THE 2026-09 SIMPLIFICATION moved the Trash out: it is the trash row's
-    # own entry, pinned at the column's foot, so a directory with no `_olai/`
-    # file draws no empty parent at all.
     Then the Trash door stands at the sidebar's foot, outside the group
     When I pin the page
     Then the vault group is one parent named "olai"
@@ -89,10 +71,6 @@ Feature: The files olai names for itself, and the doors onto them
     And there should be no page errors
 
   Scenario: The trash is out of the tree either way, because it is not a file you edit
-    # The older ruling, and the group does not reach it: `_olai/Trash.olai`
-    # is read on the Trash page and nowhere else, so it is not an outline the
-    # group may offer even though it lives in the directory the group reads.
-    # The pin is what puts a faceable file in `_olai/` at all.
     When I pin the page
     And I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
@@ -103,11 +81,6 @@ Feature: The files olai names for itself, and the doors onto them
     And the outline list does not link to "_olai/Trash.olai"
 
   Scenario: An outline that will not parse is marked in the group, not hidden
-    # THE EXCEPTION, and the reason the group exists at all: the ⚠ is the
-    # only way this app reports a file it could not read without somebody
-    # opening the page to find out — so a `Pins.olai` that will not parse
-    # must wear it WHERE the reader will see it, at the home these files
-    # live in now (never silently ignore errors).
     When I pin the page
     # The shelf FIRST, so the rewrite below lands on a file the pin has already
     # been written into rather than racing that write.
@@ -121,11 +94,6 @@ Feature: The files olai names for itself, and the doors onto them
     And the outline list does not link to "_olai/Pins.olai"
 
   Scenario: A file added under _olai/ joins the group as it lands
-    # THE LIVE PROPERTY, and the whole reason the group reads the directory
-    # rather than a LIST: a config the reader (or the watch setup) writes is
-    # a row on the next publish — no preference, no rescan, no restart of
-    # anything. And the wrench in the padi drawer can land on it because of
-    # exactly this.
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"watch","ord":"a0","title":"watch"}
@@ -134,13 +102,7 @@ Feature: The files olai names for itself, and the doors onto them
     But the outline list does not link to "_olai/Settings.olai"
     And there should be no page errors
 
-  # ── the inbox mints under _olai/, and gets a door ────────────────────
-
   Scenario: A directory that has never captured offers no Inbox
-    # Minting is the capture's job — ONE op, so a refused capture leaves no
-    # file behind. A door offering to create one would be a second way to mint
-    # the one file whose whole promise is that the write that fills it makes
-    # it.
     Then the sidebar offers no Inbox
     And there should be no page errors
 
@@ -150,8 +112,6 @@ Feature: The files olai names for itself, and the doors onto them
     Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
     When I close the palette
     Then the sidebar offers the Inbox
-    # Not also a tree row: it is a file olai named for itself. The vault
-    # group keeps its door, since the group is the files' home now.
     And the outline list does not link to "_olai/Inbox.olai"
     And the vault group links to "_olai/Inbox.olai"
     When I open the Inbox from the sidebar
@@ -160,11 +120,6 @@ Feature: The files olai names for itself, and the doors onto them
     And there should be no page errors
 
   Scenario: An inbox that will not parse says so on its own door
-    # THE DOOR'S OWN FENCE. The door is in two places at once — the entry
-    # beside Agenda AND the vault group's row — and the ⚠ every unreadable
-    # outline gets is on BOTH. Asserted on the door alone: the group row's
-    # mark is the scenario above, and a step that read a row would stay
-    # green with the door's mark dropped.
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
     # The file FIRST, so the rewrite below lands on an inbox the capture has
@@ -193,12 +148,7 @@ Feature: The files olai names for itself, and the doors onto them
     Then the address is "/_olai/Inbox.olai"
     And there should be no page errors
 
-  # ── the door sits by Agenda and wears its count ───────────────────────
-
   Scenario: The Inbox sits beside Agenda, not down with Trash
-    # THE POSITION, as a scenario. The ruling moved the door up with the
-    # primary destinations; a test that only asked "is there an Inbox" would
-    # stay green with it still parked above Trash.
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
     When I close the palette
@@ -225,8 +175,6 @@ Feature: The files olai names for itself, and the doors onto them
     And there should be no page errors
 
   Scenario: An empty inbox wears no count
-    # No chip at all rather than a nought: an inbox with nothing in it is a
-    # door, not news — the same ruling Agenda's quiet face already keeps.
     When I create the outline "_olai/Inbox.olai" from the sidebar
     Then the sidebar offers the Inbox
     And the Inbox wears no count

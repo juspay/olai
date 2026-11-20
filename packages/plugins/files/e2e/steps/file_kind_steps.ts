@@ -63,8 +63,6 @@ Then("the unclaimed file {string} is absent and refused by the outline tool", as
 })
 Then("the directory reports both ambiguous Trash convention files", async function(this: OlaiWorld) {
   await this.waitUntil(async () => {
-    // A finding blaming files is on those files' read refusal, not the
-    // directory-wide errors cell (which may correctly remain empty).
     const text = JSON.stringify(await tool(this, "outlines_subtree", { file: "_olai/Trash.olai" }))
     return text.includes("ambiguous-convention") && text.includes("_olai/Trash.olai") && text.includes("_olai/TRASH.olai")
   }, "ambiguous convention finding")
@@ -79,7 +77,6 @@ When("the PDF row is disabled in the settings file", function(this: OlaiWorld) {
   writeFileSync(path, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")
 })
 
-/** A browser history traversal, with no visit/reload or private service read. */
 When("I navigate within the tab to {string}", async function(this: OlaiWorld, address: string) {
   await this.page.evaluate(address => {
     history.pushState(null, "", address)
@@ -95,7 +92,6 @@ Then("the held file {string} has the plain-file fallback", async function(this: 
   assert.equal(await link.getByTestId(TESTID.fileGlyph).locator("svg").count(), 1)
 })
 
-/** A fresh subscription to the public browser surface, not the rendered tree. */
 Then("fresh heads {word} {string}", async function(this: OlaiWorld, membership: string, file: string) {
   await this.waitUntil(async () => {
     const paths = await this.page.evaluate(() => new Promise<string[]>((resolve, reject) => {

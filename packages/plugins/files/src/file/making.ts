@@ -1,40 +1,9 @@
-/**
- * The two files a person can start from the sidebar, as values: what each door
- * is called, and the names a browser test finds it by.
- *
- * A table rather than props spelled at two call sites, for `../edges/
- * relation.ts`'s reason one directory over: the words and the kind are the
- * whole of what differs between the two doors, so they are the thing to keep
- * in one place — and a third kind of file would be a row here rather than a
- * third copy of a path box.
- *
- * The TESTIDS travel with the words rather than being derived from a `kind`,
- * because a `data-testid` is a contract between two packages that never import
- * each other (`../testids.ts`): `new-document` is what the suite has always
- * asked for, and a rename to serve a refactor in this package would be a break
- * in the other one for nothing.
- */
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "olai-plugin-files/testids"
 export interface Making {
-  /** Which kind of file this door mints — the tree's own glyph, so a row that
-   *  makes an outline looks like the outlines above it. */
   readonly of: string
-  /** The affordance's own words: its item in the Outlines heading's `+`
-   *  menu. */
   readonly label: string
-  /** What the empty box suggests — a path, because a file's name IS its
-   *  address in this app (the sidebar, the URL and every reading of the set
-   *  call it by it), so the honest question asks for exactly that.
-   *
-   *  It shows the path WITHOUT the suffix, which is the shorter of the two
-   *  spellings the box takes (`./completing.ts`): a suggestion is what a
-   *  person copies, and suggesting the longer one taught the door's own rule
-   *  backwards. */
   readonly placeholder: string
-  /** What the box is called to a screen reader — including the half a
-   *  placeholder cannot say out loud, since a screen reader reads this label
-   *  and not the grey example inside the box. */
   readonly aria: string
   readonly testids: {
     readonly open: TestId

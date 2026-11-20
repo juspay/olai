@@ -1,8 +1,3 @@
-/**
- * The sidebar's half of the same memory — the same three questions as
- * ./memory.test.ts, over the set that is INVERTED because folders start shut.
- */
-
 import { expect, test } from "bun:test"
 
 import { parseFolders, printFolders, prunedFolders } from "./folders.ts"
@@ -29,7 +24,5 @@ test("a folder that is not in the directory any more is dropped", () => {
 })
 
 test("a directory that has not loaded prunes nothing", () => {
-  // Same rule as the outline's folds: an empty answer is "this browser does
-  // not know yet", which is not evidence that a folder is gone.
   expect(prunedFolders(new Set(["notes"]), new Set())).toEqual(new Set(["notes"]))
 })

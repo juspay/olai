@@ -1,5 +1,3 @@
-/** Contribution work follows the location and leaves with its activation,
- * regardless of how many file glyphs ask for a drawing. */
 import { expect, test } from "bun:test"
 import { createSignal } from "solid-js"
 import type { Locations } from "@olai/plugin-api/contracts"

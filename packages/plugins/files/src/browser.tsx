@@ -1,7 +1,5 @@
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./landings.ts"
-/** Directory membership and folder preferences belong to files, independently
- * of sidebar presentation. Content providers register creation controls. */
 import { holdKindDrawings } from "./drawings.ts"
 import { Edits, Wired, editApply } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
@@ -27,33 +25,20 @@ import { followReference } from "./fold/reference.ts"
 export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
     const landingTable = yield* Landings
     yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
- // The served directory the tree is drawn from, held for this activation
- // (`./vault.ts`).
  const served = yield* fileAccess
  yield* Effect.acquireRelease(Effect.sync(()=>holdServed(served)),stop=>Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
-  // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
-  // `Edits` rather than pushed into a module-scope map in a general package
-  // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
-  // beside it is how this row's faces spend the same table (`./writes.ts`).
   const edits = yield* Edits
   yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
 
- // The minting box keeps a draft per activation; the CONTROLS themselves
- // travel on `files.state` below rather than in a signal on a declared door.
  yield* Effect.acquireRelease(Effect.void,()=>Effect.sync(clearNewFileMemory))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(followReference), stop => Effect.sync(stop))
- // `open` is pressed from OUTSIDE the sidebar (an empty page's `New outline`),
- // so it also brings the sidebar into view: on a phone the box would otherwise
- // open inside a shut drawer, and the press would look like it did nothing.
  yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile,open:(of:Parameters<typeof openNewFile>[0])=>{openNewFile(of);revealSidebar()}}))
 })})
 export const components = {
- /** The shell's geometry, DECLARED — a component of its own because content
-  *  runs under another layout entirely (`./shell.ts`). */
  shell: definePlugin({name:"shell", needs:[appShell], apply:Effect.gen(function*(){
   const geometry=yield* appShell
   yield* Effect.acquireRelease(Effect.sync(()=>holdShell(geometry)),stop=>Effect.sync(stop))

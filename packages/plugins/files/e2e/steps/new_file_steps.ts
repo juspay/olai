@@ -1,21 +1,3 @@
-/**
- * Starting a FILE that does not exist yet — the sidebar's two path boxes.
- *
- * Two features are served from here, which is the same exception `menu_steps.ts`
- * makes and for the same reason: `document_editing.feature` and
- * `new_outline.feature` drive ONE control (`web/src/client/file/NewFile.tsx`),
- * and they were two copies of "open it, type a path, press Enter, read the
- * refusal" that differed in three constants. The client collapsed that copy
- * when the outline's door landed; a suite that kept it would be the same drift
- * one package over — and the drift that matters, since a step file is where a
- * promise is actually held.
- *
- * The KIND is a word in the step, and what it selects comes from the client's
- * own table (`file/making.ts`) rather than from a list restated here. That is
- * the arrangement this package already keeps for every `data-testid`: a
- * contract between two packages that never otherwise meet, imported so that a
- * rename is a type error rather than a thirty-second timeout.
- */
 import { TESTID } from "@olai/tests/harness/testids.ts"
 import * as assert from "node:assert";
 import * as fs from "node:fs";
@@ -24,11 +6,6 @@ import * as path from "node:path";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { selector } from "@olai/web/testlib"
-// WHICH DOOR MINTS WHAT is the files row's, and so is the word for it. It was
-// re-exported from `@olai/web/testlib`, which made a general package declare
-// `olai-plugin-files` for three names about a plugin's own door — the equality
-// `@olai/bundle`'s `fence.test.ts` holds per package. Asked of the door itself,
-// a rename over there is a type error here rather than a bare timeout.
 import { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "../../src/file/making.ts"
 
 import { saysThat } from "@olai/tests/harness/said.ts";
@@ -36,9 +13,6 @@ import { keysSettled } from "@olai/tests/harness/settling.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/** Which door a scenario means. A throw rather than a default, because a
- *  scenario naming a third kind of file is a scenario about something that
- *  does not exist. */
 const making = (kind: string): Making => {
   if (kind === "outline") return MAKING_OUTLINE("outline-olai");
   if (kind === "document") return MAKING_DOCUMENT("markdown");
@@ -65,8 +39,6 @@ When("I open the Outlines + menu", async function (this: OlaiWorld) {
   await openNewMenu(this);
 });
 
-/** By keyboard only: Tab lands on the `+` from the heading row before it, and
- *  Enter presses it — a real button, not a pointer-only glyph. */
 When("I open the Outlines + menu from the keyboard", async function (this: OlaiWorld) {
   await this.showSidebar();
   const plus = this.page.locator(PLUS);
@@ -87,7 +59,6 @@ Then("the Outlines + menu offers {string}", async function (this: OlaiWorld, lab
 When("I choose {string} from the Outlines + menu with the keyboard", async function (this: OlaiWorld, label: string) {
   const item = this.page.locator(MENU).getByRole("menuitem", { name: label, exact: true });
   await item.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  // Arrow to it rather than click: the menu is a keyboard surface too.
   for (let step = 0; step < 4 && !(await item.evaluate((el) => el.hasAttribute("data-highlighted"))); step++) {
     await this.page.keyboard.press("ArrowDown");
   }
@@ -112,24 +83,17 @@ Then("the new {word} box has the caret", async function (this: OlaiWorld, kind: 
   );
 });
 
-/** No kind can be started here, so there is no `+` at all — never a button
- *  that opens an empty menu. */
 Then("the Outlines heading offers no +", async function (this: OlaiWorld) {
   await this.showSidebar();
   await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => (await this.page.locator(PLUS).count()) === 0, "the Outlines + to be withdrawn");
 });
 
-/** The box, opened and waited for. One spelling, because four steps start from
- *  it and a second "click, then wait" is where two of them would drift. It is
- *  idempotent: a box already open is one to type in, not one to reopen. */
 const boxOf = async (world: OlaiWorld, kind: string) => {
   const door = making(kind);
   await world.showSidebar();
   const path = selector(door.testids.path);
   if ((await world.page.locator(path).count()) === 0) {
-    // The way in is the Outlines heading's `+` and the kind's item in the
-    // menu it opens (`../../src/NewMenu.tsx`).
     await pickFromNewMenu(world, door);
   }
   const box = world.page.locator(path);
@@ -144,8 +108,6 @@ When(
   },
 );
 
-/** Typed but NOT sent — for the scenario about backing out, whose whole claim
- *  is that a path in the box is not a write. */
 When(
   "I fill the new {word} box with {string}",
   async function (this: OlaiWorld, kind: string, file: string) {
@@ -197,10 +159,6 @@ When(
   },
 );
 
-/** The ops layer's own sentence about the path, in the ALARM mood — through
- *  the one ritual every said-line in this suite is read by (`support/said.ts`),
- *  which is also what holds the mood: a refusal drawn quietly is a write a
- *  reader believes landed. */
 Then(
   "the {word} creation is refused saying {string}",
   async function (this: OlaiWorld, kind: string, said: string) {
@@ -215,11 +173,6 @@ Then(
   },
 );
 
-/** WHAT THE BOX STILL HOLDS after it has said something — the other half of a
- *  refusal that ends "type `notes` to make `notes.olai`". Advice about a name
- *  the box had thrown away would be advice nobody can take, and the retention
- *  is one uncleared signal in the client (`file/NewFile.tsx`), which is exactly
- *  the kind of thing that goes quietly. */
 Then(
   "the new {word} box still holds {string}",
   async function (this: OlaiWorld, kind: string, file: string) {
@@ -229,13 +182,6 @@ Then(
   },
 );
 
-/**
- * THE BOX A PAGE OPENED IS ONE A PERSON CAN SEE. An empty directory's `New
- * outline` is pressed on the page, and the box it opens is the files row's own,
- * drawn in the sidebar — so the sidebar has to come into view with it: the
- * column out of its rail on a desktop, the drawer on a phone. A box opened in a
- * shut drawer is a press that looked like it did nothing.
- */
 Then(
   "the sidebar is open with the new {word} box in it",
   async function (this: OlaiWorld, kind: string) {
@@ -259,20 +205,6 @@ Then(
   },
 );
 
-/**
- * WHAT THE ON-SCREEN KEYBOARD IS TOLD about the path box — which on a phone is
- * the whole of what it has to go on.
- *
- * The return key says Done because that is what it does here: the file is made
- * and the box closes. The three corrections are off because a path is a NAME,
- * and the capital is the one that actually bit — a phone shifts the first
- * letter of an empty box, so `garden.olai` would arrive as `Garden.olai` on
- * disk, in a tree that sorts and links by what was written.
- *
- * No `inputmode` at all, asserted rather than assumed: a path is typed on the
- * ordinary keyboard, and `url` here would hand somebody a `.com` key for
- * `plans/next.olai`.
- */
 Then(
   "the new {word} box asks for a Done key and no corrections",
   async function (this: OlaiWorld, kind: string) {

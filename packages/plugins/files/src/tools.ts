@@ -1,24 +1,3 @@
-/**
- * THE FILE ROW'S AGENT VERBS — one FILE made, one FILE gone, and nothing
- * between them that names a byte.
- *
- * They were entries in `@olai/ops`' one closed `TOOLS` table, which meant a
- * general package named this row's vocabulary and a serve without this row
- * still offered an agent a `files_delete` nothing stood behind. A tool leaves
- * with the row that owns it now (juspay/olai#546) — and these two are here
- * rather than beside the outline verbs because `create` and `delete` are cases
- * of THIS row's dispatch ({@link ./surface.ts}), which is what actually answers
- * them.
- *
- * THE UNIT IS A FILE, which is the fourth unit this surface admits and the one
- * that cost the most to say honestly: its undo story is GIT's rather than the
- * set's. `trash_restore` puts a record back; nothing spells a file back. What a
- * `files_delete` call can refuse YOU against is as long as what it can do, which
- * is argued where the request is declared (`@olai/format`'s `DeleteRequest`)
- * and said again in the tool's own description, because the description is the
- * agent's only manual.
- */
-
 import { CreateRequest, DeleteRequest } from "@olai/format"
 import { type Tool, write } from "@olai/ops"
 

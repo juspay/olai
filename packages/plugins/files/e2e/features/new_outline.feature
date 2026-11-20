@@ -31,9 +31,6 @@ Feature: Starting a new outline from the sidebar
     And there should be no page errors
 
   Scenario: The first row of it is written where the page offers one
-    # No seed on the wire, deliberately: an agent's `files_create` may be born
-    # holding a tree, and a person types the first line where it will live —
-    # which the empty outline's own page is already the affordance for.
     When I create the outline "plans/next.olai" from the sidebar
     And I start the first line
     And I type "buy the tickets"
@@ -47,9 +44,6 @@ Feature: Starting a new outline from the sidebar
     And the address is "/house.olai"
 
   Scenario: A bare name is the file the door makes, and is opened
-    # The bug this feature grew for: `Foo` came back as the wire's paragraph
-    # about relative `.olai` paths, for a name with nothing wrong with it
-    # except the four characters the door already knows.
     When I create the outline "Foo" from the sidebar
     Then the address is "/Foo.olai"
     And the outline list links to "Foo.olai"
@@ -63,20 +57,12 @@ Feature: Starting a new outline from the sidebar
     And there should be no page errors
 
   Scenario: A path that climbs out of the directory is still the planner's
-    # The three rules the PLANNER holds are one sentence and still its own — a
-    # browser that pre-checked any of them would be a second rule free to
-    # disagree with the one an agent meets. What it names is the COMPLETED
-    # path, which is the file that was actually asked for.
     When I create the outline "../escape.olai" from the sidebar
     Then the outline creation is refused saying "is not a relative file path"
     When I create the outline "../escape" from the sidebar
     Then the outline creation is refused saying "`../escape.olai` is not a relative"
 
   Scenario: A path that names a PLACE reaches the planner as it was typed
-    # Every suffix begins with a dot, so completing `..` would make `...olai`
-    # — an ordinary filename the planner takes, where it used to say "no
-    # `..`". The completion declines those, and the paragraph goes on naming
-    # what was actually typed.
     When I create the outline ".." from the sidebar
     Then the outline creation is refused saying "`..` is not a relative file path"
     When I create the outline "." from the sidebar
@@ -86,13 +72,8 @@ Feature: Starting a new outline from the sidebar
     And the outline list does not link to "...olai"
 
   Scenario: A name carrying the other kind's suffix is the box's own refusal
-    # The one verdict this side makes for itself, because it is about WHICH
-    # DOOR you are at — a question the ops layer never sees, since what reaches
-    # it is one completed path. Short words, and it says what to type instead.
     When I create the outline "notes.md" from the sidebar
     Then the outline creation is refused saying "`notes.md` is a document, not an outline — type `notes` to make `notes.olai`."
-    # The other half of advice that ends "type `notes`": the box still holds
-    # what was typed, so there is something to edit into it.
     And the new outline box still holds "notes.md"
     And the address is "/house.olai"
 
@@ -110,13 +91,7 @@ Feature: Starting a new outline from the sidebar
     And the page has not reloaded
     And there should be no page errors
 
-  # ── the Outlines heading's + ─────────────────────────────────────────
-
   Scenario: The Outlines + offers the two kinds of file, and Escape hands focus back
-    # The two `+ New …` rows under the tree left with the 2026-09
-    # simplification: the heading carries one `+`, and its menu lists each kind
-    # its own row contributes. Escape shuts the menu and puts focus back on the
-    # `+`, so a keyboard reader is where they were.
     When I open the Outlines + menu from the keyboard
     Then the Outlines + menu offers "New outline|New document"
     When I press "Escape"
@@ -143,11 +118,7 @@ Feature: Starting a new outline from the sidebar
 
   @phone
   Scenario: On a phone the name box asks for a Done key, and Done is what the key does
-    # A path is a name, not a sentence, and a phone has to be told so: the
-    # return key says Done because the press makes the file and shuts the box,
-    # and the first letter is left exactly as it was typed — a capital the
-    # keyboard added would be a different file on disk from the one somebody
-    # meant. The gesture is made straight after the assertion, so the cap and
+    # The gesture is made straight after the assertion, so the cap and
     # the key cannot drift apart.
     When I open the new outline box
     Then the new outline box asks for a Done key and no corrections
