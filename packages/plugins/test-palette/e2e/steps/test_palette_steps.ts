@@ -1,9 +1,3 @@
-/**
- * The scenario's hand on the palette-levels fixture (`../../src/browser.tsx`):
- * open the palette at a path through the declared service, withdraw and
- * restore the fixture's adapter, answer held submits, and read what was
- * submitted.
- */
 import * as assert from "node:assert";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -77,8 +71,6 @@ Then("the fixture has {int} held note(s)", async function (this: OlaiWorld, coun
   );
 });
 
-/** Answer every held submit — after its level, or the whole fixture, may be
- *  gone. The gates are the page's, so they outlive the fixture. */
 When("the fixture answers its held notes saying {string}", async function (this: OlaiWorld, said: string) {
   await this.page.evaluate((text) => {
     for (const gate of (window as Fixture).olaiTestPaletteGates?.splice(0) ?? []) gate.answer({ said: { tone: "aside", text } })
@@ -93,7 +85,6 @@ When("the fixture answers its held notes with nothing to say", async function (t
   await this.waitForFrame();
 });
 
-/** `text/option; text/option`, oldest first. */
 Then("the fixture's notes are {string}", async function (this: OlaiWorld, notes: string) {
   const wanted = notes.split(";").map((one) => one.trim()).filter((one) => one !== "")
   const read = async () => (await this.page.evaluate(() => (window as Fixture).olaiTestPalette?.submitted ?? []))
@@ -103,8 +94,6 @@ Then("the fixture's notes are {string}", async function (this: OlaiWorld, notes:
   assert.deepStrictEqual(await read(), wanted);
 });
 
-/** A note that fails is logged by the palette as a fault, which is the one
- *  console error a scenario asks for; anything else is still a page error. */
 Then("the only page errors are the fixture's deliberate failure", function (this: OlaiWorld) {
   const errors = this.pageErrors();
   const others = errors.filter((error) => !error.includes("failed to submit") && !error.includes("failed on purpose"));
@@ -112,14 +101,6 @@ Then("the only page errors are the fixture's deliberate failure", function (this
   assert.ok(errors.length > 0, "the deliberate failure was logged");
 });
 
-/**
- * THE FIXTURE'S OWN SWITCH, put off from the plugins panel.
- *
- * Not the panel's generic `I switch the plugin … off`, which waits for the row
- * to say "off": the panel hides a group whose every row is an opt-in fixture
- * nobody is running, so when this is the only fixture on, its row leaves the
- * panel instead. That leaving is the receipt here.
- */
 When("I switch the palette fixture off", { timeout: 90_000 }, async function (this: OlaiWorld) {
   const row = await this.showPluginRow("test-palette", { detail: false });
   await this.press(row.locator(PLUGIN_SWITCH).first());
@@ -134,12 +115,6 @@ When("I switch the palette fixture off", { timeout: 90_000 }, async function (th
   );
 });
 
-/**
- * A ROW SWITCHED IN THE VAULT'S OWN SETTINGS FILE, which the serve reads and
- * recomposes from — the way to switch the LAYOUT row, whose own panel goes
- * with it. The palette's overlay is drawn by layout, so switching layout off
- * and on is a real redraw of the palette, with every other row left standing.
- */
 When("the settings file switches the row {string} {word}", function (this: OlaiWorld, id: string, pick: string) {
   assert.ok(pick === "on" || pick === "off", `on or off, not ${pick}`);
   const path = join(this.scratch(), "_olai/Settings.olai");
@@ -150,7 +125,6 @@ When("the settings file switches the row {string} {word}", function (this: OlaiW
   writeFileSync(path, nodes.map((node) => JSON.stringify(node)).join("\n") + "\n");
 });
 
-/** The palette's overlay is gone with the row that draws it — not closed. */
 Then("the palette is not drawn", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator('[data-testid="palette"]').count()) === 0,
