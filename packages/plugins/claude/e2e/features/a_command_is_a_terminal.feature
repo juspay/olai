@@ -28,11 +28,7 @@ Feature: A shell command is a terminal pane, named by its command
     When I ask the agent "bash"
     Then the chat shows a completed tool call
     And the chat shows a tool call named "echo hello"
-    # The word the announcement carried is nowhere on the row — not as its
-    # name, and not left behind beside the one it got.
     And the tool call says nothing of "Terminal"
-    # ... and the rule is not repealed: the result frame moves the title to the
-    # tool's own name, and a row that has been named does not take it.
     And the agent is idle
     And the chat shows a tool call named "echo hello"
     And the tool call says nothing of "Bash"
@@ -43,8 +39,6 @@ Feature: A shell command is a terminal pane, named by its command
     And terminal output contains "hello"
     And terminal output contains "Exit 0"
     When I unfold the tool call
-    # The fence, where it would land if olai stopped asking for terminals: the
-    # call's content block, drawn as what the call is saying while it runs.
     Then the tool call says nothing of "```"
 
   Scenario: An argument longer than the pane wraps in the fold
@@ -52,7 +46,5 @@ Feature: A shell command is a terminal pane, named by its command
     Then the chat shows a completed tool call
     And the chat shows a tool call named "cat notes.txt"
     When I unfold the tool call
-    # The description is in the FOLD and never on the row: the row is the
-    # command, the fold is everything that was asked for.
     Then the tool call's detail mentions "cat notes.txt"
     And the tool call does not scroll sideways

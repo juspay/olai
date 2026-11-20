@@ -1,34 +1,3 @@
-/**
- * THE CLAUDE CODE ENGINE'S SERVER HALF — one registration, and everything olai
- * knows about this agent behind it.
- *
- * ## What this replaced
- *
- * A row of a hardcoded `KINDS` table in `olai-plugin-chat/src/agents/roster.ts`,
- * beside two others, under an `AGENTS` record in `@olai/surface` that made every
- * agent id a closed union. Adding an engine was a core PR in two general
- * packages; bumping THIS adapter's pin was an edit in a file the other two
- * shared. Both are gone: this engine is one directory, one row in `olai.yml`,
- * and one the file’s row selection word.
- *
- * ## What is on THIS side of the wall, and what is not
- *
- * Here: how to find this adapter on a host, where a person gets it, and the
- * mark it wears ({@link ./browser.tsx}, on the other door). How to read its
- * wire, what its model picker calls things and which variables it reads as
- * "remote" are `@kolu/acp-claude`'s — the same leg kolu runs, against the same
- * pinned adapter. Not here, and never: a session, a prompt, a transcript. An
- * engine plugin hands over data and pure functions; `olai-plugin-chat` does the
- * talking.
- *
- * ## The executable path belongs to this engine
- *
- * `KOLU_ACP_AGENT` names this row's adapter. The packaged wrapper supplies a
- * default path, and an explicit path overrides it. An empty path leaves this
- * engine unavailable; it does not disable chat or other engine rows. File
- * enablement decides which rows run, independently of executable discovery.
- */
-
 import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@kolu/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
@@ -38,97 +7,26 @@ import { CLAUDE, NAME, REMOTE_SIGNALS } from "@kolu/acp-claude"
 import { INSTALL } from "./install.ts"
 import { name } from "./index.ts"
 
-/**
- * THE ADAPTER'S OWN-MEMORY SWITCH, set unconditionally on its spawn — the
- * variable that tells Claude Code its automatic memory is OFF.
- *
- * The name is exported so this file's tests and its `at` share one spelling,
- * the way `@kolu/acp-claude`'s `REMOTE_SIGNALS` is shared. The e2e fake arms the operator's
- * contrary value (`"0"`) by its literal name, because what it proves is that
- * the `at` merge wins over olai's own environment — a spelling imported from
- * here would tie the two together, and they rev on different clocks.
- */
 export const DISABLE_AUTO_MEMORY_ENV = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
 
-/** The plugin's word, re-exported for the reason every tenant's server door
- *  re-exports it: one entry per plugin, and one spelling of the key — and
- *  because `@olai/bundle` reads it off the module its ROW names to prove that a
- *  plugin answers to the id its fiber is bound under. */
 export { name } from "./index.ts"
 
-/**
- * THIS ENGINE, as a VALUE.
- *
- * Exported rather than written inline in {@link apply} for the reason every leg
- * in this directory is a pure function: what a plugin registers is data, and
- * data is a thing a unit test can hold. `./server.test.ts` asks {@link
- * Registering.at} what it makes of an environment; the alternative is a claim
- * about this row reachable only by mounting a runtime.
- */
 export const ENGINE: Registering = {
   name: NAME,
   leg: CLAUDE,
-  // SHIPPED, NOT FOUND, which is why the probe is a variable read and not a
-  // PATH lookup: the adapter is a wrapper inside the nix store and is on
-  // nobody's PATH. `null` from `adapterFrom` is a hand-rolled start that went
-  // through neither the packaged binary nor the justfile — an absence, not a
-  // fault — and the sentence a machine in that state is owed is THIS
-  // ENGINE'S OWN ({@link ./install.ts}'s `INSTALL`, the same words that used
-  // to ride the browser slot), handed back rather than dropped so the roster
-  // can publish the row.
   at: (where): Adapter | NotHere => {
     const adapter = adapterFrom(where.env[AGENT_ENV])
     if (adapter === null) return INSTALL
     return {
       ...adapter,
-      // FIVE VARIABLES THE ADAPTER MUST NOT HEAR, and every one of them is a
-      // question olai can answer better. The pinned adapter reads them to
-      // decide the person is somewhere else (`NO_BROWSER`, `SSH_CONNECTION`,
-      // `SSH_CLIENT`, `SSH_TTY`, `CLAUDE_CODE_REMOTE`) and, on a session it
-      // calls remote, offers only its own full-screen `claude /login` — a TUI
-      // this panel has no terminal for. Olai IS the remote end: the person is
-      // at a browser, olai runs the sign-in and draws it. So the adapter is
-      // told nothing about where it is running, and it offers the
-      // paste-a-code methods this panel can run instead (`olai-plugin-chat`'s
-      // `agent.ts` is where they become a row).
-      //
-      // STRIPPED RATHER THAN GUESSED AT, because a variable that happens to be
-      // set on somebody's host is not a fact about the person using the panel:
-      // an SSH session that started olai, a development container that exports
-      // `CLAUDE_CODE_REMOTE`, a `NO_BROWSER` in a shell profile. None of them
-      // changes who is looking at the screen.
       unset: REMOTE_SIGNALS,
 
-      // ... AND ITS OWN MEMORY IS SWITCHED OFF, unconditionally — the node's
-      // subtree is the only memory, and a second one the panel cannot see
-      // would drift from it. The env var wins over `autoMemoryEnabled` in the
-      // adapter's own `settings.json`; an operator's contrary export beyond
-      // this door loses on purpose, exactly as the strip above loses.
       env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
     }
   },
-  // ACP has no system prompt on any wire, this one included, so the standing
-  // instruction rides the first turn — where a person can read what their agent
-  // was told. `@kolu/acp/engine`'s `PromptChannel` argues it, and `olai-plugin-chat`
-  // switches on it exhaustively.
   prompt: { kind: "first-turn" },
 }
 
-/**
- * ...AND OFFERED.
- *
- * `needs` is `[Agents]` and nothing else, which is worth reading as a claim
- * rather than as a small list: an engine plugin reaches for no vault, no
- * doorbell, no surface and no kind. It teaches the chat how to seat one agent
- * and has no other business in the process — so the runtime holds it PENDING
- * against one service, and the compiler computes this Effect's requirements
- * from the same list.
- *
- * A FAILURE HERE IS NOT A BOOT FAILURE. The fiber lands in `FAILED` having
- * installed nothing, and every other engine — and every tenant — goes on
- * running. A serve that lost this row is a serve whose picker has no Claude in
- * it, which is exactly what a policy selecting only opencode, pi asks for on purpose.
- */
 export default definePlugin({
   environment: [
     {"key": "KOLU_ACP_AGENT", "secret": false, "says": "the Claude ACP adapter"},
