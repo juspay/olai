@@ -1,5 +1,3 @@
-/** Fresh preference signals and observers belong to each provider activation.
- * Stored choices outlive the provider; DOM writes and listeners do not. */
 import { Effect } from "effect"
 import { createSignal } from "solid-js"
 import { DEFAULT_TYPEFACE, FONT_ATTRIBUTE, FONT_STORAGE_KEY, typefaceNamed } from "@olai/fonts"
@@ -9,20 +7,13 @@ import { defaultPaletteFor, SCHEME_STORAGE_KEY, THEME_ATTRIBUTE, THEME_STORAGE_K
 import { DEFAULT_TYPE_SIZE, SIZE_ATTRIBUTE, SIZE_STORAGE_KEY, sizeNamed } from "@olai/appearance/sizes.ts"
 import type { Appearance, Choice, ThemeChoice } from "./index.ts"
 
-/** The media query this provider asks the OS's polarity of. */
 const DARK_SCHEME = "(prefers-color-scheme: dark)"
 
 const choice = <T extends { readonly name: string }>(config: {
   readonly attribute: string
   readonly key: string
-  /** What the page is in when nothing is picked — an accessor, because for
-   *  the theme that answer is the OS's and moves. */
   readonly fallback: () => T
   readonly named: (name: string) => T | undefined
-  /** Called with the value IN FORCE and, separately, with the pick behind it
-   *  — `undefined` when that value is the fallback. Two arguments because one
-   *  reader (the browser chrome) has a question the resolved palette cannot
-   *  answer: whether to pin the canvas or hand it back to the OS. */
   readonly shown?: (value: T, selected: T | undefined) => void
 }) => Effect.gen(function*() {
   const root = document.documentElement
@@ -66,22 +57,17 @@ const choice = <T extends { readonly name: string }>(config: {
       show(selected)
       writePreference(config.key, selected.name)
     },
-    /** Forget the pick: the attribute comes off and the fallback answers. */
     clear: () => {
       check()
       show(undefined)
       writePreference(config.key, null)
     },
-    /** Re-answer from the same pick — for when the FALLBACK moved under an
-     *  unpicked page (the OS flipped its scheme). */
     refresh: () => {
       if (picked() === undefined) show(undefined)
     },
   }
 })
 
-/** The OS's polarity, as a signal this activation owns. A runtime with no
- *  `matchMedia` (a unit test's doubles) is read as light and never moves. */
 const osScheme = Effect.acquireRelease(Effect.sync(() => {
   const query = typeof matchMedia === "function" ? matchMedia(DARK_SCHEME) : undefined
   const [dark, setDark] = createSignal(query?.matches ?? false)
@@ -106,23 +92,12 @@ export const createAppearance = Effect.gen(function*() {
     key: THEME_STORAGE_KEY,
     fallback: () => defaultPaletteFor(os.dark() ? "dark" : "light"),
     named: paletteNamed,
-    // Every showing of a theme writes BOTH halves of what the next load's
-    // shell needs: the paper, into every `theme-color` meta the shell ships;
-    // and the polarity, into the canvas meta and beside the pick in storage
-    // (@olai/appearance/palettes.ts says why that word is stored rather than
-    // looked up). Written here rather than in `pick` so the three ways a
-    // theme changes — a chip here, a chip in ANOTHER TAB arriving as a
-    // storage event, a pick restored on boot — all leave the same two
-    // records, and a browser carrying an older olai's storage is repaired by
-    // the next load rather than by a migration.
     shown: (palette, selected) => {
       chrome.paint(palette)
       chrome.scheme(selected?.scheme)
       writePreference(SCHEME_STORAGE_KEY, selected?.scheme ?? null)
     },
   })
-  // The OS flipping is a change to the FALLBACK, which only an unpicked page
-  // reads: re-answer so the chrome (the status bar, the tab's mark) follows.
   os.onChange(themeChoice.refresh)
   const theme: ThemeChoice = {
     current: themeChoice.current,

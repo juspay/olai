@@ -1,5 +1,3 @@
-/** Deployment naming is a separate lease on appearance. Releasing the source
- * restores the inherited name while retaining the active theme and attention. */
 import { Effect } from "effect"
 import { createEffect, createRoot, type Accessor } from "solid-js"
 import type { Appearance } from "./index.ts"

@@ -7,9 +7,6 @@ import { FontSelect } from "./FontSelect.tsx"
 
 const SIZE_CHOICES = SIZES.map((size) => ({ value: size.name, label: size.label }))
 
-/** Theme, Font and Size: each label says what its control sets, so no row
- *  carries a line under it. The theme in force is named once, beside its
- *  label — and when that is the OS's choice, the name says so. */
 export function AppearanceRows(props: { readonly state: Appearance }) {
   return <>
     <Row label="Theme" pref="theme" value={themeInForce(props.state)} stacked>

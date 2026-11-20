@@ -16,15 +16,10 @@ export const browser = async (body: (state: {
   created: string[]; revoked: string[]
 }) => Promise<void>) => {
   const root = new ElementDouble({ "data-theme": "inherited" })
-  // TWO of them, the way the shell ships them: one per OS scheme, each with
-  // its own `media`. A chrome that repainted only the first would leave the
-  // other to be the one the browser actually uses.
   const meta = new ElementDouble({ media: "(prefers-color-scheme: light)", content: "original-color" })
   const darkMeta = new ElementDouble({ media: "(prefers-color-scheme: dark)", content: "original-dark-color" })
   const icon = new ElementDouble({ href: "/original.svg" })
   const apple = new ElementDouble({ content: "Inherited app" })
-  // What the shell authored, or what its boot script left there: either way
-  // this activation INHERITS it and owes it back on withdrawal.
   const canvas = new ElementDouble({ content: "light dark" })
   const stored = new Map<string, string>([["olai.theme", "basalt"], ["olai.font", "system"], ["olai.size", "larger"]])
   const listeners = new Set<(event: StorageEvent) => void>()

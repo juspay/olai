@@ -1,9 +1,5 @@
-/** Stable DOM identifiers owned by this renderer. Shared consumers import
- * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
   themeChip: "theme-chip",
-  /** The control that hands the theme back to the OS: no pick, the light
-   *  default by day and the dark one by night. */
   themeFollow: "theme-follow",
   fontSelect: "font-select",
 } as const

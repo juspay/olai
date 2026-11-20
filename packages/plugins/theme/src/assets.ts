@@ -1,6 +1,3 @@
-/** Build-time appearance is a bundle contribution. These bytes may run before
- * the browser roster arrives; runtime state and cleanup belong to browser.tsx.
- * A build without this row gets no theme bootstrap, palette CSS or font files. */
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fontCss, fontPreloadHtml, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
@@ -8,21 +5,6 @@ import { paletteCss } from "@olai/appearance/css.ts"
 import { sizeCss } from "@olai/appearance/sizes.ts"
 import { scaleCss } from "@olai/appearance/scale.ts"
 
-/**
- * The hosted faces, served from /fonts/*.woff2 — a COPY, and nothing else.
- *
- * `OLAI_FONTS_DIR` is `@olai/fonts`'s own derivation (shell.nix and
- * default.nix both point at it), and what it holds is already woff2: the
- * conversion is a function of the font set, so it runs once in the Nix store
- * rather than 70 times per build here. Missing the env is a loud failure in
- * the packaged build; the dev loop gets the same variable from the flake
- * shell.
- *
- * The lookup stays BY NAME, one file of `HOSTED_WOFF2` at a time, rather than
- * a copy of the whole directory: that list is exactly what the sheet appended
- * above asks for, so a face it names and the derivation does not convert has
- * to fail the build rather than 404 in a browser.
- */
 const installFonts = (distDir: string): void => {
   const fontsDir = process.env.OLAI_FONTS_DIR
   if (fontsDir === undefined || fontsDir === "") {
@@ -52,9 +34,6 @@ const installFonts = (distDir: string): void => {
 }
 
 export default {
-  // ...AND THE DEFAULT TYPEFACE'S THREE FILES, asked for before the sheet
-  // asks for them (`@olai/fonts`'s preload.ts says why a swap after first
-  // paint is a reflow a landing cannot survive).
   head: `${readFileSync(new URL("./head.html", import.meta.url), "utf8")}
 ${fontPreloadHtml()}`,
   css: () => [scaleCss(), sizeCss(), paletteCss(), fontCss()].join("\n"),

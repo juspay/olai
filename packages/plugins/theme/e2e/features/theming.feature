@@ -57,9 +57,6 @@ Feature: The theme is a pick, and it is yours
     And every theme chip agrees with what it announces
 
   Scenario: An unpicked page follows the system between the two defaults
-    # The one media rule in the sheet, and the one thing the OS gets to say.
-    # Emulated rather than real, which is the same `matchMedia` event a real
-    # flip fires; the paper is read off the sheet and compared to the table.
     When I open the app
     Then the page paints the "light" default
     When the system prefers "dark"
@@ -100,18 +97,10 @@ Feature: The theme is a pick, and it is yours
     And there should be no page errors
 
   Scenario: Every palette paints the page it names
-    # The sheet is generated from the table, one block per row, and this is
-    # the round trip: pick each of the four and read the page's own paper
-    # back. A row whose block was dropped, mistyped, or given another row's
-    # values fails here, in the browser that paints it.
     When I open the app
     Then every palette paints the page it names
 
   Scenario: A keyboard picks a swatch, and the caret stays where it was
-    # Tab reaches the swatches (they are the panel's first controls), Space
-    # and Enter each press one, and the panel stays open with the caret still
-    # on the swatch just pressed — so the next arrow of Tabs starts from there,
-    # not from the top of the page.
     When I open the app
     And I open the preferences
     And I Tab to the "basalt" swatch
@@ -137,11 +126,6 @@ Feature: The theme is a pick, and it is yours
     And the lit theme chip is "basalt"
 
   Scenario: The browser's own surfaces are in the picked scheme before the sheet lands
-    # The pre-sheet window, in both directions: a dark palette under a light OS
-    # used to spend it on a light canvas with light scrollbars, which is the
-    # same flash the attribute above exists to prevent. Read at the moment the
-    # theme lands, because the sheet puts it right immediately afterwards and
-    # the finished page looks identical either way.
     When I open the app
     And the system prefers "light"
     And I pick the theme "basalt"
@@ -161,9 +145,6 @@ Feature: The theme is a pick, and it is yours
     And there should be no page errors
 
   Scenario: Picking the default is a pick like any other
-    # Stored explicitly rather than by falling back to it: otherwise the
-    # default's name would mean two different things, and a later change of
-    # default would silently move everybody who had chosen the old one.
     When I open the app
     And I pick the theme "basalt"
     And I pick the default theme
@@ -173,10 +154,6 @@ Feature: The theme is a pick, and it is yours
     And the lit theme chip is the default
 
   Scenario: A stored theme nothing offers is forgotten
-    # What a value stored by an older olai looks like after a theme is renamed
-    # or dropped. The sheet has no block for it, so a page left holding one
-    # would sit on the default's colours while claiming to be in something
-    # else — and no chip would be lit.
     When I open the app
     And this browser has stored the theme "burnt-umber"
     And I reload the page
@@ -185,18 +162,6 @@ Feature: The theme is a pick, and it is yours
     And this browser has stored no theme
 
   Scenario: The browser chrome follows the paper, whichever way the OS leans
-    # The status bar on a phone, the title bar of an installed window, and the
-    # tab's own mark. The shell ships the default's paper, so the status bar is
-    # right on the first paint; the tab starts as the install file. A page that
-    # picked (and the default, once the bundle is up) repaints both from the
-    # same table that painted the page.
-    #
-    # The last four lines are the case that was WRONG: the shell's two metas
-    # are qualified by `prefers-color-scheme`, the browser uses the first whose
-    # query matches, and a pick that disagrees with the OS is answered by the
-    # meta the old code left holding a DEFAULT's paper — an installed `abyss`
-    # window wearing basalt's near-black. The step reads the meta in force, so
-    # it is the browser's own rule being checked and not ours.
     When I open the app
     Then the browser chrome matches the paper
     When I pick the theme "reef"
@@ -209,9 +174,6 @@ Feature: The theme is a pick, and it is yours
     Then the browser chrome matches the paper
 
   Scenario: The manifest opens the app in the paper an unpicked page paints
-    # The manifest is the SERVER's and the palettes are the CLIENT's, and the
-    # two packages do not import each other — so the only honest way to ask
-    # whether they still agree is to fetch one and measure the other.
     When I open the app
     Then the manifest's chrome is the paper this page paints
 

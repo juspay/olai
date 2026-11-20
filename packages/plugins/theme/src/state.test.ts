@@ -10,15 +10,8 @@ test("appearance survives without preferences UI, releases observers and metadat
     const state = await Effect.runPromise(Scope.provide(createAppearance, first))
     expect(state.theme.current().name).toBe("basalt")
     expect(state.theme.following()).toBe(false)
-    // The pick is dark, so the canvas meta is pinned dark and the word is
-    // left beside the pick for the next load's boot script to copy — which is
-    // the whole of what stops a dark palette spending the pre-sheet window in
-    // a light browser's chrome.
     expect(canvas.getAttribute("content")).toBe("dark")
     expect(stored.get("olai.scheme")).toBe("dark")
-    // BOTH chrome metas, because the browser uses the first whose media
-    // matches and a dark pick under a light OS matches the other one: the
-    // page is one colour whatever the OS says, so both say that colour.
     const paper = state.theme.current().colors.paper
     expect(meta.getAttribute("content")).toBe(paper)
     expect(darkMeta.getAttribute("content")).toBe(paper)
@@ -40,7 +33,6 @@ test("appearance survives without preferences UI, releases observers and metadat
     expect(darkMeta.getAttribute("content")).toBe("original-dark-color")
     expect(meta.getAttribute("media")).toBe("(prefers-color-scheme: light)")
     expect(icon.getAttribute("href")).toBe("/original.svg")
-    // Inherited, not authored: withdrawal owes back the word it found.
     expect(canvas.getAttribute("content")).toBe("light dark")
     expect(revoked).toEqual(created)
     expect(() => state.size.pick(state.size.current())).toThrow("no longer active")
@@ -70,8 +62,6 @@ test("unknown stored choices are forgotten and a failed initialization releases 
     expect(state.theme.current().name).toBe("chalk")
     expect(state.theme.following()).toBe(true)
     expect(root.getAttribute("data-theme")).toBeNull()
-    // Nothing picked: the canvas stays BOTH, which is the word for "ask the
-    // OS" — and nothing is stored, so the next load's shell says it too.
     expect(canvas.getAttribute("content")).toBe("light dark")
     state.theme.pick(state.theme.current())
     expect(state.theme.following()).toBe(false)

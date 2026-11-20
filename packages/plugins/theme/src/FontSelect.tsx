@@ -1,21 +1,3 @@
-/**
- * The named typefaces, as a select: every option is a face, and picking one
- * puts it in force.
- *
- * A select rather than a strip of chips, because twenty names never fit the
- * way the colour chips do, and because this is the control Workflowy's
- * list is. The panel STAYS OPEN on a pick — a face is judged by looking at
- * the page it sets, and shutting the surface after every change would make
- * comparing two of them a matter of reopening it.
- *
- * Options are NOT previewed in their own face. A native `<option>` styled
- * with `font-family` would make the browser fetch every hosted file the
- * moment the panel opened. The closed select wears the face in force, and
- * the page itself is the specimen.
- *
- * Persistence, the storage event and the boot script are untouched by any of
- * that: this file only draws.
- */
 import { TESTID } from "olai-plugin-theme/testids"
 import { For } from "solid-js"
 
@@ -26,11 +8,6 @@ import type { Appearance } from "./index.ts"
 export function FontSelect(props: { readonly state: Appearance }) {
   return (
     <select
-      // No focus treatment of its own: the app's one ring is an `outline`
-      // drawn from `@olai/appearance/chrome.css`, which is unlayered — so the
-      // `focus-visible:outline-none` that used to be here did nothing and the
-      // `focus-visible:ring-2` beside it drew a second, redundant ring. A
-      // Tailwind ring is a `box-shadow`, and forced colours deletes those.
       class="min-h-11 max-w-[12rem] rounded-control border border-rule bg-paper px-2 text-body text-ink md:min-h-0 md:py-1"
       style={{ "font-family": props.state.font.current().sans }}
       data-testid={TESTID.fontSelect}

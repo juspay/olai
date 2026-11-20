@@ -35,18 +35,10 @@ Feature: The reader's own screen, when it is not ours to paint
     When I open the app
     And I open the preferences
     And I Tab to the "basalt" swatch
-    # The control arm for the ring, in olai's own palette: a ring that was
-    # never drawn at all would pass the second arm just as happily. Read
-    # before anything is pressed, because a press is a POINTER and a pointer
-    # asks for no ring.
     Then the caret's control wears a visible focus ring
     When I note the focus ring
     And the screen forces its own colours
-    # Still two pixels and still painted — in a colour the SCREEN chose, which
-    # is also what proves the emulation reached the page.
     Then the focus ring is still drawn, in the screen's own colour
-    # The switch's own two arms, in the other order: on and off are a
-    # background apart, and the background is the thing this mode takes.
     And the switch in the preferences tells its two states apart
     When the screen uses the page's colours
     Then the switch in the preferences tells its two states apart
