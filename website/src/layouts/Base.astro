@@ -22,7 +22,8 @@ const here = Astro.url.pathname
 const canonical = new URL(here, Astro.site).href
 const github = "https://github.com/juspay/olai"
 const ogImage = new URL("/og.png", Astro.site).href
-const ogAlt = "olai — a git-native outliner. A palm leaf in ink on sea-glass paper."
+const ogAlt =
+  "olai. Notes and to-do lists in plain files. Bring your own AI agent. Beside the words, an outline and a chat in which an agent marks an item done, in front of a palm leaf drawn in ink."
 // The header link the reader is under: the longest one this address starts
 // with, so Start is lit on its own page and Docs on every other docs page.
 const nav = [

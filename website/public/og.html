@@ -2,82 +2,75 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>olai — Open Graph card</title>
-<!--
-  1200×630 social card. The PNG crawlers fetch is og.png; this file is
-  the source. To regenerate, from this directory:
-
-    google-chrome --headless=new --disable-gpu --hide-scrollbars \
-      --force-device-scale-factor=2 --window-size=1200,630 \
-      --screenshot=og.png og.html
--->
+<title>olai: link card</title>
+<!-- og.png is made from this file by `just website-tour card`. -->
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,400;1,9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,400;1,9..144,600&display=swap" rel="stylesheet">
 <style>
   :root {
     --paper:  #D6F0EA;
     --ink:    #133531;
     --muted:  #45726C;
     --accent: #B43C45;
+    --panel:  #F6FCFA;
+    --done:   #1E7656;
     --display: "Fraunces", Palatino, serif;
+    --sans: "Atkinson Hyperlegible Next", system-ui, sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    width: 1200px; height: 630px; overflow: hidden;
-    background: var(--paper); color: var(--ink);
+  html, body { width: 1200px; height: 630px; overflow: hidden; background: var(--paper); color: var(--ink); }
+  .card { position: relative; width: 1200px; height: 630px; }
+  .plate { position: absolute; right: 0; top: 0; width: 400px; height: 630px; overflow: hidden; }
+  .plate img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; }
+  .copy { position: absolute; left: 64px; top: 0; bottom: 0; width: 520px; display: flex; flex-direction: column; justify-content: center; }
+  .kicker { font-family: var(--mono); font-size: 16px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
+  .wordmark { font-family: var(--display); font-style: italic; font-weight: 600; font-size: 124px; letter-spacing: -0.045em; line-height: 0.9; margin-top: 12px; }
+  .tag { font-family: var(--display); font-style: italic; font-weight: 400; font-size: 41px; line-height: 1.17; margin-top: 26px; }
+  .tag b { font-weight: 600; }
+  .host { font-family: var(--mono); font-size: 17px; color: var(--muted); margin-top: 34px; }
+  .panel {
+    position: absolute; left: 598px; top: 92px; width: 470px;
+    background: var(--panel); border-radius: 20px; padding: 24px 28px 26px;
+    font-family: var(--sans); font-size: 25px; line-height: 1.3;
+    box-shadow: 0 34px 60px -30px rgba(19, 53, 49, 0.6), 0 1px 0 rgba(19, 53, 49, 0.08);
+    transform: rotate(-1.6deg);
   }
-  .card {
-    width: 1200px; height: 630px;
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 0;
-    padding: 0;
-    align-items: stretch;
-  }
-  .copy {
-    padding: 72px 56px 56px 72px;
-    display: flex; flex-direction: column; justify-content: center;
-  }
-  .kicker {
-    font-family: var(--mono); font-size: 16px; letter-spacing: 0.22em;
-    text-transform: uppercase; color: var(--accent);
-  }
-  .wordmark {
-    font-family: var(--display); font-style: italic; font-weight: 600;
-    font-size: 118px; letter-spacing: -0.045em; line-height: 0.9;
-    margin-top: 10px;
-  }
-  .tag {
-    font-family: var(--display); font-style: italic; font-weight: 400;
-    font-size: 34px; line-height: 1.2; margin-top: 28px;
-    max-width: 13ch;
-  }
-  .host {
-    font-family: var(--mono); font-size: 16px; color: var(--muted);
-    margin-top: 40px;
-  }
-  .plate {
-    overflow: hidden;
-  }
-  .plate img {
-    width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%;
-    display: block;
-  }
+  .item { display: flex; align-items: center; gap: 13px; padding: 5px 0; }
+  .item.d1 { padding-left: 30px; }
+  .bullet { font-size: 13px; }
+  .box { width: 22px; height: 22px; border: 2.5px solid var(--muted); border-radius: 5px; flex: none; position: relative; }
+  .box.done::after { content: ""; position: absolute; left: 6px; top: 1px; width: 6px; height: 12px; rotate: 45deg; border-right: 3px solid var(--done); border-bottom: 3px solid var(--done); }
+  .box.done { border-color: var(--done); }
+  .strike { text-decoration: line-through; color: var(--muted); }
+  .count { font-family: var(--mono); font-size: 18px; color: var(--muted); }
+  .chat { margin-top: 16px; padding-top: 16px; border-top: 2px solid #CFE6DF; display: grid; gap: 10px; }
+  .msg { border-radius: 16px; padding: 9px 16px; font-size: 23px; max-width: 92%; }
+  .you { justify-self: end; background: #F3DADB; }
+  .agent { justify-self: start; background: #E1F0EB; }
+  .agent b { color: var(--done); }
 </style>
 </head>
 <body>
   <div class="card">
+    <div class="plate"><img src="leaf.jpg" alt=""></div>
     <div class="copy">
-      <div class="kicker">a git-native outliner</div>
+      <div class="kicker">open source · plain files · your AI agent</div>
       <div class="wordmark">olai</div>
-      <div class="tag">An outliner that lives in files you own.</div>
+      <div class="tag">Notes and to-do lists in plain files. <b>Bring your own AI agent.</b></div>
       <div class="host">olai.page</div>
     </div>
-    <div class="plate">
-      <img src="leaf.jpg" alt="">
+    <div class="panel">
+      <div class="item"><span class="bullet">●</span><span><b>Kitchen renovation</b> <span class="count">3/5</span></span></div>
+      <div class="item d1"><span class="box done"></span><span class="strike">Demolition</span></div>
+      <div class="item d1"><span class="box done"></span><span class="strike">Book the plumber</span></div>
+      <div class="item d1"><span class="box"></span><span>Meet the tiler on site</span></div>
+      <div class="chat">
+        <div class="msg you">The plumber is booked. Mark it done.</div>
+        <div class="msg agent"><b>✓</b> Done. I marked it done.</div>
+      </div>
     </div>
   </div>
 </body>
