@@ -1,4 +1,3 @@
-/** The pinned wire primitive shares equal inputs, never distinct inputs. */
 import { expect, test } from "bun:test"
 import { collection } from "@kolu/surface"
 import { collectionDeltasSchema, defineSurface, type CollectionDeltasMsg } from "@kolu/surface/define"

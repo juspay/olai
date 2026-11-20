@@ -1,27 +1,17 @@
-/** Host management is available independently of any inspector or shell.
- * The browser adapter owns transport access; consumers receive only these
- * operations and readings. Source approval belongs to its capability, whose
- * scoped client disappears with that provider. */
 import { serviceTag } from "@olai/plugin-api/contracts"
 import type { RowReport } from "@olai/plugin-api"
 import type { Effect } from "effect"
 import type { PluginRoster } from "./plugins.ts"
 
-/** Build-supplied facts about a row the inspector draws, keyed by name. */
 export type PluginLook = {
   readonly switchHint?: string
-  /** Plugins panel group. Verbatim. Absent on a vault-defined row. */
   readonly section?: string
-  /** The name a person reads on the row. Absent on a vault-defined row, which
-   *  draws its name. */
   readonly label?: string
   readonly quiet?: boolean
-  /** The build ships this row off until somebody asks. */
   readonly optIn?: boolean
 }
 
 export interface BrowserManagement {
-  /** Called under a consumer's Solid owner so its cell subscription is scoped. */
   readonly roster: () => () => PluginRoster | undefined
   readonly reports: () => ReadonlyMap<string, RowReport>
   readonly changing: () => boolean

