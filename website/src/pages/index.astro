@@ -4,6 +4,7 @@ import { agentList } from "../agents.ts"
 import { OTHERS, READ_ON, ROWS, sourcesOf } from "../compare.ts"
 import Base from "../layouts/Base.astro"
 import { siteMap } from "../sitemap.ts"
+import { TRACKING_ISSUE, UPCOMING, issueUrl } from "../upcoming.ts"
 import "../styles/home.css"
 
 const plugins = (await siteMap()).groups.find((group) => group.title === "Plugins")
@@ -35,6 +36,10 @@ const dark = PALETTES.length - light
         same kind of file that Obsidian keeps. An outline is a list of items,
         and an item can hold more items under it. You edit both, and an AI
         agent does the same when you ask it.</p>
+        <p class="sub">Do you keep a folder of Markdown notes? olai opens it as
+        it is. Some things that Obsidian does are
+        <a href="#upcoming">upcoming for Markdown</a>, and wikilinks are one of
+        them.</p>
         <p class="next">
           <a href="#try">What you need to run olai</a>
         </p>
@@ -58,6 +63,7 @@ const dark = PALETTES.length - light
     <p class="honest"><b>What it takes today.</b> olai is new. It runs on a Mac or a Linux computer, and you start it from a terminal with Nix. olai has no phone app and no account to create. Read <a href="#try">what you need to run olai</a>.</p>
 
     <nav class="chapters" aria-label="On this page">
+      <a href="#kinds">documents and outlines</a>
       <a href="#agent">AI agents</a>
       <a href="#compare">comparison</a>
       <a href="#history">git history</a>
@@ -69,6 +75,52 @@ const dark = PALETTES.length - light
     </nav>
   </div>
 </div>
+
+<section id="kinds">
+  <div class="wrap">
+    <h2>Write Markdown documents and outlines in one directory</h2>
+    <p class="lead">olai has two kinds of file, and each kind is a whole part
+    of the app. Both kinds have pages, links, search, and agents.</p>
+    <div class="cols">
+      <div class="steps3">
+        <div>
+          <h3>A document is a Markdown file</h3>
+          <p>olai draws headings, tables, task lists, footnotes, code, and
+          pictures. A standard Markdown link opens another document, a
+          heading, or an item of an outline. <strong>Referenced by</strong>
+          lists what links to the document. The frontmatter at the top of the
+          file becomes properties, and search finds them.</p>
+        </div>
+        <div>
+          <h3>An outline is a list of items</h3>
+          <p>An outline is for work that has structure, such as a project, a
+          plan, or a list of to-dos. An item has a mark, a date, and a note.
+          You indent an item, move it, and make it repeat.</p>
+        </div>
+        <div>
+          <h3>The two kinds link to each other</h3>
+          <p>An item links to a document, and a document links to an item.
+          Each one lists what links to it.</p>
+        </div>
+      </div>
+      <figure>
+        <div class="shot small"><img src="/tour/document.png" width="2880" height="1800" loading="lazy" alt="A Markdown document in olai, with two headings, a table, a task list, and the item that links to the document."></div>
+        <figcaption class="caption">The real app. A document, with a table, a task list, and the item that links to it.</figcaption>
+      </figure>
+    </div>
+
+    <div class="upcoming" id="upcoming">
+      <h3>Upcoming for Markdown</h3>
+      <p>olai does not do these things yet. Each one has an issue that you can follow.</p>
+      <ul>
+        {UPCOMING.map((entry) => (
+          <li><a href={issueUrl(entry.issue)} set:html={entry.words} /><Fragment set:html={entry.after ?? "."} /></li>
+        ))}
+      </ul>
+      <p>One issue lists <a href={issueUrl(TRACKING_ISSUE)}>every gap between a document and an outline</a>.</p>
+    </div>
+  </div>
+</section>
 
 <section id="agent">
   <div class="wrap">
@@ -105,14 +157,10 @@ const dark = PALETTES.length - light
         </div>
       </div>
       <div class="stack">
-        <div class="panel chat">
-          <div class="file">chat</div>
-          <div class="ctx"><span>◦</span><span>Book the plumber</span></div>
-          <div class="msg you">The plumber is booked. Mark it done.</div>
-          <div class="op"><b>✓</b> Mark done · house.olai</div>
-          <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">Done</span></div>
-          <div class="msg agent">Done. I marked Book the plumber done.</div>
-        </div>
+        <figure>
+          <div class="shot small"><img src="/tour/outline-and-chat.png" width="2880" height="1800" loading="lazy" alt="An outline beside a chat. In the chat an agent has marked four items of the outline done."></div>
+          <figcaption class="caption">The real app. An outline, and a chat with an agent about it. The agent has marked four items done. The agent in this picture is scripted, so that the picture can be made again when olai changes.</figcaption>
+        </figure>
         <div class="panel">
           <div class="file">house.olai</div>
           <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">3/5</span></span></div>

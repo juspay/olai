@@ -92,7 +92,7 @@
     0 22px 44px -26px color-mix(in srgb, var(--ink) 40%, transparent);
   padding: 1.1rem 1.25rem 1.25rem; font-size: 0.95rem;
 }
-.stack .panel + .panel { margin-top: 1rem; }
+.stack .caption { margin-bottom: 1rem; }
 .panel .file {
   font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
   letter-spacing: 0.02em;
@@ -143,15 +143,6 @@ section .lead { color: var(--muted); margin-top: 0.7rem; max-width: 44rem; }
 .wrap > p + p, .cols > div:not(.panel) > p + p { margin-top: 0.95rem; }
 
 .caption { font-size: 0.82rem; color: var(--muted); margin-top: 0.55rem; }
-
-.chat .msg { max-width: 85%; border-radius: 12px; padding: 0.55rem 0.85rem; margin-top: 0.7rem; }
-.chat .you { margin-left: auto; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
-.chat .op { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-top: 0.7rem; }
-.chat .op b { color: var(--done); font-weight: 600; }
-.chat .agent { background: var(--well); }
-.chat .ctx { display: inline-flex; gap: 0.35rem; align-items: baseline; margin-top: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 6px; font-size: 0.72rem; color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, var(--rule)); }
-.chat .wrote { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.82rem; margin-top: 0.35rem; padding-left: 1.1rem; }
-.chat .wrote .said { margin-left: auto; color: var(--muted); font-size: 0.78rem; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.7rem; --ring: var(--accent); --ring-gap: var(--panel); }
 .chip {
@@ -217,14 +208,19 @@ table.cmp thead th:nth-child(2) { color: var(--accent); }
 .agentmark.works { color: var(--done); }
 .steps3 { display: grid; gap: 1.1rem; }
 .steps3 h3 { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 1.18rem; }
-.steps3 p { margin-top: 0.2rem; }
+.steps3 p { color: var(--muted); margin-top: 0.2rem; }
+
+.upcoming { margin-top: 2.4rem; padding: 1.2rem 1.4rem 1.3rem; background: var(--desk); border-radius: 12px; }
+.upcoming h3 { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 1.3rem; }
+.upcoming p { margin-top: 0.5rem; color: var(--muted); font-size: 0.95rem; }
+.upcoming ul { margin-top: 0.8rem; padding-left: 1.2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem 2rem; font-size: 0.95rem; }
+@media (max-width: 56rem) { .upcoming ul { grid-template-columns: minmax(0, 1fr); } }
 
 #agent {
   background: #0D1120; color: #D7E7F6;
   --paper: #0D1120; --desk: #151B30; --panel: #1E2642; --pill: #293152;
   --ink: #D7E7F6; --muted: #7E91B1; --rule: #2E3A58;
   --accent: #51E0C5; --done: #7EE0A8; --doing: #F0C04A; --alarm: #F07090;
-  --well: color-mix(in srgb, var(--rule) 40%, var(--paper));
 }
 #agent .steps3 p { color: #A9BAD4; }
 
