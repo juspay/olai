@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, boundedBy, clip } from "./bounds.ts"
+import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, accountKeyAfterCut, boundedBy, clip } from "./bounds.ts"
 import { readJournal } from "./read.ts"
 
 test("a field longer than the bound is cut, and the cut is said", () => {
@@ -34,9 +34,16 @@ test("a cut account does not end in a colon", () => {
   expect([...journal.balances.accounts].some((one) => one.endsWith(":"))).toBe(false)
 })
 
-test("clip cuts a field and remembers that it did", () => {
-  const witness = { cut: false }
-  expect(clip("abcdef", 3, witness)).toBe("abc")
-  expect(witness.cut).toBe(true)
-  expect(clip("ab", 3, witness)).toBe("ab")
+test("clip says what it kept and whether it cut", () => {
+  expect(clip("abcdef", 3)).toEqual({ text: "abc", cut: true })
+  expect(clip("ab", 3)).toEqual({ text: "ab", cut: false })
+  expect(clip("abc", 3)).toEqual({ text: "abc", cut: false })
+})
+
+test("an account key drops the colons a cut left dangling, and is never empty", () => {
+  expect(accountKeyAfterCut("assets:bank")).toBe("assets:bank")
+  expect(accountKeyAfterCut("assets:bank:")).toBe("assets:bank")
+  expect(accountKeyAfterCut("assets::")).toBe("assets")
+  expect(accountKeyAfterCut(":")).toBe(":")
+  expect(accountKeyAfterCut("::")).toBe("::")
 })

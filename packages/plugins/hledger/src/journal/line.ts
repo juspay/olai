@@ -1,9 +1,3 @@
-/**
- * THE ORDER MATTERS: a date in a comment is a comment, because the comment
- * check comes first; a date-shaped line whose day is not real is
- * `headerRefused` rather than a transaction, because {@link headerOf} is asked
- * before the line is believed.
- */
 import { DATE_SHAPE } from "./date.ts"
 import { type Header, headerOf } from "./header.ts"
 

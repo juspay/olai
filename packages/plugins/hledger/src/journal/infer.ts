@@ -1,22 +1,22 @@
+import { type Amount } from "./amount.ts"
 import { add, negate, zero } from "./decimal.ts"
 import { type Posting, type Stated } from "./posting.ts"
 
 export const infer = (items: ReadonlyArray<Stated>, refused: boolean): ReadonlyArray<Posting> => {
   const postings = items.map((one) => one.posting)
-  const filled = new Map<number, Posting["amount"]>()
+  const filled = new Map<number, Amount>()
   if (!refused && !items.some((one) => one.cost)) {
     for (const virtual of ["no", "balanced"] as const) {
       const group = items.flatMap((one, at) => (one.posting.virtual === virtual ? [{ one, at }] : []))
-      const known = group.filter(({ one }) => one.posting.amount !== null)
-      const missing = group.filter(({ one }) => one.posting.amount === null && one.posting.assertion === null)
-      const commodities = new Set(known.map(({ one }) => one.posting.amount?.commodity ?? ""))
-      if (missing.length !== 1 || known.length === 0 || commodities.size !== 1) continue
+      const known = group.flatMap(({ one }) => (one.says === "amount" ? [one.amount] : []))
+      const missing = group.flatMap(({ one, at }) => (one.says === "omitted" ? [at] : []))
+      const first = known[0]
       const target = missing[0]
-      if (target === undefined) continue
+      if (first === undefined || target === undefined || missing.length !== 1) continue
+      if (known.some((amount) => amount.commodity !== first.commodity)) continue
       let sum = zero
-      for (const { one } of known) if (one.posting.amount !== null) sum = add(sum, one.posting.amount.value)
-      const commodity = known[0]?.one.posting.amount?.commodity ?? ""
-      filled.set(target.at, { commodity, value: negate(sum), written: null, style: null })
+      for (const amount of known) sum = add(sum, amount.value)
+      filled.set(target, { commodity: first.commodity, value: negate(sum), written: null, style: null })
     }
   }
   return postings.map((posting, at) => {

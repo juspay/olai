@@ -41,18 +41,23 @@ test("a posting that states something unreadable is refused", () => {
 
 test("the cost and the assertion are kept as the file wrote them", () => {
   const one = postingOf("    assets:investments:brokerage:VTI   5 VTI @ $271.12")!
+  expect(one.says).toBe("amount")
   expect(one.posting.amount?.written).toBe("5")
   expect(one.posting.cost).toBe("@ $271.12")
   expect(one.posting.assertion).toBeNull()
 
   const reconciled = postingOf("    assets:bank:hdfc:checking   $0 = $5,123.45")!
+  expect(reconciled.says).toBe("amount")
   expect(reconciled.posting.amount?.written).toBe("0")
   expect(reconciled.posting.cost).toBeNull()
   expect(reconciled.posting.assertion).toBe("= $5,123.45")
 
   const claimed = postingOf("    assets:bank:hdfc:checking   = $5,123.45")!
+  expect(claimed.says).toBe("assertionOnly")
   expect(claimed.posting.amount).toBeNull()
   expect(claimed.posting.assertion).toBe("= $5,123.45")
+
+  expect(postingOf("    assets:cash")!.says).toBe("omitted")
 })
 
 test("an amount keeps the digits the file wrote", () => {

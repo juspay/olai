@@ -12,6 +12,8 @@ export const tagsIn = (comment: string): Commented => {
   const tags: Array<Tag> = []
   let prose = ""
   let at = 0
+  // hledger's rule: a tag key is one word, and its value runs to the next comma or
+  // the end of the comment — https://hledger.org/journal.html#tags
   const pattern = /([^\s:;,]+):\s*([^,]*),?/g
   for (let found = pattern.exec(comment); found !== null; found = pattern.exec(comment)) {
     prose += comment.slice(at, found.index)

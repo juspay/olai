@@ -13,10 +13,10 @@ export interface Posting {
   readonly tags: ReadonlyArray<Tag>
 }
 
-export interface Stated {
-  readonly posting: Posting
-  readonly cost: boolean
-}
+export type Stated =
+  | { readonly says: "amount"; readonly posting: Posting; readonly amount: Amount; readonly cost: boolean }
+  | { readonly says: "omitted"; readonly posting: Posting; readonly cost: boolean }
+  | { readonly says: "assertionOnly"; readonly posting: Posting; readonly cost: boolean }
 
 export const postingOf = (raw: string): Stated | null => {
   let content = raw.trim()
@@ -61,18 +61,19 @@ export const postingOf = (raw: string): Stated | null => {
   const stated = region === "" ? null : parseAmount(region)
   if (region !== "" && stated === null) return null
   const said = comment === null ? { tags: [], prose: "" } : tagsIn(comment)
-  return {
-    posting: {
-      account,
-      virtual,
-      amount: stated,
-      inferred: false,
-      cost,
-      assertion,
-      comment: comment === "" ? null : comment,
-      prose: said.prose,
-      tags: said.tags,
-    },
-    cost: cost !== null,
+  const posting: Posting = {
+    account,
+    virtual,
+    amount: stated,
+    inferred: false,
+    cost,
+    assertion,
+    comment: comment === "" ? null : comment,
+    prose: said.prose,
+    tags: said.tags,
   }
+  const costs = cost !== null
+  if (stated !== null) return { says: "amount", posting, amount: stated, cost: costs }
+  if (assertion !== null) return { says: "assertionOnly", posting, cost: costs }
+  return { says: "omitted", posting, cost: costs }
 }

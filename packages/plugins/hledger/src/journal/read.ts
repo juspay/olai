@@ -1,6 +1,6 @@
 import { type Amount } from "./amount.ts"
 import { compareAccounts, type Movement, rollup } from "./balances.ts"
-import { boundedBy, type Bounds, clip } from "./bounds.ts"
+import { accountKeyAfterCut, boundedBy, type Bounds, clip } from "./bounds.ts"
 import { type EntryKind, group } from "./group.ts"
 import { type Header } from "./header.ts"
 import { infer } from "./infer.ts"
@@ -57,18 +57,17 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
     lines.push(classify(raw.endsWith("\r") ? raw.slice(0, -1) : raw))
   }
 
-  const witness = { cut: false }
-  const cut = (field: string): string => clip(field, limits.cell, witness)
+  let longCells = false
+  const cut = (field: string): string => {
+    const held = clip(field, limits.cell)
+    if (held.cut) longCells = true
+    return held.text
+  }
   const cutTags = (ones: ReadonlyArray<Tag>): ReadonlyArray<Tag> =>
     ones.map((one) => ({ key: cut(one.key), value: one.value === null ? null : cut(one.value) }))
-  const cutAccount = (account: string): string => {
-    const held = cut(account)
-    const trimmed = held.replace(/:+$/, "")
-    return trimmed === "" ? held : trimmed
-  }
   const cutPosting = (one: Posting): Posting => ({
     ...one,
-    account: cutAccount(one.account),
+    account: accountKeyAfterCut(cut(one.account)),
     cost: one.cost === null ? null : cut(one.cost),
     assertion: one.assertion === null ? null : cut(one.assertion),
     comment: one.comment === null ? null : cut(one.comment),
@@ -127,7 +126,7 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
     balances: { accounts: [...rolled.keys()].sort(compareAccounts), of },
     moreTransactions,
     truncated,
-    longCells: witness.cut,
+    longCells,
     lines: read,
   }
 }

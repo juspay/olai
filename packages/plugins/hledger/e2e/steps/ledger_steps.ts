@@ -124,18 +124,18 @@ const header = async (world: World): Promise<string> => {
   return oneLine(await found.innerText());
 };
 
-const fact = (world: World, name: string) =>
+const factSpan = (world: World, name: string) =>
   world.page.locator(`${HLEDGER_FACT}${attr("data-fact", name)}`);
 
-const factReading = async (world: World, name: string): Promise<string | null> => {
-  const found = fact(world, name);
+const factNow = async (world: World, name: string): Promise<string | null> => {
+  const found = factSpan(world, name);
   if ((await found.count()) === 0) return null;
   return oneLine((await found.first().textContent()) ?? "");
 };
 
-const factText = async (world: World, name: string): Promise<string> => {
-  await fact(world, name).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-  return (await factReading(world, name)) ?? "";
+const fact = async (world: World, name: string): Promise<string> => {
+  await factSpan(world, name).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  return (await factNow(world, name)) ?? "";
 };
 
 When(
@@ -221,10 +221,10 @@ Then(
       ["accounts", accounts, accountNoun],
     ];
     for (const [name, count, noun] of wanted) {
-      await fact(this, name).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+      await factSpan(this, name).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
       await this.waitUntil(
         async () => {
-          const text = await factReading(this, name);
+          const text = await factNow(this, name);
           const found = text === null ? null : /^([\d,]+) (\S+)$/.exec(text);
           return (
             found !== null &&
@@ -243,17 +243,17 @@ Then(
   async function (this: World, expected: string) {
     await header(this);
     await this.waitUntil(
-      async () => (await factReading(this, "dates")) === expected,
+      async () => (await factNow(this, "dates")) === expected,
       `the header's dates fact to read ${JSON.stringify(expected)}`,
     );
-    assert.strictEqual(await factText(this, "dates"), expected);
+    assert.strictEqual(await fact(this, "dates"), expected);
   },
 );
 
 Then(
   "the ledger header lists the commodities {string}",
   async function (this: World, expected: string) {
-    assert.strictEqual(await factText(this, "commodities"), expected);
+    assert.strictEqual(await fact(this, "commodities"), expected);
   },
 );
 
