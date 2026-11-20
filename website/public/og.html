@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <title>olai: link card</title>
-<!-- og.png is made from this file by `just website-tour card`. -->
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +27,7 @@
   .copy { position: absolute; left: 64px; top: 0; bottom: 0; width: 520px; display: flex; flex-direction: column; justify-content: center; }
   .kicker { font-family: var(--mono); font-size: 16px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
   .wordmark { font-family: var(--display); font-style: italic; font-weight: 600; font-size: 124px; letter-spacing: -0.045em; line-height: 0.9; margin-top: 12px; }
-  .tag { font-family: var(--display); font-style: italic; font-weight: 400; font-size: 41px; line-height: 1.17; margin-top: 26px; }
+  .tag { font-family: var(--display); font-style: italic; font-weight: 400; font-size: 38px; line-height: 1.17; margin-top: 24px; }
   .tag b { font-weight: 600; }
   .host { font-family: var(--mono); font-size: 17px; color: var(--muted); margin-top: 34px; }
   .panel {
@@ -46,6 +45,9 @@
   .box.done { border-color: var(--done); }
   .strike { text-decoration: line-through; color: var(--muted); }
   .count { font-family: var(--mono); font-size: 18px; color: var(--muted); }
+  .tabs { display: flex; gap: 8px; margin: -4px 0 12px; font-family: var(--mono); font-size: 16px; }
+  .tabs span { padding: 4px 12px; border-radius: 8px 8px 0 0; color: var(--muted); border-bottom: 2px solid #CFE6DF; }
+  .tabs span.on { color: var(--ink); border-bottom-color: var(--accent); }
   .chat { margin-top: 16px; padding-top: 16px; border-top: 2px solid #CFE6DF; display: grid; gap: 10px; }
   .msg { border-radius: 16px; padding: 9px 16px; font-size: 23px; max-width: 92%; }
   .you { justify-self: end; background: #F3DADB; }
@@ -59,10 +61,11 @@
     <div class="copy">
       <div class="kicker">open source · plain files · your AI agent</div>
       <div class="wordmark">olai</div>
-      <div class="tag">Notes and to-do lists in plain files. <b>Bring your own AI agent.</b></div>
+      <div class="tag">Markdown notes and outlines in plain files. <b>Bring your own AI agent.</b></div>
       <div class="host">olai.page</div>
     </div>
     <div class="panel">
+      <div class="tabs"><span>cabinets.md</span><span class="on">house.olai</span></div>
       <div class="item"><span class="bullet">●</span><span><b>Kitchen renovation</b> <span class="count">3/5</span></span></div>
       <div class="item d1"><span class="box done"></span><span class="strike">Demolition</span></div>
       <div class="item d1"><span class="box done"></span><span class="strike">Book the plumber</span></div>
