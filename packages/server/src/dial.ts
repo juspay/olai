@@ -30,11 +30,8 @@ export const dialOlai = (values: Dialled): Effect.Effect<ResolvedEndpoint> =>
   }))
 
 const clientOver = (connection: McpConnection, url: string): RootedSurfaceClients => {
-  const clients: Record<string, {
-    surface: Record<string, Record<string, (input: unknown) => Stream.Stream<unknown, unknown>>>
-    callTool: McpConnection["callTool"]
-    url: string
-  }> = {}
+  const door = { callTool: connection.callTool, url }
+  const clients: Record<string, { surface: Record<string, Record<string, (input: unknown) => Stream.Stream<unknown, unknown>>> } & typeof door> = {}
   for (const [key, sibling] of Object.entries(AGENT_SIBLINGS)) {
     const resolved = resolveExpose(sibling.surface.spec as never, (sibling.expose ?? {}) as never, key)
     const byKey = new Map(resolved.resources.map((resource) => [resource.key, resource]))
@@ -58,14 +55,10 @@ const clientOver = (connection: McpConnection, url: string): RootedSurfaceClient
       }
       members[member] = verbs
     }
-    clients[key] = { surface: members, callTool: connection.callTool, url }
+    clients[key] = { surface: members, ...door }
   }
 
-  return {
-    clients,
-    callTool: connection.callTool,
-    url,
-  } as unknown as RootedSurfaceClients
+  return { clients, ...door } as unknown as RootedSurfaceClients
 }
 
 const once = (answer: () => Promise<unknown>): Stream.Stream<unknown, unknown> =>
@@ -81,9 +74,8 @@ const keyOf = (input: unknown): string => {
 
 /** One item's address: the published template with its placeholder filled.
  *
- *  `@kolu/surface-mcp` publishes the item template as `…/{+id}` — RFC 6570's
- *  RESERVED expansion — since juspay/kolu#2393, so the name is written segment
- *  by segment and joined with `/`, which is that expansion's own rule. */
+ *  `{+id}` is RFC 6570's reserved expansion, which passes `/` through
+ *  unescaped, so the name is encoded segment by segment and joined with `/`. */
 export const itemAddress = (uriTemplate: string, name: string): string => {
   const placeholder = "{+id}"
   const at = uriTemplate.indexOf(placeholder)

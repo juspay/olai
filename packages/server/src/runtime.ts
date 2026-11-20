@@ -11,8 +11,10 @@ import { hostSurface, hostFaces } from "@olai/surface/host"
 import { composeCapabilities } from "./composition.ts"
 import { authorityAt } from "@olai/plugin-api/authority"
 import { CurrentWho } from "./who.ts"
-export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered>; readonly rosterMoved: (run: () => void) => () => void }
+export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered>; readonly agentRows: TransportSurface["agentRows"]; readonly rosterMoved: (run: () => void) => () => void }
 import type { Configuration, PolicyRow, EnvironmentReading } from "@olai/plugin-api/configuration"
+import type { TransportSurface } from "@olai/plugin-api/transport"
+import type { FaceExposure } from "@kolu/surface/expose"
 
 export interface PluginRuntime {
   readonly plugins: Plugins
@@ -159,7 +161,9 @@ export const bind = (wiring: Wiring) => Effect.gen(function*() {
         (offered?.catalogs?.() ?? []).flatMap(catalog => catalog.rows(offered?.report() ?? new Map())) as ReadonlyArray<BuiltPlugin>,
         generations,
       )
-    let settling: (run: Effect.Effect<boolean, OpFailure>) => Effect.Effect<boolean, OpFailure> = (run) => run
+    const leaving = new Map<string, Promise<void>>()
+    let moving = false
+    let pendingStatus = false
     const deps: ImplementSurfaceDeps<typeof hostSurface.spec> = {
       cells: { plugins: { store: inMemoryStore<PluginRoster>(roster()), connect: cell => Effect.sync(() => { pluginsCell = cell }) } },
       procedures: {
@@ -211,13 +215,12 @@ app: {
     const mounted = new Map<string, MountedSurface<SurfaceSpec>>()
     const standing = new Map<string, Registered>()
     const watchers = new Set<() => void>()
-    const recompose = (): void => {
-      const wanted = new Map(siblings().map((one) => [one.name, one] as const))
+    const composeArrivals = (wanted: ReadonlyMap<string, Registered>): void => {
       for (const [key, one] of wanted) {
         if (mounted.has(key)) continue
-        const settling = leaving.get(key)
-        if (settling !== undefined) {
-          void settling.then(() => {
+        const draining = leaving.get(key)
+        if (draining !== undefined) {
+          void draining.then(() => {
             if (!mounted.has(key)) recompose()
           })
           continue
@@ -237,6 +240,8 @@ app: {
         standing.set(key, one)
         one.published?.(mount.ctx)
       }
+    }
+    const drainDepartures = (wanted: ReadonlyMap<string, Registered>): void => {
       for (const [key, mount] of [...mounted]) {
         if (wanted.has(key)) continue
         mounted.delete(key)
@@ -244,19 +249,23 @@ app: {
         say(Effect.logDebug(`plugins: dropped "${key}"`).pipe(
           Effect.annotateLogs({ generation: generations.get(key) ?? 0 }),
         ))
-        const settling = mount.drop().catch((thrown: unknown) => {
+        const draining = mount.drop().catch((thrown: unknown) => {
           say(
             Effect.logWarning(
               `plugins: "${key}" left the wire and its teardown failed — ${String(thrown)}`,
             ),
           )
         })
-        leaving.set(key, settling)
-        void settling.then(() => {
-          if (leaving.get(key) === settling) leaving.delete(key)
+        leaving.set(key, draining)
+        void draining.then(() => {
+          if (leaving.get(key) === draining) leaving.delete(key)
         })
       }
-      gates = gatesFor()
+    }
+    const recompose = (): void => {
+      const wanted = new Map(siblings().map((one) => [one.name, one] as const))
+      composeArrivals(wanted)
+      drainDepartures(wanted)
       if (!moving) republishPlugins()
       for (const run of watchers) run()
     }
@@ -265,8 +274,8 @@ app: {
       yield* offered?.reread ?? Effect.void
       recompose()
     })
-    settling = (run) =>
-      Effect.gen(function*() {
+    function settling(run: Effect.Effect<boolean, OpFailure>): Effect.Effect<boolean, OpFailure> {
+      return Effect.gen(function*() {
         const changed = yield* Effect.ensuring(
           Effect.andThen(Effect.sync(() => { moving = true }), run),
           Effect.sync(() => { moving = false }),
@@ -274,11 +283,7 @@ app: {
         if (changed || pendingStatus) yield* refreshPlugins
         return changed
       })
-    let gates = runtime.faces as { browser: import("@kolu/surface/expose").FaceExposure, agent: import("@kolu/surface/expose").FaceExposure }
-    const gatesFor = (): typeof gates => runtime.faces as typeof gates
-    const leaving = new Map<string, Promise<void>>()
-    let moving = false
-    let pendingStatus = false
+    }
     recompose()
     if (offered !== null) {
       const statusChanges = yield* Queue.unbounded<void>()
@@ -304,6 +309,13 @@ app: {
       bound: {
         get writes() { return runtime.writes },
         get rows() { return [...standing.values()] },
+        agentRows: () => [...standing.values()].map((one) => ({
+          name: one.name,
+          surface: one.surface,
+          resources: one.resources ?? {},
+          tools: one.tools ?? [],
+          charter: one.charter,
+        })),
         rosterMoved: (run: () => void) => {
           watchers.add(run)
           return () => watchers.delete(run)
@@ -318,7 +330,7 @@ app: {
         close: runtime.close,
       },
       get faces() {
-        return gates
+        return runtime.faces as { browser: FaceExposure, agent: FaceExposure }
       },
     }
   })

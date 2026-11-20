@@ -24,6 +24,20 @@ export const parentTie = (env: NodeJS.ProcessEnv): ParentTie => {
   return { parent: asked }
 }
 
+const armParentDeathSignal = (): number | null => {
+  // The sonames, glibc's then musl's.
+  for (const name of ["libc.so.6", "libc.so"] as const) {
+    try {
+      const lib = dlopen(name, {
+        prctl: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
+      })
+      return lib.symbols.prctl(PR_SET_PDEATHSIG, SIGTERM)
+    } catch {
+    }
+  }
+  return null
+}
+
 export const dieWithParent = (env: NodeJS.ProcessEnv = process.env): void => {
   const tie = parentTie(env)
   delete env[DIE_WITH_PARENT]
@@ -31,30 +45,25 @@ export const dieWithParent = (env: NodeJS.ProcessEnv = process.env): void => {
     if (tie.complaint !== undefined) process.stderr.write(`${tie.complaint}\n`)
     return
   }
+  // `prctl` is Linux's; darwin has no equivalent callable without a helper
+  // process.
   if (process.platform !== "linux") return
-  // The sonames, glibc's then musl's.
-  for (const name of ["libc.so.6", "libc.so"] as const) {
-    try {
-      const lib = dlopen(name, {
-        prctl: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
-      })
-      const armed = lib.symbols.prctl(PR_SET_PDEATHSIG, SIGTERM)
-      if (armed !== 0) {
-        process.stderr.write(
-          `olai: tied to pid ${tie.parent} (${DIE_WITH_PARENT}), but ` +
-            `prctl(PR_SET_PDEATHSIG) returned ${armed} — nothing will tell this ` +
-            `process when that parent dies\n`,
-        )
-      }
-      // The kernel delivers nothing for a parent that died BEFORE the arm, so
-      // the ppid is read back after it.
-      if (process.ppid !== tie.parent) process.kill(process.pid, "SIGTERM")
-      return
-    } catch {
-    }
+  const armed = armParentDeathSignal()
+  if (armed === null) {
+    process.stderr.write(
+      `olai: tied to pid ${tie.parent} (${DIE_WITH_PARENT}), but libc would not ` +
+        `load — PR_SET_PDEATHSIG is not armed and this process can outlive it\n`,
+    )
+    return
   }
-  process.stderr.write(
-    `olai: tied to pid ${tie.parent} (${DIE_WITH_PARENT}), but libc would not ` +
-      `load — PR_SET_PDEATHSIG is not armed and this process can outlive it\n`,
-  )
+  if (armed !== 0) {
+    process.stderr.write(
+      `olai: tied to pid ${tie.parent} (${DIE_WITH_PARENT}), but ` +
+        `prctl(PR_SET_PDEATHSIG) returned ${armed} — nothing will tell this ` +
+        `process when that parent dies\n`,
+    )
+  }
+  // The kernel delivers nothing for a parent that died BEFORE the arm, so the
+  // ppid is read back after it.
+  if (process.ppid !== tie.parent) process.kill(process.pid, "SIGTERM")
 }

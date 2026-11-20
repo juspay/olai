@@ -37,13 +37,9 @@ const Reply = Schema.Struct({
   ),
 })
 
-/**
- * Open a connection: the MCP handshake, then the door is ready.
- *
- * The SDK's `Server` refuses every request before `initialize`, so the two
- * handshake messages are not ceremony: the request, and the notification that
- * says the client has read the answer.
- */
+/** MCP servers refuse every request before `initialize`, which is why the two
+ *  handshake messages are sent: the request, and the notification that says the
+ *  client has read the answer. */
 export const openMcp = async (url: string): Promise<McpConnection> => {
   const endpoint = mcpUrl(url)
   const token = process.env[TOKEN_ENV]
@@ -129,11 +125,8 @@ export const mcpUrl = (url: string): string => {
 
 const MCP_PATH = "/mcp"
 
-/** A tool result, read as the verb's answer — or raised as its refusal.
- *
- *  MCP types the structured arm as a JSON OBJECT, which is why a scalar answer
- *  travels under `value` (`@kolu/surface/verbs`' `wrapValue`) and is unwrapped
- *  here. */
+/** MCP's `structuredContent` is typed as a JSON object, so a scalar answer
+ *  travels wrapped under `value` and is unwrapped here. */
 const answerOf = (result: unknown, name: string): unknown => {
   const said = result as {
     readonly content?: ReadonlyArray<{ readonly text?: string }>
@@ -170,9 +163,8 @@ const unwrap = (value: Record<string, unknown>): unknown => {
   return keys.length === 1 && keys[0] === "value" ? value.value : value
 }
 
-/** Node reports every network failure as `fetch failed` with the reason on
- *  `cause`, so a refused connection, a bad name and an expired certificate all
- *  read alike at the top. */
+/** Node reports every network failure as `fetch failed`, with the real reason
+ *  on `cause`. */
 const becauseOf = (cause: unknown): string => {
   const said = cause instanceof Error ? cause.message : String(cause)
   const under = (cause as { readonly cause?: unknown })?.cause

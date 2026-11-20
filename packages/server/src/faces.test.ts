@@ -57,8 +57,7 @@ const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
       plugins: yield* runtimeFor(plugins, [...ROWS]),
     })
     const runtime = yield* watchFault(wired.bound)
-    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
-    yield* Effect.addFinalizer(() => runtime.stopped)
+    yield* Effect.addFinalizer(() => runtime.close)
     const rows = wired.bound.rows.map((row) => ({
       name: row.name,
       surface: row.surface as Surface<SurfaceSpec>,

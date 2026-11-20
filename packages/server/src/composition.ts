@@ -57,10 +57,10 @@ export function composeCapabilities<const S extends SurfaceSpec>(
       }
       for (const map of Object.values(options.faces ?? {})) exposeFace(surface, map)
       const mounted = runtime.mount(name, surface, deps)
-      mounts.set(name, { surface, writes: options.writes ?? [], faces: options.faces ?? {} } as {
+      const registration = { surface, writes: options.writes ?? [], faces: options.faces ?? {} } as {
         surface: Surface<SurfaceSpec>, writes: ReadonlyArray<string>, faces: Readonly<Record<string, ExposeMap<SurfaceSpec>>>
-      })
-      const registration = mounts.get(name)!
+      }
+      mounts.set(name, registration)
       rebuild()
       return {
         ...mounted,

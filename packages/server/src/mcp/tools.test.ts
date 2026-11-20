@@ -106,11 +106,10 @@ const withTools = <A>(
       plugins: yield* capabilitiesOver(store, ops, root, { rows: [...CONTENT_ROWS, "search", "git"], definitions: true }),
     })
     const runtime = yield* watchFault(wired.bound)
-    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
+    yield* Effect.addFinalizer(() => runtime.close)
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
-    const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
+    const rows = (): ReadonlyArray<Row> => wired.bound.agentRows()
     const panel = () => clientsFor(rows(), () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }), { writer: "mcp" })
     yield* serveFace({
       siblings: siblingsOf(rows(), row => bespokeFrom(row.name, row.tools as ReadonlyArray<Tool>, rows, {
@@ -129,7 +128,6 @@ const withTools = <A>(
     const client = new Client({ name: "tools.test", version: "0" })
     yield* Effect.promise(() => client.connect(clientSide))
     yield* Effect.addFinalizer(() => Effect.promise(() => client.close()))
-    yield* Effect.addFinalizer(() => runtime.stopped)
 
     return yield* Effect.promise(() =>
       use({

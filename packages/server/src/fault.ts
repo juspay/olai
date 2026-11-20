@@ -11,11 +11,11 @@ export class SurfaceFaulted extends Data.TaggedError("SurfaceFaulted")<{
 
 export interface FaultWatch {
   readonly faulted: Effect.Effect<never, SurfaceFaulted>
-  readonly stopped: Effect.Effect<void>
+  readonly close: Effect.Effect<void>
 }
 
 export const watchFault = (
-  runtime: { readonly done: Promise<void> },
+  runtime: { readonly done: Promise<void>; readonly close: () => Promise<void> },
 ): Effect.Effect<FaultWatch> =>
   Effect.gen(function*() {
     const fault = yield* Deferred.make<never, SurfaceFaulted>()
@@ -29,8 +29,9 @@ export const watchFault = (
 
     return {
       faulted: Deferred.await(fault),
-      stopped: Effect.sync(() => {
+      close: Effect.promise(() => {
         serving = false
+        return runtime.close()
       }),
     }
   })

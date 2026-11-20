@@ -117,8 +117,7 @@ const withRuntime = <A>(
       },
     })
     const runtime = yield* watchFault(wired.bound)
-    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
-    yield* Effect.addFinalizer(() => runtime.stopped)
+    yield* Effect.addFinalizer(() => runtime.close)
     return yield* use({ wired, ops: gate, store, reads, attached: Queue.take(attachments), root, plugins: mounted })
   }).pipe(
     Effect.scoped,

@@ -4,7 +4,7 @@ import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";
 import { BUNDLE_NAMES, ROWS, configsOf, mountBundle, provide, settled, offered, reportBundle, rowsNaming, setRow, } from "@olai/bundle/bundle";
 import { bundleRank } from "@olai/bundle";
 import { emitter, liveLevel } from "@olai/log";
-import { ConfigurationSource, Vault as ContentRevision, Identity, openPlugins, type ToolServer, } from "@olai/plugin-api/services";
+import { ConfigurationSource, Vault as ContentRevision, Identity, openPlugins, type PluginsConfig, type ToolServer, } from "@olai/plugin-api/services";
 import { Deferred, Effect, Layer } from "effect";
 import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
@@ -49,8 +49,11 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     let addressPort = options.port;
     let ownPolicy = processPolicy(undefined, () => {});
     const warned = new Set<string>();
-    let issueTicket: ReturnType<typeof ticketsFor> | undefined;
-    let readAdvertised: ReturnType<typeof advertisedFor> | undefined;
+    const beforeHost = () => null;
+    const fromHost: {
+        ticketFor: NonNullable<PluginsConfig["ticketFor"]>
+        advertised: NonNullable<PluginsConfig["advertisedFor"]>
+    } = { ticketFor: beforeHost, advertised: beforeHost };
     const served = resolve(options.root);
     yield* Effect.annotateLogsScoped({ root: served });
     const say = yield* emitter;
@@ -59,14 +62,14 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
         vars: options.vars ?? process.env,
         now: () => new Date().toISOString(),
         tools: toolsReady,
-      advertisedFor: (server, tool) => readAdvertised?.(server, tool) ?? null,
-      ticketFor: (...args) => issueTicket?.(...args) ?? null,
+      advertisedFor: (server, tool) => fromHost.advertised(server, tool),
+      ticketFor: (...args) => fromHost.ticketFor(...args),
         rank: bundleRank,
         localStateFor: (plugin) => localStateFor(plugin, served, (line) => say(Effect.logWarning(line))),
         changed: () => onChange.run(),
     });
-    issueTicket = ticketsFor(plugins.host);
-    readAdvertised = advertisedFor(plugins.host);
+    fromHost.ticketFor = ticketsFor(plugins.host);
+    fromHost.advertised = advertisedFor(plugins.host);
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
     yield* mountBundle(plugins.host, [], profile, true);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });
@@ -127,7 +130,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
         },
     });
     const runtime = yield* watchFault(wired.bound);
-    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()));
+    yield* Effect.addFinalizer(() => runtime.close);
     yield* Effect.addFinalizer(() => plugins.close);
     yield* Effect.addFinalizer(() => policy.close);
     const transports = yield* listener({ host: options.host, port: options.port });
@@ -145,19 +148,17 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
         hostname: theMachine,
         token,
         agent: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.agent, writes: wired.bound.writes }),
-        agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter })),
+        agentRows: wired.bound.agentRows,
         agentRosterMoved: wired.bound.rosterMoved,
         writeReservations: WRITE_RESERVATIONS,
     }));
-    yield* Effect.addFinalizer(() => transports.stop);
     yield* settled(plugins.host, built);
     report = yield* reportBundle(plugins.host, loading.names());
     onChange.run();
-    yield* Effect.onError(Effect.sync(() => checkUpgradeHeaders(currentIdentity().headers)), () => runtime.stopped);
-    const url = yield* Effect.onError(transports.start, () => runtime.stopped);
+    yield* Effect.sync(() => checkUpgradeHeaders(currentIdentity().headers));
+    const url = yield* transports.start;
     if (url) addressPort = Number(new URL(url).port || "80");
     onChange.run();
-    yield* Effect.addFinalizer(() => runtime.stopped);
     if (url && !LOOPBACK.has(options.host)) {
         yield* Effect.annotateLogs(Effect.logWarning("bound off loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline here, and edit them"), { host: options.host });
     }

@@ -86,11 +86,10 @@ const withRoute = <A>(
       plugins: yield* capabilitiesOver(store, ops, root, {definitions:listenOn.definitions ?? true}),
     })
     const runtime = yield* watchFault(wired.bound)
-    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
+    yield* Effect.addFinalizer(() => runtime.close)
 
     const transport = mcpTransport()
-    const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
+    const rows = (): ReadonlyArray<Row> => wired.bound.agentRows()
     const panel = () => clientsFor(
       rows(),
       () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
@@ -111,7 +110,6 @@ const withRoute = <A>(
       rows,
       transport,
     })
-    yield* Effect.addFinalizer(() => runtime.stopped)
 
     const base = yield* listen({
       host: listenOn.host, port: 0,

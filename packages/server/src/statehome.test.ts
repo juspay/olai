@@ -27,9 +27,8 @@ const until = async (predicate: () => boolean, timeout = 10_000): Promise<boolea
   return predicate()
 }
 
-// The enclosing test must outlive the child's startup deadline, the sweep
-// observation window and shutdown. Bun's five-second default killed the child
-// before its own ten-second boot deadline and produced an unhandled rejection.
+// Bun's per-test default is five seconds, which is shorter than the child's
+// own boot deadline.
 const TEST_TIMEOUT = BOOT_TIMEOUT + 15_000
 
 test("a spawned server never touches a state home it was not handed", async () => {

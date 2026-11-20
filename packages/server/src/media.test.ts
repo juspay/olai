@@ -37,6 +37,9 @@ const vault = (): string => {
 const withVault = (body: (url: string) => Promise<void>): Promise<void> =>
   withServing({ root: vault() }, (url) => body(url))
 
+// `fetch` builds a WHATWG URL, and that resolver removes `..` and `%2e%2e`
+// before the request leaves the process; node's client writes the path out
+// verbatim, which is the request this guard exists to answer.
 const askRaw = (
   url: string,
   at: string,

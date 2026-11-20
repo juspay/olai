@@ -25,8 +25,7 @@ test("Markdown owns live frontmatter and missing-file metadata with outlines abs
   const plugins = yield* capabilitiesOver(store,ops,root,{rows:["markdown"]})
   const wired = yield* bind({plugins,hostname:"test",startedAt:""})
   const faults = yield* watchFault(wired.bound)
-  yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
-  yield* Effect.addFinalizer(() => faults.stopped)
+  yield* Effect.addFinalizer(() => faults.close)
   expect(wired.bound.handlers["surface/outlines/page/get"]).toBeUndefined()
   expect(wired.bound.handlers["surface/outlines/outlines/get"]).toBeUndefined()
   const get = wired.bound.handlers["surface/markdown/documentPage/get"]!

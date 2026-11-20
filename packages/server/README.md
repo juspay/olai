@@ -43,7 +43,7 @@ The transport implementations live in `packages/plugins/ws`, `packages/plugins/w
 | `main.ts` | argv, defaults, the log sink, the top-level run, and the one line a signal writes to stderr before `runMain` silently exits 130 |
 | the `@olai/sigterm` package | the SIGTERM guard: `sigaction(2)` with `SA_SIGINFO` names every TERM's sender; the supervisor's TERM is honored with today's shutdown, every other sender is refused and logged by pid/uid/cmdline — the stray-pkill ban from the 2026-08-29 RCA. The handler is a few lines of C compiled at boot by Bun's embedded tinycc (async-signal-safety is only worth having in native code); policy, /proc resolution and the journal lines are the `.ts` |
 
-Three modules under `src/` have no importer left at HEAD and are not described above, because describing them would say they are load-bearing: `resolving.ts` (the resolve-then-retry mechanism, which now lives as `@olai/ops/resolved-gate` and `packages/edit-intents/src/apply.ts`), `propKinds.ts` (the property-kind vocabulary, which the vault row now assembles where it builds the codec) and `store-source.ts`.
+Two modules under `src/` have no importer left at HEAD and are not described above, because describing them would say they are load-bearing: `resolving.ts` (the resolve-then-retry mechanism, which now lives as `@olai/ops/resolved-gate` and `packages/edit-intents/src/apply.ts`) and `store-source.ts`.
 
 ## What left, and where it went
 

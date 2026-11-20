@@ -66,11 +66,10 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
       plugins: yield* runtimeFor(plugins, ["vault", ...CONTENT_ROWS]),
     })
     const runtime = yield* watchFault(wired.bound)
-    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
+    yield* Effect.addFinalizer(() => runtime.close)
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
-    const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
+    const rows = (): ReadonlyArray<Row> => wired.bound.agentRows()
     yield* serveFace({
       siblings: siblingsOf(rows(), () => ({})),
       client: () => clientsFor(
@@ -85,7 +84,6 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     const client = new Client({ name: "face.test", version: "0" })
     yield* Effect.promise(() => client.connect(clientSide))
     yield* Effect.addFinalizer(() => Effect.promise(() => client.close()))
-    yield* Effect.addFinalizer(() => runtime.stopped)
 
     return yield* Effect.promise(() =>
       use({

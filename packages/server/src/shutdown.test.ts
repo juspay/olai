@@ -64,10 +64,9 @@ const firstLineOf = (proc: ReturnType<typeof spawn>): Promise<string> =>
     proc.on("exit", (code) => reject(new Error(`helper exited (${code}) without a pid line; it said: ${box}`)))
   })
 
-test("a SIGTERM from anyone but the supervisor is refused and named; the server keeps serving", async () => {
-  // The guard is Linux-only (the supervisor it recognizes is systemd's
-  // user manager); everywhere else keeps the default disposition.
-  if (process.platform !== "linux") return
+const onLinux = test.skipIf(process.platform !== "linux")
+
+onLinux("a SIGTERM from anyone but the supervisor is refused and named; the server keeps serving", async () => {
   const server = startWeb({ root: served() })
   try {
     const url = await server.address()

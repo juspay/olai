@@ -3,18 +3,13 @@ import { Cause, Effect, Option } from "effect"
 
 import { type FaultWatch, type SurfaceFaulted, watchFault } from "./fault.ts"
 
-const runtime = (): {
-  readonly watch: Promise<FaultWatch>
-  readonly fault: (cause: unknown) => void
-  readonly close: () => void
-} => {
-  let fault: (cause: unknown) => void = () => {}
-  let close: () => void = () => {}
-  const done = new Promise<void>((resolve, reject) => {
-    fault = reject
-    close = resolve
-  })
-  return { watch: Effect.runPromise(watchFault({ done })), fault, close }
+const runtime = () => {
+  let closed = 0
+  const { promise: done, resolve: settle, reject: fault } = Promise.withResolvers<void>()
+  const close = async (): Promise<void> => {
+    closed += 1
+  }
+  return { watch: Effect.runPromise(watchFault({ done, close })), fault, settle, closed: () => closed }
 }
 
 const within = (watch: FaultWatch): Promise<Option.Option<SurfaceFaulted>> =>
@@ -34,21 +29,30 @@ test("a faulted runtime is a typed failure, rendered — not an exit code", asyn
   expect(said).not.toContain("[object Object]")
 })
 
+test("closing the watch closes the runtime it watches", async () => {
+  const { watch, closed } = runtime()
+  const watching = await watch
+
+  await Effect.runPromise(watching.close)
+
+  expect(closed()).toBe(1)
+})
+
 test("a runtime settling during shutdown is not news", async () => {
   const { fault, watch } = runtime()
   const watching = await watch
 
-  await Effect.runPromise(watching.stopped)
+  await Effect.runPromise(watching.close)
   fault(Cause.fail(new Error("closed on the way out")))
 
   expect(Option.isNone(await within(watching))).toBe(true)
 })
 
 test("a runtime that closed cleanly while still serving is a fault", async () => {
-  const { close, watch } = runtime()
+  const { settle, watch } = runtime()
   const watching = await watch
 
-  close()
+  settle()
 
   const said = Option.getOrElse(await within(watching), () => undefined)?.message
   expect(said).toContain("surface runtime faulted")
@@ -56,11 +60,11 @@ test("a runtime that closed cleanly while still serving is a fault", async () =>
 })
 
 test("a runtime that closed cleanly during shutdown is not news", async () => {
-  const { close, watch } = runtime()
+  const { settle, watch } = runtime()
   const watching = await watch
 
-  await Effect.runPromise(watching.stopped)
-  close()
+  await Effect.runPromise(watching.close)
+  settle()
 
   expect(Option.isNone(await within(watching))).toBe(true)
 })

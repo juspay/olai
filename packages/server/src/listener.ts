@@ -34,9 +34,9 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
     url = undefined
     if (old) {
       yield* Effect.promise(async () => {
-        // Bun can miss the server.close callback when a socket is still
-        // closing. Await the connection close events before closing the port;
-        // destroying them only initiates that release.
+        // Bun's `node:http` can leave a closing socket on the server's
+        // connection count, so `close` never calls back (oven-sh/bun#45095).
+        // Await each connection's own close event first; destroy only starts it.
         while (connections.size > 0) await Promise.all([...connections].map((connection) => new Promise<void>((resolve) => {
           connection.once("close", () => resolve())
           connection.destroy()

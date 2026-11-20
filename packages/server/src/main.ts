@@ -146,7 +146,7 @@ const rowAt = (said: { readonly file?: string; readonly id?: string; readonly ur
 const surfaceCli = {
   surfaces: Object.fromEntries(Object.entries(AGENT_SIBLINGS).map(([key, row]) => [key, {
     surface: row.surface,
-    expose: row.expose,
+    expose: row.expose ?? {},
     verbs: remoteFrom(key, row.tools as ReadonlyArray<Tool>),
     annotate: annotationsFor(key, row.tools as ReadonlyArray<Tool>),
   }])),
@@ -179,10 +179,6 @@ dieWithParent()
 
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
-    // Every failure `@kolu/surface-cli` raises carries
-    // `Runtime.errorReported = false` because it writes its own line, so a host
-    // that re-fails without this edge exits with the right code and says
-    // nothing on either channel.
     reportingRunEdge,
     Effect.scoped,
     Effect.provide(
@@ -190,7 +186,5 @@ NodeRuntime.runMain(
         CliConfig.layer({ builtIns: GlobalFlag.BuiltIns.filter(flag => flag !== GlobalFlag.LogLevel) })),
     ),
   ),
-  // Paired with the edge above: `runMain` would otherwise print a second,
-  // differently-worded report of the same failure, on stdout.
   { disableErrorReporting: true },
 )
