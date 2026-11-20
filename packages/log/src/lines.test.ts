@@ -1,20 +1,8 @@
-/**
- * The decoder, against lines the encoder actually produces.
- *
- * This is the half of the format contract that lives outside the process: two
- * suites spawn the real binary and wait on a line of its stdout, so what they
- * are really waiting on is that these two agree. Round-tripping through
- * `Logger.formatLogFmt` rather than against hand-written strings is what makes
- * that a test of the pair rather than of somebody's memory of the format.
- */
-
 import { expect, test } from "bun:test"
 import { Effect, Logger, References } from "effect"
 
 import { findLogfmt, readLogfmt } from "./lines.testlib.ts"
 
-/** What the sinks would have written, without writing it anywhere — the same
- *  `formatLogFmt` they are built from, with the console step taken off. */
 const encoded = (line: Effect.Effect<void>): Promise<string> => {
   const written: Array<string> = []
   const sink = Logger.map(Logger.formatLogFmt, (text) => {
@@ -43,9 +31,6 @@ test("a field the encoder left bare reads back as itself", async () => {
   expect(fields.url).toBe("http://127.0.0.1:40429")
 })
 
-// The failure the three hand-rolled regexes this replaced would have had, and
-// would have had SILENTLY: a value gains a space, the encoder quotes it, and a
-// `key=(\S+)` match quietly stops finding the line it is waiting for.
 test("a value the encoder had to quote reads back unquoted", async () => {
   const fields = readLogfmt(
     await encoded(
@@ -70,18 +55,10 @@ test("a line found by message is that line, not a later one that shares a field"
     Effect.annotateLogs(Effect.logInfo("serving"), { url: "http://127.0.0.1:40429" }),
   )
 
-  // Both lines carry a `url=`; the message is what tells them apart, and it is
-  // matched exactly rather than as a substring for exactly that reason.
-  // Trailing `\n`: findLogfmt only matches a finished line.
   expect(findLogfmt(`${fallback}\n${serving}\n`, "serving")?.asked).toBeUndefined()
   expect(findLogfmt(`${fallback}\n`, "serving")).toBeUndefined()
 })
 
-// A spawned server's stdout arrives in chunks and a test waits on those
-// chunks. A half-written line must simply not match yet — including one cut
-// in the middle of a quoted value, where there is no closing quote to find and
-// the fields read so far are all there is, AND one whose message already
-// looks right but whose last field was sliced (a bare `url=` cut mid-port).
 test("a partial trailing line is not a match", () => {
   expect(findLogfmt("timestamp=… level=INFO fiber=#2 message=serv", "serving"))
     .toBeUndefined()

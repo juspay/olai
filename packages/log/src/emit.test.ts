@@ -1,19 +1,9 @@
-/**
- * A line emitted from a callback is the same line as one emitted from a fiber.
- *
- * That is the whole claim, and both halves of it are things a plain
- * `Effect.runFork` gets wrong: an the live minimum level the operator typed would not
- * reach the noisiest half of the program, and no annotation would survive the
- * trip out of Effect.
- */
-
 import { expect, test } from "bun:test"
 import { Effect, References } from "effect"
 
 import { collector, type Logged } from "./lines.testlib.ts"
 import { type Emit, emitter } from "./emit.ts"
 
-/** Run `body` against a collecting logger, and answer what it collected. */
 const collected = (
   options: {
     readonly body: (say: Emit) => void
@@ -29,8 +19,6 @@ const collected = (
   return Effect.gen(function*() {
     const say = yield* taken
     options.body(say)
-    // The emitter forks, so the line lands on another fiber. A sleep is what
-    // says "after the tick it runs on" out loud.
     yield* Effect.sleep("10 millis")
     return said
   }).pipe(
@@ -52,9 +40,6 @@ test("a callback's line carries the annotations in force where the emitter was t
   expect(said[0]?.annotations).toEqual({ agent: "claude-code-acp" })
 })
 
-// The regression the whole module exists for: an agent's stderr is relayed at
-// debug, and it is the biggest thing a server ever says. Dropping it by default
-// only works if the callback's line is filtered by the level the operator chose.
 test("a callback's line is filtered by the minimum level, like every other line", async () => {
   const quiet = await collected({
     body: (say) => say(Effect.logDebug("a whole screen of agent stderr")),

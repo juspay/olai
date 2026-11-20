@@ -1,15 +1,8 @@
-/**
- * Effect v4 logging: compact terminal presentation, unchanged logfmt for machines.
- * The destination stream controls format and colour at emit time. Both sinks
- * retain tracerLogger so events also reach any configured tracing backend.
- */
 import { Context, Formatter, type Layer, Logger } from "effect"
 
-/** Stream shape we need for the TTY check — Node's stdout/stderr, or a stub. */
 export type Stream = { readonly isTTY?: boolean }
 
 export type Presentation = "auto" | "logfmt" | "pretty"
-/** A scoped reading: the root supplies a live getter; standalone tools use auto. */
 export class LogPresentation extends Context.Reference<() => Presentation>("olai/log/presentation", {
   defaultValue: () => () => "auto",
 }) {}
@@ -17,29 +10,17 @@ export class LogPresentation extends Context.Reference<() => Presentation>("olai
 export const formatFor = (stream: Stream, format: Presentation = "auto"): "pretty" | "logfmt" =>
   format === "auto" ? (stream.isTTY === true ? "pretty" : "logfmt") : format
 
-/**
- * Whether pretty output should carry ANSI. Follows the destination stream —
- * not stdout — and the [NO_COLOR](https://no-color.org/) convention (set and
- * non-empty disables). Effect's default looks only at stdout at construction,
- * which is the wrong stream for `toStderr`.
- */
 export const colorsFor = (stream: Stream): boolean => {
   const noColor = process.env["NO_COLOR"]
   if (noColor !== undefined && noColor !== "") return false
   return stream.isTTY === true
 }
 
-/** Keep routine events on one physical line, including multiline annotations. */
 const inline = (value: unknown): string => {
   const text = typeof value === "string" ? value : Formatter.format(value)
   return /[\s=\x00-\x1f\x7f]/.test(text) ? JSON.stringify(text) : text
 }
 
-/**
- * Only presentation is ours: Effect serializes messages, annotations and causes.
- * Remember the last displayed root, per sink, so a directory switch remains
- * visible without repeating the same path on every event. Errors always name it.
- */
 const prettyFormat = (stream: Stream) => {
   let lastRoot: unknown
   return Logger.map(Logger.formatStructured, (event) => {
@@ -71,7 +52,6 @@ const prettyFormat = (stream: Stream) => {
   })
 }
 
-/** Exported for testing the destination stream's colour policy. */
 export const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
   Logger.withConsoleLog(prettyFormat(stream))
 
@@ -84,13 +64,11 @@ const adaptive = (
     ;(formatFor(stream, options.fiber.getRef(LogPresentation)()) === "pretty" ? pretty : logfmt).log(options)
   })
 
-/** Logs on stdout — olai web, and the default for anything else. */
 export const toStdout: Layer.Layer<never> = Logger.layer([
   adaptive(process.stdout, prettyFor(process.stdout), Logger.consoleLogFmt),
   Logger.tracerLogger,
 ])
 
-/** Logs on stderr for a transport that owns stdout; routing is sink-local. */
 export const toStderr: Layer.Layer<never> = Logger.layer([
   adaptive(
     process.stderr,

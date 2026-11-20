@@ -1,11 +1,3 @@
-/**
- * The three shapes a rejection arrives in, in the two lengths anything wants.
- *
- * An Effect `Cause` is the interesting one and the reason both functions exist:
- * it renders through neither `.message` nor a template literal, so a failure a
- * server stops for used to be the one failure nobody could read.
- */
-
 import { expect, test } from "bun:test"
 import { Cause } from "effect"
 
@@ -21,8 +13,6 @@ test("an Effect cause renders as itself, at both lengths", () => {
   }
 })
 
-// The difference between them, and the whole reason there are two: a log wants
-// the trace, a sentence somebody reads does not.
 test("only the log-length keeps the stack", () => {
   const boom = new Error("listen EADDRINUSE")
 
@@ -38,8 +28,6 @@ test("a cause is squashed to the one failure a sentence can name", () => {
   )
 })
 
-// `throw 3` is legal JavaScript and `reject("nope")` is ordinary. Neither is a
-// reason for either renderer to have nothing to say.
 test("anything else is stringified rather than dropped", () => {
   expect(prettyCause("nope")).toBe("nope")
   expect(reasonOf("nope")).toBe("nope")

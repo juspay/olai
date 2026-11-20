@@ -1,6 +1,3 @@
-/** A serve owns this filter. Existing fibers and callback emitters consult the
- * same value when they log, so a revision changes the level without restarting
- * their resources. The enclosing scope still owns all of those fibers. */
 import { Effect, Layer, Logger, LogLevel, References } from "effect"
 
 import { LogPresentation, type Presentation } from "./sinks.ts"
