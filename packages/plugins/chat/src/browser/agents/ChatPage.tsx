@@ -25,7 +25,7 @@ import { LOOK, type Row, talking } from "./roster.ts"
 
 const CHAT_TITLE = "m-0 font-sans text-title font-semibold tracking-tight md:text-display short:md:text-title"
 
-const LINKS_ASIDE = { [LINKS_ELSEWHERE]: "" }
+const OPENS_LINKS_IN_THE_OTHER_PANE = { [LINKS_ELSEWHERE]: "" }
 
 function Standing(props: { readonly row: Row }) {
   const look = () => LOOK[props.row.standing]
@@ -79,7 +79,7 @@ export function ChatPage(props: { readonly item: AgentItem }) {
       data-testid={TESTID.chatPage}
       data-item={key()}
       data-kind={props.item.kind}
-      {...LINKS_ASIDE}
+      {...OPENS_LINKS_IN_THE_OTHER_PANE}
     >
       <div
         class={`sticky top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6 short:pt-2`}

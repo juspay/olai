@@ -61,13 +61,6 @@ export const newChat = (owner: NewChat, input: NewChatInput) =>
     }
   })
 
-/**
- * BEFORE: the seat is written against the reading the refusal was asked over,
- * not the earlier roster a sidebar was painted from.
- *
- * AFTER: the roster is levelled again, with the gate's own reading, BEFORE the
- * caller says anything into the conversation.
- */
 export const seated = <A, E>(input: {
   readonly committed: Reading
   readonly level: (reading: Reading) => void
@@ -75,9 +68,11 @@ export const seated = <A, E>(input: {
   readonly start: Effect.Effect<A, E>
 }): Effect.Effect<A, E | OpFailure> =>
   Effect.gen(function*() {
-    input.level(input.committed)
+    const levelWithCommitted = Effect.sync(() => input.level(input.committed))
+    const levelWithGateReading = Effect.map(input.read, input.level)
+    yield* levelWithCommitted
     const to = yield* input.start
-    input.level(yield* input.read)
+    yield* levelWithGateReading
     return to
   })
 

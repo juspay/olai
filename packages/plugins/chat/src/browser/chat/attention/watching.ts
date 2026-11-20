@@ -9,8 +9,8 @@ const documentInFront = (): boolean =>
 const WATCHED = "olai.chat.watched"
 
 export interface Watching {
-  readonly watched: Accessor<boolean>
-  readonly here: Accessor<boolean>
+  readonly anyoneWatching: Accessor<boolean>
+  readonly watchingHere: Accessor<boolean>
 }
 
 export const createWatchings = () => {
@@ -37,7 +37,7 @@ export const createWatchings = () => {
   channel?.addEventListener("message", heard)
   onCleanup(() => { channel?.close(); listeners.clear() })
   return (reading: Accessor<boolean>, identity: string): Watching => {
-  const here = (): boolean => front() && reading()
+  const watchingHere = (): boolean => front() && reading()
 
   const takes = new Set<() => void>()
   const elsewhere = createElsewhere(channel === undefined ? undefined : {
@@ -56,16 +56,16 @@ export const createWatchings = () => {
   })
   onCleanup(elsewhere.close)
 
-  const beat = createTicking(WATCHED_BEAT, here)
+  const beat = createTicking(WATCHED_BEAT, watchingHere)
   createEffect(() => {
-    if (!here()) return
+    if (!watchingHere()) return
     beat()
     elsewhere.beat()
   })
 
   return {
-    here,
-    watched: () => here() || elsewhere.watched(),
+    watchingHere,
+    anyoneWatching: () => watchingHere() || elsewhere.watched(),
   }
   }
 

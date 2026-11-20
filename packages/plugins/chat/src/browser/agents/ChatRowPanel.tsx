@@ -29,6 +29,8 @@ export default function ChatRowPanel(props: {
       <DropdownMenu.Content class={`${MENU_PANEL} ${LAYER.over}`} aria-label="Chat actions"
         data-testid={TESTID.chatRowMenuPanel} data-agent={props.node}
         ref={element => queueMicrotask(() => { if (shown() && element.isConnected) element.focus({ preventScroll: true }) })}
+        // Kobalte hands focus back to its trigger as the menu unmounts, by which
+        // time the enclosing `Show` may have withdrawn it.
         onCloseAutoFocus={event => { event.preventDefault(); shown() && anchor().isConnected && anchor().focus({ preventScroll: true }) }}>
         <Key each={props.verbs} by="id">{verb =>
           <DropdownMenu.Item class={MENU_ITEM} data-testid={TESTID.chatRowMenuItem} data-action={verb().id}

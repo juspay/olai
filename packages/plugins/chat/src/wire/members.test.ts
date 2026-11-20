@@ -365,22 +365,6 @@ test("a non-call row with a status is unrepresentable", () => {
   const asUser: UserEntry = user
   expect(asUser.kind).toBe("user")
 
-  const _user: UserEntry = {
-    ...user,
-    // @ts-expect-error — status is a tool row's field
-    status: "pending",
-  }
-
-  const _agent: AgentEntry = {
-    id: "agent:1",
-    seq: 0,
-    since: SINCE,
-    kind: "agent",
-    text: "looking",
-    // @ts-expect-error — status is a tool row's field
-    status: "in_progress",
-  }
-
   const tool: ToolEntry = {
     id: "tool:call-1",
     seq: 0,
@@ -393,11 +377,12 @@ test("a non-call row with a status is unrepresentable", () => {
 })
 
 type StatusOf<T> = T extends { status: infer S } ? S : never
-type UserStatus = StatusOf<UserEntry>
-type _userHasNoStatus = [UserStatus] extends [never] ? true : false
-const _userHasNoStatus: _userHasNoStatus = true
+type HasNoStatus<T> = [StatusOf<T>] extends [never] ? true : false
+const _userHasNoStatus: HasNoStatus<UserEntry> = true
+const _agentHasNoStatus: HasNoStatus<AgentEntry> = true
 const _toolStatus: StatusOf<ToolEntry> = "pending"
 void _userHasNoStatus
+void _agentHasNoStatus
 void _toolStatus
 
 describe("which rows have a task still out", () => {

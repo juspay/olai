@@ -1,12 +1,4 @@
 import { createWaitingForms, WaitingFormsProvider } from "./waiting-forms.ts"
-/**
- * The jump to the bottom is not a reader scroll, but the event it schedules
- * cannot be ignored with a flag around the assignment: Chromium (149, and the
- * suite's Playwright) dispatches `scroll` asynchronously, at a rendering
- * update, so a boolean held across the write is already false when the handler
- * runs. What is remembered instead is the `scrollTop` that was assigned.
- */
-
 import { agentIn } from "olai-plugin-chat/wire"
 import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
@@ -27,6 +19,59 @@ import type { Faced } from "./Speaker.tsx"
 import { sentOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
+interface Follower {
+  readonly following: () => boolean
+  readonly follow: () => void
+  readonly jumped: (host: HTMLElement) => void
+  readonly rebase: (host: HTMLElement) => void
+  readonly scrolled: (host: HTMLElement) => "rejump" | "settled"
+}
+
+const createFollower = (startOf: (host: HTMLElement) => number): Follower => {
+  let following = true
+  // Chromium (149, and the suite's Playwright) dispatches `scroll`
+  // asynchronously, at a rendering update, so a flag held across the
+  // assignment is already false when the handler runs. What is remembered
+  // instead is the `scrollTop` that was assigned.
+  let assignedTop = Number.NaN
+  // The browser's scroll anchoring keeps the row under the reader's eye still
+  // while something ABOVE it grows or shrinks, by moving `scrollTop` by
+  // exactly that much — forward when the head grew, back when it shrank.
+  let seenStart = Number.NaN
+  let seenTop = Number.NaN
+
+  const measure = (host: HTMLElement): { readonly above: number; readonly top: number } => {
+    const start = startOf(host)
+    const moved = { above: start - seenStart, top: host.scrollTop - seenTop }
+    seenStart = start
+    seenTop = host.scrollTop
+    return moved
+  }
+
+  return {
+    following: () => following,
+    follow: () => { following = true },
+    jumped: (host) => {
+      assignedTop = host.scrollTop
+      measure(host)
+    },
+    rebase: (host) => { measure(host) },
+    scrolled: (host) => {
+      const moved = measure(host)
+      // Within two pixels, not one: `scrollTop` is the browser's rounding of a
+      // fractional layout, and a six-and-a-half-pixel head reads as six here
+      // and seven there.
+      const anchored = moved.above !== 0 && Math.abs(moved.top - moved.above) < 2
+      if (Number.isFinite(assignedTop) && (Math.abs(host.scrollTop - assignedTop) < 1
+        || (following && (host.scrollTop > assignedTop || anchored)))) {
+        return following && host.scrollTop !== assignedTop ? "rejump" : "settled"
+      }
+      following = host.scrollHeight - host.scrollTop - host.clientHeight < NEAR
+      return "settled"
+    },
+  }
+}
+
 export function Transcript(props: { readonly chat: Chat; readonly page?: boolean }) {
   const [revealing, setRevealing] = props.chat.ui.reveal
   const revealed = () => setRevealing(false)
@@ -38,62 +83,26 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   let content: HTMLDivElement | undefined
   let outer: HTMLElement | undefined
   const scrollPane = () => props.page ? outer : pane
-  let following = true
   let restoringVisibility = true
-  let assignedTop = Number.NaN
-  /** Where the rows begin in the host's content, and where its scroll was, as
-   *  of the last scroll handled or made. The browser's scroll anchoring keeps
-   *  the row under the reader's eye still while something ABOVE it grows or
-   *  shrinks, by moving `scrollTop` by exactly that much — forward when the
-   *  head grew, back when it shrank — so a scroll that equals the rows' own
-   *  move is anchoring and any other is a hand. */
-  let seenStart = Number.NaN
-  let seenTop = Number.NaN
   const startOf = (host: HTMLElement): number => {
     if (pane === undefined || host === pane) return 0
     const top = pane.getBoundingClientRect().top
     return host === document.documentElement ? top + window.scrollY : top - host.getBoundingClientRect().top + host.scrollTop
   }
-  const measure = (host: HTMLElement): { readonly above: number; readonly top: number } => {
-    const start = startOf(host)
-    const moved = { above: start - seenStart, top: host.scrollTop - seenTop }
-    seenStart = start
-    seenTop = host.scrollTop
-    return moved
-  }
-
-  const atBottom = (): boolean => {
-    const host = scrollPane()
-    return host !== undefined && host.scrollHeight - host.scrollTop - host.clientHeight < NEAR
-  }
+  const follower = createFollower(startOf)
 
   const jump = (): void => {
     if (!shown()) return
     const host = scrollPane()
     if (host === undefined) return
     host.scrollTop = host.scrollHeight
-    assignedTop = host.scrollTop
-    measure(host)
+    follower.jumped(host)
   }
   const scrolled = () => {
     if (!shown() || restoringVisibility) return
     const host = scrollPane()
     if (host === undefined) return
-    const moved = measure(host)
-    // Browser anchoring can move the scroll forward before ResizeObserver
-    // sees new rows. While following, that forward move is not a reader
-    // scrolling away — and neither is a move, either way, of exactly what
-    // the rows' start moved by (`measure`). A move that is neither is a hand,
-    // and an upward one releases following at once. Within two pixels, not
-    // one: `scrollTop` is the browser's rounding of a fractional layout, and a
-    // six-and-a-half-pixel head reads as six here and seven there.
-    const anchored = moved.above !== 0 && Math.abs(moved.top - moved.above) < 2
-    if (Number.isFinite(assignedTop) && (Math.abs(host.scrollTop - assignedTop) < 1
-      || (following && (host.scrollTop > assignedTop || anchored)))) {
-      if (following && host.scrollTop !== assignedTop) jump()
-      return
-    }
-    following = atBottom()
+    if (follower.scrolled(host) === "rejump") jump()
   }
 
   let listening: Window | HTMLElement | undefined
@@ -112,7 +121,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       grown?.observe(outer)
     }
     const target = outer === document.documentElement ? window : outer
-    measure(next)
+    follower.rebase(next)
     if (listening === target) return
     listening?.removeEventListener("scroll", scrolled)
     listening = target
@@ -122,24 +131,23 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   createEffect(on([shown, () => router?.split()], ([visible]) => {
     restoringVisibility = true
     if (!visible) return
-    const frame = requestAnimationFrame(() => { bindScroll(); if (following) jump(); restoringVisibility = false })
+    const frame = requestAnimationFrame(() => { bindScroll(); if (follower.following()) jump(); restoringVisibility = false })
     onCleanup(() => cancelAnimationFrame(frame))
   }))
   onMount(() => {
     if (content === undefined || pane === undefined) return
     bindScroll()
     if (props.page) jump()
-    // Content growing does NOT move `scrollTop`, so the browser fires no scroll
-    // event for it. New text is followed from here. The jump's own `scroll`
-    // arrives later and is recognised by `assignedTop`, not by a flag.
+    // Content growing does NOT move `scrollTop`, so the browser fires no
+    // scroll event for it.
     grown = new ResizeObserver(() => {
-      if (following) jump()
+      if (follower.following()) jump()
     })
     grown.observe(content)
     grown.observe(pane)
     if (props.page) {
       if (outer !== undefined) grown.observe(outer)
-      const resized = () => { bindScroll(); if (following) jump() }
+      const resized = () => { bindScroll(); if (follower.following()) jump() }
       window.addEventListener("resize", resized)
       onCleanup(() => window.removeEventListener("resize", resized))
     }
@@ -150,7 +158,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     on(
       () => props.chat.state().session?.id,
       () => {
-        following = true
+        follower.follow()
         jump()
       },
     ),
@@ -163,7 +171,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     if (waiting === null && !wholeYet(props.chat.rows(), (key) => props.chat.entry(key)())) {
       return
     }
-    following = true
+    follower.follow()
     if (waiting === null) jump()
     else waiting.scrollIntoView({ block: "center" })
     revealed()
@@ -185,11 +193,10 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   return (
     <WaitingFormsProvider value={waitingForms}>
     <div
-      // `min-h-0` is what makes THIS the scroller: `flex-1` with the default
-      // `min-height: auto` will not shrink below the content, so the parent
-      // (`./DropTarget.tsx`) would become the scrollport instead.
-      // `overscroll-contain` stops a wheel at the end of this pane from moving
-      // the page beside it.
+      // `min-h-0`: a flex item's default `min-height: auto` will not shrink
+      // below its content, so an ancestor would become the scrollport instead.
+      // `overscroll-contain` stops a wheel at the end of this pane from
+      // chaining to the page beside it.
       style={{ "max-height": props.page ? undefined : "24rem" }}
       class="min-w-0 px-3 py-2 text-ink"
       classList={{

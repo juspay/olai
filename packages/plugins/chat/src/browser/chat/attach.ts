@@ -27,8 +27,8 @@ export const attaching = (
       return yield* Effect.die(new Error("invalid attachment chunk size"))
     }
     progress?.(0)
-    // Each full slice is a multiple of three bytes: no padding separates
-    // chunks, and only one slice is resident while its call is in flight.
+    // base64 pads only at the end of an encoding, so a chunk that is to be
+    // concatenated with the next must cover a whole number of three-byte groups.
     const sliceBytes = chars / 4 * 3
     const read = (at: number) => Effect.promise(async () =>
       base64Of(new Uint8Array(await file.slice(at, at + sliceBytes).arrayBuffer()))
@@ -56,8 +56,8 @@ const nameOf = (file: File): string => {
   return `pasted.${kind === "" ? "png" : kind.replace(/[^a-z0-9]/gi, "")}`
 }
 
-/** Bytes as base64, in slices small enough that `String.fromCharCode` is not
- *  handed an argument list the stack cannot take. */
+/** `String.fromCharCode` takes the bytes as an argument LIST, which the engine's
+ *  stack bounds — so it is applied a slice at a time. */
 const base64Of = (bytes: Uint8Array): string => {
   const STEP = 0x8000
   let binary = ""

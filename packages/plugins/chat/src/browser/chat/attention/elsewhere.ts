@@ -4,13 +4,8 @@ export const WATCHED_BEAT = 1500
 
 export const WATCHED_LAPSE = 3750
 
-/**
- * A one-way word between the documents of one browser.
- *
- * `say` reaches every OTHER endpoint and never the one that said it, which is
- * `BroadcastChannel`'s own rule and the reason this can be one bit: a tab
- * hearing its own beat would report itself as somebody else.
- */
+/** `BroadcastChannel` delivers a message to every other document of the origin
+ *  and never to the one that posted it. */
 export interface Aired {
   readonly say: () => void
   readonly heard: (take: () => void) => void

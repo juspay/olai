@@ -27,11 +27,6 @@ const joined = (pieces: Map<string, Saying>): Tail | null => {
   return tail
 }
 
-/**
- * The server's tick coalescer resolves an upsert-then-remove inside one producer
- * tick to a bare remove, so a piece published and superseded within one tick
- * arrives as a remove that was never preceded by an upsert.
- */
 export const TRANSCRIPT_TAIL: CollectionFoldOptions<string, Saying, Growing> = {
   init: (entries) => {
     const pieces = new Map(entries)

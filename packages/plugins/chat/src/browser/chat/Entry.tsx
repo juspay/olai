@@ -52,36 +52,48 @@ const RANG_COLUMN = "flex w-full flex-col items-start"
 
 const AGENT_WROTE_IT = ""
 
+function AgentSaid(props: { readonly entry: Extract<ChatEntry, { kind: "agent" }> }) {
+  const due = createScheduled((run) => throttle(run, FRAME_MS))
+  const routes = useRouter().routes
+  const declared = createDeclared()
+  let said: HTMLDivElement | undefined
+  const shown = createMemo((previous: string = "") => {
+    const text = props.entry.text
+    if (props.entry.streaming !== true) return text
+    return due() ? text : previous
+  })
+
+  createEffect(() => {
+    shown()
+    markdownArrival()
+    if (said === undefined) return
+    declared.want(markNodeRefs(said, declared.named, routes.href))
+  })
+
+  return (
+    <div ref={said}>
+      <Markdown
+        claims={servedDirectory()?.claims()}
+        source={shown()}
+        from={AGENT_WROTE_IT}
+        live={props.entry.streaming === true}
+        class="olai-md-compact text-body"
+        testid={TESTID.chatSaid}
+      />
+    </div>
+  )
+}
+
 export function Entry(props: {
   readonly entry: ChatEntry
   readonly chat: Chat
 }) {
-  const due = props.entry.kind === "agent"
-    ? createScheduled((run) => throttle(run, FRAME_MS))
-    : undefined
-  const routes = useRouter().routes
-  const declared = props.entry.kind === "agent" ? createDeclared() : undefined
-  let said: HTMLDivElement | undefined
-  const shown = createMemo((previous: string = "") => {
-    const text = props.entry.text
-    if (props.entry.kind !== "agent" || props.entry.streaming !== true) return text
-    return due === undefined || due() ? text : previous
-  })
   const ofKind = <K extends ChatEntry["kind"]>(
     kind: K,
   ): Extract<ChatEntry, { kind: K }> | undefined =>
     props.entry.kind === kind
       ? (props.entry as Extract<ChatEntry, { kind: K }>)
       : undefined
-
-  if (declared !== undefined) {
-    createEffect(() => {
-      shown()
-      markdownReady()
-      if (said === undefined) return
-      declared.want(markNodeRefs(said, declared.named, routes.href))
-    })
-  }
 
   return (
     <div
@@ -156,18 +168,7 @@ export function Entry(props: {
         </Match>
 
         <Match when={ofKind("agent")}>
-          {(agent) => (
-          <div ref={said}>
-            <Markdown
-            claims={servedDirectory()?.claims()}
-              source={shown()}
-              from={AGENT_WROTE_IT}
-              live={agent().streaming === true}
-              class="olai-md-compact text-body"
-              testid={TESTID.chatSaid}
-            />
-          </div>
-          )}
+          {(agent) => <AgentSaid entry={agent()} />}
         </Match>
 
         <Match when={ofKind("tool")}>

@@ -32,6 +32,8 @@ export default function EngineMenu(props: {
       <DropdownMenu.Content class={`${MENU_PANEL} ${layer()}`} aria-label="Choose an agent"
         data-testid={TESTID.agentEngineMenu}
         ref={element => queueMicrotask(() => { if (shown() && element.isConnected) element.focus({ preventScroll: true }) })}
+        // Kobalte hands focus back to its trigger as the menu unmounts, by which
+        // time the enclosing `Show` may have withdrawn it.
         onCloseAutoFocus={event => { event.preventDefault(); shown() && anchor().isConnected && anchor().focus({ preventScroll: true }) }}>
         <Show when={here().length > 0} fallback={<>
           <p class="m-0 px-3 py-1.5 text-muted" data-testid={TESTID.agentEngineNone}>No agent is set up</p>

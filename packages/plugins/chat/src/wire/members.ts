@@ -82,8 +82,6 @@ export const ToolEntry = Schema.Struct({
   spawned: Schema.optionalKey(Spawned),
   armed: Schema.optionalKey(Armed),
   stranded: Schema.optionalKey(Schema.Literal(true)),
-  /** `since` is the row's BIRTH and must stay that; this is when the current
-   *  outing began. */
   resumed: Schema.optionalKey(Schema.String),
   startedAt: Schema.optionalKey(Schema.String),
 })

@@ -28,25 +28,29 @@ type SpanKey = keyof typeof SPANS
 
 const UNITS: Record<string, number> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
 
-/** The ceiling is the Node timer's own: a duration the timer cannot be handed
- *  is not a duration this server can wait. */
+const NODE_TIMER_MAX_MS = 2_147_483_647
+
+const IntFromDigits = Schema.String.check(Schema.isPattern(/^\d+$/)).pipe(
+  Schema.decodeTo(Schema.Int, SchemaTransformation.numberFromString),
+)
+
 export const spanMillis = (value: string): number | undefined => {
   const match = /^(\d+)(ms|s|m|h|d)$/.exec(value.trim())
   const ms = match === null ? Number.NaN : Number(match[1]) * UNITS[match[2]!]!
-  return Number.isSafeInteger(ms) && ms > 0 && ms <= 2_147_483_647 ? ms : undefined
+  return Number.isSafeInteger(ms) && ms > 0 && ms <= NODE_TIMER_MAX_MS ? ms : undefined
 }
 
 const span = (key: SpanKey) =>
   Schema.String.check(Schema.makeFilter(
     (value: string) => spanMillis(value) !== undefined,
-    { expected: "a positive duration with a unit (500ms, 30s, 2m, 6h, 1d), at most 2147483647ms" },
+    { expected: `a positive duration with a unit (500ms, 30s, 2m, 6h, 1d), at most ${NODE_TIMER_MAX_MS}ms` },
   )).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(SPANS[key].default)),
     Schema.annotate({ description: SPANS[key].says }),
   )
 
 export const Config = Schema.Struct({
-  "idle-ms": Schema.Union([Schema.Int, Schema.NumberFromString.check(Schema.isInt())]).check(Schema.isBetween({ minimum: 1, maximum: 2147483647 })).pipe(
+  "idle-ms": Schema.Union([Schema.Int, Schema.NumberFromString.check(Schema.isInt())]).check(Schema.isBetween({ minimum: 1, maximum: NODE_TIMER_MAX_MS })).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(Duration.toMillis(DEFAULT_IDLE))),
     Schema.annotate({ description: "How long an idle chat keeps its agent running, in milliseconds" }),
   ),
@@ -61,7 +65,7 @@ export const Config = Schema.Struct({
   "sleep-floor": Schema.Union([
     Schema.Int,
     Schema.NumberFromString.check(Schema.isInt()),
-  ]).check(Schema.isBetween({ minimum: 1, maximum: 2147483647 })).pipe(
+  ]).check(Schema.isBetween({ minimum: 1, maximum: NODE_TIMER_MAX_MS })).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(5)),
     Schema.annotate({
       description: "How many rows must have moved since the last sleep before olai tidies a chat's memory",
@@ -70,14 +74,10 @@ export const Config = Schema.Struct({
   "sleep-tick": span("sleep-tick"),
   "sleep-question": span("sleep-question"),
   "sleep-limit": span("sleep-limit"),
-  // DIGITS ONLY on the text arm, because with zero legal a blank property must
-  // not read as `Number("")`, which is zero.
   "remind-every": Schema.Union([
     Schema.Int,
-    Schema.String.check(Schema.isPattern(/^\d+$/)).pipe(
-      Schema.decodeTo(Schema.Int, SchemaTransformation.numberFromString),
-    ),
-  ]).check(Schema.isBetween({ minimum: 0, maximum: 2147483647 })).pipe(
+    IntFromDigits,
+  ]).check(Schema.isBetween({ minimum: 0, maximum: NODE_TIMER_MAX_MS })).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(20)),
     Schema.annotate({
       description: "Every how many messages a node agent is reminded when to write to its subtree; 0 never reminds",

@@ -67,13 +67,6 @@ export interface Mover extends Pick<Binding, "text" | "doc" | "remove" | "key" |
 const namesNotes = (reading: Pick<Reading, "claims">): boolean =>
   notesClaimed(reading.claims.byKind.values())
 
-/**
- * THE NOTE IS WRITTEN FIRST and the row untied second, which is the order that
- * makes a half-done run recoverable: a serve that stops between the two leaves
- * the note holding the same tie the row does, which is {@link movesIn}'s
- * second case and untied on the next boot. The other order would lose the
- * binding altogether.
- */
 export const applyMoves = (mover: Mover): Effect.Effect<boolean, OpFailure> =>
   Effect.gen(function*() {
     if (!mover.served()) return false

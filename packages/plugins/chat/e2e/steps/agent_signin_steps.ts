@@ -271,9 +271,9 @@ Then("the login command was stopped", async function (this: OlaiWorld) {
   }
 });
 
-/** `kill(pid, 0)` asks the kernel and signals nothing: it answers "there is
- *  SOMETHING with this number", so the command line is asked too and a pid
- *  reused by a later process does not read as this script. */
+/** `kill(pid, 0)` signals nothing and only asks the kernel whether SOMETHING
+ *  holds this number, so the command line is read too and a pid reused by a
+ *  later process does not read as this script. */
 const stillRunning = (written: string): string | null => {
   if (!fs.existsSync(written)) return "no pid was written";
   const pid = Number.parseInt(fs.readFileSync(written, "utf8").trim(), 10);
@@ -284,16 +284,19 @@ const stillRunning = (written: string): string | null => {
     return null;
   }
   const line = commandLineOf(pid);
-  return line !== null && !line.includes("fake-login") ? null : line ?? `pid ${pid} is running`;
+  if (line.kind === "unreadable") return `pid ${pid} is running`;
+  return line.text.includes("fake-login") ? line.text : null;
 };
 
-/** `null` where the platform does not say (no `/proc`), which reads as
- *  "still here". */
-const commandLineOf = (pid: number): string | null => {
+type CommandLine =
+  | { readonly kind: "line"; readonly text: string }
+  | { readonly kind: "unreadable" };
+
+const commandLineOf = (pid: number): CommandLine => {
   try {
-    return fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ").trim();
+    return { kind: "line", text: fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ").trim() };
   } catch {
-    return null;
+    return { kind: "unreadable" };
   }
 };
 

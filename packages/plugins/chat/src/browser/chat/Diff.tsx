@@ -11,15 +11,13 @@ import { useConversationUI } from "./ui.tsx"
 
 const TRIMMED = 6
 
+const NBSP = "\u00a0"
+
 const LOOK: Readonly<Record<DiffLine["kind"], { mark: string; row: string; tone: string }>> =
   {
     add: { mark: "+", row: "bg-done/10", tone: "text-done" },
     remove: { mark: "-", row: "bg-alarm/10", tone: "text-alarm" },
-    // A NON-BREAKING space, and it is load-bearing: an ordinary one collapses
-    // in HTML, which shifted every unchanged line one character left of the
-    // changed lines around it — in a monospace column, where the whole point
-    // is that the lines are under each other.
-    same: { mark: " ", row: "", tone: "text-muted" },
+    same: { mark: NBSP, row: "", tone: "text-muted" },
     gap: { mark: "", row: "", tone: "text-muted" },
   }
 
@@ -57,7 +55,7 @@ export function Diff(props: {
         <Show when={computed().created}>
           <span class="shrink-0 text-done">New</span>
         </Show>
-        <Show when={computed().wholesale}>
+        <Show when={computed().kind === "replaced"}>
           <span class="shrink-0 text-muted" data-testid={TESTID.chatDiffWholesale}>
             Rewritten whole
           </span>

@@ -2551,22 +2551,21 @@ const named = (names: string): ReadonlyArray<string> =>
   names.split(",").map((name) => name.trim()).filter((name) => name !== "");
 
 /**
- * Dispatched rather than performed: Playwright cannot put an image on the
- * system clipboard portably and cannot make the desktop drag a real file into
- * a headless browser, so the step builds the event the browser would have
- * built — real `File`s in a real `DataTransfer`, on the real event.
+ * Dispatched rather than performed: Playwright can neither put an image on the
+ * system clipboard portably nor make the desktop drag a real file into a
+ * headless browser, so the step builds the event the browser would have built —
+ * real `File`s in a real `DataTransfer`, on the real event.
  */
 const deliver = async (
   world: OlaiWorld,
   at: PluginTestId,
   files: ReadonlyArray<string>,
   kinds: ReadonlyArray<string>,
-  as: "clipboard" | "drag" = "drag",
 ): Promise<void> => {
   await world.chat(selector(at))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await world.page.evaluate(
-    ({ specs, kinds, at, clipboard }) => {
+    ({ specs, kinds, at }) => {
       const transfer = new DataTransfer();
       for (const spec of specs) {
         const bytes = Uint8Array.from(atob(spec.data), (char) => char.charCodeAt(0));
@@ -2575,7 +2574,7 @@ const deliver = async (
       const target = document.querySelector(at);
       for (const kind of kinds) {
         target?.dispatchEvent(
-          clipboard
+          kind === "paste"
             ? new ClipboardEvent(kind, {
               clipboardData: transfer,
               bubbles: true,
@@ -2589,7 +2588,7 @@ const deliver = async (
         );
       }
     },
-    { specs: files.map(fileSpec), kinds, at: world.chatSelector(selector(at)), clipboard: as === "clipboard" },
+    { specs: files.map(fileSpec), kinds, at: world.chatSelector(selector(at)) },
   );
 };
 
@@ -2597,7 +2596,7 @@ When(
   "I paste a picture called {string} into the chat",
   async function (this: OlaiWorld, name: string) {
     await this.chat(CHAT_INPUT).click();
-    await deliver(this, PLUGIN_TESTID.chatInput, [name], ["paste"], "clipboard");
+    await deliver(this, PLUGIN_TESTID.chatInput, [name], ["paste"]);
   },
 );
 
@@ -2730,7 +2729,7 @@ When("I dismiss the camcorder", async function (this: OlaiWorld) {
 
 When("I paste a video called {string} into the chat", async function (this: OlaiWorld, name: string) {
   await this.chat(CHAT_INPUT).click();
-  await deliver(this, PLUGIN_TESTID.chatInput, [name], ["paste"], "clipboard");
+  await deliver(this, PLUGIN_TESTID.chatInput, [name], ["paste"]);
 });
 
 When("I dismiss the camera", async function (this: OlaiWorld) {

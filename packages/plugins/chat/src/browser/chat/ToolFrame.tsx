@@ -12,7 +12,7 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { armedOf, endedOf, watchOf } from "./background.ts"
 import { Diff } from "./Diff.tsx"
-import { diffKey } from "./folds.ts"
+import { diffBlocks } from "./folds.ts"
 import { useConversationUI } from "./ui.tsx"
 import { OutlineDiff } from "./OutlineDiff.tsx"
 import { useElapsed } from "./elapsing.tsx"
@@ -50,20 +50,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
   const open = () => isUnfolded(props.entry.id)
   const status = () => props.entry.status
   const look = () => LOOK[status()]
-  /**
-   * The blocks of change this call reported, each carrying the NAME that
-   * identifies it ({@link ./folds.ts}'s `diffKey`), which includes the block's
-   * place in the report: the adapter reports an `Edit` as one `diff` per hunk
-   * under one path. `<Key>` answers a repeated key with the SAME element
-   * repeated, and the framework's reconciliation then walks off the end of the
-   * array it is patching and throws mid-draw.
-   */
-  const blocks = createMemo(() =>
-    (props.entry.diffs ?? []).map((diff, at) => ({
-      key: diffKey(props.entry.id, at, diff.path),
-      diff,
-    }))
-  )
+  const blocks = createMemo(() => diffBlocks(props.entry.id, props.entry.diffs))
   const ended = () => endedOf(props.entry) !== null
   const body = () =>
     props.entry.reply !== undefined

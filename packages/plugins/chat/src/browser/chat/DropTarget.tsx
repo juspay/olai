@@ -1,15 +1,13 @@
 /**
- * Platform rules this component is built on:
+ * HTML drag-and-drop:
  *
  *   - `dragover` must `preventDefault()` or the browser refuses the drop and
  *     navigates to the file instead.
- *   - `dragenter`/`dragleave` fire per ELEMENT, not per target, so the drag is
- *     counted in and out; `dragend` covers a drag abandoned with no drop.
- *   - the drag data store is in protected mode until the drop, so what a drag
- *     carries is read off `dataTransfer.types` (`"Files"`) and never off its
- *     files.
- *   - the overlay is `pointer-events-none`, so drawing it under the cursor is
- *     not itself a `dragleave` of what is underneath.
+ *   - `dragenter`/`dragleave` fire per ELEMENT, not per target.
+ *   - the drag data store is in protected mode until the drop, so a drag's
+ *     contents are readable only as kinds on `dataTransfer.types` (`"Files"`).
+ *   - an element with `pointer-events: none` under the cursor is not a
+ *     `dragleave` of what is underneath it.
  */
 
 import { createSignal, type JSX, Show } from "solid-js"

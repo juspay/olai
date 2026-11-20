@@ -4,7 +4,7 @@ import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { transcriptRows, sayingRows } from "../wire.ts"
 import { chatWire } from "./wire.ts"
 import type { Roster } from "./agents/answered.tsx"
-import { createRows } from "./chat/order.ts"
+import { useRows } from "./chat/order.ts"
 import { createTail, grownText } from "./chat/growing.ts"
 import { servedDirectory } from "./vault.ts"
 import { LOOK } from "./agents/roster.ts"
@@ -22,7 +22,7 @@ export function ChatLinkPreview(props: { readonly route: Route; readonly roster:
   const node = previewNode(props.route)!
   const transcript = chatWire().streams.transcript.useCollection({ node }, transcriptRows)
   const tail = createTail(chatWire().streams.saying.useCollection({ node }, sayingRows).fold)
-  const ordered = createRows(transcript.fold)
+  const ordered = useRows(transcript.fold)
   const keys = createMemo(() => {
     const messages = ordered.keys().filter(key => {
       const row = transcript.byKey(key)?.()

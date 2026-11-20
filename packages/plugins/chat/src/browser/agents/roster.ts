@@ -11,7 +11,7 @@ export const talking = (row: Pick<NodeAgentRow, "session" | "unopened"> | undefi
 export const AWAKE: ReadonlyArray<Standing> = ["needs-you", "working", "waking", "idle"]
 export const awake = (standing: Standing): boolean => AWAKE.includes(standing)
 
-export const seated = (standing: Standing): boolean => awake(standing) || standing === "gone"
+export const holdsSlot = (standing: Standing): boolean => awake(standing) || standing === "gone"
 
 /** Tailwind's `ring-*` compiles to a `box-shadow`, and Windows High Contrast
  *  removes box-shadows outright, so the halo is an `outline`: recoloured from

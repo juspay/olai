@@ -5,8 +5,6 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//name": "UNSCOPED, like every other row. `@olai/*` is the scope for the packages that ARE olai; this one is a plugin the loader mounts by name off a row in `packages/bundle/olai.yml`, and the shape an out-of-tree plugin would publish under. The directory is `packages/plugins/chat` and the package name is `olai-plugin-chat`, which is the arrangement the three tenants and the four engines already have.",
-  "//exports": "Doors disjoint by GRAPH rather than by taste, and the split is `olai-plugin-kolu`'s argued once more for a plugin whose subject is a conversation. `./wire` is the member declarations and nothing else: everything that composes or reads the surface pulls it in statically, so it may carry no UI runtime (a server reads it) and no ACP transport (a browser will). `./server` is EVERYTHING THAT RUNS IN A SERVER PROCESS — the sessions, the node scopes, the deliveries, the roster and the fourteen verbs — and it is the module the row names. `./browser` is what REPLACED the conversation's place in `@olai/web`: a plugin registering the chat's own page, the sidebar's agents section, the door on an agent row, the *Start an agent session* verb, the keys and the fallback speaker mark into the app's declared slots. The ROOT is the wire identity and nothing more. `./carry` declares source-word payloads and their guard; `./slots` declares extension contracts, and `./testlib` supplies test fixtures. `./testids` is NAMES ONLY, so a scenario asserts this package's own DOM without pulling a component into a suite that has no browser, and `./all.css` is the sheet, with a `@source` at the face directory because Tailwind emits only what it can SEE.",
   "exports": {
     ".": "./src/index.ts",
     "./wire": "./src/wire.ts",
@@ -25,9 +23,6 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "Beside `ops` rather than above or below it (website/docs/architecture/overview.md): a conversation and an edit are two things a person does to the same directory, and neither is built out of the other. @kolu/acp owns the protocol's vocabulary and the pure projections over its payloads; @kolu/acp-client runs the subprocess that speaks it — the stream, the handshake, sessions, turns and sign-in — and this package holds conversations on top of it, translating the client's refusal word into the domain's at the one verb that meets it (chat.ts's `answer`). Both are hydrated from the kolu pin (nix/kolu.nix), so neither is declared here, and neither is the SDK or its zod peer, which the root declares for the hydrated client. @olai/format supplies the records, the vocabulary and the refusal words a verb answers with; @olai/log supplies the emitter the panel logs through. @olai/plugin-api is the door both halves are written against, and its arrival is the phase: this package used to be a general package the composition root called, and it is a row now. @olai/ops is HERE and was deliberately absent before, and the change is the relocation rather than a softening: the agent still reaches the write gate through the MCP server it is handed an address for, and what this package imports is the ops layer's own request vocabulary, for the two gestures that bind a node to a conversation with a property write (`startAgentSession`, `assignSession`) — which the composition root used to compose because it was the only place both halves were in hand. solid-js is the browser half's, for the panel and the sidebar section this plugin hangs into the app's slots.",
-  "//local-state": "Chat reaches machine-local persistence through @olai/plugin-api's LocalState door, never through @olai/state. Core keys the one opaque document by this plugin's own name and serializes its writes. local.ts is the only adapter over that door: it reads the document once and carries memory, wake and heard as independently parsed and capped sections through one write lane, so the three state machines cannot overwrite one another.",
-  "//surface": "@olai/surface is still here and its role has INVERTED. It used to declare this package's members; it now declares none of them, and what is imported from it is the framework-adjacent vocabulary a sibling still speaks — the `Applied` shape a keystroke answers with, the press rule, the plugin roster the tab follows. The member declarations are `./wire`'s, in this package, composed by core as `surface/chat/…`.",
   "dependencies": {
     "@kobalte/core": "^0.13.13",
     "@olai/format": "workspace:*",
@@ -54,8 +49,6 @@
     "olai-plugin-files": "workspace:*",
     "olai-plugin-markdown": "workspace:*"
   },
-  "//kolu": "@olai/kolu-client is GONE from this list, and its absence is the whole of what the plugin wall bought here. This package used to carry a `kolu.ts` — the judgement half of a probe, and five English sentences about one appliance's ways of failing — inside a package whose subject is one conversation with one ACP agent. It is olai-plugin-kolu's now; what is left is the SHAPE of the question (`@kolu/acp-client`'s `Probe`), a list the composition root fills, and nothing on this manifest names an appliance.",
-  "//devDependencies": "@types/node is for the `node:` modules the server half, its tests and the fixture agents import.",
   "devDependencies": {
     "@types/node": "^22.0.0",
     "olai-plugin-sidebar": "workspace:*",

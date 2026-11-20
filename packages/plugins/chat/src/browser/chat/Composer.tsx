@@ -38,6 +38,23 @@ const CONTROL =
 
 const LOGIN = "login"
 
+const applyWritten = (
+  input: HTMLTextAreaElement | undefined,
+  next: Written,
+  setText: (text: string) => void,
+  setCaret: (at: number) => void,
+): void => {
+  batch(() => {
+    if (input !== undefined) {
+      input.value = next.text
+      input.setSelectionRange(next.caret, next.caret)
+      input.focus()
+    }
+    setText(next.text)
+    setCaret(next.caret)
+  })
+}
+
 export function Composer(props: {
   readonly chat: Chat
   readonly onInsert?: (insert: (text: Insertion) => void) => () => void
@@ -219,20 +236,7 @@ export function Composer(props: {
     setAsked(false)
   }
 
-  const rewrite = (next: Written) => {
-    // Focus reads the caret into the shared draft too. Keep it in this batch:
-    // otherwise that notification can reapply the OLD text between the DOM
-    // rewrite and setDraft, moving a mid-sentence caret to the end.
-    batch(() => {
-      if (input !== undefined) {
-        input.value = next.text
-        input.setSelectionRange(next.caret, next.caret)
-        input.focus()
-      }
-      setDraft(next.text)
-      setCaret(next.caret)
-    })
-  }
+  const rewrite = (next: Written) => applyWritten(input, next, setDraft, setCaret)
 
   const insertCarried = (text: Insertion) => rewrite(insertAt(draft(), caret(), text))
   const releaseInsert = props.onInsert?.(insertCarried)
@@ -267,9 +271,7 @@ export function Composer(props: {
     }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
-      // Confirming an IME candidate (Japanese, Chinese, Korean) is a `keydown`
-      // whose `key` reads `Enter`, so without this the message leaves
-      // mid-conversion.
+      // Confirming an IME candidate is a `keydown` whose `key` reads `Enter`.
       if (composing(event)) return
       void send(event.altKey && interruptible())
     }
@@ -309,7 +311,6 @@ export function Composer(props: {
         ref={input}
         class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body placeholder:text-muted focus:border-accent short:py-1"
         data-testid={TESTID.chatInput}
-        // If Enter ever stops sending here, this attribute goes with it.
         enterkeyhint="send"
         data-asked={nodesNamed.answering() ?? undefined}
         rows={2}
@@ -370,7 +371,7 @@ export function Composer(props: {
           class="hidden"
           onChange={(event) => {
             picked(event.currentTarget.files)
-            // Cleared so picking the SAME file twice fires `change` twice.
+            // Re-picking the SAME file fires no `change` unless the value is cleared.
             event.currentTarget.value = ""
           }}
         />
@@ -383,14 +384,11 @@ export function Composer(props: {
         >
           +
         </button>
-        {/* `capture="environment"` asks a phone to open its back camera
-            directly; each input names one media kind, and the platform returns
-            one capture per invocation, so neither carries `multiple`. `accept`
-            is a media WILDCARD rather than the gate's extension list because
-            the capture prompt reads its mode from the MIME kind. Desktop
-            browsers ignore `capture` and would open an ordinary file dialog,
-            so the doors are drawn only where `camera()` says a finger is the
-            pointer. */}
+        {/* `capture="environment"` asks a phone for its back camera; desktop
+            browsers ignore the attribute and open an ordinary file dialog. The
+            platform returns one capture per invocation, so neither input
+            carries `multiple`, and the capture prompt reads its mode from the
+            MIME kind, so `accept` is a media wildcard. */}
         <Show when={camera()}>
           <input
             ref={shutter}

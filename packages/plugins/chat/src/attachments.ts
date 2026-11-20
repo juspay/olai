@@ -22,6 +22,8 @@ export const make = (): Attachments => {
   let dir: string | null = null
   let scope = randomUUID()
 
+  /** `realpath` first because macOS's `/tmp` is a symlink and the paths this
+   *  compares against `dir` are canonical; `mkdtemp` mints the directory 0700. */
   const directory = async (): Promise<string> => {
     if (dir === null) dir = await mkdtemp(join(await realpath(tmpdir()), "olai-chat-"))
     return dir

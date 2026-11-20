@@ -16,9 +16,6 @@ import { pastOf } from "./lineage.ts"
 import { agentIn, type ChatEntry, type Listed } from "olai-plugin-chat/wire"
 
 export const DEFAULT_IDLE = Duration.hours(48)
-/** The pool's bound and the record's bound are one number — see
- *  {@link ./live.ts}'s `RECORDED`. */
-export const DEFAULT_CAPACITY = RECORDED
 
 export const recordable = (slot: {
   readonly history: boolean
@@ -118,7 +115,7 @@ const whole = (panel: Panel, gone: ReadonlyArray<string> = []): Change<ChatEntry
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     const {
-      capacity = DEFAULT_CAPACITY,
+      capacity = RECORDED,
       idle = DEFAULT_IDLE,
       live = null,
       nearestAt,
@@ -174,9 +171,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     }
     const pending = new Map<string, Array<PendingDelivery>>()
     const restore = new Map<string, number>()
-    /** The idle budget in milliseconds, read once — the timer and the boot
-     *  check must divide the same number the same way. */
     const idleMs = Duration.toMillis(idle)
+    const budgetLeft = (touched: number, at: number = Date.now()): number => touched + idleMs - at
     let stopped = false
     let reopenFiber: Fiber.Fiber<void> | null = null
     let inFlight = 0
@@ -327,10 +323,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }).pipe(Effect.uninterruptible)
 
     const armIdle = (slot: NodeSlot): void => {
-      // NOTHING NEW ONCE EITHER IS DONE. `close` interrupts the timer it can
-      // see and then closes the scope, so a timer armed after that would be
-      // one nothing is holding — the invariant `close` already assumes, said
-      // where a re-arm could otherwise break it.
       if (slot.closing || stopped) return
       const generation = ++slot.generation
       const former = slot.timer
@@ -338,7 +330,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       if (former !== null) fork(Fiber.interrupt(former))
       let fiber!: Fiber.Fiber<void, never>
       const timer = Effect.gen(function*() {
-        yield* Effect.sleep(Duration.millis(Math.max(0, slot.touched + idleMs - Date.now())))
+        yield* Effect.sleep(Duration.millis(Math.max(0, budgetLeft(slot.touched))))
         if (slot.generation !== generation || slot.closing) return
         if (!quietState(slot.state)) return
         if (read(slot) || slot.uses > 0) {
@@ -579,7 +571,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const present = new Set(here(options.roster()).map(row => row.id))
       for (const [node, touched] of [...restore].sort((left, right) => right[1] - left[1])) {
         if (stopped) return
-        if (now - touched >= idleMs) {
+        if (budgetLeft(touched, now) <= 0) {
           restore.delete(node)
           continue
         }
@@ -698,25 +690,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
-    /**
-     * THE ORDER HERE IS THE WHOLE OF WHAT IT PROMISES.
-     *
-     * `stopped` first, so a boot still queued behind the acquisition gate is
-     * refused rather than let through. THEN the boot fiber, joined rather than
-     * merely signalled — `Fiber.interrupt` awaits, which is what puts anything
-     * the boot did register into `nodes` before the line that reads it. Only
-     * then the panels.
-     */
-    const stopWithReason = (reason: StopReason) => Effect.gen(function*() {
+    const refuseNewWork = (): void => {
       stopped = true
       pending.clear()
+    }
+
+    const joinBoot = Effect.gen(function*() {
       const booting = reopenFiber
       reopenFiber = null
       if (booting !== null) yield* Fiber.interrupt(booting)
+    })
+
+    const closePanels = (reason: StopReason) =>
+      Effect.gen(function*() {
+        yield* root.stopWithReason(reason)
+        yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true, concurrency: "unbounded" })
+        yield* Effect.forEach([...closing.values()], Deferred.await, { discard: true })
+      })
+
+    const stopWithReason = (reason: StopReason) => Effect.gen(function*() {
+      refuseNewWork()
+      yield* joinBoot
       yield* settled
-      yield* root.stopWithReason(reason)
-      yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true, concurrency: "unbounded" })
-      yield* Effect.forEach([...closing.values()], Deferred.await, { discard: true })
+      yield* closePanels(reason)
     })
 
     const settledBinding = (slot: NodeSlot, bound: NodeAgent | null): string | null => {

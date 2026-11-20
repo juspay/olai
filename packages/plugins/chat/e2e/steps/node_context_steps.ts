@@ -55,29 +55,35 @@ Then(
   },
 );
 
-const WHERE: Readonly<Record<string, string>> = {
+type Place = "write" | "answer" | "message";
+
+const PLACE: Readonly<Record<Place, string>> = {
   write: OUTLINES_STORY,
   answer: CHAT_SAID,
   message: `${CHAT_ENTRY}[data-kind="user"]`,
 };
 
-const referenceIn = (world: OlaiWorld, where: string, id: string) => {
-  const scope = WHERE[where];
-  if (scope === undefined) {
+const placeOf = (where: string): Place => {
+  const named = Object.keys(PLACE) as ReadonlyArray<Place>;
+  const place = named.find((one) => one === where);
+  if (place === undefined) {
     throw new Error(
       `no such place for a reference: ${JSON.stringify(where)} — ` +
-        `expected one of ${Object.keys(WHERE).join(", ")}`,
+        `expected one of ${named.join(", ")}`,
     );
   }
-  return world.page.locator(`${scope} ${chatNodeRef(id)}`).first();
+  return place;
 };
+
+const referenceIn = (world: OlaiWorld, where: Place, id: string) =>
+  world.page.locator(`${PLACE[where]} ${chatNodeRef(id)}`).first();
 
 When(
   // `{word}` and not an alternation: Cucumber's `a/b/c` matches any of the
   // three and captures none of them.
   "I press the node {string} in the {word}",
   async function (this: OlaiWorld, id: string, where: string) {
-    const reference = referenceIn(this, where, id);
+    const reference = referenceIn(this, placeOf(where), id);
     await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.press(reference);
   },

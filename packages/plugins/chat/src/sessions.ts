@@ -91,6 +91,9 @@ const sameChat = (row: Conversing, to: Conversing): boolean =>
 const capped = (rows: ReadonlyArray<Overheard>): ReadonlyArray<Overheard> =>
   rows.length <= ROWS ? rows : rows.slice(rows.length - ROWS)
 
+const laterOf = (held: string | undefined, at: string): string =>
+  held !== undefined && held >= at ? held : at
+
 export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
   Effect.gen(function*() {
     const writing = yield* Semaphore.make(1)
@@ -99,7 +102,6 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
     let rows: ReadonlyArray<Overheard> = []
     if (held !== null) rows = read(held)
 
-    /** THE RECORD FIRST: the mirror moves only once the write has landed. */
     const write = (
       to: Conversing,
       change: (row: Overheard | undefined) => Overheard | undefined,
@@ -112,8 +114,7 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
           ...before.filter((row) => !sameChat(row, to)),
           next,
         ])
-        yield* local.save(HEARD, { heard: table })
-        rows = table
+        rows = yield* Effect.as(local.save(HEARD, { heard: table }), table)
       }))
 
     return {
@@ -137,8 +138,9 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
       said: (to, said) =>
         write(to, (row) => (row?.said?.text === said.text ? undefined : { ...row, ...to, said })),
       seen: (to, at) =>
-        write(to, (row) =>
-          // THE LATER MARK WINS: an acknowledgement must never move backwards.
-          row?.seen !== undefined && row.seen >= at ? undefined : { ...row, ...to, seen: at }),
+        write(to, (row) => {
+          const seen = laterOf(row?.seen, at)
+          return seen === row?.seen ? undefined : { ...row, ...to, seen }
+        }),
     }
   })

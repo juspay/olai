@@ -6,12 +6,16 @@ export interface DiffLine {
   readonly hidden: number
 }
 
+export type DiffKind = "compared" | "replaced"
+
 export interface Diff {
   readonly lines: ReadonlyArray<DiffLine>
+  readonly was: ReadonlyArray<string>
+  readonly now: ReadonlyArray<string>
   readonly added: number
   readonly removed: number
   readonly created: boolean
-  readonly wholesale: boolean
+  readonly kind: DiffKind
 }
 
 const CONTEXT = 2
@@ -29,10 +33,10 @@ export const diffOf = (before: string | null, after: string): Diff => {
     if (line.kind === "add") added++
     else if (line.kind === "remove") removed++
   }
-  return { lines, added, removed, created: before === null, wholesale: compared.wholesale }
+  return { lines, was, now, added, removed, created: before === null, kind: compared.kind }
 }
 
-export const linesIn = (text: string): ReadonlyArray<string> => {
+const linesIn = (text: string): ReadonlyArray<string> => {
   if (text === "") return []
   const lines = text.split("\n")
   if (lines[lines.length - 1] === "") lines.pop()
@@ -42,7 +46,7 @@ export const linesIn = (text: string): ReadonlyArray<string> => {
 const compare = (
   was: ReadonlyArray<string>,
   now: ReadonlyArray<string>,
-): { readonly lines: ReadonlyArray<DiffLine>; readonly wholesale: boolean } => {
+): { readonly lines: ReadonlyArray<DiffLine>; readonly kind: DiffKind } => {
   const lines: Array<DiffLine> = []
   let head = 0
   while (head < was.length && head < now.length && was[head] === now[head]) {
@@ -59,10 +63,10 @@ const compare = (
 
   const middleWas = was.slice(head, was.length - tail)
   const middleNow = now.slice(head, now.length - tail)
-  const wholesale = middleWas.length * middleNow.length > CELLS
+  const kind: DiffKind = middleWas.length * middleNow.length > CELLS ? "replaced" : "compared"
   let i = 0
   let j = 0
-  for (const step of steps(middleWas, middleNow, wholesale)) {
+  for (const step of steps(middleWas, middleNow, kind)) {
     if (step === "same") {
       lines.push(same(middleWas[i]!, head + i + 1, head + j + 1))
       i++
@@ -79,7 +83,7 @@ const compare = (
   for (let back = tail; back > 0; back--) {
     lines.push(same(was[was.length - back]!, was.length - back + 1, now.length - back + 1))
   }
-  return { lines, wholesale }
+  return { lines, kind }
 }
 
 const same = (text: string, before: number, after: number): DiffLine => ({
@@ -109,9 +113,9 @@ const arrived = (text: string, after: number): DiffLine => ({
 const steps = (
   was: ReadonlyArray<string>,
   now: ReadonlyArray<string>,
-  wholesale: boolean,
+  kind: DiffKind,
 ): ReadonlyArray<"same" | "add" | "remove"> => {
-  if (wholesale) {
+  if (kind === "replaced") {
     return [...was.map(() => "remove" as const), ...now.map(() => "add" as const)]
   }
 

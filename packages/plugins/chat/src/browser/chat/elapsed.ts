@@ -4,14 +4,16 @@ import type { Accessor } from "solid-js"
 import { createTicking, HOUR, instantOf, MINUTE, SECOND } from "@olai/web/client/clock.ts"
 import { isRunning } from "./running.ts"
 
+export type Clock = () => number
+
 export const elapsedOf = (
   entry: ChatEntry,
-  now: () => number,
+  readNow: Clock,
 ): string | null => {
   if (!isRunning(entry)) return null
   const started = instantOf(outSince(entry))
   if (started === null) return null
-  const running = now() - started
+  const running = readNow() - started
   if (running < QUIET_MS) return null
   return saidOf(running)
 }
@@ -34,5 +36,5 @@ const QUIET_MS = 3 * SECOND
 
 const TICK_MS = SECOND
 
-export const createNow = (live: Accessor<boolean>): Accessor<number> =>
+export const createNow = (live: Accessor<boolean>): Clock =>
   createTicking(TICK_MS, live)

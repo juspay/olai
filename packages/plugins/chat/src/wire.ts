@@ -1,10 +1,3 @@
-/**
- * This module may import the framework, `effect`, `@kolu/acp/wire`,
- * `@olai/format` and its own wire slice and NOTHING ELSE: no `solid-js`, which
- * would put a UI runtime on the server's graph, and nothing that speaks ACP's
- * transport, which would put a subprocess on the browser's.
- */
-
 import { collection } from "@kolu/surface"
 import { Conversing, PanelAddress } from "./wire/session.ts"
 import { collectionDeltasSchema, defineSurface } from "@kolu/surface/define"

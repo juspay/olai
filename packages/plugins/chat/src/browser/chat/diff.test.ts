@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { diffOf, linesIn } from "./diff.ts"
+import { diffOf } from "./diff.ts"
 
 const shown = (before: string | null, after: string): ReadonlyArray<string> =>
   diffOf(before, after).lines.map((line) =>
@@ -10,7 +10,7 @@ const shown = (before: string | null, after: string): ReadonlyArray<string> =>
   )
 
 const rebuilt = (before: string | null, after: string): ReadonlyArray<string> => {
-  const was = linesIn(before ?? "")
+  const was = diffOf(before, after).was
   const built: Array<string> = []
   let at = 0
   for (const line of diffOf(before, after).lines) {
@@ -91,16 +91,17 @@ const PAIRS: ReadonlyArray<readonly [string, string | null, string]> = [
 describe("the rendering is a script that reconstructs the file", () => {
   for (const [name, before, after] of PAIRS) {
     test(name, () => {
-      expect(rebuilt(before, after)).toEqual([...linesIn(after)])
+      expect(rebuilt(before, after)).toEqual([...diffOf(before, after).now])
     })
   }
 })
 
 describe("the rendering keeps every line the two files share", () => {
   for (const [name, before, after] of PAIRS) {
-    if (diffOf(before, after).wholesale) continue
+    if (diffOf(before, after).kind === "replaced") continue
     test(name, () => {
-      expect(kept(before, after)).toBe(shared(linesIn(before ?? ""), linesIn(after)))
+      const diff = diffOf(before, after)
+      expect(kept(before, after)).toBe(shared(diff.was, diff.now))
     })
   }
 
@@ -189,15 +190,15 @@ describe("what changed between two texts", () => {
     const diff = diffOf(before, after)
     expect(performance.now() - started).toBeLessThan(500)
     expect([diff.added, diff.removed]).toEqual([900, 900])
-    expect(diff.wholesale).toBe(true)
+    expect(diff.kind).toBe("replaced")
   })
 
   test("an ordinary edit is compared rather than given up on", () => {
-    expect(diffOf("one\ntwo\n", "one\nTWO\n").wholesale).toBe(false)
+    expect(diffOf("one\ntwo\n", "one\nTWO\n").kind).toBe("compared")
     const long = Array.from({ length: 2000 }, (_, at) => `line ${at}`)
     const edited = [...long]
     edited[900] = "line nine hundred, rewritten"
-    expect(diffOf(`${long.join("\n")}\n`, `${edited.join("\n")}\n`).wholesale).toBe(false)
+    expect(diffOf(`${long.join("\n")}\n`, `${edited.join("\n")}\n`).kind).toBe("compared")
   })
 
   test("line numbers are the two files' own", () => {

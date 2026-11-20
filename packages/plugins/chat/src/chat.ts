@@ -258,10 +258,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       slots: SLOTS,
       conversations: CONVERSATIONS,
     })
-    const switching = yield* Semaphore.make(1)
-    const binding = yield* Semaphore.make(1)
-    const sending = yield* Semaphore.make(1)
-    const opening = yield* Semaphore.make(1)
+    const switchingSession = yield* Semaphore.make(1)
+    const bindingAgent = yield* Semaphore.make(1)
+    const startingTurn = yield* Semaphore.make(1)
+    const usingConversation = yield* Semaphore.make(1)
     let heard = 0
 
     const publish = (change: Change<ChatEntry>) => {
@@ -314,25 +314,20 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     }
 
     let replaying = false
-    const landed = (): void => {
-      replaying = false
-      publish({ upserts: [...rows.values()], removes: [], appends: [] })
-    }
-
-    const unopenedRows = (before: ReadonlySet<string>): void => {
-      for (const [id, row] of [...rows]) {
-        if (!before.has(id) && row.kind !== "notice") rows.delete(id)
-      }
-      replaying = false
-    }
-
     const replayed = <E>(open: Effect.Effect<void, E>) =>
       Effect.gen(function*() {
         replaying = true
         const before = new Set(rows.keys())
         const outcome = yield* Effect.result(open)
-        if (outcome._tag === "Failure") unopenedRows(before)
-        else landed()
+        if (outcome._tag === "Failure") {
+          for (const [id, row] of [...rows]) {
+            if (!before.has(id) && row.kind !== "notice") rows.delete(id)
+          }
+          replaying = false
+        } else {
+          replaying = false
+          publish({ upserts: [...rows.values()], removes: [], appends: [] })
+        }
         return outcome
       })
 
@@ -656,7 +651,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       row: Installed,
       opens: Opening,
     ): Effect.Effect<void, HarnessRefused | HarnessUnavailable> =>
-      binding.withPermit(Effect.gen(function*() {
+      bindingAgent.withPermit(Effect.gen(function*() {
         if (closing) {
           return yield* Effect.fail(new HarnessUnavailable("the server is shutting down"))
         }
@@ -732,7 +727,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         yield* noting(remembering(), remembranceLost)
       }))
 
-    const enginesMoved: Effect.Effect<void> = binding.withPermit(Effect.gen(function*() {
+    const enginesMoved: Effect.Effect<void> = bindingAgent.withPermit(Effect.gen(function*() {
       const roster = options.roster()
       const startable = here(roster)
       const at = talking
@@ -836,7 +831,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           : options.runningSessions?.(row.id) ?? null
       },
       aside: (row) =>
-        binding.withPermit(Effect.gen(function*() {
+        bindingAgent.withPermit(Effect.gen(function*() {
           if (closing) {
             return yield* new AcpAgent.AgentGone({
               gone: "unreachable",
@@ -895,7 +890,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         }
         yield* Effect.forEach(attachments, files.claim, { concurrency: "unbounded" })
 
-        yield* opening.withPermit(Effect.gen(function*() {
+        yield* usingConversation.withPermit(Effect.gen(function*() {
           const at = talking
           if (at === null) {
             return yield* new UsageFailure({
@@ -907,7 +902,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             Context.promptWith(annotated(said, teach?.lines ?? []), context),
             attachments,
           )
-          const sent = yield* sending.withPermit(Effect.tryPromise({
+          const sent = yield* startingTurn.withPermit(Effect.tryPromise({
             try: () =>
               at.harness.prompt({
                 text: said,
@@ -932,14 +927,14 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       from: string,
       sleep: boolean,
     ): Effect.Effect<"handed" | "held" | "nothing"> =>
-      opening.withPermit(Effect.gen(function*() {
+      usingConversation.withPermit(Effect.gen(function*() {
         const at = talking
         const now = at === null ? null : at.harness.state()
         if (
           at === null || now === null || now.sessionId === null
           || at.row.id !== to.agent || now.sessionId !== to.session
         ) return "held"
-        return yield* sending.withPermit(Effect.gen(function*() {
+        return yield* startingTurn.withPermit(Effect.gen(function*() {
           if (at.harness.state().busySince !== null) return "held" as const
           const body = say()
           if (body === null) return "nothing" as const
@@ -1010,8 +1005,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     })
 
     const resend = (id: string): Effect.Effect<void, OpFailure> =>
-      opening.withPermit(Effect.gen(function*() {
-        const prompt = yield* sending.withPermit(Effect.sync(() => {
+      usingConversation.withPermit(Effect.gen(function*() {
+        const prompt = yield* startingTurn.withPermit(Effect.sync(() => {
           const waiting = outgoing.get(id)
           if (waiting !== undefined) outgoing.delete(id)
           return waiting ?? null
@@ -1134,7 +1129,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       what: Effect.Effect<void, HarnessRefused | HarnessUnavailable>,
       completed?: Effect.Effect<void, OpFailure>,
     ): Effect.Effect<void, OpFailure> =>
-      switching.withPermit(
+      switchingSession.withPermit(
         Effect.gen(function*() {
           if (conversation?.busySince != null) {
             return yield* new BusyFailure({
@@ -1144,7 +1139,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           yield* files.discard
           const resting = state.unopened === null ? null : state.status
           move({ status: "booting" })
-          const outcome = yield* replayed(opening.withPermit(what)).pipe(
+          const outcome = yield* replayed(usingConversation.withPermit(what)).pipe(
             Effect.onInterrupt(() =>
               Effect.sync(() => {
                 if (resting === null || unopened !== null || state.unopened === null) return
@@ -1176,7 +1171,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         beside.add(running)
       })
 
-    const setSetting = (agent: string, session: string, config: string, value: string | boolean): Effect.Effect<void, OpFailure> => opening.withPermit(sending.withPermit(Effect.gen(function*() {
+    const setSetting = (agent: string, session: string, config: string, value: string | boolean): Effect.Effect<void, OpFailure> => usingConversation.withPermit(startingTurn.withPermit(Effect.gen(function*() {
         if (state.status !== "idle" || talking?.row.id !== agent || state.session?.id !== session) {
           return yield* new UsageFailure({ reason: "wait for this conversation to be idle before changing its settings" })
         }
@@ -1204,7 +1199,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const alongside = [...beside]
       beside.clear()
       for (const fiber of alongside) yield* Fiber.interrupt(fiber)
-      yield* switching.withPermit(files.discard)
+      yield* switchingSession.withPermit(files.discard)
     })
 
     return {
@@ -1226,7 +1221,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         if (now !== state.bound) move({ bound: now })
       },
       send,
-      attach: (chunk) => switching.withPermit(files.receive(chunk)),
+      attach: (chunk) => switchingSession.withPermit(files.receive(chunk)),
       resend,
       signIn,
       signInInput,
@@ -1325,7 +1320,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             return
           }
           const outcome = yield* replayed(
-            opening.withPermit(using(chosen, { kind: "adopt", memory })),
+            usingConversation.withPermit(using(chosen, { kind: "adopt", memory })),
           )
           if (outcome._tag === "Failure") {
             yield* Effect.logWarning(outcome.failure.message).pipe(

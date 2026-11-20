@@ -26,7 +26,7 @@ export const createAttention = (router: Router): void => {
         const watching = createWatching(() => currentChat() !== undefined, id)
         createEffect<Awaiting | undefined>(before => {
           const now: Row | undefined = reading()
-          const next = { count: now?.waiting ?? 0, watched: watching.watched() }
+          const next = { count: now?.waiting ?? 0, watched: watching.anyoneWatching() }
           const alarm = alarmFor(before, next)
           badges.set(id, alarm.badge)
           wear()
@@ -49,7 +49,7 @@ export const createAttention = (router: Router): void => {
         })
         createEffect(() => {
           const line = unreadLine()
-          if (line === null || !watching.here()) return
+          if (line === null || !watching.watchingHere()) return
           run(
             chatWire().procedures.conversation.seen(line),
             failure => grumble(`chat.seen:${id}`, "olai: this conversation could not be marked as read", failure),

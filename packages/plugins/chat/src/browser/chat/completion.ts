@@ -66,13 +66,13 @@ export const unnamed = (text: string, id: string, caret: number): Written => {
 
 const SENTENCE_MARK = /[,.;:!?)\]}'"]/
 
-const trimmed = (word: string): string => {
+const trimmedName = (word: string): string => {
   let end = word.length
   while (end > 0 && SENTENCE_MARK.test(word[end - 1] ?? "")) end--
   return word.slice(0, end)
 }
 
-const markedAt = (text: string, at: number): number => {
+const marksAt = (text: string, at: number): number => {
   let end = at
   while (end < text.length && SENTENCE_MARK.test(text[end] ?? "")) end++
   return end - at
@@ -87,7 +87,7 @@ const namesOf = (
     const rest = text.slice(at + 1)
     const end = rest.search(/\s/)
     const said = end === -1 ? rest : rest.slice(0, end)
-    found.push({ at, word: trimmed(said) })
+    found.push({ at, word: trimmedName(said) })
     at += said.length
   }
   return found
@@ -99,7 +99,7 @@ export const completed = (
   name: string,
   caret: number,
 ): Written => {
-  const marks = markedAt(text, caret)
+  const marks = marksAt(text, caret)
   if (marks > 0) {
     const put = written(text, at, inserted(name, ""), caret)
     return { ...put, caret: put.caret + marks }

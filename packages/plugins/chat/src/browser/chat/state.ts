@@ -10,7 +10,7 @@ import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
 import { attaching, type UploadProgress } from "./attach.ts"
-import { createRows, orderOf } from "./order.ts"
+import { orderOf, useRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
 import { createConversationUI, type ConversationUI } from "./ui.tsx"
 
@@ -62,13 +62,16 @@ export interface Chat {
   ) => Effect.Effect<void, Refusal>
 }
 
-export const createChatState = (conv: PanelAddress, expected?: Conversing | null): Accessor<ChatState> => {
+export const createChatState = (
+  conv: PanelAddress,
+  matchingSession?: Conversing | null,
+): Accessor<ChatState> => {
   const cell = chatWire().streams.state.use(() => conv)
-  // Sessionless refusals still belong to the node and must remain visible.
   return createMemo<ChatState>(() => {
     const next = cell() ?? CHAT_OFF
-    if (expected !== undefined && next.session !== null
-      && (expected === null || next.session.id !== expected.session || agentIn(next)?.id !== expected.agent)) return CHAT_OFF
+    if (matchingSession !== undefined && next.session !== null
+      && (matchingSession === null || next.session.id !== matchingSession.session
+        || agentIn(next)?.id !== matchingSession.agent)) return CHAT_OFF
     return next
   })
 }
@@ -106,7 +109,7 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
 
   const growing = createSelector(said.of)
 
-  const window = createRows(transcript.fold)
+  const window = useRows(transcript.fold)
 
   let held = new Map<string, ChatEntry>()
   let heldSession: string | null | undefined

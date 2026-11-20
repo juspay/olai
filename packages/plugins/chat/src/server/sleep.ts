@@ -1,21 +1,3 @@
-/**
- * ## One pass, one SCOPE
- *
- * Each pass runs inside its own `Effect.scoped`, and everything it acquires is
- * released by closing it — in the LIFO order of the registrations below:
- *
- *   1. THE HOLD on git's quiet window, taken first so it is released LAST: the
- *      pass writes a subtree over minutes and then commits it as one commit, and
- *      without the hold the window would record the first half of that as `auto`
- *      while the pass was still going.
- *   2. THE READING of the node's conversation, which is also what keeps the
- *      node scope from being reaped while its agent works.
- *   3. THE CANCELLATION, registered last so it runs FIRST: a pass that is
- *      stopped stops the TURN rather than walking away from it. A turn left
- *      running would write into the subtree with nobody watching and no commit
- *      of its own to be undone by — the one outcome worse than not sleeping.
- */
-
 import type { Forecast } from "../wire/agents.ts"
 
 import {
@@ -150,6 +132,18 @@ export interface Stoppable {
 }
 
 export type Asked = "started" | "busy" | "unknown"
+
+const withPermitForked = <A>(
+  permits: Semaphore.Semaphore,
+  announce: Effect.Effect<void>,
+  work: () => Effect.Effect<A, never, Scope.Scope>,
+): Effect.Effect<boolean, never, Scope.Scope> =>
+  Effect.uninterruptible(Effect.gen(function*() {
+    if (!(yield* Semaphore.takeIfAvailable(permits, 1))) return false
+    yield* announce
+    yield* Effect.forkScoped(Effect.ensuring(work(), Semaphore.release(permits, 1)))
+    return true
+  }))
 
 export const makeSleeper = (
   doors: Sleeping,
@@ -299,14 +293,15 @@ export const makeSleeper = (
         }
         const stoppable = observed.success
         let running = true
-        yield* Effect.addFinalizer(() => Effect.gen(function*() {
-          if (running) {
+        yield* Effect.addFinalizer(() => doors.withdraw(to))
+        yield* Effect.addFinalizer(() =>
+          Effect.gen(function*() {
+            if (!running) return
             running = false
             yield* doors.warn(`sleep: ${agent.id}: the pass was stopped, so its turn was cancelled`)
             yield* stopping(stoppable, agent.id, lastState()?.sleep === true)
-          }
-          yield* doors.withdraw(to)
-        }))
+          })
+        )
         yield* doors.deliver(to, () => sleepFor(agent, movedRows))
         const verdict = yield* watchTurn(states)
         if (verdict === "question" || verdict === "trouble" || verdict === "limit") {
@@ -318,9 +313,6 @@ export const makeSleeper = (
           yield* doors.warn(`sleep: ${agent.id} did not finish: ${WHY[verdict]}`)
           return verdict
         }
-        // THE MEMO, THEN THE COMMIT — the order that makes the commit the undo:
-        // a stamp on disk that no commit carries would be a pass whose evidence
-        // a person cannot see in `git log`.
         const at = stampOf(new Date(yield* Clock.currentTimeMillis))
         const wrote = yield* Effect.result(doors.write({ op: "prop", id: agent.id, key: doors.sleptKey(), value: at }))
         if (wrote._tag === "Failure") {
@@ -366,26 +358,19 @@ export const makeSleeper = (
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return "unknown"
         const others = othersOf(doors.nodes(), agent.id)
-        // TAKEN, LOGGED AND FORKED AS ONE STEP, uninterruptibly: the fiber that
-        // hands the permit back is the one this forks, so a request interrupted
-        // between the take and the fork would leave a permit nobody owns and
-        // wedge the loop for the life of the process — every tick after it would
-        // wait for ever, and every Tidy memory would answer "busy".
-        return yield* Effect.uninterruptible(Effect.gen(function*() {
-          if (!(yield* Semaphore.takeIfAvailable(passes, 1))) return "busy" as const
-          yield* doors.log(`sleep: ${agent.id} was asked for, and is being tidied`)
-          yield* Effect.forkScoped(
+        return (yield* withPermitForked(
+          passes,
+          doors.log(`sleep: ${agent.id} was asked for, and is being tidied`),
+          () =>
             one(
               agent,
               memoryFiles(observed.success.derived, agent.id, others),
               others,
               movedUnder(observed.success.derived, agent.id, doors.sleptAt(agent.id), others),
-            ).pipe(
-              Effect.ensuring(Semaphore.release(passes, 1)),
             ),
-          )
-          return "started" as const
-        }))
+        ))
+          ? "started"
+          : "busy"
       })
 
     const forecast = (node: string): Forecast | null => {

@@ -2,7 +2,7 @@ import type { RowAction, RowVerb } from "olai-plugin-outlines/slots"
 import { Result } from "effect"
 import { runAsync } from "@olai/web/client/run.ts"
 import type { Roster } from "./agents/answered.tsx"
-import { seated, type Row } from "./agents/roster.ts"
+import { holdsSlot, type Row } from "./agents/roster.ts"
 import { agentReadings } from "./agents/reading.ts"
 import { fold, unfold } from "./agents/folding.ts"
 import { chatWire } from "./wire.ts"
@@ -95,15 +95,15 @@ const CLOSE_AGENT: RowVerb = {
   },
 }
 
-const SEATED: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, TIDY_MEMORY, CLOSE_AGENT]
-const UNSEATED: ReadonlyArray<RowVerb> = [TIDY_MEMORY, CLOSE_AGENT]
-const NOTE_SEATED: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, CLOSE_AGENT]
-const NOTE_UNSEATED: ReadonlyArray<RowVerb> = [CLOSE_AGENT]
+const HOLDING_A_SLOT: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, TIDY_MEMORY, CLOSE_AGENT]
+const SLOTLESS: ReadonlyArray<RowVerb> = [TIDY_MEMORY, CLOSE_AGENT]
+const NOTE_HOLDING_A_SLOT: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, CLOSE_AGENT]
+const NOTE_SLOTLESS: ReadonlyArray<RowVerb> = [CLOSE_AGENT]
 const NO_CHAT: ReadonlyArray<RowVerb> = []
 
 export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> =>
   bound.session == null
     ? NO_CHAT
     : bound.kind === "note"
-      ? (seated(bound.standing) ? NOTE_SEATED : NOTE_UNSEATED)
-      : (seated(bound.standing) ? SEATED : UNSEATED)
+      ? (holdsSlot(bound.standing) ? NOTE_HOLDING_A_SLOT : NOTE_SLOTLESS)
+      : (holdsSlot(bound.standing) ? HOLDING_A_SLOT : SLOTLESS)

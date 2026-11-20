@@ -1,5 +1,3 @@
-/** This module imports nothing and must not. */
-
 export const TESTID = {
   chatGrip: "chat-grip",
   agentStart: "agent-start",

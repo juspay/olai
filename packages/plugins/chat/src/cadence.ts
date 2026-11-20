@@ -28,6 +28,11 @@ const afterReally: After = (millis, run) => {
   return () => clearTimeout(timer)
 }
 
+interface OpenWindow {
+  readonly piece: Saying
+  readonly close: () => void
+}
+
 export interface Cadence {
   readonly publish: (change: Change<ChatEntry>) => void
   readonly onWire: () => ReadonlyMap<string, Saying>
@@ -42,7 +47,7 @@ export const cadence = (options: {
   const window = options.window ?? SAYING_MS
   const after = options.after ?? afterReally
   const live = new Map<string, Saying>()
-  let waiting: { readonly piece: Saying; readonly close: () => void } | null = null
+  let waiting: OpenWindow | null = null
 
   const drop = (): void => {
     waiting?.close()

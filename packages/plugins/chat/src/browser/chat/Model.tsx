@@ -1,13 +1,30 @@
-import { createEffect, createMemo, createSignal, createSelector, onCleanup, For, Show } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSignal, createSelector, For, Show } from "solid-js"
 import { agentIn } from "olai-plugin-chat/wire"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { listKey } from "@olai/web/client/keys.ts"
-import { createCursor } from "@olai/ui-primitives/cursor.ts"
+import { type Cursor, createCursor } from "@olai/ui-primitives/cursor.ts"
 import { TESTID } from "../../testids.ts"
 import { type Offered, visibleModels } from "./model-filter.ts"
 import type { Setting } from "@kolu/acp/wire"
 import type { Chat } from "./state.ts"
+
+interface DismissableFilter {
+  readonly query: Accessor<string>
+  readonly setQuery: (text: string) => void
+  readonly visible: Accessor<ReadonlyArray<Offered>>
+  readonly cursor: Cursor
+  readonly selected: (at: number) => boolean
+}
+
+const createDismissableFilter = (
+  offers: (query: string) => ReadonlyArray<Offered>,
+): DismissableFilter => {
+  const [query, setQuery] = createSignal("")
+  const visible = createMemo(() => offers(query()))
+  const cursor = createCursor(() => visible().length)
+  return { query, setQuery, visible, cursor, selected: createSelector(cursor.at) }
+}
 
 export function Model(props: { readonly chat: Chat; readonly name: string }) {
   const state = () => props.chat.state()
@@ -24,11 +41,9 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
   })
 
   const ModelFilter = () => {
-    const [query, setQuery] = createSignal("")
-    const visible = createMemo(() => visibleModels(state().models, query()))
-    const cursor = createCursor(() => visible().length)
-
-    const selected = createSelector(cursor.at)
+    const { query, setQuery, visible, cursor, selected } = createDismissableFilter(
+      (text) => visibleModels(state().models, text),
+    )
 
     const key = (event: KeyboardEvent): void => {
       switch (listKey(event)) {
@@ -140,13 +155,11 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
                     {(select) => <select aria-label={select().name} value={select().value ?? ""}
                       disabled={disabled()} class="max-w-40 rounded-control border border-rule bg-panel px-1 py-1"
                       onChange={(event) => { const value = event.currentTarget.value; event.currentTarget.value = select().value ?? ""; choose(setting, value) }}>
-                      {/* `title` on an `<option>`, which is the one place this
-                          app keeps the attribute: a `<select>`'s content model
-                          admits only `<option>`, `<optgroup>` and `<hr>`, so
-                          the `<span>` `Tip` wraps a control in may not stand
-                          here, and the opened list is drawn by the platform
-                          where no node of ours can be. HTML-AAM maps an
-                          option's `title` to its accessible description. */}
+                      {/* A `<select>`'s content model admits only `<option>`,
+                          `<optgroup>` and `<hr>`, and the platform draws the
+                          opened list where no node of ours can stand. HTML-AAM
+                          maps an option's `title` to its accessible
+                          description. */}
                       <For each={select().choices}>{(choice) =>
                         <option value={choice.value} title={choice.hint ?? undefined}>{choice.label}</option>
                       }</For>

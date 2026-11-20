@@ -205,8 +205,6 @@ Feature: An agent olai did not start
     Then the foreign tool reply remains ordinary detail
 
   Scenario: A kolu that reached no daemon refuses EVERY call, and the next init says so
-    # No `@kolu` tag, so the fake runs with `OLAI_FAKE_KOLU` at its default: a
-    # build that speaks the protocol and reaches no daemon (juspay/kolu#2146).
     Given I open the outline "house.olai"
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready

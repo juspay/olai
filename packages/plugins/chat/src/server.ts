@@ -1,21 +1,4 @@
 import { newChat, itemLocations, type LocationQuery, type NewChatInput, seated } from "./server/new-chat.ts"
-/**
- * ## THE ORDER, and why the chat is built on a forked fiber
- *
- * Three things have to happen in an order this file cannot get by writing them
- * down one after another:
- *
- *   1. **The doors are offered and the surface is registered, EAGERLY.** The
- *      composition root composes the wire out of the registered siblings and
- *      then binds it, so a sibling registered late is a sibling nothing serves.
- *   2. **The engine rows mount.** They name `Agents`, which is offered in (1),
- *      so their fibers activate after this `apply` has provided it — which is
- *      after this `apply` has returned. The registry is empty on the line below
- *      the offer, and full a moment later.
- *   3. **The listener binds.** Only then is there an MCP address to hand a
- *      session, which is the whole of what {@link Tools} answers.
- */
-
 import { deliveryProvision } from "./server/deliveries.ts"
 import { conversationsProvision } from "./server/conversations.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
@@ -113,31 +96,23 @@ const MEMO =
 const SLEEPING_MARK =
   "it is whether olai may tidy this chat on its own, which is a person's choice at the chat's own controls"
 
+const needs = [Bundle, Env, FileKinds, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes] as const
+
 export default definePlugin({
   environment: [
     {"key": "OLAI_AGENT_PATH", "secret": false, "says": "the directories containing agent executables"},
   ],
   name,
-  needs: [Bundle, Env, FileKinds, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
+  needs,
   config: Config,
   apply: (settings) => Effect.gen(function*() {
-    // Every service this plugin named, yielded once — the same list
-    // `needs` carries, in the same order.
-    const bundle = yield* Bundle
-    const env = yield* Env
+    const [bundle, env, fileKinds, kindsDoor, localStateDoor, offers, ops, surfaces, tools, vault, wakes] =
+      yield* Effect.all(needs)
     const nodeIdle = settings["idle-ms"]
     const sleeping = settings.sleep === "on"
     const spans = sleepingPolicy(settings)
-    const fileKinds = yield* FileKinds
-    const kindsDoor = yield* Kinds
-    const localState = yield* openLocalState(yield* LocalState)
-    const offers = yield* Offers
+    const localState = yield* openLocalState(localStateDoor)
     yield* offers.own("seating", () => ({ in: seatingIn }))
-    const ops = yield* Ops
-    const surfaces = yield* Surfaces
-    const tools = yield* Tools
-    const vault = yield* Vault
-    const wakes = yield* Wakes
 
     for (const kind of kinds) yield* kindsDoor.register(kind)
 
@@ -655,10 +630,6 @@ export default definePlugin({
         onTranscript: () => {},
         onConversationTranscript: publishTranscript,
         onLive: republishAgents,
-        // Taken BEFORE
-        // the finalizer below is registered, so LIFO unwinding stops the
-        // conversations first and interrupts whatever is still in flight
-        // second.
         fork: ring.held,
       })
       mine?.cells.engines.set(detect.read(mounted()).map(choiceOf))

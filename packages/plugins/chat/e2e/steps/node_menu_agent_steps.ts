@@ -58,6 +58,8 @@ When(
     assert.ok(await trigger.evaluate(el => el === document.activeElement), `the arrows never reached ${JSON.stringify(label)}`);
     await this.page.keyboard.press("ArrowRight");
     await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // Kobalte schedules a submenu's autofocus with `setTimeout(0)`, so the caret
+    // it tracks is not on the first agent until that timer has run.
     const first = sub.getByRole("menuitem").first();
     const caret = async () => await first.evaluate((el) =>
       el === document.activeElement && el.hasAttribute("data-highlighted"));

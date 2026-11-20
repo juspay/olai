@@ -1,12 +1,9 @@
 /**
- * Whether this device may offer a CAMERA beside the roll.
- *
- * A phone's browser sees a file input's `capture` attribute and opens the
- * camera itself; everywhere else the attribute is ignored and the same markup
- * opens an ordinary file dialog. There is no probe for `capture` (it has no
- * API behind it), so `pointer: coarse` is the proxy: a touchscreen laptop
- * reports its PRIMARY pointer as fine (its screen shows up under
- * `any-pointer`) and is excluded by definition.
+ * A phone's browser opens its camera for a file input's `capture` attribute;
+ * everywhere else the attribute is ignored and the same markup opens an
+ * ordinary file dialog. `capture` has no API behind it, so there is nothing to
+ * probe for; `pointer: coarse` is the proxy, and a touchscreen laptop reports
+ * its PRIMARY pointer as fine (its screen shows up under `any-pointer`).
  */
 
 import { type Accessor, createSignal } from "solid-js"

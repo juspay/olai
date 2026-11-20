@@ -55,11 +55,6 @@ const forget = (held: Ordered, key: string): boolean => {
   return wasOrdered || wasFiled
 }
 
-/**
- * The server's tick coalescer resolves an upsert-then-remove inside one producer
- * tick to a bare remove, so a row born and dead within one tick arrives as a
- * remove that was never preceded by an upsert.
- */
 export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered> = {
   init: (entries) => {
     const { seq, under } = intake(entries.map(([, entry]) => entry))
@@ -106,16 +101,12 @@ export const orderOf = (
   return cut(seq, under)
 }
 
-/**
- * MUST be called under a reactive owner, which is the fold's own requirement:
- * the registration is dropped by that owner's `onCleanup`.
- */
 export interface Rows {
   readonly keys: Accessor<ReadonlyArray<string>>
   readonly lanes: Accessor<ReadonlyMap<string, ReadonlyArray<string>>>
 }
 
-export const createRows = (fold: CollectionFold<string, ChatEntry>): Rows => {
+export const useRows = (fold: CollectionFold<string, ChatEntry>): Rows => {
   const order = fold(TRANSCRIPT_ORDER)
   return {
     keys: createMemo(() => order()?.keys ?? NO_ROWS),
