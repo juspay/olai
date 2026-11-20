@@ -1,11 +1,3 @@
-/**
- * Pins on feature-shared scratch: the tag grammar, the restore, the
- * leftover sentence, the restart gate, the retry fallback. Each test is a
- * sabotage target — if `@own-scratch` without `@share-scratch` is silently
- * ignored, if a restore that did not take does not name the files, if a
- * shared scratch can be restarted, the named assertion is what goes red.
- */
-
 import { expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as http from "node:http";
@@ -85,10 +77,6 @@ test("two DIFFERENT corpora on one scenario are refused", () => {
   );
 });
 
-// A feature's own `@corpus:` reaches every scenario in it, so a scenario in
-// that feature needing a server of its own — because it writes, or because it
-// is STARTED differently — can only say so by adding `@scratch:` beside it.
-// That is one corpus in two words, and the scratch is the specific one.
 test("its feature's corpus, asked for as a scratch, is one corpus and a private copy", () => {
   expect(requestOf(tags("@corpus:good", "@scratch:good"))).toEqual({
     corpus: "good",
@@ -242,9 +230,6 @@ test("PIN (resync path): the harness and the server name the same door", () => {
   expect(server).toContain(`RESYNC_PATH = "${RESYNC_PATH}"`);
   expect(askResync.name).toBe("askResync");
 });
-
-// Gate draining and provider replacement are exercised behaviorally in
-// server/src/resync.test.ts; their implementation is not pinned to serve.ts.
 
 test("PIN (drain-then-restore): a stage file that lands during drain is restored away", async () => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-drain-fix-"));

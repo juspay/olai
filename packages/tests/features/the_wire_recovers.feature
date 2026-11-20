@@ -17,14 +17,10 @@ Feature: A blink is not an outage, and a silent socket is brought back
     And I open the outline "house.olai"
     And the connection is "live"
     When the wire blinks
-    # The socket closed and the app redialled; the overlay never opened for it.
     Then the offline overlay never appeared
     And the connection is "live"
 
   Scenario: A socket that goes silent is recovered and the page comes back
-    # The WIRE IS OPEN and no longer answering — the half-open socket a laptop
-    # sleep or an idle NAT leaves behind. Nothing reports a close, so the
-    # transport never notices; only the watchdog can.
     Given incoming updates to this browser tab can be held
     And I open the outline "house.olai"
     And the connection is "live"

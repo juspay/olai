@@ -38,7 +38,6 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
   @corpus:good
   Scenario: The three kinds are listed in the sidebar, each with its own glyph
     When I open the app
-    # Folders start collapsed; these three sit in folders of their own.
     When I expand the folder "art"
     And I expand the folder "data"
     And I expand the folder "reports"
@@ -46,13 +45,10 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     Then the "image" rows listed are "art/diagram.svg, art/handle.png, art/tall.png"
     And the "csv" rows listed are "data/sales.csv"
     And the "pdf" rows listed are "reports/q3.pdf"
-    # …and the outlines and documents beside them are untouched: a vault that
-    # gained three kinds did not lose the two it had.
     And the "outline-olai" rows listed are "Daily/2026-08.olai, garden.olai, house.olai"
     And the "image" row "art/handle.png" wears its own glyph
     And the "csv" row "data/sales.csv" wears its own glyph
     And the "pdf" row "reports/q3.pdf" wears its own glyph
-    # Not a document, so the row keeps its suffix — the same name its tab wears.
     And the "pdf" row "reports/q3.pdf" reads "q3.pdf"
     And the "image" row "art/handle.png" reads "handle.png"
     And there should be no page errors
@@ -65,43 +61,23 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     When I click the "csv" row "data/sales.csv"
     Then the document open is "data/sales.csv"
     And the address is "/data/sales.csv"
-    # A route, not a reload: the page answered in place, exactly as a
-    # document's link does.
     And the page has not reloaded
     And the table's header is "region, quarter, units, note"
-    # The two things a csv reader has to get right, in one fixture: a comma
-    # INSIDE a quoted field is content, and a doubled quote is one quote.
     And the table's row 1 is "North|Q3|128|steady, no returns"
     And the table's row 2 is "South|Q3|94|two \"late\" deliveries"
-    # An empty field is a value, not a missing cell.
     And the table's row 3 is "East|Q3|0|"
     And the table draws 4 rows under the header
-    # The whole file is on the screen, so there is nothing to say about what
-    # was left out — and saying nothing is what that has to look like.
     And the csv page says nothing was left out
-    # VIEW ONLY: no Edit control, because markdown_write takes a `.md` and
-    # nothing else — a control here would be a door onto a refusal.
     And this file has no editor
     And there should be no page errors
 
   @scratch:good @own-scratch
   Scenario: A csv bigger than a page draws says what it left out
-    # Five hundred rows is the bound (`@olai/format`'s `CSV_ROWS`); seven
-    # hundred is a file past it. `@own-scratch` because this writes a file the
-    # fixture does not hold and the assertion is about that file's size.
     Given a csv of 700 data rows exists at "data/big.csv"
     When I open the address "/data/big.csv"
     Then the document open is "data/big.csv"
-    # THE CLAMP, SAID. A table showing the first five hundred rows of seven
-    # hundred with nothing saying so is a lie the reader cannot see.
     And the table's header is "row, squared"
-    # 499 UNDER it, because the header is one of the five hundred: a `.csv` has
-    # no line that is not a row, and the page draws the first row it read as
-    # the header.
     And the table draws 499 rows under the header
-    # NO TOTAL in the sentence, and that is the point rather than a shortfall:
-    # the scan stopped at five hundred rows, so "701" is a number this page
-    # never read.
     And the csv page says "Showing the first 500 rows."
     And there should be no page errors
 
@@ -114,8 +90,6 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     Then the document open is "art/handle.png"
     And the address is "/art/handle.png"
     And the page has not reloaded
-    # The address the app minted, and then the bytes really arriving: a `src`
-    # that 404s draws the same empty box as one that is right.
     And the picture drawn is "art/handle.png"
     And the picture has loaded
     And this file has no editor
@@ -127,9 +101,6 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     Then the document open is "art/diagram.svg"
     And the picture drawn is "art/diagram.svg"
     And the picture has loaded
-    # The fixture's script tried to rename this document and mark it. An
-    # `<img>` runs neither — and the response the media route answers an SVG
-    # with would stop it even if something did.
     And no svg has run in this tab
     And there should be no page errors
 
@@ -154,9 +125,6 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
 
   @corpus:good
   Scenario Outline: The address alone opens each of them, typed into the bar
-    # A RELOAD, not a route — the whole point of a prefix-free address is that
-    # it is a real URL somebody can paste. `@olai/web`'s routes carry no
-    # `/img/` or `/pdf/`: the suffix already says which page a path opens.
     When I open the address "/<file>"
     Then the document open is "<file>"
     And the address is "/<file>"

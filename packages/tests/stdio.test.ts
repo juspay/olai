@@ -1,36 +1,3 @@
-/**
- * The stdio face is gone, held as a sweep rather than as a sentence.
- *
- * `olai web` is the one brain. Agents dial `/mcp` over HTTP. The retired
- * spelling is the subcommand that used to start a second store — and a
- * survivor is silent: a docstring still describing how to launch it, a
- * justfile comment still offering it, a website snippet still teaching
- * `claude mcp add -- olai …`. So the string is banned across the repository,
- * and the ban is what makes the cutover atomic going forward too.
- *
- * **The whole repository, not `packages/`.** Same argument as
- * `extension.test.ts`: the files most likely to keep a stale spelling are
- * the hand-edited ones no test reads.
- *
- * **`git ls-files` is what "a file this repo owns" means here.** Untracked
- * files have not landed; this is a fence about what lands. The listing, that
- * guarantee and the grant rule are `./support/sweep.ts`', shared with the two
- * sweeps next door rather than spelled a third time.
- *
- * The RECORD OF THE PAST used to be granted here — `docs/brainstorming/` held
- * the decisions and why the alternatives lost, including the argument for the
- * face this sweep retires, `docs/RCA/` held incidents as they were diagnosed,
- * and the roadmap and `_olai/Trash.olai` were ledgers whose entries describe
- * PRs that shipped the subcommand. Those ledgers are not in this repository
- * any more: the orchestrator's vault moved to
- * https://github.com/juspay/oss.olai, where they go on saying what they said
- * on the day. So there is no grant list left — nothing this repository owns
- * may spell the retired face, and the sweep is the whole tree with no
- * exceptions in it.
- *
- * This file is excluded outright: it quotes what it hunts.
- */
-
 import { expect, test } from "bun:test";
 
 import { exists, read, tracked } from "./support/sweep.ts";
@@ -39,9 +6,6 @@ const TRACKED = tracked(import.meta.filename);
 
 const spelling = (pattern: RegExp): ReadonlyArray<string> =>
   TRACKED
-    // `exists` first: `git ls-files` still names a path that is deleted in the
-    // work tree until the deletion is staged, and a missing file cannot spell
-    // anything.
     .filter((file) => exists(file) && pattern.test(read(file)))
     .sort();
 

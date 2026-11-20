@@ -1,7 +1,3 @@
-/** Optional disk-backed ACP sessions for lifecycle scenarios. Each new session
- * has its own identity; only a prompted session can be listed or loaded, and
- * replay contains that session's actual messages. The canned protocol fixtures
- * remain available for tests that need their precise frames. */
 import { randomUUID } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"

@@ -1,4 +1,3 @@
-/** codex-acp's native session/AIR messages, with no Claude metadata. */
 export const nativeActivity = async (
   argument: string,
   root: string,
@@ -30,7 +29,6 @@ export const nativeActivity = async (
     call(root, "watch files")
     update(root, { sessionUpdate: "async_task_spawned", asyncTaskId: "watch-task", name: "watch files",
       taskType: "shell", showInTranscript: false, canStop: true, toolCallId: "shared-call" })
-    // A command result may arrive after the task was announced.
     update(root, { sessionUpdate: "tool_call_update", toolCallId: "shared-call", status: "completed" })
     void released().then(() => {
       update(root, { sessionUpdate: "async_task_state_update", asyncTaskId: "watch-task", state,

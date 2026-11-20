@@ -1,10 +1,3 @@
-/**
- * The reverse proxy the identity scenarios sit behind: it stamps the
- * headers a real proxy would, including on the websocket upgrade —
- * Playwright cannot. A client-supplied copy of an injected name is
- * dropped, the way `tailscale serve` strips rather than appends.
- */
-
 import { expect, test } from "bun:test"
 import * as http from "node:http"
 import * as net from "node:net"

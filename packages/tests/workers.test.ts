@@ -1,10 +1,3 @@
-/**
- * Pins on how the suite occupies the machine. Each test is a sabotage
- * target: if the default goes back to 1, if a held restart port is still
- * bindable, if a spawned server still sees the host's padi or cache, the
- * named assertion is what goes red.
- */
-
 import { expect, test } from "bun:test";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
@@ -66,7 +59,6 @@ test("PIN (worker id): unset is 0; Cucumber's CUCUMBER_WORKER_ID is honoured", (
 const events = (source: object): EventEmitter =>
   source as unknown as EventEmitter;
 
-/** A free loopback port, borrowed for the length of the hold test. */
 const ephemeral = (): Promise<number> =>
   new Promise((resolve, reject) => {
     const probe = net.createServer();
@@ -93,7 +85,6 @@ test("PIN (port hold): a held port is not bindable by someone else", async () =>
       await releasePort(await holdPort(port));
       took = true;
     } catch {
-      // What is supposed to happen: we are holding it.
     }
     expect(took).toBe(false);
   } finally {
@@ -123,9 +114,6 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, agent: false }),
   );
-  // Which AGENTS a server finds decides whether its panel asks which one a
-  // conversation is with, so two servers that differ in it are two servers —
-  // whichever word the difference is, and in whichever order it was asked.
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, fakes: ["opencode"] }),
   );
@@ -152,7 +140,6 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
 test("PIN (env): a spawned server does not inherit the host's padi or cache", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-e2e-iso-"));
   try {
-    // The HOST's padi, as a developer running kolu really has it.
     process.env.PADI_SOCKET = "/run/user/1000/padi.sock";
     process.env.ODU_WEB_ORIGIN = "127.0.0.1:18440";
     const env = isolateEnv(root, {
@@ -161,19 +148,10 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
       XDG_CACHE_HOME: "/tmp/host-cache",
       XDG_STATE_HOME: "/tmp/host-state",
     });
-    // SCRUBBED, so a developer running kolu does not hand every spawned server
-    // their own live padi — the scenario that says a laptop without kolu draws
-    // hollow terminal chips would otherwise draw their actual terminals.
     expect(env.PADI_SOCKET).toBeUndefined();
-    // ...and what the SPAWN asked for still gets through, which is how
-    // `@padi:<fleet>` points a server at the padi the scenario just started.
-    // The same pair as the avatar template above, one variable over: the HOST's
-    // copy is taken off before the extras go on, so neither wins by accident.
     expect(
       isolateEnv(root, { PADI_SOCKET: "/tmp/scenario/padi.sock" }).PADI_SOCKET,
     ).toBe("/tmp/scenario/padi.sock");
-    // odu's client defaults to :18440 when the env is merely absent, so the
-    // host's origin is replaced with a port nobody is answering on.
     expect(env.ODU_WEB_ORIGIN).toBe("http://127.0.0.1:1");
     expect(
       isolateEnv(root, { ODU_WEB_ORIGIN: "http://127.0.0.1:9999" }).ODU_WEB_ORIGIN,
@@ -183,19 +161,12 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(env.XDG_CACHE_HOME).toBe(path.join(root, "cache"));
     expect(env.XDG_CACHE_HOME).not.toBe("/tmp/host-cache");
     expect(fs.existsSync(env.XDG_CACHE_HOME!)).toBe(true);
-    // The same treatment for STATE, which is where the chat panel's own note
-    // of which conversation it was in lands: a scenario's server must read
-    // back what its own earlier boot wrote, and never the developer's.
     expect(env.XDG_STATE_HOME).toBe(path.join(root, "state"));
     expect(env.XDG_STATE_HOME).not.toBe("/tmp/host-state");
     expect(fs.existsSync(env.XDG_STATE_HOME!)).toBe(true);
-    // And RUNTIME, which is where the one-brain lock lands. A spawn that
-    // inherited the host's `/run/user/…/olai` is how 151k leftover `.lock`
-    // files accumulated there.
     expect(env.XDG_RUNTIME_DIR).toBe(path.join(root, "runtime"));
     expect(env.XDG_RUNTIME_DIR).not.toBe(process.env.XDG_RUNTIME_DIR);
     expect(fs.existsSync(env.XDG_RUNTIME_DIR!)).toBe(true);
-    // HOME stays the host's: overriding it emptied apply inverse.
     expect(env.HOME).toBe(process.env.HOME);
   } finally {
     delete process.env.PADI_SOCKET;

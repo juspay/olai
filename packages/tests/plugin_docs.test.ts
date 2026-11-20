@@ -1,68 +1,3 @@
-/**
- * EVERY PLUGIN HAS A USER PAGE, AND EVERY PAGE IS A DOOR THE INDEX OPENS —
- * held as claims a test can be red about, because nothing else holds them.
- *
- * ## What is being kept honest, and why prose alone could not
- *
- * A plugin's user docs live in the plugin's own package
- * (`packages/plugins/<name>/docs.md`), and `@olai/plugin-api`'s `OlaiPlugin.name`
- * argues that placement against the standing ruling it looks like a breach of
- * — *"a page beside a binary is a page that goes stale"* (`@olai/server`'s
- * `main.ts`, ruled human 2026-08-23). The counter-case is that a plugin has no
- * `--help`, so `docs.md` is its ONLY account and there is no second telling to
- * drift from. That argument stands on two facts, and BOTH of them are the kind
- * that rot silently:
- *
- *   - the page EXISTS for every plugin — which stops being true the moment a
- *     plugin arrives with no `docs.md` and its story goes into some general
- *     page instead, which is the second account arriving by the back way;
- *   - the page is PUBLISHED and LINKED, at `website/docs/plugins/<name>.md`:
- *     olai.page publishes `website/docs/` (and `just serve` serves it as a
- *     vault), so a path outside it is not published at all, and the site's
- *     sidebar is read off the index, so a page the index does not list has no
- *     way in. A page nobody can reach is a page nobody notices is stale,
- *     which is the ruling's own premise arriving by the other back way.
- *
- * So the claims below are the counter-case's receipts. `website/docs/index.md`
- * is hand-written markdown, and this file is what makes it an ASSEMBLY rather
- * than a list somebody keeps up by remembering to.
- *
- * ## The served page is a SYMLINK, and the test asserts the link, not the file
- *
- * `website/docs/plugins/<name>.md` points at the plugin's own `docs.md` — one file
- * with two names, so the served page and the page beside the code are the same
- * bytes. `lstat` is what proves it: a well-meant COPY dropped in its place
- * would satisfy every other claim here while reintroducing exactly the
- * two-files-one-story failure the arrangement exists to refuse.
- *
- * ## …so a plugin's page is authored at its SERVED address
- *
- * A page written in `packages/plugins/<name>/` is READ at
- * `website/docs/plugins/`, so its relative links are the served set's
- * (`../format.md`, and a sibling plugin as `odu.md`). That is the real cost of
- * the symlink, and it is checked here rather than left to be discovered.
- *
- * ## Why the WIRE door, and why the population is not read off the tree
- *
- * `PLUGIN_NAMES` comes from `@olai/plugin-api/wire`, and the subpath is
- * load-bearing exactly as it is at `@olai/server`'s `pluginPolicy.ts`: the
- * ROOT door is the manifests, a manifest carries SolidJS faces and a terminal
- * emulator behind one of them, and importing it from a process that renders
- * nothing kills the boot rather than merely costing bytes — a `bun test` at
- * the repository root dies on `react/jsx-dev-runtime`, which is how this file
- * learned it. The wire door answers the one question a docs sweep has.
- *
- * Reading `packages/plugin-*` off the tree would have answered it too, and
- * worse: a directory is not the registry, so a page could be missing for a
- * plugin that is BUILT IN and the sweep would be green for as long as the
- * directory was absent. The registry is what ships.
- *
- * And it lives here because `@olai/tests` is the only package above all the
- * others (support/sweep.ts' header, and ../plugin-api/src/fence.test.ts' closing
- * paragraph): a sweep over `website/docs/` from inside `@olai/plugin-api` would be a
- * package reading the repository it is a part of.
- */
-
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as path from "node:path";
@@ -85,25 +20,15 @@ import {
   VAULT,
 } from "./support/docs.ts";
 
-/** Where a plugin's page is AUTHORED, and where it is SERVED, what the served
- *  set's root is, and how a link on a page is read: ./support/docs.ts, shared
- *  with the writing lint so that the two sweeps cannot drift about what a page
- *  is or where a link lands. */
-
-/** A guard on the sweep itself: an empty registry would pass every equality
- *  below while asserting nothing. A floor, not a count. */
 test("the registry is actually being read", () => {
   expect(PLUGIN_NAMES.length).toBeGreaterThan(0);
 });
 
 test("every plugin's page sits in the plugin's own package, and has a title", () => {
-  // An EQUALITY to the empty list rather than a count, so a failure names the
-  // plugin and says which half is missing.
   const wrong = PLUGIN_NAMES.flatMap((name) => {
     const file = authored(name);
     if (!fs.existsSync(at(file))) return [`${file}: no such file`];
     const heading = fs.readFileSync(at(file), "utf8").split("\n")[0] ?? "";
-    // A page with no `#` line is a page the index has nothing to name.
     return heading.startsWith("# ") ? [] : [`${file}: opens with ${heading}, not a heading`];
   });
   expect(wrong).toEqual([]);
@@ -123,8 +48,6 @@ test("the served page is a SYMLINK onto it, never a copy", () => {
 });
 
 test("the served set holds a page per plugin and no orphan", () => {
-  // Both directions at once: a page left behind by a plugin that went away is
-  // as wrong as a plugin with no page, and only the listing catches the first.
   expect(fs.readdirSync(at(path.join(VAULT, "plugins"))).sort())
     .toEqual(PLUGIN_NAMES.map((name) => path.basename(served(name))).sort());
 });
@@ -149,9 +72,6 @@ test("the index links every plugin's page, and no page it does not have", () => 
 });
 
 test("the index says something about each plugin, and not only its name", () => {
-  // A link with nothing after it is a row in a list, not an index entry: the
-  // whole job of this page is that a reader can tell which door they want
-  // without opening all of them.
   const rows = fs.readFileSync(at(INDEX), "utf8").split("\n");
   const thin = PLUGIN_NAMES.flatMap((name) => {
     const line = rows.find((row) => row.includes(`](plugins/${name}.md)`));
@@ -163,13 +83,8 @@ test("the index says something about each plugin, and not only its name", () => 
 });
 
 test("every page the index links is a page that is there", () => {
-  // The index is hand-written and has never had a link checker. Moving a page
-  // is exactly the edit that leaves a dangling neighbour behind, so the sweep
-  // that would notice belongs here rather than in a second file.
   const broken = linksIn(INDEX).filter(isLocal).flatMap((target) => {
     const landed = landing(INDEX, target);
-    // A link that climbs out of the vault is not a door: at the served
-    // address an unserved path draws as text, and there is no page to check.
     if (landed === null) return [];
     return fs.existsSync(at(landed)) ? [] : [`${INDEX}: ${target} → ${landed}, which is not there`];
   });
@@ -177,22 +92,12 @@ test("every page the index links is a page that is there", () => {
 });
 
 
-/**
- * EVERY ENVIRONMENT DOOR A ROW DECLARES IS NAMED ON SOME PAGE a reader can
- * find. The claim was `running.md` alone, back when that page carried
- * every knob in the bundle. A door is now documented where its subject is —
- * an engine's adapter variable on the engine's own page, the server's on
- * `settings.md` — which is the writing standard's "one fact, one home"
- * (`dev/skills/docs-writing/SKILL.md`). What must not happen is a door
- * documented nowhere, and that is what this sweeps for.
- */
 test("every environment door declared by a row is named on some page", async () => {
   const written = pages()
     .map((page) => fs.readFileSync(at(page), "utf8"))
     .join("\n")
   for (const row of ROWS) {
     if (row.browserOnly) continue
-    // The specifier is a registry row's own module name, not a literal.
     const module = await import(createRequire(at("packages/bundle/package.json")).resolve(row.name))
     for (const door of module.default.environment ?? []) {
       expect(written, `${row.id}: ${door.key}`).toContain(door.key)

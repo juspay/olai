@@ -1,23 +1,9 @@
-/**
- * A cancelled cucumber run leaves no server.
- *
- * The harness used to register only `process.on("exit")`. SIGINT of cucumber
- * skipped AfterAll; SIGKILL never ran `exit` at all; and `detached: true`
- * put each olai in a process group the signal never reached. This file is
- * that property as a unit: a parent that uses {@link installReaper} is
- * signalled, the detached child it started is gone, and the parent itself
- * exits 130 (SIGINT) or 143 (SIGTERM) — which is how a cancelled run ends
- * instead of grinding to AfterAll.
- */
-
 import { expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "node:child_process";
 import * as path from "node:path";
 
 const REAPER = path.join(import.meta.dirname, "support/reaper.ts");
 
-/** Hang detector only. The waits are the pid line, the parent's exit, and
- *  the child's death; this number tells "never" from "slow". */
 const BOUND_MS = 10_000;
 
 const launch = (): {
@@ -64,9 +50,6 @@ const launch = (): {
   return { parent, said: () => said, err: () => err, exited };
 };
 
-/** The pid line, not a poll. Late caller: look once in the box. Early
- *  caller: the `data` event that carries it. {@link BOUND_MS} is only the
- *  hang detector. */
 const pidOf = (box: ReturnType<typeof launch>): Promise<number> =>
   new Promise((resolve, reject) => {
     let settled = false;
@@ -103,9 +86,6 @@ const pidOf = (box: ReturnType<typeof launch>): Promise<number> =>
     look();
   });
 
-/** ESRCH, not a deadline. SIGKILL of the group is sent and then the parent
- *  `process.exit`s; the pid can still be in the table (a zombie, or the
- *  kill not yet scheduled) after the parent's `exit` event. */
 const untilGone = (pid: number): Promise<void> =>
   new Promise((resolve, reject) => {
     const started = Date.now();
@@ -157,19 +137,15 @@ const signaled = async (
       try {
         process.kill(-childPid, "SIGKILL");
       } catch {
-        // already gone, or no such process group
       }
       try {
         process.kill(childPid, "SIGKILL");
       } catch {
-        // already gone
       }
     }
   }
 };
 
-// One BOUND_MS more than the three hang detectors, so bun cannot steal
-// the last detector's error with a generic "test timed out".
 test(
   "PIN (reaper): SIGINT of the parent kills a detached child",
   async () => {

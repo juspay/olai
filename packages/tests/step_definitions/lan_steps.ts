@@ -1,22 +1,11 @@
-/**
- * READING OLAI FROM ANOTHER MACHINE — the page that is not a secure context.
- *
- * `../support/lan.ts` says why the suite needs a second name for its own
- * server; these are the steps that read through it, and the one fact about
- * such a page a scenario has to see for itself — that it really IS held to
- * less, so a scenario passing on it proves something.
- */
-
 import * as assert from "node:assert";
 import { Given, Then } from "@cucumber/cucumber";
 import { onLan } from "../support/lan.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/** The prompts the page raised, oldest first — what `window.prompt` offered. */
 const prompted = new WeakMap<OlaiWorld, Array<{ message: string; value: string }>>();
 
 Given("I read olai from another machine over plain http", async function (this: OlaiWorld) {
-  // Before the first navigation: every later `open` resolves against this.
   this.baseUrl = onLan(this.baseUrl);
   // A prompt blocks the page until something answers it, and Playwright
   // dismisses one nobody is listening for — so the listener is here, before

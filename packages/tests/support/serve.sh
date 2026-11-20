@@ -1,31 +1,3 @@
-# A dev server for a DRIVER — the shell half of `../wire.sh`, `../reads.sh`
-# and `../skew.sh`, which stand olai up outside the suite.
-#
-#   . support/serve.sh
-#   olai_serve "$root" "$vault" "$log"   # spawn, wait for it to answer
-#   # $OLAI_SERVER is the pid; $OLAI_URL is the bound address
-#   kill "$OLAI_SERVER"
-#
-# Sourced rather than executed, because a spawned server has to outlive the
-# call: the caller needs the pid to kill afterwards. What this holds is the
-# ONE spelling of how a dev server boots (which env vars, which entry file,
-# which flag), and the reason it is not written twice is that when that
-# spelling changes, the copy nobody edited goes on booting nothing while its
-# driver measures whatever is already listening.
-#
-# The suite itself does NOT come through here: it drives the NIX-BUILT binary
-# through `support/hooks.ts` (`OLAI_BIN`), which is what a user actually runs.
-# These are drivers, and a driver runs the working tree.
-#
-# Port 0 by default. A fixed PORT= used to be how two worktrees photographed
-# or measured one tree: the second spawn failed, the readiness curl succeeded
-# against the stranger, and every number or screenshot was of the other
-# branch. The bound address is read off the serving line, so two worktrees
-# cannot collide.
-
-# Refuse a port something else is already serving. Only for an explicit
-# PORT=: port 0 is the default and cannot collide this way. `what` names
-# what would otherwise be silently wrong.
 olai_port_free() {
   local port=$1
   local what=${2:-the run}
@@ -38,46 +10,11 @@ olai_port_free() {
   fi
 }
 
-# Spawn `olai web <vault>` from the working tree at `root`, wait until it
-# answers, and leave the pid in `$OLAI_SERVER` and the bound address in
-# `$OLAI_URL` for the caller.
-#
-# `KOLU_ACP_AGENT=` empty by default: most drivers are not chat scenarios, and
-# an agent one never speaks to is a process spawned for nothing. A driver that
-# IS about the conversation names one in `AGENT` — the scripted agent, whose
-# whole point is that a turn is deterministic — and gets it verbatim.
-#
-# `OLAI_AGENT_PATH=` empty: WHICH agents a driver's server finds is a property
-# of the driver and never of the laptop it runs on. The empty string is "look on
-# no path at all", so the roster is exactly what `AGENT` names — one — and a
-# developer with Claude Code installed does not get a panel that opens on a
-# picker while a lane gets one that does not. It is the same switch the suite's
-# own harness spawns every server with (`support/hooks.ts`).
-# `OLAI_DIST_DIR` is the client that `just build-client` wrote into that same
-# worktree — the one thing a driver has to be pointed at, and the one thing that
-# makes `root` a knob rather than a constant.
-#
-# `OLAI_DIE_WITH_PARENT=$` ties the server to THIS shell: a server arms the
-# kernel's parent-death signal only for a spawner that tied it, and a driver
-# killed before its `kill "$OLAI_SERVER"` would otherwise leave one serving a
-# working tree nobody is looking at. The tie is the asking shell's pid, which
-# is the backgrounded server's real parent. A wrapper that means to exit and
-# leave a server running simply does not tie (`@olai/server`'s
-# `src/dieWithParent.ts` has the argument).
-#
-# `PORT` if set is passed through as `--port`; unset is 0, which is the
-# default and the right one.
 olai_serve() {
-  # `local`, so a caller's own `root` or `port` is not clobbered by calling
-  # this: both scripts happen to pass the same values under the same names,
-  # which is exactly how that stops being true one edit later.
   local root=$1
   local vault=$2
   local log=$3
   local port=${PORT:-0}
-  # Drop a previous call's URL so a failed boot cannot silently reuse it.
-  # Unset rather than empty: callers run `set -u` and should die naming the
-  # miss if we return without setting.
   unset OLAI_URL
   OLAI_DIST_DIR="$root/packages/web/dist" KOLU_ACP_AGENT="${AGENT:-}" \
     OLAI_AGENT_PATH= \
@@ -85,20 +22,9 @@ olai_serve() {
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \
     > "$log" 2>&1 &
   OLAI_SERVER=$!
-  # Fifteen seconds of quarter-seconds. A boot that never answers used to
-  # fall through with status 0 and leave OLAI_URL unset (or, from the
-  # second call on, still holding the previous call's). The URL is on the
-  # serving line; port 0 asks the OS every boot, nothing is written.
   for _ in $(seq 1 60); do
-    # The URL is a field of the serving line (`message=serving`), not any
-    # loopback address that happens to appear in the log. The busy-port
-    # fallback carries a `url=` of its own; matching the message keeps the
-    # two apart the way the suite's findLogfmt does.
-    # Only a newline-terminated log is complete: a trailing fragment whose
-    # `message=` already looks right has not finished arriving, and a cut
-    # inside `url=` would otherwise match a truncated port. `$(…)` strips a
-    # trailing newline, so an empty last byte is "the file ended on a line
-    # boundary".
+    # Only a newline-terminated log is complete: a cut inside `url=` would
+    # otherwise match a truncated port.
     [ -z "$(tail -c1 "$log" 2>/dev/null)" ] || continue
     OLAI_URL=$(grep 'message=serving' "$log" 2>/dev/null \
       | grep -oE 'url=https?://(127\.0\.0\.1|\[::1\]):[0-9]+' \

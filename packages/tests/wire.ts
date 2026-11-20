@@ -1,61 +1,3 @@
-/**
- * What a reading session costs the wire, measured rather than argued.
- *
- * Not part of the suite and not a gate — the promises live in the features.
- * This is the instrument that produced the numbers in two PR bodies, and it is
- * kept so the next person can re-run them rather than believe them.
- *
- * WHAT IT MEASURES is the two ways bytes reach a reader — every byte the
- * WEBSOCKET delivered to the tab, and every byte fetched over HTTP off
- * `/media/` — and what the tab ASKED FOR to get them, counted per procedure.
- * THREE SESSIONS ask different questions of that one instrument, and `SESSION`
- * picks which:
- *
- *   - `preview` — an edit-while-previewing session. The defect it was built for
- *     was that a previewed `.html` paid both legs: the collection streamed the
- *     whole body to a page that draws none of it, and the frame then fetched
- *     the same file for itself. So the interesting number is the first one, and
- *     the second is what it is supposed to be beside
- *     (`preview-body-not-shipped`).
- *   - `pages` — an ORDINARY READING session over a realistic vault: open the
- *     app, then walk the routes. Before `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s
- *     PR 10 the first frame carried every record of every outline and no
- *     navigation cost a byte; after it, the first frame carries the file list
- *     and each page asks for itself. That is the trade the design demands land
- *     as a number rather than a feeling, so this session is measured on both
- *     sides of it — and it is the SAME driver, which is what makes the two
- *     numbers comparable.
- *   - `chat` — ONE TURN of a conversation, with the scripted agent streaming a
- *     five-paragraph answer five characters at a time. The defect it was built
- *     for is `transcript-stream-quadratic`: a chunk used to be published as the
- *     whole row it grew, so the socket carried the sum of the answer's own
- *     prefixes — 323× the answer — in one frame per chunk. So this session
- *     reports BOTH numbers, and the frame count is not a footnote: on a
- *     high-latency link hundreds of small ACK-clocked writes are what a reader
- *     feels as an answer arriving in lumps.
- *   - `filter` — a page somebody has NARROWED, with the vault moving under it.
- *     A filter is a standing view, so every frame the open page drew used to be
- *     a reason to ask the matcher again — one whole-vault `search.matching` PER
- *     FRAME, uncoalesced (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md`
- *     §3.5). So this one counts ASKS rather than bytes: it opens a filtered
- *     outline, picks a section of it and ticks the pick off — one gesture, one
- *     write per topmost row, one page frame back per write — and reports what
- *     that burst cost the matcher. Over the BIG vault below, because what a
- *     whole-vault search costs is a function of the vault.
- *
- *     It is the acceptance test for `filter-ask-carries-revision`
- *     (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md), which is why the counter
- *     knows both spellings of the ask ({@link MATCHER}): the narrowing is a
- *     stream over the page now, so the gesture should cost the matcher NOTHING
- *     — the subscription is opened once, when the query is, and thirty writes
- *     that move no match send no frame and ask no question.
- *
- * It is VERSION-INDEPENDENT on purpose — Playwright, a URL, and this package's
- * own browser argv, with no `@olai/*` import anywhere — so the same driver
- * measures a server built from this branch and one from master, and the two
- * numbers are of the same session. `wire.sh` is what stands each of those
- * up.
- */
 import { chromium, type Page } from "playwright"
 import { mkdirSync, writeFileSync } from "node:fs"
 import * as path from "node:path"
@@ -67,103 +9,32 @@ const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const VAULT = process.env["VAULT"] ?? ""
 const LABEL = process.env["LABEL"] ?? "unlabelled"
 const SESSION = process.env["SESSION"] ?? "preview"
-/** Milliseconds of one-way delay to put in front of the server — so a round
- *  trip costs twice this. Zero (the default) is loopback, which is where the
- *  stop-and-wait half of `transcript-stream-quadratic` is invisible. */
 const DELAY = Number(process.env["DELAY"] ?? "0")
 
-/** The saved page under test, and the note beside it. Both are written by this
- *  driver rather than taken from a fixture corpus, so the two runs measure the
- *  same bytes whatever either branch's fixtures happen to hold. */
 const PAGE = "dashboard.html"
 const NOTE = "manual.md"
 
-/** How big a saved page is, in the case this is about. A dashboard exported
- *  with its data inlined is megabytes; a megabyte is the conservative end of
- *  that and it keeps the run quick. */
 const FILLER = "x".repeat(1_000_000)
 
 const pageAt = (heading: string) =>
   `<h1>${heading}</h1>\n<!-- ${FILLER} -->\n`
 
-/** A note with a body worth seeing in the numbers — this is the reader the fix
- *  must not have broken, so its body had better still be on the wire. */
 const note = () => `# Manual\n\n${"a note about the cabinets. ".repeat(2_000)}\n`
 
 interface Reading {
   readonly what: string
-  /** Bytes the websocket delivered to this tab, cumulative. */
   readonly socket: number
-  /** Bytes fetched off `/media/`, cumulative. */
   readonly media: number
-  /** What the tab ASKED THE MATCHER FOR, cumulative — the `filter` session's
-   *  number, and zero for the other two, which never narrow a page. Both
-   *  spellings are counted ({@link MATCHER}), because one driver measures two
-   *  worktrees and the member changed shape between them. */
   readonly asks: number
-  /** How many websocket frames the tab was delivered, cumulative — the
-   *  `chat` session's second number, and the one bytes cannot say on their
-   *  own. A streaming answer's cost is TWO shapes: what the server chose to
-   *  send, and how many writes it made of it. On a link with a quarter-second
-   *  in it the second is what a reader FEELS, because hundreds of small
-   *  ACK-clocked writes pace badly however few bytes they carry. */
   readonly frames: number
 }
 
-/**
- * HOW A PAGE ASKS THE MATCHER, on the wire, going out — in BOTH spellings the
- * two sides of this measurement use.
- *
- * The surface's own request tags, which are the one thing about the protocol
- * this driver knows, and it counts the frames the TAB SENT rather than the
- * answers it was given: what is being measured is what this page asked for.
- *
- * TWO of them, because `ROOT=` is the whole point of this file — the same
- * driver measures a server from master and one from a branch, and
- * `filter-ask-carries-revision` changed which member a narrowed page asks.
- * `search/matching` is the PROCEDURE it used to call, once per page frame;
- * `narrowing/get` is the STREAM it subscribes to instead, once per settled
- * query. Counted together, the column means one thing on both sides: how many
- * times this page asked what its filter selects.
- *
- * THREE of them since #546, and the third is the SAME member as the second
- * under the name it answers to now. Nine rows kept a bare alias beside their
- * own tag until that change, so a narrowed page asked `surface/narrowing/get`;
- * outlines is the owner and it is `surface/outlines/narrowing/get`. Both stay
- * listed for the reason the retired `search/matching` does — this driver
- * measures a server from MASTER against one from a branch, and a list narrowed
- * to what the branch emits would count the master run as zero and read the
- * rename as a saving.
- */
 const MATCHER = [
   `"tag":"surface/search/matching"`,
   `"tag":"surface/narrowing/get"`,
   `"tag":"surface/outlines/narrowing/get"`,
 ]
 
-/**
- * THE VAULT — written here rather than taken from a fixture corpus, for the
- * reason the two files above are: the two runs must measure the same directory,
- * whatever either branch's fixtures hold.
- *
- * TWO SIZES, because the two sessions that use it are asking different
- * questions. `pages` is about what an ORDINARY reading session costs, so its
- * vault is a working one somebody has kept for a couple of years — a few dozen
- * outlines, a couple of hundred rows each, notes on a third of them, a
- * scattering of dates, mirrors and edges, and a folder of documents beside.
- * (Those numbers are quoted in the PR body that measured them, which is why
- * they are a constant and not a knob.)
- *
- * `filter` is about the vault the `vault-in-browser` design was RULED for —
- * "when we have 1000s of .md files it will start to suck" — because the thing
- * it counts is what a page asks the matcher, and what one whole-vault answer
- * costs is a function
- * of the vault. On the small one the matcher answers faster than a write's
- * round trip, so nothing about coalescing is visible either way; the number to
- * measure is the one a reader with a real vault pays.
- *
- * Every number is deterministic, so a re-run measures the same bytes.
- */
 interface Size {
   readonly outlines: number
   readonly rows: number
@@ -175,13 +46,10 @@ const BIG: Size = { outlines: 300, rows: 300, documents: 200 }
 const outlineFile = (file: number) =>
   `notes/outline-${String(file).padStart(3, "0")}.olai`
 
-/** One outline's records. */
 const outlineAt = (file: number, rows: number): string => {
   const lines: Array<string> = []
   for (let row = 0; row < rows; row += 1) {
     const id = `n${file}-${row}`
-    // Every tenth row is a section; the rest hang under the last one, which
-    // is the shape an outline somebody keeps actually has.
     const parent = row % 10 === 0 ? undefined : `n${file}-${row - (row % 10)}`
     const title = `row ${row} of outline ${file} — a title of the length people write`
     const fields: Array<string> = [
@@ -190,8 +58,6 @@ const outlineAt = (file: number, rows: number): string => {
       `"ord":"a${String(row).padStart(4, "0")}"`,
       `"title":"${title}"`,
     ]
-    // At most ONE mark per record — the format refuses two, and a file that
-    // will not parse is a file with no rows to measure.
     if (row % 7 === 0) fields.push(`"done":"2026-08-0${(row % 9) + 1}"`)
     else if (row % 3 === 0) fields.push(`"todo":true`)
     if (row % 5 === 0) {
@@ -220,7 +86,6 @@ const corpus = (
       `# Document ${doc}\n\n${"prose about the work. ".repeat(200)}\n`,
     )
   }
-  // One day's note, so the day page has both halves of what it draws.
   write("notes/2026-08-11.md", "# The eleventh\n\nwhat happened.\n")
 }
 
@@ -240,24 +105,12 @@ const main = async () => {
 
   if (SESSION === "pages" || SESSION === "filter") {
     corpus(write, SESSION === "filter" ? BIG : READING)
-    // WRITTEN BEFORE THE TAB OPENS, and given a beat to be read: the server is
-    // already up (`wire.sh` needed a URL to hand over), so the store learns
-    // this directory from its watcher — and a first frame measured while the
-    // corpus was still arriving would be a first frame of some prefix of it.
     await new Promise((settled) => setTimeout(settled, 5_000))
   } else if (SESSION !== "chat") {
-    // ...and the `chat` session writes nothing at all: the vault `wire.sh`
-    // made is already there, and what it measures happens inside one panel.
-    // A megabyte of filler in the directory would be a megabyte of heads in
-    // the first frame it counts.
     write(PAGE, pageAt("Before"))
     write(NOTE, note())
   }
 
-  // A LINK WITH DISTANCE IN IT, when one is asked for: everything the tab does
-  // goes through a relay that holds each chunk for `DELAY` ms each way. The
-  // driver is otherwise unchanged, which is the point — the same session, the
-  // same counters, one property of the wire ({@link ./delay.ts}).
   const served = new URL(BASE)
   const link = DELAY === 0 ? null : await delayed(
     { host: served.hostname, port: Number(served.port) },
@@ -269,9 +122,6 @@ const main = async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
 
-  // EVERY frame the tab was delivered, counted as bytes. `framereceived` is the
-  // browser's own accounting of what arrived, which is the number this is
-  // about: what the server chose to send this reader.
   page.on("websocket", (socketed) => {
     socketed.on("framereceived", (frame) => {
       socket += typeof frame.payload === "string"
@@ -279,8 +129,6 @@ const main = async () => {
         : frame.payload.byteLength
       frames += 1
     })
-    // …and the other direction, which is what the `filter` session is about:
-    // every whole-vault matcher call this page CHOSE TO MAKE.
     socketed.on("framesent", (frame) => {
       const text = typeof frame.payload === "string"
         ? frame.payload
@@ -288,9 +136,6 @@ const main = async () => {
       if (MATCHER.some((tag) => text.includes(tag))) asks += 1
     })
   })
-  // …and the other leg: what the preview frame fetched for itself. Counted off
-  // the response rather than off the file's size, so a 304 or an empty answer
-  // counts as what it was.
   page.on("response", (response) => {
     if (!response.url().includes("/media/")) return
     void response
@@ -302,7 +147,6 @@ const main = async () => {
   })
 
   const mark = async (what: string) => {
-    // One beat for the last frames and the last fetch to be accounted.
     await page.waitForTimeout(500)
     readings.push({ what, socket, media, asks, frames })
   }
@@ -317,7 +161,6 @@ const main = async () => {
   report(LABEL, readings)
 }
 
-/** The edit-while-previewing session — see the header. */
 const preview = async (
   page: Page,
   base: string,
@@ -351,15 +194,6 @@ const preview = async (
   await mark(`a note is opened (${NOTE}, ${(note().length / 1e3).toFixed(0)} kB)`)
 }
 
-/**
- * The ordinary reading session — open the app, then walk the routes.
- *
- * WHAT THE FIRST MARK IS worth reading twice: on the old wire it is the whole
- * corpus, because a tab subscribed to every outline's records and derived every
- * page locally; on the new one it is the file list, because a tab subscribes to
- * the address it is drawing. Every mark after it is a NAVIGATION, which used to
- * be free and is now a page.
- */
 const pages = async (
   page: Page,
   base: string,
@@ -369,11 +203,6 @@ const pages = async (
   const SECOND = outlineFile(1)
   const rows = page.locator("[data-row-key]")
 
-  // ONE LOAD, and everything after it is a NAVIGATION somebody makes — a link
-  // in the sidebar, a bullet, a day in the calendar. That is the whole point of
-  // clicking rather than calling `goto`: a reload re-subscribes to everything,
-  // so a session of reloads would measure the first frame eight times and say
-  // nothing about what moving between pages costs.
   await page.goto(`${base}/${FIRST}`)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
   await rows.first().waitFor({ timeout: 30_000 })
@@ -397,7 +226,6 @@ const pages = async (
   await page.locator('[data-testid="document-body"]').waitFor({ timeout: 30_000 })
   await mark("a document is opened")
 
-  // The month is folded under the sidebar's Today row until it is opened.
   const toggle = page.locator('[data-testid="calendar-toggle"]')
   if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click()
   await page.locator('[data-testid="calendar-day"][data-date="2026-08-12"] a').click()
@@ -413,33 +241,8 @@ const pages = async (
   await mark("the trash is opened")
 }
 
-/**
- * How many rows the bulk op is over.
- *
- * A BULK OP IS THE BURST, and it has to be — a `git pull` or an agent rewriting
- * the FILE is coalesced by the store's own settle before a single revision is
- * published, so a session that wrote the file in a loop would be measuring that
- * settle. A pick ticked off goes the other way: the edits leave this tab one at
- * a time through the editor's queue (`client/writes.ts`'s `applyingAll`), the
- * server publishes a revision inside each commit, and the page frames come back
- * a round trip apart — which is exactly the shape §3.5 is about.
- *
- * Thirty rows of one section, which is an ordinary thing to select and tick off
- * and long enough that a per-frame ask is unmistakable in the count.
- */
 const PICKED = 30
 
-/**
- * A NARROWED page with the vault moving under it — see the header.
- *
- * The query is a word every row of the corpus holds, so the answer is the whole
- * outline: the point is not what it selects but that it is a STANDING view, and
- * every frame the page draws is a reason to ask for it again.
- *
- * The rows are ticked off ON THE PAGE BEING READ, because a revision that
- * changed nothing on this page sends it no frame at all (the server's
- * `samePageReading`) — a bulk op somewhere else would measure nothing.
- */
 const filtered = async (
   page: Page,
   base: string,
@@ -452,21 +255,12 @@ const filtered = async (
 
   await page.goto(`${base}/${outlineFile(0)}?q=title`)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
-  // The bar drawn on the address, and the rows under it — so the burst starts
-  // from a page that is narrowed rather than one still waiting for its first
-  // answer.
   await page.locator('[data-testid="filter-bar"]').waitFor({ timeout: 30_000 })
   await title("n0-1").waitFor({ timeout: 30_000 })
   await mark(
     `a filtered outline is opened (${BIG.rows} rows of ${BIG.outlines} outlines — ` +
       `${(BIG.outlines * BIG.rows).toLocaleString("en")} nodes)`,
   )
-  // THE INSTRUMENT PROVES ITSELF FIRST. Everything else in this file fails
-  // loudly (a `waitFor` that times out); a counter keyed on a protocol string
-  // fails SILENTLY — the day that tag is renamed on one of the two worktrees
-  // `ROOT=` points at, the run reports zero asks, which reads as a
-  // spectacular win rather than a broken driver. A narrowed page that has drawn
-  // its rows has asked at least once.
   if (counted() === 0) {
     throw new Error(
       `a filtered page was opened and none of ${MATCHER.join(" / ")} was seen ` +
@@ -475,39 +269,17 @@ const filtered = async (
     )
   }
 
-  // The pick: one row, then everything down to the last of the section.
   await title("n0-1").click({ modifiers: ["ControlOrMeta"] })
   await title(`n0-${PICKED}`).click({ modifiers: ["Shift"] })
   await page.locator('[data-testid="selection-bar"]').waitFor({ timeout: 30_000 })
   await mark(`${PICKED} rows are picked`)
 
-  // …and ticked off, which is one gesture and that many writes.
   await page.keyboard.press("ControlOrMeta+Enter")
   await page.waitForTimeout(5_000)
   await mark(`the pick is ticked off (${PICKED} writes, one gesture)`)
 }
 
 
-/**
- * A CHAT ANSWER STREAMING IN — what one turn costs the socket, in bytes and in
- * frames.
- *
- * The session `transcript-stream-quadratic` was filed on, made re-runnable. The
- * scripted agent's `stream` verb sends a five-paragraph answer as 634 chunks of
- * five characters, which is the shape a language model's own tokens arrive in
- * (measured on kolu-bot: 3,218 bytes as 643 chunks averaging five). What the
- * old wire did with that was publish the whole growing row per chunk — the sum
- * of the answer's prefixes, 323× the answer — in one frame per chunk.
- *
- * TWO NUMBERS, because the defect has two shapes and only one of them is bytes.
- * The frame count is what a reader on a high-latency link actually feels:
- * hundreds of small ACK-clocked writes pace badly however little each carries,
- * which is the lumpiness the node's symptom paragraph describes.
- *
- * It marks BEFORE the prompt as well as after it, so the answer's cost is the
- * difference between two readings rather than a total that has a page load in
- * it.
- */
 const chat = async (
   page: Page,
   base: string,
@@ -516,21 +288,11 @@ const chat = async (
   const panel = page.locator('[data-testid="chat-panel"]')
   await page.goto(base)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
-  // A NEW CHAT, the way a person starts one: the `+` on the sidebar's Chats
-  // heading opens the palette at New chat, whose rows are the ITEMS a chat can
-  // be about — the first of them is what the focused pane is showing, under
-  // **Here** — and the first message starts the chat on the one chosen.
   await page.locator('[data-testid="chat-new"]').click()
   await page.locator('[data-testid="palette-item"]').first().click()
   await page.locator('[data-testid="palette-input"]').fill("Hello")
   await page.locator('[data-testid="palette-input"]').press("Enter")
   await panel.waitFor({ state: "visible", timeout: 30_000 })
-  // THE AGENT HAS FINISHED HANDSHAKING, or there is not one — and the second
-  // is said HERE, in the words of the thing that is wrong, rather than left to
-  // a timeout on an attribute minutes later. `off` is the panel with no agent
-  // configured, which is what this session looks like when `AGENT=` was not
-  // passed: `support/serve.sh` wires that through as the server's
-  // `KOLU_ACP_AGENT`, and without it there is nobody to send a prompt to.
   await page.waitForFunction(
     () => {
       const status = document
@@ -551,28 +313,12 @@ const chat = async (
   }
   await mark("the app opens and a new chat is opened")
 
-  /**
-   * One turn: ask, and time TWO things that are not the same thing.
-   *
-   * WHEN THE AGENT FINISHED is the panel going idle — the `chat` cell, which
-   * is its own subscription and is not queued behind the answer. WHEN THE
-   * ANSWER FINISHED ARRIVING is the row's own `data-streaming` coming off,
-   * which is the last transcript frame of the turn. On a loopback link those
-   * are the same instant. On a link with distance in it they are not, and the
-   * gap between them is the whole of the second defect
-   * (`transcript-stream-quadratic`): a stream that ACKs each frame carries one
-   * publish per round trip, so an agent streaming faster than the round trip
-   * can never be caught up with and the reader watches an answer that has
-   * already been finished being typed out.
-   */
   const turn = async (prompt: string, what: string) => {
     const answers = page.locator('[data-testid="chat-entry"][data-kind="agent"]')
     const before = await answers.count()
     const asked = Date.now()
     await page.locator('[data-testid="chat-input"]').fill(prompt)
     await page.locator('[data-testid="chat-send"]').click()
-    // `thinking` is the panel's own word for a turn in flight
-    // (`@olai/surface`'s `ChatState.status`).
     await page.waitForFunction(
       () =>
         document.querySelector('[data-testid="chat-panel"]')?.getAttribute("data-status") ===
@@ -605,9 +351,6 @@ const chat = async (
     )
   }
 
-  // PACED FIRST, because it is the honest one: a model's tokens arrive over
-  // seconds, so what a coalescing wire costs in frames is a function of how
-  // long the answer took. The burst after it is the harsher case for bytes.
   await turn("stream slow", "an answer streams in at a model's pace")
   await turn("stream", "...and one arrives as fast as the pipe will take it")
 }
@@ -639,6 +382,4 @@ const report = (label: string, readings: ReadonlyArray<Reading>) => {
 
 await main()
 
-// A driver, not a step: nothing above throws for a wrong number, and there is
-// nothing here for a runner to collect.
 export {}

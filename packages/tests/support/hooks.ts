@@ -1,81 +1,3 @@
-/**
- * Lifecycle: one browser for the whole run, one server per fixture corpus, one
- * fresh context and page per scenario.
- *
- * The one structural decision here is the CORPUS. A scenario says which
- * directory of fixture outlines it wants served with a `@corpus:<name>` tag,
- * and the matching server is started the first time some scenario asks for it
- * and then kept for the rest of the run. That is what lets the error-view
- * features exist at all: a server that has loaded a broken set cannot also be
- * serving a good one, and starting a server per SCENARIO would pay a process
- * spawn for every step file in the suite. Lazy plus cached gives one spawn per
- * corpus actually exercised — a run of `packages/plugins/outlines/e2e/features/see_the_outline.feature`
- * never boots the broken servers.
- *
- * A `@scratch:<name>` tag is the other half, and the reason it exists is the
- * live store: those scenarios EDIT the files while the server is watching them.
- * A shared corpus cannot survive that (the next scenario would inherit the
- * edit) and neither can the repository (the fixtures are tracked). By default
- * each scratch scenario gets a fresh copy and a server of its very own, both
- * thrown away afterwards.
- *
- * Features opt into sharing with `@share-scratch` (see `support/scratch.ts`):
- * one copy and one server per feature per worker. After each sharing scenario
- * in-flight writes drain, the tree is restored to the fixture, and the
- * server re-reads (`POST /olai/resync`), so overlapping writers share too. A
- * restore that cannot put the tree back fails naming the files. A scenario
- * restore cannot make true (it restarts the server) keeps a private copy with
- * `@own-scratch`. Sharing never crosses workers — the lock is still one olai
- * per directory.
- *
- * WHAT A SHARED SERVER SERVES is a per-WORKER copy of the tracked corpus, never
- * the tracked directory itself, and that is not tidiness. `--parallel` is one
- * process per worker, each with its own `servers` map, so four workers asking
- * for `good` are four olai — and one olai per directory is now enforced by the
- * kernel (`packages/server/src/lock.ts`, "one brain per vault"): the second
- * worker's server would REFUSE to boot and every scenario behind it would fail
- * in its `Before`. A copy per worker is what makes each of those a directory of
- * its own, which is what the lock is asking for and what a parallel harness
- * should have been doing anyway — before this, a scenario that wrote where it
- * should not have was writing into the repository's tracked fixtures.
- *
- * ## WHY EVERY TAG IS READ HERE, in the package the tag's row does not own
- *
- * The suite is split by owner: a row keeps the features it promises and the
- * steps that drive its own surface. So a reader who sees `@git:repo` read in
- * this file, and `@kolu`, and `@alerts`, and `@zone:`, is entitled to ask why
- * git's tag is not read in `packages/plugins/git/e2e/`. The answer is the one
- * rule this file exists to keep, and it is about LIFETIME rather than about
- * subject matter.
- *
- * EVERY ONE OF THESE TAGS SHAPES A RESOURCE THIS MODULE CREATES, and it has to
- * be read before the creation. `@git:…` and `@rows:…` decide how the server is
- * SPAWNED — the repository it is pointed at, the plugins it composes — and
- * `@agent-path:empty` decides WHERE IT LOOKS for the agents it will report on,
- * which is a directory this module makes and hands over as a variable; all of
- * it is decided once, in `serverFor`/`ownCopy`, before any step runs. `@phone`,
- * `@zone:`, `@alerts` and `@paints` decide how the browser CONTEXT is made and
- * what init script is in place before the app's first paint; `@wire` arms a
- * listener on the page before the first socket opens. A cucumber `Before` hook
- * registered by a plugin's step file runs AFTER this one — hooks fire in
- * registration order, which is import order, which is the profile's glob order
- * — so by the time a row's hook could speak, the server is up, the context is
- * made and the boot has painted. A row that "owned" its tag there could only
- * mutate what this file had already decided, and the two would disagree the
- * first time a scenario carried both.
- *
- * That is a Cordis reading rather than a convenience: THE OWNER OF A RESOURCE
- * READS THE ARGUMENTS THAT SHAPE IT. This module owns the run's browser, the
- * per-corpus servers and the per-scenario context, with an explicit
- * `BeforeAll`/`Before`/`After`/`AfterAll` lifetime around each; a tag is an
- * argument to those constructors. What a ROW owns is what a row creates — its
- * selectors, its steps, its features — and none of those exist before the
- * page does.
- *
- * The one thing that did move is the part with no lifetime in it: the NAMES.
- * `support/storage_keys.ts` carries the two rows' preference keys the panel's
- * steps assert on, because a name is not a resource.
- */
 import { writeFixturePolicy } from "@olai/bundle/testlib";
 import { FAKES_ROSTER } from "@olai/bundle/e2e-fakes";
 import type { Fake } from "./fake.ts";
@@ -98,12 +20,6 @@ import { BROWSER_ARGS } from "./browser.ts";
 import { LAN_RESOLVER_ARG } from "./lan.ts";
 import { type LivePadi, startPadi } from "olai-plugin-kolu/appliance/testlib";
 import { type LiveOdu, startOduService } from "olai-plugin-odu/appliance/testlib";
-// THE MAIL ROW'S TWO FAKES AND ITS FOUR DOORS. All of it comes off the plugin's
-// appliance door, like odu's and kolu's: the starters, which take the NAME a
-// `@mail-*` tag carried and resolve it against the row's own tables, the names
-// a spawn must set or strip, and the two credential VALUES `@mail-doors` puts in
-// them. Which fixture a name stands for — and what a door is called — is this
-// row's vocabulary, so the harness holds no copy of either.
 import { DOOR as MAIL_DOOR, DOORS as MAIL_DOOR_NAMES, DOOR_VALUES, startFakeGoogle, startFakeHimalaya } from "olai-plugin-mail/appliance/testlib";
 import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
@@ -134,59 +50,20 @@ import {
 
 const FIXTURES = path.resolve(import.meta.dirname, "..", "fixtures");
 
-/**
- * WHERE A FAILURE'S EVIDENCE SURVIVES — outside the tree the run is deleted
- * with, and under a name no second attempt can take.
- *
- * ## The boundary this is written against
- *
- * Odu runs a leg in a COPY of the worktree (`/tmp/odu/olai/<sha>-<pid>-<hash>`)
- * and exports exactly one thing from it: the leg's stdout, to
- * `.ci/<sha>/<platform>/<leg>.log`. There is no artifact interface — `odu
- * logs <node>` is the whole of it — and the path is keyed by SHA ALONE, so a
- * second attempt on the same commit OVERWRITES the first. That is not a
- * hypothetical: a CI failure on this branch was lost exactly that way, by a
- * re-run made to find out whether it was a flake.
- *
- * So evidence goes to two places, and neither of them is the run's own tree:
- *
- *   - **stdout**, in a compact block, because stdout is what the runner
- *     exports and it is therefore the one thing a reviewer can always read.
- *   - **a directory outside the sandbox**, for what does not belong in a log:
- *     the screenshot, and the whole of the page's error console.
- *
- * `OLAI_E2E_EVIDENCE` names that directory; the default is the XDG state home,
- * which is a per-user place for exactly this and is not swept with the run.
- */
 const EVIDENCE = process.env["OLAI_E2E_EVIDENCE"] ?? path.join(
   process.env["XDG_STATE_HOME"] ?? path.join(os.homedir(), ".local", "state"),
   "olai", "e2e-evidence",
 );
 
-/**
- * ONE DIRECTORY PER ATTEMPT, and the name is what makes a re-run additive.
- *
- * Odu's sandbox is already named `<sha>-<pid>-<hash>`, which is precisely the
- * identity wanted — the commit, and a token no second attempt repeats — so it
- * is used when the run is in one. Outside Odu there is no such name, and the
- * clock and the process supply one.
- */
 const ATTEMPT = process.env["OLAI_E2E_ATTEMPT"] ?? (() => {
-  // WITHOUT A RUNNER TO NAME IT, the sandbox already carries the identity
-  // wanted — Odu's copy is `<sha>-<pid>-<hash>` — and a direct run gets the
-  // clock and the process instead.
   const named = path.basename(path.resolve(import.meta.dirname, "..", "..", ".."));
   return /^[0-9a-f]{7,40}-\d+-[0-9a-f]+$/.test(named)
     ? named
     : `local-${new Date().toISOString().replace(/[:.]/g, "-")}-${process.pid}`;
 })();
 
-/** What the current step is, so a failure can say which one it was. Cucumber's
- *  `After` is handed the scenario's result and not the step that produced it. */
 let failingStep: string | undefined;
 
-/** How many failures this worker has kept, so two of them cannot take one
- *  name even where Cucumber's ids are unavailable. */
 let failures = 0;
 
 
@@ -194,14 +71,6 @@ AfterStep(function (this: OlaiWorld, step) {
   if (step.result.status === Status.FAILED) failingStep = step.pickleStep?.text;
 });
 
-/**
- * KEEP WHAT A FAILURE LEFT — and never fail because keeping it failed.
- *
- * Every arm is caught separately: a screenshot that cannot be taken must not
- * cost the page errors beside it, and none of it may change the scenario's
- * status. A run that turned a red scenario green by mishandling its own
- * evidence would be the worst possible bug in this file.
- */
 const keepEvidence = async (world: OlaiWorld, scenario: {
   readonly pickle: { readonly id?: string; readonly name: string; readonly uri: string };
   readonly testCaseStartedId?: string;
@@ -210,46 +79,23 @@ const keepEvidence = async (world: OlaiWorld, scenario: {
   const name = scenario.pickle.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
     || "scenario";
   const worker = process.env["CUCUMBER_WORKER_ID"] ?? "0";
-  /**
-   * THE NAME IS PER EXECUTION, and a title is not enough to make one.
-   *
-   * Two features in this tree carry the identical scenario title ("A write
-   * that landed with something to say says it here too"), a Scenario Outline's
-   * examples all share theirs, and a retry runs the same case twice. Named by
-   * worker and title alone, the second failure in an attempt silently replaced
-   * the first — a review reproduced exactly that, with those two real
-   * scenarios.
-   *
-   * So the stem carries the CASE (Cucumber's pickle id, which is distinct per
-   * example) and the EXECUTION (`testCaseStartedId`, distinct per retry), with
-   * the feature's own file in front of the title so a reader can tell the two
-   * same-named scenarios apart without decoding an id. A counter closes the
-   * last gap: if either id is ever absent, two failures still cannot collide.
-   */
   const feature = path.basename(scenario.pickle.uri).replace(/\.feature$/, "");
   const runs = String(++failures).padStart(3, "0");
   const execution = (scenario.testCaseStartedId ?? scenario.pickle.id ?? "").slice(0, 8);
   const stem = [`${worker}-${runs}`, feature, name, execution].filter((one) => one !== "").join("-");
   const url = (() => { try { return world.page?.url() ?? "no page"; } catch { return "unreadable"; } })();
   const errors = world.errors ?? [];
-  // ONE LINE PER FACT, prefixed, so a reviewer can grep a 300,000-line shard
-  // log for it once the recipe has printed the file.
   const said = [
     `olai-e2e-evidence: scenario ${JSON.stringify(scenario.pickle.name)} (${scenario.pickle.uri})`,
     `olai-e2e-evidence: step ${JSON.stringify(failingStep ?? "unknown")}`,
     `olai-e2e-evidence: url ${url}`,
-    // THE PAGE ERRORS EVEN THOUGH NOBODY ASSERTED THEM: `there should be no
-    // page errors` is the last step of nearly every scenario, so a failure
-    // before it SKIPS the one step that would have printed these.
     `olai-e2e-evidence: page errors ${errors.length}`,
     ...errors.map((one, at) => `olai-e2e-evidence:   [${at}] ${one.replaceAll("\n", " ")}`),
     `olai-e2e-evidence: kept in ${path.join(EVIDENCE, ATTEMPT)}`,
   ];
-  // `process.stderr` AND NOT `console.log`: Cucumber captures a hook's console
-  // into the scenario's attachments, and the formatter this suite runs does not
-  // print those — so a block written the ordinary way reached nobody, which is
-  // the one failure mode this whole function exists to avoid. The runner
-  // exports the leg's stream; this writes to it.
+  // Cucumber captures a hook's console into the scenario's attachments, and the
+  // formatter this suite runs does not print those; the runner exports the leg's
+  // stream.
   const dir = path.join(EVIDENCE, ATTEMPT);
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -260,11 +106,6 @@ const keepEvidence = async (world: OlaiWorld, scenario: {
   } catch (cause) {
     process.stderr.write(`olai-e2e-evidence: could not write the failure note: ${String(cause)}\n`);
   }
-  // INDEPENDENTLY OF THE SCREENSHOT, and before it: the server's own output is
-  // what distinguishes an intermediate valid revision from a reset, and a
-  // failure that could not be photographed is exactly the failure whose log is
-  // wanted most. A page that has gone will not screenshot; the log is already
-  // in hand.
   try {
     const printed = world.serverLog?.text ?? "";
     if (printed !== "") fs.writeFileSync(path.join(dir, `${stem}.server.log`), printed);
@@ -278,45 +119,15 @@ const keepEvidence = async (world: OlaiWorld, scenario: {
   }
 };
 
-/**
- * THE FAKES — every engine's scripted substitute, loaded from the generated
- * roster as the one place this harness goes from "a scenario's tags" to "the
- * environment a spawned server sees" (section 13.3). Descriptors rather than
- * directories: nothing here names an engine's knob, executable or search
- * path; each plugin's `e2e/fake` declares those behind its own door, and the
- * roster enumerates them in `olai.yml` row order.
- *
- * The real Claude adapter is for driving this by hand. It needs a model, a
- * network and an account, and a CI lane can afford none of the three. The
- * scripted substitutes that stand in for it — and for the other engines —
- * are dumb and deterministic on purpose: everything is reached here through
- * this one list, so which fakes a server sees is a property of the scenario
- * rather than of the laptop the run is on.
- */
 const FAKES: ReadonlyArray<Fake> = await Promise.all(
   FAKES_ROSTER.map((row) => row.load().then((module) => module.fake)),
 );
 
-/** A descriptor by its tag word, or `undefined` for a word no roster row
- *  answers to. `@<word>` recognition IS this lookup, so a scenario naming an
- *  engine the roster does not ship simply votes for nothing — which the
- *  fingerprint records as that engine being absent, as it should. */
 const FAKE_OF = (word: string): Fake | undefined =>
   FAKES.find((fake) => fake.word === word);
 
-/** The default agent: the first roster row with an adapter (the `olai.yml`
- *  row order already puts it first, so this file names nobody). It is on for
- *  every scenario, pointed at its executable — except `@no-agent`, which
- *  starts the server with no agent at all. */
 const DEFAULT_AGENT: Fake | undefined = FAKES.find((fake) => fake.adapter !== undefined);
 
-/** A scenario's tag list, as the words of the fakes its server guesses at:
- *  every `@<word>` a roster row answers to. Derived once and carried on the
- *  world, because a restarted server comes up with the same fakes it first
- *  booted with — which is the whole claim a restart scenario makes. `agent`
- *  stays its own boolean: "no agent at all" is a state a person should never
- *  reach by following a documented launch path, so it is not a word on the
- *  roster but the absence of all of them. */
 const fakesOf = (
   tags: ReadonlyArray<{ readonly name: string }>,
 ): ReadonlyArray<string> => {
@@ -324,219 +135,47 @@ const fakesOf = (
   return FAKES.flatMap((fake) => [fake.word, ...(fake.variants ?? [])].filter((word) => on.has(`@${word}`)));
 };
 
-/**
- * The machine NAME every spawned server believes its own (the server's
- * `OLAI_HOSTNAME` pin, `@olai/server`'s `hostname.ts`): the deployment
- * names itself after its box, and a tab's title asserting the harness's own
- * word for the box is the one check that the name crossed rather than
- * agreeing with whatever container the run happened in. Exported for
- * `olai-plugin-layout`’s `e2e/steps/named_steps.ts`, which spells the expected word.
- */
 export const BOX_NAME = "cucumber";
 
-/**
- * A `git` that is found and cannot work, put FIRST on the PATH of a server a
- * `@git:broken` scenario spawns — same argument as the kolu above: whether git
- * works is a property of the scenario rather than of the machine the run is on,
- * and there is no way to break the real one for one server only.
- */
 const BROKEN_GIT_DIR = path.resolve(import.meta.dirname, "..", "bin", "broken-git");
 
-/**
- * `@padi:<fleet>`: this scenario's server has a PADI to dial, serving the
- * fleet named by the tag (`../fixtures/padi/<fleet>.json`).
- *
- * A tag rather than a step, for `@git:`'s reason: what a page draws on first
- * paint is the whole subject, so the padi has to be listening before the server
- * boots — a step could only ever assert about a link that came up late. It
- * requires the scenario to own its server (`@scratch:`), because `$PADI_SOCKET`
- * is passed at spawn and the shared corpus servers are not this scenario's to
- * point somewhere.
- */
 const PADI_TAG = /^@padi:([\w-]+)$/;
 
-/** `@odu-service:<fleet>`: this scenario's server dials a fake odu service. */
 const ODU_SERVICE_TAG = /^@odu-service:([\w-]+)$/;
 
-/**
- * `@mail-himalaya:<fixture>` / `@mail-google:<fixture>`: this scenario's server
- * spawns a fake Himalaya and talks to a fake Google, both described by a table
- * this ROW owns (`olai-plugin-mail/appliance/testlib`, whose `./fixtures.ts` says
- * why the names live beside the row rather than here).
- *
- * TWO TAGS rather than one, because they are two services with two failure
- * arms: a scenario that wants a revoked grant moves Google's fixture and leaves
- * the mailbox alone, and one that wants a serve with no binary at all simply
- * omits the first — which is a scenario of its own, and the reason the second is
- * not implied by the first.
- *
- * Both need `@scratch:` for the mail row's third tag's reason, below.
- */
 const MAIL_HIMALAYA_TAG = /^@mail-himalaya:([\w-]+)$/;
 const MAIL_GOOGLE_TAG = /^@mail-google:([\w-]+)$/;
 
-/**
- * `@mail-doors`: this scenario's serve was handed the two OAuth credentials
- * (`OLAI_MAIL_OAUTH_CLIENT` and `OLAI_MAIL_OAUTH_SECRET`).
- *
- * WITHOUT IT BOTH ARE UNSET, and that is a scenario rather than a gap: the row
- * then says so in its own words and offers no Connect button, because a Connect
- * with nothing to authorize with is a button that teaches a person the feature
- * is broken (`olai-plugin-mail`'s `./src/browser/Row.tsx`). The values are
- * fixtures (the row's `appliance/testlib` fixtures' `DOORS`), not a real client: what a scenario
- * asserts about a credential is that the row GOT one, never which one.
- *
- * A TAG rather than a step for every reason the tags above are: these are read
- * at spawn and a step runs after the server is up.
- */
 const MAIL_DOORS_TAG = "@mail-doors";
 
-/** `@wire`: this scenario asks what the SERVER SENT rather than what the page
- *  drew, so every websocket frame the tab is delivered is kept for it
- *  (`world.socketFrames`, which says why that is a tag and not the default). */
 const WIRE_TAG = "@wire";
 
-/**
- * `@alerts` / `@alerts-denied`: this scenario is about the chat panel telling
- * somebody the agent has stopped on them, so every document in its context
- * records the two things the app asks the MACHINE for — the notification and
- * the chime (`./alerts.ts`) — and is told what this browser has answered about
- * notifications.
- *
- * `@alerts` grants the permission; `@alerts-denied` is the browser that has
- * refused, which is a ruled behaviour of its own: the notification goes and
- * the chime and the icon mark stay, because neither needs permission. It is a
- * second tag rather than a step because the answer has to be in place before
- * the app's boot, and a step runs after it.
- *
- * A recorder rather than an observation, because there is no other option: an
- * OS banner is drawn outside the browser and a chime is a pressure wave into a
- * sound card this stage has none of. What IS the app's own — the sentence, the
- * dedup tag, that it went through `registration.showNotification` at all
- * (the only call that works in an installed PWA), and that an oscillator was
- * started — is exactly what the wrappers keep, and the real path runs
- * underneath: a real registered worker, a real permission, the framework's
- * real seam, a real audio context opened on a real gesture.
- *
- * A TAG rather than the default, for `@wire`'s reason: it replaces two
- * platform methods in every document of the context, and seven hundred
- * scenarios that never raise a banner should be running the browser's own.
- */
 const ALERTS_TAG = "@alerts";
 const ALERTS_DENIED_TAG = "@alerts-denied";
 
-/**
- * `@markdown-paints`: this scenario is about the frames BEFORE the markdown
- * renderer landed, so every document in its context watches itself for them
- * (`./paints.ts`) and keeps what each one looked like.
- *
- * A recorder for `@alerts`' reason — there is no other option. The frames it
- * is about are gone by the time a step could look, and a step that polled for
- * them would be green on a fast machine for having seen nothing at all.
- *
- * A TAG rather than the default, for `@wire`'s reason: it puts a
- * subtree-wide MutationObserver in every document, and seven hundred scenarios
- * that are not about a loading state should not be paying for one.
- */
 const PAINTS_TAG = "@markdown-paints";
 
-/** `@agent-stored`: the fake agent answers `session/list` with two stored
- *  conversations, so the server's boot loads one of them and replays it. Unset,
- *  nothing is stored and boot opens a fresh session — the two boot paths, chosen
- *  by a property of the machine rather than by anything the client says.
- *
- *  WHICH of the two is what several of those scenarios are about: a first boot
- *  has nothing written down and takes the most recent (the fallback, and once
- *  the whole rule), while a restart after one has been PICKED comes back to the
- *  picked one — and to the newest again only once the picked one is gone. */
 const STORED_TAG = "@agent-stored";
 
 
-/** `@no-agent`: this scenario's server is started with NO agent, which is the
- *  one state a person should never reach by following a documented launch path
- *  — every one of them defaults to the pinned adapter. It is reached here the
- *  without an executable resource: empty command inputs and an empty
- *  agent search path. This is availability, not an enablement policy. */
 const NO_AGENT_TAG = "@no-agent";
 
-/** `@remind-every:<n>`: every how many messages a node agent is reminded of
- *  its writing rule, written into the chat row's settings before boot — `0` is
- *  the setting switched off (`olai-plugin-chat`'s `remind-every`). */
 const REMIND_TAG = "@remind-every:";
 
-/** The fixture's repository condition: real, absent, or a git executable that
- * refuses requests. Commit policy defaults to manual independently of this tag. */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
 
-/** Author git policy in the fixture before its initial commit and boot.
- * Scenario tags override feature tags for the same property. */
 const POLICY_TAG = /^@policy:git\.(commit|push)=([a-z]+)$/;
 
-/** Select fixture rows through the policy file before boot. The reader profile
- * is preserved unless @rows-off explicitly disables one of its rows. Other
- * transport, shell and content rows must be named by the scenario. */
 const ROWS_TAG = /^@rows:([a-z0-9,-]+)$/;
 const ROWS_ON_TAG = /^@rows-on:([a-z0-9,-]+)$/;
 const ROWS_OFF_TAG = /^@rows-off:([a-z0-9,-]+)$/;
 
-/**
- * `@agent-path:empty`: this scenario owns the directory olai looks for agents
- * in, and it starts out EMPTY — so an engine whose executable is found rather
- * than shipped is `not-here` on the first paint, and the scenario can INSTALL
- * it (a symlink into that directory) under the server that is already running.
- *
- * A TAG rather than a step, for `@git:`'s reason: what the first paint says is
- * the whole subject, so the directory has to exist and be on the child's
- * `OLAI_AGENT_PATH` before the server boots. A step could only create it after
- * the child was spawned, so it would have to kill and respawn — a restart in
- * the middle of the one scenario whose claim is that the tab, the page and the
- * process all survive the installation.
- *
- * The directory is PREPENDED to the path the roster composes rather than
- * replacing it (see {@link startServerChild}): the fakes a scenario's engine
- * tags voted for are still found, so `@omp @agent-path:empty` is a scenario
- * with omp installed AND somewhere to install another engine.
- *
- * It needs a PRIVATE server (`@scratch:`, not `@share-scratch`): what this
- * machine has got is decided at spawn and changed mid-scenario, so a sibling
- * scenario sharing the process would inherit an installation no feature of its
- * own mentions. The directory dies with the scenario.
- */
 const AGENT_PATH_TAG = /^@agent-path:(empty)$/;
 
 
-/**
- * `@avatar-template`: this scenario's server was started with an avatar URL
- * TEMPLATE (`identity.avatar-template`), which is the second rung of the
- * picture ladder and the answer for a proxy that hands over a username rather
- * than an address — GitHub serves every user's avatar at
- * `https://github.com/<login>.png`, with no API and no token.
- *
- * A TAG rather than a step for the reason `@policy:git.` is one: it decides how the
- * server is STARTED. The template itself is fixed here rather than spelled in
- * the tag, because a tag is a name and a URL with a `/` in it is not: what a
- * scenario is choosing is "this server has a template", and {@link
- * AVATAR_TEMPLATE} is the documented one.
- *
- * It needs a server of its own (`@scratch:`) — a shared corpus server is
- * running for every other scenario too, so what it pictures people with is
- * not this one's to choose.
- */
 const AVATAR_TAG = "@avatar-template";
 const AVATAR_TEMPLATE = "https://github.com/{login}.png";
 
-/** The screen a scenario is read on, and the pointer it is read with.
- *
- *  A `@phone` scenario gets a handset: 390×844 CSS pixels (an iPhone 13's, and
- *  the size the mobile scenarios are written against), a touch screen and no
- *  mouse. `isMobile` is what makes Chromium honour the shell's `<meta
- *  name="viewport">` at all — without it the page is laid out as a 390px-wide
- *  DESKTOP, which is a different thing that happens to have the same media
- *  queries fire, and would let a broken viewport tag pass.
- *
- *  Not one of Playwright's `devices` entries: those also install a Safari user
- *  agent on top of Chromium, and a browser lying about which browser it is has
- *  nothing to do with what these scenarios are about. */
 const PHONE_TAG = "@phone";
 const PHONE = {
   viewport: { width: 390, height: 844 },
@@ -545,25 +184,10 @@ const PHONE = {
   hasTouch: true,
 } as const;
 
-/** The handset's own two numbers, for the one scenario that needs LESS room
- *  than the whole screen: a page taller than the viewport, which no fixture
- *  here is at 844 points. The width is the same phone; the height is what a
- *  handset with its keyboard up has left, and a scenario that shrinks to it
- *  says so and checks it (`phone_steps.ts`). Exported rather than re-spelled,
- *  so the two sizes cannot drift into being two different phones. */
 export const PHONE_WIDTH = PHONE.viewport.width;
 export const SHORT_PHONE_HEIGHT = 400;
-/** Everything else: a laptop, with a pointer. */
 export const DESKTOP = { viewport: { width: 1440, height: 900 } } as const;
 
-/** The time zone a scenario's browser runs in — `@zone:America/New_York`.
- *
- *  Absent, the browser keeps whatever zone the machine running the suite has,
- *  which is right for everything that asks a day of the local clock and wrong
- *  for a scenario that asserts the OFFSET a write is stamped with: a CI box
- *  in UTC and a laptop in New York would read two different files. A zone
- *  that moves its clocks is the useful one to name, because it is where an
- *  offset taken from today rather than from the moment shows. */
 const ZONE_TAG = "@zone:";
 
 let browser: Browser | undefined;
@@ -571,32 +195,13 @@ let browser: Browser | undefined;
 interface RunningServer {
   readonly baseUrl: string;
   readonly child?: ChildProcess;
-  /** Everything this child has printed, for the life of the process.
-   *  A box rather than a string so the restart assertion can watch the
-   *  same buffer the boot wait already filled — no gap, no second listener. */
   readonly said: { text: string };
 }
 
-/** corpus → its server, from the moment the start BEGINS.
- *
- *  One map holding the promise, not two holding "running" and "starting"
- *  separately: with two, a teardown can only drain the one it knows about, so
- *  a run interrupted mid-spawn left an orphan server holding a port. Here
- *  every entry — settled or in flight — is something `killAll` can attach a
- *  kill to. It is also what makes a `--parallel` run share one spawn instead
- *  of racing two onto one port. */
 const servers = new Map<string, Promise<RunningServer>>();
 
-/**
- * Feature-shared scratch slots, keyed by feature URI + corpus + spawn
- * fingerprint. One map per worker process (see the header). Not folded into
- * `servers`: those are the read-only corpus servers, keyed by corpus name,
- * and a shared scratch of `good` is not the `good` corpus server.
- */
 interface SharedSlot {
   readonly server: RunningServer & { readonly root: string };
-  /** Content hashes of the fixture this slot was copied from. After restores
-   *  to this origin; leftovers against it are a restore that did not take. */
   readonly origin: Map<string, string>;
   readonly fixture: string;
   readonly seenPickles: Set<string>;
@@ -604,22 +209,15 @@ interface SharedSlot {
 
 const sharedScratches = new Map<string, Promise<SharedSlot>>();
 
-/** Successful `startServerChild` returns, for the before/after spawn census. */
 let spawned = 0;
 
-/** Every child spawned and not yet seen exit. The promises above are useless
- *  on the hard-exit path — `process.on("exit")` runs no microtasks, so a
- *  `.then` registered there never fires — and this is what that path can act
- *  on synchronously. Not a second cache: nothing looks a corpus up in it. */
+/** Every child spawned and not yet seen exit. `process.on("exit")` runs no
+ *  microtasks, so a `.then` registered there never fires; this is what the
+ *  hard-exit path can act on synchronously. */
 const live = new Set<ChildProcess>();
 
-/** Set by the teardown, so a spawn still in flight gives up instead of
- *  retrying its way onto a fresh port after the run is over. */
 let stopped = false;
 
-/** Per-worker temp root: one directory per corpus this worker serves, each
- *  holding the copy it serves and the XDG state that server writes. Scratch
- *  servers keep theirs beside the scratch copy; `After` deletes the sibling. */
 let workerState: string | undefined;
 
 const workerStateRoot = (): string =>
@@ -627,16 +225,9 @@ const workerStateRoot = (): string =>
     path.join(os.tmpdir(), `olai-e2e-w${workerId()}-`),
   ));
 
-/** This worker's home for one corpus: `<worker>/<corpus>/served` is the copy
- *  its server reads, and `cache`/`state` are its siblings — beside the served
- *  tree and never inside it, the same rule `scratchState` keeps and for the
- *  same reason. */
 const corpusHome = (corpus: string): string =>
   path.join(workerStateRoot(), corpus);
 
-/** A copy of the tracked corpus that belongs to THIS worker, made on the first
- *  ask and kept for the run. See the header: two workers over one directory is
- *  two olai over one vault, which the server refuses. */
 const copiedCorpora = new Set<string>();
 const workerCopyOf = (corpus: string): string => {
   const root = path.join(corpusHome(corpus), "served");
@@ -648,24 +239,9 @@ const workerCopyOf = (corpus: string): string => {
   return root;
 };
 
-/** Beside the scratch copy, never inside it. A `@git:repo` scratch is a
- *  real work tree; XDG/HOME written under it would show up as uncommitted
- *  files and flip the Commit pill from `never` to `waiting`. `After`
- *  deletes the sibling with the tree. */
-/** WHERE A SCRATCH SERVER'S OWN FILES GO — beside the copy, never inside it:
- *  a `@git:repo` work tree must not gain olai's state. */
 const scratchState = (root: string): string => `${root}.xdg`;
 
 
-// ── the server under test ──────────────────────────────────────────────
-
-/** WHO owns the server process, and WHERE it is. Two decisions, so two
- *  variables: `OLAI_BIN` names an executable this harness spawns — one server
- *  per corpus, which is what `just e2e` does — and `OLAI_URL` names a server
- *  someone else is already running, reused as it is. One variable carrying
- *  both, discriminated by an `http` prefix, would make the reuse guard below
- *  read as a consequence of how the address was spelled rather than as what it
- *  is: a fact about who owns the process. */
 type Mode =
   | { readonly kind: "spawn"; readonly bin: string }
   | { readonly kind: "reuse"; readonly baseUrl: string };
@@ -692,16 +268,10 @@ const readMode = (): Mode => {
 };
 
 let mode: Mode | undefined;
-/** Read once. The environment cannot change mid-run, and re-deriving it per
- *  scenario would let the same mistake be reported forty times. */
 const modeOf = (): Mode => (mode ??= readMode());
 
 /** `bun-types`' `node:net` and `node:child_process` declarations do not carry
- *  EventEmitter's methods, although the objects have them at runtime — a gap in
- *  the types, not in the behaviour (`node:stream`'s do, which is why the pipes
- *  below need no help). One narrowing, named and in one place, beats an `any`
- *  at each call site; when a later bun-types closes the gap, deleting this
- *  function and its callers' wrappers is the whole migration. */
+ *  EventEmitter's methods, although the objects have them at runtime. */
 const events = (source: object): EventEmitter =>
   source as unknown as EventEmitter;
 
@@ -726,115 +296,37 @@ const shuttingDown = (label: string): string =>
 
 const MAX_SPAWN_ATTEMPTS = 3;
 
-/** The address the `serving` line reports, as its own `url=` field. The server
- *  prints the address it ACTUALLY bound, which is not always the one it was
- *  asked for: a port that turns out to be busy is retried on one the OS picks.
- *  So the URL is read out of the line rather than assumed from the argv — the
- *  printed address is the contract, and it is the only thing that knows.
- *
- *  `findLogfmt` rather than a regex of this suite's own: the format belongs to
- *  `@olai/log`, so its decoder does too — and it matches the message EXACTLY,
- *  which matters because the busy-port fallback line carries a `url=` of its
- *  own and a looser match would be a coin toss between the two. */
 const servingUrl = (out: string): string | null =>
   findLogfmt(out, "serving")?.url ?? null;
 
-/** Spawn the server against one fixture directory and wait until it says it is
- *  listening. The contract is that line, not a sleep and not a health poll: it
- *  is both the readiness signal and the address. No `--port` unless the caller
- *  pins one: the process default is 0, so two worktrees cannot pick the same
- *  number and cannot squat production.
- *
- *  `fixedPort` is for the ONE caller that cannot take whatever port is free: a
- *  scenario restarting the server under an open page needs the SAME address,
- *  because the page is already pointed at it. There is no retry on that path —
- *  a second attempt would land somewhere else, which is not a slower success
- *  but a different thing entirely, and `startOwnServer` says so out loud. */
-/** The knobs a spawned server takes beyond where it looks. An options object
- *  rather than a tail of positionals: three of them are booleans, and a call
- *  site reading `(bin, dir, label, undefined, true)` says nothing. */
 interface Spawn {
-  /** The one caller that cannot take whatever port is free: a scenario
-   *  restarting the server under an open page needs the SAME address. */
   readonly port?: number;
   readonly stored?: boolean;
   readonly fastNodeIdle?: boolean;
-  /** Whether this scenario's server runs the sleep pass on test-sized spans
-   *  (`@sleep-fast`). Carried for `fastNodeIdle`'s reason: a restart has to
-   *  reproduce the first boot. */
   readonly fastSleep?: boolean;
-  /** ...and whether it runs one at all (`@sleep-off`), written into the settings
-   *  file before the server boots. */
   readonly sleepOff?: boolean;
-  /** The node agent's reminder period (`@remind-every:<n>`), written into the
-   *  settings file before the server boots; absent is the product default. */
   readonly remindEvery?: number;
 
-  /** The fakes this server is configured to see — the tag words a roster row
-   *  answers to. Each descriptor with an `adapter` contributes a knob, each
-   *  `searchPath` joins the agent path, each `path` joins `PATH`, and each
-   *  `env` merges its own variables — nothing here spells one engine's
-   *  switch, which is the whole of section 13.3. */
   readonly fakes: ReadonlyArray<string>;
-  /** A directory of the SCENARIO's own to look for agents in, ahead of the
-   *  roster's — `@agent-path:empty`'s, created before this spawn and written
-   *  into while the child runs. Prepended rather than substituted: see
-   *  {@link AGENT_PATH_TAG} for why both halves have to be reachable. */
   readonly agentSearchPath?: string;
-  /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
-  /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
   readonly repo?: boolean;
-  /** How the server is told to commit. Two facts rather than one: a directory
-   *  that is not a repository with commits ON is a state of its own, and the
-   *  pill has a face for it. */
   readonly commits?: "off" | "manual";
-  /** The socket a `@padi:` scenario's server should dial — passed as
-   *  `$PADI_SOCKET`, which is kolu's own "be given the socket" door. Absent is
-   *  every other scenario, whose server derives the rendezvous path, finds
-   *  nothing there, and reports `absent` — the state a laptop without kolu is
-   *  in, and the one the hollow chip is drawn from. */
   readonly padiSocket?: string;
   readonly oduOrigin?: string;
-  /** WHICH HIMALAYA this server spawns — `@mail-himalaya:<fixture>`'s value,
-   *  the absolute path of the fake's executable. ABSENT is not "the pinned
-   *  pin": `./workers.ts` deletes the host's `OLAI_HIMALAYA` and this field is
-   *  what sets it, so a scenario with no tag hands the serve the empty string,
-   *  which is the row's own off switch and the state the scenario about a serve
-   *  with no Nix build asserts against. */
   readonly himalaya?: string;
-  /** WHICH GOOGLE this server talks to — `@mail-google:<fixture>`'s origin.
-   *  Set on every spawn, for `ODU_WEB_ORIGIN`'s reason: an omitted variable is
-   *  not "derived and absent", it is the REAL Google, and no scenario may talk
-   *  to it (the default is an un-routable loopback port). */
   readonly mailGoogle?: string;
-  /** Whether this server was given the two credential doors (`@mail-doors`).
-   *  Their ABSENCE is a scenario of its own — the row names the two doors and
-   *  offers no Connect — so there is no default to set. */
   readonly mailDoors?: boolean;
-  /** Repository condition, independent of the default manual commit policy. */
   readonly git?: GitMode;
-  /** Explicit policy leaves; absent leaves use the schema defaults. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
-  /** Fixture row selection; undefined preserves build defaults. */
   readonly plugins?: string;
   readonly rowsOn?: string;
   readonly rowsOff?: string;
 
-  /** The avatar URL template this server pictures people with, when the
-   *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
-   *  which is every other scenario. */
   readonly avatar?: string;
-  /** Private XDG cache root this child may write to. Required: a spawn
-   *  that inherited the host's would share a cache (and a padi) with every
-   *  other worker. HOME is not overridden — see `isolateEnv`. */
   readonly stateRoot: string;
 }
 
-/** Whether a roster row is ON for this spawn: asked for by its tag, or — for
- *  the default agent alone — on every server unless `@no-agent`. One reading,
- *  used for the adapter knob, the search path and the descriptor's env, so the
- *  three never disagree about whether a fake is in play. */
 const agentOn = (fake: Fake, spawnOptions: Spawn): boolean =>
   spawnOptions.fakes.includes(fake.word) ||
   (fake === DEFAULT_AGENT && spawnOptions.agent !== false);
@@ -851,7 +343,6 @@ const startServerChild = async (
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
-    // Repository state is prepared before this child starts; policy is in its vault.
     const argv = [
       "web",
       dir,
@@ -862,56 +353,21 @@ const startServerChild = async (
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
-      // Own process group so killChild can SIGKILL the server AND the ACP
-      // agent it spawned. Same group as the worker would take cucumber down
-      // with the servers.
       detached: true,
       env: isolateEnv(spawnOptions.stateRoot, {
-        // TIED TO THIS WORKER. A server arms the kernel's parent-death signal
-        // only for a spawner that tied it (`@olai/server`'s `dieWithParent.ts`
-        // owns the variable; this suite may not import that package, so the
-        // name is spelled here). This one ties, because THIS is the runner
-        // #355 was written for: cucumber SIGKILLed by odu's timeout used to
-        // leave a server per cancelled run sitting on a deleted `/tmp`. The
-        // tie is this process's pid — the spawned server's real parent —
-        // which is also what tells "my worker died before I armed" from "my
-        // wrapper exited on purpose", the daemonising case that must NOT
-        // self-terminate.
         OLAI_DIE_WITH_PARENT: String(process.pid),
-        // THE AGENTS, one knob per adapter the roster ships. A descriptor's
-        // knob points at the fake's own executable when its row is on, and at
-        // nothing — the empty string — otherwise, which keeps a developer's
-        // own bake from deciding a scenario. The default agent (the first
-        // roster row with an adapter) is on for every server unless
-        // `@no-agent`; every other adapter is on only when its tag asks. No
-        // engine is named here: the roster is, once (`FAKES`), and each
-        // descriptor names its own knob — section 13.3's whole point.
         ...Object.fromEntries(
           FAKES.filter((fake) => fake.adapter !== undefined).map((fake) => [
             fake.adapter!.knob,
             agentOn(fake, spawnOptions) ? fake.adapter!.exe : "",
           ]),
         ),
-        // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
-        // string is "look on no path at all", so a developer's own agent
-        // cannot decide a scenario. A fake with a searchPath joins it only
-        // when its tag is on.
-        //
-        // A scenario's OWN directory (`@agent-path:empty`) goes FIRST and
-        // JOINS rather than replaces, which is the whole of what the fakes'
-        // join above means: a scenario that installs an engine into a
-        // directory of its own is not a scenario that has taken every other
-        // engine's fake off this machine, and a path that substituted would
-        // have said so — silently, on a serve whose tags asked for them.
         OLAI_AGENT_PATH: [
           ...(spawnOptions.agentSearchPath === undefined ? [] : [spawnOptions.agentSearchPath]),
           ...FAKES.filter(
             (fake) => fake.searchPath !== undefined && agentOn(fake, spawnOptions),
           ).map((fake) => fake.searchPath!),
         ].join(path.delimiter),
-        // FIRST, so a real fake on the developer's PATH does not decide a
-        // scenario: every `path` the roster ships is ahead of the host's, and
-        // the broken git goes ahead of even that, for exactly the same reason.
         PATH: [
           ...(spawnOptions.git === "broken" ? [BROKEN_GIT_DIR] : []),
           ...FAKES.filter((fake) => fake.path !== undefined).map(
@@ -919,10 +375,6 @@ const startServerChild = async (
           ),
           process.env.PATH ?? "",
         ].join(path.delimiter),
-        // Each descriptor's own variables — the stored-session flags, and the
-        // tenant's live-or-stale answer — asked once with the scenario's votes
-        // and merged. Which word a flag answers for is the descriptor's
-        // business, not this file's.
         ...Object.assign(
           {},
           ...FAKES.filter((fake) => fake.env !== undefined).map((fake) =>
@@ -933,62 +385,32 @@ const startServerChild = async (
             })
           ),
         ),
-        // WHERE PADI IS, for a scenario that has one. Set only where it was
-        // asked for: the variable being present at all is what makes the
-        // server take the told path over the derived one, and every other
-        // scenario has to exercise the derived-and-absent case.
         ...(spawnOptions.padiSocket === undefined
           ? {}
           : { PADI_SOCKET: spawnOptions.padiSocket }),
-        // ALWAYS set, unlike PADI_SOCKET. Omitting the env is not "derived
-        // and absent": odu's client defaults to `127.0.0.1:18440`, which is
-        // this machine's real per-user service on CI. A scenario that did
-        // not ask for a fake would otherwise connect to the host's odu.
+        // Always set: odu's client defaults to `127.0.0.1:18440`, which is this
+        // machine's real per-user service on CI.
         ODU_WEB_ORIGIN: spawnOptions.oduOrigin ?? "http://127.0.0.1:1",
-        // THE MAIL ROW'S FOUR DOORS, on the same reasoning and with one extra
-        // twist worth reading. `OLAI_HIMALAYA` is ALWAYS set — the fake's path,
-        // or the EMPTY STRING — because the packaged wrapper bakes the pinned
-        // Himalaya into this variable with `--set-default` (default.nix), so a
-        // scenario that simply did not tag `@mail-himalaya:` would otherwise
-        // spawn the REAL binary and read somebody's mailbox. Empty is the row's
-        // own off switch — `./src/server.ts`'s `doorOf` reads a blank value as
-        // *not set* — and it is what the scenario about a serve with no Nix
-        // build asserts against. `--set-default` is what lets the empty string
-        // survive the wrapper: a value is already there, so the default does
-        // not replace it.
+        // Always set, because the packaged wrapper bakes the pinned Himalaya
+        // into this variable with `--set-default` (default.nix). The empty
+        // string is the row's own off switch — `./src/server.ts`'s `doorOf`
+        // reads a blank value as *not set* — and `--set-default` is what lets
+        // it survive the wrapper.
         [MAIL_DOOR.himalaya]: spawnOptions.himalaya ?? "",
-        // ...and this one is set for `ODU_WEB_ORIGIN`'s reason verbatim:
-        // omitting it is not "derived and absent", it is the REAL Google, which
-        // no scenario may talk to. The default is an un-routable loopback port.
         [MAIL_DOOR.google]: spawnOptions.mailGoogle ?? "http://127.0.0.1:1",
-        // THE CREDENTIALS ONLY WHERE ASKED FOR, unlike the two above: their
-        // ABSENCE is the state one scenario is about (the row names the two
-        // doors and offers no Connect), so there is no default to set. The
-        // values are fixtures — this suite's own serve and its fake Google
-        // (the row's own `appliance/testlib` fixtures) — never a client id anybody's console knows.
         ...(spawnOptions.mailDoors === true
           ? {
               [MAIL_DOOR.client]: DOOR_VALUES.client,
               [MAIL_DOOR.secret]: DOOR_VALUES.secret,
             }
           : {}),
-        // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
-        // Passed only where it was asked for: the variable being SET at all is
-        // what puts the second rung of the picture ladder in play.
 
-        // Every harness server runs on the SAME pretend box, so the word the
-        // app names itself with is assertable against a constant (`BOX_NAME`)
-        // rather than against `os.hostname()` of wherever the run landed.
         OLAI_HOSTNAME: BOX_NAME,
       }),
     });
     live.add(child);
     events(child).once("exit", () => live.delete(child));
 
-    // Buffer both streams for the LIFE of the child. Detaching after
-    // "serving" dropped the stale-tab line when it arrived in the gap
-    // before startOwnServer attached its own listener — the restart flake
-    // under load. Verbose still streams; the box is what assertions read.
     const said = { text: "" };
     let err = "";
     child.stdout?.setEncoding("utf8");
@@ -1020,7 +442,6 @@ const startServerChild = async (
       events(child).once(
         "exit",
         (code: number | null, signal: string | null) => {
-          // A child that exited without printing the line never will.
           if (served() === null) {
             lastFailure = `exited early (code ${code}, signal ${signal ?? "none"})`;
             finish(null);
@@ -1034,9 +455,6 @@ const startServerChild = async (
     });
 
     if (listening !== null) {
-      // The teardown may have run while this was coming up; handing the caller
-      // a server nothing will ever kill is the leak this whole shape exists to
-      // close.
       if (stopped) {
         killChild(child);
         throw new Error(shuttingDown(label));
@@ -1050,8 +468,6 @@ const startServerChild = async (
       lastFailure =
         `never printed a "serving" line with a url= field within ${SERVER_START_TIMEOUT}ms`;
     }
-    // Quote the child's own diagnostics: a bind race, a missing fixture dir and
-    // a crash-on-load all look identical from out here otherwise.
     lastFailure +=
       `\n  argv: ${bin} ${argv.join(" ")}` +
       `\n  stdout: ${said.text.trim() || "(empty)"}` +
@@ -1064,22 +480,11 @@ const startServerChild = async (
   );
 };
 
-// ── restarting the server a scenario owns ──────────────────────────────
-
 /**
  * Stop and start the server a `@scratch:` scenario owns, WITHOUT touching the
  * page in front of it.
  *
- * This is the one thing the suite could not do until now, and its absence is
- * why a tab left holding a replaced server shipped: every scenario had a server
- * that outlived it, so nothing ever asked what an open page does when its
- * server is not the same process any more.
- *
- * The port is the whole difficulty. The page is pointed at an address, so the
- * replacement has to come back on the SAME one — and the server is entitled to
- * fall back to a port the OS picks when the one it was asked for is busy, which
- * would leave the page talking to nothing and the scenario failing for a reason
- * that has nothing to do with what it is testing. So: stop first and WAIT for
+ * So: stop first and WAIT for
  * the process to actually be gone, then bind the exact port, then check the
  * address that came back is the one we started with, and say so plainly if it
  * is not.
@@ -1099,14 +504,6 @@ export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
   });
   live.delete(child);
   world.ownServer = undefined;
-  // Bind the port ourselves until startOwnServer releases it, so nothing on
-  // the box can take the address during the kill. The hold covers kill →
-  // release, not release → the child's listen: startOwnServer lets the hold
-  // go and then spawns, and that window is open. A claimed band below the
-  // kernel's ephemeral range used to make a `listen(0)` elsewhere unable
-  // to land in it; ports are now OS-assigned from that range, and a
-  // collision is a hard restart failure (no retry on the fixed-port path).
-  // The bet is the width of the ephemeral pool, not a closed window.
   world.portHold = await holdPort(port);
 };
 
@@ -1132,9 +529,6 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     active.bin,
     world.scratch(),
     `the restarted server for corpus "${world.corpus}"`,
-    // The SAME agent configuration as the first boot, because that is the whole
-    // claim being tested: a restarted server comes up in the conversation it was
-    // last in, which it can only do if its agent still keeps the same sessions.
     {
       port,
       stored: world.storedSessions,
@@ -1147,23 +541,12 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       agentSearchPath: world.agentSearchPath,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
-      // ... and the same git POLICY, for the same reason: a restart that came
-      // back unpinned would hand the open page its preferences back, which is a
-      // different server rather than the same one restarted.
       ...(Object.keys(world.gitPolicy).length === 0 ? {} : { pin: world.gitPolicy }),
-      // ... and the same plugin set, on the same sentence: a restart that came
-      // back composing more than it did is a different server.
       ...(world.selectedRows === undefined ? {} : { plugins: world.selectedRows }),
       ...(world.rowsOn === undefined ? {} : { rowsOn: world.rowsOn }),
       ...(world.rowsOff === undefined
         ? {}
         : { rowsOff: world.rowsOff }),
-      // ...and the same MAIL doors, on the same sentence: `OLAI_HIMALAYA` is a
-      // path to a fake this scenario started, and a restart that came back
-      // without it would be a serve whose row reports the fault a machine with
-      // no Nix build reports — a different server, read as a lost connection.
-      // The fakes themselves keep running: they are this scenario's, their
-      // lifetimes are the scenario's, and only the restarted CHILD is new.
       ...(world.mailHimalaya === undefined
         ? { himalaya: "" }
         : { himalaya: world.mailHimalaya.path }),
@@ -1171,8 +554,6 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
         ? {}
         : { mailGoogle: world.mailGoogle.origin }),
       ...(world.mailDoors ? { mailDoors: true } : {}),
-      // ... and the same avatar template, on the same sentence: a restart that
-      // came back without it would draw the open page's person off a lower rung.
       ...(world.avatarTemplate === undefined
         ? {}
         : { avatar: world.avatarTemplate }),
@@ -1187,15 +568,9 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     );
   }
   world.ownServer = started.child;
-  // The same box the boot wait already filled. A second listener used to
-  // attach here, after the first was torn off — and that is the gap the
-  // stale-tab line fell through under load.
   world.serverLog = started.said;
 };
 
-/** The server this scenario owns, or the diagnostic for a scenario that has
- *  none. Restarting a SHARED corpus server would take it out from under every
- *  other scenario in the run, so the tag is the gate. */
 const ownServerOf = (world: OlaiWorld): ChildProcess => {
   if (world.ownServer === undefined) {
     throw new Error(
@@ -1207,10 +582,6 @@ const ownServerOf = (world: OlaiWorld): ChildProcess => {
   return world.ownServer;
 };
 
-/** A server someone else is running serves ONE directory, and we cannot
- *  repoint it. So the corpus a scenario asks for has to be the one that server
- *  was pointed at — a plain guard on the reuse path, not a consequence of how
- *  the address was spelled. */
 const reusedServer = async (
   baseUrl: string,
   corpus: string,
@@ -1228,7 +599,6 @@ const reusedServer = async (
   return { baseUrl, said: { text: "" } };
 };
 
-/** The server serving `corpus`, started on first ask and kept for the run. */
 const serverFor = (corpus: string): Promise<RunningServer> => {
   const cached = servers.get(corpus);
   if (cached) return cached;
@@ -1245,8 +615,6 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
           { fakes: [], stateRoot: corpusHome(corpus) },
         );
 
-  // A FAILED start is not kept: the next scenario asking for this corpus
-  // deserves a real attempt rather than a replay of the same rejection.
   const entry: Promise<RunningServer> = started.catch((cause: unknown) => {
     if (servers.get(corpus) === entry) servers.delete(corpus);
     throw cause;
@@ -1255,9 +623,6 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   return entry;
 };
 
-/** A private, WRITABLE copy of a corpus, and a server watching it, for the one
- *  scenario that asked. Not in the cache: nothing else may reach it, and it
- *  goes away with the scenario rather than with the run. */
 const scratchServerFor = async (
   corpus: string,
   spawnOptions: Omit<Spawn, "stateRoot">,
@@ -1298,15 +663,6 @@ const scratchServerFor = async (
   }
 };
 
-/**
- * Turn a scratch copy into a real git repository, the way somebody's notes
- * directory is one: a work tree with an identity and a first commit in it.
- *
- * Real git, and a real repository, because what is being tested is what olai
- * makes of one — a fake would only reproduce what we already believe. Its
- * identity is LOCAL so the run does not depend on the developer's global config
- * and does not touch it.
- */
 const makeRepository = (root: string): void => {
   const git = (...argv: ReadonlyArray<string>) => {
     execFileSync("git", argv, { cwd: root, stdio: "ignore" });
@@ -1318,9 +674,6 @@ const makeRepository = (root: string): void => {
   git("commit", "--quiet", "--no-verify", "-m", "the corpus, as somebody's notes");
 };
 
-/** The synchronous half of the teardown: every child that has a process right
- *  now. SIGINT / SIGTERM / `exit` all run this — a cancelled cucumber used
- *  to skip AfterAll and leak every server it had started. */
 const killLive = installReaper(live, () => {
   stopped = true;
 });
@@ -1334,15 +687,9 @@ const forgetShared = async (
     fs.rmSync(slot.server.root, { recursive: true, force: true });
     fs.rmSync(scratchState(slot.server.root), { recursive: true, force: true });
   } catch {
-    // A failed start already cleaned its tree (scratchServerFor); nothing to
-    // kill, and re-throwing from teardown would hide the scenario's error.
   }
 };
 
-/** Kill every server, spawned OR still spawning. A start in flight has no
- *  process to kill yet, so the only way to reach it is to wait for it — which
- *  is why the cache holds promises. Shared scratches live in a second map
- *  and own their temp trees; those go here too, not in After. */
 const killAll = async (): Promise<void> => {
   const pending = [...servers.values()];
   const pendingShared = [...sharedScratches.values()];
@@ -1362,27 +709,6 @@ const killAll = async (): Promise<void> => {
   ]);
 };
 
-// ── hooks ──────────────────────────────────────────────────────────────
-
-/**
- * What `git` says about the tracked fixtures — the sweep's two readings, taken
- * before the run and after it.
- *
- * Copies and `world.scratch()` between them make "a scenario wrote into the
- * repository's fixtures" hard to do, and hard is not the same as impossible: a
- * step that joins a raw path, or a future caller of `fixtureDir` that forgets
- * to copy, would put it back and nothing would say so. Silence is the whole
- * failure mode — a dirty fixture is a change to a file the NEXT run reads as
- * its baseline — so the invariant the copies were made to hold is asserted
- * rather than trusted.
- *
- * TWO readings rather than one, because a clean tree is not the invariant.
- * Somebody adding a fixture has uncommitted work under `fixtures/` and their
- * run must not fail for it; what may not happen is a CHANGE across the run.
- *
- * `null` when git cannot answer (no git, not a work tree) — the sweep is a
- * guard, and a guard that cannot read is not a failure of the thing it guards.
- */
 const fixtureStatus = (): string | null => {
   try {
     return execFileSync("git", ["status", "--porcelain", "--", FIXTURES], {
@@ -1394,29 +720,6 @@ const fixtureStatus = (): string | null => {
   }
 };
 
-/**
- * A BUSY BOX, ON A BOX THAT IS NOT — Chromium's own CPU throttle, applied to
- * this scenario's page.
- *
- * The flake this exists for is the shape the suite keeps meeting: a race the
- * loaded CI box loses and a quiet laptop wins, so the person sent to fix it
- * cannot see it and the person reviewing the fix cannot see it either.
- * `zoom_and_navigate.feature`'s scroll restore was measured 60/60 green here
- * and ~10-50% red there. Under `OLAI_TEST_SLOW=20` it went red 29 times in
- * 30, on the same laptop, in a quarter of an hour — and a fix that turns that
- * red green is a fix a reviewer can re-run rather than take on trust.
- *
- * It is the RATE, not a flag: `Emulation.setCPUThrottlingRate` takes the
- * multiplier by which every task in the renderer is slowed, so the number in
- * the environment is the number the browser is given. 1 (or unset) is a
- * browser nobody touched, and the whole of this function is skipped — no CDP
- * session is opened for the seven hundred scenarios that do not want one.
- *
- * ONLY THE RENDERER is slowed. The server, the harness and the wire run at
- * full speed, which is what makes this a load SIMULATOR and not a load test:
- * it widens the window between what the page does and what the page is asked
- * about, which is where every race in this class lives.
- */
 const slowThisPage = async (world: OlaiWorld): Promise<void> => {
   const asked = process.env.OLAI_TEST_SLOW;
   if (asked === undefined || asked === "") return;
@@ -1437,15 +740,10 @@ const slowThisPage = async (world: OlaiWorld): Promise<void> => {
 let fixturesWere: string | null = null;
 
 BeforeAll(async () => {
-  // Fail here rather than in the first scenario: an unset (or doubly set)
-  // OLAI_BIN/OLAI_URL is a setup mistake, and reporting it once beats
-  // reporting it per scenario.
   modeOf();
   fixturesWere = fixtureStatus();
   browser = await chromium.launch({
     headless: process.env.HEADLESS !== "false",
-    // The LAN name only adds a route to loopback for one reserved name; every
-    // other scenario resolves exactly as before (./lan.ts).
     args: [...BROWSER_ARGS, LAN_RESOLVER_ARG],
   });
 });
@@ -1460,9 +758,6 @@ AfterAll(async () => {
     fs.rmSync(workerState, { recursive: true, force: true });
     workerState = undefined;
   }
-  // One line per worker, grep-able, for the before/after spawn census. A
-  // sharing feature drops this number; a silent no-op would look like a
-  // win on wall time that was just the machine being quieter.
   console.error(`olai-e2e: worker ${workerId()} spawned ${spawned} servers`);
 
   // LAST, and after the servers are down: a server still running is a server
@@ -1480,13 +775,6 @@ AfterAll(async () => {
   }
 });
 
-/** A worker leaves a feature for good once it is handed the next one —
- *  cucumber deals scenarios out in feature order — so the shared servers of
- *  every OTHER feature go when a sharing scenario starts. Kept until AfterAll
- *  instead, an unsharded run held one olai per sharing feature per worker
- *  (~160, 42 GB on a localhost CI leg) and starved the box it ran on. If a
- *  feature does come back, `sharedScratchFor` starts it a fresh copy, which is
- *  what After's restore promises the next scenario anyway. */
 const leaveOtherFeatures = async (uri: string): Promise<void> => {
   const leaving = [...sharedScratches].filter(([key]) => !key.startsWith(`${uri}::`));
   for (const [key] of leaving) sharedScratches.delete(key);
@@ -1529,10 +817,6 @@ Before(
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
-    // THE SAME RULE for the sleep pass's own spans, and for the same reason:
-    // what the tag changes is the SERVER's behaviour, so a scratch it shares
-    // with another scenario is a scratch where a pass may run while somebody
-    // else is reading it.
     this.fastSleep = scenario.pickle.tags.some((tag) => tag.name === "@sleep-fast");
     if (this.fastSleep && asked.mode !== "own") {
       throw new Error(
@@ -1540,7 +824,6 @@ Before(
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
-    // THE PASS OFF IS ALSO A PROPERTY OF THE SERVER, so it takes the same rule.
     this.sleepOff = scenario.pickle.tags.some((tag) => tag.name === "@sleep-off");
     if (this.sleepOff && asked.mode !== "own") {
       throw new Error(
@@ -1548,9 +831,6 @@ Before(
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
-    // ...AND SO IS HOW OFTEN A NODE AGENT IS REMINDED: `@remind-every:<n>`
-    // writes the chat row's `remind-every` before boot, so a scenario can
-    // reach the Nth message in three sends rather than twenty.
     const remind = scenario.pickle.tags.find((tag) => tag.name.startsWith(REMIND_TAG));
     this.remindEvery = remind === undefined ? undefined : Number(remind.name.slice(REMIND_TAG.length));
     if (this.remindEvery !== undefined && (!Number.isSafeInteger(this.remindEvery) || this.remindEvery < 0)) {
@@ -1568,11 +848,6 @@ Before(
     this.hasAgent = !scenario.pickle.tags.some(
       (tag) => tag.name === NO_AGENT_TAG,
     );
-    // The per-engine votes are a scenario's flags about itself, spelled as
-    // data: `voteFakes` reads the folded roster (and keeps it) so this file
-    // never spells an engine's name (section 13.3's fence). That call owns
-    // every engine-shaped flag the world now carries — nothing here names
-    // one twice.
     this.voteFakes(fakesOf(scenario.pickle.tags));
     this.padiFleet = scenario.pickle.tags
       .map((tag) => PADI_TAG.exec(tag.name)?.[1])
@@ -1590,8 +865,6 @@ Before(
       (tag) => tag.name === MAIL_DOORS_TAG,
     );
 
-    // On the world rather than in a local, because a restart mid-scenario has
-    // to reproduce this boot (`startOwnServer`).
     this.avatarTemplate = scenario.pickle.tags.some(
       (tag) => tag.name === AVATAR_TAG,
     )
@@ -1608,8 +881,6 @@ Before(
         return asked === null ? [] : [[asked[1]!, asked[2]!] as const];
       }),
     );
-    // `none` is the EMPTY value rather than a name, because a cucumber tag is a
-    // word and a policy with all rows off has none — the one place the two grammars differ.
     this.selectedRows = scenario.pickle.tags.flatMap((tag) => {
       const asked = ROWS_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] === "none" ? "" : asked[1]!];
@@ -1626,26 +897,13 @@ Before(
       AGENT_PATH_TAG.test(tag.name),
     );
     const pinned = Object.keys(this.gitPolicy).length > 0;
-    // Policy scenarios name their repository condition so a refusal has an explicit cause.
     if (pinned && this.gitMode === undefined) {
       throw new Error(
         "@policy:git. states this server's git policy, so the scenario must say which " +
           "git situation it is in too: add @git:repo (or none/broken).",
       );
     }
-    // A shared corpus server serves every other scenario too, so whether it
-    // commits — and into what — is not this one's to choose. Same rule as
-    // `@kolu`, and said here rather than left to an assertion that would fail
-    // about a readout instead of about the tag. A feature-shared scratch is
-    // still a scratch: this scenario owns the write, even if it shares the
-    // process with the rest of its feature.
     const writes = asked.mode !== "corpus";
-    // ...and the same rule for WHICH ROWS a serve composes, said here for the
-    // reason the two below are said here: a shared corpus server is serving
-    // every other scenario too, so the plugins it runs are not this one's to
-    // choose — and the pin was simply DROPPED when it was (`writes` gates the
-    // spawn options), which is the worst of both, a scenario that reads as a
-    // claim about an absent row and is green against a server running it.
     if (this.selectedRows !== undefined && !writes) {
       throw new Error(
         `@rows: decides which rows its server composes, so the scenario must own ` +
@@ -1665,13 +923,6 @@ Before(
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
-    // A shared corpus server is running for every other scenario too, so what
-    // it finds — an agent on the roster, a tenant on PATH — is not this one's
-    // to choose. Every engine tag is one vote of that kind now (the roster
-    // fold, section 13.3), so one check covers them all: any word the scenario
-    // named, it must own the server that answers with it. Said here rather
-    // than left to an assertion that would fail thirty seconds later about the
-    // transcript instead of about the tag.
     if (this.fakes.length > 0 && !writes) {
       throw new Error(
         `an engine tag (${this.fakes.map((word) => `@${word}`).join(", ")}) decides ` +
@@ -1679,8 +930,6 @@ Before(
           `@scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
-    // …and the same rule for the avatar template, which is one more thing a
-    // shared server would be deciding for every scenario that borrowed it.
     if (templated && !writes) {
       throw new Error(
         `${AVATAR_TAG} decides what its server pictures people with, so the ` +
@@ -1688,12 +937,6 @@ Before(
           `rather than @corpus:${asked.corpus}.`,
       );
     }
-    // ...and the same rule ONE STEP STRICTER for the agent search directory,
-    // which is the only one of these a scenario CHANGES while its server runs:
-    // a feature-shared scratch would hand the installation to every sibling
-    // scenario on this worker, so this one wants a private copy rather than
-    // merely a written one (`@node-idle-fast`'s rule, for the same reason —
-    // what the process finds is this scenario's alone).
     if (ownsAgentPath) {
       if (asked.mode !== "own") {
         throw new Error(
@@ -1703,19 +946,12 @@ Before(
             "when the feature shares its scratch).",
         );
       }
-      // Beside the scratch copy rather than inside it, the rule `scratchState`
-      // keeps and for its reason: the served tree is an outline corpus a
-      // `@git:repo` scenario surveys, and an engine's executable is not one of
-      // its files. Removed in `After` with the copy and the server.
       this.agentSearchPath = fs.mkdtempSync(
         path.join(os.tmpdir(), `olai-agent-path-w${workerId()}-`),
       );
     }
 
-    // THE PADI FIRST, and before the server that will dial it. A server
-    // spawned against a socket nobody is listening on reports `absent` — a
-    // legitimate state, so the scenario would not fail; it would quietly test
-    // the hollow chip instead of the live one.
+    // THE PADI FIRST, and before the server that will dial it.
     if (this.padiFleet !== undefined) {
       if (!writes) {
         throw new Error(
@@ -1738,11 +974,6 @@ Before(
       this.odu = await startOduService(this.oduFleet);
     }
 
-    // ...AND THE MAIL ROW'S TWO, for the same reason said twice: both arrive as
-    // a VARIABLE at spawn (`OLAI_HIMALAYA`, `OLAI_MAIL_GOOGLE`), so a shared
-    // corpus server is already deciding them for every other scenario. The
-    // check is the same shape as `@odu-service:`'s, deliberately: a reader who
-    // has met one of these tags has met all of them.
     if (this.mailHimalayaFleet !== undefined) {
       if (!writes) {
         throw new Error(
@@ -1773,18 +1004,11 @@ Before(
         remindEvery: this.remindEvery,
         agent: this.hasAgent,
         fakes: this.fakes,
-        // THE FIRST BOOT gets it, not just the restart: what this scenario is
-        // about is the first paint of an engine this machine has not got.
         ...(this.agentSearchPath === undefined
           ? {}
           : { agentSearchPath: this.agentSearchPath }),
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
         ...(this.odu === undefined ? {} : { oduOrigin: this.odu.origin }),
-        // THE MAIL ROW'S THREE, and here the difference between them matters:
-        // `himalaya` is passed as the fake's path or as the EMPTY STRING (the
-        // row's own off switch, and the arm a scenario with no binary asserts),
-        // `mailGoogle` as the fake's origin or the harness's un-routable
-        // default, and `doors` only when the scenario asked for credentials.
         ...(this.mailHimalaya === undefined
           ? { himalaya: "" }
           : { himalaya: this.mailHimalaya.path }),
@@ -1816,9 +1040,6 @@ Before(
         await leaveOtherFeatures(scenario.pickle.uri);
         const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
         const slot = await sharedScratchFor(featureKey, asked.corpus, spawnOptions);
-        // A retry of a sharing scenario would inherit its first attempt's
-        // writes; a private copy is a different server, not a flag on this one
-        // (CUCUMBER_RETRY, default 0).
         if (alreadyShared(slot.seenPickles, scenario.pickle.id)) {
           await ownCopy();
         } else {
@@ -1833,12 +1054,6 @@ Before(
         await ownCopy();
       }
     } else {
-      // THE SHARED SERVER'S OUTPUT COMES WITH ITS URL. `world.serverLog` used
-      // to be filled only by a scenario that RESTARTED its own server, so the
-      // one place a log is most wanted — a failure on an ordinary shared-corpus
-      // scenario — retained none. The box is the server's own and is shared
-      // deliberately: it is what that process has printed, and a scenario that
-      // borrowed the process borrowed the printing.
       const shared = await serverFor(this.corpus);
       this.baseUrl = shared.baseUrl;
       this.serverLog = shared.said;
@@ -1854,8 +1069,7 @@ Before(
       ...(zone === undefined ? {} : { timezoneId: zone }),
     });
     // BEFORE the first page, because an init script only reaches documents
-    // that have not been created yet — and the recorder has to be in place
-    // before the app's own boot can raise anything. See {@link ALERTS_TAG}.
+    // that have not been created yet.
     const granted = scenario.pickle.tags.some((tag) => tag.name === ALERTS_TAG);
     const refused = scenario.pickle.tags.some(
       (tag) => tag.name === ALERTS_DENIED_TAG,
@@ -1871,9 +1085,6 @@ Before(
         consent: granted ? ("granted" as const) : ("denied" as const),
       });
     }
-    // Same window, and for the same reason it is here rather than in a step:
-    // the paints this watches for are the app's FIRST, so the watcher has to
-    // be in the document before the boot that makes them.
     if (scenario.pickle.tags.some((tag) => tag.name === PAINTS_TAG)) {
       await this.context.addInitScript(recordPaints, {
         key: PAINTS,
@@ -1885,47 +1096,18 @@ Before(
     this.page = await this.context.newPage();
     await slowThisPage(this);
 
-    // Collected for the whole scenario, asserted on by whichever step cares.
     this.errors = [];
     this.requests = [];
     this.refused = [];
-    // ONE listener, recording everything: which of those left this server, and
-    // which arrived after a step started watching, are both questions asked of
-    // the same list afterwards (see `world.offSite` / `world.watchRequests`).
     this.page.on("request", (request) => {
       this.requests.push(request.url());
     });
-    // …and a second recording of a different fact: which of them the browser
-    // refused to make, and why it said so. A request is recorded above when a
-    // document ASKS for it, which is before a content policy has had its say —
-    // so the two lists are what tell "asked and was stopped" apart from "asked
-    // and was answered" (`world.refused`).
     this.page.on("requestfailed", (request) => {
       this.refused.push({
         url: request.url(),
         why: request.failure()?.errorText ?? "no reason given",
       });
     });
-    // …and the OTHER wire, for the scenarios that asked: what the surface
-    // delivered down the socket. It makes no requests, so nothing in the two
-    // lists above can see it, and "what did the server send this reader" is a
-    // question only this can answer (`world.socketCarried`).
-    //
-    // BY TAG, unlike its neighbours, because unlike them it retains PAYLOADS —
-    // every byte of every frame for the life of the scenario, which for a chat
-    // or a document is the whole session's traffic in the worker's heap. The
-    // two scenarios that ask are worth that; the other seven hundred are not.
-    // A scenario that forgot the tag does not quietly assert over nothing: the
-    // list stays `undefined` and the step throws.
-    //
-    // Registered per SOCKET because a tab that reconnects opens another one,
-    // and the recording is of the tab.
-    //
-    // BOTH DIRECTIONS, because the tag arms a recording of the wire and the two
-    // halves answer two kinds of claim: what the server chose to SEND this
-    // reader (`world.socketCarried`), and how often this tab ASKED
-    // (`world.socketAskedSince`) — which is the only place a client that
-    // re-subscribes or re-asks per keystroke shows up at all.
     if (scenario.pickle.tags.some((tag) => tag.name === WIRE_TAG)) {
       const frames: string[] = [];
       const asks: string[] = [];
@@ -1955,16 +1137,11 @@ Before(
 
 After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenario) {
   if (scenario.result?.status === Status.FAILED) {
-    // WRAPPED WHOLE, on top of the per-arm catches inside: keeping evidence
-    // must not be able to change what a scenario reported.
     await keepEvidence(this, scenario).catch((cause: unknown) => {
       process.stderr.write(`olai-e2e-evidence: could not keep this failure's evidence: ${String(cause)}\n`);
     });
   }
   failingStep = undefined;
-  // Closing the CONTEXT (not the browser) is what isolates scenarios: storage,
-  // cookies and any in-flight WebSocket go with it, so the next scenario's
-  // first frame is a genuine cold load.
   if (this.context) await this.context.close();
   await this.closeHeaderProxy();
 
@@ -1979,29 +1156,15 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
   // to be removed.
   this.terminalAgent?.stop();
 
-  // ...and the padi this scenario spawned, for the same reason and in the same
-  // order: it is a process of this scenario's, and the server that dialed it is
-  // already down.
   this.padi?.stop();
   this.padi = undefined;
   this.odu?.stop();
   this.odu = undefined;
-  // ...and the mail row's two fakes, one of which is a SERVER in this worker's
-  // own process and the other a temp directory: both are this scenario's, they
-  // outlive nothing, and a fake left listening would be a port held for the
-  // rest of the run. The HTTP one is stopped first only so the directory the
-  // binary lives in is not removed while something might still be answering
-  // from it.
   await this.mailGoogle?.stop();
   this.mailGoogle = undefined;
   await this.mailHimalaya?.stop();
   this.mailHimalaya = undefined;
-  // A feature-shared scratch outlives the scenario: After drains in-flight
-  // writes (a blur-on-close, a last key still staging), puts the fixture
-  // back under the still-running server, and asks it to re-read, so the
-  // next scenario starts from the original corpus. Leftovers after that
-  // restore are a restore that did not take, not a collision with an
-  // earlier writer. The drain is first because restoring under a live
+  // The drain is first because restoring under a live
   // write is how After left `.olai-*.tmp` on the tree.
   const share = this.scratchShare;
   const served = this.served;
@@ -2032,9 +1195,6 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
     killChild(this.ownServer);
     live.delete(this.ownServer);
   }
-  // The scenario's search directory outlives the server that probes it,
-  // just like the served tree. The private-scratch guard above rules out
-  // returning through the shared-scratch branch with an owned directory.
   if (this.agentSearchPath !== undefined) {
     fs.rmSync(this.agentSearchPath, { recursive: true, force: true });
     this.agentSearchPath = undefined;

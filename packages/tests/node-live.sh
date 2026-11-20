@@ -1,19 +1,4 @@
 #!/usr/bin/env bash
-# Drive NODE AGENTS against the pinned adapter, for real — see node-live.ts for
-# what it asserts and why the trap is the last section.
-#
-#   bash node-live.sh                  # the pin this tree builds
-#   AGENT=/path/to/claude-agent-acp bash node-live.sh
-#   SHOTS=/somewhere bash node-live.sh
-#
-# The same terms as `panel-live.sh`, which this is the other half of: it needs a
-# real, authenticated `claude` and a built client (`just build-client`), and it
-# must be run inside `nix develop .#e2e` — the shell that has Playwright's
-# browsers. A thing a person runs at a pin bump, never a lane.
-#
-# The server is stood up by `support/serve.sh`, the same one spelling
-# `panel-live.sh` uses, so a driver cannot end up photographing a server it did
-# not start.
 set -euo pipefail
 
 . support/serve.sh
@@ -27,10 +12,6 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/vault"
 
-# The vault is the driver's own and deliberately small, for `panel-live.sh`'s
-# reason. `connector` carries NOTHING — no `agent-session`, no engine — because
-# the first thing this driver asserts is the gesture that makes a bare row into
-# a node agent, and a fixture that arrived bound would be asserting the fixture.
 cat > "$work/vault/lanes.olai" <<'OLAI'
 {"id":"lanes","ord":"a0","title":"Lanes"}
 {"id":"connector","parent":"lanes","ord":"a0","title":"watch the connector","doing":true,"desc":"the joiner's hinges, and whether the socket moved"}

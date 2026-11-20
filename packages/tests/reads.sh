@@ -1,25 +1,4 @@
 #!/usr/bin/env bash
-# Print an MCP READ session against a fixture vault — see reads.ts for what the
-# session asks and why.
-#
-#   bash reads.sh
-#   bash reads.sh > /somewhere/reads.txt
-#   PORT=7803 bash reads.sh          # pin a port (optional; the default asks the OS)
-#
-# Expects to be run from packages/tests, inside `nix develop`, with the client
-# already built (`just build-client`) — the server serves it whether or not this
-# driver opens a browser, and it does not.
-#
-# The VAULT is written here rather than taken from `fixtures/`, because the
-# session's whole subject is the SHAPE of a directory: an outline with more than
-# one top-level root (which is what the file arm exists for), notes under some
-# of the tasks (which is what the flag brings back), a second outline to be a
-# typo's near miss, and one file that does not parse. A fixture shared with the
-# suite would drift away from the exhibit the moment a scenario needed a row.
-#
-# How a server is stood up is `support/serve.sh`'s, shared with wire.sh and
-# skew.sh: one spelling of the boot, so a driver cannot end up printing a
-# session against a server that was never started, or another worktree's.
 set -euo pipefail
 
 . support/serve.sh

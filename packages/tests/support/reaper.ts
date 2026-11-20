@@ -1,33 +1,20 @@
 /**
- * Take a spawned olai, and everything it started, off the box.
- *
  * The child is a process-group leader (`detached: true` at spawn). A kill of
  * the pid alone leaves its ACP agent (and any other grandchild) holding the
- * pipes this worker is still reading — cucumber never prints the summary,
- * odu's log drain hangs, the node is stopped with "output still owed". SIGKILL
- * of the group is what actually ends the worker.
+ * pipes this worker is still reading, so SIGKILL of the group is what ends it.
  *
  * `process.on("exit")` is not enough: a cucumber run killed from the keyboard
  * skips AfterAll, and `exit` itself does not fire on SIGKILL of this process.
- * SIGINT and SIGTERM are the cancellations this process can still hear, and
- * they kill the group synchronously so a cancelled run leaves no server. The
- * server itself also dies with its parent (`prctl` in `olai web`) — this
- * module is the harness half of that.
  */
 
 import type { ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 
 /** `bun-types`' `node:child_process` declarations do not carry EventEmitter's
- *  methods. Same gap `hooks.ts` names; one copy here so this module does not
- *  import the World. */
+ *  methods. */
 const events = (source: object): EventEmitter =>
   source as unknown as EventEmitter;
 
-/**
- * SIGKILL of the child's process group, then of the pid if the group is
- * already gone. Idempotent on a process that has exited.
- */
 export const killProcessGroup = (child: ChildProcess | undefined): void => {
   if (!child || child.exitCode !== null) return;
   child.stdout?.destroy();
@@ -43,18 +30,10 @@ export const killProcessGroup = (child: ChildProcess | undefined): void => {
     try {
       child.kill("SIGKILL");
     } catch {
-      // already gone
     }
   }
 };
 
-/**
- * Kill every child in `live` the moment this process is told to stop.
- *
- * `onStop` runs first and is how the spawn loop learns not to retry onto a
- * fresh port after the run is over. Returns the same function so AfterAll
- * can wait on the children after signalling them.
- */
 export const installReaper = (
   live: Set<ChildProcess>,
   onStop?: () => void,
@@ -65,10 +44,8 @@ export const installReaper = (
     live.clear();
   };
   process.on("exit", killLive);
-  // A SIGINT/SIGTERM listener disables Node's default termination, so
-  // without an exit the cancelled cucumber would grind to AfterAll over
-  // children already SIGKILL'd. Ending the run after the synchronous kill
-  // is this module's job on cancel; AfterAll is for a run that finished.
+  // A SIGINT/SIGTERM listener disables Node's default termination, so the
+  // run has to be ended here after the synchronous kill.
   process.on("SIGINT", () => {
     killLive();
     process.exit(130);
@@ -80,7 +57,6 @@ export const installReaper = (
   return killLive;
 };
 
-/** Signal, then wait until the process is actually gone (or a short bound). */
 export const reap = (child: ChildProcess | undefined): Promise<void> =>
   new Promise((resolve) => {
     if (!child || child.exitCode !== null || child.signalCode !== null) {

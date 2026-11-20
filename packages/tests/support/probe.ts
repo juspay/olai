@@ -1,119 +1,26 @@
-/**
- * WHAT SURVIVED A NAVIGATION — the DOM-identity probe, as a step file can ask
- * it.
- *
- * A page that re-renders correctly and a page that is torn down and built again
- * draw the SAME markup: every assertion this suite has could pass over either,
- * because they all read the DOM after it settled. What tells them apart is
- * IDENTITY — whether the element the reader was looking at is the element that
- * is on screen now — and the only way to ask that is to mark the elements
- * before the gesture and count the marks after it.
- *
- * So this is two things planted together and read once:
- *
- *   - a SERIAL on every element under a region, and the count of how many of
- *     them are gone afterwards. Zero is "nothing remounted"; a number is a
- *     subtree that was rebuilt, whatever it looks like now;
- *   - a `MutationObserver` over that region and over the pane, keeping every
- *     attribute change and every row added, each stamped with the BATCH it
- *     arrived in. A batch is one delivery of the observer's queue, which is one
- *     of the browser's own microtask drains — so "these two changes are the
- *     same frame" is a question this can answer, and it is the difference
- *     between a mark that MOVED from one entry to another and a mark that went
- *     out and came back a round trip later.
- *
- * It is `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md` §6's own script,
- * moved here the first time a PR of that campaign needed it (PR 1), so the ones
- * after it assert on the same reading rather than each writing their own.
- *
- * EVERYTHING IS PLANTED IN THE PAGE, in one `evaluate` per region: the marks
- * have to be on the elements before the gesture, and the observer has to be
- * watching while it happens. Nothing here polls, and nothing here waits — the
- * scenario's own steps do that, exactly as they always have.
- *
- * ## Two plants, because there are two questions
- *
- * {@link markScreen} is the NAVIGATION probe, and it is fixed: the sidebar and
- * the pane, because "what did clicking a link do to the chrome beside the page"
- * is one question with two halves and a step that had to remember to ask for
- * both is a step that will one day ask for one.
- *
- * {@link markRegion} is the same reading asked of ANY region, for the lists
- * that are rebuilt by something other than a navigation (PR 2 of the same
- * campaign: every list drawn over a wire array, on every frame of its page or
- * every answer it draws). It watches for one more thing: whether a LIVE REGION
- * under the region moved — a `role="alert"` or a `role="status"` rebuilt with
- * the same words in it is a sentence read out loud a second time, and that is a
- * fact about mutations rather than about what is on screen at the end.
- *
- * The MARKS ARE ONE PLANT, though, and `markScreen` lays them by calling
- * `markRegion` over the sidebar: "did these elements survive" is one question
- * however the gesture that raised it is spelled, and two spellings of it would
- * be two definitions of what an element is to compare. So there is one slot and
- * one serial, and a second plant REPLACES the first — a scenario marks the
- * screen or marks a region, and then says as many things about that one plant
- * as it means to.
- */
-
 import * as assert from "node:assert";
 
 import { attr, CALENDAR, FILE_DIR, PANE, POLL_TIMEOUT, SIDEBAR } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
-/** One attribute change under a watched region. */
 interface Moved {
-  /** Which delivery of the observer's queue carried it — see the header. */
   readonly batch: number;
   readonly attribute: string;
-  /** What the element it happened to says it is: its `data-testid`, and the
-   *  `data-path` / `href` that says WHICH one. */
   readonly testid: string | null;
   readonly which: string | null;
   readonly was: string | null;
   readonly now: string | null;
 }
 
-/** What the probe saw of what MOVED — the survivors are {@link regionHeld}'s,
- *  over the marks the same plant laid. */
 export interface Churn {
   readonly moved: ReadonlyArray<Moved>;
-  /** Every node id that was ADDED to the pane while the probe was watching —
-   *  what the page drew, as against what it is drawing now. */
   readonly drew: ReadonlyArray<string>;
-  /** ...and every id it TOOK AWAY, which is the same question from the other
-   *  side: a row that was on screen, went, and came back was a row the page
-   *  pruned for a beat by an answer that was not about the query it had been
-   *  asked. Two lists rather than one signed one, because a scenario says which
-   *  of the two it means and a reader of the failure should not have to work it
-   *  out from a sign. */
   readonly took: ReadonlyArray<string>;
-  /** Whether the pane was ever left holding NO rows at all while the probe was
-   *  watching — read after each delivery of the observer's queue, so a swap that
-   *  removes and adds inside one of them is not a moment anybody saw. What it
-   *  catches is a page pruned by an answer about a DIFFERENT page: ids that name
-   *  nothing on screen take everything off it. */
   readonly emptied: boolean;
 }
 
-/** Where the probe keeps its own state. A name nothing else on `window` could
- *  be, for `NO_RELOAD_MARK`'s reason: a page load wipes it, which is honest —
- *  a probe that survived a reload would be measuring two documents. */
 const PROBE = "__olaiProbe";
 
-/**
- * Mark the sidebar and start watching — the whole of the plant.
- *
- * The MARKS are {@link markRegion}'s, over the sidebar: "did these elements
- * survive" is one question however the gesture that raised it is spelled, and
- * two spellings of it would be two answers to compare. What is here is what
- * only a NAVIGATION asks — which attributes moved and in which batch, and what
- * the pane drew on the way past.
- *
- * The PANE is watched by the same call, because the two questions a navigation
- * raises are one gesture's: what happened to the chrome beside the page, and
- * what the page itself drew on the way in. A step that had to remember to ask
- * for both is a step that will one day ask for one.
- */
 export const markScreen = async (world: OlaiWorld): Promise<void> => {
   await markRegion(world, SIDEBAR, "sidebar");
   await world.page.evaluate(
@@ -165,10 +72,6 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
             }
           }
         }
-        // ...and whether the pane was left holding NOTHING once this whole
-        // delivery had been applied. Read after the records rather than per
-        // record, because a swap arrives as a removal and an addition and the
-        // moment between them is not a frame anybody saw.
         if (main.querySelector("[data-node-id]") === null) emptied = true;
       }).observe(main, { subtree: true, childList: true });
       (window as unknown as Record<string, unknown>)[probe] = { moved, drew, took, emptied: () => emptied };
@@ -177,8 +80,6 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
   );
 };
 
-/** What MOVED — asked once, so a scenario making three claims about one
- *  gesture is making them about one reading of it. */
 export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
   await world.page.evaluate((probe) => {
     const held = (window as unknown as Record<string, unknown>)[probe] as
@@ -193,17 +94,10 @@ export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
     return { moved: held.moved, drew: held.drew, took: held.took, emptied: held.emptied() };
   }, PROBE);
 
-/** The sidebar is the same sidebar: every element that was under it is still
- *  under it. The GENERAL claim over the region the plant above marks, so this
- *  step and `the "<region>" kept every element it had` cannot come to two
- *  answers about what an element is. */
 export const sidebarHeld = async (world: OlaiWorld): Promise<void> => {
   await regionHeld(world, SIDEBAR, "sidebar");
 };
 
-/** A folder of the tree never closed. The FOLD, not the elements: a folder that
- *  collapsed and re-opened may have kept its `<li>` and still put its contents
- *  away in front of somebody. */
 export const folderHeld = async (world: OlaiWorld, path: string): Promise<void> => {
   const churn = await screenChurn(world);
   const shut = churn.moved.filter((one) =>
@@ -220,8 +114,6 @@ export const folderHeld = async (world: OlaiWorld, path: string): Promise<void> 
     .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
 };
 
-/** The current mark went from one entry to the other WITHOUT a beat in between
- *  — one batch of the observer's queue holds both halves of the move. */
 export const currentMoved = async (world: OlaiWorld): Promise<void> => {
   const churn = await screenChurn(world);
   const marks = churn.moved.filter((one) => one.attribute === "aria-current");
@@ -245,8 +137,6 @@ export const currentMoved = async (world: OlaiWorld): Promise<void> => {
   );
 };
 
-/** The month on screen never changed — the grid a reader is standing in stays
- *  where they left it. */
 export const monthHeld = async (world: OlaiWorld, month: string): Promise<void> => {
   const churn = await screenChurn(world);
   assert.deepStrictEqual(
@@ -259,8 +149,6 @@ export const monthHeld = async (world: OlaiWorld, month: string): Promise<void> 
     .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
 };
 
-/** A node the page never drew — not "is not drawn now", which a page that drew
- *  it and took it away again would also pass. */
 export const neverDrew = async (world: OlaiWorld, id: string): Promise<void> => {
   const churn = await screenChurn(world);
   assert.ok(
@@ -270,10 +158,6 @@ export const neverDrew = async (world: OlaiWorld, id: string): Promise<void> => 
   );
 };
 
-/** ...and the same claim from the other side: a row that was on screen never
- *  left it. What it catches is a page pruned for a beat by an answer that was
- *  not about the query it had been asked — the previous filter session's, kept
- *  through a clear and spent on the next query typed. */
 export const neverTookAway = async (world: OlaiWorld, id: string): Promise<void> => {
   const churn = await screenChurn(world);
   assert.ok(
@@ -283,31 +167,9 @@ export const neverTookAway = async (world: OlaiWorld, id: string): Promise<void>
   );
 };
 
-// ── the marks themselves ───────────────────────────────────────────────
-
-/** Where the marks are kept: a serial on each element, and the count of how
- *  many were laid beside how many alerting mutations have happened since. One
- *  slot, because one plant is what every claim here reads. */
 const REGION = "__olaiRegion";
 const SERIAL = "__olaiSerial";
 
-/**
- * SERIAL EVERY ELEMENT of a region, and watch it for announcements — the plant
- * both questions above are answered from.
- *
- * Several roots are allowed and all of them are marked: what a scenario names
- * is a KIND of thing on screen (`redraw_steps.ts` holds the table), and a page
- * can be drawing two of them.
- *
- * The ANNOUNCEMENTS are watched here rather than beside the attribute observer
- * above because they are a fact about the same marks: a live region rebuilt
- * with the same words in it is a sentence read out loud a second time, which is
- * what a rebuilt element costs when the element happens to be one somebody is
- * told about. BOTH moods count — the assertive `role="alert"` a refusal wears
- * and the polite `role="status"` a remark does — because "was this read out
- * loud" is one question and a probe that only saw the alarming half would pass
- * a nudge announced three times.
- */
 export const markRegion = async (
   world: OlaiWorld,
   selector: string,
@@ -323,19 +185,10 @@ export const markRegion = async (
       const serialise = (element: Element) => {
         (element as unknown as Record<string, unknown>)[key] = ++serial;
       };
-      // A title drawn through `innerHTML` (tree rows, and now palette /
-      // header node-hits) rebuilds its markdown and highlight children
-      // whenever the query's needles change. Those children are a rendering
-      // of one string, not the row. The row is the button; it must stand.
       const insideTitle = (element: Element): boolean => {
         const title = element.closest(".olai-md");
         return title !== null && title !== element;
       };
-      // ...AND WHAT A PLUGIN HUNG IS THE PLUGIN'S. A face on a row leaves when
-      // ITS plugin leaves — that is the plugin going, not the row being
-      // rebuilt — and the scene this census is aimed at is exactly a plugin
-      // switching off (`./Asides.tsx` puts the plugin's name on every face it
-      // draws, which is the only way to tell the two apart from out here).
       const ofAPlugin = (element: Element): boolean => element.closest("[data-plugin]") !== null;
       for (const root of roots) {
         serialise(root);
@@ -344,26 +197,12 @@ export const markRegion = async (
         });
       }
       const slot = { serial, announced: 0 };
-      // A LIVE REGION, however it is spelled — `role="alert"` is the
-      // assertive one, `role="status"` the polite one, and a bare
-      // `aria-live` is the third spelling several rows here use (the filter
-      // bar's count, the composer's status, the connection readout). All
-      // three are read out loud, and "was this read out loud" is one
-      // question: a probe that only saw the alarming half would pass a nudge
-      // announced three times, and one that only saw ROLES would be blind to
-      // the live region a keystroke rebuilds beside them.
       const live = '[role="alert"], [role="status"], [aria-live]';
-      // `closest` starts AT the element, so it answers for the node itself
-      // as well as its ancestors; only the descendants need a second look.
       const speaking = (node: Node): boolean =>
         node instanceof Element &&
         (node.closest(live) !== null || node.querySelector(live) !== null);
       const watch = new MutationObserver((records) => {
         for (const record of records) {
-          // What was ADDED and what CHANGED, never what was removed: a live
-          // region's default `aria-relevant` is "additions text", so taking a
-          // line away is silence and counting it would make a said-line that
-          // clears itself look like a sentence read out loud twice.
           const touched = [record.target, ...record.addedNodes];
           if (touched.some(speaking)) slot.announced++;
         }
@@ -377,9 +216,6 @@ export const markRegion = async (
   );
 };
 
-/** What the marks say now — read afresh per claim, like the churn above, and
- *  for its reason: a scenario says as many things about one plant as it means
- *  to, and both readings are of state that has already settled. */
 const regionChurn = async (
   world: OlaiWorld,
   selector: string,
@@ -411,8 +247,6 @@ const regionChurn = async (
     [selector, REGION, SERIAL] as const,
   );
 
-/** The region is the same region: every element that was under it is still
- *  under it. */
 export const regionHeld = async (
   world: OlaiWorld,
   selector: string,
@@ -431,17 +265,6 @@ export const regionHeld = async (
   );
 };
 
-/**
- * HOW MANY TIMES anything under the region was read out loud.
- *
- * ONE assertion with two diagnoses, because the two claims a scenario makes
- * here are the same reading. ZERO is the common one — nothing under this
- * region may be announced again for a frame that did not change it — and it
- * has {@link nothingAnnounced} as its own name below. A NUMBER is the other
- * half, for the one live region in this suite that MUST be read out loud: it
- * does not exist when the gesture starts, so the plant goes on whatever is
- * around it and the claim is a count rather than a zero.
- */
 export const announcedTimes = async (
   world: OlaiWorld,
   selector: string,
@@ -463,8 +286,6 @@ export const announcedTimes = async (
   );
 };
 
-/** ...and nothing under it was read out loud a second time — the zero above,
- *  under the name the step that makes that claim uses. */
 export const nothingAnnounced = async (
   world: OlaiWorld,
   selector: string,
@@ -473,10 +294,6 @@ export const nothingAnnounced = async (
   await announcedTimes(world, selector, what, 0);
 };
 
-/** The pane never held NOTHING — the claim a page pruned by another page's
- *  answer fails, because ids that name nothing on screen take every row off it.
- *  A page that legitimately draws no rows is a page a scenario does not make
- *  this claim about. */
 export const neverEmptied = async (world: OlaiWorld): Promise<void> => {
   const churn = await screenChurn(world);
   assert.ok(

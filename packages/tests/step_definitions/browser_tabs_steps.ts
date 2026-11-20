@@ -15,8 +15,6 @@ const tabs = new WeakMap<OlaiWorld, Tabs>();
 Given("incoming updates to this browser tab can be held", async function (this: OlaiWorld) {
   const state: Tabs = { original: this.page, held: false, pending: [] };
   tabs.set(this, state);
-  // A reconnect echoes the server identity as ?pid=… . Match the transport's
-  // pathname so that redial cannot escape an intentionally held response.
   await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", (client) => {
     const server = client.connectToServer();
     client.onMessage((message) => server.send(message));
@@ -46,9 +44,6 @@ When("I open another browser tab", async function (this: OlaiWorld) {
   state.other = await this.context.newPage();
   this.page = state.other;
   await this.open("/house.olai");
-  // The header can paint before the requested outline. A following fold
-  // action must not mistake that loading gap for an absent node.
-  // Some fixtures omit house.olai and deliberately navigate from its missing page.
   await this.frontLane().locator(`${PANE}[data-drawn-file="house.olai"], ${NOTHING}`).first()
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });

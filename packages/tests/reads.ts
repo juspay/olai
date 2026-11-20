@@ -1,34 +1,7 @@
-/**
- * What the read tools ANSWER, printed as a session — a driver in this
- * package whose output is prose rather than a screenshot or a byte count.
- *
- * `wire.ts` counts bytes because what it is showing is a cost. What a TOOL
- * SURFACE has to show is neither: the claim is "this question is one call
- * now", and the only honest exhibit is the call and the answer beside it. So
- * this connects to a running server's `/mcp` exactly as a `.mcp.json` client
- * does, runs a scripted session against a fixture vault, and prints every
- * request and every answer.
- *
- * NOT PART OF THE SUITE — nothing imports it and `just e2e` never runs it. The
- * promises live in `packages/plugins/chat/e2e/features/an_external_agent.feature` and in the unit tests
- * under `@olai/ops` and `@olai/server`; this is what a person reads.
- *
- * The CLIENT is the suite's own (`support/mcp.ts`), deliberately: a second
- * hand-rolled JSON-RPC client would be a second thing to keep speaking the
- * protocol, and this one is already exercised by every scenario in that
- * feature.
- *
- *   BASE=http://127.0.0.1:7788 bun reads.ts     # against a server you started
- *   bash reads.sh                               # …or one this brings up
- */
-
 import { connectTerminalAgent, type TerminalAgent } from "./support/mcp.ts"
 
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 
-/** One tool call, printed. The REFUSALS are part of the exhibit, so this never
- *  throws on one — a refusal is an answer here exactly as it is over the wire,
- *  and the `isError` flag beside it is what says which kind of answer it is. */
 const call = async (
   agent: TerminalAgent,
   name: string,
@@ -55,8 +28,6 @@ const say = (line: string): void => console.log(`\n── ${line} ${"─".repeat
 const agent = await connectTerminalAgent(`${BASE}/mcp`)
 
 say("the map: which outlines there are, and what their roots are CALLED")
-// The call that names the roots and cannot descend into them. Two of them here,
-// which used to mean two more calls.
 await call(agent, "outlines_index", {})
 
 say("(a) the WHOLE outline, in one call")

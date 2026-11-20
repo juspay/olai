@@ -5,8 +5,6 @@ Feature: Browser initialization failures are visible
   Scenario: A failed browser provider names its fault and recovers after repair
     Given I open the outline "colours.olai"
     And I mark the page
-    # Approving walks to the plugin's own page and back, so the panel is
-    # opened on the other side of both approvals.
     When I approve the plugin "swatch"
     And I approve the plugin "palette"
     And I open the plugins panel

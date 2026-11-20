@@ -38,20 +38,11 @@ When("the browser module can be fetched again", async function (this: OlaiWorld)
   this.errors = this.errors.filter((error) => error !== expected);
 });
 
-/** A browser half that failed to start is a row under Needs attention in the
- *  plugins panel, open, with `Try again` in its detail — the panel's, never the
- *  startup card's button of the same name. */
 const retryInPanel = (world: OlaiWorld) =>
   world.pluginsPanel().getByRole("button", { name: "Try again", exact: true });
 
-/** The host's own card when the renderer itself cannot start: `olai couldn't
- *  start`, the reason, and `Try again` (or `Reload page` once a retry cannot
- *  help). Plain DOM, drawn with no renderer at all (`host/boot-status.ts`). */
 const startupCard = (world: OlaiWorld) => world.page.getByRole("alert", { name: "olai couldn't start" });
 
-/** Where a retry cannot help — the failed module is cached — the offer becomes
- *  a reload: `Reload page` on the startup card, or `Reload` in the failed
- *  row's detail in the plugins panel. */
 const reloadOffer = (world: OlaiWorld) =>
   world.page.getByRole("button", { name: /^Reload( page)?$/ }).first();
 
@@ -73,8 +64,6 @@ When("I retry browser startup", async function (this: OlaiWorld) {
 
 Then("layout has released its document styles and viewport observers", async function (this: OlaiWorld) {
   const values = await this.page.evaluate(() => {
-    // Fire the events after withdrawal: a lingering callback would republish
-    // the properties even if disposal had initially cleared them.
     window.visualViewport?.dispatchEvent(new Event("resize"));
     window.visualViewport?.dispatchEvent(new Event("scroll"));
     window.dispatchEvent(new Event("resize"));
@@ -98,8 +87,6 @@ Then("layout reserves at least {int} pixels for content", async function (this: 
 });
 
 Given("the browser cannot obtain its initial selection", async function (this: OlaiWorld) {
-  // Accept the browser socket without forwarding messages, so no live roster
-  // can mask the bootstrap failure or supply an inferred default selection.
   await this.page.routeWebSocket("**/rpc/ws", () => {});
   await this.page.route("**/olai/browser-boot", (route) => route.fulfill({ status: 503, body: "unavailable" }));
 });
@@ -133,8 +120,6 @@ Given("a static dependency of the browser module for {string} cannot be fetched"
   const dependency = new URL("./unavailable-test-dependency.js", entry);
   const record = { requests: 0, available: false };
   dependencyFailures.set(this, record);
-  // Keep every real import unchanged, including the successful shared runtime.
-  // A static edge on the actual entry exercises Chromium's module-map caching.
   await this.page.route((url) => url.pathname === entry.pathname, (route) => route.fulfill({
     contentType: "text/javascript", body: `import ${JSON.stringify(dependency.href)};\n${source}`,
   }));

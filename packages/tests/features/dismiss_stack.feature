@@ -18,8 +18,6 @@ Feature: Dismiss is one stack, and the topmost answers
   is still there for the next gesture, which is what a person pressing Escape
   twice means by it.
 
-  ## Why the menu is opened with the KEYBOARD here
-
   Not for the keyboard's sake: it is the only door that does not shut the
   popover on the way through. Opening a menu with the `•••` is a pointer down
   outside the panel that is already up, so the popover is correctly gone before
@@ -40,20 +38,13 @@ Feature: Dismiss is one stack, and the topmost answers
     And I open the node menu of "kitchen" with the keyboard
     Then the preferences are open
     And the node menu is open
-    # ONE panel goes. The menu was opened last, so the menu is what Escape is
-    # about; the preferences are still there because nobody asked for them to
-    # go.
     When I press "Escape"
     Then the node menu is closed
     And the preferences are open
-    # ...and the next one reaches what is now on top.
     When I press "Escape"
     Then the preferences are shut
 
   Scenario: A pointer outside follows the same order
-    # The same rule, the other gesture. A press outside both panels is a press
-    # outside the topmost, and that is the only one it puts away — so the
-    # popover underneath survives the press that took the menu off it.
     When I open the preferences
     And I open the node menu of "kitchen" with the keyboard
     Then the preferences are open
@@ -65,12 +56,6 @@ Feature: Dismiss is one stack, and the topmost answers
     Then the preferences are shut
 
   Scenario: The command palette is a layer like any other
-    # The same defect one surface along, and this pair needs no contrivance at
-    # all: ⌘K may fire with the caret in a text field (`client/keys.ts`), so it
-    # opens the palette WITHOUT a press anywhere — which is exactly what leaves
-    # the popover under it standing. One Escape used to run the popover's
-    # handler (on the document) and the palette's (on the window, later in the
-    # same bubble), and take both.
     When I open the preferences
     And I press the palette shortcut
     Then the command palette is open
@@ -82,17 +67,8 @@ Feature: Dismiss is one stack, and the topmost answers
     Then the preferences are shut
 
   Scenario: The menu opened FIRST defers to what was opened over it
-    # THE OTHER ORDER, and the one the menu's own guard exists for. Everything
-    # above asks whether a panel stays put while something newer is dismissed;
-    # this asks whether the `•••` menu — whose dismissal is Kobalte's rather
-    # than this client's — sits an Escape out when the key belongs to a panel
-    # above it. It cannot be told to: `MenuContentBase` closes on Escape
-    # whether or not the event was prevented, so the refusal is on the menu's
-    # own open state (`client/menu/Dropdown.tsx`), and this is what holds it.
-    #
-    # The preferences are opened by KEYBOARD for the same reason the menu is
-    # above: a press of the trigger would be a press outside the menu, and the
-    # menu would correctly be gone before the panel arrived.
+    # `MenuContentBase` (Kobalte) closes on Escape whether or not the event was
+    # prevented, so the refusal is on the menu's own open state.
     When I open the node menu of "kitchen" with the keyboard
     And I focus the preferences trigger
     And I press Enter
@@ -105,9 +81,6 @@ Feature: Dismiss is one stack, and the topmost answers
     Then the node menu is closed
 
   Scenario: ...and to the palette over it
-    # The same order with the pair the author's own altitude pass found, which
-    # no scenario walked: two layers whose dismissals are BOTH somebody else's
-    # — Kobalte's underneath, the palette's own window listener on top.
     When I open the node menu of "kitchen" with the keyboard
     And I press the palette shortcut
     Then the command palette is open
@@ -119,15 +92,6 @@ Feature: Dismiss is one stack, and the topmost answers
     Then the node menu is closed
 
   Scenario: The keyboard-shortcuts dialog answers the key it is about
-    # It had one way out — its scrim — and reviewers found it twice. The dialog
-    # that TEACHES the keys ignoring the most universal one is the version of
-    # that gap worth closing rather than recording: somebody who opened it to
-    # learn what this app answers pressed Escape and nothing happened.
-    #
-    # Nothing stands over it (the palette that opens it closes on the way
-    # through, and this covers the page), so its ticket buys nothing yet — it
-    # is on the stack so the next thing drawn over a modal does not have to
-    # remember this one.
     When I press the palette shortcut
     And I pick the palette item "Keyboard shortcuts"
     Then the shortcuts are showing
@@ -135,8 +99,6 @@ Feature: Dismiss is one stack, and the topmost answers
     Then the shortcuts are put away
 
   Scenario: ...and its scrim puts away only the palette
-    # The palette's way out for a pointer is a press on its own scrim, which
-    # covers the page — so it is also a press outside every panel underneath.
     When I open the preferences
     And I press the palette shortcut
     Then the command palette is open

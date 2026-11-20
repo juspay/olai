@@ -30,9 +30,6 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
 
   Background:
     Given I open the outline "garden.olai"
-    # The fixtures these scenarios rewrite onto the wire carry a DONE row
-    # (`basil`), and the whole point of the comparison is that the page after
-    # is the page before — so the pick is said once, at the door.
     And I show the done nodes
 
   Scenario: A server that goes away is reported, not hidden
@@ -41,19 +38,7 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     Then the connection is "reconnecting"
 
   Scenario: The wire drops, the app freezes, the wire returns and the page is live again
-    # The whole of §5b in one pass, and every step of it needs a real browser: a
-    # socket dying under a page that was mid-question, an overlay in the top
-    # layer over a document the browser itself has made inert, and the same page
-    # resuming — not reloading — when the wire comes back.
-    #
-    # The network goes rather than the server, and that is the only way to see
-    # the second half: a server that dies and comes back retires the tab at the
-    # handshake, so the page could never come back live. Offline kills the
-    # socket and leaves the process alive, so the redial is the same wire
-    # returning.
     Given the connection is "live"
-    # The marker on `window`, so the last step can tell a page that RESUMED from
-    # one that quietly reloaded itself into looking the same.
     And I mark the page
     When I filter the page by "herb"
     Then the filter found "1 of 11"
@@ -62,13 +47,7 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     And the app is frozen under the offline overlay
     And the offline overlay reads "Connection lost" over "Reconnecting…"
     And the page under it takes neither a press nor a chord
-    # The rows the server answered are still the rows behind the overlay:
-    # `herbs`, the `garden` above it, and the two under it that a match keeps
-    # with it — exactly as before the wire went. A freeze is not a blank page.
     And the outline has 4 rows
-    # Written while the tab could not hear it, so the reconnect has something to
-    # be measured by: the file is rewritten to five nodes, two of which `herb`
-    # selects, so BOTH numbers move and neither could have been left standing.
     When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
@@ -80,30 +59,16 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     And the browser comes back online
     Then the connection is "live"
     And the overlay is gone
-    # LIVE AGAIN, and asked again: the filter is a standing question keyed on
-    # the set's own generation, the reconnect lands a fresh snapshot, and the
-    # count is the answer to what is on disk now. Nothing was reloaded and
-    # nobody typed.
     And the filter found "2 of 5"
     And the page has not reloaded
 
   Scenario: A restarted server retires the tab, and reloading recovers it
-    # No "there should be no page errors" here, and deliberately: a browser
-    # whose server is gone logs its own failed WebSocket dials, and asserting
-    # on a console the browser is entitled to write to would be asserting on
-    # Chromium rather than on olai.
     Given the connection is "live"
     And I mark the page
     When the server stops
     And the server starts again on the same port
-    # The gate the wire's own `pid` echo feeds: the server closed this tab
-    # rather than serving it. Asserted from the server's own log, because a page
-    # cannot see the difference between the socket it was refused and one that
-    # simply has not opened yet.
     Then the server rejected the stale tab
     And the connection is "retired"
-    # The one frozen state with something to offer besides waiting, and the
-    # offer is on the overlay rather than on a screen of its own.
     And the overlay offers a reload
     And the offline overlay reads "The server restarted" over "Reload the page to keep working."
     And the overlay's reload is called "Reload"
@@ -112,9 +77,6 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     And the outline list is shown
 
   Scenario: The reloaded page is as live as the one before it
-    # Recovery means the page WORKS again, which is a stronger claim than the
-    # connection being green: the reloaded document has to be following the
-    # files on disk through the new server, with nobody touching it.
     Given the connection is "live"
     When the server stops
     And the server starts again on the same port

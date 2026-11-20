@@ -1,27 +1,3 @@
-/**
- * EVERY DOCS PAGE IS HELD TO THE WRITING STANDARD — one test per page, no
- * exemption list. The pages are `website/docs/`, which olai.page publishes.
- *
- * `dev/skills/docs-writing/SKILL.md` is the standard. Its reader rules are
- * review's job; its shape rules are measurements, and measurements rot unless
- * something takes them. These pages grew by one appended paragraph per pull
- * request until a page ran to 30,000 words with 500-word paragraphs in it, and
- * nothing was red while that happened.
- *
- * ONE TEST PER PAGE rather than one sweep, because a sweep reports the first
- * page it dislikes and a writer fixing six pages wants six failures. The page's
- * SERVED address is the test's name, so `bun test -t 'docs/chat.md'` is the
- * command for the page in front of you.
- *
- * THE LINKS are checked here too, over the whole set: a relative target that
- * is not there or is not a page, and a `#fragment` that names no heading on
- * the page it lands on. The site's build refuses the same links, and checks
- * the built pages' links once more; this is the same answer in a second, from
- * `bun test`. `../plugin_docs.test.ts` already owns the claim that every
- * plugin HAS a page and that the index opens it; what is owned here is that a
- * link on any page goes somewhere, which is the thing a rewrite breaks.
- */
-
 import * as fs from "node:fs"
 
 import { expect, test } from "bun:test"
@@ -31,8 +7,6 @@ import { at, INDEX, isLocal, landing, linksIn, pages, picturesIn } from "./suppo
 
 const PAGES = pages()
 
-/** A guard on the sweep itself: an empty served set would pass every claim
- *  below while asserting nothing. */
 test("the served set is actually being read", () => {
   expect(PAGES.length).toBeGreaterThan(20)
 })

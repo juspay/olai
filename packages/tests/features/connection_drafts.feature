@@ -74,9 +74,6 @@ Feature: Reconnecting preserves unfinished work and its conflict baseline
     And the page has not reloaded
 
   Scenario: A reconnect does not hand the keyboard to a link the reader had left
-    # Opening the outline clicks its sidebar link; picking rows takes the focus
-    # off it. The overlay closing must not focus that link again: its preview
-    # card would open and spend the next Escape, leaving the rows picked.
     Given I open the outline "house.olai"
     And I mark the page
     When I pick the title of "hinges"

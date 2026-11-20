@@ -1,20 +1,3 @@
-/**
- * What a loaded run dropped, counted — the reading half of `underload.sh`.
- *
- * These failures are ONE scenario in a run of six hundred, never the same one
- * twice, so the fact worth having is a census rather than a log: which
- * scenarios went, how often, in how many runs, and what each said. A person
- * reading five `.err` files by hand gets the first of those and none of the
- * rest.
- *
- * It reads the cucumber MESSAGE stream rather than the pretty output, because
- * the pretty output is for a human at the end of one run and this is arithmetic
- * over thirty. Every non-passing step is a row: the scenario, the step, how
- * long it took (which is what says whether a budget was reached or a key was
- * lost), and the harness's own sentence.
- *
- *   bun underload.ts reports/under-load
- */
 import * as fs from "node:fs"
 import * as path from "node:path"
 
@@ -27,11 +10,6 @@ interface Dropped {
   readonly message: string
 }
 
-/** Every non-passing step in one run's message stream.
- *
- *  Three lookups because the stream names things by id and not by name: a
- *  finished step knows its test case, which knows its pickle, which is the
- *  scenario a person wrote. */
 const droppedIn = (file: string): ReadonlyArray<Dropped> => {
   const pickles = new Map<string, { name: string; uri: string }>()
   const steps = new Map<string, string>()
@@ -72,8 +50,6 @@ const droppedIn = (file: string): ReadonlyArray<Dropped> => {
         run: path.basename(file, ".ndjson"),
         scenario: pickle?.name ?? "(unknown scenario)",
         uri: pickle?.uri ?? "(unknown feature)",
-        // A `Before`/`After` hook has no pickle step, and saying so beats an
-        // empty column: the server-per-scenario boots in one.
         step: step?.pickleStepId === undefined ? "(hook)" : steps.get(step.pickleStepId) ?? "(step)",
         ms: Math.round((result.duration.seconds * 1e9 + result.duration.nanos) / 1e6),
         message: (result.message ?? "").split("\n")[0] ?? "",
@@ -99,8 +75,6 @@ const byRun = new Set(dropped.map((one) => one.run))
 console.log(`${runs.length} runs, ${byRun.size} with a drop, ${dropped.length} scenarios dropped\n`)
 if (dropped.length === 0) process.exit(0)
 
-/** Grouped by SCENARIO, because "never the same twice" is the claim being
- *  measured and a count per scenario is what answers it. */
 const groups = new Map<string, Array<Dropped>>()
 for (const one of dropped) {
   const key = `${one.uri} :: ${one.scenario}`

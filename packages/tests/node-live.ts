@@ -1,46 +1,3 @@
-/**
- * NODE AGENTS, against the PINNED ADAPTER — `panel-live.ts`'s other half.
- *
- * That driver is about a CONVERSATION: sending, queueing, interrupting, a
- * background task's clock, a subagent's rail. This one is about the thing a
- * conversation gets attached to — a node that carries a binding, the Chats
- * row and standing that are the query over it, the fold under the row that
- * holds its conversation, and the two gestures that make and remake it. None
- * of that existed when `panel-live.ts` was written, and none of it has met the
- * real adapter: every scenario in
- * `packages/plugins/chat/e2e/features/node_agents.feature` drives the SCRIPTED agent, whose
- * `session/new` answers `fake-session-1` every time — so the one thing those
- * scenarios cannot assert is a node that changes which conversation it names,
- * which is exactly what *Fresh start* is.
- *
- * ## THE TRAP is the last section, and it is why this file exists
- *
- * A node's property names a conversation the engine no longer has — a
- * `claude --resume` store cleared, a machine changed, an id that was never
- * theirs. `session/load` answers `no such conversation`, the panel draws the
- * refusal, and what it used to offer was *try again*, which asks for the same
- * lost conversation for ever. The way out is that agent's own *Fresh start*,
- * on the agent line of the node's fold — which a refused open used to drop
- * along with the conversation.
- *
- * REWRITTEN FOR THE FOLD (2026-09): the side panel, its toggle, the roster's
- * door and the header's sessions list are gone. The claims are the same; the
- * places they are read from are the row's standing, its fold, the agent line's
- * Fresh start and the Chats row. Not yet re-run against a real adapter since.
- *
- * The scripted agent can be told to refuse a load, so the suite covers the
- * shape. What it cannot do is be an engine that GENUINELY does not have a
- * conversation, which is the only way to know that a real `session/load` for a
- * stranger's id comes back `refused` (the panel's third body) rather than as a
- * dead process (its second). That distinction is the whole fix, and this is the
- * only place it can be measured.
- *
- * NOT PART OF THE SUITE — nothing imports it and `just e2e` never runs it. It
- * needs a real, authenticated `claude` and costs real turns.
- *
- *   bash node-live.sh                  # …or, against a server you started:
- *   BASE=http://127.0.0.1:PORT VAULT=/path/to/vault bun node-live.ts
- */
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { chromium } from "playwright"
 
@@ -49,8 +6,6 @@ import type { PluginTestId } from "@olai/bundle/testids"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
 
-/** An id from either table — the shell's and the plugin's, for the reason
- *  `panel-live.ts` spells out at the same import. */
 type Named = TestId | PluginTestId
 
 const BASE = process.env["BASE"]
@@ -63,8 +18,6 @@ if (BASE === undefined || VAULT === undefined) {
   process.exit(2)
 }
 const SHOTS = process.env["SHOTS"] ?? "/tmp/nodeshots"
-/** The node this driver works on, and the file it lives in — written by
- *  `node-live.sh`, re-written HERE for the trap. */
 const FILE = `${VAULT}/lanes.olai`
 const NODE = "connector"
 
@@ -83,11 +36,6 @@ const b = await chromium.launch({ args: [...BROWSER_ARGS] })
 const p = await b.newPage({ viewport: { width: 1500, height: 1000 } })
 p.on("pageerror", (e) => console.log(`${at()}  PAGE ERROR  ${e.message}`))
 
-/** The three reads, and all of them WAIT — `panel-live.ts` argues why at
- *  length, and the argument is the same one: the panel is a beat behind
- *  everything, and a state it never reaches is a FINDING rather than somebody
- *  else's stack trace. `where` takes a full CSS selector so the roster's rows
- *  can be asked for by the node they are about. */
 const shown = (where: string, ms = 60_000): Promise<string | null> =>
   p.waitForSelector(where, { timeout: ms })
     .then((el) => el.innerText())
@@ -101,28 +49,17 @@ const gone = (name: Named, ms = 60_000): Promise<boolean> =>
 
 const shot = (name: string): Promise<Buffer> => p.screenshot({ path: `${SHOTS}/${name}.png` })
 
-/** The sidebar's Chats row, the row's standing and its fold, each by the node
- *  they are about — the same `data-agent` the suite's own steps go through. */
 const rowOf = (node: string): string =>
   `${selector("agent-roster")} ${selector("agent-row")}[data-agent="${node}"]`
 const standingOf = (node: string): string => `${selector("agent-standing")}[data-agent="${node}"]`
 const foldOf = (node: string): string => `${selector("agent-fold")}[data-agent="${node}"]`
 
-/** The `•••` on an outline row, opened the way a person opens it: the gutter is
- *  `opacity-0` until the row is hovered, and opacity is not something
- *  Playwright's actionability check can see through. */
 const dots = async (node: string): Promise<void> => {
-  // `.first()` is the node's OWN, which is the suite's own rule at the same
-  // reach (`support/world.ts`'s `within`): a descendant's control matches
-  // inside the scope too, and the node's own is rendered before any child's.
   const row = `${selector("node")}[data-node-id="${node}"]`
   await p.locator(`${row} ${selector("node-gutter")}`).first().hover()
   await p.locator(`${row} ${selector("node-menu")}`).first().click({ force: true })
   await p.waitForSelector(selector("node-menu-panel"), { timeout: 30_000 })
 }
-/** `Start an agent` on the open menu, with Claude: the entry is the verb itself
- *  when Claude is the one agent this machine can start, and a submenu of the
- *  agents when there are several (`olai-plugin-chat`'s `verbs.tsx`). */
 const startClaude = async (): Promise<void> => {
   const entry = p.locator(`${selector("node-menu-item")}[data-action^="chat:start-agent"]`).first()
   await entry.click()
@@ -132,8 +69,6 @@ const startClaude = async (): Promise<void> => {
     await sub.locator('[data-action="chat:start-agent-claude"]').click()
   }
 }
-/** The agent line's Fresh start, answered: with several agents it first asks
- *  which (Claude, the node's own, is listed first), then asks to confirm. */
 const freshStart = async (): Promise<void> => {
   await p.locator(selector("chat-fresh-session")).first().click()
   const menu = p.locator(selector("agent-engine-menu"))
@@ -143,9 +78,6 @@ const freshStart = async (): Promise<void> => {
   await confirm.click()
 }
 
-/** WHAT THE VAULT SAYS THIS NODE'S BINDING IS, read off the file rather than
- *  off the screen: the property is the durable half of a node agent, and every
- *  claim about a gesture having landed is a claim about what is on disk. */
 const bindingOnDisk = async (): Promise<string | null> => {
   const text = await Bun.file(FILE).text()
   for (const line of text.split("\n")) {
@@ -154,18 +86,12 @@ const bindingOnDisk = async (): Promise<string | null> => {
       id?: string
       custom?: Record<string, string>
     }
-    // EITHER KEY, because a vault mid-migration declares two and olai writes
-    // the one the board declares (`server/agents.ts`'s `key`). This driver's
-    // vault declares nothing, so it gets the claimed word — but a reader of
-    // this file should not have to know that to believe the claim.
     if (row.id === NODE) {
       return row.custom?.["chat-agent-session"] ?? row.custom?.["agent-session"] ?? null
     }
   }
   return null
 }
-/** ... and the same property WRITTEN, which is how the trap is set: an id no
- *  engine ever minted, in the one place a node agent's binding lives. */
 const pointAt = async (value: string): Promise<void> => {
   const text = await Bun.file(FILE).text()
   const lines = text.split("\n").map((line) => {
@@ -177,13 +103,6 @@ const pointAt = async (value: string): Promise<void> => {
   await Bun.write(FILE, lines.join("\n"))
 }
 
-/** POLL UNTIL A READ ANSWERS, or give up and let the claim be the finding.
- *
- *  The disk half of this driver needs it for a reason the screen half does not:
- *  *start an agent session* is TWO acts in a deliberate order — the conversation
- *  is opened, and only then is the property written, so the vault never names a
- *  session that was not opened (`server/binding.ts`). A read taken on the press
- *  is therefore reading before the thing it is about, every time. */
 const until = async <A>(
   read: () => Promise<A | null>,
   good: (a: A) => boolean,
@@ -211,9 +130,6 @@ const idle = async (): Promise<void> => {
   process.exit(1)
 }
 
-// ── 0. the boot, and a node that is not an agent ───────────────────────
-// There is no chat panel to open: a node's conversation folds open under its
-// own row, so the boot is the outline and nothing else.
 await p.goto(BASE)
 ok("the app came up", await drawn("outline-list"))
 ok(
@@ -223,7 +139,6 @@ ok(
 )
 ok("...and its property says so", await bindingOnDisk() === null, "no `agent-session` on disk")
 
-// ── 1. the gesture that CREATES a node agent ───────────────────────────
 await dots(NODE)
 ok("the row's `•••` offers an agent to start", await drawn("node-menu-panel"))
 await shot("1-menu")
@@ -239,11 +154,6 @@ ok(
 )
 await shot("2-bound")
 
-// ── 2. the fold is the conversation ────────────────────────────────────
-// ...AND THAT THERE IS SOMEWHERE TO TYPE, which is its own claim: the fold has
-// bodies without a composer in them — no agent, a dead one, and a conversation
-// the agent would not open — and a person who has just made a node agent is in
-// none of them.
 ok("...on a conversation there is somewhere to type into", await drawn("chat-input", 120_000))
 await type("Reply with exactly BOUND and nothing else.")
 await drawn("chat-busy")
@@ -255,13 +165,8 @@ ok(
 ok("...and the sidebar's Chats lists it", await shown(rowOf(NODE), 30_000))
 await shot("3-answered")
 
-// ── 3. a fresh start, and what it costs ────────────────────────────────
 ok("the agent line offers a fresh start", await drawn("chat-fresh-session"))
 await freshStart()
-// THE ONE CLAIM THE SCRIPTED AGENT CANNOT MAKE: its `session/new` answers one
-// id for ever, so a node re-pointed by a fresh start names the conversation it
-// already named. A real adapter mints a new one, and the property MOVING is
-// the whole of what this gesture does.
 const second = await until(bindingOnDisk, (held) => held !== first)
 ok(
   "the node names a DIFFERENT conversation — the property moved",
@@ -272,26 +177,11 @@ ok("...and the fold comes back to a conversation", await drawn("chat-input", 120
 await p.locator(selector("chat-sessions")).click()
 ok("...with the one it replaced kept among its earlier chats", await drawn("chat-past-sessions", 30_000))
 await shot("5-fresh")
-// SHUT AND WAITED FOR, not just asked to shut. The picker closes on the next
-// pointer anywhere (`inlinePicker.ts`), so a press made while it is still up is
-// spent shutting it — a driver reading its own popover as a page that did
-// nothing.
 await p.keyboard.press("Escape")
 ok("the earlier-chats list shuts", await gone("chat-session-list", 30_000))
 
-// ── 4. THE TRAP, against an engine that genuinely has not got it ───────
-// Not a scripted refusal: the property is pointed at an id no `claude` ever
-// minted, so `session/load` answers for itself. What is asserted is that the
-// fold reads that as a LIVE agent saying no — its refused body — and that the
-// way out is on the screen a person is stuck on.
 const STRANGER = "claude:00000000-0000-4000-8000-000000000000"
 await pointAt(STRANGER)
-// WAITED FOR, and re-opened only if it shut: a file written under a running
-// server reaches the roster on the next published revision, and the fold
-// re-opens the conversation the property now names. Pressing the Chats row
-// while the fold is open would fold it away, so the row is pressed only when
-// no fold is open. What proves the roster followed is the refusal NAMING the
-// stranger's id, which is the claim below.
 for (let press = 0; press < 5; press += 1) {
   if (await p.locator(selector("chat-unopened")).count() > 0) break
   if (await p.locator(foldOf(NODE)).count() === 0) await p.locator(rowOf(NODE)).click()
@@ -301,9 +191,6 @@ const why = await drawn("chat-unopened-why", 120_000)
 ok("a conversation the engine has not got is REFUSED, not a dead agent", await drawn("chat-unopened"))
 ok("...in the agent's own words, naming the stranger the vault points at", why)
 ok("...and *Try again* is offered", await drawn("chat-reopen"))
-// THE FIX: the agent line goes on naming the node agent whose conversation it
-// could not open, which is what draws its Fresh start — the only gesture that
-// can move.
 ok("THE WAY OUT: Fresh start is on the refused screen", await drawn("chat-fresh-session"))
 await shot("6-trap")
 await freshStart()

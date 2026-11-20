@@ -42,8 +42,6 @@ Feature: A reading leaves with the row that offered it, and comes back
     And the page has not reloaded
     And there should be no page errors
 
-  # §10: the fixed box every overlay over the outline hangs from. It was
-  # `@olai/web`'s, appended on first use and remembered for the life of the tab.
   @scratch:good
   Scenario: The overlay socket leaves with the outline and does not accumulate
     Given I open the outline "house.olai"
@@ -51,9 +49,6 @@ Feature: A reading leaves with the row that offered it, and comes back
     Then the page has 1 overlay socket
     When I open the plugins panel
     And I switch the plugin "outlines" off
-    # The residue this asserts against is invisible: an empty fixed div left on
-    # the page draws nothing and blocks nothing. Counting is the only way to
-    # see it.
     Then the page has 0 overlay sockets
     When I switch the plugin "outlines" on
     Then the page has 1 overlay socket
@@ -68,10 +63,6 @@ Feature: A reading leaves with the row that offered it, and comes back
     And the page has not reloaded
     And there should be no page errors
 
-  # §12 twice over: `pins.state`, read by the outline's `•••` to decide which of
-  # two words its shelf verb wears (one entry with two labels, so the label IS
-  # the reading) — and `Edits`, the app's table of which row writes which verb,
-  # which the same menu spends when the entry is pressed.
   @scratch:good
   Scenario: The outline's shelf verb follows the pins row off and back on
     Given I open the outline "house.olai"
@@ -85,15 +76,9 @@ Feature: A reading leaves with the row that offered it, and comes back
     And I open the plugins panel
     And I switch the plugin "pins" off
     And I close the plugins panel
-    # The outline is a whole outline with no pins row: the shelf is gone, and
-    # the menu asks a question nobody is answering, so it reads as unpinned.
     Then the pinned shelf is not drawn
     When I open the node menu of "order"
     Then the node menu offers "Pin to sidebar"
-    # ...AND PRESSING IT IS REFUSED IN WORDS. `pin` is the pins row's verb on
-    # the app's edit table (`@olai/plugin-api`'s `Edits`), and a verb whose
-    # claimant has left is refused the way it always was — the outline does not
-    # send it into a table that no longer routes it, and the reader is told.
     When I choose "Pin to sidebar" from the node menu
     Then the node menu of "order" says "the capability for pin is not active"
     And the pinned shelf is not drawn
@@ -106,9 +91,6 @@ Feature: A reading leaves with the row that offered it, and comes back
     And the page has not reloaded
     And there should be no page errors
 
-  # §5 in the browser: `markdown.editing`, which the day page asks for the file
-  # it just minted. The journal does not wait for it — the calendar, the agenda
-  # and every day page are the journal's own.
   @scratch:journal
   Scenario: The day page keeps its day without the row that opens a minted note
     Given I open the day "2019-11-06"
@@ -128,10 +110,6 @@ Feature: A reading leaves with the row that offered it, and comes back
     And the page has not reloaded
     And there should be no page errors
 
-  # The routes half of the same phase: an address a PLUGIN claims can only be
-  # read while that plugin is mounted, and `Routing` is how a shelf in another
-  # package asks. A pin to a page whose row has left is left off the shelf
-  # rather than drawn as somewhere else — and the file keeps it throughout.
   @scratch:journal
   Scenario: A pinned journal day leaves the shelf with the journal, and the file keeps it
     Given the directory has the pins:

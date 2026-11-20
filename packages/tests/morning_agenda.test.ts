@@ -1,48 +1,3 @@
-/**
- * THE FIXTURE'S PLUGIN IS THE DOC'S PLUGIN, and this is what says so.
- *
- * ## The failure this exists to make impossible
- *
- * `website/docs/dynamic-plugins-examples.md`'s first worked example is a morning agenda; the corpus at
- * `fixtures/morning-agenda/` holds the same source as the note of a node, and
- * `packages/plugins/vault-plugins/e2e/features/the_morning_agenda.feature` runs it. Three places then said, in
- * prose, that the two are one file apart from two clock constants — the
- * feature's own header, the fixtures README, and a comment inside the fixture.
- *
- * Prose is not a mechanism. The copies were forked identical and nothing
- * reconciled them, so the claim was true for exactly as long as nobody improved
- * the doc: `@olai/server`'s `worked.test.ts` COMPILES the doc's copy, this suite
- * RUNS the fixture's, and neither had ever compared them. The first edit to the
- * page — a corrected field read, a failure reported instead of swallowed —
- * leaves the doc green, the fixture green, and the e2e no longer evidence for
- * the thing the page promises a person they can paste.
- *
- * That is the same shape `worked.test.ts` was itself written against, one
- * directory over and in its own words: *"A test that held its own copy of the
- * example would have compiled that copy happily while the doc went on saying
- * something else."* This suite held such a copy, and it was the copy that ran.
- *
- * ## Why HERE, and why no fenced-block reader
- *
- * `@olai/tests` is the package above all the others (`support/sweep.ts`), which
- * is where a claim about two files in two other packages belongs — the same
- * argument `plugin_docs.test.ts` makes for its own sweep over `website/docs/`.
- *
- * And it needs no markdown parser. `worked.test.ts` extracts fenced blocks
- * because it must hand one to a compiler; this only has to know that the page
- * CONTAINS the fixture's source, so it substitutes the two constants back and
- * asks `includes`. One string search, no second extractor to keep in step with
- * the first, and a failure that names which half moved.
- *
- * ## What is NOT claimed
- *
- * That the fixture is the whole example, or that the page has one. It is a
- * containment: whatever else the page grows, the source this suite runs is on
- * it, verbatim, with two named lines swapped. The two are named below and both
- * are asserted to have matched — a substitution that silently found nothing
- * would turn this into a test of two identical strings.
- */
-
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -53,34 +8,19 @@ import { ROOT } from "./support/sweep.ts";
 const DOC = path.join(ROOT, "website", "docs", "dynamic-plugins-examples.md");
 const FIXTURE = path.join(ROOT, "packages", "tests", "fixtures", "morning-agenda", "plugins", "morning-agenda", "server.ts");
 
-/**
- * THE TWO LINES THAT MAY DIFFER, and the whole list of them.
- *
- * Both are the clock, and both are why: a scenario cannot sit out five minutes
- * and cannot wait until seven in the morning. Anything else differing is drift.
- */
 const CLOCK: ReadonlyArray<readonly [fixture: string, doc: string]> = [
   ["const AT_HOUR = 0", "const AT_HOUR = 7"],
   [`const EVERY = "1 second"`, `const EVERY = "5 minutes"`],
 ];
 
-/** The fixture's `server.ts`, which is a FILE now rather than the note of a
- *  node — a plugin the vault defines is a folder, so the half is read the way
- *  the serve reads it and the extractor this used to need is gone with the
- *  shape it was reading. */
 test("the fixture's morning agenda is the doc's, with the two clock lines swapped", () => {
   let source = fs.readFileSync(FIXTURE, "utf8").trimEnd();
   for (const [fixture, doc] of CLOCK) {
-    // A substitution that matched nothing is the failure this guard is for: it
-    // would leave the comparison below passing on a source that never carried
-    // the line, which is drift wearing agreement's face.
     expect(source).toContain(fixture);
     source = source.replace(fixture, doc);
   }
   const page = fs.readFileSync(DOC, "utf8");
   if (page.includes(source)) return;
-  // The equality is a `includes`, so a failure has to say WHERE — otherwise a
-  // reader gets "false is not true" about two hundred-line strings.
   const wandered = source.split("\n").find((line) => !page.includes(line));
   throw new Error(
     `fixtures/morning-agenda/ has drifted from website/docs/dynamic-plugins-examples.md.\n`
