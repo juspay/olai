@@ -20,7 +20,7 @@ const LOGSEQ_DB = "https://github.com/logseq/docs/blob/master/db-version.md"
 export const ROWS: ReadonlyArray<Row> = [
   {
     label: "What it is",
-    olai: { text: "An outliner. Items have marks and dates. Markdown documents are in the same directory." },
+    olai: { text: "Markdown documents and outlines in one app. An item of an outline has a mark and a date." },
     obsidian: { text: "Markdown notes that link to each other", source: "https://obsidian.md/" },
     logseq: { text: '"A privacy-first, open-source knowledge base"', source: "https://logseq.com/" },
     roam: { text: '"A note taking tool for networked thought"', source: "https://roamresearch.com/" },
@@ -28,7 +28,7 @@ export const ROWS: ReadonlyArray<Row> = [
   },
   {
     label: "Where your notes are stored",
-    olai: { text: "Plain files in a directory on your computer. Outlines are JSON, one item per line. Documents are Markdown." },
+    olai: { text: "Plain files in a directory on your computer. Documents are Markdown. Outlines are JSON, one item per line." },
     obsidian: { text: "Markdown files on your device", source: "https://obsidian.md/" },
     logseq: { text: "Markdown or Org-mode files. A database version is in beta.", source: LOGSEQ_REPO },
     roam: { text: "Online with Roam, or stored locally", source: "https://roamresearch.com/" },
