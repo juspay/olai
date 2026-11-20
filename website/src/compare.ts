@@ -44,7 +44,7 @@ export const ROWS: ReadonlyArray<Row> = [
   },
   {
     label: "Sync and history",
-    olai: { text: "History in git. olai does not sync devices." },
+    olai: { text: "History in git. With auto commit and auto push turned on, your notes sync between computers through a git remote. A git conflict needs a terminal." },
     obsidian: { text: "Obsidian Sync, a paid service, keeps up to one year of version history", source: "https://obsidian.md/sync" },
     logseq: { text: "Logseq Sync for the database version, paid or self-hosted", source: `${LOGSEQ_DB}#sync` },
     roam: { text: "Online. People can edit together at the same time.", source: "https://roamresearch.com/" },

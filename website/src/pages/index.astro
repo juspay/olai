@@ -252,7 +252,7 @@ const dark = PALETTES.length - light
           <li>You use Windows.</li>
           <li>Your notes depend on something in <a href="#upcoming">the upcoming list</a>.</li>
           <li>You depend on Obsidian's Canvas or on its community plugins.</li>
-          <li>You need your notes to sync between devices without git.</li>
+          <li>You need your notes to sync without a git remote, or without a terminal when two computers conflict.</li>
           <li>You need software that rarely changes. A new olai release can break things.</li>
         </ul>
       </div>
@@ -292,8 +292,19 @@ const dark = PALETTES.length - light
         record them 15 seconds after the last change.</p>
         <p>Each recorded change names what wrote it: the page that you typed
         in, or an agent's chat.</p>
-        <p>To keep a copy on another computer, push the git history to GitHub
-        or to another git server.</p>
+        <p>To sync your notes between computers, give the directory a git
+        remote, such as a private repository on GitHub. Then set
+        <code>commit</code> and <code>push</code> to <code>auto</code>. Read
+        <a href="/docs/git/">how olai commits and pushes</a>.</p>
+        <p>With both set, olai sends each recorded change to the remote.
+        Before it sends, it takes in what your other computers sent.</p>
+        <p>Two things are upcoming. The first is
+        <a href={issueUrl(727)}>a computer that takes in changes without sending any</a>.
+        Today a computer takes in the other computers' changes only when it
+        sends its own. The second is
+        <a href={issueUrl(728)}>sync without a conflict when two computers each add an item to one outline</a>.
+        Today git reports a conflict, olai pauses, and you resolve the
+        conflict in a terminal.</p>
         <p>You set git up one time, with one command on the
         <a href="/docs/start/">Start page</a>.</p>
       </div>
