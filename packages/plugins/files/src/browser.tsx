@@ -10,7 +10,7 @@ import { holdServed } from "./vault.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell,revealSidebar } from "./shell.ts"
 import { DeleteFile } from "./file/DeleteFile.tsx"
-import { clearNewFileMemory,NewFile,openNewFile } from "./file/NewFile.tsx"
+import { holdNewFileDrafts,NewFile,openNewFile } from "./file/NewFile.tsx"
 import { definePlugin,Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { navigation } from "olai-plugin-navigation/contract"
@@ -33,7 +33,7 @@ export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edit
   yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
 
- yield* Effect.acquireRelease(Effect.void,()=>Effect.sync(clearNewFileMemory))
+ yield* Effect.acquireRelease(Effect.sync(holdNewFileDrafts), stop => Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(followReference), stop => Effect.sync(stop))
  yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile,open:(of:Parameters<typeof openNewFile>[0])=>{openNewFile(of);revealSidebar()}}))

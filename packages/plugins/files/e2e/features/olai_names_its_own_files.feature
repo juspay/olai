@@ -82,8 +82,6 @@ Feature: The files olai names for itself, and the doors onto them
 
   Scenario: An outline that will not parse is marked in the group, not hidden
     When I pin the page
-    # The shelf FIRST, so the rewrite below lands on a file the pin has already
-    # been written into rather than racing that write.
     Then the pinned shelf holds "/house.olai"
     And the vault group links to "_olai/Pins.olai"
     When I rewrite "_olai/Pins.olai" as:
@@ -122,8 +120,6 @@ Feature: The files olai names for itself, and the doors onto them
   Scenario: An inbox that will not parse says so on its own door
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    # The file FIRST, so the rewrite below lands on an inbox the capture has
-    # already minted rather than racing that write.
     Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
     When I close the palette
     And I rewrite "_olai/Inbox.olai" as:

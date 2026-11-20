@@ -1,4 +1,5 @@
 import { forFileClaim } from "@olai/plugin-api/file-kinds"
+import type { Claim } from "@olai/format"
 import type { Locations } from "@olai/plugin-api/contracts"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { createMemo, createRoot, type Accessor } from "solid-js"
@@ -11,7 +12,7 @@ export const holdKindDrawings = (read: Locations["read"]): (() => void) => creat
   const release = drawings.hold(entries)
   return () => { release(); dispose() }
 })
-export const drawingOf = (kind: string) => forFileClaim(
+export const drawingOf = (kind: Claim["kind"]) => forFileClaim(
   servedDirectory()?.claims().byKind.get(kind),
   drawings.read()?.() ?? [],
 )

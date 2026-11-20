@@ -1,5 +1,4 @@
 {
-  "//sidebar": "The rail's button is labelled `Open the sidebar`: the column a person sees, not the sidebar row.",
   "capture": {
     "src/Files.tsx": 1,
     "src/tools.ts": 2

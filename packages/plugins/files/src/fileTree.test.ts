@@ -1,6 +1,6 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-import { ancestorDirs, dirsIn, fileTree } from "./fileTree.ts"
+import { ancestorDirs, dirsIn, fileTree, rowKey } from "./fileTree.ts"
 
 const files = ["garden.olai", "house.olai", "notes/map.olai", "notes/palette.md", "art/a.png", "b.md", "README", "empty/code.js"]
 test("Outlines contains only node claims and drops reference-only and unclaimed folders", () => {
@@ -12,12 +12,12 @@ test("Reference contains other claimed files and no outline-only folders", () =>
   const rows = fileTree(TEST_CLAIMS, [...files, "work/task.olai"], "reference")
   expect(rows.map(row => row.name)).toEqual(["art", "b", "notes"])
   expect(dirsIn(rows)).toEqual(new Set(["art", "notes"]))
-  expect(rows[1]).toEqual({ kind: "file", key: "file:b.md", name: "b", file: "b.md", of: "markdown" })
+  expect(rows[1]).toEqual({ kind: "file", name: "b", file: "b.md", of: "markdown" })
 })
 test("a mixed folder belongs to both trees, with separate leaves and one fold path", () => {
   for (const [mode, file] of [["nodes", "notes/map.olai"], ["reference", "notes/palette.md"]] as const) {
     const rows = fileTree(TEST_CLAIMS, ["notes/map.olai", "notes/palette.md"], mode)
-    expect(rows).toEqual([{ kind: "dir", key: "dir:notes", name: "notes", path: "notes", children: [{ kind: "file", key: `file:${file}`, name: mode === "nodes" ? "map" : "palette", file, of: mode === "nodes" ? "outline-olai" : "markdown" }] }])
+    expect(rows).toEqual([{ kind: "dir", name: "notes", path: "notes", children: [{ kind: "file", name: mode === "nodes" ? "map" : "palette", file, of: mode === "nodes" ? "outline-olai" : "markdown" }] }])
   }
 })
 test("empty regions have no folders or files", () => {
@@ -35,9 +35,9 @@ test("input ordering and duplicate paths do not change either tree", () => {
 test("deep directory chains retain their paths and stable keys", () => {
   const rows = fileTree(TEST_CLAIMS, ["a/b/c.olai"], "nodes")
   expect(dirsIn(rows)).toEqual(new Set(["a", "a/b"]))
-  expect(rows[0]?.key).toBe("dir:a")
+  expect(rowKey(rows[0]!)).toBe("dir:a")
   const root = rows[0]!
-  if (root.kind === "dir") expect(root.children[0]?.key).toBe("dir:a/b")
+  if (root.kind === "dir") expect(rowKey(root.children[0]!)).toBe("dir:a/b")
 })
 test("ancestry is empty at the root and ordered outside-in", () => {
   expect(ancestorDirs("house.olai")).toEqual([])

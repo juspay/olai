@@ -1,9 +1,7 @@
 /** Folder paths from Pierre Computer Company's IconFolder.svg, verbatim.
  * https://github.com/pierrecomputer/icons — Apache-2.0.
  * The wrapper changes black to currentColor, replaces fixed dimensions with
- * CSS sizing, and adds aria-hidden; the vendored paths are unchanged.
- * Keep this notice with the bytes. If another file vendors upstream artwork,
- * collect the notices into a NOTICE shipped at the distribution root. */
+ * CSS sizing, and adds aria-hidden; the vendored paths are unchanged. */
 export function FolderGlyph() {
   return <svg class="h-full w-full" viewBox="0 0 18 16" preserveAspectRatio="xMinYMid meet" fill="currentColor" aria-hidden="true">{FolderPaths()}</svg>
 }

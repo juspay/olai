@@ -1,6 +1,6 @@
-import { bareOf, type Claims, mintExt, fileKind } from "@olai/format"
+import { bareOf, type Claim, type Claims, mintExt, fileKind } from "@olai/format"
 
-const oneNamed = (claims: Claims, kind: string): string => {
+const oneNamed = (claims: Claims, kind: Claim["kind"]): string => {
   const claim = claims.byKind.get(kind)
   return claim === undefined ? "a file" : `${claim.article} ${claim.noun}`
 }
@@ -12,7 +12,7 @@ export type Meant =
   | { readonly refused: string }
   | null
 
-export const meantAt = (claims: Claims, of: string, typed: string): Meant => {
+export const meantAt = (claims: Claims, of: Claim["kind"], typed: string): Meant => {
   const name = typed.trim()
   if (name === "") return null
   const ext = mintExt(claims, of)

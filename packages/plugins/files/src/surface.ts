@@ -8,15 +8,14 @@ ops: {
   paths: { output: PathsAnswer, error: OpFailure }, run: writeProcedure }
 }
 })
-/**
- * EXHAUSTIVE AND DISJOINT ACROSS THE BUNDLE, or a verb reaches `writeEdit` with
- * no writer and fails at runtime with "the capability for X is not active"
- * (`@olai/edit-history`'s `writing.ts`).
- */
+type Procedures = typeof surface.spec.procedures
+type Member = {
+  [Group in keyof Procedures & string]: `${Group}.${keyof Procedures[Group] & string}`
+}[keyof Procedures & string]
 export const dispatch = {
   "edit.apply": ["outlineNew", "fileDelete"],
   "ops.run": ["create", "delete"],
-} as const
+} as const satisfies Partial<Record<Member, readonly string[]>>
 export const faces = {
   "browser": {
     "edit.apply": "tool"
@@ -25,4 +24,4 @@ export const faces = {
     "ops.paths": "tool",
     "ops.run": "tool"
   }
-} as const
+} as const satisfies Record<string, Partial<Record<Member, "tool">>>

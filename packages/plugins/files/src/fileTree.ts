@@ -1,30 +1,31 @@
-import type { Claims } from "@olai/format"
+import type { Claim, Claims } from "@olai/format"
 import { fileKind, nameOf } from "@olai/format"
 
 export type FileRow =
   | {
       readonly kind: "dir"
-      readonly key: string
       readonly name: string
       readonly path: string
       readonly children: ReadonlyArray<FileRow>
     }
   | {
       readonly kind: "file"
-      readonly key: string
       readonly name: string
       readonly file: string
-      readonly of: string
+      readonly of: Claim["kind"]
     }
+
+export const rowKey = (row: FileRow): string =>
+  row.kind === "dir" ? `dir:${row.path}` : `file:${row.file}`
 
 interface Building {
   readonly dirs: Map<string, Building>
-  readonly files: Map<string, { readonly file: string; readonly of: string }>
+  readonly files: Map<string, { readonly file: string; readonly of: Claim["kind"] }>
 }
 
 const empty = (): Building => ({ dirs: new Map(), files: new Map() })
 
-const put = (root: Building, file: string, of: string): void => {
+const put = (root: Building, file: string, of: Claim["kind"]): void => {
   const segments = file.split("/")
   let at = root
   for (let i = 0; i < segments.length - 1; i++) {
@@ -46,7 +47,6 @@ const freeze = (claims: Claims, node: Building, prefix: string): ReadonlyArray<F
     const path = prefix === "" ? name : `${prefix}/${name}`
     rows.push({
       kind: "dir",
-      key: `dir:${path}`,
       name,
       path,
       children: freeze(claims, child, path),
@@ -55,22 +55,18 @@ const freeze = (claims: Claims, node: Building, prefix: string): ReadonlyArray<F
   for (const [, entry] of node.files) {
     rows.push({
       kind: "file",
-      key: `file:${entry.file}`,
       name: nameOf(claims, entry.file),
       file: entry.file,
       of: entry.of,
     })
   }
   rows.sort((left, right) => {
-    const a = sortKey(left)
-    const b = sortKey(right)
-    return a < b ? -1 : a > b ? 1 : left.key < right.key ? -1 : left.key > right.key ? 1 : 0
+    if (left.name !== right.name) return left.name < right.name ? -1 : 1
+    const a = rowKey(left), b = rowKey(right)
+    return a < b ? -1 : a > b ? 1 : 0
   })
   return rows
 }
-
-const sortKey = (row: FileRow): string =>
-  row.name
 
 export const fileTree = (claims: Claims, files: Iterable<string>, holds: "nodes" | "reference"): ReadonlyArray<FileRow> => {
   const root = empty()

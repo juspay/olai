@@ -24,7 +24,7 @@ import { createReferenceFold } from "./fold/reference.ts"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Glyph } from "./glyphs.tsx"
 import { drawingOf } from "./drawings.ts"
-import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
+import { ancestorDirs,dirsIn,type FileRow,fileTree,rowKey } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 
 import { ENTRY_SHAPE,HEAD_ACTION,REGION,REGION_HEAD,REGION_LABEL,ROW_GAP } from "olai-plugin-layout/entry"
@@ -114,7 +114,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
             </div>
             <For each={kinds()}>{({ value: kind }) => <kind.Create />}</For>
             <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
-              <Key each={tree()} by="key">
+              <Key each={tree()} by={rowKey}>
                 {(row) => <Entry row={row()} view={view} />}
               </Key>
             </ul>
@@ -129,7 +129,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
               </button>
               <Show when={reference.open()}>
                 <ul class="m-0 list-none p-0" data-testid={TESTID.referenceList}>
-                  <Key each={referenceTree()} by="key">{row => <Entry row={row()} view={view} />}</Key>
+                  <Key each={referenceTree()} by={rowKey}>{row => <Entry row={row()} view={view} />}</Key>
                 </ul>
               </Show>
             </section>
@@ -140,7 +140,8 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
             <ul class="m-0 list-none p-0">
               <li class="mb-0.5">
                 <div class={DIR} data-testid={TESTID.vaultGroup}>
-                  <FileAnatomy of={null} name="olai" broken={false} />
+                  <span class={CONTROL} aria-hidden="true" />
+                  <span class="min-w-0 truncate">olai</span>
                 </div>
                 <ul class="m-0 ml-2.5 list-none border-l border-rule p-0 pl-1.5">
                   <Key each={vault()} by={(file) => file}>
@@ -213,14 +214,14 @@ function DoorRow(props: {
 }
 
 function FileAnatomy(props: {
-  readonly of: string | null | undefined
+  readonly of: string | undefined
   readonly name: string
   readonly broken: boolean
 }) {
   return (
     <>
       <span class={CONTROL} aria-hidden="true" />
-      <Show when={props.of ?? undefined}>{(of) => <Glyph of={of()} />}</Show>
+      <Show when={props.of}>{(of) => <Glyph of={of()} />}</Show>
       <span class="min-w-0 truncate">{props.name}</span>
       <Show when={props.broken}>
         {/* A bare span's `aria-label` is not a name the platform exposes, so
@@ -244,7 +245,7 @@ function VaultFile(props: {
     const claims = servedDirectory()?.claims()
     return claims === undefined ? props.file : nameOf(claims, props.file)
   }
-  const of = () => servedDirectory()?.kindOf(props.file) ?? null
+  const of = () => servedDirectory()?.kindOf(props.file) ?? undefined
   const unreadable = () => servedDirectory()?.claims().byKind.get(of() ?? "")?.holds === "nodes" && props.broken.has(props.file)
   return (
     <DoorRow
@@ -298,6 +299,7 @@ function Dir(props: {
           type="button"
           class={DIR}
           data-testid={TESTID.fileDirToggle}
+          data-path={props.row.path}
           aria-expanded={!folded()}
           aria-label={folded() ? `Expand ${props.row.name}` : `Collapse ${props.row.name}`}
           onClick={(event) => {
@@ -325,7 +327,7 @@ function Dir(props: {
       </Tip>
       <Show when={!folded()}>
         <ul class="m-0 ml-2.5 list-none border-l border-rule p-0 pl-1.5">
-          <Key each={props.row.children} by="key">
+          <Key each={props.row.children} by={rowKey}>
             {(child) => <Entry row={child()} view={props.view} />}
           </Key>
         </ul>

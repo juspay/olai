@@ -1,7 +1,8 @@
+import type { Claim } from "@olai/format"
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "olai-plugin-files/testids"
 export interface Making {
-  readonly of: string
+  readonly of: Claim["kind"]
   readonly label: string
   readonly placeholder: string
   readonly aria: string
@@ -12,8 +13,8 @@ export interface Making {
   }
 }
 
-export const MAKING_OUTLINE = (row: string): Making => ({
-  of: row,
+export const MAKING_OUTLINE = (of: Claim["kind"]): Making => ({
+  of,
   label: "New outline",
   placeholder: "notes/plan",
   aria:
@@ -25,8 +26,8 @@ export const MAKING_OUTLINE = (row: string): Making => ({
   },
 })
 
-export const MAKING_DOCUMENT = (row: string): Making => ({
-  of: row,
+export const MAKING_DOCUMENT = (of: Claim["kind"]): Making => ({
+  of,
   label: "New document",
   placeholder: "notes/idea",
   aria:

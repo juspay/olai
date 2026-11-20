@@ -6,6 +6,7 @@ import {
   attr,
   DOCUMENT_LINK,
   FILE_DIR,
+  FILE_DIR_TOGGLE,
   FILE_GLYPH,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
@@ -24,7 +25,7 @@ const folderSelector = (path: string): string =>
   `${FILE_DIR}${attr("data-path", path)}`;
 
 const folderToggle = (world: OlaiWorld, path: string) =>
-  world.fileDir(path).locator(":scope > button, :scope > span > button").first();
+  world.page.locator(`${FILE_DIR_TOGGLE}${attr("data-path", path)}`).first();
 
 Then("the outline list is shown", async function (this: OlaiWorld) {
   await this.page
@@ -46,7 +47,6 @@ Then(
     await this.showSidebar();
     const links = this.page.locator(`${OUTLINE_LIST} ${OUTLINE_LINK}`);
     await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // An empty ul has no visible box, but must be mounted before counting.
     await this.page.locator(OUTLINE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     const files = await links.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("data-file")),
@@ -163,8 +163,6 @@ Then(
   "the file tree does not show the folder {string}",
   async function (this: OlaiWorld, path: string) {
     await this.showSidebar();
-    // The LIST first: asking a locator for a count the frame before the tree
-    // is painted answers zero for a folder that is about to be drawn.
     await this.page
       .locator(OUTLINE_LIST)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });

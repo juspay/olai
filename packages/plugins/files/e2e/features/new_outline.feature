@@ -118,8 +118,6 @@ Feature: Starting a new outline from the sidebar
 
   @phone
   Scenario: On a phone the name box asks for a Done key, and Done is what the key does
-    # The gesture is made straight after the assertion, so the cap and
-    # the key cannot drift apart.
     When I open the new outline box
     Then the new outline box asks for a Done key and no corrections
     When I create the outline "plans/next.olai" from the sidebar

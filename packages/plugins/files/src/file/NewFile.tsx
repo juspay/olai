@@ -1,12 +1,20 @@
 import { servedDirectory } from "../vault.ts"
-import { createSignal,Show } from "solid-js"
+import { createSignal,type Signal,Show } from "solid-js"
 
 import { meantAt } from "olai-plugin-files/completing"
 import { composing } from "@olai/web/client/composition.ts"
 import { Refused } from "@olai/web/client/Refused.tsx"
 import type { Making } from "olai-plugin-files/making"
 
-const newDraft = () => ({
+interface Draft {
+  readonly open: Signal<boolean>
+  readonly path: Signal<string>
+  readonly said: Signal<string | null>
+  readonly sending: Signal<boolean>
+  revision: number
+}
+
+const newDraft = (): Draft => ({
   open: createSignal(false),
   path: createSignal(""),
   said: createSignal<string | null>(null),
@@ -14,8 +22,15 @@ const newDraft = () => ({
   revision: 0,
 })
 
-const drafts = new Map<Making["of"], ReturnType<typeof newDraft>>()
-const draftOf = (of: Making["of"]) => {
+let drafts: Map<Making["of"], Draft> | undefined
+export function holdNewFileDrafts(): () => void {
+  if (drafts !== undefined) throw new Error("files new-file drafts already acquired")
+  const own = new Map<Making["of"], Draft>()
+  drafts = own
+  return () => { if (drafts === own) drafts = undefined }
+}
+const draftOf = (of: Making["of"]): Draft => {
+  if (drafts === undefined) throw new Error("files new-file draft opened outside its activation")
   const draft = drafts.get(of) ?? newDraft()
   drafts.set(of, draft)
   return draft
@@ -74,10 +89,10 @@ export function NewFile(props: {
           aria-label={props.making.aria}
           aria-busy={sending()}
           placeholder={props.making.placeholder}
-          // iOS shifts the first letter of an empty box, so `garden.olai`
-          // would arrive as `Garden.olai` on disk.
           enterkeyhint="done"
           autocorrect="off"
+          // iOS capitalises the first letter typed into an empty box, so
+          // `garden.olai` would arrive as `Garden.olai` on disk.
           autocapitalize="none"
           spellcheck={false}
           value={path()}
@@ -110,5 +125,3 @@ export function NewFile(props: {
     </Show>
   )
 }
-
-export function clearNewFileMemory():void { drafts.clear() }
