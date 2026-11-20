@@ -1,7 +1,7 @@
 ---
 import { PALETTES } from "../../../packages/appearance/src/palettes.ts"
 import { agentList } from "../agents.ts"
-import { OTHERS, READ_ON, ROWS, sourcesOf } from "../compare.ts"
+import { OTHERS, READ_ON, ROWS, factsOf } from "../compare.ts"
 import Base from "../layouts/Base.astro"
 import { siteMap } from "../sitemap.ts"
 import { TRACKING_ISSUE, UPCOMING, issueUrl } from "../upcoming.ts"
@@ -230,14 +230,18 @@ const dark = PALETTES.length - light
         </tbody>
       </table>
     </div>
-    <p class="caption">Each fact about another product comes from that product's own website or repository, read on {READ_ON}. The sources are listed under the table.</p>
+    <p class="caption">Each fact about another product comes from that product's own website or repository, read on {READ_ON}. The facts in full, with their sources, are under the table.</p>
     <details class="sources">
-      <summary>Sources for the table</summary>
+      <summary>The facts in full, and their sources</summary>
       <ul>
         {OTHERS.map((other) => (
-          <li>{other.name}: {sourcesOf(other.key).map((url, i) => (
-            <>{i > 0 && ", "}<a href={url}>{url.replace(/^https:\/\//, "").replace(/\/$/, "")}</a></>
-          ))}</li>
+          <li>{other.name}
+            <ul>
+              {factsOf(other.key).map((fact) => (
+                <li>{fact.label}: {fact.fact.replace(/\.$/, "")}, <a href={fact.source}>{fact.source.replace(/^https:\/\//, "").replace(/\/$/, "")}</a></li>
+              ))}
+            </ul>
+          </li>
         ))}
       </ul>
     </details>

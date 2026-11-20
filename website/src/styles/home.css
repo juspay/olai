@@ -175,23 +175,21 @@ section .lead { color: var(--muted); margin-top: var(--space-xs); max-width: 44r
 .chip.on { box-shadow: 0 0 0 1px var(--ring-gap), 0 0 0 3px var(--ring); }
 
 .tablewrap { overflow-x: auto; margin-top: var(--space-l); }
-table.cmp { border-collapse: collapse; width: 100%; min-width: 58rem; font-size: 0.9rem; }
+table.cmp { border-collapse: collapse; width: 100%; min-width: 40rem; font-size: 0.9rem; }
 table.cmp th, table.cmp td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.7rem 1.3rem 0.7rem 0; text-align: left; vertical-align: baseline; }
 table.cmp thead th { border-top: none; font-size: 0.78rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 table.cmp td:first-child { color: var(--muted); white-space: nowrap; padding-right: 1.5rem; }
 table.cmp td:nth-child(2), table.cmp th:nth-child(2) {
   font-weight: 500; color: var(--ink);
   background: color-mix(in srgb, var(--accent) 7%, transparent);
-  padding-left: 0.8rem; min-width: 15rem;
+  padding-left: 0.8rem;
 }
 table.cmp thead th:nth-child(2) { color: var(--accent); }
+table.cmp:not(.formats) { table-layout: fixed; }
+table.cmp:not(.formats) :is(td, th):first-child { width: 5.5rem; }
 table.cmp:not(.formats) :is(td, th):nth-child(3) { padding-left: 0.8rem; }
 .scroll-hint { display: none; }
-@media (max-width: 61rem) { .scroll-hint { display: block; } .scroll-hint + .tablewrap { margin-top: var(--space-s); } }
-@media (max-width: 40rem) {
-  table.cmp td:first-child { white-space: normal; width: 6.5rem; padding-right: 0.8rem; }
-  table.cmp td:nth-child(2), table.cmp th:nth-child(2) { min-width: 0; width: 11.5rem; }
-}
+@media (max-width: 43rem) { .scroll-hint { display: block; } .scroll-hint + .tablewrap { margin-top: var(--space-s); } }
 table.cmp.formats { min-width: 0; }
 table.cmp.formats td:first-child { color: var(--ink); font-weight: 500; }
 table.cmp.formats td:nth-child(2), table.cmp.formats th:nth-child(2) {
