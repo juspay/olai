@@ -1,4 +1,3 @@
-/** Pure readers of the pinned, schema-checked JSON. MIME bytes never enter the vault. */
 import { Schema } from "effect"
 
 const Header = Schema.Struct({ name: Schema.String, value: Schema.String })

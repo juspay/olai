@@ -1,4 +1,3 @@
-/** Stories derive only from persisted reply JSON, never live mailbox state. */
 const record = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(v => typeof v === "string")

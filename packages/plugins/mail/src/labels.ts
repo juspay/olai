@@ -4,7 +4,6 @@ import { GMAIL } from "./himalaya/verbs.ts"
 import { LabelList } from "./himalaya/threads.ts"
 import { MailRefusal } from "./wire.ts"
 
-/** One cache per activation. The permit also coalesces concurrent cold reads. */
 export const makeLabels = (run: Himalaya["run"]) => {
   const permit = Semaphore.makeUnsafe(1)
   let labels: typeof LabelList.Type["labels"] | undefined

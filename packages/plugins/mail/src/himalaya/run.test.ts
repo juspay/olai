@@ -85,7 +85,6 @@ test("closing after config lookup reports a swept message directory as ENOENT", 
     const result = await Effect.runPromise(Effect.result(runner.run({ verb: GMAIL.draftsCreate,
       get message() {
         if (!closing) {
-          // The message is first read after config lookup, before file acquisition.
           rmSync(directory, { recursive: true })
           closing = runner.close()
         }

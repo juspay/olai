@@ -1,15 +1,4 @@
 import { createMemo } from "solid-js"
-/**
- * THE MAIL READOUT — whether this serve holds a Gmail account, and who for.
- *
- * Desktop only, like the pills it sits with, and shaped like
- * `olai-plugin-odu`'s own: a dot, a label, and the whole sentence in the title
- * so the reason is reachable without the panel.
- *
- * The address is on the element as `data-address` as well as in the label: a
- * scenario asserts WHICH mailbox a serve is reading without matching a sentence
- * a designer may reword (`../testids.ts`).
- */
 
 import { Show, type Accessor } from "solid-js"
 
@@ -20,8 +9,6 @@ import { TONE } from "olai-plugin-layout/slots"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
-/** The furniture this face spends of the app's bar — redeclared so this package
- *  does not import layout's, exactly as odu's readout does. */
 export interface MailBar {
   readonly desktop: () => boolean
   readonly pill: {
@@ -39,10 +26,6 @@ export function MailReadout(props: {
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>
-      {/* A READOUT, not a control: the sentence rides a hidden twin after the
-          pill, because an `aria-label` on a bare span names nothing a screen
-          reader will read. The tip draws the same words for a pointer, over
-          the bar the pill sits in. */}
       <Tip text={detail() ?? ""} layer={LAYER.over} disabled={detail() === undefined}>
         <span
           class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}

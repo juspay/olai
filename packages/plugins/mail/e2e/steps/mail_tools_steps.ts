@@ -30,9 +30,6 @@ Then("the mail attachment is outside the vault under the runtime directory", asy
   assert.equal(readFileSync(path).length, 12288)
   saved.set(this, path)
 })
-/** A Gmail attachment id is longer than a path component may be, so the saved
- *  file is named by a digest of it. The id this asserts against is the one the
- *  call itself carried, so the feature and the fixture cannot drift apart. */
 Then("the saved mail attachment file is named by a digest, not by the Gmail id", async function(this: OlaiWorld) {
   const log = join(dirname(this.mailHimalaya!.path), "calls.ndjson")
   await this.waitUntil(async () => existsSync(log) && readFileSync(log, "utf8").includes("attachments.get"), "attachment download")
@@ -82,10 +79,6 @@ Then("the mail draft {string} message file is under the runtime directory", asyn
 })
 interface SavedEnclosure { filename: string; type: string; bytes: number; sha256: string }
 const enclosuresOf = (world: OlaiWorld, id: string): SavedEnclosure[] => draftOf(world, id).attachments ?? []
-/** WAITS, unlike its neighbours, and for a reason: every replacement of one
- *  draft writes the same story sentence, so "the story says draft updated" is
- *  not evidence that THIS update has landed. What a draft carries is, and a
- *  scenario puts this step first for exactly that. */
 Then("the saved mail draft {string} has {int} attachments", async function(this: OlaiWorld, id: string, count: number) {
   await this.waitUntil(async () => enclosuresOf(this, id).length === count,
     `the saved mail draft ${id} to carry ${count} attachments, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
@@ -95,8 +88,6 @@ Then("the saved mail draft {string} has attachment {string} of type {string}", a
     `the saved mail draft ${id} to carry ${filename}, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
   assert.equal(enclosuresOf(this, id).find(one => one.filename === filename)!.type, type)
 })
-/** The bytes Gmail would have received, against the bytes in the vault: the
- *  saved record carries a digest, so this compares content rather than size. */
 Then("the saved mail draft {string} attachment {string} is the vault file {string}", async function(this: OlaiWorld, id: string, filename: string, file: string) {
   await this.waitUntil(async () => enclosuresOf(this, id).some(one => one.filename === filename),
     `the saved mail draft ${id} to carry ${filename}, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)

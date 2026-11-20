@@ -60,8 +60,6 @@ test("a draft with no attachments is the single text part it has always been", (
   expect(message).toBe("From: you@gmail.com\r\nTo: ravi@example.com\r\nSubject: Hello\r\nMIME-Version: 1.0\r\n"
     + "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nQ291bnQgbWUgaW4=\r\n")
   expect(Result.getOrThrow(compose({ ...base, body: "Count me in" }, []))).toBe(message)
-  // ...including when the CALL named files: paths are the reader's business
-  // (`enclosures.ts`), and this composer renders the bytes it was handed.
   expect(Result.getOrThrow(compose({ ...base, body: "Count me in", attachments: [{ path: "/tmp/invoice.pdf" }] }))).toBe(message)
 })
 test("attached files become multipart parts whose bytes survive base64", () => {
@@ -82,7 +80,6 @@ test("attached files become multipart parts whose bytes survive base64", () => {
   expect(parts[1]).toContain("Content-Transfer-Encoding: base64")
   expect(Buffer.from(parts[1]!.split("\r\n\r\n")[1]!, "base64").equals(bytes)).toBe(true)
   expect(Buffer.from(parts[2]!.split("\r\n\r\n")[1]!, "base64").toString()).toBe("two lines\nof notes")
-  // Every line ends CRLF, and no base64 line is wider than MIME's 76 columns.
   expect(message.replace(/\r\n/g, "")).not.toContain("\n")
   expect(rest.join("\r\n\r\n").split("\r\n").every(line => line.length <= 76)).toBe(true)
   expect(message.endsWith(`\r\n--${boundary}--\r\n`)).toBe(true)
@@ -103,15 +100,12 @@ test("non-ASCII and quoted filenames take RFC 2231 on the disposition and RFC 20
   expect(message).toContain("filename*=UTF-8''say%20%22hi%22.txt")
   expect(message).toContain("filename*=UTF-8''back%5Cslash.txt")
   expect(message).not.toContain('filename="Café')
-  // An ASCII name with a quote or a backslash may not go in raw: `encoded`'s
-  // short-ASCII shortcut would end the quoted string at the name's own quote.
   expect(message).toContain(`name="${word(quoted)}"`)
   expect(message).toContain(`name="${word(escaped)}"`)
   expect(message).not.toContain('name="say "hi".txt"')
   expect(message).not.toContain('name="back\\slash.txt"')
   const words = message.match(/=\?UTF-8\?B\?[^?]+\?=/g)!
   expect(words.every(word => word.length <= 75)).toBe(true)
-  // Every part header line is a header: one colon, one value, nothing loose.
   for (const part of partsOf(message).parts.slice(1, -1)) {
     for (const line of part.split("\r\n\r\n")[0]!.split("\r\n").filter(Boolean)) {
       expect(line.startsWith(" ") || /^[A-Za-z-]+: /.test(line)).toBe(true)

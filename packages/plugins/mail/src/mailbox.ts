@@ -11,13 +11,9 @@ import { readEnclosures } from "./enclosures.ts"
 import { MailRefusal } from "./wire.ts"
 
 const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.NullOr(Schema.String), "thread-id": Schema.NullOr(Schema.String) })
-// Empty defaults are a reply-policy refusal; malformed nonempty headers still
-// use the composer's address syntax refusal. Explicit recipients bypass this.
 const replyAddresses = (header: string) => header.trim() ? addressList(header)
   : Result.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
 
-/** Mailbox operations and caches share the owning mail activation's scope.
- * Tool schemas, transcript decoration and the invocation gate belong to tools.ts. */
 export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "current" | "usable">, runtime?: string) => Effect.gen(function*() {
   const account = () => {
     const state = machine.current()
@@ -101,8 +97,6 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     const work = Effect.gen(function*() {
       const address = yield* ready
       yield* Effect.fromResult(validateDraft(args))
-      // Read before the thread is looked up: an unreadable file is a refusal
-      // the caller earns without this serve asking Gmail anything.
       const attachments = yield* readEnclosures(args.attachments)
       let to = args.to
       let subject = args.subject
@@ -134,13 +128,11 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
       return { address, draft: output.id, message: output["message-id"], thread: output["thread-id"], to: resolved.to, cc: args.cc ?? [], subject: resolved.subject, updated: args.draft !== undefined,
         attachments: attachments.map(one => ({ filename: one.filename, type: one.type, bytes: one.data.length })) }
     })
-    // A reply shares the thread permit with label/trash writes. Replacements
-    // additionally share a draft permit, always acquired before a thread permit.
+    // Replacements additionally share a draft permit, always acquired before a thread permit.
     const threaded = args.thread ? serialize(args.thread, work) : work
     return args.draft ? serialize(`draft:${args.draft}`, threaded) : threaded
   }
   const attachment = (message: string, id: string, filename?: string) => ready.pipe(Effect.andThen(attachments.get(message, id, filename)))
-  // History/profile cadence has its own sequential fiber, outside tool permits.
   const history = (since: string, page?: string) => ready.pipe(Effect.andThen(himalaya.run({ verb: GMAIL.historyList,
     args: ["--start-history-id", since, "--label-id", "INBOX", "--history-type", "messageAdded", "-s", "500", ...(page ? ["--page-token", page] : [])],
   })), Effect.flatMap(raw => decode(History, raw)))

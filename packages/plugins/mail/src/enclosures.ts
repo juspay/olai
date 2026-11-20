@@ -1,20 +1,3 @@
-/**
- * FILES A DRAFT CARRIES — the argument list a tool call names, and the bytes
- * behind it.
- *
- * Two halves on purpose. {@link validateEnclosures} is PURE and runs inside
- * `validateDraft`, so everything a caller can get wrong about an attachment —
- * a relative path, eleven files, a filename carrying a header, a content type
- * that is not one — refuses before anything is opened, spawned or looked up.
- * {@link readEnclosures} is the Effect half: `realpath`, `stat`, `readFile`,
- * every failure a {@link MailRefusal} in the mailbox's own words.
- *
- * NO SERVICE AND NO RESOURCE. A read here is one gated tool call's work, over
- * paths the caller already holds — chat uploads, saved mail attachments, vault
- * files — and the bytes live exactly as long as the `compose` that renders
- * them. Nothing outlives the call, so nothing owns anything.
- */
-
 import { readFile, realpath, stat } from "node:fs/promises"
 import { basename, extname, isAbsolute } from "node:path"
 
@@ -22,26 +5,22 @@ import { Effect, Result } from "effect"
 
 import { MailRefusal } from "./wire.ts"
 
-/** How many files one draft may carry. */
 export const MAX_ENCLOSURES = 10
 /** ...and how many bytes they may come to, each and together. Gmail's own
  *  attachment ceiling is 25 MB, and a draft over it is refused by Google after
  *  the upload rather than before it. */
 export const MAX_ENCLOSED_BYTES = 25 * 1024 * 1024
 
-/** One attachment as a tool call names it. */
 export interface EnclosureArgs {
   readonly path: string
   readonly filename?: string
   readonly type?: string
 }
-/** ...and as the composer takes it, already read. */
 export interface Enclosure {
   readonly filename: string
   readonly type: string
   readonly data: Buffer
 }
-/** The middle: an argument that has survived validation, not yet opened. */
 export interface NamedEnclosure {
   readonly path: string
   readonly filename: string
@@ -49,20 +28,13 @@ export interface NamedEnclosure {
 }
 
 const refuse = (reason: string) => Result.fail(new MailRefusal({ reason }))
-/** CR, LF and the control characters a header value may not carry. */
 export const CONTROL = /[\r\n\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/
-/** RFC 2045's token, which is what each half of a content type is. */
 const TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/
-/** A content type is two tokens and a slash — no parameters, because a
- *  parameter is a second place for the filename to be said. */
 export const contentType = (value: string): boolean => {
   const parts = value.split("/")
   return parts.length === 2 && parts.every(part => TOKEN.test(part))
 }
 
-/** WHAT AN EXTENSION MEANS, for the kinds a person actually attaches. Small
- *  and spelled here rather than read from a system mime table: a table that
- *  differs between machines is a draft that differs between machines. */
 const TYPES: Readonly<Record<string, string>> = {
   pdf: "application/pdf",
   png: "image/png",
@@ -91,19 +63,11 @@ const TYPES: Readonly<Record<string, string>> = {
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 }
 const suffix = (name: string): string => extname(name).slice(1).toLowerCase()
-/** The type an unnamed attachment goes out as: the filename it arrives under
- *  first, the file it was read from second, and `application/octet-stream` for
- *  everything this plugin has no word for. */
 export const typeOf = (filename: string, path: string): string =>
   TYPES[suffix(filename)] ?? TYPES[suffix(path)] ?? "application/octet-stream"
 
-/** The name one attachment arrives under: the caller's, else the file's own.
- *  Unicode survives (the composer encodes it); a directory prefix does not,
- *  and neither does anything longer than 120 code points. */
 const nameOf = (one: EnclosureArgs): string => [...basename(one.filename ?? one.path).trim()].slice(0, 120).join("")
 
-/** THE PURE HALF — every refusal a caller's arguments can earn, before any
- *  file is opened and before the mailbox looks a thread up. */
 export const validateEnclosures = (list: ReadonlyArray<EnclosureArgs> = []): Result.Result<ReadonlyArray<NamedEnclosure>, MailRefusal> => Result.gen(function*() {
   if (list.length > MAX_ENCLOSURES) return yield* refuse(`mail drafts carry at most ${MAX_ENCLOSURES} attachments`)
   const named: NamedEnclosure[] = []
@@ -120,9 +84,6 @@ export const validateEnclosures = (list: ReadonlyArray<EnclosureArgs> = []): Res
   return named
 })
 
-/** THE TWO SIZE REFUSALS, over whatever sizes the caller has in hand. Applied
- *  twice by the reader below, to the `stat` sizes and then to the bytes
- *  themselves, so it is one rule rather than two spellings of one. */
 export const withinCap = (sized: ReadonlyArray<{ readonly filename: string; readonly bytes: number }>): Result.Result<void, MailRefusal> => Result.gen(function*() {
   let total = 0
   for (const one of sized) {
@@ -132,12 +93,6 @@ export const withinCap = (sized: ReadonlyArray<{ readonly filename: string; read
   }
 })
 
-/** ...AND THE EFFECT HALF. Sizes are read for every file before any of them is
- *  read into memory, so a list whose total is over the cap costs one `stat`
- *  each rather than 25 MB of reading — and the cap is applied AGAIN to what
- *  was actually read, because a `stat` is a fact about a moment: a file being
- *  uploaded into a conversation grows between the two, and a draft is not
- *  allowed over the ceiling just because it was under it a moment ago. */
 export const readEnclosures = (list: ReadonlyArray<EnclosureArgs> = []): Effect.Effect<ReadonlyArray<Enclosure>, MailRefusal> => Effect.gen(function*() {
   const named = yield* Effect.fromResult(validateEnclosures(list))
   if (!named.length) return []

@@ -30,7 +30,6 @@ const draftFields = {
 const draftDescription = "Writes a draft in Gmail Drafts for the person to review and send; olai cannot send mail. At most 50 recipients, and at most 10 attachments totalling 25 MB."
 const manual = " Gmail query syntax is passed verbatim: from:, newer_than:1d, is:unread, has:attachment, label:. Thread ids are opaque Gmail hex ids; file a thread as <address>/<thread id>. Labels use Gmail's displayed names (system labels INBOX, UNREAD, STARRED, IMPORTANT)."
 
-/** Activation-local capabilities only: no vault or conversation identity is needed. */
 export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>>) => Effect.gen(function*() {
   const owned = yield* gate("mail", "tools")
   const perform = <A>(verb: string, args: unknown, work: Effect.Effect<A, MailRefusal>) => Effect.gen(function*() {

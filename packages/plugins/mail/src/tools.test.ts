@@ -157,16 +157,12 @@ test("drafts carry files, an update replaces them, and an update naming none dro
   expect(dropped.attachments).toEqual([])
   expect(saved(created.draft).attachments).toEqual([])
   expect(saved(created.draft).body).toBe("Nothing attached")
-  // An empty list is the other way to say it, and the schema takes it: an
-  // agent replacing a draft has one shape for "carry these" and for "carry
-  // nothing", rather than a refusal for the second.
   const emptied: any = yield* h.call("draft_update", { ...base, draft: created.draft, body: "Still nothing", attachments: [] })
   expect(emptied.attachments).toEqual([])
   expect(saved(created.draft).attachments).toEqual([])
   const fresh: any = yield* h.call("draft", { ...base, body: "Nothing to carry", attachments: [] })
   expect(fresh.attachments).toEqual([])
   expect(saved(fresh.draft).attachments).toEqual([])
-  // A draft with no attachments is still the single text part it always was.
   expect(h.calls.at(-1)!.message).toContain("Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64")
   expect(h.calls.at(-1)!.message).not.toContain("multipart/mixed")
 })))

@@ -20,13 +20,9 @@ test("an account with no address yet renders without an email line", () => {
 })
 
 test("a token cannot end the string it is written into", () => {
-  // The token is the one value here that arrives over the network, and a TOML
-  // file assembled by concatenation is a file its own value can change.
   expect(tomlString("a\"b\\c\nd\re\tf")).toBe('"a\\"b\\\\c\\nd\\re\\tf"')
   expect(tomlString("a\nb")).not.toMatch(/\n/)
   const injected = renderConfig({ token: "x\"\n[accounts.evil]\ndefault = true", address: null })
-  // The token's own newline is escaped, so it cannot open a section: the file
-  // has exactly the lines the template wrote.
   expect(injected.split("\n").filter((line) => line.startsWith("[accounts."))).toEqual([
     "[accounts.olai]",
     "[accounts.olai.gmail]",

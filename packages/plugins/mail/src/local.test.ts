@@ -32,10 +32,6 @@ test("a record that is somebody else's says so", () => {
 })
 
 test("a fresh serve and a disconnected one are silent", () => {
-  // The two ordinary states: no file at all (`load` answers `null`), and a
-  // record a Disconnect emptied — core writes `{}` back as `{cwd}`. A warning
-  // on either would be noise on every boot of every serve, which is the only
-  // way the real one gets missed.
   for (const raw of [null, { cwd: "/srv/vault" }]) {
     const lines: string[] = []
     const held = doorOver(raw)

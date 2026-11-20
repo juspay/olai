@@ -84,9 +84,6 @@ test("files are read through realpath, and anything that is not a readable regul
 })
 
 test("the cap is one rule, applied to whatever sizes are in hand", () => {
-  // The reader applies this twice: to the `stat` sizes, and to the bytes it
-  // actually got. A file being uploaded into a conversation grows between the
-  // two, and a draft that was under the ceiling a moment ago is still over it.
   expect(withinCap([])._tag).toBe("Success")
   expect(withinCap([{ filename: "a.bin", bytes: MAX_ENCLOSED_BYTES }])._tag).toBe("Success")
   expect(withinCap([{ filename: "a.bin", bytes: MAX_ENCLOSED_BYTES - 1 }, { filename: "b.bin", bytes: 1 }])._tag).toBe("Success")
@@ -96,10 +93,6 @@ test("the cap is one rule, applied to whatever sizes are in hand", () => {
 })
 
 test("a file that grows while the draft is being read is refused on the bytes in hand", async () => {
-  // The realistic case is an upload still streaming into the conversation's
-  // directory. The growth is staged on a timer rather than raced to a
-  // particular await: whichever of the two checks sees it — the `stat` sizes or
-  // the bytes read — the draft is refused, and with the same sentence.
   const first = file("first.bin", "")
   truncateSync(first, 20 * 1024 * 1024)
   const growing = file("growing.bin", "")

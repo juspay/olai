@@ -29,8 +29,6 @@ test("an attachment whose id is 396 characters is saved, beside its shorter sibl
     expect(basename(long.path)).toBe(`${idDigest(LONG_ATTACHMENT)}-contract.png`)
     expect(long.path).not.toContain(LONG_ATTACHMENT.slice(0, 40))
     expect(existsSync(long.path)).toBe(true)
-    // The same attachment asked for twice is the same file; a different id on
-    // the same message is a different one.
     const again = yield* h.call("attachment", { message: "a32", attachment: LONG_ATTACHMENT }) as Effect.Effect<any>
     expect(again.path).toBe(long.path)
     const short = yield* h.call("attachment", { message: "a32", attachment: "attachment_1" }) as Effect.Effect<any>

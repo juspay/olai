@@ -33,12 +33,6 @@ interface Harness {
   readonly answers: (queue: ReadonlyArray<Answer>) => void
 }
 
-/**
- * THE MACHINE, WITH EVERY DOOR IT SPENDS REPLACED — including the two that are
- * real: the memory record is `openMemory` over a door this test owns (that
- * parse is code, not a fixture), and the clock is an ISO string this test moves.
- * Everything else is a queue of answers and a list of what was asked.
- */
 const harness = (over: {
   readonly binary?: string | undefined
   readonly client?: string | undefined
@@ -133,8 +127,6 @@ test("no pinned binary is a fault in its own words, and nothing is run", async (
   await Effect.runPromise(ready.machine.boot())
   expect(last(ready.painted).status).toBe("fault")
   expect(last(ready.painted).reason).toContain("Nix build")
-  // NOTHING A PRESS CAN DO, and the cell says so — which is what stops the row
-  // drawing a Reconnect button whose press would land its own refusal.
   expect(last(ready.painted).canConnect).toBe(false)
   expect(ready.tokens).toHaveLength(0)
   expect(ready.posts).toHaveLength(0)
@@ -167,8 +159,6 @@ test("a refused refresh is a fault carrying Google's own word, and the token is 
   await Effect.runPromise(ready.machine.boot())
   expect(last(ready.painted).status).toBe("fault")
   expect(last(ready.painted).reason).toContain("invalid_grant")
-  // The generated config holds a token Google just refused; it does not sit on
-  // disk while the row says fault.
   expect(ready.closed()).toBe(1)
   expect(ready.tokens).toHaveLength(0)
 })
@@ -177,13 +167,9 @@ test("a transport failure is a RETRY: the record and the token survive", async (
   const ready = harness({ record: RECORD })
   ready.answers([{ status: 0, body: { error: "unreachable", error_description: "fetch failed" } }])
   await Effect.runPromise(ready.machine.boot())
-  // The cell says it is a WAIT rather than a verdict — the field the faces
-  // branch on — and the reason is Google's own word verbatim (`wire.ts`).
   expect(last(ready.painted).status).toBe("fault")
   expect(last(ready.painted).retrying).toBe(true)
   expect(last(ready.painted).reason).toContain("unreachable")
-  // ...the refresh token is still on disk, the config was NOT removed, and the
-  // row can still be repaired by pressing Reconnect.
   expect(ready.memory?.refreshToken).toBe(RECORD.refreshToken)
   expect(ready.closed()).toBe(0)
   expect(last(ready.painted).canConnect).toBe(true)
@@ -194,11 +180,6 @@ test("a retry with a live token keeps the pill CONNECTED, and says what is retry
   const ready = harness({ record: RECORD })
   await Effect.runPromise(ready.machine.boot())
   expect(last(ready.painted).status).toBe("connected")
-  // The refresh that follows the first one is what normally happens five
-  // minutes before the token dies — and the token it is replacing is still
-  // good, so a `gmail` call would answer. The pill must not wear the alarm
-  // coat over a mailbox that works, and the reading must keep the mailbox's
-  // own facts.
   ready.answers([{ status: 503, body: { error: "backend_error" } }])
   await Effect.runPromise(ready.machine.boot())
   expect(last(ready.painted).status).toBe("connected")
@@ -206,14 +187,12 @@ test("a retry with a live token keeps the pill CONNECTED, and says what is retry
   expect(last(ready.painted).reason).toContain("backend_error")
   expect(last(ready.painted).address).toBe(ADDRESS)
   expect(last(ready.painted).messages).toBe(4213)
-  // ...and a press is not what it needs: `mailNeedsYou` reads the same field.
   expect(last(ready.painted).canConnect).toBe(true)
 })
 
 test("...and once that token has expired the same failure is a fault", async () => {
   const ready = harness({ record: RECORD })
   await Effect.runPromise(ready.machine.boot())
-  // A token that is no longer live leaves nothing to fall back on.
   ready.at(new Date(Date.parse(CONNECTED_AT) + 3600_000 + 1).toISOString())
   ready.answers([{ status: 503, body: { error: "backend_error" } }])
   await Effect.runPromise(ready.machine.boot())
@@ -238,8 +217,6 @@ test("a word from Google is a VERDICT: the token goes and a person is asked", as
   await Effect.runPromise(ready.machine.boot())
   expect(last(ready.painted).reason).toContain("invalid_grant")
   expect(last(ready.painted).retrying).toBe(false)
-  // The generated config holds a token Google just refused; it does not sit on
-  // disk while the row says fault.
   expect(ready.closed()).toBe(1)
 })
 
@@ -249,7 +226,6 @@ test("a Google origin that is not loopback is a fault naming the ruling", async 
   expect(last(ready.painted).status).toBe("fault")
   expect(last(ready.painted).reason).toBe(LOOPBACK_ONLY)
   expect(last(ready.painted).canConnect).toBe(false)
-  // A press could not work, so the machine refuses it in the same words.
   const pressed = await Effect.runPromise(Effect.result(ready.machine.begin("http://127.0.0.1:7714")))
   expect(Result.isFailure(pressed)).toBe(true)
   if (Result.isFailure(pressed)) expect(pressed.failure.reason).toBe(LOOPBACK_ONLY)
@@ -281,8 +257,6 @@ test("a token the disk will not take is a fault, and says which", async () => {
 test("a Himalaya that does not answer is a RETRY carrying its sentence", async () => {
   const ready = harness({ record: RECORD, runFails: "gmail.googleapis.com: name resolution failed" })
   await Effect.runPromise(ready.machine.boot())
-  // The child is a network client: its failure is the world's, not a verdict,
-  // and the refresh token is not touched for it.
   expect(last(ready.painted).reason).toBe("gmail.googleapis.com: name resolution failed")
   expect(last(ready.painted).retrying).toBe(true)
   expect(ready.memory?.refreshToken).toBe(RECORD.refreshToken)
@@ -292,8 +266,6 @@ test("a Himalaya that does not answer is a RETRY carrying its sentence", async (
 test("a profile this plugin cannot read is a verdict rather than a retry", async () => {
   const ready = harness({ record: RECORD, profile: { "messages-total": 12 } })
   await Effect.runPromise(ready.machine.boot())
-  // A fact about the pin's JSON cannot change under a running serve, so there
-  // is nothing to wait for.
   expect(last(ready.painted).reason).toContain("cannot read")
   expect(last(ready.painted).retrying).toBe(false)
 })
@@ -317,8 +289,6 @@ test("begin arms a connect for the page's own origin, and says which URI to regi
   expect(url.searchParams.get("state")).not.toBe("")
   expect(url.searchParams.get("code_challenge")).not.toBe("")
   expect(url.searchParams.get("code_challenge_method")).toBe("S256")
-  // The row's hint draws this string under the button, and it is only knowable
-  // once a page has said where it is.
   expect(last(ready.painted).redirect).toBe(`https://olai.example${REDIRECT_PATH}`)
 })
 
@@ -326,9 +296,6 @@ test("arming a connect does not blank a pill that is telling the truth", async (
   const ready = harness({ record: RECORD })
   await Effect.runPromise(ready.machine.boot())
   expect(last(ready.painted).status).toBe("connected")
-  // Pressing Connect on a connected row is how a person points the serve at a
-  // DIFFERENT mailbox, and the reading until the callback lands is still the
-  // account this serve is holding.
   await Effect.runPromise(ready.machine.begin("https://olai.example"))
   expect(last(ready.painted).status).toBe("connected")
   expect(last(ready.painted).address).toBe(ADDRESS)
@@ -350,7 +317,6 @@ test("a callback this serve did not mint is refused and spends nothing", async (
   const state = new URL(begun.url).searchParams.get("state") ?? ""
   const stray = await Effect.runPromise(Effect.result(ready.machine.complete({ code: "c-1", state: "somebody-elses" })))
   expect(Result.isFailure(stray)).toBe(true)
-  // The connect a person is waiting on is still armed: the real callback lands.
   ready.answers([
     { status: 200, body: { access_token: "at-1", refresh_token: "1//rt", expires_in: 3600, scope: SCOPE } },
     { status: 200, body: PROFILE },
@@ -390,8 +356,6 @@ test("a connect stores the record, asks the profile, and reports the address", a
   expect(done.address).toBe(ADDRESS)
   expect(ready.memory).toEqual({ historyId: null, refreshToken: "1//rt", address: ADDRESS, scope: SCOPE, connectedAt: CONNECTED_AT })
   expect(last(ready.painted).status).toBe("connected")
-  // The exchange carried the verifier and the redirect the authorization URL
-  // was built with — the PKCE pair is what makes a leaked code worthless.
   const exchange = new URLSearchParams(ready.posts[0]?.body ?? "")
   expect(exchange.get("grant_type")).toBe("authorization_code")
   expect(exchange.get("code")).toBe("c-1")
@@ -447,10 +411,7 @@ test("the refresh is due five minutes before the token expires", () => {
 
 test("a token that lives less than the lead is refreshed at half its life, never in a loop", () => {
   const now = Date.parse(CONNECTED_AT)
-  // `expires_in <= LEAD` would answer `now` for every token Google answers
-  // with a short life, which is a refresh loop with no sleep in it.
   expect(refreshDue(lifeOf({ now, expiresIn: 300 }))).toBe(now + 150_000)
-  // ...and an absurd life is floored rather than spun on.
   expect(refreshDue(lifeOf({ now, expiresIn: 0 }))).toBe(now + MINIMUM_GAP_MS)
   expect(MINIMUM_GAP_MS).toBeGreaterThan(0)
 })
@@ -459,7 +420,6 @@ test("a token's life says whether what the config holds is still usable", () => 
   const now = Date.parse(CONNECTED_AT)
   const life = lifeOf({ now, expiresIn: 3600 })
   expect(life.until > now).toBe(true)
-  // ...and a token that has expired is not (`retrying` reads this).
   expect(life.until > now + 3600_000).toBe(false)
 })
 

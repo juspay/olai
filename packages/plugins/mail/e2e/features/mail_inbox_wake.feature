@@ -159,9 +159,6 @@ Feature: A person switches inbox wakes on for a conversation
     And this conversation has 1 mail wakes
     When the mail poll setting becomes "bad"
     Then mail makes no history calls for a second
-    # `poll` is a PROMOTED leaf: the refused spelling and the effective default
-    # are drawn in the preferences panel (`promoted_settings.feature`), not on
-    # the plugins row.
     When I open the preferences
     Then the preference "plugin-mail-poll" shows refused file text "bad" inline with default "2m"
     And mail warns that the bad poll value uses its default

@@ -1,7 +1,3 @@
-/** Plain-text and multipart draft composition only. No capabilities, no live
- *  mailbox state, and no file reading: attachments arrive already read
- *  (`./enclosures.ts`), and what a caller ASKED to attach — paths this
- *  composer never opens — is that module's business, not this one's. */
 import { randomUUID } from "node:crypto"
 import { Result } from "effect"
 import { contentType, CONTROL, type Enclosure, type EnclosureArgs } from "./enclosures.ts"
@@ -33,14 +29,8 @@ const encodedWords = (value: string): string => {
   if (chunk) chunks.push(chunk)
   return chunks.map(part => `=?UTF-8?B?${Buffer.from(part).toString("base64")}?=`).join("\r\n ")
 }
-/** ...and the shortcut every header but one wants: a short ASCII value is
- *  already its own best spelling. A parameter that will sit inside a quoted
- *  string cannot take the shortcut — an unescaped `"` would end the string —
- *  so {@link enclosurePart} asks for the words themselves. */
 const encoded = (value: string): string =>
   !/[^\x20-\x7e]/.test(value) && value.length <= 70 ? value : encodedWords(value)
-// Fold ASCII subjects at existing whitespace, retaining their raw readability.
-// An unbreakable long word still uses bounded encoded words.
 const subjectHeader = (value: string): string => {
   if (/[^\x20-\x7e]/.test(value) || value.split(/\s+/).some(word => word.length > 69)) return encoded(value)
   let column = 9
@@ -72,9 +62,6 @@ export const recipient = (value: string) => Result.gen(function*() {
   const display = /[^\x20-\x7e]/.test(name) || name.length > 70 ? encoded(name) : `"${name.replace(/["\\]/g, "\\$&")}"`
   return `${display} <${address}>`
 })
-/** Mailbox header lists split only at commas outside quotes/angle brackets.
- * Defaults retain addr-specs, so RFC 2047 display names cannot become quoted
- * encoded words. Explicit tool recipients still use recipient's display names. */
 export const addressList = (value: string) => Result.gen(function*() {
   yield* headerValue(value)
   const parts: string[] = []
@@ -96,7 +83,6 @@ export const addressList = (value: string) => Result.gen(function*() {
   parts.push(value.slice(start))
   return yield* Result.all(parts.map(part => Result.map(mailbox(part), parsed => parsed.address)))
 })
-/** Validate caller-supplied data before fetching reply metadata. */
 export const validateDraft = (args: DraftArgs) => Result.gen(function*() {
   const recipients = [...args.to ?? [], ...args.cc ?? [], ...args.bcc ?? []]
   if (recipients.length + (args.thread && args.to === undefined ? 1 : 0) > 50) return yield* refuse("mail drafts allow at most 50 recipients")
@@ -118,12 +104,6 @@ const ATTR_CHAR = /[A-Za-z0-9!#$&+\-.^_`|~]/
 const extended = (name: string): string => `UTF-8''${[...Buffer.from(name, "utf8")]
   .map(byte => ATTR_CHAR.test(String.fromCharCode(byte)) ? String.fromCharCode(byte) : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`)
   .join("")}`
-/** ONE ATTACHMENT AS A PART. Its two names say the same thing twice, as every
- *  mailer does: `name=` on the type for readers that only look there, and
- *  `filename` on the disposition for everyone else. An ASCII name that needs no
- *  quoting goes out quoted; anything else takes RFC 2231 on the disposition and
- *  an RFC 2047 word on the type, because those are the two encodings each
- *  parameter has. */
 const enclosurePart = (boundary: string, one: Enclosure) => Result.gen(function*() {
   if (CONTROL.test(one.filename)) return yield* refuse("mail attachment filenames cannot contain CR, LF or control characters")
   if (!one.filename.trim()) return yield* refuse("mail attachments need a filename to arrive under")
@@ -144,13 +124,6 @@ const enclosurePart = (boundary: string, one: Enclosure) => Result.gen(function*
     base64(one.data),
   ].join("\r\n")
 })
-/** The message itself. With no attachments this is the single `text/plain`
- *  part it has always been, byte for byte; with some it is `multipart/mixed`,
- *  the text first and one part per file after it.
- *
- *  The boundary carries `=`, which no base64 line can hold in the middle and no
- *  header this composer writes can produce — so the delimiter cannot appear
- *  inside a part, whatever the parts hold. */
 export const compose = (args: DraftArgs & { from: string; to: ReadonlyArray<string>; subject: string; inReplyTo?: string; references?: string }, attachments: ReadonlyArray<Enclosure> = []) => Result.gen(function*() {
   yield* validateDraft(args)
   const headers = [`From: ${yield* recipient(args.from)}`]

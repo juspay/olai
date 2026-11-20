@@ -1,5 +1,3 @@
-/** The activation owns the cursor, pending digests and one sequential poll fiber.
- * Chat asks a thunk only when it writes the delivery row, including after a busy turn. */
 import { Effect } from "effect"
 import type { Clock, Deliveries } from "@olai/plugin-api/services"
 import type { AccountMachine } from "./account.ts"
