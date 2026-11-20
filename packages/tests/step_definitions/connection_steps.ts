@@ -21,22 +21,8 @@ import type { OlaiWorld } from "../support/world.ts";
 Then(
   "the connection is {string}",
   async function (this: OlaiWorld, state: string) {
-    // The HYDRATION budget, not the interaction one: every state here is
-    // reached by the wire itself — a dial, a backoff, a handshake — and none of
-    // them are a render away.
-    //
-    // Wait on the overlay's `data-connection`, always. The dialog is mounted
-    // for the page's life and publishes the readout even while closed (`live`),
-    // so a phone (no pill) and a laptop (pill plus overlay) agree on one
-    // element. A one-shot `isVisible()` used to pick the overlay or the pill;
-    // a miss — or a throw, `.catch(() => false)` — waited on a pill a phone
-    // never draws, and Playwright's page-side waitFor never finished under a
-    // throttled renderer before cucumber's 40s envelope (`on_a_phone.feature:79`).
-    // This wait is this process's clock (`waitUntil`), so a slow renderer can
-    // delay the ATTRIBUTE but cannot swallow the deadline. `timeout: 0` is
-    // Playwright's own default — "no timeout", wait for attach indefinitely —
-    // not "return instantly"; waitUntil is the deadline owner, this option
-    // starts no second clock.
+    // `timeout: 0` is Playwright's own default: no timeout, wait for attach
+    // indefinitely — not "return instantly". `waitUntil` owns the deadline.
     const read = () =>
       this.page
         .locator(OFFLINE)
@@ -226,8 +212,6 @@ const blinks = new WeakMap<OlaiWorld, Blink>()
 Given("the wire can blink", async function (this: OlaiWorld) {
   const state: Blink = { links: [], seen: { overlay: false } }
   blinks.set(this, state);
-  // The route is registered BEFORE the page dials: `routeWebSocket` wraps a
-  // connection as it is made.
   await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", (client) => {
     const server = client.connectToServer()
     client.onMessage((message) => server.send(message))

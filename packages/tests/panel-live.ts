@@ -1,8 +1,3 @@
-/**
- * Keep that precautionary order; the steering-history table in
- * `@kolu/acp-claude`'s `adapter/patches/README.md#steering-history-measurements`
- * records the current measurements and their limits.
- */
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { chromium } from "playwright"
 
@@ -82,94 +77,116 @@ const said = async (word: string): Promise<boolean> =>
 ok("the model line is drawn", await drawn("chat-model"))
 console.log(`${at()}  agent=${await drawn("chat-agent")}`)
 
-await type("Reply with exactly READY and nothing else.")
-await drawn("chat-busy")
-await idle()
-ok("a turn was sent and answered", await said("READY"), "last row says READY")
-ok("the context fraction appears once the agent has spent some", await drawn("chat-usage", 30_000))
-await shot("1-answered")
-
-await type("Count slowly from 1 to 40, one number per line, and say DONE at the end.")
-ok("the busy strip is up while a turn runs", await drawn("chat-busy"))
-await p.locator(selector("chat-input")).fill("Stop counting. Reply with exactly STEERED.")
-ok("the INTERRUPT is on offer in a conversation that has never queued", await drawn("chat-interrupt"))
-await shot("2-interrupt-offered")
-await p.locator(selector("chat-interrupt")).click()
-await idle()
-ok("the interrupted turn took the words INTO itself and ENDED", await said("STEERED"),
-  "the last row answers the steer")
-await shot("3-steered")
-
-await type("Count slowly from 1 to 40, one number per line, and say DONE at the end.")
-await drawn("chat-busy")
-await type("Then reply with exactly BANANA.")
-ok("a message typed during a turn QUEUES rather than aborting the turn", await drawn("chat-queued"))
-await p.locator(selector("chat-input")).fill("something to steer with")
-ok("...and the interrupt is withdrawn for the rest of this conversation (#1039's guard)",
-  await gone("chat-interrupt"))
-await shot("4-queued")
-
-ok("the cancel is on offer", await drawn("chat-cancel"))
-await p.locator(selector("chat-cancel")).click()
-ok("cancel ends the turn", await gone("chat-busy", 120_000))
-await shot("5-cancelled")
-
-await type(
-  'Use the Monitor tool exactly once with description "tick watch", persistent false, ' +
-  "timeout_ms 60000, and command: for i in 1 2 3; do echo tick-$i; sleep 2; done. " +
-  "Then reply with just the word ARMED and end your turn. Do not call any other tool.",
-)
-ok("the watching strip names the live task",
-  await attr("chat-watching-task", "data-kind", 240_000))
-const clock1 = await drawn("chat-watching-for", 30_000)
-ok("the armed task carries a clock", clock1)
-ok("the call that armed it says what it left running", await drawn("chat-armed"))
-ok("its rail says it is still out there", await drawn("chat-armed-still"))
-await shot("6-armed")
-const clock2 = await changed("chat-watching-for", clock1)
-ok("the clock ticks", clock2 !== null && clock2 !== clock1, `${clock1} -> ${clock2}`)
-ok("the task's DEATH is on the row, in the harness's own word",
-  await attr("chat-armed-ended", "data-ended", 240_000))
-ok("the still-running rail is gone with it", await gone("chat-armed-still"))
-ok("the watching strip is empty again", await gone("chat-watching"))
-await shot("7-ended")
-await idle()
-
-await type(
-  'Use the Agent tool exactly once, with description "count the ticks" and subagent_type ' +
-  "general-purpose, and give it this task: run `echo tick-one` with the Bash tool, then reply " +
-  "with the word ONE and nothing else. When it reports, reply with just the word SPAWNED.",
-)
-ok("the row says WHO it sent out",
-  await attr("chat-spawn", "data-spawn-kind", 300_000))
-ok("...and the rail says that agent has not stopped", await drawn("chat-spawn-working", 120_000))
-await shot("8-subagent")
-await drawn("chat-lane-door", 300_000)
-await p.locator(selector("chat-lane-door")).first().click()
-ok("the shelf opens onto that agent's own calls", await drawn("chat-preview-of", 30_000))
-await shot("9-shelf")
-await idle()
-
-const previousSession = await p.locator(selector("chat-panel")).getAttribute("data-session-id")
-await p.locator(selector("chat-fresh-session")).click()
-{
-  const agents = p.locator(selector("agent-engine-menu"))
-  const confirm = p.getByRole("button", { name: "Start fresh chat", exact: true })
-  await confirm.or(agents).first().waitFor({ state: "visible", timeout: 30_000 })
-  if (await agents.isVisible()) await agents.locator('[data-engine="claude"]').click()
-  await confirm.click()
+const sendsAndAnswers = async (): Promise<void> => {
+  await type("Reply with exactly READY and nothing else.")
+  await drawn("chat-busy")
+  await idle()
+  ok("a turn was sent and answered", await said("READY"), "last row says READY")
+  ok("the context fraction appears once the agent has spent some", await drawn("chat-usage", 30_000))
+  await shot("1-answered")
 }
-await p.waitForFunction(({ panel, previous }) => {
-  const current = document.querySelector(panel)?.getAttribute("data-session-id")
-  return current != null && current !== previous
-}, { panel: selector("chat-panel"), previous: previousSession }, { timeout: 120_000 })
-await drawn("chat-input")
-await p.locator(selector("chat-sessions")).click()
-await drawn("chat-session-list")
-ok("the history holds the stored conversation after a fresh start",
-  await drawn("chat-past-session", 120_000),
-  `${await p.locator(selector("chat-past-session")).count()} rows`)
-await shot("10-sessions")
+
+const offersTheInterruptBeforeAnythingQueues = async (): Promise<void> => {
+  await type("Count slowly from 1 to 40, one number per line, and say DONE at the end.")
+  ok("the busy strip is up while a turn runs", await drawn("chat-busy"))
+  await p.locator(selector("chat-input")).fill("Stop counting. Reply with exactly STEERED.")
+  ok("the INTERRUPT is on offer in a conversation that has never queued", await drawn("chat-interrupt"))
+  await shot("2-interrupt-offered")
+  await p.locator(selector("chat-interrupt")).click()
+  await idle()
+  ok("the interrupted turn took the words INTO itself and ENDED", await said("STEERED"),
+    "the last row answers the steer")
+  await shot("3-steered")
+}
+
+const queuesAndWithdrawsTheInterrupt = async (): Promise<void> => {
+  await type("Count slowly from 1 to 40, one number per line, and say DONE at the end.")
+  await drawn("chat-busy")
+  await type("Then reply with exactly BANANA.")
+  ok("a message typed during a turn QUEUES rather than aborting the turn", await drawn("chat-queued"))
+  await p.locator(selector("chat-input")).fill("something to steer with")
+  ok("...and the interrupt is withdrawn for the rest of this conversation (#1039's guard)",
+    await gone("chat-interrupt"))
+  await shot("4-queued")
+}
+
+const cancelsTheTurn = async (): Promise<void> => {
+  ok("the cancel is on offer", await drawn("chat-cancel"))
+  await p.locator(selector("chat-cancel")).click()
+  ok("cancel ends the turn", await gone("chat-busy", 120_000))
+  await shot("5-cancelled")
+}
+
+const watchesABackgroundTask = async (): Promise<void> => {
+  await type(
+    'Use the Monitor tool exactly once with description "tick watch", persistent false, ' +
+    "timeout_ms 60000, and command: for i in 1 2 3; do echo tick-$i; sleep 2; done. " +
+    "Then reply with just the word ARMED and end your turn. Do not call any other tool.",
+  )
+  ok("the watching strip names the live task",
+    await attr("chat-watching-task", "data-kind", 240_000))
+  const clock1 = await drawn("chat-watching-for", 30_000)
+  ok("the armed task carries a clock", clock1)
+  ok("the call that armed it says what it left running", await drawn("chat-armed"))
+  ok("its rail says it is still out there", await drawn("chat-armed-still"))
+  await shot("6-armed")
+  const clock2 = await changed("chat-watching-for", clock1)
+  ok("the clock ticks", clock2 !== null && clock2 !== clock1, `${clock1} -> ${clock2}`)
+  ok("the task's DEATH is on the row, in the harness's own word",
+    await attr("chat-armed-ended", "data-ended", 240_000))
+  ok("the still-running rail is gone with it", await gone("chat-armed-still"))
+  ok("the watching strip is empty again", await gone("chat-watching"))
+  await shot("7-ended")
+  await idle()
+}
+
+const spawnsASubagent = async (): Promise<void> => {
+  await type(
+    'Use the Agent tool exactly once, with description "count the ticks" and subagent_type ' +
+    "general-purpose, and give it this task: run `echo tick-one` with the Bash tool, then reply " +
+    "with the word ONE and nothing else. When it reports, reply with just the word SPAWNED.",
+  )
+  ok("the row says WHO it sent out",
+    await attr("chat-spawn", "data-spawn-kind", 300_000))
+  ok("...and the rail says that agent has not stopped", await drawn("chat-spawn-working", 120_000))
+  await shot("8-subagent")
+  await drawn("chat-lane-door", 300_000)
+  await p.locator(selector("chat-lane-door")).first().click()
+  ok("the shelf opens onto that agent's own calls", await drawn("chat-preview-of", 30_000))
+  await shot("9-shelf")
+  await idle()
+}
+
+const keepsTheConversationAcrossAFreshStart = async (): Promise<void> => {
+  const previousSession = await p.locator(selector("chat-panel")).getAttribute("data-session-id")
+  await p.locator(selector("chat-fresh-session")).click()
+  {
+    const agents = p.locator(selector("agent-engine-menu"))
+    const confirm = p.getByRole("button", { name: "Start fresh chat", exact: true })
+    await confirm.or(agents).first().waitFor({ state: "visible", timeout: 30_000 })
+    if (await agents.isVisible()) await agents.locator('[data-engine="claude"]').click()
+    await confirm.click()
+  }
+  await p.waitForFunction(({ panel, previous }) => {
+    const current = document.querySelector(panel)?.getAttribute("data-session-id")
+    return current != null && current !== previous
+  }, { panel: selector("chat-panel"), previous: previousSession }, { timeout: 120_000 })
+  await drawn("chat-input")
+  await p.locator(selector("chat-sessions")).click()
+  await drawn("chat-session-list")
+  ok("the history holds the stored conversation after a fresh start",
+    await drawn("chat-past-session", 120_000),
+    `${await p.locator(selector("chat-past-session")).count()} rows`)
+  await shot("10-sessions")
+}
+
+await sendsAndAnswers()
+await offersTheInterruptBeforeAnythingQueues()
+await queuesAndWithdrawsTheInterrupt()
+await cancelsTheTurn()
+await watchesABackgroundTask()
+await spawnsASubagent()
+await keepsTheConversationAcrossAFreshStart()
 
 console.log(`\n${at()}  ${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`)
 await b.close()

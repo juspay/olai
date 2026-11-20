@@ -13,7 +13,6 @@ import {
 import { HYDRATION_TIMEOUT, PANE, SIDEBAR, type OlaiWorld } from "../support/world.ts";
 
 Given("I mark the screen", async function (this: OlaiWorld) {
-  // Establish both regions before marking them.
   await Promise.all([SIDEBAR, PANE].map((region) =>
     this.page.locator(region).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT })
   ));

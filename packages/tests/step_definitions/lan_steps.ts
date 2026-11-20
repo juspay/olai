@@ -7,9 +7,7 @@ const prompted = new WeakMap<OlaiWorld, Array<{ message: string; value: string }
 
 Given("I read olai from another machine over plain http", async function (this: OlaiWorld) {
   this.baseUrl = onLan(this.baseUrl);
-  // A prompt blocks the page until something answers it, and Playwright
-  // dismisses one nobody is listening for — so the listener is here, before
-  // any gesture can raise one, and records what was offered.
+  // Playwright dismisses a `window.prompt` nobody is listening for.
   const seen: Array<{ message: string; value: string }> = [];
   prompted.set(this, seen);
   this.page.on("dialog", (dialog) => {

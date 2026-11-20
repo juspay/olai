@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
-import type { EventEmitter } from "node:events";
 import { DOORS as MAIL_DOOR_NAMES } from "olai-plugin-mail/appliance/testlib";
 import { KNOBS } from "@olai/bundle/knobs";
 
@@ -37,9 +36,9 @@ export const workerId = (env: NodeJS.ProcessEnv = process.env): number => {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
-/** `bun-types`' `node:net` is missing EventEmitter's methods. */
-const events = (source: object): EventEmitter =>
-  source as unknown as EventEmitter;
+export const NOTHING_LISTENS = "http://127.0.0.1:1";
+
+export const MAIL_HIMALAYA_OFF = "";
 
 export const holdPort = (port: number): Promise<net.Server> =>
   new Promise((resolve, reject) => {
@@ -47,7 +46,7 @@ export const holdPort = (port: number): Promise<net.Server> =>
       socket.resetAndDestroy();
     });
     holder.unref();
-    events(holder).once("error", reject);
+    holder.once("error", reject);
     holder.listen(port, "127.0.0.1", () => resolve(holder));
   });
 
@@ -73,16 +72,11 @@ export const isolateEnv = (
   delete host.PADI_SOCKET;
   delete host.ODU_WEB_ORIGIN;
   for (const knob of KNOBS) delete host[knob];
-  // The harness sets `OLAI_HIMALAYA` and `OLAI_MAIL_GOOGLE` on every spawn
-  // (`hooks.ts`), so deleting them here is not "absent", it is "the scenario's
-  // to decide": a fake, or the off switch, or the un-routable default.
   for (const door of MAIL_DOOR_NAMES) delete host[door];
   const env: NodeJS.ProcessEnv = {
     ...host,
     ...extras,
-    // Omitting this env is not "derived and absent": odu's client defaults
-    // to `127.0.0.1:18440`, which is this machine's real service on CI.
-    ODU_WEB_ORIGIN: extras.ODU_WEB_ORIGIN ?? "http://127.0.0.1:1",
+    ODU_WEB_ORIGIN: extras.ODU_WEB_ORIGIN ?? NOTHING_LISTENS,
     XDG_CACHE_HOME: cache,
     XDG_STATE_HOME: state,
     XDG_RUNTIME_DIR: runtime,

@@ -1,10 +1,3 @@
-/**
- * Headless Chromium hard-wires `Notification.permission` to `denied` whatever
- * `grantPermissions(["notifications"])` says, because it has no notification UI
- * at all — and that field is what this app and the framework's seam read before
- * delivering. So the static is made to say what the context was set up with.
- */
-
 import type { Page } from "playwright";
 
 export const ALERTS = "__olaiAlerts";
@@ -22,6 +15,14 @@ export interface Alerts {
 
 export type Consent = "granted" | "denied";
 
+/**
+ * Headless Chromium hard-wires `Notification.permission` to `denied` whatever
+ * `grantPermissions(["notifications"])` says, because it has no notification UI
+ * at all, and that field is what the app reads before delivering.
+ *
+ * Playwright ships this to the browser as source, so it closes over nothing and
+ * takes its parameters as one argument.
+ */
 export const recordAlerts = (asked: { key: string; consent: Consent }): void => {
   const held: { banners: Array<Banner>; notes: number } = { banners: [], notes: 0 };
   (globalThis as unknown as Record<string, unknown>)[asked.key] = held;

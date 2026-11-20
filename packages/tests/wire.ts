@@ -103,13 +103,8 @@ const main = async () => {
     writeFileSync(full, text)
   }
 
-  if (SESSION === "pages" || SESSION === "filter") {
-    corpus(write, SESSION === "filter" ? BIG : READING)
-    await new Promise((settled) => setTimeout(settled, 5_000))
-  } else if (SESSION !== "chat") {
-    write(PAGE, pageAt("Before"))
-    write(NOTE, note())
-  }
+  const session = SESSIONS[SESSION as keyof typeof SESSIONS] ?? SESSIONS.preview
+  await session.seed(write)
 
   const served = new URL(BASE)
   const link = DELAY === 0 ? null : await delayed(
@@ -151,10 +146,7 @@ const main = async () => {
     readings.push({ what, socket, media, asks, frames })
   }
 
-  if (SESSION === "pages") await pages(page, base, mark)
-  else if (SESSION === "filter") await filtered(page, base, mark, () => asks)
-  else if (SESSION === "chat") await chat(page, base, mark)
-  else await preview(page, base, mark, write)
+  await session.drive({ page, base, mark, write, asks: () => asks })
 
   await browser.close()
   link?.close()
@@ -354,6 +346,49 @@ const chat = async (
   await turn("stream slow", "an answer streams in at a model's pace")
   await turn("stream", "...and one arrives as fast as the pipe will take it")
 }
+
+type Write = (file: string, text: string) => void
+type Mark = (what: string) => Promise<void>
+
+interface Session {
+  readonly seed: (write: Write) => Promise<void>
+  readonly drive: (
+    at: {
+      readonly page: Page
+      readonly base: string
+      readonly mark: Mark
+      readonly write: Write
+      readonly asks: () => number
+    },
+  ) => Promise<void>
+}
+
+const seedCorpus = (size: Size) => async (write: Write): Promise<void> => {
+  corpus(write, size)
+  await new Promise((ready) => setTimeout(ready, 5_000))
+}
+
+const SESSIONS = {
+  preview: {
+    seed: async (write: Write): Promise<void> => {
+      write(PAGE, pageAt("Before"))
+      write(NOTE, note())
+    },
+    drive: ({ page, base, mark, write }) => preview(page, base, mark, write),
+  },
+  pages: {
+    seed: seedCorpus(READING),
+    drive: ({ page, base, mark }) => pages(page, base, mark),
+  },
+  filter: {
+    seed: seedCorpus(BIG),
+    drive: ({ page, base, mark, asks }) => filtered(page, base, mark, asks),
+  },
+  chat: {
+    seed: async (): Promise<void> => {},
+    drive: ({ page, base, mark }) => chat(page, base, mark),
+  },
+} satisfies Record<string, Session>
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} kB`
 

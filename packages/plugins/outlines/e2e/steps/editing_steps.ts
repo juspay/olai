@@ -11,7 +11,7 @@ import { IDLE_COMMIT } from "../../src/testlib.ts"
 
 import type { ElementHandle, Locator } from "@olai/tests/harness/playwright.ts";
 
-import { leavingTheLine, nothingIsBeingTyped } from "@olai/tests/harness/caret.ts";
+import { nothingIsBeingTyped, withCaretReceipt } from "@olai/tests/harness/caret.ts";
 import { pressed, typed } from "@olai/tests/harness/settling.ts";
 import { retypedAndTaken } from "@olai/tests/harness/atonce.ts";
 import { announcedAs, saysNothing, saysThat } from "@olai/tests/harness/said.ts";
@@ -263,7 +263,7 @@ When("I click the page away from the drafts", async function (this: OlaiWorld) {
 });
 
 When("I click away from the editor", async function (this: OlaiWorld) {
-  await leavingTheLine(
+  await withCaretReceipt(
     this,
     async () => {
       await this.page.locator("main").click({ position: { x: 4, y: 4 } });

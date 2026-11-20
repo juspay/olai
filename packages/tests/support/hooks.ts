@@ -2,7 +2,6 @@ import { writeFixturePolicy } from "@olai/bundle/testlib";
 import { FAKES_ROSTER } from "@olai/bundle/e2e-fakes";
 import type { Fake } from "./fake.ts";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -43,6 +42,8 @@ import { FAST_SLEEP } from "./sleep_fast.ts";
 import {
   holdPort,
   isolateEnv,
+  MAIL_HIMALAYA_OFF,
+  NOTHING_LISTENS,
   releasePort,
   spawnFingerprint,
   workerId,
@@ -93,9 +94,6 @@ const keepEvidence = async (world: OlaiWorld, scenario: {
     ...errors.map((one, at) => `olai-e2e-evidence:   [${at}] ${one.replaceAll("\n", " ")}`),
     `olai-e2e-evidence: kept in ${path.join(EVIDENCE, ATTEMPT)}`,
   ];
-  // Cucumber captures a hook's console into the scenario's attachments, and the
-  // formatter this suite runs does not print those; the runner exports the leg's
-  // stream.
   const dir = path.join(EVIDENCE, ATTEMPT);
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -180,6 +178,8 @@ const PHONE_TAG = "@phone";
 const PHONE = {
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 3,
+  // Chromium honours the shell's `<meta name="viewport">` only under
+  // `isMobile`; without it the page is laid out as a 390px-wide desktop.
   isMobile: true,
   hasTouch: true,
 } as const;
@@ -212,8 +212,7 @@ const sharedScratches = new Map<string, Promise<SharedSlot>>();
 let spawned = 0;
 
 /** Every child spawned and not yet seen exit. `process.on("exit")` runs no
- *  microtasks, so a `.then` registered there never fires; this is what the
- *  hard-exit path can act on synchronously. */
+ *  microtasks, so only a synchronous reader of this set can act on it there. */
 const live = new Set<ChildProcess>();
 
 let stopped = false;
@@ -269,11 +268,6 @@ const readMode = (): Mode => {
 
 let mode: Mode | undefined;
 const modeOf = (): Mode => (mode ??= readMode());
-
-/** `bun-types`' `node:net` and `node:child_process` declarations do not carry
- *  EventEmitter's methods, although the objects have them at runtime. */
-const events = (source: object): EventEmitter =>
-  source as unknown as EventEmitter;
 
 const fixtureDir = (corpus: string): string => {
   const dir = path.join(FIXTURES, corpus);
@@ -388,16 +382,9 @@ const startServerChild = async (
         ...(spawnOptions.padiSocket === undefined
           ? {}
           : { PADI_SOCKET: spawnOptions.padiSocket }),
-        // Always set: odu's client defaults to `127.0.0.1:18440`, which is this
-        // machine's real per-user service on CI.
-        ODU_WEB_ORIGIN: spawnOptions.oduOrigin ?? "http://127.0.0.1:1",
-        // `OLAI_HIMALAYA` is always set, because the packaged wrapper bakes the
-        // pinned Himalaya into this variable with `--set-default` (default.nix). The empty
-        // string is the row's own off switch — `./src/server.ts`'s `doorOf`
-        // reads a blank value as *not set* — and `--set-default` is what lets
-        // it survive the wrapper.
-        [MAIL_DOOR.himalaya]: spawnOptions.himalaya ?? "",
-        [MAIL_DOOR.google]: spawnOptions.mailGoogle ?? "http://127.0.0.1:1",
+        ODU_WEB_ORIGIN: spawnOptions.oduOrigin ?? NOTHING_LISTENS,
+        [MAIL_DOOR.himalaya]: spawnOptions.himalaya ?? MAIL_HIMALAYA_OFF,
+        [MAIL_DOOR.google]: spawnOptions.mailGoogle ?? NOTHING_LISTENS,
         ...(spawnOptions.mailDoors === true
           ? {
               [MAIL_DOOR.client]: DOOR_VALUES.client,
@@ -409,7 +396,7 @@ const startServerChild = async (
       }),
     });
     live.add(child);
-    events(child).once("exit", () => live.delete(child));
+    child.once("exit", () => live.delete(child));
 
     const said = { text: "" };
     let err = "";
@@ -439,16 +426,13 @@ const startServerChild = async (
         if (url !== null) finish(url);
       }, 50);
       const timer = setTimeout(() => finish(null), SERVER_START_TIMEOUT);
-      events(child).once(
-        "exit",
-        (code: number | null, signal: string | null) => {
-          if (served() === null) {
-            lastFailure = `exited early (code ${code}, signal ${signal ?? "none"})`;
-            finish(null);
-          }
-        },
-      );
-      events(child).once("error", (cause: Error) => {
+      child.once("exit", (code, signal) => {
+        if (served() === null) {
+          lastFailure = `exited early (code ${code}, signal ${signal ?? "none"})`;
+          finish(null);
+        }
+      });
+      child.once("error", (cause) => {
         lastFailure = `could not be spawned: ${cause.message}`;
         finish(null);
       });
@@ -480,28 +464,12 @@ const startServerChild = async (
   );
 };
 
-/**
- * Stop and start the server a `@scratch:` scenario owns, WITHOUT touching the
- * page in front of it.
- *
- * So: stop first and WAIT for
- * the process to actually be gone, then bind the exact port, then check the
- * address that came back is the one we started with, and say so plainly if it
- * is not.
- */
 export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
   const refused = restartGate(world.scratchShare);
   if (refused !== undefined) throw refused;
   const child = ownServerOf(world);
   const port = Number(new URL(world.baseUrl).port);
-  await new Promise<void>((resolve) => {
-    if (child.exitCode !== null || child.signalCode !== null) {
-      resolve();
-      return;
-    }
-    events(child).once("exit", () => resolve());
-    killChild(child);
-  });
+  await reap(child);
   live.delete(child);
   world.ownServer = undefined;
   world.portHold = await holdPort(port);
@@ -548,7 +516,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
         ? {}
         : { rowsOff: world.rowsOff }),
       ...(world.mailHimalaya === undefined
-        ? { himalaya: "" }
+        ? { himalaya: MAIL_HIMALAYA_OFF }
         : { himalaya: world.mailHimalaya.path }),
       ...(world.mailGoogle === undefined
         ? {}
@@ -749,9 +717,6 @@ BeforeAll(async () => {
 });
 
 AfterAll(async () => {
-  // Servers first: a Chromium still holding sockets to a live olai is a
-  // `browser.close()` that never returns, and that is the same hang as a
-  // grandchild holding stdio — cucumber never reaches the summary.
   await killAll();
   if (browser) await browser.close();
   if (workerState !== undefined) {
@@ -760,8 +725,6 @@ AfterAll(async () => {
   }
   console.error(`olai-e2e: worker ${workerId()} spawned ${spawned} servers`);
 
-  // LAST, and after the servers are down: a server still running is a server
-  // still able to write, and this reading has to be of a tree nobody holds.
   const now = fixtureStatus();
   if (fixturesWere !== null && now !== null && now !== fixturesWere) {
     throw new Error(
@@ -951,7 +914,6 @@ Before(
       );
     }
 
-    // THE PADI FIRST, and before the server that will dial it.
     if (this.padiFleet !== undefined) {
       if (!writes) {
         throw new Error(
@@ -1068,8 +1030,6 @@ Before(
       baseURL: this.baseUrl,
       ...(zone === undefined ? {} : { timezoneId: zone }),
     });
-    // BEFORE the first page, because an init script only reaches documents
-    // that have not been created yet.
     const granted = scenario.pickle.tags.some((tag) => tag.name === ALERTS_TAG);
     const refused = scenario.pickle.tags.some(
       (tag) => tag.name === ALERTS_DENIED_TAG,
@@ -1150,10 +1110,6 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
     this.portHold = undefined;
   }
 
-  // A terminal agent is a second process watching the same directory, and it
-  // goes first for the same reason the server goes before the directory: it is
-  // this scenario's, and nothing should still be reading a tree that is about
-  // to be removed.
   this.terminalAgent?.stop();
 
   this.padi?.stop();
@@ -1164,8 +1120,6 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
   this.mailGoogle = undefined;
   await this.mailHimalaya?.stop();
   this.mailHimalaya = undefined;
-  // The drain is first because restoring under a live
-  // write is how After left `.olai-*.tmp` on the tree.
   const share = this.scratchShare;
   const served = this.served;
   if (share !== undefined && served !== undefined) {
@@ -1189,8 +1143,6 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
     return;
   }
 
-  // A private scratch owns its server and its directory, and both die here —
-  // the server first, so nothing is watching the tree while it is removed.
   if (this.ownServer) {
     killChild(this.ownServer);
     live.delete(this.ownServer);

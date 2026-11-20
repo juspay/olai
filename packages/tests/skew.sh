@@ -15,7 +15,6 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/vault" "$shots"
 
-# `--seed` runs BEFORE the server, and it has to.
 VAULT="$work/vault" bun skew.ts --seed
 
 olai_serve "$root" "$work/vault" "$work/server.log"

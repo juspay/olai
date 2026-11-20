@@ -825,8 +825,9 @@ provider failure as 2.2.7 really sends one). A message STEERED into a running
 turn is acted on by that turn — `done <id>` marks the node before anything is
 released — which is the whole difference between the interrupting gesture and
 an ordinary send, and the one thing a fake that merely answered the steer
-could not witness. It honours the shared `MARKER.holdOpen`, `MARKER.holdLoad`
-and `MARKER.release` markers, and with `OLAI_FAKE_OPENCODE_STORED` set it
+could not witness. It honours the shared `MARKER_FILE.holdOpen`,
+`MARKER_FILE.holdLoad` and `MARKER_FILE.release` markers, and with
+`OLAI_FAKE_OPENCODE_STORED` set it
 stores one conversation — `an opencode conversation` — whose `session/list`
 entry it answers only for the directory it was started in.
 
@@ -880,8 +881,8 @@ all, and they are why a third file is worth having:
 
 Behaviour is keyed on the prompt text (`hello`, `bash`, `context <id>`,
 `done <id>`, `permit`, `nameless`, `slow`, `hush`, `silent`, `error-silent`,
-`busy`), it honours the shared `MARKER.holdOpen`, `MARKER.holdLoad` and
-`MARKER.release` markers exactly as the opencode-shaped one does, and with
+`busy`), it honours the shared `MARKER_FILE.holdOpen`, `MARKER_FILE.holdLoad`
+and `MARKER_FILE.release` markers exactly as the opencode-shaped one does, and with
 `OLAI_FAKE_OMP_STORED` set it stores one conversation — `an Oh My Pi
 conversation` — whose `session/list` entry carries a real `{ messageCount: 21,
 size: 8192 }` and whose `session/load` replay says `omp remembers this

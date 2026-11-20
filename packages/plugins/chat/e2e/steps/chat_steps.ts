@@ -11,7 +11,7 @@ import { PLUGIN_TESTID, type PluginTestId } from "@olai/tests/harness/testids.ts
 import { completingIn, NEAR } from "../../src/testlib.ts";
 
 import { retypedAndTaken } from "@olai/tests/harness/atonce.ts";
-import { MARKER } from "@olai/tests/harness/scripted.ts";
+import { MARKER_FILE } from "@olai/tests/harness/scripted.ts";
 import { SESSION_STORE_MARKER } from "@olai/tests/agent/session-store.ts";
 import { keysSettled } from "@olai/tests/harness/settling.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
@@ -258,7 +258,7 @@ When("I send the chat message", async function (this: OlaiWorld) {
 });
 
 When("the agent is released", async function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.release), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.release), "");
 });
 
 When("I arm late growth on the next stored conversation", function (this: OlaiWorld) {
@@ -266,11 +266,11 @@ When("I arm late growth on the next stored conversation", function (this: OlaiWo
 });
 
 When("I arm a slow replay on the next stored conversation", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.slowReplay), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.slowReplay), "");
 });
 
 When("I arm a long history on the next stored conversation", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.longHistory), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.longHistory), "");
 });
 
 Then("the earlier messages door is drawn", async function (this: OlaiWorld) {
@@ -401,7 +401,7 @@ When("the list-asks so far are counted", function (this: OlaiWorld) {
 const loadedSessions = (scratch: string): ReadonlyArray<string> => {
   try {
     return fs
-      .readFileSync(path.join(scratch, MARKER.loads), "utf8")
+      .readFileSync(path.join(scratch, MARKER_FILE.loads), "utf8")
       .trim()
       .split("\n")
       .filter((line) => line !== "");
@@ -412,7 +412,7 @@ const loadedSessions = (scratch: string): ReadonlyArray<string> => {
 };
 
 Given("the agent notes every conversation it loads", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.loads), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.loads), "");
 });
 
 const boundSession = (world: OlaiWorld, node: string, file: string): string => {
@@ -496,15 +496,15 @@ When(
 );
 
 When("the agent advertises nothing about itself", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.saysNothing), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.saysNothing), "");
 });
 
 When("the next conversation load will hang", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.holdLoad), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.holdLoad), "");
 });
 
 When("the next agent boot will hang", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.holdOpen), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.holdOpen), "");
 });
 
 When(
@@ -3388,11 +3388,11 @@ Then("the model list is back at the top", async function (this: OlaiWorld) {
 });
 
 Given("the agent refuses model changes", async function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModel), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.refuseModel), "");
 });
 
 Given("the signed-in account may not use the model {string}", async function (this: OlaiWorld, value: string) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModelByAccount), value);
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.refuseModelByAccount), value);
 });
 
 Then("the model picker is disabled", async function (this: OlaiWorld) {

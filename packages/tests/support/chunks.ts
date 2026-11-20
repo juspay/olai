@@ -7,7 +7,6 @@ import type { OlaiWorld } from "./world.ts";
 
 export interface Chunk {
   readonly url: RegExp;
-  /** Register before the page is opened. */
   holdUp: (world: OlaiWorld) => Promise<void>;
   neverArrives: (world: OlaiWorld) => Promise<void>;
   arrive: (world: OlaiWorld) => Promise<void>;

@@ -43,7 +43,7 @@ export const speaking = (emit: (message: unknown) => void, prefix: string) => {
   }
 }
 
-export const MARKER = {
+export const MARKER_FILE = {
   refuseModel: ".agent-refuse-model",
   refuseModelByAccount: ".agent-refuse-model-by-account",
   release: ".agent-release",
@@ -65,9 +65,19 @@ export const MARKER = {
   sleepTrash: ".agent-sleep-trash",
   sleepAsked: ".agent-sleep-asked",
   loginPid: ".agent-login-pid",
+  heldPid: ".agent-held-pid",
+  pinnedModel: ".agent-pin",
+  wantLate: ".agent-want-late",
+  listAsks: ".agent-list-asks",
 } as const
 
-export const RELEASE = MARKER.release
+export const MARKER_FILE_FOR = {
+  forgottenSession: (sessionId: string): string => `.agent-forgot-${sessionId}`,
+  sessionMissingHere: (sessionId: string): string => `.agent-missing-${sessionId}`,
+  refusalToOpen: (verb: "new" | "load"): string => `.agent-refuse-${verb}`,
+} as const
+
+export const RELEASE = MARKER_FILE.release
 
 export const SLEEP_STAMP = "1999-01-01T00:00:00+00:00"
 

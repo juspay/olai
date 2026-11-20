@@ -3,7 +3,7 @@ import * as assert from "node:assert";
 import { POLL_TIMEOUT } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
-export const foundCount = async (
+export const expectExactCount = async (
   world: OlaiWorld,
   locator: string,
   said: string,

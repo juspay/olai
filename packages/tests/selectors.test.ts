@@ -20,9 +20,6 @@ test("a backslash is escaped, and before the quote it might otherwise arm", () =
   expect(attr("data-key", `a\\`)).not.toBe(attr("data-key", `a\\"`));
 });
 
-// A newline cannot appear raw in a CSS string at all. `\a ` is the character
-// escape for it — the trailing space terminates the hex digits and is part of
-// the escape.
 test("a newline becomes a character escape, space and all", () => {
   expect(attr("data-asked", "two\nlines")).toBe(`[data-asked="two\\a lines"]`);
 });

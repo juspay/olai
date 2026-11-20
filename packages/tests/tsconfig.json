@@ -1,25 +1,4 @@
 {
-  // Per-package `tsc --noEmit` anchor. Shared options live in
-  // ../../tsconfig.base.json; this member points tsc at the TypeScript this
-  // package holds. `features/` is Gherkin and `cucumber.js` is plain JS read
-  // by the runner, so neither is compiled. `allowJs` is for
-  // `support/parallelism.js` — the count has to be JS because cucumber-js
-  // reaches it through `cucumber.js`, with its own loader rather than the
-  // suite's, and the TypeScript side re-exports it.
-  //
-  // `*.ts` is the package ROOT, and it is here because it was missing: the
-  // unit tests beside this file and the DRIVERS (`wire.ts`, `shot.ts`,
-  // `underload.ts`, `reads.ts`, `skew.ts`) are TypeScript that the
-  // `typecheck` leg was not reading, so a rename inside one of them failed
-  // in a lane rather than in a second here.
-  //
-  // `../plugins/*/e2e` is the SUITE OUTSIDE THIS DIRECTORY, and it is checked
-  // HERE rather than by each plugin's own `tsconfig.json`. A step file is
-  // written against the harness — the world, the waits, the runner — so the
-  // program that has to hold it together is this one, and a plugin that
-  // compiled its own `e2e/` would pull the whole suite's graph into thirty
-  // separate `tsc` runs to say the same thing thirty times. Each plugin's
-  // `include` stays `src`, which is what that package SHIPS.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "allowJs": true, "checkJs": false },
   "include": [

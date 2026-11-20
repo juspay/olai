@@ -3,7 +3,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { SIDEBAR_WIDTH_KEY } from "../../src/layout/prefs.ts";
 import { retypedAndTaken } from "@olai/tests/harness/atonce.ts";
-import { countsNothing, foundCount } from "@olai/tests/harness/counted.ts";
+import { countsNothing, expectExactCount } from "@olai/tests/harness/counted.ts";
 import { keysSettled, pressed } from "@olai/tests/harness/settling.ts";
 import { answered } from "@olai/tests/harness/shortlist.ts";
 import {
@@ -224,7 +224,7 @@ Then(
 Then(
   "the header search found {string}",
   async function (this: OlaiWorld, said: string) {
-    await foundCount(
+    await expectExactCount(
       this,
       `${HEADER_SEARCH_RESULTS} ${SEARCH_COUNT}`,
       said,

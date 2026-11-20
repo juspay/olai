@@ -6,8 +6,8 @@ import * as path from "node:path";
 
 import {
   alreadyShared,
-  askResync,
   DEFAULT_CORPUS,
+  drainAndResync,
   filesOf,
   leftovers,
   OWN_TAG,
@@ -228,7 +228,7 @@ test("PIN (resync path): the harness and the server name the same door", () => {
     "utf8",
   );
   expect(server).toContain(`RESYNC_PATH = "${RESYNC_PATH}"`);
-  expect(askResync.name).toBe("askResync");
+  expect(drainAndResync.name).toBe("drainAndResync");
 });
 
 test("PIN (drain-then-restore): a stage file that lands during drain is restored away", async () => {

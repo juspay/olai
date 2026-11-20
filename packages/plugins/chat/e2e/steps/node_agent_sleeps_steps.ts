@@ -5,7 +5,7 @@ import { stampOf } from "@olai/format";
 import { findLogfmt } from "@olai/log/testlib";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
-import { MARKER, SLEEP_STAMP } from "@olai/tests/harness/scripted.ts";
+import { MARKER_FILE, SLEEP_STAMP } from "@olai/tests/harness/scripted.ts";
 import { selector } from "@olai/web/testlib";
 import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
@@ -247,28 +247,28 @@ Then("node {string} carries no sleep memo", async function (this: OlaiWorld, nod
 });
 
 When("the next sleep asks a question", function (this: OlaiWorld) {
-  this.writeServed(MARKER.sleepAsk, "");
+  this.writeServed(MARKER_FILE.sleepAsk, "");
 });
 
 When("the next sleep writes the memo itself", function (this: OlaiWorld) {
-  this.writeServed(MARKER.sleepStamp, "");
+  this.writeServed(MARKER_FILE.sleepStamp, "");
 });
 
 When("the next sleep holds its turn open", function (this: OlaiWorld) {
-  this.writeServed(MARKER.sleepHold, "");
+  this.writeServed(MARKER_FILE.sleepHold, "");
 });
 
 When("the next sleep writes outside its subtree at {string}", function (this: OlaiWorld, node: string) {
-  this.writeServed(MARKER.sleepOutside, this.nodeId(node));
+  this.writeServed(MARKER_FILE.sleepOutside, this.nodeId(node));
 });
 
 When("the next sleep trashes {string}", function (this: OlaiWorld, node: string) {
-  this.writeServed(MARKER.sleepTrash, this.nodeId(node));
+  this.writeServed(MARKER_FILE.sleepTrash, this.nodeId(node));
 });
 
 Then("the sleep's question is waiting", async function (this: OlaiWorld) {
   await this.waitUntil(
-    async () => existsSync(join(this.scratch(), MARKER.sleepAsked)),
+    async () => existsSync(join(this.scratch(), MARKER_FILE.sleepAsked)),
     "the sleep's question to reach the panel",
     HYDRATION_TIMEOUT,
   );
@@ -276,7 +276,7 @@ Then("the sleep's question is waiting", async function (this: OlaiWorld) {
 
 Then("the sleep turn has tried to write the memo itself", async function (this: OlaiWorld) {
   await this.waitUntil(
-    async () => !existsSync(join(this.scratch(), MARKER.sleepStamp)),
+    async () => !existsSync(join(this.scratch(), MARKER_FILE.sleepStamp)),
     "a sleep turn to reach the agent and take its marker",
     HYDRATION_TIMEOUT,
   );

@@ -19,7 +19,6 @@ When("I confirm the IME text {string} in the focused field", async function (thi
     await session.send("Input.imeSetComposition", {
       text, selectionStart: text.length, selectionEnd: text.length,
     });
-    // Chromium supplies the composition state; do not fabricate isComposing.
     await this.page.evaluate(() => {
       const field = document.activeElement;
       if (!(field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement)) {

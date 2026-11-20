@@ -1,7 +1,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
-import { foundCount } from "@olai/tests/harness/counted.ts";
+import { expectExactCount } from "@olai/tests/harness/counted.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
 import {
   attr,
@@ -58,7 +58,7 @@ Then(
 Then(
   "the filter found {string}",
   async function (this: OlaiWorld, said: string) {
-    await foundCount(this, FILTER_COUNT, said, "filter count");
+    await expectExactCount(this, FILTER_COUNT, said, "filter count");
   },
 );
 

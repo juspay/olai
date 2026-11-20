@@ -114,11 +114,8 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     And the address is "/reports/q3.pdf"
     And the page has not reloaded
     And the pdf drawn is "reports/q3.pdf"
-    # NEVER SILENTLY EMPTY. This suite's Chromium ships no PDF viewer at all,
-    # so what it proves is the half only a viewer-less browser can: the
-    # `<object>` falls back to a sentence and the file itself rather than to
-    # the empty rectangle an `<embed>` would leave. Real Chrome draws this
-    # fixture in its own viewer, and the evidence pass is where that is seen.
+    # Playwright's Chromium ships no PDF viewer, so this step allows either
+    # outcome: a viewer, or the `<object>`'s fallback.
     And the pdf viewer drew it, or the page says it cannot
     And this file has no editor
     And there should be no page errors

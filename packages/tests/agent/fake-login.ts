@@ -9,15 +9,15 @@
 import { appendFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { MARKER } from "../support/scripted.ts"
+import { MARKER_FILE } from "../support/scripted.ts"
 
-appendFileSync(join(process.cwd(), MARKER.loginPid), `${process.pid}\n`)
+appendFileSync(join(process.cwd(), MARKER_FILE.loginPid), `${process.pid}\n`)
 
 const DEFAULT_CODE = "123456"
 
 const EXPIRED = "expired"
 
-const credential = () => join(process.cwd(), MARKER.signedIn)
+const credential = () => join(process.cwd(), MARKER_FILE.signedIn)
 
 const said = (line: string): void => {
   process.stdout.write(`${line}\n`)
@@ -59,7 +59,7 @@ const login = async (): Promise<void> => {
     }
     appendFileSync(credential(), "")
     writeFileSync(
-      join(process.cwd(), MARKER.identity),
+      join(process.cwd(), MARKER_FILE.identity),
       JSON.stringify({
         kind: "account",
         label: "Claude Max",

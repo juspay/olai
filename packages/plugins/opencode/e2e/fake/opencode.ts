@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { commandLine } from "@olai/tests/agent/command.ts";
 import { readMessages } from "@olai/tests/harness/ndjson.ts";
-import { emitter, MARKER, released, speaking } from "@olai/tests/harness/scripted.ts";
+import { emitter, MARKER_FILE, released, speaking } from "@olai/tests/harness/scripted.ts";
 
 const emit = emitter(process.stdout);
 const { notify, refuse, request, respond, take } = speaking(emit, "oc");
@@ -58,7 +58,7 @@ class Refused extends Error {
 const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
 
 const holdingOpen = (): boolean => {
-  const marker = `${cwd}/${MARKER.holdOpen}`;
+  const marker = `${cwd}/${MARKER_FILE.holdOpen}`;
   if (!existsSync(marker)) return false;
   rmSync(marker, { force: true });
   return true;
@@ -668,7 +668,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return;
 
     case "session/load": {
-      const heldLoad = `${cwd}/${MARKER.holdLoad}`;
+      const heldLoad = `${cwd}/${MARKER_FILE.holdLoad}`;
       if (existsSync(heldLoad)) {
         rmSync(heldLoad, { force: true });
         await released(cwd);
@@ -716,7 +716,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         if (deaf) {
           deaf = false;
           running = false;
-          void Bun.write(`${cwd}/${MARKER.release}`, "");
+          void Bun.write(`${cwd}/${MARKER_FILE.release}`, "");
         }
         respond(id, { outcome: "promptRequired", reason: "noRunningTurn" });
         return;

@@ -2,11 +2,10 @@ import { workerCount } from "./support/parallelism.js";
 
 const parallel = workerCount();
 
-// Only set default paths when no feature file was passed on the CLI. A profile
-// that hardcodes `paths` silently wins over the positional argument, so
-// `cucumber-js ../plugins/vault/e2e/features/error_view.feature` would run the
-// whole suite. Matches the line-targeted form (`foo.feature:42:56`) too — missing that would broaden
-// the run back to everything in exactly the case where a person is narrowing it.
+// `paths` is an ADDITIVE array in cucumber's config merge, so a profile that
+// sets it is concatenated with the positional feature argument rather than
+// replaced by it: `cucumber-js one.feature` would run the whole suite as well.
+// The line-targeted form (`foo.feature:42:56`) is a feature argument too.
 const cliHasFeatureArgs = process.argv
   .slice(2)
   .some((a) => /\.feature(?::\d+)*$/.test(a));

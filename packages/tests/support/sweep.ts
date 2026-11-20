@@ -13,19 +13,6 @@ export const tracked = (self: string): ReadonlyArray<string> => {
   return listed.stdout.split("\0").filter((one) => one !== "" && one !== mine);
 };
 
-/**
- * One file's text, with its comments removed.
- *
- * ONE PASS, LEFT TO RIGHT, and that is the whole of the rule: whichever comment
- * STARTS FIRST wins, and consumes through. Two passes have a silent-pass hole
- * whichever order they run in: blocks first swallows code after a block opener
- * written inside a LINE comment, lines first swallows a block's closer written
- * on a line with a `//` in it.
- *
- * The output is line-preserving, not line-compacting: callers match patterns
- * anchored per line with `^…` under `m`, and joining the code above a comment
- * to the code below it would invent adjacencies that are not in the file.
- */
 export const withoutComments = (code: string): string =>
   code.replace(/\/\*[\s\S]*?\*\/|(^|\s)\/\/[^\n]*/g, (_taken, lead) => lead ?? "");
 

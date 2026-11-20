@@ -49,7 +49,7 @@ const caretPlace = async (world: OlaiWorld): Promise<string | null> =>
     [CARET_EDITOR, NEW_ROW, NODE] as [string, string, string],
   );
 
-export const leavingTheLine = async (
+export const withCaretReceipt = async (
   world: OlaiWorld,
   gesture: () => Promise<void>,
   what: string,

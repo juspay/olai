@@ -8,15 +8,15 @@ export interface Finding {
 }
 
 const LIMIT = {
-  block: 80,
-  cell: 40,
-  section: 300,
-  page: 3000,
-  sentence: 40,
-  opening: 30,
-  main: 250,
-  sections: 5,
-  note: 100,
+  paragraphWords: 80,
+  tableCellWords: 40,
+  sectionWords: 300,
+  pageWords: 3000,
+  sentenceWords: 40,
+  openingWords: 30,
+  mainFlowWords: 250,
+  mainFlowSections: 5,
+  footnoteWords: 100,
 } as const
 
 const ACRONYMS = new Set([
@@ -119,20 +119,20 @@ const blockFindings = (tree: MarkdownNode): ReadonlyArray<Finding> =>
     const text = read(block)
     const found: Finding[] = []
     const count = words(text)
-    if (count > LIMIT.block) {
+    if (count > LIMIT.paragraphWords) {
       found.push({
         rule: 5,
         line: lineOf(block),
-        said: `${count} words in one block (limit ${LIMIT.block}): “${opening(text)}”`,
+        said: `${count} words in one block (limit ${LIMIT.paragraphWords}): “${opening(text)}”`,
       })
     }
     for (const sentence of sentences(text)) {
       const length = words(sentence)
-      if (length > LIMIT.sentence) {
+      if (length > LIMIT.sentenceWords) {
         found.push({
           rule: 13,
           line: lineOf(block),
-          said: `${length}-word sentence (limit ${LIMIT.sentence}): “${opening(sentence)}”`,
+          said: `${length}-word sentence (limit ${LIMIT.sentenceWords}): “${opening(sentence)}”`,
         })
       }
       const dashes = (sentence.match(/—|--/gu) ?? []).length
@@ -160,12 +160,12 @@ const cellFindings = (tree: MarkdownNode): ReadonlyArray<Finding> =>
     if (node.type !== "tableCell") return []
     const text = read(node)
     const count = words(text)
-    if (count <= LIMIT.cell) return []
+    if (count <= LIMIT.tableCellWords) return []
     return [
       {
         rule: 6,
         line: lineOf(node),
-        said: `${count} words in one table cell (limit ${LIMIT.cell}): “${opening(text)}”`,
+        said: `${count} words in one table cell (limit ${LIMIT.tableCellWords}): “${opening(text)}”`,
       },
     ]
   })
@@ -188,11 +188,11 @@ const lengthFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
   let section = 0
   let page = 0
   const close = (): void => {
-    if (section > LIMIT.section) {
+    if (section > LIMIT.sectionWords) {
       found.push({
         rule: 7,
         line,
-        said: `${section} words under “${heading}” (limit ${LIMIT.section})`,
+        said: `${section} words under “${heading}” (limit ${LIMIT.sectionWords})`,
       })
     }
   }
@@ -210,8 +210,8 @@ const lengthFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
     section += count
   }
   close()
-  if (page > LIMIT.page) {
-    found.push({ rule: 8, line: 1, said: `${page} words on one page (limit ${LIMIT.page})` })
+  if (page > LIMIT.pageWords) {
+    found.push({ rule: 8, line: 1, said: `${page} words on one page (limit ${LIMIT.pageWords})` })
   }
   return found
 }
@@ -221,35 +221,35 @@ const budgetFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
   const blocks = flow(tree)
   const main = blocks.filter((block) => block.main).map((block) => block.node)
   const first = main.find((node) => node.type !== "heading")
-  if (first?.type === "paragraph" && words(read(first)) > LIMIT.opening) {
+  if (first?.type === "paragraph" && words(read(first)) > LIMIT.openingWords) {
     found.push({
       rule: 4,
       line: lineOf(first),
-      said: `the opening is ${words(read(first))} words (limit ${LIMIT.opening}): say the one thing, and footnote the rest`,
+      said: `the opening is ${words(read(first))} words (limit ${LIMIT.openingWords}): say the one thing, and footnote the rest`,
     })
   }
   const seen = main.filter((node) => node.type !== "heading").reduce((sum, node) => sum + words(read(node)), 0)
-  if (seen > LIMIT.main) {
+  if (seen > LIMIT.mainFlowWords) {
     found.push({
       rule: 4,
       line: 1,
-      said: `${seen} words before any footnote or <details> is opened (limit ${LIMIT.main})`,
+      said: `${seen} words before any footnote or <details> is opened (limit ${LIMIT.mainFlowWords})`,
     })
   }
   const sections = main.filter((node) => node.type === "heading" && node.depth === 2).length
-  if (sections > LIMIT.sections) {
-    found.push({ rule: 4, line: 1, said: `${sections} ## sections in the main flow (limit ${LIMIT.sections})` })
+  if (sections > LIMIT.mainFlowSections) {
+    found.push({ rule: 4, line: 1, said: `${sections} ## sections in the main flow (limit ${LIMIT.mainFlowSections})` })
   }
   const identifier = (node: MarkdownNode): string => node.identifier ?? ""
   const cited = new Set([...walk(tree)].filter((node) => node.type === "footnoteReference").map(identifier))
   for (const { node } of blocks) {
     if (node.type !== "footnoteDefinition") continue
     const count = words(read(node))
-    if (count > LIMIT.note) {
+    if (count > LIMIT.footnoteWords) {
       found.push({
         rule: 4,
         line: lineOf(node),
-        said: `footnote of ${count} words (limit ${LIMIT.note}): split it, or move a long table or listing into <details>`,
+        said: `footnote of ${count} words (limit ${LIMIT.footnoteWords}): split it, or move a long table or listing into <details>`,
       })
     }
     if (!cited.has(identifier(node))) {

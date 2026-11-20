@@ -17,6 +17,8 @@ export interface WaitingPaint {
   readonly text: string;
 }
 
+/** Playwright ships this to the browser as source, so it closes over nothing
+ *  and takes its parameters as one argument. */
 export const recordPaints = (
   asked: { key: string; illegiblePx: number; waiting: string },
 ): void => {
@@ -59,10 +61,8 @@ export const recordPaints = (
       }
     }
   });
-  // THE DOCUMENT, not `document.documentElement`: this runs before the shell
-  // has been parsed, where there is no root element yet and observing one is a
-  // throw.
-  observer.observe(document, {
+  const preParseRoot: Node = document;
+  observer.observe(preParseRoot, {
     subtree: true,
     childList: true,
     attributes: true,

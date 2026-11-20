@@ -10,6 +10,10 @@ olai_port_free() {
   fi
 }
 
+olai_log_complete() {
+  [ -z "$(tail -c1 "$1" 2>/dev/null)" ]
+}
+
 olai_serve() {
   local root=$1
   local vault=$2
@@ -23,9 +27,7 @@ olai_serve() {
     > "$log" 2>&1 &
   OLAI_SERVER=$!
   for _ in $(seq 1 60); do
-    # Only a newline-terminated log is complete: a cut inside `url=` would
-    # otherwise match a truncated port.
-    [ -z "$(tail -c1 "$log" 2>/dev/null)" ] || continue
+    olai_log_complete "$log" || continue
     OLAI_URL=$(grep 'message=serving' "$log" 2>/dev/null \
       | grep -oE 'url=https?://(127\.0\.0\.1|\[::1\]):[0-9]+' \
       | head -n1 \

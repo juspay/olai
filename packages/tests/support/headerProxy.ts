@@ -1,16 +1,13 @@
 /**
- * A reverse proxy that stamps trusted identity headers on every request,
- * including the websocket upgrade.
+ * Playwright's `setExtraHTTPHeaders` does not apply to websocket connections —
+ * the browser's WebSocket constructor cannot set them — so a chip that reads
+ * identity off the upgrade never sees what `proxyInjects` wrote. A real reverse
+ * proxy (`tailscale serve`) writes them as it forwards; this is that, for a
+ * scenario.
  *
- * Playwright's `setExtraHTTPHeaders` does not apply to websocket connections
- * — the browser WebSocket constructor cannot set them — so a chip that reads
- * identity off the upgrade never saw what `proxyInjects` wrote. A real reverse
- * proxy (`tailscale serve`) sits in front and writes the headers as it
- * forwards. This is that, for a scenario.
- *
- * Implemented over raw TCP rather than `http.createServer`'s `upgrade`
- * socket: bun's HTTP upgrade socket accepts a write of the 101 and never
- * delivers it to the client (probed 2026-08-22). `net.Socket` splice does.
+ * Over raw TCP rather than `http.createServer`'s `upgrade` socket: bun's HTTP
+ * upgrade socket accepts a write of the 101 and never delivers it to the client
+ * (probed 2026-08-22). `net.Socket` splice does.
  */
 
 import * as http from "node:http";

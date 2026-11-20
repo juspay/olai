@@ -24,12 +24,6 @@ export const delayed = (
   new Promise((bound) => {
     const server = createServer((inbound) => {
       const outbound = connect(target.port, target.host)
-      // BOTH PIPES WIRED AT ONCE, before the far end has connected — a write
-      // made on a connecting socket is queued by the runtime, and waiting for
-      // `connect` before listening to the inbound one loses the request that
-      // was already on it. (Node holds a socket paused until something listens
-      // for `data`; Bun does not, so the deferred version dropped the first
-      // bytes of every connection and the page never loaded.)
       pipe(inbound, outbound, delay)
       pipe(outbound, inbound, delay)
       outbound.on("error", () => {

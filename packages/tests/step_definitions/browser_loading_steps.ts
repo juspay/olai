@@ -31,7 +31,6 @@ When("the browser module can be fetched again", async function (this: OlaiWorld)
   assert.ok(record && record.requests > 0, "the cold browser must actually have requested the refused module");
   await this.page.unroute(record.url);
   // Chromium emits this diagnostic for the deliberately aborted request.
-  // Product errors and all other console diagnostics remain in the ledger.
   const expected = "console.error: Failed to load resource: net::ERR_FAILED";
   const failures = this.errors.filter((error) => error === expected);
   assert.strictEqual(failures.length, record.requests);

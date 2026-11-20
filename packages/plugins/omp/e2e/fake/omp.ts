@@ -42,7 +42,7 @@ import { existsSync, rmSync } from "node:fs";
 
 import { commandLine } from "@olai/tests/agent/command.ts";
 import { readMessages } from "@olai/tests/harness/ndjson.ts";
-import { emitter, MARKER, released, speaking } from "@olai/tests/harness/scripted.ts";
+import { emitter, MARKER_FILE, released, speaking } from "@olai/tests/harness/scripted.ts";
 
 const emit = emitter(process.stdout);
 const { notify, refuse, request, respond, take } = speaking(emit, "omp");
@@ -161,7 +161,7 @@ const finishCommand = async (toolCallId: string, terminalId: string): Promise<vo
 const DONE_CMD = 'process.stdout.write("omp ran ls\\n")';
 
 const heldCommand = (): string => {
-  const marker = JSON.stringify(`${cwd}/${MARKER.release}`);
+  const marker = JSON.stringify(`${cwd}/${MARKER_FILE.release}`);
   return (
     `process.stdout.write("omp command started\\n");` +
     `process.stdout.write(Array.from({length: 60}, (_, i) => "output line " + i).join("\\n") + "\\n");` +
@@ -293,7 +293,7 @@ const turn = async (text: string, mine: Turn): Promise<string> => {
   if (said === "slow") {
     const toolCallId = callIdFor("bash");
     const created = await announceCommand(toolCallId, "sleep 30", heldCommand());
-    const marker = `${cwd}/${MARKER.release}`;
+    const marker = `${cwd}/${MARKER_FILE.release}`;
     while (!existsSync(marker)) {
       give();
       await sleep(100);
@@ -396,7 +396,7 @@ let streaming: Turn | null = null;
 let answering: Promise<unknown> = Promise.resolve();
 
 const holdingOpen = (): boolean => {
-  const marker = `${cwd}/${MARKER.holdOpen}`;
+  const marker = `${cwd}/${MARKER_FILE.holdOpen}`;
   if (!existsSync(marker)) return false;
   rmSync(marker, { force: true });
   return true;
@@ -503,7 +503,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/load": {
-      const heldLoad = `${cwd}/${MARKER.holdLoad}`;
+      const heldLoad = `${cwd}/${MARKER_FILE.holdLoad}`;
       if (existsSync(heldLoad)) {
         rmSync(heldLoad, { force: true });
         await released(cwd);

@@ -156,7 +156,8 @@ await ask("initialize", {
   protocolVersion: 1,
   clientCapabilities: {
     fs: { readTextFile: false, writeTextFile: false },
-    // Since 0.73.0, AIR is negotiated here; session/new metadata alone is insufficient.
+    // `@agentclientprotocol/claude-agent-acp` negotiates AIR here since 0.73.0
+    // (olai pins 0.81.2); session/new metadata alone is insufficient.
     _meta: airMeta,
   },
 })

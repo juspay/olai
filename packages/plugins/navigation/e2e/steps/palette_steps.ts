@@ -2,7 +2,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { retypedAndPressed, retypedAndTaken } from "@olai/tests/harness/atonce.ts";
-import { countsNothing, foundCount } from "@olai/tests/harness/counted.ts";
+import { countsNothing, expectExactCount } from "@olai/tests/harness/counted.ts";
 import { WAITING, waitsIllegibly } from "@olai/tests/harness/paints.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
 import { keysSettled, pressed } from "@olai/tests/harness/settling.ts";
@@ -241,7 +241,7 @@ Then(
 Then(
   "the palette found {string}",
   async function (this: OlaiWorld, said: string) {
-    await foundCount(this, `${PALETTE} ${SEARCH_COUNT}`, said, "palette count");
+    await expectExactCount(this, `${PALETTE} ${SEARCH_COUNT}`, said, "palette count");
   },
 );
 

@@ -47,7 +47,6 @@ Then("the directory feature {string} is {word} in this tab", async function(this
 });
 
 Then("the surviving title editor has keyboard focus", async function(this: OlaiWorld) {
-  // Inspect focus; never repair a lost caret with a test-authored focus().
   await this.page.locator(OFFLINE).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
   await this.page.waitForFunction(selector => document.activeElement?.matches(selector) === true, TITLE_EDITOR);
 });

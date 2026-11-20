@@ -118,13 +118,9 @@ export const sameTree = (
   b: ReadonlyMap<string, string>,
 ): boolean => changedFiles(a, b).length === 0;
 
-/**
- * Put `root` back to `fixture` WITHOUT replacing directory inodes.
- *
- * A recursive watch is armed on the inodes it saw at boot, so deleting a
- * directory and copying it back leaves the watcher on the old inode and the
- * next scenario's writes under it are never heard.
- */
+/** A recursive watch is armed on the inodes it saw at boot, so deleting a
+ *  directory and copying it back leaves the watcher on the old inode and the
+ *  next writes under it are never heard. */
 export const restoreTree = (root: string, fixture: string): void => {
   fs.mkdirSync(root, { recursive: true });
   const want = filesOf(fixture);
@@ -158,7 +154,7 @@ export const unrestoredError = (
       `git, kolu), not a faster run`,
   );
 
-export const askResync = async (
+export const drainAndResync = async (
   baseUrl: string,
   timeoutMs: number,
 ): Promise<void> => {
@@ -178,14 +174,6 @@ export const askResync = async (
   }
 };
 
-/**
- * Put a shared scratch back to its fixture, and do not return until the
- * still-running server has re-read that tree.
- *
- * THE ORDER IS THE CONTRACT. So: wait until no `run` is in
- * flight (`POST /olai/resync` waits on that before it probes), THEN put
- * the bytes back, THEN ask it to look again.
- */
 export const restoreShared = async (
   baseUrl: string,
   served: string,
@@ -193,9 +181,9 @@ export const restoreShared = async (
   origin: ReadonlyMap<string, string>,
   timeoutMs: number,
 ): Promise<ReadonlyArray<string>> => {
-  await askResync(baseUrl, timeoutMs);
+  await drainAndResync(baseUrl, timeoutMs);
   if (sameTree(filesOf(served), origin)) return [];
   restoreTree(served, fixture);
-  await askResync(baseUrl, timeoutMs);
+  await drainAndResync(baseUrl, timeoutMs);
   return leftovers(origin, served);
 };

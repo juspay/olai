@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
-import { MARKER } from "@olai/tests/harness/scripted.ts";
+import { MARKER_FILE } from "@olai/tests/harness/scripted.ts";
 import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { selector } from "@olai/web/testlib";
@@ -32,15 +32,15 @@ const mark = (world: OlaiWorld, marker: string): void => {
 };
 
 Given("the agent needs a sign-in", function (this: OlaiWorld) {
-  mark(this, MARKER.needsAuth);
+  mark(this, MARKER_FILE.needsAuth);
 });
 
 When("the person finishes signing in", function (this: OlaiWorld) {
-  mark(this, MARKER.atThePage);
+  mark(this, MARKER_FILE.atThePage);
 });
 
 When("the agent reports it is signed in as:", function (this: OlaiWorld, identity: string) {
-  fs.writeFileSync(path.join(this.scratch(), MARKER.identity), identity);
+  fs.writeFileSync(path.join(this.scratch(), MARKER_FILE.identity), identity);
 });
 
 Then("the agent line says who is signed in as {string}", async function (this: OlaiWorld, said: string) {
@@ -76,7 +76,7 @@ Then("the agent line names no account", async function (this: OlaiWorld) {
 });
 
 Given("the agent offers no way in but still reports its account", function (this: OlaiWorld) {
-  mark(this, MARKER.identityOnly);
+  mark(this, MARKER_FILE.identityOnly);
 });
 
 Then("the account in the agent line is a button", async function (this: OlaiWorld) {
@@ -259,7 +259,7 @@ Then("the card says {string}", async function (this: OlaiWorld, text: string) {
 });
 
 Then("the login command was stopped", async function (this: OlaiWorld) {
-  const written = path.join(this.scratch(), MARKER.loginPid);
+  const written = path.join(this.scratch(), MARKER_FILE.loginPid);
   try {
     await this.waitUntil(
       async () => stillRunning(written) === null,

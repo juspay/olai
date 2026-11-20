@@ -6,7 +6,7 @@ import { createHash } from "node:crypto"
 import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
-import { emitter, MARKER, RELEASE, released as releasedIn, SLEEP_STAMP, speaking } from "../support/scripted.ts"
+import { emitter, MARKER_FILE, MARKER_FILE_FOR, RELEASE, released as releasedIn, SLEEP_STAMP, speaking } from "../support/scripted.ts"
 import { sessionStore } from "./session-store.ts"
 import { commandLine, commandWords } from "./command.ts"
 
@@ -137,32 +137,32 @@ const listedSessions = () => {
 }
 
 const forgotten = (sessionId: string): boolean =>
-  existsSync(`${cwd}/.agent-forgot-${sessionId}`)
+  existsSync(`${cwd}/${MARKER_FILE_FOR.forgottenSession(sessionId)}`)
 
 const missingHere = (sessionId: string): boolean =>
-  existsSync(`${cwd}/.agent-missing-${sessionId}`)
+  existsSync(`${cwd}/${MARKER_FILE_FOR.sessionMissingHere(sessionId)}`)
 
 const refusesToOpen = (verb: "new" | "load"): boolean =>
-  existsSync(`${cwd}/.agent-refuse-${verb}`)
+  existsSync(`${cwd}/${MARKER_FILE_FOR.refusalToOpen(verb)}`)
 
-const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER.holdLoad}`)
+const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER_FILE.holdLoad}`)
 
 const holdingOpen = (): boolean => {
-  const marker = `${cwd}/${MARKER.holdOpen}`
+  const marker = `${cwd}/${MARKER_FILE.holdOpen}`
   if (!existsSync(marker)) return false
   rmSync(marker, { force: true })
   return true
 }
 
-const silent = (): boolean => existsSync(`${cwd}/${MARKER.saysNothing}`)
+const silent = (): boolean => existsSync(`${cwd}/${MARKER_FILE.saysNothing}`)
 
-const identityOnly = (): boolean => existsSync(`${cwd}/${MARKER.identityOnly}`)
+const identityOnly = (): boolean => existsSync(`${cwd}/${MARKER_FILE.identityOnly}`)
 
 const needsSignature = (): boolean =>
-  existsSync(`${cwd}/${MARKER.needsAuth}`) && !existsSync(`${cwd}/${MARKER.signedIn}`)
+  existsSync(`${cwd}/${MARKER_FILE.needsAuth}`) && !existsSync(`${cwd}/${MARKER_FILE.signedIn}`)
 
 const waitAtThePage = async (still: () => boolean = () => true): Promise<boolean> => {
-  const marker = `${cwd}/${MARKER.atThePage}`
+  const marker = `${cwd}/${MARKER_FILE.atThePage}`
   for (let waited = 0; waited < LOGIN_LIMIT_MS; waited += 100) {
     if (!still()) return false
     if (existsSync(marker)) {
@@ -202,7 +202,7 @@ const defaultIdentity = (): Record<string, unknown> => isCodex
   }
 
 const identityNow = (): Record<string, unknown> => {
-  const path = `${cwd}/${MARKER.identity}`
+  const path = `${cwd}/${MARKER_FILE.identity}`
   if (existsSync(path)) {
     try {
       const read: unknown = JSON.parse(readFileSync(path, "utf8"))
@@ -298,7 +298,7 @@ const MODEL_ROWS = [
 
 const refusedForAccount = (): string | null => {
   try {
-    return readFileSync(`${cwd}/${MARKER.refuseModelByAccount}`, "utf8").trim() || null
+    return readFileSync(`${cwd}/${MARKER_FILE.refuseModelByAccount}`, "utf8").trim() || null
   } catch {
     return null
   }
@@ -306,7 +306,7 @@ const refusedForAccount = (): string | null => {
 
 const pinnedModel = (): string => {
   try {
-    return readFileSync(`${cwd}/.agent-pin`, "utf8").trim() || "fake-model-1"
+    return readFileSync(`${cwd}/${MARKER_FILE.pinnedModel}`, "utf8").trim() || "fake-model-1"
   } catch {
     return "fake-model-1"
   }
@@ -878,14 +878,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       reply(id, { stopReason: "end_turn" })
       return
     }
-    if (existsSync(`${cwd}/${MARKER.sleepAsk}`)) {
-      rmSync(`${cwd}/${MARKER.sleepAsk}`, { force: true })
+    if (existsSync(`${cwd}/${MARKER_FILE.sleepAsk}`)) {
+      rmSync(`${cwd}/${MARKER_FILE.sleepAsk}`, { force: true })
       if (!canElicit()) {
         say("the client cannot draw a form, so there is nothing to ask")
         reply(id, { stopReason: "end_turn" })
         return
       }
-      appendFileSync(`${cwd}/${MARKER.sleepAsked}`, "")
+      appendFileSync(`${cwd}/${MARKER_FILE.sleepAsked}`, "")
       await request("elicitation/create", {
         mode: "form",
         sessionId,
@@ -907,15 +907,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       reply(id, { stopReason: "end_turn" })
       return
     }
-    if (existsSync(`${cwd}/${MARKER.sleepOutside}`) || existsSync(`${cwd}/${MARKER.sleepTrash}`)) {
+    if (existsSync(`${cwd}/${MARKER_FILE.sleepOutside}`) || existsSync(`${cwd}/${MARKER_FILE.sleepTrash}`)) {
       const said: Array<string> = []
-      const outside = `${cwd}/${MARKER.sleepOutside}`
+      const outside = `${cwd}/${MARKER_FILE.sleepOutside}`
       if (existsSync(outside)) {
         const target = readFileSync(outside, "utf8").trim()
         rmSync(outside, { force: true })
         said.push(JSON.stringify(await useTool("outlines_prop", { id: target, key: "tidy-probe", value: "1" })))
       }
-      const trash = `${cwd}/${MARKER.sleepTrash}`
+      const trash = `${cwd}/${MARKER_FILE.sleepTrash}`
       if (existsSync(trash)) {
         const target = readFileSync(trash, "utf8").trim()
         rmSync(trash, { force: true })
@@ -925,8 +925,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       reply(id, { stopReason: "end_turn" })
       return
     }
-    if (existsSync(`${cwd}/${MARKER.sleepStamp}`)) {
-      rmSync(`${cwd}/${MARKER.sleepStamp}`, { force: true })
+    if (existsSync(`${cwd}/${MARKER_FILE.sleepStamp}`)) {
+      rmSync(`${cwd}/${MARKER_FILE.sleepStamp}`, { force: true })
       const refused = await useTool("outlines_prop", {
         id: node,
         key: "chat-agent-slept",
@@ -953,8 +953,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       return
     }
     await useTool("outlines_title", { id: child.id, title: "tidied" })
-    if (existsSync(`${cwd}/${MARKER.sleepHold}`)) {
-      rmSync(`${cwd}/${MARKER.sleepHold}`, { force: true })
+    if (existsSync(`${cwd}/${MARKER_FILE.sleepHold}`)) {
+      rmSync(`${cwd}/${MARKER_FILE.sleepHold}`, { force: true })
       await released(() => void 0, () => cancelled)
       if (endedCancelled(id)) return
     }
@@ -975,8 +975,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     }
     await nativeActivity(argument, sessionId, notify, request, async () => {
       if (argument !== "slow") return released()
-      while (!cancelled && !existsSync(`${cwd}/${MARKER.release}`)) { await takeSteering(); await sleep(20) }
-      if (!cancelled) rmSync(`${cwd}/${MARKER.release}`, { force: true })
+      while (!cancelled && !existsSync(`${cwd}/${MARKER_FILE.release}`)) { await takeSteering(); await sleep(20) }
+      if (!cancelled) rmSync(`${cwd}/${MARKER_FILE.release}`, { force: true })
     }, () => cancelled)
     if (endedCancelled(id)) return
     say("Native work handled")
@@ -1013,8 +1013,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const params = { sessionId, terminalId: created.terminalId }
     notify("session/update", { sessionId, update: { sessionUpdate: "tool_call", toolCallId: "terminal-test", title: "Run verification", kind: "execute", status: "in_progress", content: [{ type: "terminal", terminalId: created.terminalId }] } })
     if (variant !== "truncate" && variant !== "zero") {
-      while (!cancelled && !existsSync(`${cwd}/${MARKER.release}`)) await sleep(20)
-      if (!cancelled) { rmSync(`${cwd}/${MARKER.release}`, { force: true }); await request("terminal/kill", params) }
+      while (!cancelled && !existsSync(`${cwd}/${MARKER_FILE.release}`)) await sleep(20)
+      if (!cancelled) { rmSync(`${cwd}/${MARKER_FILE.release}`, { force: true }); await request("terminal/kill", params) }
     }
     const exit = await request("terminal/wait_for_exit", params)
     const output = await request("terminal/output", params)
@@ -1341,7 +1341,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "hold") {
-    writeFileSync(`${cwd}/.agent-held-pid`, String(process.pid))
+    writeFileSync(`${cwd}/${MARKER_FILE.heldPid}`, String(process.pid))
     const toolCallId = `call-${++nextMcpId}`
     notify("session/update", {
       sessionId,
@@ -2113,8 +2113,8 @@ const replay = async (): Promise<void> => {
     },
   })
   if (sessionId === "fake-stored-old") {
-    if (existsSync(`${cwd}/${MARKER.longHistory}`)) {
-      rmSync(`${cwd}/${MARKER.longHistory}`, { force: true })
+    if (existsSync(`${cwd}/${MARKER_FILE.longHistory}`)) {
+      rmSync(`${cwd}/${MARKER_FILE.longHistory}`, { force: true })
       for (let call = 0; call < 100; call++) {
         notify("session/update", {
           sessionId,
@@ -2129,14 +2129,14 @@ const replay = async (): Promise<void> => {
         })
       }
     }
-    const slow = existsSync(`${cwd}/${MARKER.slowReplay}`)
-    if (slow) rmSync(`${cwd}/${MARKER.slowReplay}`, { force: true })
+    const slow = existsSync(`${cwd}/${MARKER_FILE.slowReplay}`)
+    if (slow) rmSync(`${cwd}/${MARKER_FILE.slowReplay}`, { force: true })
     for (let line = 0; line < 40; line++) {
       say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
       if (slow) await new Promise((done) => setTimeout(done, 25))
     }
-    if (existsSync(`${cwd}/.agent-want-late`)) {
-      rmSync(`${cwd}/.agent-want-late`, { force: true })
+    if (existsSync(`${cwd}/${MARKER_FILE.wantLate}`)) {
+      rmSync(`${cwd}/${MARKER_FILE.wantLate}`, { force: true })
       void released().then(() => {
         say(`late line — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
       })
@@ -2205,8 +2205,8 @@ const authenticateDeviceCode = async (id: unknown): Promise<void> => {
     refuse(id, -32603, "the device-code sign-in was never completed")
     return
   }
-  appendFileSync(`${cwd}/${MARKER.signedIn}`, "")
-  writeFileSync(`${cwd}/${MARKER.identity}`, JSON.stringify({
+  appendFileSync(`${cwd}/${MARKER_FILE.signedIn}`, "")
+  writeFileSync(`${cwd}/${MARKER_FILE.identity}`, JSON.stringify({
     kind: "account",
     label: "ChatGPT Plus",
     account: { email: "signed-in@example.com", plan: "plus" },
@@ -2265,8 +2265,8 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/list":
       if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
-      if (existsSync(join(cwd, ".agent-list-asks"))) {
-        appendFileSync(join(cwd, ".agent-list-asks"), "1\n")
+      if (existsSync(join(cwd, MARKER_FILE.listAsks))) {
+        appendFileSync(join(cwd, MARKER_FILE.listAsks), "1\n")
       }
       if (listRefused) {
         refuse(id, -32000, "the conversation store is unreadable")
@@ -2306,8 +2306,8 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         const asked = typeof params["cwd"] === "string"
           ? params["cwd"].replace(/\/+$/, "")
           : cwd
-        if (existsSync(join(asked, MARKER.loads))) {
-          appendFileSync(join(asked, MARKER.loads), `${String(params["sessionId"])}\n`)
+        if (existsSync(join(asked, MARKER_FILE.loads))) {
+          appendFileSync(join(asked, MARKER_FILE.loads), `${String(params["sessionId"])}\n`)
         }
       }
       if (needsSignature()) {
@@ -2365,7 +2365,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/set_config_option": {
-      if (existsSync(`${cwd}/${MARKER.refuseModel}`)) {
+      if (existsSync(`${cwd}/${MARKER_FILE.refuseModel}`)) {
         refuse(id, -32602, "model changes are unavailable")
         return
       }
