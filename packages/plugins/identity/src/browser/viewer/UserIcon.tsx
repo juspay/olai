@@ -1,7 +1,3 @@
-/** Identity's no-picture silhouette, shared with consumers through
- * identity.viewer. The caller chooses its size; the surrounding label names
- * the person, so the drawing stays aria-hidden. Chat has its own anonymous
- * mark while the identity service is absent. */
 export function UserIcon(props: { readonly class: string }) {
   return (
     <svg

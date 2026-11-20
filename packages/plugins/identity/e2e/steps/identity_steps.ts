@@ -1,29 +1,3 @@
-/**
- * Who is looking: every answer has a face — anonymous, the person, a
- * failed door. Last in the chrome row.
- *
- * The Givens write the proxy's headers onto THIS scenario's context before
- * the first navigation — Playwright sends them on every HTTP request,
- * which is how `tailscale serve` injects them and how the websocket
- * upgrade carries them. The chip reads `who.get` off that upgrade; a
- * failed ask is a throw, not an intercepted GET.
- *
- * WHICH picture a person wears is the server's answer and not this
- * suite's: the identity ROW's ladder resolves it, and what the steps here
- * assert is the `src` the chip drew. The remote hosts on that ladder are
- * fulfilled locally (the "is a real image" Given) — a suite that fetched
- * github.com to see whether an `<img>` appeared would be testing the
- * network, and would fail on a machine that has none.
- *
- * TWO NAMES COME FROM THE ROW ITSELF, through the reading door that has no
- * runtime in it (`olai-plugin-identity/who`): the header names a Given
- * injects, so a step writes the header olai actually reads, and the
- * gravatar URL a Then expects, so a hash spelled twice cannot disagree.
- * The chip's testid comes from the same row's `./testids`, merged into
- * `@olai/bundle/testids` with every other plugin's — it left
- * `@olai/web`'s table with the chip.
- */
-
 import * as assert from "node:assert";
 import { Given, Then } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
@@ -40,8 +14,6 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const IDENTITY = selector(PLUGIN_TESTID.identity);
 
-/** A one-pixel PNG, which is a real image and not a fixture file: what the
- *  scenarios need from a remote avatar is that the browser could draw it. */
 const ONE_PIXEL = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
   "base64",
@@ -73,8 +45,6 @@ Given(
   },
 );
 
-/** That URL answers with an image, so the chip's `<img>` is one the
- *  browser really drew rather than a broken one that still has the src. */
 Given(
   "the picture at {string} is a real image",
   async function (this: OlaiWorld, url: string) {
@@ -102,8 +72,6 @@ Then(
   },
 );
 
-/** The chip is an icon; the words live on `aria-label` (and the hover
- *  tip, which is a portal). A labelled pill would put them in the slot. */
 async function iconOnly(slot: Locator) {
   assert.equal(
     (await slot.innerText()).trim(),
@@ -141,28 +109,12 @@ Then(
   },
 );
 
-/**
- * NO ROW, NO CHIP — and the distinction this step exists to hold is that it
- * is not `anonymous`.
- *
- * A serve that mounted the identity row and got no login draws the silhouette
- * and says so (`the header shows anonymous`). A serve that did not mount the
- * row draws NOTHING in that seat: the plugin's chunk was never fetched, its
- * fiber never mounted, and the face never registered. The scenario injects a
- * real login to make the difference visible — the header a full serve reads as
- * Ada is the header nobody here is reading.
- *
- * It waits for the chrome first, so an empty seat is an answer rather than a
- * page that has not drawn its bar yet.
- */
 Then("the header has no identity chip", async function (this: OlaiWorld) {
   await this.waitForFrame();
   const header = this.page.locator(APP_HEADER);
   await header
     .locator(APP_CHROME)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  // A switch acknowledgement precedes the browser's asynchronous roster
-  // composition. Require removal, allowing that transition to finish.
   await header.locator(IDENTITY).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
   assert.equal(
     await header.locator(IDENTITY).count(),
@@ -199,8 +151,6 @@ Then("the header shows anonymous", async function (this: OlaiWorld) {
   );
 });
 
-/** Somebody is looking, and it is this login. WHAT they wear is the next
- *  step's question: a person with no picture is a person all the same. */
 Then(
   "the header shows the identity {string}",
   async function (this: OlaiWorld, login: string) {
@@ -225,8 +175,6 @@ Then(
   },
 );
 
-/** The fourth rung: no picture anywhere on the ladder is the silhouette
- *  the chip draws itself, with no remote image at all. */
 Then("the identity chip draws no picture", async function (this: OlaiWorld) {
   const slot = this.page.locator(IDENTITY);
   await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
@@ -242,13 +190,6 @@ Then("the identity chip draws no picture", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * ONE ROW OF MARKS at the right end of a desktop bar: the chip is a square,
- * the size of the preferences gear beside it and with the same corners —
- * whether it draws a picture or the silhouette. Geometry is the claim here (a
- * pill-shaped chip among square marks is the regression), so it is measured,
- * not read off a class.
- */
 Then(
   "the identity chip is the size and shape of the preferences gear",
   async function (this: OlaiWorld) {

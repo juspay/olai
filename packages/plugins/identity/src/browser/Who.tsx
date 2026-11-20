@@ -1,45 +1,14 @@
-/**
- * Who is looking, in the header: every answer has a face, and the face
- * is an icon. The words are the tooltip.
- *
- * Four constructors, a closed set. `asking` while the door has not
- * answered; `none` when this request is anonymous; `yes` when a login
- * arrived; `error` when the door failed. It hangs in `app.viewer`, which
- * is the app's last seat — top right, on a phone as well as a desktop —
- * wearing the same icon-button the agent and prefs wear, so the bar's
- * items-center has one height. WHERE it sits is the app's; every word and
- * stroke in it is this row's.
- *
- * A person's PICTURE is the server's answer, already resolved down this
- * row's own ladder ({@link ../who/picture.ts}) — a proxy's IdP avatar, an
- * operator's avatar template, the gravatar of a real email claim, or none.
- * This file draws what it was handed and knows nothing about headers or
- * templates; when the answer is none, the same silhouette anonymous wears
- * stands in, and the person is still `yes` (they have a login, and now
- * often a name).
- *
- * The identity activation owns one resource, shared with every consumer of
- * identity.viewer. Closing that activation disposes the resource; a new
- * activation reads the current connection again. The chip is handed that
- * resource rather than creating a second ask for its own face.
- */
-
 import { Match, Show, Switch, type JSX } from "solid-js"
 
 import { LAYER } from "@olai/web/client/layer.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 
-/** On a desktop the chip is a circle the size of the bar's health dot and
- *  preferences gear beside it, so the right end of the bar reads as one row
- *  of three round marks. A phone keeps its 44px target unchanged. */
 const DESKTOP_ROUND = "md:!w-7 md:!px-0"
 import { TESTID } from "../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Who as Person } from "./viewer/asking.ts"
 import { type Viewer, saying, UserIcon } from "./viewer/index.ts"
 
-/** The four faces the slot can draw. Closed so a typo is a missing
- *  `Match` rather than a chip that draws nothing. */
 export type Face = "asking" | "none" | "yes" | "error"
 
 export function Who(props: { readonly viewer: Viewer }) {
@@ -99,9 +68,6 @@ function Icon(props: {
   )
 }
 
-/** A person: their picture when the server resolved one, and the same
- *  silhouette as anonymous when it did not — a person with no picture is
- *  still a person, which is what the tooltip and `data-who` say. */
 function Chip(props: { readonly person: Person }) {
   return (
     <Tip text={saying(props.person)} layer={LAYER.over}>
@@ -117,17 +83,6 @@ function Chip(props: { readonly person: Person }) {
               width={20}
               height={20}
               referrerPolicy="no-referrer"
-              /* NOT DEFERRED, and it is the chip's position that decides it:
-                 this is chrome, drawn in the header the moment the app does,
-                 so it is on screen before anything is scrolled and `lazy`
-                 would only move the one request this strip makes behind
-                 layout. Not boosted either — twenty pixels of somebody's face
-                 is never the largest paint, and the guidance keeps `high` for
-                 the one or two images that are, so spending it here would
-                 dilute the boost the picture-as-a-page takes
-                 (`olai-plugin-image`'s `Image.tsx`). The decode is still
-                 handed off the main thread, because nothing on this row is
-                 worth a frame of the first paint. */
               loading="eager"
               decoding="async"
               class="size-5 rounded-full"

@@ -1,9 +1,3 @@
-/**
- * The door's answer as the chip reads it: a person, nobody, or a throw
- * that the resource treats as a failed door. Its own file so a failed ask
- * is a test that does not dial the wire.
- */
-
 import type { Who } from "@olai/surface"
 import { Result } from "effect"
 

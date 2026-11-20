@@ -1,10 +1,3 @@
-/**
- * The chip's reading of the door: a person, nobody, or a throw the
- * resource treats as a failed door. The four faces Who.tsx draws rest on
- * this, and a failed ask used to be an intercepted GET; the chip no
- * longer fetches, so the throw is the face.
- */
-
 import { BusyFailure } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"

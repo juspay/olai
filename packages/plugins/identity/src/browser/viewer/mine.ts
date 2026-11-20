@@ -1,5 +1,3 @@
-/** One resource per identity activation, shared by all consumers and closed
- * with the provider. Re-enabling identity creates a fresh resource. */
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 import { createWho } from "./asking.ts"

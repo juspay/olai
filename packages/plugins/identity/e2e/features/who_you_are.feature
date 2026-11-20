@@ -52,10 +52,6 @@ Feature: The header shows who you are
     And there should be no page errors
 
   Scenario: A connected tab does not fetch GET /olai/who
-    # The chip reads who.get off the upgrade. GET /olai/who stays for a
-    # share sheet and a script, which have no websocket. A failed ask is
-    # a throw the resource treats as the error face (who/fromAsk.ts), not
-    # an intercepted GET.
     Given I am the Tailscale user "ada@example.com"
     When I open the app
     Then the header shows the identity "ada@example.com"

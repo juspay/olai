@@ -1,14 +1,9 @@
-/** Identity policy declaration, decoded from the shared vault revision. */
 import { Effect, Schema } from "effect"
 import { DEFAULT_LOGIN_HEADER, DEFAULT_NAME_HEADER, DEFAULT_PICTURE_HEADER } from "./who/identity.ts"
 import type { IdentityHeaders } from "./who/identity.ts"
 
-/** Normalized policy shared by schema decoding and request readings. */
 export interface IdentityConfig {
-  /** Which headers this server trusts for who is looking. */
   readonly headers: IdentityHeaders
-  /** The avatar URL template, or `null` — the ladder's second rung.
-   *  A TEMPLATE, not a URL: `{login}` is where the login goes. */
   readonly avatarTemplate: string | null
 }
 

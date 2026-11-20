@@ -1,5 +1,3 @@
-/** Schema decoding and normalization of the identity node’s properties. */
-
 import { expect, test } from "bun:test"
 
 import { Schema } from "effect"

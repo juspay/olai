@@ -14,14 +14,6 @@ Feature: Who is looking is a plugin
 
   @rows:vault,olai,chat,claude,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: Switching the row on names its headers without a restart
-    # THE OTHER DIRECTION, on a serve that came up WITHOUT the row — which is
-    # the half that needed a restart until the allowlist could follow the live
-    # row (juspay/kolu#2229). The socket this tab opened at boot was allowed to
-    # keep no headers, because nobody was standing behind the door to name any;
-    # switching the row on moves the roster, the tab redials, and the upgrade
-    # that redial performs is where the names arrive. So the chip drawing Ada
-    # is the whole claim: not that the reading works, but that the header
-    # reached a socket that was accepted after the press.
     Given I am the Tailscale user "ada@example.com"
     When I open the app
     Then the header has no identity chip
@@ -33,10 +25,6 @@ Feature: Who is looking is a plugin
     And there should be no page errors
 
   Scenario: Identity follows plugin restoration and socket reconnection
-    # THE FLIP, on the half a unit test cannot reach. The server's side is
-    # `identity.test.ts` (both doors answer nobody from the next request on,
-    # and Ada again when it is switched back); this is the bar, where a person
-    # is looking while they press it.
     Given I am the Tailscale user "ada@example.com"
     When I open the app
     Then the header shows the identity "ada@example.com"
@@ -45,7 +33,6 @@ Feature: Who is looking is a plugin
     Then the header has no identity chip
     When I switch the plugin "identity" on
     Then the header shows the identity "ada@example.com"
-    # A surface-roster replacement must also refresh identity from the new upgrade.
     When I am the Tailscale user "grace@example.com"
     And I switch the plugin "journal" off
     Then the header shows the identity "grace@example.com"

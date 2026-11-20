@@ -1,15 +1,3 @@
-/**
- * Who this request is: the parse.
- *
- * A function of VALUES — the header names it is handed, and the headers a
- * request arrived with. Present, absent, blank, doubled, a login with no
- * claim beside it. Which names a deployment actually uses is the
- * environment's, and so is its test ({@link ./config.test.ts}); WHICH
- * picture the person then wears is {@link ./picture.test.ts}, and the hash
- * is {@link ./gravatar.test.ts}. HTTP is `@olai/server`'s, because a door
- * is not a person.
- */
-
 import { expect, test } from "bun:test"
 
 import {
@@ -21,7 +9,6 @@ import {
 
 const ADA = "ada@example.com"
 
-/** The Authelia family, spelled once. */
 const AUTHELIA: IdentityHeaders = {
   login: "Remote-User",
   email: "Remote-Email",
@@ -59,8 +46,6 @@ test("absent, blank, or empty-after-trim is nobody — nothing guesses", () => {
   expect(identityOf({ "tailscale-user-login": "" })).toBeNull()
   expect(identityOf({ "tailscale-user-login": "   " })).toBeNull()
   expect(identityOf({ "tailscale-user-login": undefined })).toBeNull()
-  // A picture without a login is not a person: the login is what makes
-  // somebody present, and the rest are claims about them.
   expect(
     identityOf({ "tailscale-user-profile-pic": "https://avatars.example/x.png" }),
   ).toBeNull()
