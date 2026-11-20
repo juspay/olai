@@ -1,5 +1,3 @@
-/** File bytes and explicit resynchronization leave with the vault activation. */
-
 import type { VaultSettings as Settings } from "@olai/ops"
 import { definePlugin, Directory, VaultSettings, Ops } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"

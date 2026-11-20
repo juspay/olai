@@ -1,11 +1,3 @@
-/**
- * An outline the agent rewrote by hand, read as nodes.
- *
- * The claim under test is the design's own "never a text diff of a `.olai`",
- * made true of the FILE rather than of the tool: whatever wrote it, what a
- * reader gets is the node-level story in the vocabulary the Commit panel
- * already uses.
- */
 import { claims, outlineDocument, type Claims, type OutlineFormat } from "@olai/format"
 import { Result } from "effect"
 import { describe, expect, test } from "bun:test"
@@ -62,8 +54,6 @@ describe("an outline rewritten by hand", () => {
   })
 
   test("a side that will not parse says which side, and offers no changes", () => {
-    // Exactly how an agent hand-editing an outline goes wrong, and the reason
-    // this is not a boolean: the side that broke is the news.
     expect(rewritten(`${OUTLINE}\n`, `${OUTLINE}\nnot json at all\n`)).toEqual({
       _tag: "Unreadable",
       side: "after",
@@ -75,8 +65,6 @@ describe("an outline rewritten by hand", () => {
   })
 
   test("a rewrite that moved no record has nothing to report", () => {
-    // A reformat, a reordered key: the bytes moved and no node did. Saying
-    // nothing is the honest answer, and it is what the panel draws as such.
     const answer = rewritten(`${OUTLINE}\n`, `${OUTLINE}\n\n`)
     expect(answer).toEqual({ _tag: "Changes", changes: [] })
   })

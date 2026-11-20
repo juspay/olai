@@ -1,5 +1,3 @@
-/** One vault setup's table. The provision receives the caller's row binding
- * from Cordis; callers cannot supply or replace their owner identity. */
 import { claims, type Claims } from "@olai/format"
 import type { FileKinds, FileClaim } from "@olai/plugin-api/services"
 import { Effect, Queue, Stream } from "effect"
@@ -25,8 +23,6 @@ export const openFileKinds = () => {
         if ((claim.holds === "nodes") !== (claim.format !== undefined)) {
           throw new Error(`olai-plugin-vault: "${owner}" must supply a format exactly when its content holds nodes`)
         }
-        // Construct before publishing: all keys are checked in this synchronous
-        // step, and a refused acquisition changes nothing and owns no cleanup.
         const entry = { ...claim, kind: owner }
         let next: Claims
         try { next = claims([...current.byKind.values(), entry]) }

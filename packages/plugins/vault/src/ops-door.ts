@@ -1,6 +1,3 @@
-/** Translate the plugin Ops vocabulary at the API/floor boundary. These
- * gestures and their attribution can change without changing vault lifetime;
- * this adapter neither acquires the gate nor decides when it is released. */
 import type { PageRequest } from "@olai/format"
 import type { Ops as Gate } from "@olai/ops"
 import type { Ops } from "@olai/plugin-api/services"

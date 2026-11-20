@@ -1,6 +1,3 @@
-/** Vault owns file-access wire members and the write authority. Readings and
- * subscriptions are acquired on this provider's scope; UI and layout are not dependencies of this half. */
-
 import { bodyKind, samePageReading, type FiledPageReading } from "@olai/format"
 import type { Ops as Gate } from "@olai/ops"
 import type { VaultSettings as Settings } from "@olai/ops"
@@ -60,10 +57,6 @@ export default definePlugin({
       else manifest.set(null)
     }))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
-      /** The framework's `read` expects a promise and the gate returns an
-       * Effect. Cross that boundary here for each subscriber's re-read. This
-       * effect runs outside the provider fiber: a bad address is reported by
-       * `onStreamReadError`, rather than withdrawing the row from everyone. */
       streams: { bodyPage: {
         read: input => {
           if (bodyKind(settings.claims.current, input.address.path) === null) return Promise.reject(new Error("this page requires a claimed body file"))

@@ -15,9 +15,6 @@ Feature: One broken outline degrades alone
 
   @corpus:broken
   Scenario: The healthy outline is live beside two broken ones
-    # `larder.olai` is what makes this corpus a per-file corpus: nothing is
-    # wrong with it, and it is drawn exactly as it would be in a vault where
-    # nothing is wrong with anything.
     When I open the app
     And I open the outline "larder.olai"
     Then the node "jars" is shown
@@ -26,8 +23,6 @@ Feature: One broken outline degrades alone
 
   @corpus:broken
   Scenario: A line that is not JSON is named by file and line, on that file's page
-    # pantry.olai:3 has an unquoted key. Syntax is checked before meaning, so
-    # this is the error this corpus is guaranteed to show.
     When I open the app
     And I open the unreadable outline "pantry.olai"
     Then the outline failure shows an error with code "not-json"
@@ -36,10 +31,6 @@ Feature: One broken outline degrades alone
 
   @corpus:broken
   Scenario: A file that READS and does not fit degrades exactly the same way
-    # shed.olai:2 names a parent nothing declares. It parses perfectly — every
-    # line is a well-formed record — and until the ruling that difference cost
-    # the whole vault its tree. It costs this one file, in the same pane, with
-    # the same rows.
     When I open the app
     And I open the unreadable outline "shed.olai"
     Then the outline failure shows an error with code "unknown-parent"
@@ -47,10 +38,6 @@ Feature: One broken outline degrades alone
 
   @corpus:broken
   Scenario: A broken file's page keeps the sidebar and the chrome
-    # The whole justification for it being a PANE rather than a screen: a broken
-    # file costs the reader that file, so the directory column, the header and
-    # the connection answer are all exactly where they were. The page it
-    # replaced took the whole shell.
     When I open the app
     And I open the unreadable outline "pantry.olai"
     Then the app header is on screen
@@ -63,18 +50,11 @@ Feature: One broken outline degrades alone
     Then the stale banner is shown
     And the stale banner names "pantry.olai" as "unparsed"
     And the stale banner names "shed.olai" as "invalid"
-    # ONE LINE PER FILE and never the rows: this banner is over somebody else's
-    # page, and inlining the enumeration is what `last-good-banner-flood` was.
     And the stale banner enumerates nothing
     And the stale banner links to "pantry.olai"
 
   @corpus:broken
   Scenario: An edge pointing INTO a broken file does not break the file that holds it
-    # `larder.olai:2` has `see: ["flour"]`, and `flour` is declared on a line of
-    # `pantry.olai` that did not parse. "No node declares `flour`" is a GUESS
-    # while that file is mid-edit, so it is withheld rather than reported — and
-    # a withheld finding may not take a healthy page down. This is the
-    # 2026-08-25 cold boot, which was two `see` edges exactly like this one.
     When I open the app
     And I open the outline "larder.olai"
     Then the node "jars" is shown
@@ -82,10 +62,6 @@ Feature: One broken outline degrades alone
 
   @corpus:tangled
   Scenario: A finding whose two files SHARE the fault darkens both
-    # cellar.olai:3 re-uses an id attic.olai:2 claimed first. Neither file is
-    # "the" broken one — while the duplicate stands, nobody can draw the second
-    # claim — so both go dark and the row is on both pages, and a reader
-    # reaches the fix from wherever they were standing.
     When I open the app
     And I open the unreadable outline "cellar.olai"
     Then the outline failure shows an error with code "duplicate-id"
@@ -94,10 +70,6 @@ Feature: One broken outline degrades alone
 
   @corpus:tangled
   Scenario: A finding that merely POINTS at a second file darkens one
-    # cellar.olai:2 names a parent living in attic.olai. The row is cellar's —
-    # the `parent` field on that line is the whole of the fix — and attic.olai
-    # is named by it without carrying it. attic.olai is dark here for its OWN
-    # reason, the duplicate above, and this row is not among the ones it draws.
     When I open the app
     And I open the unreadable outline "cellar.olai"
     Then the outline failure shows an error with code "foreign-parent"
@@ -107,8 +79,6 @@ Feature: One broken outline degrades alone
 
   @corpus:tangled
   Scenario: A single-file finding stays on its own file's page
-    # attic.olai:3 points at `donate` — nothing declares it, and no second file
-    # is named — so it belongs to attic.olai alone and cellar.olai never shows it.
     When I open the app
     And I open the unreadable outline "attic.olai"
     Then the outline failure shows an error at "attic.olai:3"
@@ -116,12 +86,6 @@ Feature: One broken outline degrades alone
 
   @corpus:tangled
   Scenario: The file a broken record POINTS AT stays live
-    # cellar.olai:5 places a record under `porch`, which lives in porch.olai.
-    # porch.olai did nothing but be pointed at — the edit is cellar's `parent`
-    # field — so it draws its tree like any healthy file and the banner never
-    # names it. Darkening it here was `broken-file-blocks-healthy-writes`
-    # re-entering through one code's blame: an innocent file going errors-only
-    # and refusing every write in it.
     When I open the app
     And I open the outline "porch.olai"
     Then the node "sand" is shown

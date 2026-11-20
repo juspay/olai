@@ -1,6 +1,3 @@
-/** The served directory is HANDED IN by the component that declared
- *  `vault.files`, rather than read out of a module signal this row's other
- *  activation happened to have set (`./state.ts`). */
 import { Show } from "solid-js"
 import { NOTHING_WRONG } from "@olai/format"
 import { client } from "../client.ts"

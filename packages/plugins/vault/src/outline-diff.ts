@@ -1,5 +1,3 @@
-/** The vault judges both copies against one claims snapshot, using the format
- * that owns this path. Browsers receive changes, never a parser. */
 import { type Claims, changesOf, claimedOf, parserFor } from "@olai/format"
 import { Result } from "effect"
 import type { OutlineDiff } from "./file-surface.ts"

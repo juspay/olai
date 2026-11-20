@@ -1,6 +1,3 @@
-/** Procedure requests hold the vault's serial body reader until their answer
- * arrives. Nothing retains text after delivery; cancellation releases only
- * that request. The browser re-asks when the file's head changes. */
 import { claimedOf, fileKind, type Claims } from "@olai/format"
 import type { PlatformFailure } from "@olai/store"
 import { Deferred, Effect } from "effect"

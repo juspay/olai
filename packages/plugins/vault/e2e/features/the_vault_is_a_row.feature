@@ -11,7 +11,6 @@ Feature: The vault is a row
     Then the plugins panel shows "vault" configured "format" as "outline-olai"
     And the plugin "vault" has a session-only switch ring
     When I switch the plugin "vault" off
-    # Its switch asks first, naming what stops with it; the step confirms.
     Then the node "mint" is not shown
     And the MCP vault refuses a write because no directory is served
     And chat controls are gone-from the outline

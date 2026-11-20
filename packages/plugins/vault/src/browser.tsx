@@ -1,5 +1,3 @@
-/** The browser vault owns one membership/head subscription. Layout and files
- * are independent consumers; withdrawing files cannot dispose a live editor. */
 import { DocumentPath } from "@olai/format"
 import type { Directory } from "./browser/state.ts"
 import { Wired } from "@olai/plugin-api"
@@ -30,9 +28,6 @@ export default definePlugin({name:"vault",needs:[Wired, Offers],apply:Effect.gen
  yield* (yield* Offers).own("files",()=>state.value)
 })})
 export const components={status:definePlugin({name:"status",needs:[fileAccess,rendererSlots],apply:Effect.gen(function*(){
- // The reading is the SERVICE this component named, rather than a module
- // signal this row's other activation happened to have set
- // (`./browser/state.ts`).
  const served=yield* fileAccess
  yield* (yield* rendererSlots).contribute(contentStatus,{ready:()=>served.standing()==="loaded",Message:()=><Status served={served}/>})
 })})}

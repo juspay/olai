@@ -1,29 +1,3 @@
-/**
- * Vault configuration follows the vault row, including optional provider views.
- *
- * ## THE TWO OPTIONAL VIEWS ARE DECLARED NOW, by the rows that provide them
- *
- * The settings this row hands the store carry a LEDGER (where a write is
- * recorded) and a MATCHER (what a query answers), and neither can be a `needs`
- * on the row: git needs the vault, so requiring its ledger here would be an
- * activation cycle, and the file’s row selection may compose a serve with neither.
- *
- * They used to be `HostServices.current(Ledger)` and `.current(Search)` — a
- * capability whose shape is *give me whatever stands behind this key*, spent on
- * two keys this row never declared. The graph a person reads said the vault
- * wanted a boot, a bundle and a vocabulary; the code reached for two other
- * rows' doors on every write and every query (the audit's §5).
- *
- * So this component stands behind {@link VaultViews} and the providers register
- * into it — git and search already name `Vault`, so neither gains a wait. The
- * table they register into is minted HERE, inside this activation, which is the
- * difference between a vault owning its views and a process holding one pair of
- * them for every vault it ever opens.
- * `./views.ts` carries the whole of why the arrow points that way rather than
- * at two components of this row. The reads stay PER CALL for the reason they
- * always did, and the absent answer is unchanged: `NO_LEDGER` and `NO_SEARCH`,
- * which refuse in the vault's own words.
- */
 import { definePlugin, kindWordOf, type PropKind } from "@olai/plugin-api"
 import { BundleModules, Directory, FileKinds, Kinds, Offers, VaultSettings, VaultViews } from "@olai/plugin-api/services"
 import { type Directory as OpenDirectory, type VaultSettings as Settings } from "@olai/ops"
@@ -45,10 +19,6 @@ export const setup = definePlugin({
         built.set(word, { ...kind, kind: word })
       }
     }
-    // ONE TABLE, MINTED HERE — this activation's, not the module's. Its own
-    // paragraph carries why that distinction is the whole finding: two hosts in
-    // one process used to share a pair of module variables, so the second
-    // serve's git row answered the first serve's writes.
     const views = openViews()
     const ledger = views.ledger
     const search = views.search
@@ -64,11 +34,6 @@ export const setup = definePlugin({
         get push() { return ledger().push },
         get waiting() { return ledger().waiting },
         get resume() { return ledger().resume },
-        // ...and the HOLD is the one member that must be read at the moment it
-        // is taken rather than when this object was built: it is an acquisition
-        // on whichever ledger is standing then, and the whole point of the
-        // hold is that it belongs to that ledger's own window
-        // (`@olai/plugin-api`'s `Ledger.hold`).
         get hold() { return ledger().hold },
       },
       search: { nodes: ask => search().nodes(ask) },
@@ -79,17 +44,12 @@ export const setup = definePlugin({
   }),
 })
 
-/** Snapshot publication also changes the host. Only a changed vocabulary is
- * a reason to revalidate; update the identity before publishing the result. */
 export const revalidation = definePlugin({
   name: "vault-revalidation", needs: [Directory, Kinds, FileKinds],
   apply: Effect.gen(function*() {
     const directory = (yield* Directory) as OpenDirectory
     const kinds = yield* Kinds
     const fileKinds = yield* FileKinds
-    // A claim can arrive between the first store read and this component's
-    // activation. Compare the replayed pulse to the published reading, not
-    // to a newer table that the store may never have probed.
     let previousFiles = (yield* directory.store.read("cheap")).snapshot?.value.claims.byKind
     let previous = kinds.current()
     yield* Effect.forkScoped(Stream.runForEach(Stream.merge(kinds.changes, fileKinds.changes), () => Effect.suspend(() => {

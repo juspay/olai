@@ -1,4 +1,3 @@
-/** This plugin adds no browser elements. */
 export const TESTID = {  errorView: "error-view",
   errorFileGroup: "error-file-group",
   error: "error",
