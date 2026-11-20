@@ -6,9 +6,7 @@ import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { transformAsync } from "@babel/core"
-// @ts-expect-error — the babel presets ship loose types
 import babelTypeScript from "@babel/preset-typescript"
-// @ts-expect-error — the babel presets ship loose types
 import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import { ASSET_PREFIX, chunkFile } from "@olai/surface"
@@ -125,8 +123,6 @@ const buildClient = async (distDir: string): Promise<void> => {
     distDir,
     assetPrefix: ASSET_PREFIX,
     htmlTemplate: template,
-    // Both placeholders must match index.html byte for byte; the helper throws
-    // rather than silently shipping a shell that points at dev paths.
     entryHtmlPlaceholder: `src="./main.tsx"`,
     extraAssets: [
       {

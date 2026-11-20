@@ -62,6 +62,13 @@ export const lightDismiss = (dialog: HTMLDialogElement): void => {
   })
 }
 
+/**
+ * A modal `<dialog>` inerts the rest of the document but not its listeners: the
+ * event targets a control inside the dialog and bubbles the whole way up, so a
+ * panel underneath still hears every key. Hence a bubble listener on the dialog
+ * itself, and no `preventDefault` — closing is the keydown's DEFAULT ACTION, and
+ * preventing it anywhere leaves the topmost modal standing.
+ */
 export const claimCloseRequest = (dialog: HTMLDialogElement): void => {
   const claim = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return

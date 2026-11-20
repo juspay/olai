@@ -78,6 +78,9 @@ export const framesOver = (view: Painting): Deferrals["frames"] => {
 }
 
 const inTheBrowser: Deferrals = {
+  // A task, not a microtask: the HTML spec runs a microtask checkpoint between
+  // two listeners on the same event, so one queued in the capture phase would
+  // run before the app's own handler had been called at all.
   task: (go) => {
     setTimeout(go, 0)
   },

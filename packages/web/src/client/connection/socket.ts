@@ -1,8 +1,8 @@
-/** Chromium silently drops sends on a closing socket and prints a console
- * error. During a roster reconnect, a departing subscription can still write
- * before the close event reaches Effect's socket latch. Reject that write so
- * Effect turns it into SocketWriteError and the transport's existing failure
- * and reconnection handling runs; never report a dropped payload as sent. */
+/** The WebSocket standard makes `send()` on a CLOSING or CLOSED socket discard
+ * the data silently (browsers only log it), so a departing subscription that
+ * writes before the close reaches Effect's socket latch would be reported as
+ * sent. Reject the write instead, so Effect raises SocketWriteError and the
+ * transport's existing failure and reconnection handling runs. */
 export const checkedSocket = (socket: WebSocket): WebSocket => {
   const send = socket.send.bind(socket)
   socket.send = (data) => {

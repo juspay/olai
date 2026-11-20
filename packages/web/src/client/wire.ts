@@ -27,16 +27,6 @@ const live = await connectSurfaces({
 
 let composedRows: ReadonlyArray<Named> | undefined
 
-/**
- * BRING THE WIRE INTO LINE WITH THE ROSTER — load, dial, then mount.
- *
- * The ORDER is the whole of it and none of it is arbitrary:
- *
- *   1. **load** the chunks the roster names.
- *   2. **redial** with their surfaces. A fiber must never be started over a
- *      wire that does not carry its sibling.
- *   3. **compose** the fibers.
- */
 const [rosterChanges, setRosterChanges] = createSignal(0)
 export const rosterChanging = (): boolean => rosterChanges() > 0
 
@@ -85,6 +75,8 @@ export const bootstrapBrowser = async (): Promise<void> => {
 
 let inFlight: Promise<void> = Promise.resolve()
 
+const SOCKET_REFRESH_DEADLINE_MS = 30_000
+
 const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise<void> => {
   if (composedRows !== undefined && signature === signatureOf(composedRows)) return
   try {
@@ -98,13 +90,11 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     const established = live.connectionEpoch()
     await live.redial(surfaceMapOf(halves))
     if (live.connectionEpoch() === established && live.link.wire.status() === "open") {
-      // An arriving provider (identity in particular) may ask immediately when
-      // composed, so do not mount it against the closing socket.
       let detach = () => {}
       let deadline: ReturnType<typeof setTimeout> | undefined
       try {
         await new Promise<void>((resolve, reject) => {
-          deadline = setTimeout(() => reject(new Error("plugin roster socket refresh timed out")), 30_000)
+          deadline = setTimeout(() => reject(new Error("plugin roster socket refresh timed out")), SOCKET_REFRESH_DEADLINE_MS)
           detach = live.link.wire.onStatus((status) => {
             if (status === "open") resolve()
             else if (status === "retired") reject(new Error("plugin roster socket retired during refresh"))
@@ -146,7 +136,7 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
 }
 
 const importModule = (url: string): Promise<BrowserHalf> =>
-  import(/* @vite-ignore */ url) as Promise<BrowserHalf>
+  import(url) as Promise<BrowserHalf>
 const dynamicModules = new Map<string, () => Promise<BrowserHalf>>()
 const chunkAt = (url: string): Promise<BrowserHalf> => {
   let load = dynamicModules.get(url)

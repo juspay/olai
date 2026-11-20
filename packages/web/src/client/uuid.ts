@@ -1,3 +1,9 @@
+/**
+ * `crypto.randomUUID` is secure-context only (https or localhost) and olai is
+ * ordinarily read over plain http on a LAN address, where the method is simply
+ * absent. `crypto.getRandomValues` carries no such gate, so this is a
+ * version-4 UUID built from it (RFC 9562 §5.4).
+ */
 const HEX = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"))
 
 export const randomUuid = (): string => {

@@ -1,6 +1,5 @@
 import { onCleanup } from "solid-js"
 
-
 /**
  * 500ms matches both mobile platforms' own long press: Android fires
  * `contextmenu` at that deadline, and a menu opening later than the callout it
@@ -8,8 +7,6 @@ import { onCleanup } from "solid-js"
  */
 export const LONG_PRESS_MS = 500
 
-/** How far the finger may drift and still be a press rather than a scroll.
- *  About Chromium's own touch slop; under it, a hand is holding still. */
 const SLOP_PX = 10
 
 export interface LongPress {

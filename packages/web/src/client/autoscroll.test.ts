@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test"
 
-import { edgeSpeed } from "./autoscroll.ts"
+import { clientPx, edgeSpeed } from "./autoscroll.ts"
 
 const HEIGHT = 1_000
 const ZONE = 100
 const FASTEST = 10
 
-const speed = (y: number): number => edgeSpeed(y, HEIGHT, ZONE, FASTEST)
+const speed = (y: number): number => edgeSpeed(clientPx(y), HEIGHT, ZONE, FASTEST)
 
 describe("edgeSpeed", () => {
   test("the middle of the window is not an edge", () => {
@@ -34,8 +34,8 @@ describe("edgeSpeed", () => {
   })
 
   test("on a window shorter than two zones, the nearer edge wins", () => {
-    expect(edgeSpeed(10, 120, ZONE, FASTEST)).toBeLessThan(0)
-    expect(edgeSpeed(110, 120, ZONE, FASTEST)).toBeGreaterThan(0)
+    expect(edgeSpeed(clientPx(10), 120, ZONE, FASTEST)).toBeLessThan(0)
+    expect(edgeSpeed(clientPx(110), 120, ZONE, FASTEST)).toBeGreaterThan(0)
   })
 
   test("the boundary of a zone is not yet in it", () => {

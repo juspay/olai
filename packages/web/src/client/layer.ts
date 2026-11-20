@@ -1,7 +1,3 @@
-/**
- * THE PAGE'S STACK, bottom to top. The order of these fields is the order of
- * the layers, and the test beside this file holds them to it.
- */
 export const LAYER = {
   row: "z-20",
   page: "z-30",

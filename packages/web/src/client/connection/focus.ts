@@ -59,12 +59,18 @@ export const browserPage = (): FocusPage => ({
   now: () => performance.now(),
 })
 
-/** In Chromium a `<dialog>`'s `close()` leaves it the active element for the
- *  rest of the task, so a just-closed dialog still counts as nobody. */
+const nobodyFocused = (active: Element | null, body: Element | null): boolean =>
+  active === null || active === body
+
+/** `close()` restores focus only when the dialog recorded a previously focused
+ *  element; with none, the focused area stays inside the closed dialog until
+ *  the asynchronous focus fixup rule runs (whatwg/html#13118). */
+const justClosedDialog = (active: Element | null): boolean =>
+  active instanceof HTMLDialogElement && !active.open
+
 const idle = (page: FocusPage): boolean => {
   const active = page.active()
-  if (active === null || active === page.body()) return true
-  return active instanceof HTMLDialogElement && !active.open
+  return nobodyFocused(active, page.body()) || justClosedDialog(active)
 }
 const frozen = (element: HTMLElement): boolean =>
   element.closest("[inert]") !== null || element.matches(":disabled,[inert]")

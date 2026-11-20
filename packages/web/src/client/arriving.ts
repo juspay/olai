@@ -8,28 +8,38 @@ export interface Arrival<T> {
   readonly install: (value: T) => void
 }
 
+const startOnce = (begin: () => void): (() => void) => {
+  let started = false
+  return () => {
+    if (started) return
+    started = true
+    begin()
+  }
+}
+
 export const createArrival = <T>(what: string, fetch: () => Promise<T>): Arrival<T> => {
   const [arrival, setArrival] = createSignal<T | Error | undefined>(undefined)
-  let asked = false
+
   const install = (value: T): void => {
     setArrival(() => value)
   }
 
+  const start = startOnce(() => {
+    void fetch().then(install, (cause: unknown) => {
+      const error = new Error(
+        `${what} could not be loaded: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
+        { cause },
+      )
+      console.error(error)
+      setArrival(error)
+    })
+  })
+
   const askedFor = (): T | Error | undefined => {
     const here = arrival()
-    if (here === undefined && !asked) {
-      asked = true
-      void fetch().then(install, (cause: unknown) => {
-        const error = new Error(
-          `${what} could not be loaded: ${
-            cause instanceof Error ? cause.message : String(cause)
-          }`,
-          { cause },
-        )
-        console.error(error)
-        setArrival(error)
-      })
-    }
+    if (here === undefined) start()
     return here
   }
 

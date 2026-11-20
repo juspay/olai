@@ -7,13 +7,9 @@
     "./testlib": "./src/suite.testlib.ts",
     "./client/*": "./src/client/*"
   },
-  "//exports": "TWO DOORS, and neither is an application. The build script produces browser assets, so there is no root export to name — the products are `src/build.ts` and its dist, and nothing imports an app. `./client/*` is the shared browser furniture a plugin composes with. `./testlib` is the curated list the cucumber suite reads, and it now carries ONLY names this package owns: it used to re-export five constants out of four plugins, which is how a general package came to declare seven rows for a handful of strings. A feature's names come from the row that owns the feature; see `src/suite.testlib.ts`'s last section for where each of them went.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//child": "@kolu/child is the subprocess socket src/build.ts rides for the Tailwind CLI, hydrated from kolu's pin into the root node_modules (`nix/kolu.nix`'s seeds) rather than declared here — the same way `@kolu/acp` reaches its importers. The browser bundle must never import it — this is a build-script dependency, the same carve-out `node:child_process` was.",
-  "//dependencies": "Runtime dependencies support browser composition and shared rendering. The child-process dependency is build-only for Tailwind; Babel and Tailwind tooling never enter the browser graph. NO PLUGIN IS HERE, and that is a claim rather than an accident of the current list — see //boundary. Fourteen entries left with it in the same pass and for a duller reason: `unified`, `remark-*`, `rehype-*`, `lowlight`, `highlight.js`, `mdast-util-to-string` and @olai/markdown-ui were the markdown pipeline this package stopped owning when the renderers became rows, and @solid-primitives/keyed had no reader left either. A declared dependency nothing imports is a wall this manifest claims to be behind and is not, which is what makes a stale line worth deleting rather than tolerating.",
-  "//tailwind": "TWO entries, and the second is not redundant. @tailwindcss/cli is the binary src/build.ts spawns. `tailwindcss` is what `@import \"tailwindcss\"` inside src/client/styles.css resolves — and under the isolated linker (bunfig.toml) a transitive dependency of the CLI is nested where nothing outside it can see, so the CLI fails with \"Can't resolve 'tailwindcss'\" until this package declares it directly. Hoisted trees (srid/drishti) never notice; this one does.",
   "dependencies": {
     "@kobalte/core": "^0.13.13",
     "@olai/fonts": "workspace:*",
@@ -38,6 +34,5 @@
     "@types/hast": "^3.0.5",
     "babel-preset-solid": "^1.9.0",
     "tailwindcss": "^4.3.3"
-  },
-  "//boundary": "Browser boot and reusable rendering utilities. Feature implementations, contracts and test IDs live with their owners. THIS GENERAL PACKAGE IMPORTS NO PLUGIN, and that sentence stood here while seven of them were declared below it — which is the shape a boundary claim fails in: nothing in `src/` reached for a row any more, but the tests over rows' code had stayed behind (a `pins/` directory of benches with no pins in it, the same for `palette/`, `pane/` and `trash/`), `src/suite.testlib.ts` was passing five plugin constants through to the cucumber suite, and `client/plugins/runtime.test.ts` was borrowing two slot NAMES off olai-plugin-layout for a claim about fibers. Each moved to the row whose concept it carries, or became a local fake. The claim is held rather than asserted: `@olai/bundle`'s `fence.test.ts` reads every source in this package and every line of this manifest, and `web` is an equality against an EMPTY list in both of its tables — so the day one plugin name comes back, in an implementation or in a bench, it is red. The bundle supplies selected rows and assets. See README.md and the bundle boundary tests."
+  }
 }

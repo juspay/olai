@@ -110,8 +110,6 @@ export const editKey = (
   platform?: string,
 ): EditAction | null => {
   const apple = onApple(platform)
-  // Order matters: every branch below is a more specific reading of a key a
-  // later branch also matches, and the modifiers are what tell them apart.
   if (event.key === "Escape") return "cancel"
   if (
     event.key === "Enter" && event.shiftKey && !event.altKey && !event.ctrlKey &&
@@ -119,75 +117,78 @@ export const editKey = (
   ) return "note"
   if (field === "block") return null
 
-  if (
-    (event.key === "d" || event.key === "D") && (event.ctrlKey || event.metaKey) &&
-    event.shiftKey && !event.altKey
-  ) return "duplicate"
-
-  if (
-    (event.key === "m" || event.key === "M") && (event.ctrlKey || event.metaKey) &&
-    event.shiftKey && !event.altKey
-  ) return "moveTo"
-
-  if (
-    (event.key === "." || event.key === ",") && !event.shiftKey &&
-    (apple
-      ? event.metaKey && !event.ctrlKey && !event.altKey
-      : event.altKey && !event.ctrlKey && !event.metaKey)
-  ) return event.key === "." ? "zoomIn" : "zoomOut"
-
-  if (
-    event.key === " " && event.ctrlKey && !event.metaKey && !event.altKey &&
-    !event.shiftKey
-  ) return "fold"
-
-  if (event.key === "Enter") {
-    if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
-    if (event.altKey) return event.shiftKey ? null : "cancel-mark"
-    if (at !== undefined && halves(at)) return "split"
-    if (
-      at !== undefined && at.start === 0 && at.end === 0 && at.text.trim() !== ""
-    ) return "insert"
-    return "add"
-  }
-  if (
-    event.key === "Backspace" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
-    !event.metaKey && at !== undefined && at.start === 0 && at.end === 0
-  ) return "merge"
-  if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) {
-    return event.shiftKey ? "out" : "in"
-  }
-  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-    const down = event.key === "ArrowDown"
-    if (event.altKey && event.shiftKey) return down ? "down" : "up"
-    if (apple && event.metaKey && event.shiftKey && !event.ctrlKey && !event.altKey) {
-      return down ? "down" : "up"
+  const bare = !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey
+  switch (event.key) {
+    case "d":
+    case "D":
+      return (event.ctrlKey || event.metaKey) && event.shiftKey && !event.altKey
+        ? "duplicate"
+        : null
+    case "m":
+    case "M":
+      return (event.ctrlKey || event.metaKey) && event.shiftKey && !event.altKey
+        ? "moveTo"
+        : null
+    // ⌘ on Apple: macOS's ⌥ is its text modifier there (⌥. types ≥, ⌥, types ≤).
+    case ".":
+    case ",":
+      return !event.shiftKey &&
+          (apple
+            ? event.metaKey && !event.ctrlKey && !event.altKey
+            : event.altKey && !event.ctrlKey && !event.metaKey)
+        ? (event.key === "." ? "zoomIn" : "zoomOut")
+        : null
+    case " ":
+      return event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey
+        ? "fold"
+        : null
+    case "Enter":
+      if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
+      if (event.altKey) return event.shiftKey ? null : "cancel-mark"
+      if (at !== undefined && halves(at)) return "split"
+      if (
+        at !== undefined && at.start === 0 && at.end === 0 && at.text.trim() !== ""
+      ) return "insert"
+      return "add"
+    case "Backspace":
+      return bare && at !== undefined && at.start === 0 && at.end === 0 ? "merge" : null
+    case "Tab":
+      return !event.ctrlKey && !event.metaKey && !event.altKey
+        ? (event.shiftKey ? "out" : "in")
+        : null
+    case "ArrowUp":
+    case "ArrowDown": {
+      const down = event.key === "ArrowDown"
+      if (event.altKey && event.shiftKey) return down ? "down" : "up"
+      if (apple && event.metaKey && event.shiftKey && !event.ctrlKey && !event.altKey) {
+        return down ? "down" : "up"
+      }
+      // ⌘ on Apple: macOS takes Ctrl+↑/↓ for Mission Control and App Exposé.
+      if (
+        (apple ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey) &&
+        !event.altKey && !event.shiftKey
+      ) return down ? "expand" : "collapse"
+      if (event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        return down ? "selectDown" : "selectUp"
+      }
+      if (bare) return down ? "next" : "prev"
+      return null
     }
-    if (
-      (apple ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey) &&
-      !event.altKey && !event.shiftKey
-    ) return down ? "expand" : "collapse"
-    if (event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
-      return down ? "selectDown" : "selectUp"
-    }
-    if (!event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-      return down ? "next" : "prev"
-    }
+    case "ArrowLeft":
+      return bare && at !== undefined && at.start === 0 && at.end === 0 ? "left" : null
+    case "ArrowRight":
+      return bare && at !== undefined && at.start === at.end && at.end === at.text.length
+        ? "right"
+        : null
+    case "a":
+    case "A":
+      return at !== undefined && whole(at) && !event.shiftKey && !event.altKey &&
+          (event.ctrlKey || event.metaKey)
+        ? "selectAll"
+        : null
+    default:
+      return null
   }
-  if (
-    event.key === "ArrowLeft" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
-    !event.metaKey && at !== undefined && at.start === 0 && at.end === 0
-  ) return "left"
-  if (
-    event.key === "ArrowRight" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
-    !event.metaKey && at !== undefined && at.start === at.end &&
-    at.end === at.text.length
-  ) return "right"
-  if (
-    at !== undefined && whole(at) && !event.shiftKey && !event.altKey &&
-    (event.key === "a" || event.key === "A") && (event.ctrlKey || event.metaKey)
-  ) return "selectAll"
-  return null
 }
 
 const whole = (at: Caret): boolean =>

@@ -31,6 +31,18 @@ export function Tip(props: {
   const { takeTip, showTip, hideTip, tipShowing } = tips
   const tipFloor = useContext(TipFloor)
   let anchor: HTMLSpanElement | undefined
+  let tipped: HTMLSpanElement | undefined
+
+  // A `display: contents` element generates no box, so its own
+  // `getBoundingClientRect` answers all zeros; a Range over its contents
+  // measures what it actually draws.
+  const tippedBox = (): DOMRect | undefined => {
+    if (tipped === undefined) return undefined
+    const range = document.createRange()
+    range.selectNodeContents(tipped)
+    const box = range.getBoundingClientRect()
+    return box.width === 0 && box.height === 0 ? undefined : box
+  }
 
   const Enabled = () => {
     const me = takeTip()
@@ -38,9 +50,7 @@ export function Tip(props: {
     onCleanup(() => hideTip(me))
 
     const show = (): void => {
-      // The wrapper is `display: contents`, and an element with no box has no
-      // rectangle: `getBoundingClientRect` on it answers all zeros.
-      const box = anchor?.firstElementChild?.getBoundingClientRect()
+      const box = tippedBox()
       if (box === undefined) return
       const floor = tipFloor()
       setAt({ left: box.left, top: clampedTop(box.bottom, floor), floor })
@@ -122,7 +132,7 @@ export function Tip(props: {
 
   return (
     <span ref={anchor} class="contents">
-      {props.children}
+      <span ref={tipped} class="contents">{props.children}</span>
       <Show when={props.say === true}><span class="sr-only">{props.text}</span></Show>
       <Show when={!props.disabled}><Enabled /></Show>
     </span>

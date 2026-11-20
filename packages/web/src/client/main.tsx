@@ -3,8 +3,9 @@ import { BROWSER_ROWS, bundleRank } from "@olai/bundle"
 import { bootstrapBrowser, firstRoster, useBrowserRows, useBootStatus } from "./wire.ts"
 import { bootStatus } from "../host/boot-status.ts"
 import { attachRenderer } from "../host/runtime.ts"
-import "../host/shared.ts"
+import { installSharedModules } from "../host/shared.ts"
 
+installSharedModules()
 void registerOrRetireServiceWorker()
 useBrowserRows(BROWSER_ROWS)
 const root = document.getElementById("root")

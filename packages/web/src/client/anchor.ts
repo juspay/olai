@@ -22,13 +22,30 @@ const MARGIN = 12
 
 const WANTED = 384
 
-export const styleOf = (at: Anchor): Record<string, string | undefined> => ({
-  left: `${at.left}px`,
-  width: `${at.width}px`,
-  "max-height": `${at.maxHeight}px`,
-  bottom: at.side === "bottom" ? `${at.offset}px` : undefined,
-  top: at.side === "top" ? `${at.offset}px` : undefined,
-})
+export type AnchorStyle = {
+  readonly left: string
+  readonly width: string
+  readonly "max-height": string
+  readonly top: string | undefined
+  readonly bottom: string | undefined
+}
+
+export const styleOf = (at: Anchor): AnchorStyle =>
+  at.side === "bottom"
+    ? {
+      left: `${at.left}px`,
+      width: `${at.width}px`,
+      "max-height": `${at.maxHeight}px`,
+      bottom: `${at.offset}px`,
+      top: undefined,
+    }
+    : {
+      left: `${at.left}px`,
+      width: `${at.width}px`,
+      "max-height": `${at.maxHeight}px`,
+      bottom: undefined,
+      top: `${at.offset}px`,
+    }
 
 export const anchoredTo = (pill: Box, view: Viewport): Anchor => {
   const width = Math.max(0, Math.min(WANTED, view.width - MARGIN * 2))

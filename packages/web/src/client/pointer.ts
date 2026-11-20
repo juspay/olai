@@ -1,6 +1,6 @@
 import { onCleanup } from "solid-js"
 
-import { edgeScrolling } from "./autoscroll.ts"
+import { clientPx, edgeScrolling } from "./autoscroll.ts"
 
 export interface Gesture {
   readonly onStart?: (event: PointerEvent) => void
@@ -12,14 +12,31 @@ export interface Gesture {
 
 export const TRAVEL_PX = 4
 
+let selectionHolds = 0
+let selectionBefore = ""
+
+const holdTextSelection = (): (() => void) => {
+  if (selectionHolds === 0) {
+    selectionBefore = document.body.style.userSelect
+    document.body.style.userSelect = "none"
+  }
+  selectionHolds += 1
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    selectionHolds -= 1
+    if (selectionHolds === 0) document.body.style.userSelect = selectionBefore
+  }
+}
+
 export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
   const originX = from.pageX
   const originY = from.pageY
   const threshold = gesture.threshold ?? 0
   let started = false
   let ended = false
-  const selection = document.body.style.userSelect
-  document.body.style.userSelect = "none"
+  const releaseSelection = holdTextSelection()
   const following = gesture.onPage === undefined
     ? undefined
     : edgeScrolling(gesture.onPage)
@@ -31,7 +48,7 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
       gesture.onStart?.(event)
     }
     gesture.onMove?.(event)
-    following?.at(event.clientX, event.clientY)
+    following?.at(clientPx(event.clientX), clientPx(event.clientY))
   }
 
   const end = (event: PointerEvent | null) => {
@@ -41,7 +58,7 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
     window.removeEventListener("pointerup", onUp)
     window.removeEventListener("pointercancel", onCancel)
     document.removeEventListener("keydown", onKey, true)
-    document.body.style.userSelect = selection
+    releaseSelection()
     following?.stop()
     gesture.onEnd(event)
   }
@@ -57,7 +74,6 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
   window.addEventListener("pointermove", onMove)
   window.addEventListener("pointerup", onUp)
   window.addEventListener("pointercancel", onCancel)
-  // Before app popovers answer Escape, but after the window's IME guard.
   document.addEventListener("keydown", onKey, true)
   return () => end(null)
 }

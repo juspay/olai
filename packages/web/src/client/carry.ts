@@ -27,7 +27,6 @@ export const carrySession = <C extends Carried>(carried: C, table: Landings) => 
     },
     end: async (drop: boolean) => {
       try {
-        // Do not await here: indicators and pointer resources leave immediately.
         return drop && aimed !== null && table.standing(aimed.receiver)
           ? aimed.receiver.drop(carried, point.x, point.y) : null
       } finally { leave() }

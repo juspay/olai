@@ -1,5 +1,4 @@
 {
-  "//tabs": "A shortlist's Tab key, not the tabs row.",
   "capture": {
     "src/client/Tip.tsx": 1
   },

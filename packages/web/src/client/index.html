@@ -2,49 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <!-- viewport-fit=cover puts the page under the notch and the home bar,
-         which is what makes `env(safe-area-inset-*)` report anything but zero
-         — every fixed thing in this app pads itself by them.
-         interactive-widget says what an on-screen keyboard should do: shrink
-         the viewport, so a box fixed to the bottom stays above it. Where that
-         is honoured it is the whole fix; where it is not (iOS), the page
-         measures `visualViewport` itself (src/client/viewport.ts). -->
+    <!-- viewport-fit=cover is what makes `env(safe-area-inset-*)` report
+         anything but zero. interactive-widget=resizes-content asks an
+         on-screen keyboard to shrink the viewport; iOS Safari does not
+         honour it, and the layout row measures `visualViewport` there. -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <!-- olai is the one word a static shell can know. The deployment's own
-         word — `olai [machine]` — crosses on `app.get` and the client's
-         chrome replaces this with it (src/client/named.ts, theme/chrome.ts),
-         which is the same place the waiting mark is composed on. -->
     <title>olai</title>
     <meta name="description" content="outlines in flat-record JSONL" />
-    <!-- The header chip draws a person's picture, and it is a remote <img>.
-         WHOSE host that is belongs to whoever deployed this olai: the IdP
-         avatar a proxy hands over (`Tailscale-User-Profile-Pic`), the avatar
-         template an operator configured (`https://github.com/{login}.png`,
-         which itself redirects to another host), or gravatar. None of those
-         is known when this file is written, and the last two are not even
-         known when the server starts — so the policy names the SCHEME:
-         https, plus this vault and a blob: the chat's own thumbnails
-         already are. It is still a policy, not a hole: http:, data: and
-         every other scheme are refused, and the src itself can only ever be
-         what who.get answered off the upgrade (who/policy.test.ts). What a DOCUMENT
-         may draw is a different rule in a different place and did not move
-         with this one: markdown/rewrite.ts resolves a picture through
-         @olai/format's pictureOf and draws NOTHING for a remote src, so no
-         note can tell a third party what someone is reading whatever this
-         line says (markdown/render.test.ts holds it). Sealed /media pages carry a stricter policy on the
-         RESPONSE and do not inherit this. img-src alone, so the inline
-         theme script below is untouched. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="img-src 'self' blob: https:"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <!-- The page's own two utilities. Tailwind's preflight zeroes the body
-       margin; the palette and the font are ours. -->
   <body class="bg-paper font-sans text-ink antialiased">
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
