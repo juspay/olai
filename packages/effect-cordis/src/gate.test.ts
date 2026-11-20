@@ -9,7 +9,7 @@ const opened = async (): Promise<{
 }> => {
   const scope = Scope.makeUnsafe()
   const held = await Effect.runPromise(
-    Effect.provideService(gate("one", "a toy occasion"), Scope.Scope, scope),
+    Effect.provideService(gate(), Scope.Scope, scope),
   )
   return { gate: held, close: () => Scope.close(scope, Exit.void) }
 }
@@ -56,7 +56,6 @@ test("a call already inside is CUT, and the stop does not answer until it has un
   await Effect.runPromise(close())
   said.push("the gate stopped")
   await calling
-  // THE ORDER IS THE CLAIM: unwound first, stopped second.
   expect(said).toEqual(["the call finished unwinding", "the gate stopped"])
   expect(wasCut(await Effect.runPromise(Fiber.await(await Effect.runPromise(Deferred.await(held))))))
     .toBe(true)
@@ -87,7 +86,6 @@ for (const how of ["cut" , "left of its own accord"] as const) {
     await Effect.runPromise(close())
     said.push("the gate stopped")
     await calling
-    // THE CHILD FIRST, whichever way the call ended.
     expect(said).toEqual(["the child finished", "the gate stopped"])
   })
 }

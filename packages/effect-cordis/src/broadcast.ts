@@ -3,30 +3,30 @@ import { type Cause, Effect, Fiber, Scope } from "effect"
 import { gate } from "./gate.ts"
 import { roster } from "./registry.ts"
 
-export type Listen<A> = (handler: (value: A) => Effect.Effect<void>) => Effect.Effect<
-  void,
-  never,
-  Scope.Scope
->
+export type Handler<A> = (value: A) => Effect.Effect<void>
+
+export type Listen<A> = (handler: Handler<A>) => Effect.Effect<void, never, Scope.Scope>
 
 export interface Bus<A> {
   readonly listen: (plugin: string) => Listen<A>
-  /** One value to every handler, in subscription order, answered when the last
-   *  of them has. */
   readonly tell: (value: A) => Effect.Effect<void>
 }
 
+const shielded = <A>(
+  plugin: string,
+  what: string,
+  handler: Handler<A>,
+): Effect.Effect<Handler<A>, never, Scope.Scope> =>
+  Effect.map(gate(), (shut) => (value: A) =>
+    shut.through(
+      contained(plugin, what, Effect.suspend(() => handler(value))),
+      (started) => started === undefined ? Effect.void : Effect.asVoid(Fiber.await(started)),
+    ))
+
 export const broadcast = <A>(what: string): Bus<A> => {
-  const handlers = roster<(value: A) => Effect.Effect<void>>()
+  const handlers = roster<Handler<A>>()
   return {
-    listen: (plugin) => (handler) =>
-      Effect.flatMap(gate(plugin, what), (shut) =>
-        handlers.hold((value) =>
-          shut.through(
-            contained(plugin, what, Effect.suspend(() => handler(value))),
-            (started) =>
-              started === undefined ? Effect.void : Effect.asVoid(Fiber.await(started)),
-          ))),
+    listen: (plugin) => (handler) => Effect.flatMap(shielded(plugin, what, handler), handlers.hold),
     tell: (value) =>
       Effect.suspend(() => Effect.forEach(handlers.read(), (handler) => handler(value), {
         discard: true,

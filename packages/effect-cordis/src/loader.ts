@@ -37,11 +37,6 @@ export const mountRows = (host: Host, options: {
       version: "v1",
       import: async (specifier: string) => pluginModule(await options.resolve(specifier)),
     }
-    // THE ROWS, AS THE INCLUDE MAKES THEM — registered BEFORE the include, which
-    // is the whole of why this line is here and not further down: the event
-    // fires from the `Entry` constructor, so a listener attached afterwards
-    // would hear about every row this build adds LATER and none of the ones it
-    // has.
     const rows: Array<Entry> = []
     ctx.on("loader/entry-init", (entry: Entry) => void rows.push(entry))
     ;(ctx as unknown as Record<symbol, Array<Entry>>)[ROWS] = rows
@@ -61,8 +56,6 @@ export const patchRow = (host: Host, id: string, patch: { readonly disabled?: bo
   Effect.gen(function*() {
     const entry = entriesOf(host).find((one) => one.options.id === id)
     if (entry === undefined) return false
-    // Decoded structs arrive in schema key order, so serialization compares
-    // canonical policy values here rather than authored property order.
     const configMoved = patch.config !== undefined
       && JSON.stringify(patch.config) !== JSON.stringify(entry.options.config)
     const changed = configMoved

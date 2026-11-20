@@ -360,7 +360,6 @@ export const readWorkspace = (repo: string): Workspace => {
     }
   }
 
-  /** The cache must not outlive this reading of the tree (see `parse`). */
   const astOf = (file: string): ts.SourceFile | undefined => {
     const held = asts.get(file)
     if (held !== undefined) return held

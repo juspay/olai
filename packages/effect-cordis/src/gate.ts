@@ -9,9 +9,9 @@ export interface Gate {
   ) => Effect.Effect<B>
 }
 
-export const gate = (plugin: string, what: string): Effect.Effect<Gate, never, Scope.Scope> =>
+export const gate = (): Effect.Effect<Gate, never, Scope.Scope> =>
   Effect.gen(function*() {
-    const held = open(plugin, what)
+    const held = open()
     yield* quieting(held.quiet)
     yield* Effect.addFinalizer(() =>
       Effect.promise(async () => {
@@ -36,7 +36,7 @@ interface Inside {
   readonly left: () => void
 }
 
-const open = (_plugin: string, _what: string): Held => {
+const open = (): Held => {
   let shut = false
   const inside = new Set<Inside>()
   let cutting: Promise<void> | undefined

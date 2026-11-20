@@ -28,8 +28,6 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
     key,
     open: (host) =>
       Effect.gen(function*() {
-        /** IN REGISTRATION ORDER, which is the order the fibers activated in and
-         *  is deliberately NOT a promise to anybody. */
         const chain = roster<{
           readonly plugin: string
           readonly middleware: Middleware<A>
@@ -38,7 +36,7 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
         const occasion = `the "${cordis}" waterfall`
         yield* provide(host, key, (plugin) => ({
           use: (middleware) =>
-            Effect.flatMap(gate(plugin, occasion), (shut) =>
+            Effect.flatMap(gate(), (shut) =>
               chain.hold({ plugin, middleware, gate: shut })),
         }))
         return (initial: A) => {

@@ -16,7 +16,7 @@ export {
   rowReport,
   settled,
 } from "./host.ts"
-export { standing } from "./standing.ts"
+export { type RunUntilExit, standing } from "./standing.ts"
 export { type Detach, definePlugin, detached, type Plugin } from "./plugin.ts"
 export { type AnyKey, type ConsumerLifetime, type Provision, serviceTag, type ServiceKey } from "./service.ts"
 export { type Chain, type Dispatch, type Middleware, waterfall, type Waterfall } from "./waterfall.ts"

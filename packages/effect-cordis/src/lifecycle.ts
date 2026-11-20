@@ -8,13 +8,6 @@ export class OfferConflict extends Error {
   }
 }
 
-/**
- * A REGISTRATION THAT MUST STOP ACCEPTING CALLS BEFORE THIS ACTIVATION UNWINDS.
- *
- * TWO STEPS, and they are separate because ALL of the first must happen before
- * ANY of the second: a sequential shut-and-cut loop would leave a later
- * registration admitting calls while an earlier one was still being cut.
- */
 export interface Quieting {
   readonly shut: () => void
   readonly cut: () => Promise<void>
@@ -101,10 +94,6 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
       if (interrupted || ctx.fiber.uid === null || Object.keys(ctx.fiber.inject).some((key) => ctx.reflect.get(key) === undefined)) interrupt()
     },
     close: (exit) => closing ??= Promise.resolve().then(async () => {
-      // STOP ACCEPTING, AND START CUTTING, before the first `await` in this
-      // function. Both are outside the `try` because the `finally` has to be
-      // able to wait for the cut whatever the withdrawal did, and a resource may
-      // not close before it has.
       for (const quiet of quiets) quiet.shut()
       const cutting = joinCuts([...quiets], ctx.fiber.name ?? "a plugin", services)
       try {

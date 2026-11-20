@@ -31,7 +31,7 @@ const draftDescription = "Writes a draft in Gmail Drafts for the person to revie
 const manual = " Gmail query syntax is passed verbatim: from:, newer_than:1d, is:unread, has:attachment, label:. Thread ids are opaque Gmail hex ids; file a thread as <address>/<thread id>. Labels use Gmail's displayed names (system labels INBOX, UNREAD, STARRED, IMPORTANT)."
 
 export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>>) => Effect.gen(function*() {
-  const owned = yield* gate("mail", "tools")
+  const owned = yield* gate()
   const perform = <A>(verb: string, args: unknown, work: Effect.Effect<A, MailRefusal>) => Effect.gen(function*() {
     const started = Date.now()
     const result = yield* owned.through(Effect.result(work), fiber => fiber ? Fiber.join(fiber) : Effect.succeed(Result.fail(new MailRefusal({ reason: "mail is no longer running" }))))

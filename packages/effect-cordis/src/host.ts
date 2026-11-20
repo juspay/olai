@@ -7,14 +7,15 @@ import { hostActivations, interrupt, lastStartThrew, provideExclusive } from "./
 import type { Plugin } from "./plugin.ts"
 import type { ConsumerLifetime, Provision, ServiceKey } from "./service.ts"
 
-const HELD: unique symbol = Symbol.for("olai.effect-cordis.host")
+const SERVICES: unique symbol = Symbol.for("olai.effect-cordis.host")
+const CTX: unique symbol = Symbol.for("olai.effect-cordis.host.ctx")
 
 export interface Host {
-  readonly [HELD]: Context.Context<never>
+  readonly [CTX]: CordisContext
 }
 
 export const held = (of: CordisContext): Context.Context<never> => {
-  const found = (of as unknown as Record<symbol, Context.Context<never> | undefined>)[HELD]
+  const found = (of as unknown as Record<symbol, Context.Context<never> | undefined>)[SERVICES]
   if (found === undefined) {
     throw new Error(
       "effect-cordis: this plugin was mounted on a context that is not a host — "
@@ -25,14 +26,14 @@ export const held = (of: CordisContext): Context.Context<never> => {
   return found
 }
 
-export const ctxOf = (host: Host): CordisContext => host as unknown as CordisContext
+export const ctxOf = (host: Host): CordisContext => host[CTX]
 
 export const openHost: Effect.Effect<Host, never, Scope.Scope> = Effect.flatMap(
   Effect.context<never>(),
   (services) => {
-    const host = new CordisContext() as unknown as { [HELD]: Context.Context<never> }
-    host[HELD] = services
-    const ctx = host as unknown as CordisContext
+    const ctx = new CordisContext()
+    ;(ctx as unknown as Record<symbol, Context.Context<never>>)[SERVICES] = services
+    const host: Host = { [CTX]: ctx }
     ctx.on("internal/plugin", (fiber) => { if (fiber.uid === null) interrupt(fiber) })
     ctx.on("internal/service", (name) => {
       ctx.registry.forEach((runtime) => {
@@ -41,7 +42,7 @@ export const openHost: Effect.Effect<Host, never, Scope.Scope> = Effect.flatMap(
         }
       })
     })
-    return Effect.as(Effect.addFinalizer(() => closeHost(host as unknown as Host)), host as unknown as Host)
+    return Effect.as(Effect.addFinalizer(() => closeHost(host)), host)
   },
 )
 
@@ -135,7 +136,7 @@ export const mountPlugin = (
     }
   })
 
-const fibersOf = (host: Host, ids: ReadonlyArray<string>): ReadonlyMap<string, Fiber> => {
+const mountedFibers = (host: Host, ids: ReadonlyArray<string>): ReadonlyMap<string, Fiber> => {
   const wanted = new Set(ids)
   const fibers = new Map<string, Fiber>()
   ctxOf(host).registry.forEach((runtime) => {
@@ -153,7 +154,7 @@ export const settled = (host: Host, ids: ReadonlyArray<string>): Effect.Effect<v
   Effect.flatMap(
     Effect.promise(async () => {
       const stillMoving = (): ReadonlyArray<readonly [string, Promise<void>]> =>
-        [...fibersOf(host, ids)].flatMap(([id, fiber]) =>
+        [...mountedFibers(host, ids)].flatMap(([id, fiber]) =>
           moduleFibers(fiber).flatMap((part) => part.inertia === undefined ? [] : [[id, part.inertia] as const])
         )
       for (let pass = 0; pass < PASSES; pass += 1) {
@@ -174,7 +175,7 @@ export const namedBy = (
   ids: ReadonlyArray<string>,
 ): ReadonlyMap<string, ReadonlyArray<string>> =>
   new Map(
-    [...fibersOf(host, ids)].map(([id, fiber]) => [id, [...new Set(moduleFibers(fiber).flatMap((part) => Object.keys(part.inject)))]] as const),
+    [...mountedFibers(host, ids)].map(([id, fiber]) => [id, [...new Set(moduleFibers(fiber).flatMap((part) => Object.keys(part.inject)))]] as const),
   )
 
 export type RowState = "running" | "waiting" | "failed" | "off"
@@ -189,10 +190,8 @@ export const rowReport = (
   ids: ReadonlyArray<string>,
 ): Effect.Effect<ReadonlyMap<string, RowReport>> =>
   Effect.promise(async () => {
-    const fibers = fibersOf(host, ids)
-    // THE PASS THAT MUST NOT YIELD. Nothing in it awaits, so no revocation, no
-    // mount and no unload can land between the first row and the last.
-    const read = ids.map((id) => [id, fibers.get(id)] as const)
+    const mounted = mountedFibers(host, ids)
+    const read = ids.map((id) => [id, mounted.get(id)] as const)
       .map(([id, fiber]) => [id, fiber, fiber === undefined ? OFF : reportOf(fiber)] as const)
     const table = new Map<string, RowReport>()
     for (const [id, fiber, said] of read) {
