@@ -1,6 +1,3 @@
-/** Maintained composition fixture, disabled in every normal bundle. It uses
- * only contracts and the navigation outlet: content implementations do not
- * know which layout owns their seat. No sidebar, geometry or app frame. */
 import { definePlugin } from "@olai/plugin-api"
 import { atFile } from "olai-plugin-navigation/routes"
 import { Effect } from "effect"
