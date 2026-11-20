@@ -4,7 +4,7 @@ supplier: the joinery place
 ---
 # Cabinets
 
-Three uppers, two lowers, and the corner one that has to be a carousel.
+Three uppers, two lowers, and the corner one that has to be a carousel. The joinery place sent a [quote](quote.html).
 
 ## Sizes
 

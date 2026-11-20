@@ -97,6 +97,14 @@ const stills = async (): Promise<void> => {
   await page.getByText("Order the new cabinets").last().waitFor()
   await shoot(page, out, "document.png")
 
+  await page.goto(`${base}/notes/quote.html`)
+  await page.frameLocator("iframe").getByRole("heading", { name: "Cabinet quote" }).waitFor()
+  await shoot(page, out, "html-page.png")
+
+  await page.goto(`${base}/money.journal`)
+  await page.getByText("Opening balance").first().waitFor()
+  await shoot(page, out, "ledger.png")
+
   await page.goto(`${base}/house.olai`)
   await page.locator('[data-testid="outline-list"]').waitFor()
   await page.getByRole("checkbox", { name: "Show finished" }).check()

@@ -478,10 +478,15 @@ the real one, because the Agenda counts from the server's clock:
 `../tour-agent.ts` name.
 
 `notes/cabinets.md` is the document the pictures show beside the outline:
-frontmatter, two headings, a table, a task list, a link to `finishes.md`, a
-link to the row `cabinets`, and `art/handle.png`, a copy of the one in
-`good/`. It holds no wikilink, math, or callout, because olai draws those as
-text today and the pictures must not show them as working.
+frontmatter, two headings, a table, a task list, links to `finishes.md` and
+`quote.html`, a link to the row `cabinets`, and `art/handle.png`, a copy of
+the one in `good/`. It holds no wikilink, math, or callout, because olai draws
+those as text today and the pictures must not show them as working.
+
+`notes/quote.html` is the HTML page in `html-page.png`: its own `<style>`, no
+script. `money.journal` is the ledger in `ledger.png`, a copy of
+`packages/plugins/hledger/e2e/fixtures/household.journal`. `tour.sh` shifts
+dates only in `.olai` and `.md` files, so the ledger keeps its 2024 dates.
 
 `_olai/Settings.olai` switches off `odu` and `kolu`, which would reach for
 services on the machine, and the four agents other than Claude Code, which the
