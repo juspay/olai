@@ -10,8 +10,6 @@ export function Tools(props: {
 }) {
   const entries = createMemo(() => props.slots.read(tools)
     .filter((entry) => !props.mobileWithoutSidebar || entry.value.mobileWithoutSidebar)
-    // The two desktop seats split the entries between them; the phone drawer
-    // (and the phone bar without one) keeps every door it always had.
     .filter((entry) => props.where === "closet" || props.mobileWithoutSidebar === true ||
       (entry.value.desktop ?? "header") === props.where)
     .sort((a, b) => props.where === "closet"

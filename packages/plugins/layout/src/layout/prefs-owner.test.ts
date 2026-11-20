@@ -32,9 +32,6 @@ test("layout owns fresh preferences, listeners and stopped setters",()=>{
   stored.set(SIDEBAR_WIDTH_KEY,"280")
   stop=followLayout()
   expect(sidebarWidth()).toBe(280)
-  // The column's open/shut key is followed across tabs like the width: another
-  // tab railing it rails it here, and the stored word is that tab's to have
-  // written.
   expect(sidebarOpen()).toBe(true)
   for(const fn of listeners.get("storage")??[])fn({key:SIDEBAR_OPEN_KEY,newValue:"false"})
   expect(sidebarOpen()).toBe(false)

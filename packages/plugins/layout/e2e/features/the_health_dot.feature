@@ -24,8 +24,6 @@ Feature: One health dot stands where the bar's pills stood
     And the health dot is "healthy"
     And the health dot says all is well
     When I open the health popover
-    # Worst first, then as they mount: the healthy connection and kolu before
-    # git's quiet "not a git folder".
     Then the health popover lists, in order:
       | connection      |
       | padi            |
@@ -36,8 +34,6 @@ Feature: One health dot stands where the bar's pills stood
 
   @scratch:lanes @padi:lanes
   Scenario: A plugin switched off takes its row, and comes back with a fresh one
-    # Picking the plugins row shuts the popover: the panel stands on its own,
-    # and stays up through the rebuild each switch causes.
     Given I open the outline "lanes.olai"
     When I open the plugins panel
     Then the health popover is shut
@@ -96,9 +92,6 @@ Feature: One health dot stands where the bar's pills stood
     When I open the health popover
     And I press the commit pill
     Then the commit panel is up
-    # The row's own panel is the topmost layer: Escape shuts it first and the
-    # caret goes back to the row; a second Escape shuts the popover and the
-    # caret goes back to the dot.
     When I press Escape on the health dot
     Then the commit panel is shut
     And the health popover is open
@@ -109,9 +102,6 @@ Feature: One health dot stands where the bar's pills stood
 
   @scratch:good @git:repo
   Scenario: An amber dot has an amber row under it, first
-    # The owner's bug: the dot was amber for "2 uncommitted" while git's row
-    # drew no dot, so nothing in the list explained the colour. Each row now
-    # wears the one tone its readout states, and the dot is the worst of them.
     Given I open the outline "garden.olai"
     When I rewrite "garden.olai" as:
       """
@@ -119,7 +109,6 @@ Feature: One health dot stands where the bar's pills stood
       """
     Then the health dot is "notice"
     When I open the health popover
-    # Worst first: the row that explains the colour is the first one.
     Then the health popover's first row is "commit-pill"
     And the "commit-pill" row wears a "notice" dot
     And a row of the health popover wears the health dot's tone
@@ -148,11 +137,8 @@ Feature: One health dot stands where the bar's pills stood
       | uptime          |
       | plugins-trigger |
     When I open the plugins panel
-    # Picking the row shuts the popover; the panel hangs off the dot.
     Then the health popover is shut
     And the plugin "kolu" is running
-    # The close presses Escape, and the caret goes back to the dot the panel
-    # hangs from.
     When I close the plugins panel
     Then the health popover is shut
     And the health dot has the focus

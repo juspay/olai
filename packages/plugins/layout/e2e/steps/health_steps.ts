@@ -1,12 +1,3 @@
-/**
- * THE BAR'S ONE HEALTH DOT, driven the way a person drives it.
- *
- * What is asserted is the dot's `data-health` (the state, never the colour), its
- * accessible name (the words a reader with no pointer gets, and what a person
- * learns without opening anything), which rows its popover holds (by test id —
- * each row is its owner's face, so the id is the owner's), and where the caret
- * is after a key shut it.
- */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { focusedOn } from "@olai/tests/harness/caret.ts";
@@ -27,14 +18,9 @@ import { TESTID } from "olai-plugin-layout/testids";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then("the health dot is {string}", async function (this: OlaiWorld, tone: string) {
-  // HYDRATION: a tone moves when the wire does (a dropped socket, a survey
-  // landing), which is a network's clock rather than a render's.
   await this.expectChromeAttribute(HEALTH, "data-health", tone, "the health dot", HYDRATION_TIMEOUT);
 });
 
-/** Its accessible name, which is also the first line of its tip. Contains
- *  rather than equals where the scenario names one piece of news among others
- *  the serve may also be reporting. */
 Then("the health dot names {string}", async function (this: OlaiWorld, words: string) {
   const dot = this.page.locator(HEALTH);
   await this.waitUntil(
@@ -42,9 +28,6 @@ Then("the health dot names {string}", async function (this: OlaiWorld, words: st
     `the health dot's name to include ${JSON.stringify(words)}`,
     HYDRATION_TIMEOUT,
   );
-  // The full story — the headline and a line per piece of news — is the tip a
-  // pointer gets, and the name of the dot inside the button, which is how a
-  // screen reader gets the same words. It was a `title`, which was neither.
   const told = (await dot.locator('[role="img"]').getAttribute("aria-label")) ?? "";
   assert.ok(
     told.includes(words),
@@ -66,7 +49,6 @@ When("I focus the health dot", async function (this: OlaiWorld) {
   await this.page.locator(HEALTH).focus();
 });
 
-/** A key pressed wherever the caret is — the dot, the popover, a row. */
 When("I press {word} on the health dot", async function (this: OlaiWorld, key: string) {
   await this.page.keyboard.press(key === "Space" ? " " : key);
   await this.waitForFrame();
@@ -89,9 +71,6 @@ Then("the health dot has the focus", async function (this: OlaiWorld) {
   );
 });
 
-/** The rows, by their owners' test ids, in the order they are drawn. A listed
- *  id must be there and in that order; others (a plugin this scenario does not
- *  name) may stand between them. */
 Then("the health popover lists, in order:", async function (this: OlaiWorld, table: { raw(): string[][] }) {
   const wanted = table.raw().map((row) => row[0] ?? "");
   const panel = this.page.locator(HEALTH_PANEL);
@@ -128,15 +107,11 @@ Then("the health popover has no {string} row", async function (this: OlaiWorld, 
   );
 });
 
-/** A row's dot, by its owner's test id: the tone it wears (`data-health`, in
- *  the health dot's own words). */
 Then("the {string} row wears a {string} dot", async function (this: OlaiWorld, id: string, tone: string) {
   const dot = `${HEALTH_PANEL} ${attr("data-testid", id)} [data-health]`;
   await this.expectChromeAttribute(dot,"data-health", tone, `the ${id} row's dot`, HYDRATION_TIMEOUT);
 });
 
-/** Rows stand worst first: the first row (the first owner's test id in the
- *  popover, in the order a Tab walks them) is the one named. */
 Then("the health popover's first row is {string}", async function (this: OlaiWorld, id: string) {
   const panel = this.page.locator(HEALTH_PANEL);
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -146,9 +121,6 @@ Then("the health popover's first row is {string}", async function (this: OlaiWor
   });
 });
 
-/** THE INVARIANT the one-tone rule exists for: a dot that is not green always
- *  has a row of exactly its colour under it, so nothing in the list leaves the
- *  colour unexplained. */
 Then("a row of the health popover wears the health dot's tone", async function (this: OlaiWorld) {
   const tone = (await this.page.locator(HEALTH).getAttribute("data-health")) ?? "";
   const panel = this.page.locator(HEALTH_PANEL);
@@ -165,16 +137,12 @@ Then("the commit panel is up", async function (this: OlaiWorld) {
   await this.page.locator(COMMIT_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** THE CALM BAR: what stands in the desktop header's right-hand group is the
- *  search box, the one dot, preferences and who is looking — nothing else. A
- *  pill that found its way back into the bar is the regression this names. */
 Then("the desktop header holds only its calm controls", async function (this: OlaiWorld) {
   const chrome = this.page.locator(APP_HEADER).locator(APP_CHROME);
   await chrome.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.page.locator(HEALTH).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const standing = await chrome.evaluate((row) =>
     [...row.querySelectorAll<HTMLElement>("[data-testid]")]
-      // The controls a person SEES in the bar: laid out, and not a part of one.
       .filter((el) => el.getClientRects().length > 0 && el.parentElement?.closest("[data-testid]") === row)
       .map((el) => el.getAttribute("data-testid") ?? "")
   );

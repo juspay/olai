@@ -14,8 +14,6 @@ const sidebarWidthPref = createPreference(SIDEBAR_WIDTH_KEY, {
  const detach=holdLayoutPreferences({sidebarOpenPref,sidebarWidthPref})
   const stop = [sidebarOpenPref, sidebarWidthPref].map((preference) => preference.follow())
 
-  // Width is itself reactive. Re-setting unchanged preferences does not notify
-  // Solid, and used to leave CSS at the old fit after a window resize.
   const onResize = () => publishViewportWidth(window.innerWidth)
   onResize()
   window.addEventListener("resize", onResize)

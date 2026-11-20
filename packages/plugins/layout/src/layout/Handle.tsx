@@ -1,14 +1,3 @@
-/**
- * The drag handle between the directory column and the page.
- *
- * A 4px hit strip, wider than it looks so a pointer can find it. Widths are
- * live on the signal during the drag and written to localStorage only on
- * pointerup (see layout/prefs.ts), so a short drag is one storage write and
- * not twenty cross-tab re-renders.
- *
- * Keyboard users reset the width from the palette ("Reset sidebar width"); this
- * control is pointer-only.
- */
 import { TESTID } from "olai-plugin-layout/testids"
 import { onCleanup } from "solid-js"
 
@@ -24,8 +13,6 @@ sidebarWidth,
 } from "./live.ts"
 import { startResize } from "./resize.ts"
 
-/** The directory column's drag handle, on its right edge: dragging right
- *  grows it. */
 export function SidebarHandle() {
   let stop: (() => void) | undefined
   onCleanup(() => stop?.())

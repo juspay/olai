@@ -1,13 +1,3 @@
-/**
- * A thumb, and a screen with room for one column.
- *
- * Tapping is not clicking: a tap is a `touchstart`/`touchend` pair on a
- * context with no mouse at all, which is the only way to find out that a
- * control a pointer can reach is reachable without one. Measuring is the
- * other — chrome that has to stay inside the header, a drawer that covers
- * the outline — because those are sizes no attribute can carry.
- */
-
 import * as assert from "node:assert";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -37,13 +27,6 @@ import {
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// ── the thumb ──────────────────────────────────────────────────────────
-//
-// `press(target, "tap")` throughout. Waiting for the thing to be visible and
-// waiting out the frame the gesture schedules are the same as a click's, and
-// live on the World beside it — so what a step here says is only WHICH thing
-// is tapped, and the node-scoping rule (`within`) stays in one place.
-
 When("I tap the bullet of {string}", async function (this: OlaiWorld, id: string) {
   await this.press(this.within(id, ZOOM), "tap");
 });
@@ -52,40 +35,17 @@ When("I tap the toggle of {string}", async function (this: OlaiWorld, id: string
   await this.press(this.within(id, TOGGLE), "tap");
 });
 
-/**
- * A finger that lands on a row and then takes the page with it.
- *
- * The gesture every touch affordance on a row has to survive: a thumb on its
- * way down a long outline starts on SOMETHING, and what it starts on must not
- * answer for it. It is a real drag — down, moving past the press deadline, up
- * — because that is the only version of it that could fail.
- */
 When("I flick the node {string} up the screen", async function (this: OlaiWorld, id: string) {
   await this.flick(this.within(id, NODE_GUTTER));
 });
 
-/** The same gesture aimed at the BULLET — the cell a finger picks a row up by
- *  (`client/drag/Handle.tsx`), and therefore the one place a claimed gesture
- *  could have cost a reader the page. A flick that starts here must still
- *  scroll, which is what makes the claim a long press rather than a style. */
 When("I flick the bullet of {string} up the screen", async function (this: OlaiWorld, id: string) {
   await this.flick(this.within(id, ZOOM));
 });
 
-// ── picking a row up with a finger ─────────────────────────────────────
-//
-// The touch half of drag-and-drop. A press is WATCHED until the deadline and
-// only then claimed, so every one of these is a real gesture in three parts —
-// down, held, moved — and a scenario has to be able to stop between them
-// (`client/drag/dragging.ts`, `support/world.ts`'s `holdDown`).
-
 When(
   "I hold a finger on the bullet of {string} and keep it there",
   async function (this: OlaiWorld, id: string) {
-    // A finger presses what is ON the screen. A row can sit below the fold
-    // on a handset (a title that wraps makes rows as tall as their words), and
-    // a touch at a point past the viewport's edge reaches nothing — so the
-    // bullet is brought into view first, as a thumb would scroll to it.
     const bullet = this.within(id, ZOOM);
     await bullet.scrollIntoViewIfNeeded();
     await this.holdDown(bullet);
@@ -115,24 +75,10 @@ Then("no row is in the air", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * A page with somewhere to scroll TO, which no fixture in this suite gives a
- * handset on its own: the corpora are outlines a person can read inside a
- * scenario, and the shortest phone here is 844 points tall.
- *
- * So the screen shrinks instead of the corpus growing — a real handset shape,
- * since that is what a phone with its keyboard up is — and the step asserts
- * what it just claimed rather than trusting it: a fixture that grew past this
- * height, or a layout that stopped scrolling the document, would otherwise
- * leave the scenario after it passing over nothing.
- */
 Given("the screen is shorter than the outline", async function (this: OlaiWorld) {
   await this.shrinkToScroll(PHONE_WIDTH, SHORT_PHONE_HEIGHT);
 });
 
-/** It MOVED, which is the half that no assertion about the menu can carry: a
- *  press that claimed the gesture would leave the menu shut and the page
- *  exactly here. */
 Then("the outline has scrolled", async function (this: OlaiWorld) {
   const at = await this.page.evaluate(() => window.scrollY);
   assert.ok(at > 0, `the page is still at the top (scrollY ${at}) — the flick took nothing with it`);
@@ -147,8 +93,6 @@ When("I tap the day {string}", async function (this: OlaiWorld, date: string) {
   await this.press(this.dayLink(date), "tap");
 });
 
-/** The burger, and what it reveals. Two taps to anything in the sidebar is the
- *  budget: one to open it, one to press what you came for. */
 When("I tap the burger", async function (this: OlaiWorld) {
   await this.press(this.page.locator(SIDEBAR_TOGGLE), "tap");
   await this.page
@@ -183,26 +127,12 @@ Then("there is no burger", async function (this: OlaiWorld) {
   );
 });
 
-/** The header is drawn at all — asked wherever a page might have replaced the
- *  whole shell rather than filled it, which since the per-file ruling is a
- *  BROKEN FILE'S own page (`@olai/web`'s `errors/Broken.tsx`): it is one pane's
- *  content, so the chrome and the directory column stay exactly where they
- *  were. It lived in `error_view_steps.ts` while the whole-page error view had
- *  a corpus to be provoked from; it is here now, with its siblings. */
 Then("the app header is on screen", async function (this: OlaiWorld) {
   await this.page
     .locator(APP_HEADER)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
-/** Every chrome control's border box lies inside the header's own.
- *
- *  Desktop: the health dot and the preferences gear — the whole of what
- *  stands in the bar besides search and who is looking. A
- *  fixed-height bar with flex-wrap used to centre a wrapped pill group so
- *  the first row sat above the viewport. The assertion is geometry, not a
- *  colour: the header's own box is the clip region. Phone chrome is the
- *  next step — those pills are not in the bar. */
 Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   const pills = [
@@ -224,14 +154,6 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   }
 });
 
-/**
- * WhatsApp's rule: the bar is ☰, olai, search. The pills that used to
- * crowd it — connection, commit, uptime, agent, prefs — are not in it.
- *
- * Absence is the assertion, not geometry: a healthy phone does not
- * advertise health, and the squeeze this used to measure is gone with the
- * chips.
- */
 Then("the phone header is identity and search", async function (this: OlaiWorld) {
   const header = this.page.locator(APP_HEADER);
   await header.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -257,19 +179,9 @@ Then("the phone header is identity and search", async function (this: OlaiWorld)
   }
 });
 
-/**
- * Open the app with the wire stuck in `connecting`.
- *
- * A real dial races past `connecting` before a poll can sample it. Replacing
- * `WebSocket` with a stub that never leaves CONNECTING is deterministic: the
- * header paints, the indicator must say connecting or this step fails, and
- * the geometry assertion that follows can fail for its stated reason. No soft
- * fallback to live.
- */
 When("I open the app held at connecting", async function (this: OlaiWorld) {
   // A string, not a function: tsc would otherwise typecheck the stub as a
-  // real WebSocket constructor. Stays CONNECTING forever so the indicator
-  // cannot race past to live.
+  // real WebSocket constructor.
   await this.page.addInitScript(`
     (function () {
       function HeldWebSocket(url) {
@@ -331,7 +243,6 @@ Then("the sidebar is put away", async function (this: OlaiWorld) {
       "header for starts a third of a screen down",
   );
 });
-// ── the strip the browser is showing ───────────────────────────────────
 
 Then(
   "the page reports the visible strip as the whole viewport",
@@ -354,9 +265,6 @@ Then(
       `${reported.visual}px`,
       "the page is not publishing the height of the strip it can see",
     );
-    // Nothing is covering the bottom of the page, so nothing anchored there
-    // has to be lifted. It is the keyboard that makes this non-zero, and a
-    // test cannot raise one.
     assert.strictEqual(reported.bottom, "0px");
   },
 );

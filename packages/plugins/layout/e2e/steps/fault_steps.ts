@@ -1,19 +1,3 @@
-/**
- * The client's own faults: what a reader sees when olai, rather than an
- * outline, is what is wrong.
- *
- * The whole difficulty here is PROVOKING one. Every other error surface in
- * this suite is reached by serving a file that does not validate, because
- * those errors are data. A bug in the render is not data, and this app
- * deliberately offers no way to ask for one — a fault switch shipped to
- * production is a fault switch in production.
- *
- * Inject one failure while the renderer assigns the app header's DOM marker.
- * That operation runs inside the drawn component, after scoped providers have
- * started. Breaking date arithmetic instead throws during clock activation and
- * tests provider startup, not the rendering boundary. The marker confines the
- * injection to the header, leaving dependency initialization and the card alone.
- */
 import { TESTID } from "@olai/tests/harness/testids.ts"
 import * as assert from "node:assert";
 
@@ -31,9 +15,6 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/** What the injected fault says. Asserted on later, so a card that drew SOME
- *  other error — a real one, provoked by the injection rather than being it —
- *  cannot pass for this one. */
 const THROWN = "olai e2e: a deliberate fault in the render";
 
 Given(
@@ -54,14 +35,6 @@ Given(
 );
 
 When("I open a page it cannot draw", async function (this: OlaiWorld) {
-  // `settle`, not `open`: the same wait every scenario in the suite does, minus
-  // the one line that REJECTS a fault card as the failure it is for all of
-  // them. This is the scenario that wants one.
-  //
-  // NAMED when it times out, because for this scenario a settle that never saw
-  // a shape is not noise — it is the white tab itself, the exact thing the
-  // boundary exists to replace. Without this, removing the boundary reads as a
-  // bare Playwright timeout instead of saying what came back: nothing.
   try {
     await this.settle("/");
   } catch (cause) {
@@ -86,25 +59,15 @@ Then("the page says it broke", async function (this: OlaiWorld) {
   await this.page
     .locator(FAULT)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  // The one sentence olai still owns. The boundary, the record and the printed
-  // text are the framework's (`SurfaceFaultBoundary`), so what this app can
-  // still get wrong is the LOOK — and its first words are this heading. By
-  // ROLE, not testid: a card that demoted the sentence to a styled <div>
-  // would have changed what a reader is handed while keeping every testid
-  // in place.
   await this.page
     .getByRole("heading", { name: "Something went wrong on this page" })
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  // ...and what to do, before any stack: the files are safe, and a reload is
-  // the first thing to try.
   await this.page
     .locator(FAULT)
     .getByText("Your files are safe. Reload to try again.", { exact: true })
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** The technical half is one press away, not the first thing a person reads:
- *  it sits in a `Details` disclosure that starts closed. */
 Then("the fault's detail is behind a closed Details", async function (this: OlaiWorld) {
   const detail = this.page.locator(FAULT_DETAIL);
   await detail.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
@@ -131,10 +94,6 @@ Then("the fault is on the page, verbatim", async function (this: OlaiWorld) {
 });
 
 Then("both ways out are offered", async function (this: OlaiWorld) {
-  // A faulted render has no state left worth resuming, and a card that only
-  // announced the fault would be a dead end with better manners. TWO, because
-  // a fault is usually deterministic for the route it happened on: reload that
-  // page and it breaks again, so the card also offers the way off it.
   for (const way of [RELOAD, FAULT_HOME]) {
     await this.page
       .locator(`${FAULT} ${way}`)

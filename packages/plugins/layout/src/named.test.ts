@@ -1,14 +1,3 @@
-/**
- * The seam `followName` actually changed: whether this tab sends `app.get`,
- * and what one landing writes.
- *
- * A table, not an effect — bun's default Solid resolution never re-runs
- * one, and the interesting cases are the states of the wire, which
- * `shouldAsk` already folds. The case that would have been a reconnect
- * reset is here: `retired` is not an open, so a restart does not land a
- * second start on this page (`./connection/reaching.ts`).
- */
-
 import { expect, test } from "bun:test"
 
 import type { SurfaceReadout, SurfaceReadoutStatus } from "@olai/web/client/connection/status.ts"

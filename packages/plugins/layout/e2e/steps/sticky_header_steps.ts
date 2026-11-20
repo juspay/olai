@@ -1,17 +1,3 @@
-/**
- * The header sticks: where the bar is once the page has moved under it, that
- * nothing paints over it there, and that what is measured FROM it still meets
- * it (the desktop agent dock; the drawer and scrim, through the steps
- * `panel_steps.ts` already owns).
- *
- * Everything here is a MEASUREMENT, and it has to be: "the header is visible"
- * is not an attribute a component can carry, and a scrolled-away bar is still
- * `attached`, still `visible` to Playwright, and still every bit as absent from
- * the screen. So the questions are asked of the laid-out box and of what the
- * browser says is at a point — which is also the only way to catch the second
- * half of a sticky bar, a z-layer that lets the page paint over the top of it.
- */
-
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -24,15 +10,8 @@ import {
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-/** How far off the top edge counts as "at the top". A CSS pixel of rounding on
- *  a fractional device scale, and nothing else — a bar that has begun to leave
- *  is a bar that leaves. */
 const EDGE = 1;
 
-/** The selector of one tree row's LINE by id — row keys are PATHS
- *  (`/<parent>/<child>`), so an id is a suffix match, never an exact one. The
- *  leading `/` is what keeps it exact: `/a02` can't collide with `/a012`, and
- *  ids are unique across the set anyway. */
 const rowLineOf = (id: string): string => `[data-row-key$="/${id}"]`;
 
 Then("the app header is at the top of the viewport", async function (this: OlaiWorld) {
@@ -49,15 +28,6 @@ Then("the app header is at the top of the viewport", async function (this: OlaiW
   );
 });
 
-/**
- * The bar is not merely THERE — it is what the pointer reaches at the bar.
- *
- * A sticky bar with too low a layer is the same defect wearing a passing
- * bounding box: the page keeps scrolling under it and paints straight over it,
- * and every measurement above still holds. Two controls rather than one, at
- * opposite ends of the right-hand group, because a single sample is one column
- * of a bar that is a row.
- */
 Then(
   "the header chrome takes the pointer where the page runs under it",
   async function (this: OlaiWorld) {
@@ -76,24 +46,9 @@ Then(
   },
 );
 
-/**
- * THE JUMP, aimed at a tree row: scroll the row's line to the top of the
- * window. `scrollIntoView` is the platform's own answer every jump door
- * reduces to — the ToC's anchor, a pasted fragment, the navigation landing
- * (`faces.tsx`) — so a scenario needs no product door of its own when the
- * claim is about the RESERVE and not about any one door. The window has to be
- * short enough that a section actually pins, which the sibling scenarios in
- * this file already arrange.
- */
 When(
   "a jump lands the row {string} at the top of the window",
   async function (this: OlaiWorld, id: string) {
-    // THE ROW LINE, not two frames after the tree container. `I open the
-    // outline` waits for `outline-tree` and two rAFs; `<Key>`'s children can
-    // still be uncommitted, and the viewport-shortening step above can reflow
-    // the list before they are. A one-shot querySelector in that window is
-    // how the phone twin said `no row line for [data-row-key$="/install"]`
-    // under petit-load (the_header_sticks.feature:93).
     const row = this.page.locator(rowLineOf(id));
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const before = await this.page.evaluate(() => scrollY);
@@ -105,27 +60,6 @@ When(
   },
 );
 
-/**
- * …and where it landed, measured against what is actually pinned at the time.
- *
- * The band the `scroll-padding-top` rule must clear is not just the bar — it
- * is the bar plus whatever holds its place under it, which on a tree page is
- * a SECTION row (`client/Tree.tsx`). Asserted three ways, because each answers
- * a different way to be wrong:
- *
- *  - THE PAGE MOVED — a jump that changed nothing is invisible in every
- *    attribute and is the failure this family of steps exists to catch.
- *  - TOP VS PINNED BOTTOM — the row's top is at-or-below the pinned row's
- *    bottom edge; anything less and it is being read through the back of the
- *    pinned heading (measured on `house.olai`: 71.5px pre-fix vs 116.5
- *    post-fix, band [72, 111.4)).
- *  - WHO IS AT THE SPOT — an `elementFromPoint` at the row's own top edge
- *    names the row itself, not the pinned section. Geometry alone can pass
- *    for the wrong reason if two rows share a boundary; the DOM hit cannot.
- *
- * An upper bound as well: the reserve is about CLEARING the band, not about
- * having a free hand to stop anywhere down the page.
- */
 Then(
   "the row {string} is clear of the pinned section {string}",
   async function (this: OlaiWorld, id: string, sectionId: string) {
@@ -198,8 +132,6 @@ Then(
       `the heading is at y=${Math.round(landed.top)}, above the header's bottom ` +
         `edge at ${Math.round(seam)} — the jump put it behind the bar`,
     );
-    // …and it still LANDED: the reservation is the bar's height, not a free
-    // hand to stop anywhere down the page.
     assert.ok(
       landed.top < seam + 96,
       `the heading is ${Math.round(landed.top - seam)}px below the header, so ` +

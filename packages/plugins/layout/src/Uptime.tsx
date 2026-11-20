@@ -1,18 +1,3 @@
-/**
- * The quiet line that says how long the olai server has been up.
- *
- * Furniture, not an alarm: `up 2h`, the last line of the health popover
- * (`./Health.tsx`), under the status rows. It casts no vote on the dot.
- * The value is the SERVER's process start,
- * crossed once on `app.get` (`./named.ts`); `./uptime.ts` ticks it locally
- * from that landing. A restart retires the tab; the page that reloads is a
- * new ask, which is why it can read `up 12s`.
- *
- * DESKTOP ONLY, like the rows it sits with: a healthy phone does not
- * advertise health. The line is not a control. The exact start instant
- * is in a visually-hidden span (and on the tip, for a pointer) so it
- * is not hover-only.
- */
 import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 
@@ -34,15 +19,9 @@ export function Uptime() {
     return at === undefined ? "" : sinceOf(at)
   }
   return (
-    // The TESTID is always in the desktop cluster, even before `app.get`
-    // has answered: a chip that mounts a frame later is a missing testid
-    // in the row. The PILL itself waits — an empty oval is not furniture.
     <span data-testid={TESTID.uptime} data-started={startedAt()} class="contents">
       <Show when={says() !== ""}>
         <Tip text={said()} layer={LAYER.over}>
-          {/* The quiet LAST LINE of the health popover: smaller, muted, and
-              its words on the same left edge as the rows' words above it
-              (a row's padding, its dot and the gap after it). */}
           <div class={`${PILL} !pl-6 text-label !text-muted`}>
             {says()}
             <span class="sr-only">{said()}</span>

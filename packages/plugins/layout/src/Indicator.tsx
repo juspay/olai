@@ -1,48 +1,3 @@
-/**
- * The connection pill: is this page still talking to a server?
- *
- * It is small, it is always there, and it is the only thing on screen that
- * reports on the connection rather than on the outlines. Always THERE is the
- * point — an indicator that only appears when something is wrong cannot be
- * trusted when it is absent, because "healthy" and "not rendered" look the
- * same. Green is a claim this page keeps making.
- *
- * WHERE it goes is the layout's to say, not this component's. There is one
- * answer now: the app header (`../AppHeader.tsx`), beside the agent toggle and
- * the preferences, on every shape of the app — including the error report and
- * the waiting page, which are exactly the pages whose connection a reader wants
- * to know about most of all. The two-home layout (sidebar footer, or a corner
- * when there was no sidebar) collapsed with the header; a pill fixed to the
- * corner of a page with an outline on it used to sit on the last line of
- * whatever scrolled under it.
- *
- * The label truncates rather than forcing the header to wrap: on a 390pt phone
- * `server restarted` / `reconnecting` / `connecting` are wider than the room
- * left beside the wordmark, and a wrap inside a fixed-height bar clipped the
- * first row off the top of the viewport. The full sentence still rides `title`.
- *
- * It truncates against its OWN cap and never against the bar, which is the
- * difference `shrink-0` makes and the reason it is there. The header's rule is
- * that this label is the LAST thing in it to give way (`../AppHeader.tsx`):
- * `live` is four letters, it is the claim a reader scans hardest, and a bar
- * that squeezed it to `l…` while a theme name beside it stayed whole is a bar
- * that spent its pixels in the wrong order. Anything longer than the cap is
- * still this pill's own problem — a state at `9.5rem` is a state that has
- * already told the reader what it is.
- *
- * **Green is about the PAGE, not about the socket**, and that is the READOUT's
- * promise rather than this component's: `connectSurface` folds the transport
- * with the subscription-health fact and hands back one value, so a socket that
- * is open and answering under a dead subscription cannot reach here wearing
- * `live` (kolu#2160). This component used to do that fold — walking
- * `client.health()` behind a memo of its own — and the reason it stops is not
- * tidiness: the fold was a step every consumer had to remember, and the page
- * that forgot it drew a `documents.keys` stream that had died as a directory
- * with no documents in it, under a green light. What is left here is the LOOK,
- * folded into one pill rather than drawn as a third readout beside the others,
- * for the reason the git pill beside it is quiet when it is happy: one green
- * claim per page, or neither is scanned.
- */
 import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 
@@ -53,38 +8,14 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 
-/** The room a page keeps at the bottom of its reading column: the phone's home
- *  indicator (the inset is real because the shell asks for `viewport-fit=cover`).
- *
- *  Exported because the room is reserved somewhere else — the main pane's
- *  padding (../App.tsx) — and the size being reserved for is a fact about the
- *  reading column rather than about any one control. It used to also clear the
- *  corner pills; those live in the header now, so this is the home bar alone. */
-
 
 export function Indicator(props: { readonly readout: SurfaceReadout }) {
-  // A plain function rather than a memo, which it could not be before: the
-  // expensive read was the subscription registry, and this component walked it
-  // per expression per update until the fold moved upstream. What is left is a
-  // table lookup (or, for `degraded`, one `join`) over a value that is already
-  // memoized — `createSurfaceReadout` folds once per connection and stays silent
-  // while its answer is unchanged.
   const look = () => lookOf(props.readout)
   return (
     <>
       <Show when={desktop()}>
-        {/* The detail is what the label leaves out, and it used to live in a
-            `title` — a pointer's only. It is the tip now, and the same words
-            sit inside the live region as hidden text, so a change is
-            announced whole rather than as a state with no reason. */}
         <Tip text={look().detail} layer={LAYER.over}>
           <div
-            // No position of its own: it is a READOUT and not a control — nothing
-            // here is tappable — so all it needs is to be legible wherever the layout
-            // decides to put it. The pill itself is `../readout.ts`'s, shared with
-            // the Commit pill beside it. The LABEL truncates against this cap; the
-            // box does not (`readout.ts`), so a long state still says a word rather
-            // than becoming an empty chip.
             class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
             data-testid={TESTID.connection}
             data-connection={props.readout.status}
@@ -98,7 +29,6 @@ export function Indicator(props: { readonly readout: SurfaceReadout }) {
         </Tip>
       </Show>
       <Show when={!desktop() && isDegraded(props.readout)}>
-        {/* No tip and no hidden copy: the banner already draws the detail. */}
         <div
           class={`${BANNER} ${TONE[look().tone].text}`}
           data-testid={TESTID.connection}

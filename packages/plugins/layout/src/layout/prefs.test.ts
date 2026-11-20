@@ -12,9 +12,6 @@ import {
   SIDEBAR_MIN_PX,
   SIDEBAR_WIDTH_KEY,
 } from "olai-plugin-layout/preferences"
-// The live half is this row's own now, and private: the door carries the keys,
-// the bounds and the arithmetic (`./prefs.ts`), and the readings a consumer
-// spends travel on `layout.shell` (`../index.ts`).
 import { setSidebarWidth } from "./live.ts"
 import { parseBool } from "@olai/web/client/preference.ts"
 import { remembering } from "@olai/web/client/preference.testlib.ts"
@@ -39,16 +36,10 @@ test("parsePx clamps and rejects non-numbers", () => {
   expect(parsePx("99", 256, 180, 480)).toBe(180)
   expect(parsePx("9999", 256, 180, 480)).toBe(480)
   expect(parsePx("nope", 256, 180, 480)).toBe(256)
-  // 12.7 rounds to 13, then clamps up to the min.
   expect(parsePx("12.7", 256, 180, 480)).toBe(180)
 })
 
 test("the width setter forwards persist: false, so a pointermove writes nothing", () => {
-  // The factory's own test proves `set` honours the option; this one holds
-  // the hop in front of it — a setter that stopped forwarding `opts` would
-  // turn every pointermove of a drag into a storage write while the factory
-  // test stayed green. Storage is shimmed for the duration; bun's runner has
-  // none, and `readPreference` reads that absence as null either way.
   remembering((store) => {
     const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
     Object.defineProperty(globalThis, "window", { configurable: true, value: { innerWidth: 1400, addEventListener() {}, removeEventListener() {} } })

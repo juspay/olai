@@ -36,45 +36,15 @@ Feature: The header sticks
       | node     | kitchen         |
       | document | kitchen-sink.md |
 
-  # A jump lands at a heading, and the top of the viewport is not free space any
-  # more — so the document reserves the bar's height (`scroll-padding-top`) and
-  # the heading stops under it rather than behind it. The geometry IS the
-  # feature: a CSS rule plus the browser's own `#heading` scroll is not a unit
-  # test, and the Outline above never jumps anywhere.
   @corpus:good
   Scenario: A jump to a heading lands below the bar, not behind it
-    # A heading in the MIDDLE of the fixture, so the jump is a real one: near
-    # the end the document runs out of itself and the browser stops short of
-    # the target, which would pass this for the wrong reason.
     When I open the document "kitchen-sink.md"
     And I follow the contents line "Lists"
     Then the app header is at the top of the viewport
     And the heading "Lists" is clear of the header
 
-  # The bar is not all that pins. On a page that draws a tree, a SECTION row
-  # holds its place under the bar while its branch scrolls past
-  # (`client/Tree.tsx`) — ~40px of the reading here, ~58px on a phone, that is
-  # not free space. A jump landing a row in that band used to leave the reader
-  # looking at it through the back of the pinned heading (measured: the row
-  # would stop at y=71.5px, ON the pinned `kitchen` row's span, versus ≥134px
-  # after the fix). The reserve therefore accounts for whatever is actually
-  # pinned: the bar alone on non-tree pages (the document's
-  # `scroll-padding-top`), and bar + the section row's MEASURED height inside a
-  # section's branch (`--olai-pinned-band`, outlines' `all.css`) — measured
-  # because a wrapped title makes a heading as tall as its words need.
-  #
-  # THE REVERT CHECK: with the extra reserve removed (the
-  # `.olai-section` scroll margin gone), BOTH this scenario and its phone
-  # twin below turn deterministically red — the row stops at the bar's bottom
-  # edge and `elementFromPoint` at its top names `/kitchen`, the pinned row
-  # itself: 0/10 luck involved. The window must be short like the Outline's
-  # for the same reason it gives there: a window taller than the page has
-  # nothing pinned to assert against.
   @corpus:good @abp
   Scenario: A jump to a row lands below the pinned section, not behind it
-    # A row deep enough in the fixture that the window still has room to put
-    # past it: `install` is mid-tree, and near the end the browser would stop
-    # short and pass for the wrong reason.
     When I open the outline "house.olai"
     And the window is shorter than the page
     And a jump lands the row "install" at the top of the window
@@ -82,14 +52,6 @@ Feature: The header sticks
     And the row "install" is clear of the pinned section "kitchen"
     And there should be no page errors
 
-  # ...and the face the first cut of the reserve actually missed: below `md`
-  # the sticky line is h-11 + py-1 — 3.25rem to the laptop's ~2.2, so a
-  # reserve sized off the laptop's measurement still stops 0.75rem short of
-  # the phone's pinned bottom (measured on a 390px window: the pinned
-  # `kitchen` row spans y=72–130.5, and a 2.5rem reserve landed the target at
-  # 116.5). Same scenario, handset context; the window-shortening step keeps
-  # the 390px width, which is what makes `h-11` fire and this pin mean
-  # anything.
   @corpus:good @phone @abp
   Scenario: A jump to a row lands below the pinned section on a phone, not behind it
     When I open the outline "house.olai"
@@ -99,11 +61,6 @@ Feature: The header sticks
     And the row "install" is clear of the pinned section "kitchen"
     And there should be no page errors
 
-  # ...and the face wrapping added: a title runs onto as many lines as its
-  # words need (`title_markdown.feature`), so a pinned heading is no longer one
-  # line tall and a constant reserve stops short of its second. The reserve is
-  # the heading's measured height, so a jump clears a heading of any length —
-  # asserted on a phone, where the narrow column wraps it the most.
   @scratch:good @phone
   Scenario: A jump clears a pinned section whose title wraps
     When I open the outline "house.olai"

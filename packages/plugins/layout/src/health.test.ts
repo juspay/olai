@@ -1,7 +1,3 @@
-/**
- * The health dot's fold: worst tone wins, `quiet` never colours it, and the
- * name quotes each readout's own label, alarms first.
- */
 import { expect, test } from "bun:test"
 
 import { lookOf } from "@olai/web/client/connection/status.ts"
@@ -35,8 +31,6 @@ test("the name quotes the news in the readouts' own words, alarms first", () => 
   expect(tipOf(statuses).split("\n")[1]).toBe(`${retired.label} — ${retired.detail}`)
 })
 
-// The popover's order: worst first, the quiet last, and rows of one tone in
-// the order they came (the connection first, then mount order).
 test("rows stand worst first, and keep their order within a tone", () => {
   const rows: ReadonlyArray<BarStatus> = [
     { tone: "healthy", label: "connection" },
@@ -49,15 +43,10 @@ test("rows stand worst first, and keep their order within a tone", () => {
   expect(worstFirst(rows, (row) => row.tone).map((row) => row.label)).toEqual([
     "xyne error", "9 uncommitted", "kolu · no check-in", "connection", "odu", "no kolu",
   ])
-  // Nothing wrong: the order is the order they came in.
   const calm = rows.filter((row) => row.tone === "healthy")
   expect(worstFirst(calm, (row) => row.tone)).toEqual(calm)
 })
 
-// THE INVARIANT the one-tone rule exists for: whenever the dot is not green,
-// some row in the popover wears a dot of exactly its colour — because the dot
-// is folded from the very tones the rows paint. Every mix of up to three rows,
-// so no ordering or combination can break it.
 test("a dot that is not green always has a row of its colour", () => {
   const TONES: ReadonlyArray<BarTone> = ["healthy", "quiet", "notice", "alarm"]
   const rows = (n: number): ReadonlyArray<ReadonlyArray<BarTone>> =>

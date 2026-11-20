@@ -1,46 +1,4 @@
 import { sameList } from "@olai/web/client/same.ts"
-/**
- * THE BAR'S ONE HEALTH DOT, and the popover it opens.
- *
- * The desktop bar used to stand a row of pills here — the connection, the
- * Commit readout, kolu, odu, mail, spaces, the uptime chip — and two doors
- * (`⧉ plugins`, `⚙ prefs`). Nine things, each always there because a bar of
- * chips cannot be trusted if the healthy ones vanish. The dot keeps that
- * promise with one mark instead of nine: it is ALWAYS drawn, it wears the
- * worst tone among everything standing (`./health.ts`), and when that tone is
- * not healthy its name and tip say what is wrong in the readout's own words,
- * so a dropped connection is heard without opening anything.
- *
- * ## Who draws, who owns
- *
- * Every row in the popover is still its OWNER's face: the connection and the
- * uptime line are this plugin's own; every other row is a `cluster` seat in
- * `app.header`, registered and withdrawn by the plugin that owns it, drawn here
- * exactly as the bar used to draw it — so a row's
- * words and whatever its press opens (the Commit panel, kolu's feed) are the
- * plugin's, untouched. What changed is WHERE: a row of this popover rather
- * than a chip in the bar. The dot's colour comes from the same registrations'
- * `status` accessors, read live off the slot, so a plugin switched off takes
- * its row and its vote with it in the same withdrawal, and one switched back
- * on brings both with a fresh scope.
- *
- * The rows stand WORST FIRST, by the same live tones (`./health.ts`'s
- * `worstFirst`): alarms, then notices, then the healthy, then the quiet, the
- * connection taking part like any row. A row whose tone changes moves, and
- * since they are moved in the DOM, a Tab walks them in the order they are seen.
- *
- * The plugins door is a `layout.tools` entry that asks for this popover's
- * foot (`desktop: "health"`), so this file names no tenant. Such a door stands
- * beside the dot and lends the popover only its row ({@link HealthSeat}).
- *
- * ## The panel
- *
- * `@olai/web`'s `createPopover` — the same open state, anchor, dismissal
- * (`../dismiss.ts`: a pointer outside, Escape) and one tab cycle every door in
- * the bar uses, with the caret handed back to the dot when a key shut it.
- * A row's own panel (the Commit panel) opens OVER this one and is the topmost
- * layer, so its Escape shuts it first and a second Escape shuts this.
- */
 import { TESTID } from "olai-plugin-layout/testids"
 import type { Hung } from "@olai/plugin-api"
 import { createMemo, createSignal, For, Show } from "solid-js"
@@ -63,10 +21,6 @@ import { HealthSeat } from "./contracts/BarDoor.tsx"
 import { Tools } from "./Tools.tsx"
 import { Uptime } from "./Uptime.tsx"
 
-/** A list of short rows wants less than the 24rem a settings panel is given.
- *  The box is narrowed and its RIGHT edge set on the bar's own right edge (the
- *  last control's, `edge`) — never past the anchor's window margin — so the
- *  popover hangs flush under the dot, the gear and who is looking. */
 const ROWS_WIDTH = 320
 
 const narrowed = (at: Anchor, edge: number | undefined): Record<string, string | undefined> => {
@@ -75,49 +29,34 @@ const narrowed = (at: Anchor, edge: number | undefined): Record<string, string |
   return { ...styleOf(at), left: `${right - width}px`, width: `${width}px` }
 }
 
-/** The right edge of the BOX the dot sits in, skipping any ancestor that is
- *  not a box at all. The app's tip wraps what it explains in a
- *  `display: contents` span (`@olai/web/client/Tip.tsx`), which draws nothing
- *  and measures as all zeros — so a plain `parentElement` walk from a tipped
- *  control answers 0 and pins whatever it positions to the left edge of the
- *  window. `undefined` where there is nothing to measure, which is what
- *  `narrowed` already reads as "no edge to stay inside of". */
+/** The right edge of the box the dot sits in, skipping any ancestor that is
+ *  not a box at all: the tip wraps its control in a `display: contents` span,
+ *  which measures as all zeros. */
 const clusterRight = (control: HTMLElement | undefined): number | undefined => {
   let node = control?.parentElement ?? null
   while (node !== null && getComputedStyle(node).display === "contents") node = node.parentElement
   return node === null ? undefined : node.getBoundingClientRect().right
 }
 
-/** The connection's own row, ordered among the seats like any of them. */
 const CONNECTION = "connection"
 type Row = typeof CONNECTION | Hung<BarSeat>
 
 export function Health(props: { readonly slots: RendererSlots }) {
   const seats = createMemo(() => hung("app.header").filter((one) => one.face.place === "cluster"), undefined, { equals: sameList })
-  /** Every status standing now: the connection first, then each cluster
-   *  seat's in mount order. A seat with no `status` has no vote. */
   const statuses = createMemo((): ReadonlyArray<BarStatus> => [
     lookOf(connectionReadout()),
     ...seats().flatMap((one) => one.face.status === undefined ? [] : [one.face.status()]),
   ])
-  /** A row's live tone; a seat with no `status` stands with the quiet. */
   const toneOf = (row: Row): BarTone =>
     row === CONNECTION ? lookOf(connectionReadout()).tone : row.face.status?.().tone ?? "quiet"
   const rows = createMemo(() => worstFirst<Row>([CONNECTION, ...seats()], toneOf))
   const tone = () => worstOf(statuses())
   let dot: HTMLButtonElement | undefined
   const popover = createPopover()
-  // The popover's foot, while it is drawn — where a `health` door puts its row.
   const [foot, setFoot] = createSignal<HTMLElement>()
 
   return (
     <>
-      {/* THE WHOLE OF THE NEWS, over the bar the dot sits in. The button's own
-          name is the headline (`nameOf`); the lines under it — one per piece of
-          news — are a second sentence, so they ride the dot itself as a
-          `role="img"` name, which is a name the platform exposes where a bare
-          span's would be ignored. Not a `title`: the platform's tooltip is what
-          this tip replaces. */}
       <Tip text={tipOf(statuses())} layer={LAYER.over}>
         <button
           type="button"
@@ -128,9 +67,6 @@ export function Health(props: { readonly slots: RendererSlots }) {
           class={`${ICON_BUTTON} !px-0 md:!w-7`}
           data-testid={TESTID.health}
           data-health={tone()}
-          // The connection's own state rides the dot too: it is the bar's own
-          // readout, and "is this page still reading" should not need a click
-          // to be asserted or inspected.
           data-connection={connectionReadout().status}
           aria-label={nameOf(statuses())}
           aria-expanded={popover.open()}
@@ -150,13 +86,6 @@ export function Health(props: { readonly slots: RendererSlots }) {
             <section
               ref={popover.setPanel}
               class={`${PANEL_BOX} gap-0.5 !p-2`}
-              // THE CLUSTER'S RIGHT EDGE, found by climbing past anything with
-              // no box. The dot's parent used to be the bar's cluster; it is
-              // the tip's wrapper now, which is `display: contents` — no box,
-              // and `getBoundingClientRect()` on one answers all zeros, which
-              // pinned this panel to the left edge of the window and under the
-              // sidebar. A wrapper that adds no box must not be allowed to
-              // answer a question about boxes.
               style={narrowed(at(), clusterRight(dot))}
               tabindex="-1"
               data-testid={TESTID.healthPanel}

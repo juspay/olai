@@ -1,13 +1,3 @@
-/**
- * ONE DOOR IN THE PHONE'S THUMB BAR (`../index.ts`'s `thumbs`): an icon over
- * a word, a finger's height, lit in the accent while it is the page.
- *
- * The shape is the bar's so four plugins' doors read as one row; what each
- * door IS — where it goes, what it counts — is the plugin's. A door that
- * navigates is a link (`href`), so it is a real address a long-press can copy;
- * one that opens something in place is a button. A `badge` is the one fact a
- * door may carry beside its icon: a count of what needs a person.
- */
 import { type JSX, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
@@ -16,11 +6,8 @@ export function Thumb(props: {
   readonly testid: string
   readonly href?: string
   readonly onClick?: () => void
-  /** After navigation followed this door (`olai-navigated`), not on presses the
-   *  browser keeps. */
   readonly onNavigate?: () => void
   readonly current?: boolean
-  /** A short count or mark, drawn at the icon's shoulder. */
   readonly badge?: JSX.Element
   readonly data?: { readonly [key: `data-${string}`]: string | undefined }
   readonly children: JSX.Element

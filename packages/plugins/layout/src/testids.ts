@@ -1,18 +1,11 @@
-/** Stable DOM identifiers owned by this renderer. Shared consumers import
- * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
-  /** The phone's thumb bar, with one door per plugin that offers one. */
   thumbs: "thumbs",
   appHeader: "app-header",
   appChrome: "app-chrome",
   sidebarToggle: "sidebar-toggle",
   sidebarResize: "sidebar-resize",
   connection: "connection",
-  /** The bar's one health dot (desktop). `data-health` is `healthy` / `notice` /
-   *  `alarm` — the state, never the colour. */
   health: "health",
-  /** ...and the popover it opens: one row per status readout, the uptime
-   *  line, and the plugins door at its foot. */
   healthPanel: "health-panel",
   fault: "fault",
   faultDetail: "fault-detail",

@@ -1,36 +1,10 @@
 @import "@olai/ui-primitives/all.css";
-/* The frame and header live here, so this row owns their Tailwind source. */
 @source "./";
 
-/* Where a jump has to STOP, now that the bar it would land under is sticky
- * (`src/client/AppHeader.tsx`). The top `--height-chrome` of the viewport is no
- * longer free space, and the browser's own answer to a `#heading` is to put the
- * target hard against the top edge — which is behind the header and strip. Reserving it
- * on the scroll container is the platform's own word for that, and the
- * container is the DOCUMENT: this app scrolls the page, not a pane. One
- * rule therefore covers every jump there is — a line of a document's contents
- * (`src/client/document/Toc.tsx`), a `#` anchor somebody pasted, and whatever
- * later becomes jumpable — rather than a `scroll-margin` per thing that can be
- * jumped to, which is a list that would go stale silently.
- *
- * A tree page's pinned section heading is the one band this does not cover: it
- * is only over the branch it heads, so the outlines plugin reserves it as a
- * scroll margin inside that branch (its own `all.css`).
- *
- * Not inside `@theme`: that block declares TOKENS, and this is a rule. */
 :root {
   scroll-padding-top: var(--height-chrome);
 }
 
-/* THE LINE OF ROOM AT A PAGE'S FOOT, and the one screen that cannot spare it
- * (`./contracts/clearance.ts` is what reads it).
- *
- * A handset turned sideways is 390 pixels tall and past the `md` breakpoint,
- * so it wears a desktop's spacing on a screen with none to give. A page whose
- * foot is PINNED — a chat page's composer — spends that line out of the band
- * the reader is reading, every scroll of the way down. The hardware's own
- * inset and the frame's thumb bar are still cleared whatever the height:
- * those are bars over the page rather than room around it. */
 @media (max-height: 540px) {
   :root {
     --room-foot: 0.25rem;
