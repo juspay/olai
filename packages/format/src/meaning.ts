@@ -100,7 +100,7 @@
 
 import { Schema } from "effect"
 
-import { pathedOf } from "./documents.ts"
+import { pathedOf } from "./links/paths.ts"
 import { dayOf } from "./occasion.ts"
 import { isIsoInstant } from "./parse.ts"
 import {

@@ -48,14 +48,15 @@
  */
 
 import {
-  deadLinkTarget,
   deadLinkSaid,
   type Claims,
   addressOf,
   printAddress,
   bodyKind,
   pictureOf,
+  placeOf,
 } from "@olai/format"
+import { cut } from "@olai/prose/read.ts"
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"
@@ -276,16 +277,16 @@ const textIn = (node: { readonly type: string; readonly value?: unknown; readonl
 const resolveDocument = (element: Element, claims: Claims | undefined, from: string, members?: ReadonlySet<string>): void => {
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
-  // Keep the authored query and fragment after resolving the file once.
-  const cut = /[?#]/.exec(written)?.index ?? written.length
-  const resolved = deadLinkTarget(from, written)
-  if (resolved !== null) {
-    element.properties = { ...element.properties,
-      "data-link-path": resolved, "data-link-written": written,
-      "data-link-title": typeof element.properties["title"] === "string" ? element.properties["title"] : "" }
-  }
-  if (resolved !== null && members !== undefined && !members.has(resolved)) {
-    const warning = deadLinkSaid({ written, resolved, suggest: [] })
+  // One rule for where a link goes (`@olai/format`'s `placeOf`): the index and
+  // the dead-link reading ask it too.
+  const place = placeOf(from, cut(written))
+  if (place === null || place.kind !== "file") return
+  const resolved = place.path
+  element.properties = { ...element.properties,
+    "data-link-path": resolved, "data-link-written": written,
+    "data-link-title": typeof element.properties["title"] === "string" ? element.properties["title"] : "" }
+  if (members !== undefined && !members.has(resolved)) {
+    const warning = deadLinkSaid({ kind: "path", resolved, suggest: [] })
     const authored = element.properties["title"]
     const classes = element.properties["className"]
     // THE WARNING GOES IN THE NAME, not on `title`. The authored title — the
@@ -310,14 +311,15 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
         .join(" — "),
       className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
   }
-  if (claims === undefined) return
-  const document = resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
-  if (document === null) return
-  const address = addressOf(claims, document, null)
+  if (claims === undefined || bodyKind(claims, resolved) === null) return
+  const address = addressOf(claims, resolved, null)
   if (address === null) return
+  // The authored query and fragment ride on after the file, as the link
+  // carried them.
   element.properties = {
     ...element.properties,
-    href: "/" + printAddress(address) + written.slice(cut),
+    href: "/" + printAddress(address) + (place.query === null ? "" : `?${place.query}`) +
+      (place.fragment === null ? "" : `#${place.fragment}`),
   }
 }
 

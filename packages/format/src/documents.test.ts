@@ -8,12 +8,9 @@ import { printAddress } from "./address.ts"
 import { bytesOf } from "./document.ts"
 import { read } from "@olai/prose/read.ts"
 import { proseIn } from "@olai/prose/frontmatter.ts"
-import {
-  pathedOf,
-  pictureOf,
-  readAddresses,
-  resolveRelative,
-} from "./documents.ts"
+import { readAddresses } from "./documents.ts"
+import { pathedOf, resolveRelative } from "./links/paths.ts"
+import { pictureOf } from "./links/standard.ts"
 import { isAsset, isPicture } from "./serving.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
 const nodeOf = (line: string, file: string) => {
@@ -117,6 +114,14 @@ test("a markdown link's optional title is not part of the destination", () => {
   expect(named("notes/plan.md", `see [the brief](<the brief.md> "Oak counters")`))
     .toEqual(["notes/the%20brief.md"])
 })
+
+// A QUERY is where the page lands, never which file it is: the link counts
+// for the file its path names, for the index exactly as for the page.
+test("a link with a query is a link to its file", () => {
+  expect(named("notes/plan.md", "see [q](finishes.md?v=1)")).toEqual(["notes/finishes.md"])
+  expect(named("notes/plan.md", "see [q](finishes.md?v=1#doors)")).toEqual(["notes/finishes.md#doors"])
+})
+
 // Everything this must not reinterpret. A link with a scheme goes where it
 // says, an absolute path is not this app's to resolve, a fragment is the
 // platform's, and a string that names no path at all is somebody pointing at

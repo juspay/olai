@@ -54,7 +54,7 @@ import {
 import { decodedVault, vaultAt } from "./scope.testlib.ts"
 import { assemble, nodesIn, type OutlineSet } from "./set.ts"
 import { type Reading, reading } from "./validate.ts"
-import { type Names, namesOf } from "./wikilinks.ts"
+import { type Names, namesOf } from "./links/names.ts"
 
 /** What one replay found. Equality on the two lists is the gate; every other
  *  field is a claim that the gate was asked anything at all. */

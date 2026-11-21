@@ -17,7 +17,7 @@ import { DocumentPath, NodeId, type Address } from "./address.ts"
 import { referencesOf } from "./backlinks.ts"
 import { readingOf, setOf } from "./fixtures.testlib.ts"
 import type { Reading } from "./validate.ts"
-import { wikilinkAddress } from "./wikilinks.ts"
+import { wikilinkAddress } from "./links/wikilink.ts"
 
 /** The node address the grammar spells, off a plain id — the tests' own
  *  {@link addressOf}, which needs claims. */
@@ -384,7 +384,7 @@ test("`[[#kitchen]]` in a row names no heading, so the page and the index both l
       `{"id":"std","ord":"c","title":"after [x](#kitchen)"}`,
   })
   expect(said(view, "kitchen")).toEqual(["std link"])
-  expect(wikilinkAddress(view.names, view.claims, "house.olai", "#kitchen")).toBeNull()
+  expect(wikilinkAddress(view.names, view.claims, "house.olai", { target: "", fragments: ["kitchen"] })).toBeNull()
 })
 
 // AN HTML COMMENT IS NOT TEXT: the parser reads it as one, so a link inside

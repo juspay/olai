@@ -52,7 +52,7 @@ import {
 } from "./narrowing.ts"
 import { type PageRequest, type Shown, shownOf } from "./page.ts"
 import { pointingOf } from "./pointing.ts"
-import { namesOf } from "./wikilinks.ts"
+import { namesOf } from "./links/names.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
 

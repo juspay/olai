@@ -42,6 +42,7 @@
 // literals in a widget (`@olai/prose`'s tags.ts says why, beside the regex
 // they all answer for). What is left in this file is only WHERE the caret is.
 import { isTagName, TAG_SIGILS, type TagSigil, tagOpensAt } from "@olai/prose/tags.ts"
+import { wikilinkWritten } from "@olai/prose/wikilink.ts"
 
 /** What the caret is inside, if anything. `from` is the index of the opener's
  *  FIRST character, so `[from, caret)` is the span a chosen completion
@@ -178,7 +179,7 @@ import type { Written } from "@olai/markdown-ui/insert.ts"
  */
 export const linked = (text: string, found: Trigger, name: string, caret: number): Written => {
   const after = text.slice(caret)
-  const link = `[[${name}]]`
+  const link = wikilinkWritten({ target: name, fragments: [] })
   return {
     text: text.slice(0, found.from) + link + (after.startsWith("]]") ? after.slice(2) : after),
     caret: found.from + link.length,

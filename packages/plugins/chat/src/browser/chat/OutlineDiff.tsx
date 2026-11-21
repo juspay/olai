@@ -31,6 +31,7 @@ import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { useConversationUI } from "./ui.tsx"
 import { createOutlineDiff } from "./outline.ts"
+import { mayHoldWikilink } from "@olai/prose/wikilink.ts"
 
 /** How many node rows a trimmed outline change shows. The text diff's number,
  *  because it is the same promise about the same panel. */
@@ -39,7 +40,7 @@ const TRIMMED = 6
 /** The membership a title's wikilinks are looked up in — asked only by a
  *  title that holds one, so a file arriving redraws only those rows. */
 const linksOf = (title: string): TitleRender => {
-  const members = title.includes("[[") ? servedDirectory()?.members() : undefined
+  const members = mayHoldWikilink(title) ? servedDirectory()?.members() : undefined
   return members === undefined ? {} : { members }
 }
 

@@ -12,8 +12,8 @@
  *
  * ## The rule
  *
- * 1. The name is the text before any `|` and `#`, trimmed (`./documents.ts`'s
- *    scan has already cut it).
+ * 1. The name is the target before any `|` and `#`, trimmed — the reader
+ *    (`@olai/prose`'s `obsidian.ts`) has already cut it.
  * 2. A name ending in a suffix the directory serves may match any served file.
  *    A name with no suffix matches a Markdown document only, so an outline is
  *    written `[[house.olai]]`.
@@ -27,131 +27,14 @@
  * 5. Capitals and how an accented letter is stored do not matter, but a file
  *    whose capitals match exactly is preferred over one that does not.
  */
-import { type Address, addressOf } from "./address.ts"
-import { resolveRelative } from "./documents.ts"
-import { type Claims, fileKind, holdsBody, stemOf } from "./kinds.ts"
-import { basenameOf, byPath } from "./paths.ts"
+import { type Address, addressOf } from "../address.ts"
+import { type Claims, fileKind, holdsBody, stemOf } from "../kinds.ts"
+import { basenameOf, byPath } from "../paths.ts"
 import { slugOf } from "@olai/prose/slug.ts"
-import { nearestId } from "./suggest.ts"
-
-/**
- * The directory's files by name, folded — one membership's worth.
- *
- * WHO HOLDS ONE: a revision's reading carries its own ({@link ./validate.ts}'s
- * `Reading.names`), built at the first load and handed on untouched by every
- * revision that brings no path in and takes none away ({@link namesCarried});
- * the browser asks {@link namesIn} of the membership snapshot the vault
- * plugin publishes, which is replaced only when a path arrives or leaves.
- */
-export interface Names {
-  readonly claims: Claims
-  /** Every path it was built from. */
-  readonly served: ReadonlySet<string>
-  /** Folded stem of each Markdown document → its paths, in path order. */
-  readonly documents: ReadonlyMap<string, ReadonlyArray<string>>
-  /** Folded basename of each served file → its paths, in path order. */
-  readonly everything: ReadonlyMap<string, ReadonlyArray<string>>
-  /** Folded stem of each served file, of any kind → its paths. What a
-   *  suggestion for an unresolved name reads. */
-  readonly stems: ReadonlyMap<string, ReadonlyArray<string>>
-  /** Each served path → the key a wikilink to it is filed under
-   *  ({@link wikilinkKey}) — a fixed fact of the path and the claims, worked
-   *  out once here so a read is one lookup. A path it does not hold has no
-   *  entry, and no wikilink finds it. */
-  readonly keys: ReadonlyMap<string, string>
-  /**
-   * WHERE EACH NAME LANDS, as it is asked ({@link wikilinkAddress}) — by the
-   * writer's folder and the name, since nothing else of the writer moves the
-   * answer. Held here because the answer is a fact of this membership: it is
-   * dropped with the object when a path arrives or leaves, and every revision
-   * between hands it on, so a page asking again does lookups.
-   */
-  readonly found: Map<string, Address | null>
-}
-
-/** Capitals and the stored form of an accented letter set aside. ASCII has
- *  one stored form, so only other text pays for normalising. */
-const fold = (text: string): string => (ASCII.test(text) ? text : text.normalize("NFC")).toLowerCase()
-
-const ASCII = /^[\x00-\x7f]*$/
-
-/** The name index of these paths, built. */
-export const namesOf = (claims: Claims, paths: Iterable<string>): Names => {
-  const served = new Set(paths)
-  const documents = new Map<string, Array<string>>()
-  const everything = new Map<string, Array<string>>()
-  const stems = new Map<string, Array<string>>()
-  const keys = new Map<string, string>()
-  for (const path of [...served].sort(byPath)) {
-    const whole = fold(basenameOf(path))
-    filed(everything, whole, path)
-    const stem = fold(stemOf(claims, path))
-    filed(stems, stem, path)
-    const prose = isProse(claims, path)
-    if (prose) filed(documents, stem, path)
-    keys.set(path, `[[${prose ? stem : whole}`)
-  }
-  return { claims, served, documents, everything, stems, keys, found: new Map() }
-}
-
-/**
- * The name index of the revision after this one: the very object it was when
- * no path arrived and none left, which is nearly every revision — a keystroke
- * writes a file that was already there — and a fresh one otherwise. `was` and
- * `now` are the two revisions' documents, both in path order, so telling is
- * one step through the pair.
- */
-export const namesCarried = (
-  before: Names,
-  claims: Claims,
-  was: ReadonlyArray<{ readonly path: string }>,
-  now: ReadonlyArray<{ readonly path: string }>,
-): Names => {
-  if (before.claims === claims && was.length === now.length && was.every((one, at) => one.path === now[at]?.path)) {
-    return before
-  }
-  return namesOf(claims, now.map((one) => one.path))
-}
-
-/** Remembered against the membership snapshot it was built from, which is
- *  replaced, never mutated, when the directory's files change. */
-const NAMES = new WeakMap<object, Names>()
-
-/**
- * The name index of the browser's membership snapshot — the same snapshot and
- * claims answer the same object, so a page drawing a hundred links builds it
- * once, and a file arriving (a new snapshot) builds it again.
- */
-export const namesIn = (claims: Claims, served: ReadonlySet<string>): Names => {
-  const held = NAMES.get(served)
-  if (held !== undefined && held.claims === claims) return held
-  const names = namesOf(claims, served)
-  NAMES.set(served, names)
-  return names
-}
-
-const filed = (into: Map<string, Array<string>>, key: string, path: string): void => {
-  const held = into.get(key)
-  if (held === undefined) into.set(key, [path])
-  else held.push(path)
-}
-
-/** Whether a path is a Markdown document: text the directory keeps and reads
- *  as prose. */
-const isProse = (claims: Claims, path: string): boolean => {
-  const kind = fileKind(claims, path)
-  const claim = kind === null ? undefined : claims.byKind.get(kind)
-  return claim !== undefined && claim.holds === "text" && claim.kept && claim.opaque !== true
-}
-
-/** Whether a name ends in a suffix some claim serves, capitals aside. */
-const hasSuffix = (claims: Claims, name: string): boolean => {
-  const lower = name.toLowerCase()
-  for (const ext of claims.byExt.keys()) {
-    if (lower.length > ext.length && lower.endsWith(ext.toLowerCase())) return true
-  }
-  return false
-}
+import { type WikilinkName, wikilinkWritten } from "@olai/prose/wikilink.ts"
+import { nearestId } from "../suggest.ts"
+import { fold, hasSuffix, isProse, type Names } from "./names.ts"
+import { resolveRelative } from "./paths.ts"
 
 /**
  * The served path a wikilink's target finds from the file `from`, or `null`.
@@ -238,38 +121,35 @@ const depthOf = (path: string): number => {
 }
 
 /**
- * The address a wikilink's name lands on from `from`, or `null` when it finds
+ * The address a wikilink lands on from `from`, or `null` when it finds
  * nothing.
  *
- * `name` is the target and its `#` parts (`./documents.ts`'s
- * `Wikilink.name`). The LAST part is the one it lands on: a heading of a
- * document by its slug, the way olai names headings, or a row of an outline by
- * its id. A part opening with `^` is a block reference, which opens the file.
- * An empty target is a heading of the writing DOCUMENT itself; written
- * anywhere else — a row of an outline, an agent's answer — it has no file to
- * be a heading of, and names nothing.
+ * The LAST `#` part is the one it lands on: a heading of a document by its
+ * slug, the way olai names headings, or a row of an outline by its id. A part
+ * opening with `^` is a block reference, which opens the file. An empty
+ * target is a heading of the writing DOCUMENT itself; written anywhere else —
+ * a row of an outline, an agent's answer — it has no file to be a heading
+ * of, and names nothing.
  */
-export const wikilinkAddress = (names: Names, claims: Claims, from: string, name: string): Address | null => {
-  if (claims !== names.claims) return landing(names, claims, from, name)
+export const wikilinkAddress = (names: Names, claims: Claims, from: string, link: WikilinkName): Address | null => {
+  if (claims !== names.claims) return landing(names, claims, from, link)
   // What a name finds depends on the writer's FOLDER and nothing else of it
   // ({@link wikilinkPath}), except a link to the writer's own heading, which
-  // is about the writer itself.
-  const key = `${name.startsWith("#") || name === "" ? from : folderOf(from)}\0${name}`
+  // is about the writer itself. The key is the memo's own, never read apart.
+  const key = [link.target === "" ? from : folderOf(from), link.target, ...link.fragments].join("\0")
   const held = names.found.get(key)
   if (held !== undefined) return held
-  const found = landing(names, claims, from, name)
+  const found = landing(names, claims, from, link)
   names.found.set(key, found)
   return found
 }
 
-const landing = (names: Names, claims: Claims, from: string, name: string): Address | null => {
-  const parts = name.split("#")
-  const target = parts[0] as string
-  const path = target === ""
+const landing = (names: Names, claims: Claims, from: string, link: WikilinkName): Address | null => {
+  const path = link.target === ""
     ? (holdsBodyAt(claims, from) ? from : null)
-    : wikilinkPath(names, claims, from, target)
+    : wikilinkPath(names, claims, from, link.target)
   if (path === null) return null
-  const last = parts.length > 1 ? (parts[parts.length - 1] as string) : ""
+  const last = link.fragments.at(-1) ?? ""
   if (last === "" || last.startsWith("^")) return addressOf(claims, path, null)
   return addressOf(claims, path, holdsBodyAt(claims, path) ? slugOf(last) : last)
 }
@@ -293,9 +173,8 @@ const holdsBodyAt = (claims: Claims, path: string): boolean => {
  * the reading resolves each link it finds under the key the name index holds
  * for the file it asks about.
  */
-export const wikilinkKey = (claims: Claims, name: string): string | null => {
-  const cut = name.indexOf("#")
-  const base = basenameOf(cut === -1 ? name : name.slice(0, cut))
+export const wikilinkKey = (claims: Claims, target: string): string | null => {
+  const base = basenameOf(target)
   if (base === "") return null
   return `[[${fold(isProse(claims, base) ? stemOf(claims, base) : base)}`
 }
@@ -308,12 +187,10 @@ export const wikilinkKey = (claims: Claims, name: string): string | null => {
  * finds, and whether that file draws the row, is still the reading's
  * question. `null` for every other wikilink.
  */
-export const wikilinkRowNode = (claims: Claims, name: string): Address | null => {
-  const parts = name.split("#")
-  const target = parts[0] as string
-  const last = parts.length > 1 ? (parts[parts.length - 1] as string) : ""
-  if (target === "" || last === "" || last.startsWith("^")) return null
-  const kind = fileKind(claims, target)
+export const wikilinkRowNode = (claims: Claims, link: WikilinkName): Address | null => {
+  const last = link.fragments.at(-1) ?? ""
+  if (link.target === "" || last === "" || last.startsWith("^")) return null
+  const kind = fileKind(claims, link.target)
   if (kind === null || claims.byKind.get(kind)?.holds !== "nodes") return null
   const node = addressOf(claims, null, last)
   return node?.kind === "node" ? node : null
@@ -327,11 +204,12 @@ export const wikilinkRowNode = (claims: Claims, name: string): Address | null =>
 export const wikilinkSuggestions = (names: Names, claims: Claims, target: string): ReadonlyArray<string> => {
   const base = fold(basenameOf(target))
   if (base === "") return []
-  const same = (names.stems.get(base) ?? []).map((path) => `[[${spelledName(claims, path)}]]`)
+  const written = (path: string): string => wikilinkWritten({ target: spelledName(claims, path), fragments: [] })
+  const same = (names.stems.get(base) ?? []).map(written)
   if (same.length > 0) return [...new Set(same)]
   const nearest = nearestId(base, names.documents.keys())
   const path = nearest === null ? undefined : names.documents.get(nearest)?.[0]
-  return path === undefined ? [] : [`[[${spelledName(claims, path)}]]`]
+  return path === undefined ? [] : [written(path)]
 }
 
 /** A file's name as a wikilink writes it: a document without its suffix,

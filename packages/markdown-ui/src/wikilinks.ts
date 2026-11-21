@@ -18,11 +18,12 @@ import {
   isPicture,
   namesIn,
   printAddress,
-  wikilinkAddress,
   wikilinkFallback,
+  wikilinkLanding,
   wikilinkPath,
   wikilinkPicture,
 } from "@olai/format"
+import type { WikilinkName } from "@olai/prose/wikilink.ts"
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"
 
@@ -34,7 +35,7 @@ export const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " 
 /** One wikilink as the page keeps it: the name it looks up, whether it was an
  *  embed, and the size an embed's `|200` or `|200x100` asks for. */
 export interface Written {
-  readonly name: string
+  readonly link: WikilinkName
   readonly embed: boolean
   readonly size?: string
 }
@@ -81,7 +82,7 @@ export const drawnWikilink = (
   written: Written,
   inline = false,
 ): Drawn => {
-  const target = written.name.split("#", 1)[0] as string
+  const target = written.link.target
   const names = claims === undefined || members === undefined ? undefined : namesIn(claims, members)
   if (claims !== undefined && written.embed && !inline && wikilinkPicture(claims, target)) {
     if (names === undefined) return { kind: "waiting" }
@@ -91,15 +92,15 @@ export const drawnWikilink = (
       : { kind: "undrawn", words: `this picture could not be drawn: ${target}` }
   }
   if (claims === undefined || names === undefined) return { kind: "link" }
-  const address = wikilinkAddress(names, claims, from, written.name)
-  if (address !== null) return { kind: "link", href: "/" + printAddress(address) }
-  if (target === "") return { kind: "link" }
+  const landing = wikilinkLanding(names, claims, from, written.link)
+  if (landing === null) return { kind: "link" }
+  if ("found" in landing) return { kind: "link", href: "/" + printAddress(landing.found) }
   const fallback = wikilinkFallback(claims, target)
   const page = fallback === null ? null : addressOf(claims, fallback, null)
   return {
     kind: "link",
     ...(page === null ? {} : { href: "/" + printAddress(page) }),
-    dead: deadLinkSaid({ written: `[[${written.name}]]`, resolved: target, suggest: [] }),
+    dead: deadLinkSaid({ kind: "name", resolved: landing.lookedFor, suggest: [] }),
   }
 }
 
@@ -114,8 +115,16 @@ export interface Drawing {
   readonly text?: string
 }
 
+/** The marks a drawn wikilink carries, so the browser can draw it again as the
+ *  directory moves: the target, and its `#` parts as a list — never one
+ *  string to be split. */
+const marksOf = (link: WikilinkName): Record<string, string> => ({
+  "data-wikilink": link.target,
+  ...(link.fragments.length === 0 ? {} : { "data-wikilink-fragments": JSON.stringify(link.fragments) }),
+})
+
 export const drawingOf = (drawn: Drawn, written: Written, words: string): Drawing => {
-  const marks: Record<string, string> = { "data-wikilink": written.name }
+  const marks = marksOf(written.link)
   if (drawn.kind === "link") {
     return {
       tag: "a",
@@ -137,7 +146,7 @@ export const drawingOf = (drawn: Drawn, written: Written, words: string): Drawin
       tag: "img",
       attributes: {
         src: drawn.src,
-        alt: written.name.split("#", 1)[0] as string,
+        alt: written.link.target,
         decoding: "async",
         ...(width === undefined || width === "" ? {} : { width }),
         ...(height === undefined ? {} : { height }),
@@ -148,7 +157,7 @@ export const drawingOf = (drawn: Drawn, written: Written, words: string): Drawin
   if (drawn.kind === "undrawn") {
     return {
       tag: "span",
-      attributes: { class: UNDRAWN, "data-testid": TESTID.undrawnPicture, "data-src": written.name, ...picture },
+      attributes: { class: UNDRAWN, "data-testid": TESTID.undrawnPicture, "data-src": written.link.target, ...picture },
       text: drawn.words,
     }
   }
@@ -171,11 +180,16 @@ export const applyWikilink = (
   members: ReadonlySet<string> | undefined,
   from: string,
 ): void => {
-  const name = element.dataset["wikilink"]
-  if (name === undefined) return
+  const target = element.dataset["wikilink"]
+  if (target === undefined) return
+  const parts = element.dataset["wikilinkFragments"]
   const picture = element.hasAttribute("data-wikilink-picture")
   const size = element.dataset["wikilinkSize"]
-  const written: Written = { name, embed: picture, ...(size === undefined ? {} : { size }) }
+  const written: Written = {
+    link: { target, fragments: parts === undefined ? [] : JSON.parse(parts) as ReadonlyArray<string> },
+    embed: picture,
+    ...(size === undefined ? {} : { size }),
+  }
   const drawing = drawingOf(drawnWikilink(claims, members, from, written), written, picture ? "" : (element.textContent ?? "").trim())
   if (element.tagName.toLowerCase() !== drawing.tag) {
     const next = element.ownerDocument.createElement(drawing.tag)

@@ -91,7 +91,7 @@ import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { conditional, type Pointing, pointingAt, type Source } from "./pointing.ts"
 import type { Reading } from "./validate.ts"
-import { wikilinkAddress } from "./wikilinks.ts"
+import { wikilinkAddress } from "./links/wikilink.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `outlines_see`, or a

@@ -33,11 +33,12 @@ import type { Selection } from "./selection.ts"
 import { TESTID } from "../../testids.ts"
 import { Tick } from "./Tick.tsx"
 import { Tip } from "@olai/web/client/Tip.tsx"
+import { mayHoldWikilink } from "@olai/prose/wikilink.ts"
 
 /** The membership a title's wikilinks are looked up in — asked only by a
  *  title that holds one, so a file arriving redraws only those rows. */
 const linksOf = (title: string): TitleRender => {
-  const members = title.includes("[[") ? servedDirectory()?.members() : undefined
+  const members = mayHoldWikilink(title) ? servedDirectory()?.members() : undefined
   return members === undefined ? {} : { members }
 }
 

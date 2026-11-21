@@ -112,7 +112,7 @@ export function Markdown(props: {
       // the words it keeps (WCAG 2.5.3 — the visible label stays in the
       // name), and off again the moment the file it points at is served.
       if (dead) {
-        const warning = deadLinkSaid({ written: link.dataset["linkWritten"]!, resolved: path, suggest: [] })
+        const warning = deadLinkSaid({ kind: "path", resolved: path, suggest: [] })
         const words = (link.textContent ?? "").trim()
         link.setAttribute("aria-label", words === "" ? warning : `${words} — ${warning}`)
       } else link.removeAttribute("aria-label")

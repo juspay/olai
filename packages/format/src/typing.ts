@@ -143,7 +143,7 @@ import { Result } from "effect"
 
 import { type CustomValue, customOrder, type HasCustom } from "./custom.ts"
 import type { Derived } from "./derive.ts"
-import { resolveRelative } from "./documents.ts"
+import { resolveRelative } from "./links/paths.ts"
 import {
   isRegular,
   type Located,

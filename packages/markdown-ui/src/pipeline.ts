@@ -133,7 +133,7 @@ const wikilinkElement: Handler = (state, wikilink): Element => {
     children: [{ type: "text", value: node.children[0].value }],
     data: {
       wikilink: {
-        name: [node.target, ...node.fragments].join("#"),
+        link: { target: node.target, fragments: node.fragments },
         embed: node.embed,
         ...(size === undefined ? {} : { size }),
       },

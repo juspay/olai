@@ -92,7 +92,7 @@ import { type Decline, incrementally, type Ledger } from "./incremental.ts"
 import type { Located } from "./node.ts"
 import { type FileNodes, patch, patched, type SetDelta } from "./patch.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
-import { type Names, namesCarried, namesOf } from "./wikilinks.ts"
+import { type Names, namesCarried, namesOf } from "./links/names.ts"
 import {
   danglingIn,
   markdownPaths,

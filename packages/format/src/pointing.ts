@@ -127,6 +127,7 @@ import { type Located } from "./node.ts"
 import { contributionsOf, type Way } from "./imports.ts"
 import { byCorpus } from "./derive.ts"
 import { type Claims } from "./kinds.ts"
+import type { WikilinkName } from "@olai/prose/wikilink.ts"
 
 /**
  * ONE SOURCE UNDER ONE KEY — a record of an outline, or the BODY itself when
@@ -152,7 +153,7 @@ export interface Source {
    *  which the reading resolves; under a NODE's key, the names of the
    *  wikilinks to a ROW of it — counted only where the name finds a file that
    *  draws that row ({@link ./backlinks.ts}). */
-  readonly written?: ReadonlyArray<string>
+  readonly written?: ReadonlyArray<WikilinkName>
   /** Under a NODE's key, the files a standard link to a ROW of it names —
    *  `[x](house.olai#kitchen)` is filed under `#kitchen` with `house.olai` —
    *  counted only where the file draws that row. */
@@ -337,8 +338,8 @@ const fileAt = (into: Map<string, Array<Source>>, key: string, entry: Source): v
     // written under one key (`[[Note]]` and `[[Note#Part]]`, or two rows'
     // files) joins the first, so the reading checks each.
     const way = entry.ways[0] as Way
-    const written = joined(last.written, entry.written)
-    const rows = joined(last.rows, entry.rows)
+    const written = joined(last.written, entry.written, sameName)
+    const rows = joined(last.rows, entry.rows, samePath)
     if (last.ways.includes(way) && written === last.written && rows === last.rows) return
     held[at] = {
       at: last.at,
@@ -357,14 +358,22 @@ const classOf = (source: Source): 0 | 1 | 2 =>
   source.rows !== undefined ? 1 : source.written !== undefined ? 2 : 0
 
 /** Two lists of things written, as one, keeping the first when the second
- *  adds nothing. */
-const joined = (
-  held: ReadonlyArray<string> | undefined,
-  more: ReadonlyArray<string> | undefined,
-): ReadonlyArray<string> | undefined => {
-  const added = more?.filter((one) => !(held ?? []).includes(one)) ?? []
+ *  adds nothing. `same` says when two of them are one. */
+const joined = <T>(
+  held: ReadonlyArray<T> | undefined,
+  more: ReadonlyArray<T> | undefined,
+  same: (one: T, other: T) => boolean,
+): ReadonlyArray<T> | undefined => {
+  const added = more?.filter((one) => !(held ?? []).some((other) => same(one, other))) ?? []
   return added.length === 0 ? held : [...(held ?? []), ...added]
 }
+
+/** Two wikilinks name one thing when their targets and their `#` parts do. */
+const sameName = (one: WikilinkName, other: WikilinkName): boolean =>
+  one.target === other.target && one.fragments.length === other.fragments.length &&
+  one.fragments.every((part, at) => part === other.fragments[at])
+
+const samePath = (one: string, other: string): boolean => one === other
 
 /** Path order over two sources: by file, and by CORPUS ORDER within a file —
  *  the promise {@link byCorpus} makes, which the module header claimed in

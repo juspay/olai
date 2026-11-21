@@ -283,15 +283,16 @@ export {
    *  no suffix allowlist at the end, for the caller that can ask the directory
    *  itself whether it serves the answer. */
   pathedOf,
-  pictureOf,
+} from "./links/paths.ts"
+export { addressOfPlace, pictureOf, type Place, placeOf } from "./links/standard.ts"
+export { type Landing, standardLanding, wikilinkLanding } from "./links/landing.ts"
+export {
   /** The text with each wikilink as the words it shows — the browser's
    *  preview line, before the parser has loaded. */
   wikilinksShown,
 } from "./documents.ts"
+export { namesIn, namesOf, type Names } from "./links/names.ts"
 export {
-  namesIn,
-  namesOf,
-  type Names,
   wikilinkAddress,
   wikilinkFallback,
   wikilinkFor,
@@ -300,7 +301,7 @@ export {
   wikilinkPath,
   wikilinkPicture,
   wikilinkSuggestions,
-} from "./wikilinks.ts"
+} from "./links/wikilink.ts"
 export {
   INBOX,
   inboxIn,
@@ -1315,7 +1316,7 @@ export { outlineCalled } from "./node.ts"
 
 export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
 
-export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields, deadLinkTarget } from "./dead-links.ts"
+export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields } from "./dead-links.ts"
 /** What decode read out of each text, kept beside it: a record's title and
  *  note, a document's prose (`./kept.ts`). */
 export { bodyRead, type RecordRead, recordRead } from "./kept.ts"

@@ -1,155 +1,21 @@
-/** Relative links, pictures and the forward references of a record or body.
- * Resolution is beside the writing file and independent of served membership;
- * dead-links.ts asks that separate question against a revision's paths.
+/**
+ * WHAT A RECORD OR A BODY POINTS AT — the forward references the index files
+ * and a face carries, read off the kept readings: {@link readAddresses},
+ * every address a text's reading points at, {@link recordLinks} and
+ * {@link recordContributions}, every address one RECORD points at, and the
+ * wikilinks each writes. Where a link lands is `./links/`; this file reads
+ * texts through it.
+ *
+ * It also keeps, until the parser reaches the browser's preview line, the
+ * wikilink scan that line reads ({@link wikilinksShown}).
  */
 import { type Address, addressOf, printAddress } from "./address.ts"
-import { proseIn } from "@olai/prose/frontmatter.ts"
-import { bodyKind, type Claims } from "./kinds.ts"
+import type { Claims } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
-import { isPicture } from "./serving.ts"
 import { recordRead } from "./kept.ts"
-import type { Read, ReadWikilink } from "@olai/prose/read.ts"
-
-/**
- * WHAT WAS HERE, and where it went: a `Document` of `{file, text}` — the whole
- * of what the set knew about a `.md` or a `.html`, and the reason no feature
- * could name anything inside one. It is `./document.ts`'s sum now, with a face
- * on every arm, and the set serves that as its one collection; the two lookups
- * that stood beside it (`documentsIn`, `documentIn`, each a `.filter` over the
- * bodied half) are `markdownIn` and `markdownAt` over that collection
- * (`./set.ts`).
- *
- * What stays in this module is WHERE A REFERENCE LANDS, and it is one subject
- * read at three grains: the arithmetic (where a relative `![](…)` and
- * a relative `[…](…)` resolve to), the refusals (what a page may fetch at all),
- * and the two readings built out of those — {@link readAddresses}, every
- * address a text's READING points at, and {@link recordLinks}, every address one RECORD
- * points at.
- *
- * THOSE TWO SIT TOGETHER on purpose, and it is the one thing this file gained
- * when the sum arrived. `./document.ts` is the TYPE and its constructors; what
- * points at what is this file's question, asked of a body and of a record with
- * the same rule underneath, and read forwards to build a face and backwards to
- * say who points at a document (`./backlinks.ts`). Split across the two
- * modules they would have been two answers to one question.
- */
-
-/** Join `to` onto the directory of `from`, collapsing `.` and `..`. A `..` that
- *  would climb above the served directory is dropped rather than escaping it:
- *  there is nothing up there to name, and every caller matches the answer
- *  against files that were actually found. */
-export const resolveRelative = (from: string, to: string): string => {
-  const segments = from.split("/").slice(0, -1)
-  for (const segment of to.split("/")) {
-    if (segment === "" || segment === ".") continue
-    if (segment === "..") segments.pop()
-    else segments.push(segment)
-  }
-  return segments.join("/")
-}
-
-/**
- * The picture a markdown `![](…)` names, as a path relative to the served
- * directory — or `null` for a source this app does not draw at all.
- *
- * `from` is the file the markdown was written in: the outline, for a note; the
- * document itself, for a document. So a picture is resolved beside the text
- * that names it, just like a note link.
- *
- * Only a RELATIVE path to a picture survives: the address rule is
- * {@link relativeTo}'s, and the extension allowlist is this one's. A page that
- * fetched a remote image would be a page that told a third party what someone
- * is reading, and an address off the allowlist is a way of drawing something
- * that is not a file in this directory.
- */
-export const pictureOf = (claims: Claims, from: string, src: string): string | null => {
-  const resolved = relativeTo(from, src)
-  return resolved !== null && isPicture(claims, resolved) ? resolved : null
-}
-
-/**
- * The file under the served directory a markdown address names, before anyone
- * asks WHAT KIND of file it has to be — or `null` for an address this app does
- * not resolve at all.
- *
- * The refusals live here, once, because there are two sinks and they are two
- * different things: a picture becomes a `/media/…` URL the server answers, a
- * link becomes the document's own address, which the client opens. A refusal added to one of
- * them and not the other would be a widening nobody meant — and the two lists
- * were character-for-character identical the moment there were two.
- *
- * No scheme (so no `http:`, no `data:`, no `javascript:`), no `//host`, no
- * absolute path, no bare fragment: everything on that list is either somewhere
- * else's business or a way of naming something that is not a file in this
- * directory. A `..` is not refused but CLAMPED by {@link resolveRelative}.
- *
- * A `%20` is a space in the filename, not a filename that contains a percent
- * sign. Markdown's portable spelling of a space in a destination is the
- * encoding, and the parser writes it into the href; decoding HERE — once,
- * per segment, the way a written address is read — is what stops the page
- * printer from encoding the percent again.
- */
-const relativeTo = (from: string, to: string): string | null => {
-  if (refusedHref(to)) return null
-  const decoded = decodeHref(to)
-  if (decoded === null || (decoded !== to && refusedHref(decoded))) return null
-  return resolveRelative(from, decoded)
-}
-
-/** The refusals {@link relativeTo} applies to the href as written and again
- *  after decoding, so `%2Fetc/passwd.md` cannot sneak past as a relative path. */
-const refusedHref = (href: string): boolean =>
-  href === "" || href.startsWith("/") || href.startsWith("#") || SCHEME.test(href)
-
-/**
- * Percent-decode one path, per segment — or `null` for an escape nothing
- * could have written. Per segment so `%2F` is a slash in a name rather than
- * a separator, matching how a written address is read.
- */
-const decodeHref = (href: string): string | null => {
-  if (!href.includes("%")) return href
-  const segments = href.split("/").map(decodedSegment)
-  return segments.includes(null) ? null : segments.join("/")
-}
-
-const decodedSegment = (segment: string): string | null => {
-  try {
-    return decodeURIComponent(segment)
-  } catch {
-    return null
-  }
-}
-
-
-/**
- * The path in this directory that a relative reference names, whatever suffix
- * it turns out to have — or `null` for a string that names no path at all.
- *
- * THE SIBLING of {@link pictureOf}, and the one that asks less rather than
- * more. The picture rule ends at an allowlist because its caller cannot ask
- * the directory: a markdown renderer rewrites an `href` without knowing what
- * the vault holds, so "is this a picture" has to be answered from the name.
- * THIS one's caller can ask — a property value becomes a link only where the
- * tab is holding the path in its file list (`@olai/web`'s `props/door.ts`) —
- * and existence is a stronger answer than any suffix rule: it lets an `.olai`
- * be named, which `bodyKind` refuses because an outline is a tree rather than
- * a body, and it refuses a `.md` the directory has not got, which a rendered
- * link would otherwise rewrite for a page the vault does not have.
- *
- * WHAT IT STILL OWNS is the half that is not the suffix, and it is the half
- * that matters: {@link relativeTo}'s refusals — no scheme, no `//host`, no
- * absolute path, no bare fragment — and {@link resolveRelative}'s clamping of
- * `..` to the served root. Those are one spelling for both of these, which
- * is exactly the arrangement the paragraph above {@link relativeTo} is
- * written to keep.
- */
-export const pathedOf = (from: string, href: string): string | null =>
-  relativeTo(from, href)
-
-/** A URL scheme, or the `//host` that borrows the page's own. Tested before
- *  resolution, because a `:` is a character a path resolver would happily
- *  treat as part of a file name. */
-const SCHEME = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/
+import { addressOfPlace, placeOf } from "./links/standard.ts"
+import type { Read } from "@olai/prose/read.ts"
+import type { WikilinkName } from "@olai/prose/wikilink.ts"
 
 /**
  * BLOCK CONTEXT, LOCALLY — the lines that are a fenced or indented code block,
@@ -413,14 +279,22 @@ export const recordContributions = (
 /**
  * EVERY ADDRESS A TEXT'S READING POINTS AT, in the order it writes them and
  * never twice — its links and its pictures, each resolved from `from`, the
- * file the text was written in. The reading made one call of the parser, so
- * code, a comment and an escape hold no link here exactly as on the page.
+ * file the text was written in, by the one rule the page and the dead-link
+ * reading ask too (`./links/standard.ts`). The reading made one call of the
+ * parser, so code, a comment and an escape hold no link here exactly as on the
+ * page.
+ *
+ * THE PATH HALF IS WIDE on purpose: any relative path a file of the set could
+ * hold is a document address, whatever suffix it carries, because the set
+ * gives EVERY file a page — and a picture names the same document an
+ * `[…](…)` would.
  */
 export const readAddresses = (claims: Claims, from: string, said: Read): ReadonlyArray<Address> => {
   let found: Array<Address> | undefined
   let seen: Set<string> | undefined
   for (const link of said.links) {
-    const address = linkTo(claims, from, link.url)
+    const place = placeOf(from, link)
+    const address = place === null ? null : addressOfPlace(claims, place)
     if (address === null) continue
     const written = printAddress(address)
     if ((seen ??= new Set()).has(written)) continue
@@ -430,47 +304,27 @@ export const readAddresses = (claims: Claims, from: string, said: Read): Readonl
   return found ?? NO_LINKS
 }
 
-/** The name of a wikilink as read — its target and its `#` parts, the name
- *  the references index files it under. */
-const nameOf = (link: ReadWikilink): string => [link.target, ...link.fragments].join("#")
-
-/** The names the wikilinks of some readings write, in order and never twice. */
-export const wikilinkNames = (reads: ReadonlyArray<Read>): ReadonlyArray<string> => {
-  let named: Set<string> | undefined
+/** The wikilinks some readings write, each as the name it looks up, in order
+ *  and never twice. */
+export const wikilinkNames = (reads: ReadonlyArray<Read>): ReadonlyArray<WikilinkName> => {
+  let named: Map<string, WikilinkName> | undefined
   for (const said of reads) {
-    for (const link of said.wikilinks) (named ??= new Set()).add(nameOf(link))
+    for (const link of said.wikilinks) {
+      // Told apart by a key of this loop's own, never read back.
+      const key = [link.target, ...link.fragments].join("\0")
+      if (!(named ??= new Map()).has(key)) named.set(key, { target: link.target, fragments: link.fragments })
+    }
   }
-  return named === undefined ? NO_NAMES : [...named]
+  return named === undefined ? NO_NAMES : [...named.values()]
 }
 
-const NO_NAMES: ReadonlyArray<string> = []
+const NO_NAMES: ReadonlyArray<WikilinkName> = []
 
 /** The wikilinks one record writes in its title and its note — what the
  *  references index files under each name, beside {@link recordContributions}.
  *  A placement writes none. */
-export const recordWikilinks = (located: Located): ReadonlyArray<string> => {
+export const recordWikilinks = (located: Located): ReadonlyArray<WikilinkName> => {
   if (isMirror(located.node)) return NO_NAMES
   const said = recordRead(located.node)
   return wikilinkNames(said.desc === null ? [said.title] : [said.title, said.desc])
-}
-
-/** What one written link names, or `null` — the grammar's three arms, told
- *  apart by where the `#` is.
- *
- * THE PATH HALF IS WIDE on purpose: any relative path a file of the set could
- * hold is a document address, whatever suffix it carries, because the set
- * gives EVERY file a page. An outline is a document with a page and a
- * reading of its own, a `.pdf` is a body whose page draws it, and `![](…)`,
- * a picture in the reading, names the same document an `[…](…)` would. The
- * renderer's own half of the same
- * question — what a rewritten `href` is allowed to point at — asks
- * {@link bodyKind} directly and is NOT this one. This one reads the whole
- * grammar — the path, the kind it names, and the address it is spelled as —
- * and the renderer's narrower question is its own. */
-const linkTo = (claims: Claims, from: string, href: string): Address | null => {
-  const cut = href.indexOf("#")
-  if (cut === 0) return addressOf(claims, null, href.slice(1))
-  const path = cut === -1 ? href : href.slice(0, cut)
-  const resolved = pathedOf(from, path)
-  return resolved === null ? null : addressOf(claims, resolved, cut === -1 ? null : href.slice(cut + 1))
 }

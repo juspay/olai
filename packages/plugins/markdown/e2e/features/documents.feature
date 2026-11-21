@@ -494,6 +494,22 @@ Feature: Documents
     And the page has not reloaded
     And there should be no page errors
 
+  # A QUERY is where the page lands, not which file it is: a link written
+  # with one points at its file for the referrers exactly as without one.
+  @scratch:good
+  Scenario: A link with a query is a reference to its file
+    Given I open the document "finishes.md"
+    When I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      [the finishes](../finishes.md?v=1)
+      """
+    Then the document is pointed at by 2 things
+    When I open what points at the document
+    Then what points at the document is "install the cabinets, Palette"
+    And there should be no page errors
+
   # A link ONTO ONE HEADING is a reference to the whole document: what points
   # at `finishes.md#finishes` is pointing at the page a reader opens, so the
   # section names the source once instead of splitting the question per slug.

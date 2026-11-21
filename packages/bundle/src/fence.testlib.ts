@@ -150,7 +150,7 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   "packages/format/src/tape.ts": "two WeakMap memos over a derived pair, keyed by the pair",
   "packages/format/src/typing.ts": "a WeakMap memo of a derivation's declared kinds, keyed by it",
   "packages/format/src/vocabulary.ts": "a WeakMap memo of a derivation's tag counts, keyed by it",
-  "packages/format/src/wikilinks.ts": "a WeakMap memo of a membership snapshot's name index, keyed by the snapshot",
+  "packages/format/src/links/names.ts": "a WeakMap memo of a membership snapshot's name index, keyed by the snapshot",
   // ...and one file with a memo AND a diagnostic slot: `watching(null)` is the
   // default, a suite installs a listener for the length of its own case, and
   // what it hears is every narrowed write rather than any activation's value.
@@ -158,6 +158,10 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it to 0
   // before it starts and moves it as it goes.
   "packages/plugin-build/src/bind.ts": "a sticky regex's cursor, reset at the top of every scan",
+  // A PARSER BUILT ON FIRST USE: the same frozen processor every parse asks,
+  // built at the first parse rather than at import so a bundle that never
+  // parses carries none. It holds no reading and no activation's value.
+  "packages/prose/src/parse.ts": "the one frozen Markdown processor, built on the first parse",
 }
 
 /** This tree's two holder factories, by the door each comes from. */

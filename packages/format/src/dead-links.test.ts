@@ -1,9 +1,10 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-import { deadLinksIn as deadLinksWith, deadLinksOf as deadLinksOfWith, deadLinkSaid, relativeFrom } from "./dead-links.ts"
+import { deadLinksIn as deadLinksWith, deadLinksOf as deadLinksOfWith, deadLinkSaid } from "./dead-links.ts"
+import { relativeFrom } from "./links/paths.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
-import { namesOf } from "./wikilinks.ts"
+import { namesOf } from "./links/names.ts"
 import { read } from "@olai/prose/read.ts"
 
 const deadLinksIn = (from: string, text: string | ReadonlyArray<string>, served: ReadonlySet<string>) =>
@@ -13,7 +14,7 @@ const deadLinksOf = (at: Located, served: ReadonlySet<string>) => deadLinksOfWit
 const served = new Set(["notes/nix-flakes.md", "other/nix-flakes.md", "the brief.md"])
 test("missing links name their resolved path and all basename matches beside the writer", () => {
   expect(deadLinksIn("projects/olai.olai", "[x](nix-flakes.md#scope)", served)).toEqual([
-    { written: "nix-flakes.md#scope", resolved: "projects/nix-flakes.md", suggest: ["../notes/nix-flakes.md", "../other/nix-flakes.md"] },
+    { kind: "path", written: "nix-flakes.md#scope", resolved: "projects/nix-flakes.md", suggest: ["../notes/nix-flakes.md", "../other/nix-flakes.md"] },
   ])
   expect(relativeFrom("projects/olai.olai", "projects/a.md")).toBe("a.md")
 })
@@ -29,7 +30,7 @@ test("a newly served target clears the reading without changing its record", () 
 })
 test("an edit-distance suggestion is relative too, and repeated links appear once", () => {
   expect(deadLinksIn("notes/a.md", "[x](nix-flaks.md) [again](nix-flaks.md)", served)).toEqual([
-    { written: "nix-flaks.md", resolved: "notes/nix-flaks.md", suggest: ["nix-flakes.md"] },
+    { kind: "path", written: "nix-flaks.md", resolved: "notes/nix-flaks.md", suggest: ["nix-flakes.md"] },
   ])
 })
 
@@ -51,14 +52,14 @@ const named = new Set(["finishes.md", "notes/palette.md", "house.olai", "art/han
 
 test("an unresolved wikilink is reported by name, with the nearest names", () => {
   expect(deadLinksIn("notes/a.md", "see [[finsihes]]", named)).toEqual([
-    { written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] },
+    { kind: "name", written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] },
   ])
 })
 
 test("a bare name that only an outline has is offered with its suffix", () => {
   expect(deadLinksIn("notes/a.md", "[[house]] and [[house#kitchen]]", named)).toEqual([
-    { written: "[[house]]", resolved: "house", suggest: ["[[house.olai]]"] },
-    { written: "[[house#kitchen]]", resolved: "house", suggest: ["[[house.olai]]"] },
+    { kind: "name", written: "[[house]]", resolved: "house", suggest: ["[[house.olai]]"] },
+    { kind: "name", written: "[[house#kitchen]]", resolved: "house", suggest: ["[[house.olai]]"] },
   ])
 })
 
@@ -86,7 +87,14 @@ test("a wikilink heals the moment a file by its name is served", () => {
 })
 
 test("an unresolved wikilink says that no file has that name", () => {
-  expect(deadLinkSaid({ written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] }))
+  expect(deadLinkSaid({ kind: "name", resolved: "finsihes", suggest: ["[[finishes]]"] }))
     .toBe("no file is named finsihes — did you mean `[[finishes]]`?")
-  expect(deadLinkSaid({ written: "[[nowhere]]", resolved: "nowhere", suggest: [] })).toBe("no file is named nowhere.")
+  expect(deadLinkSaid({ kind: "name", resolved: "nowhere", suggest: [] })).toBe("no file is named nowhere.")
+})
+
+test("a dead link says which kind it is: a path, or a name", () => {
+  expect(deadLinksIn("notes/a.md", "[x](gone.md) and [[gone]]", named).map(one => [one.kind, one.written])).toEqual([
+    ["path", "gone.md"],
+    ["name", "[[gone]]"],
+  ])
 })

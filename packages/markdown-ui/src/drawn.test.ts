@@ -36,7 +36,10 @@ const opening = (html: string, name: string): ReadonlyArray<string> =>
 /** What a page draws, in the reading's own terms. A wikilink — an embed
  *  among them — is counted by name and never as a link or a picture. */
 const drawn = (html: string) => ({
-  wikilinks: [...html.matchAll(/data-wikilink="([^"]*)"/g)].map((match) => unescaped(match[1] as string)),
+  wikilinks: opening(html, "(?:a|img|span)").filter((tag) => tag.includes("data-wikilink=")).map((tag) => ({
+    target: unescaped(/data-wikilink="([^"]*)"/.exec(tag)?.[1] ?? ""),
+    fragments: JSON.parse(unescaped(/data-wikilink-fragments="([^"]*)"/.exec(tag)?.[1] ?? "[]")) as Array<string>,
+  })),
   links: opening(html, "a").filter((tag) =>
     !tag.includes("data-wikilink=") && !tag.includes("olai-md-anchor") && !tag.includes("data-footnote")
   ).length,
@@ -46,7 +49,7 @@ const drawn = (html: string) => ({
 
 /** The same, as the reading holds it. */
 const held = (said: Read) => ({
-  wikilinks: said.wikilinks.map((link) => [link.target, ...link.fragments].join("#")),
+  wikilinks: said.wikilinks.map((link) => ({ target: link.target, fragments: [...link.fragments] })),
   links: said.links.filter((link) => !link.picture).length,
   pictures: said.links.filter((link) => link.picture).length,
 })

@@ -93,17 +93,24 @@
 import { Schema } from "effect"
 
 import { proseIn } from "@olai/prose/frontmatter.ts"
-import { read } from "@olai/prose/read.ts"
+import { read, type Read } from "@olai/prose/read.ts"
 import { Slug } from "@olai/prose/slug.ts"
 import { Tag } from "@olai/prose/tags.ts"
 import { Address, addressOf, DocumentPath, printAddress } from "./address.ts"
 import { Custom } from "./custom.ts"
 import { writtenTags } from "./derive.ts"
 import { frontmatterIn } from "./frontmatter.ts"
-import { readAddresses, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
-import { carryRecordReads, keepBodyRead } from "./kept.ts"
+import { readAddresses, recordLinks, wikilinkNames } from "./documents.ts"
+import { carryRecordReads, keepBodyRead, recordRead } from "./kept.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
+
+/** A wikilink as the name it looks up (`@olai/prose`'s `wikilink.ts`), on the
+ *  wire: the target and its `#` parts, never joined into one string. */
+export const WikilinkName = Schema.Struct({
+  target: Schema.String,
+  fragments: Schema.Array(Schema.String),
+})
 
 /**
  * WHAT EVERY DOCUMENT HAS, whichever kind it is — the fields a feature is
@@ -137,11 +144,12 @@ export const Face = Schema.Struct({
   /** The tags its prose writes, as written — both sigils, `#topic` and
    *  `@person`, which are two namespaces over one alphabet (`./derive.ts`). */
   tags: Schema.Array(Tag),
-  /** The WIKILINKS its prose writes, by name as written (`kitchen-sink#Tables`)
-   *  and never twice — absent when it writes none. Names rather than
-   *  addresses, because which file a name finds moves with the directory
-   *  (`./wikilinks.ts`); the reading resolves them when it reads. */
-  wikilinks: Schema.optionalKey(Schema.Array(Schema.String)),
+  /** The WIKILINKS its prose writes, each as the name it looks up — the
+   *  target and its `#` parts, kept apart — and never twice; absent when it
+   *  writes none. Names rather than addresses, because which file a name
+   *  finds moves with the directory (`./links/wikilink.ts`); the reading
+   *  resolves them when it reads. */
+  wikilinks: Schema.optionalKey(Schema.Array(WikilinkName)),
   /**
    * The named facts the file writes ABOUT ITSELF — a `.md`'s YAML frontmatter,
    * read by {@link ./frontmatter.ts} and answered by `prop:` in the query
@@ -364,7 +372,7 @@ export const outlineDocument = (
     seen.add(key)
     links.push(address)
   }
-  const named = new Set<string>()
+  const reads: Array<Read> = []
   for (const located of nodes) {
     for (const address of recordLinks(claims, located)) add(address)
     if (isMirror(located.node)) continue
@@ -373,8 +381,11 @@ export const outlineDocument = (
       written.add(tag)
       tags.push(tag)
     }
-    for (const name of recordWikilinks(located)) named.add(name)
+    const said = recordRead(located.node)
+    reads.push(said.title)
+    if (said.desc !== null) reads.push(said.desc)
   }
+  const named = wikilinkNames(reads)
   return {
     kind: fileKind(claims, file) ?? (() => { throw new Error(`unclaimed outline: ${file}`) })(),
     holds: "nodes",
@@ -386,7 +397,7 @@ export const outlineDocument = (
     title: stemOf(claims, file),
     links,
     tags,
-    ...(named.size === 0 ? {} : { wikilinks: [...named] }),
+    ...(named.length === 0 ? {} : { wikilinks: named }),
     // A FILE writes no properties of its own here: an outline's named facts
     // are on its records, where `outlines_prop` puts them, and a `.olai` has no
     // frontmatter to read. Empty because nothing wrote one, which is the same

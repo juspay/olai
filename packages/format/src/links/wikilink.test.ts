@@ -3,11 +3,13 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
-import { type Address, printAddress } from "./address.ts"
-import { wikilinksIn } from "./documents.ts"
-import { seeded } from "./fixtures.testlib.ts"
-import { namesIn, wikilinkAddress, wikilinkFor, wikilinkOffers, wikilinkPath } from "./wikilinks.ts"
-import { fileKind } from "./kinds.ts"
+import { read } from "@olai/prose/read.ts"
+import { type Address, printAddress } from "../address.ts"
+import { wikilinksIn } from "../documents.ts"
+import { seeded } from "../fixtures.testlib.ts"
+import { namesIn } from "./names.ts"
+import { wikilinkAddress, wikilinkFor, wikilinkOffers, wikilinkPath } from "./wikilink.ts"
+import { fileKind } from "../kinds.ts"
 import { readdirSync } from "node:fs"
 import { join, relative } from "node:path"
 
@@ -158,7 +160,11 @@ describe("which file a name finds", () => {
   ])
   const names = namesIn(TEST_CLAIMS, SERVED)
   const path = (from: string, target: string): string | null => wikilinkPath(names, TEST_CLAIMS, from, target)
-  const address = (from: string, name: string): string | null => printed(wikilinkAddress(names, TEST_CLAIMS, from, name))
+  /** The name as the reader reads it out of the written wikilink. */
+  const address = (from: string, name: string): string | null => {
+    const [link] = read(`[[${name}]]`).wikilinks
+    return link === undefined ? null : printed(wikilinkAddress(names, TEST_CLAIMS, from, link))
+  }
 
   test("a bare name finds the one document by that name, in any folder", () => {
     expect(path("journal/day.md", "finishes")).toBe("finishes.md")
@@ -277,7 +283,7 @@ describe("which file a name finds", () => {
 })
 
 describe("what the row editor offers and writes", () => {
-  const ROOT = join(import.meta.dir, "../../tests/fixtures/wikilinks")
+  const ROOT = join(import.meta.dir, "../../../tests/fixtures/wikilinks")
   const filesUnder = (directory: string): ReadonlyArray<string> =>
     readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? filesUnder(join(directory, entry.name)) : [join(directory, entry.name)]

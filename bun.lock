@@ -429,6 +429,7 @@
         "@olai/markdown-ui": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",

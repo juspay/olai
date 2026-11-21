@@ -58,6 +58,7 @@ import { markdownReady, markdownWaiting } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree, sourceText } from "./render.ts"
 import { escapeHtml, styleTags } from "./tags.ts"
+import { mayHoldWikilink } from "@olai/prose/wikilink.ts"
 
 export interface TitleRender {
   /** When false, markdown links are unwrapped to their children so the title
@@ -192,7 +193,7 @@ export const renderTitle = (
   // one is remembered per membership snapshot — the identity the directory
   // replaces whenever a file arrives or leaves — and every other title per
   // claims alone, as before.
-  const members = options.members !== undefined && title.includes("[[") ? options.members : undefined
+  const members = options.members !== undefined && mayHoldWikilink(title) ? options.members : undefined
   let byMembers = claims === undefined ? undefined : renderings.get(claims)
   if (byMembers === undefined) {
     byMembers = new WeakMap()

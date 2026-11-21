@@ -1636,7 +1636,7 @@ describe("wikilinks in what an agent reads", () => {
 
   test("`markdown_read` reports a document's unresolved wikilinks with the nearest name", () => {
     const answered = succeeded(document(derivedOf(WIKI()), "plan.md"), "`markdown_read` to answer")
-    expect(answered.deadLinks).toEqual([{ written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] }])
+    expect(answered.deadLinks).toEqual([{ kind: "name", written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] }])
     expect(answered).not.toHaveProperty("referencedBy")
   })
 
@@ -1645,8 +1645,8 @@ describe("wikilinks in what an agent reads", () => {
     const answered = succeeded(detail(at, "sink", undefined, true), "`outlines_read` to answer")
     expect(said(answered?.referencedBy)).toEqual(["plan.md link"])
     expect(answered?.deadLinks).toEqual([
-      { written: "[[nowhere]]", resolved: "nowhere", suggest: [] },
-      { written: "[[house]]", resolved: "house", suggest: ["[[house.olai]]"] },
+      { kind: "name", written: "[[nowhere]]", resolved: "nowhere", suggest: [] },
+      { kind: "name", written: "[[house]]", resolved: "house", suggest: ["[[house.olai]]"] },
     ])
   })
 })

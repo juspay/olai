@@ -44,7 +44,9 @@ import { seeded } from "./fixtures.testlib.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, isPutAway, isRegular, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
-import { namesIn, wikilinkAddress } from "./wikilinks.ts"
+import { namesIn } from "./links/names.ts"
+import { wikilinkAddress } from "./links/wikilink.ts"
+import type { WikilinkName } from "@olai/prose/wikilink.ts"
 
 // ── the reading as it STOOD, before the links index ────────────────────
 
@@ -78,8 +80,8 @@ export const scannedReferrers = (
   served: ReadonlySet<string>,
 ): ReadonlyArray<Reference> => {
   const names = namesIn(TEST_CLAIMS, served)
-  const wikis = (from: string, written: ReadonlyArray<string>): ReadonlyArray<Address> =>
-    written.flatMap((name) => wikilinkAddress(names, TEST_CLAIMS, from, name) ?? [])
+  const wikis = (from: string, written: ReadonlyArray<WikilinkName>): ReadonlyArray<Address> =>
+    written.flatMap((link) => wikilinkAddress(names, TEST_CLAIMS, from, link) ?? [])
   /** Ways merged per source, in the reading's own order. */
   const found = new Map<object, { source: Reference["source"]; ways: Set<Way> }>()
   const add = (source: Reference["source"], ...ways: ReadonlyArray<Way>): void => {

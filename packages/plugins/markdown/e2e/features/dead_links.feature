@@ -118,3 +118,27 @@ Feature: Relative links say where nothing is served
       # Arrived
       """
     Then the page has no dead links
+
+  # A query is not part of the file: a link to a missing file with one is dead
+  # for the page and for the agent alike, and an agent is told which kind.
+  @scratch:good
+  Scenario: A link with a query to a missing file is dead, and the agent reads its kind
+    Given I open the outline "house.olai"
+    And a terminal agent is connected to the served directory
+    When the terminal agent calls "markdown_create" with:
+      """
+      {"file":"queried.md","text":"[the shed](shed.md?v=1)"}
+      """
+    Then the tool nudge says "link resolves to nothing served: shed.md."
+    When I open the document "queried.md"
+    Then the rendered link to "the shed" is marked dead
+    When the terminal agent calls "markdown_read" with:
+      """
+      {"file":"queried.md"}
+      """
+    Then the tool answer contains "\"kind\":\"path\""
+    When I rewrite "shed.md" as:
+      """
+      # The shed
+      """
+    Then the page has no dead links
