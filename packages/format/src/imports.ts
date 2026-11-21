@@ -1,62 +1,92 @@
 /**
- * WHAT ONE DOCUMENT CONTRIBUTES to the references index — which of its records
- * (or its own body) points at which target, and the WAY each one points.
+ * WHAT ONE DOCUMENT CONTRIBUTES to the references table — which of its records
+ * (or its own body) points at which target, in which PART of the table that
+ * target lives, and the WAY each one points.
  *
  * The references reading answers two questions that used to be two modules
  * and two walks ({@link ./backlinks.ts}); the fold IS those walks' readings,
- * kept because the LINES OF PROSE are what make the difference and the index
+ * kept because the LINES OF PROSE are what make the difference and the table
  * is where the prose is spent once instead of once per page per revision.
  *
- * ABOUT THE KEY: a `see` and a link resolve to an ADDRESS and file under its
- * printed form (`#herbs`, `brief.md#scope`). An `@id` written in prose files
- * under the tag AS WRITTEN (`@herbs`) — {@link Derived.taggedBy}'s key, and
- * therefore the key the mention half of the reading asks. Two namespaces, one
- * index — exactly as `taggedBy` keeps both sigils, and for its reason.
+ * ABOUT THE PART AND THE KEY, which are one decision: what is pointed at says
+ * where the entry lands ({@link PARTS}), and inside a part the key is the
+ * plainest spelling of that thing — a ROW by its bare id, a FILE by its
+ * printed address (`brief.md`, `brief.md#scope`), a NAME by the folded key a
+ * wikilink is resolved through, a TAG as it was written (`#herbs`, `@herbs`).
+ * Four maps rather than one, because a row PRINTS as `#herbs` and a topic is
+ * WRITTEN `#herbs`: one map of strings would have the two collide, and no
+ * spelling rule can separate them — the table's shape does it instead.
  *
- * THE WAYS ARE KEPT APART HERE because the reading needs them apart: `see`
- * names an id by field, `@id` names one by prose, and a link — or an embed —
- * names a file by address. Three sentences about one relationship, and one
- * record doing two of them is one source with two ways.
+ * THE WAYS ARE KEPT APART HERE because the readings need them apart, and each
+ * reading names the ways it counts ({@link ./backlinks.ts}'s `WAYS` is the
+ * three **Referenced by** counts): a record's FIELDS name a row with `mirror`,
+ * `after`, `blocks` and `see`, a record's PROSE writes a `tag`, a body's prose
+ * writes a `mention`, and a link — or an embed — names a file, a row or a name
+ * with `link`. One record doing two of them is one source with two ways.
  *
- * WHAT IS NOT HERE is a single decision about meaning: a mirror writes
- * nothing (it is a placement, not a claim), a `#topic` is not a mention (only
- * the `@` half of a tag is a name), a record never refers to itself, and what
- * is put away is left out at the read. Those are the READING's rulings
- * ({@link ./backlinks.ts}), asked of this index the way every other reverse
+ * WHAT IS NOT HERE is a single decision about meaning: a `#topic` is not a
+ * mention (only the `@` half of a tag is a name), a record never refers to
+ * itself, a placement is a placement rather than a claim, and what is put away
+ * is left out at the read. Those are the READING's rulings
+ * ({@link ./backlinks.ts}), asked of this table the way every other reverse
  * index of this format is read.
  */
 
-import { type Address, addressOf, printAddress } from "./address.ts"
+import { type Address, printAddress } from "./address.ts"
 import { writtenTags } from "./derive.ts"
 import { type Face } from "./document.ts"
 import { recordContributions, recordWikilinks } from "./documents.ts"
 import { wikilinkKey, wikilinkRowNode } from "./links/wikilink.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
 import { type Claims } from "./kinds.ts"
-import { isRegular, type Located } from "./node.ts"
-
-/** The ways the references reading knows, in the order a source says them:
- *  the edge somebody wrote with a verb first, then the prose they wrote after
- *  it. A schema's worth of vocabulary, kept as a plain list here because the
- *  wire's schema lives beside the reading ({@link ./backlinks.ts}); this
- *  module files under the SAME closure and has no Schemas of its own. */
-export const WAYS = ["see", "mention", "link"] as const
-export type Way = (typeof WAYS)[number]
+import { isRegular, type Located, targetsOf } from "./node.ts"
 
 /**
- * ONE TARGET A DOCUMENT WRITES TO — the key it files under, the way it was
- * named, and the record that did the naming when there is one. A body's
- * targets carry no record: a `.md` has no finer grain than itself.
+ * THE FOUR PARTS OF THE TABLE, by WHAT IS POINTED AT — a row of an outline, a
+ * file (whole, or one heading or row of it), a wikilink's name, or a tag as
+ * written.
+ *
+ * It is a list here, where the fold decides which part an entry belongs in,
+ * rather than beside the table itself: a contribution says its own part, and
+ * the table ({@link ./pointing.ts}) is four maps keyed by this list, so a part
+ * added is a part every carry and every walk of the table learns about by
+ * typechecking rather than by somebody remembering.
+ */
+export const PARTS = ["rows", "files", "names", "tags"] as const
+export type Part = (typeof PARTS)[number]
+
+/**
+ * The ways a contribution is FILED under, in the order a source says them: the
+ * fields somebody wrote with a verb first, then the prose they wrote after
+ * them, then the links.
+ *
+ * WIDER THAN WHAT A READING COUNTS, and that is the table's whole arrangement:
+ * every way a document can point at something is filed once, and each reader
+ * names the ways its own question is about ({@link ./backlinks.ts}'s `WAYS`
+ * for **Referenced by**; the refusals and the reports in `@olai/ops` for the
+ * field ways). A list that held only the counted three would be the table
+ * telling the derivation's readers to go and walk the corpus themselves.
+ */
+export const FILED_WAYS = ["mirror", "after", "blocks", "see", "tag", "mention", "link"] as const
+export type Way = (typeof FILED_WAYS)[number]
+
+/**
+ * ONE TARGET A DOCUMENT WRITES TO — the part of the table it lands in, the key
+ * it files under there, the way it was named, and the record that did the
+ * naming when there is one. A body's targets carry no record: a `.md` has no
+ * finer grain than itself.
  */
 export interface Contribution {
-  /** The key to file under — {@link printAddress} of the target, or the
-   *  written `@mention` — the same spellings the reading will ask. */
+  /** Which of the table's four maps this entry belongs in. */
+  readonly part: Part
+  /** The key to file under, in that part's own spelling — a row's bare id, a
+   *  file's printed address, a wikilink's folded key, a tag as written. */
   readonly key: string
   readonly way: Way
   /** The record, for an outline. Undefined for a body, whose every
    *  contribution carries no record — a `.md` is its own source. */
   readonly at: Located | undefined
-  /** The target ADDRESS for the LINK way — what the index's heading rule
+  /** The target ADDRESS for the LINK way — what the table's heading rule
    *  decides by (a link onto a heading or a row points at the document as
    *  well). Absent for the field and prose ways, which file under one key
    *  only. */
@@ -67,17 +97,33 @@ export interface Contribution {
 }
 
 /**
- * WHAT ONE DOCUMENT CONTRIBUTES to the index: one {@link Contribution} per
+ * WHAT ONE DOCUMENT CONTRIBUTES to the table: one {@link Contribution} per
  * written target, in the order the document writes them.
  *
- * THE FOLD IS WHERE THE PROSE IS READ INTO THE INDEX: {@link readAddresses} and
- * {@link writtenTags} ask the readings decode kept, and a record's
- * title, its note, its `see` and its `@` tags are each read ONCE here instead
- * of once per page per revision at the read.
+ * THE FOLD IS WHERE THE PROSE IS READ INTO THE TABLE: {@link readAddresses}
+ * and {@link writtenTags} ask the readings decode kept, and a record's title,
+ * its note, its fields and its tags are each read ONCE here instead of once
+ * per page per revision at the read.
  *
- * A BODY contributes what its face already carries — every link it writes is
- * a `link`, every `@` tag it writes a `mention` — so the fold reads a body's
- * prose exactly once, with the face.
+ * A RECORD'S FIELDS ARE {@link targetsOf} READ FORWARDS — the one list of what
+ * a record NAMES, which the validator asks forwards and the ops layer asks
+ * backwards, and which the derivation files into `namedBy` from the very same
+ * function. A second list of field names here is the failure that function's
+ * own doc warns about: the day a fifth relation is added, a table that scanned
+ * for four would silently stop seeing one.
+ *
+ * A PLACEMENT IS A SOURCE, and the only one whose record is not regular: it
+ * names the node it stands for with `mirror` and writes nothing else — no
+ * prose, no edges, no links. **Referenced by** does not count that way, so a
+ * placement is filed here and left out there ({@link ./backlinks.ts}).
+ *
+ * A RECORD'S TAGS GO IN WHOLE, BOTH SIGILS, with the way `tag` — which is
+ * {@link Derived.taggedBy} filed into the table's own shape. The `@` half is
+ * what the mention reading asks for; the `#` half is the vocabulary the tag
+ * list reads. A BODY contributes what its face already carries — every link it
+ * writes is a `link`, every `@` tag it writes a `mention` — so the fold reads a
+ * body's prose exactly once, with the face, and a body's `#topic` is filed
+ * nowhere, exactly as `taggedBy` holds none.
  */
 export const contributionsOf = (
   claims: Claims,
@@ -86,12 +132,10 @@ export const contributionsOf = (
 ): ReadonlyArray<Contribution> => {
   const found: Array<Contribution> = []
   if (records === undefined) {
-    for (const link of face.links) {
-      found.push({ key: printAddress(link), way: "link", at: undefined, address: link })
-    }
+    for (const link of face.links) linkInto(found, link, undefined)
     for (const tag of face.tags) {
       if (tag.charAt(0) !== "@") continue
-      found.push({ key: tag, way: "mention", at: undefined })
+      found.push({ part: "tags", key: tag, way: "mention", at: undefined })
     }
     for (const link of face.wikilinks ?? []) wikiInto(found, claims, link, undefined)
     return found
@@ -100,34 +144,55 @@ export const contributionsOf = (
   // that writes none pays no scan of its titles and notes for `[[`.
   const linking = face.wikilinks !== undefined
   for (const located of records) {
+    // THE FIELDS, under the ROWS they name — the mirror a placement points
+    // with and the three edge fields a record writes, in declaration order.
+    for (const [field, id] of targetsOf(located.node)) {
+      found.push({ part: "rows", key: id, way: field, at: located })
+    }
+    // …and nothing else comes off a placement: it has no title, no note and no
+    // links of its own, which is what the type says one line down.
     if (!isRegular(located)) continue
-    // THE RECORD'S WRITTEN TARGETS are ONE walk ({@link ./documents.ts}'s
-    // `recordContributions`, the same one {@link recordLinks} dedupes for
-    // the faces): the `see` under the id it names, and the links under the
-    // addresses they land on — kept apart here because the index files them
-    // apart, the way the walk's own doc says.
+    // THE RECORD'S LINKS are ONE walk ({@link ./documents.ts}'s
+    // `recordContributions`, the same one {@link recordLinks} dedupes for the
+    // faces), filed under the addresses they land on. Its `see` arm is passed
+    // over here: the fields above are where this table reads `see` from, so
+    // the two spellings of "which ids does this record name" cannot drift.
     for (const written of recordContributions(claims, located)) {
-      found.push({ key: printAddress(written.address), way: written.way, at: located, address: written.address })
+      if (written.way !== "link") continue
+      linkInto(found, written.address, located)
     }
     for (const tag of writtenTags(located.node)) {
-      if (tag.charAt(0) !== "@") continue
-      found.push({ key: tag, way: "mention", at: located })
+      found.push({ part: "tags", key: tag, way: "tag", at: located })
     }
     if (linking) for (const link of recordWikilinks(located)) wikiInto(found, claims, link, located)
   }
   return found
 }
 
+/** A LINK, under the thing it lands on: a bare node link files under the ROW
+ *  it names, and every other address under the FILE half of the table, printed
+ *  — which is the spelling the reading asks with ({@link ./pointing.ts}'s
+ *  `pointingAt`). The address travels with the entry, because a link onto a
+ *  heading or a row is a reference to the document as well and the table files
+ *  that second key where the two parts are both in hand. */
+const linkInto = (found: Array<Contribution>, address: Address, at: Located | undefined): void => {
+  found.push(
+    address.kind === "node"
+      ? { part: "rows", key: address.id, way: "link", at, address }
+      : { part: "files", key: printAddress(address), way: "link", at, address },
+  )
+}
+
 /** A WIKILINK, filed under the name it writes rather than the file it finds
- *  (`./links/wikilink.ts`'s `wikilinkKey`) — the `@mention` arrangement, and
- *  for its reason: which file a name finds moves with the directory, so the
- *  reading resolves it when it reads and a file arriving makes no one re-read
- *  another file. A link to the writer's own heading refers to nothing else,
- *  and is not filed. A link to a ROW is filed a second time, under the row's
- *  NODE (`wikilinkRowNode`), which is where the node arm of the reading asks. */
+ *  (`./links/wikilink.ts`'s `wikilinkKey`) — the NAMES part, and for its
+ *  reason: which file a name finds moves with the directory, so the reading
+ *  resolves it when it reads and a file arriving makes no one re-read another
+ *  file. A link to the writer's own heading refers to nothing else, and is not
+ *  filed. A link to a ROW is filed a second time, under the row's own id,
+ *  which is where the node arm of the reading asks. */
 const wikiInto = (found: Array<Contribution>, claims: Claims, link: WikilinkName, at: Located | undefined): void => {
   const key = wikilinkKey(claims, link.target)
-  if (key !== null) found.push({ key, way: "link", at, wikilink: link })
+  if (key !== null) found.push({ part: "names", key, way: "link", at, wikilink: link })
   const node = wikilinkRowNode(claims, link)
-  if (node !== null) found.push({ key: printAddress(node), way: "link", at, wikilink: link })
+  if (node?.kind === "node") found.push({ part: "rows", key: node.id, way: "link", at, wikilink: link })
 }

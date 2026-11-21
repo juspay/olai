@@ -143,15 +143,17 @@ export interface Reading {
   readonly set: OutlineSet
   readonly derived: Derived
   /**
-   * WHAT POINTS WHERE — the set's own links, filed backwards
-   * ({@link ./pointing.ts}).
+   * WHO POINTS AT WHAT — the set's own references, filed backwards, in four
+   * parts by what is pointed at ({@link ./pointing.ts}): the rows, the files,
+   * the wikilink names and the tags. A record's fields and a document's links
+   * are one table, so one question has one answer.
    *
    * A THIRD MEMBER rather than a thirteenth index inside the derivation, and
    * that module's header argues it: `derive` is handed the RECORDS and
    * `patch` is handed a delta of them, so neither has ever been shown a face —
    * while the SET and the reading this one follows are exactly what is in hand
    * at the one place a reading is made. It travels here for the reason the two
-   * above travel together: an index of one revision's documents held against
+   * above travel together: a table of one revision's documents held against
    * another's set is a plausible answer about the wrong directory.
    */
   readonly pointing: Pointing

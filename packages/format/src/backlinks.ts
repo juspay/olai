@@ -8,13 +8,15 @@
  * back. "Who is talking about this?" was a question nothing could answer
  * without walking the whole directory, and nothing asked it.
  *
- * This module is the one reading over the two indexes that make it a lookup:
- * {@link ./pointing.ts} carries what every file POINTS AT (its links, its `@`
- * tags, its records' `see`s and the links in their notes — everything the
- * fold reads at build time), and {@link ./derive.ts}'s reverse indexes
- * (`namedBy`, `taggedBy`) are what the pointing index was built from. Every
- * page that asks "who refers" — a node, a document, a heading, a body — asks
- * THIS function, and every wire that carries the answer carries ONE shape.
+ * This module is the one reading over the TABLE that makes it a lookup:
+ * {@link ./pointing.ts} carries what every file POINTS AT — its links, its
+ * `@` tags, its records' fields and the links in their notes, each filed under
+ * the row, the file, the name or the tag it names — and this reading names the
+ * three ways of saying it that **Referenced by** is about ({@link WAYS}).
+ * {@link ./derive.ts}'s reverse indexes (`namedBy`, `taggedBy`) answer the
+ * other doors, over the same facts. Every page that asks "who refers" — a
+ * node, a document, a heading, a body — asks THIS function, and every wire
+ * that carries the answer carries ONE shape.
  *
  * ONE SHAPE, and it is {@link Reference}: the thing that wrote the reference,
  * and the way(s) it did. A record and a document are the two kinds of source,
@@ -54,7 +56,9 @@
  * through {@link Derived.mirrorsOf} — which `outlines_read` hands back as
  * `mirrors`. Listing placements as references would put one fact under two
  * names, and would fill the section on exactly the nodes a curated list points
- * at with entries that say nothing about them.
+ * at with entries that say nothing about them. The table FILES the placement,
+ * because the refusals in `@olai/ops` ask who stands for a row before it is
+ * taken away; this reading leaves that way out ({@link COUNTED}).
  *
  * **`after` and `blocks` do not count either.** They are the ORDERING graph,
  * and a page already draws both directions of it: what this node is waiting on
@@ -90,6 +94,7 @@ import { Face, type FaceHead } from "./document.ts"
 import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { conditional, type Pointing, pointingAt, type Source } from "./pointing.ts"
+import type { Way as Filed } from "./imports.ts"
 import type { Reading } from "./validate.ts"
 import { wikilinkAddress } from "./links/wikilink.ts"
 
@@ -108,21 +113,59 @@ import { wikilinkAddress } from "./links/wikilink.ts"
  * row can tell "this record wrote an edge" from "this record named the node in
  * prose" from "this file links to the page".
  *
+ * THIS READING NAMES THE WAYS IT COUNTS, which is what the one table asks of
+ * every reader of it ({@link ./pointing.ts}). The table files every way a
+ * document can point at something ({@link ./imports.ts}'s `FILED_WAYS`): the
+ * placement that stands for a row, the ordering edges, the tags as written.
+ * **Referenced by** is about what somebody SAID about a place, so it counts
+ * three of them and the list is here, beside the rulings that close it —
+ * `mirror` is where a row is drawn a second time rather than a thing said
+ * about it, and `after` and `blocks` are the ordering graph, which the refusals
+ * in `@olai/ops` read and this answer does not.
+ *
  * A SCHEMA beside it, and the wire vocabulary READS that one ({@link
  * ./reading.ts}`s `Reference` — the arrangement `Progress` already has with
- * that module). The list is closed by the rulings in this file's header, so it
- * belongs beside them; a second `Schema.Literals(["see", "mention", "link"])`
- * on the answer would be that closure respelled where nothing argues it, free
- * to gain a fourth member on one side only.
- *
- * THE LIST ITSELF lives in ./imports.ts now, READ rather than re-declared:
- * the fold files under the same ways this schema spells, so the words are
- * one fact — the list here was the second copy and both headers used to
- * argue the other was wrong.
+ * that module). One list, so the words a page draws rows for
+ * (`markdown-ui`'s `ReferrersSection`) and the words this answer carries
+ * cannot gain a member on one side only.
  */
-import { WAYS } from "./imports.ts"
+export const WAYS = ["see", "mention", "link"] as const
 export const Way = Schema.Literals(WAYS)
 export type Way = typeof Way.Type
+
+/** The answer for a source none of whose ways this reading counts — a
+ *  placement, or a record that only orders another. ONE list, shared. */
+const COUNTS_FOR_NOTHING: ReadonlyArray<Way> = []
+
+/**
+ * THE WAYS A SOURCE IS FILED UNDER, AS THE WAYS THIS READING COUNTS — the one
+ * place the table's vocabulary meets this answer's.
+ *
+ * A `tag` READS AS THE MENTION IT IS: the tags part is asked by this reading
+ * under an `@` key and under no other ({@link nodeRefs}), so a tag found there
+ * is somebody naming that id in prose — which is what a mention is, and what
+ * this answer has always called it. The `#` half of the same part is the
+ * vocabulary the tag list reads and is never asked for here.
+ *
+ * ONE WAY IS THE OVERWHELMING CASE — a record `see`s a row, or a file links
+ * one — so it answers from a table of shared lists and allocates nothing; a
+ * source saying two things pays one filter, in {@link WAYS} order, which is the
+ * order a referrer's row says them in.
+ */
+const COUNTED: { readonly [K in Filed]: ReadonlyArray<Way> } = {
+  mirror: COUNTS_FOR_NOTHING,
+  after: COUNTS_FOR_NOTHING,
+  blocks: COUNTS_FOR_NOTHING,
+  see: ["see"],
+  tag: ["mention"],
+  mention: ["mention"],
+  link: ["link"],
+}
+
+const counted = (ways: ReadonlyArray<Filed>): ReadonlyArray<Way> =>
+  ways.length === 1
+    ? COUNTED[ways[0] as Filed]
+    : WAYS.filter((one) => ways.includes(one) || (one === "mention" && ways.includes("tag")))
 
 /**
  * ONE PLACE A REFERENCE WAS WRITTEN — a whole document, or one record inside
@@ -238,21 +281,28 @@ const nodeRefs = (
     if (source.at !== undefined) {
       if (source.at.node.id === id || !isRegular(source.at)) return
     }
+    // …and a source filed only in ways this answer does not count is not a
+    // referrer at all: the placement that stands for this row, and the record
+    // that only orders it ({@link COUNTED}).
+    const ways = counted(source.ways)
+    if (ways.length === 0) return
     const key: object = source.at ?? source.face
     const held = found.get(key)
     if (held === undefined) {
-      found.set(key, { source: source.at ?? headOf(source.face), ways: source.ways })
+      found.set(key, { source: source.at ?? headOf(source.face), ways })
       return
     }
-    // THE SAME SOURCE THROUGH TWO KEYS (`#id` and `@id`): the ways merge, in
-    // {@link WAYS} order, however many keys the source answered through.
-    const merged = WAYS.filter((one) => held.ways.includes(one) || source.ways.includes(one))
+    // THE SAME SOURCE THROUGH TWO KEYS (the row and the `@` tag): the ways
+    // merge, in {@link WAYS} order, however many keys the source answered
+    // through.
+    const merged = WAYS.filter((one) => held.ways.includes(one) || ways.includes(one))
     if (merged.length !== held.ways.length) found.set(key, { source: held.source, ways: merged })
   }
   // THIS NODE, AND EVERY PLACEMENT STANDING FOR IT — the ids a forward reader
-  // resolves through, read backwards. The fold files under `#<id>` the sees,
-  // the links and every link onto a ROW of the node, and under `@<id>` the
-  // mentions — so a corpus with no row links reads what it always read.
+  // resolves through, read backwards. The table's ROWS part holds the sees,
+  // the fields, the links and every link onto a ROW of the node; its TAGS part
+  // holds, under the `@` spelling of the id, the prose that names it — so a
+  // corpus with no row links reads what it always read.
   for (const named of [id, ...(derived.mirrorsOf.get(id) ?? [])]) {
     const node = addressOf(at.claims, null, named)
     if (node === null) continue
@@ -270,7 +320,7 @@ const nodeRefs = (
       drawers ??= drawersOf(derived, named)
       if (lands(at, source, named, drawers)) file(source)
     }
-    for (const source of pointing.get(tagText({ sigil: "@", tag: named })) ?? []) file(source)
+    for (const source of pointing.tags.get(tagText({ sigil: "@", tag: named })) ?? []) file(source)
   }
   return [...found.values()]
     // Sorted rather than merged: the index promises path order per key, and
@@ -341,15 +391,18 @@ const documentRefs = (
 
 /** One source as a referrer, or `undefined`: the document this page is about
  *  never refers to itself, what is put away is on the Trash and nowhere else,
- *  and a placement writes nothing. */
+ *  a placement writes nothing, and a source filed only in ways this answer does
+ *  not count is not a referrer ({@link COUNTED}). */
 const ruled = (
   at: Pick<Reading, "derived">,
   address: Exclude<Address, { readonly kind: "node" }>,
   source: Source,
 ): Reference | undefined => {
   if (source.face.path === address.path || isPutAway(at.derived.claims, source.face.path)) return undefined
-  if (source.at === undefined) return { source: headOf(source.face), ways: source.ways }
-  return isRegular(source.at) ? { source: source.at, ways: source.ways } : undefined
+  const ways = counted(source.ways)
+  if (ways.length === 0) return undefined
+  if (source.at === undefined) return { source: headOf(source.face), ways }
+  return isRegular(source.at) ? { source: source.at, ways } : undefined
 }
 
 /**
@@ -369,7 +422,7 @@ const wikiSourcesAt = (
 ): ReadonlyArray<Source> => {
   const key = at.names.keys.get(address.path)
   if (key === undefined) return NO_SOURCES
-  const filed = at.pointing.get(key)
+  const filed = at.pointing.names.get(key)
   if (filed === undefined) return NO_SOURCES
   let found: Array<Source> | undefined
   let wanted: string | undefined

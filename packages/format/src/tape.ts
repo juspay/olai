@@ -74,17 +74,19 @@ import type { Reading } from "./validate.ts"
 const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
 
 /**
- * …and every OTHER by-key table a reading carries, which today is the one the
- * links index is: {@link Reading.pointing}, the set's own links filed backwards
- * (`./pointing.ts`).
+ * …and every OTHER by-key table a reading carries, which today is the four
+ * parts of the one table: {@link Reading.pointing}, the set's own references
+ * filed backwards, by row, by file, by name and by tag (`./pointing.ts`).
  *
- * IT IS EXHAUSTIVE BY THE TYPE, for {@link LISTS}'s reason and against the same
- * failure one field over. A view built from {@link READ} alone covers the
- * derivation's maps and nothing else — a table added BESIDE the derivation
- * would be handed through untaped, and a tape that is too NARROW is a wrong
- * page (the header's second paragraph, which is the one direction that is not
- * merely a wasted rebuild). `Exclude<keyof Reading, …>` is what makes the next
- * one a typecheck failure here rather than a page that stops redrawing.
+ * A ROW PER FIELD AND A ROW PER PART, and both are EXHAUSTIVE BY THE TYPE, for
+ * {@link LISTS}'s reason and against the same failure one field over. A view
+ * built from {@link READ} alone covers the derivation's maps and nothing else —
+ * a table added BESIDE the derivation would be handed through untaped, and a
+ * tape that is too NARROW is a wrong page (the header's second paragraph, which
+ * is the one direction that is not merely a wasted rebuild). `Exclude<keyof
+ * Reading, …>` is what makes the next FIELD a typecheck failure here, and
+ * `keyof Reading[K]` the next PART of one — a fifth part of the table taped by
+ * nobody would be a page that stopped redrawing when a key in it moved.
  *
  * The fields taken out are the ones that are not by-key tables at all: the
  * SET, whose two arrays are compared whole ({@link carriedSet}), the
@@ -92,31 +94,49 @@ const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
  * INDEX, which is one value held against its identity ({@link Tape.names}).
  */
 const BESIDE: {
-  readonly [K in Exclude<keyof Reading, "set" | "derived" | "claims" | "names">]: (
-    at: Reading,
-  ) => ReadonlyMap<string, unknown>
+  readonly [K in Exclude<keyof Reading, "set" | "derived" | "claims" | "names">]: {
+    readonly [P in keyof Reading[K]]: (at: Reading) => ReadonlyMap<string, unknown>
+  }
 } = {
-  pointing: (at) => at.pointing,
+  pointing: {
+    rows: (at) => at.pointing.rows,
+    files: (at) => at.pointing.files,
+    names: (at) => at.pointing.names,
+    tags: (at) => at.pointing.tags,
+  },
 }
+
+/** A field of the reading that rides beside the derivation, and one part of it
+ *  — spelled `pointing.rows`, so one vocabulary says which map a row of the
+ *  tape is about however many parts a field has. */
+type Beside = {
+  [K in keyof typeof BESIDE & string]: `${K}.${keyof (typeof BESIDE)[K] & string}`
+}[keyof typeof BESIDE & string]
 
 /** Every table a keyed read can be taped against — the derivation's indexes,
  *  and the reading's own beside them. One vocabulary, so a row of the tape says
  *  which map it is about and {@link tableIn} can find that map again. */
-type Table = Index | keyof typeof BESIDE
+type Table = Index | Beside
 
 /** WHICH MAP a table names, at a given reading — the one place the two homes
  *  are told apart, so nothing else here has to know that most of them live
- *  inside the derivation and one does not.
+ *  inside the derivation and four do not.
  *
  *  THE TABLE ANSWERS, not a name written here: {@link BESIDE} is a row per
  *  member and each row IS the reach, so a second one beside the derivation is a
  *  line filled in there rather than a second arm of a test on a literal. The
  *  two vocabularies are disjoint by construction — {@link Index} is `Derived`'s
- *  own keys — so which side a table is on is a membership question. */
-const tableIn = (at: Reading, which: Table): ReadonlyMap<string, unknown> =>
-  which in BESIDE
-    ? BESIDE[which as keyof typeof BESIDE](at)
-    : (at.derived[which as Index] as ReadonlyMap<string, unknown>)
+ *  own keys, and nothing there holds a `.` — so which side a table is on is one
+ *  character. */
+const tableIn = (at: Reading, which: Table): ReadonlyMap<string, unknown> => {
+  const cut = which.indexOf(".")
+  if (cut === -1) return at.derived[which as Index] as ReadonlyMap<string, unknown>
+  const parts = BESIDE[which.slice(0, cut) as keyof typeof BESIDE] as Record<
+    string,
+    (at: Reading) => ReadonlyMap<string, unknown>
+  >
+  return (parts[which.slice(cut + 1)] as (at: Reading) => ReadonlyMap<string, unknown>)(at)
+}
 
 /**
  * …and every field of a derivation that is NOT an index, which today is the two
@@ -337,14 +357,37 @@ export const taping = (
       return at.names
     },
   })
-  for (const which of Object.keys(BESIDE) as ReadonlyArray<keyof typeof BESIDE>) {
+  // A FIELD THERE IS A STRUCT OF PARTS, so the field hands back a small object
+  // whose own members are the wrappers — lazy twice over, because a page that
+  // asks the table about one row reads one of the four maps and the other three
+  // are never wrapped and never taped.
+  for (const field of Object.keys(BESIDE) as ReadonlyArray<keyof typeof BESIDE>) {
+    let parts: Record<string, unknown> | undefined
+    Object.defineProperty(reading, field, {
+      enumerable: true,
+      get: () => parts ??= tapedParts(at, field, tape),
+    })
+  }
+  return { reading: reading as unknown as Reading, tape }
+}
+
+/** One field of {@link BESIDE}, as the parts it is made of, each wrapped the
+ *  first time it is read. */
+const tapedParts = (
+  at: Reading,
+  field: keyof typeof BESIDE,
+  tape: Tape,
+): Record<string, unknown> => {
+  const parts: Record<string, unknown> = {}
+  for (const part of Object.keys(BESIDE[field])) {
+    const which = `${field}.${part}` as Table
     let held: Taped<unknown> | undefined
-    Object.defineProperty(reading, which, {
+    Object.defineProperty(parts, part, {
       enumerable: true,
       get: () => held ??= new Taped(tableIn(at, which), which, tape),
     })
   }
-  return { reading: reading as unknown as Reading, tape }
+  return parts
 }
 
 /**

@@ -1,5 +1,5 @@
 {
-  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in: the set's own word, not the files row.",
+  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in, and the references table's `files` part is the part keyed by a PATH — a path, or a path and an element — beside its rows, names and tags: the set's own word, not the files row.",
   "capture": {
     "src/inbox.ts": 10,
     "src/index.ts": 3,
@@ -22,14 +22,17 @@
     "src/conventions.ts": 1,
     "src/derive.ts": 4,
     "src/errors.ts": 10,
+    "src/imports.ts": 2,
     "src/message.ts": 4,
     "src/node.ts": 8,
     "src/page.ts": 5,
     "src/patch.ts": 2,
+    "src/pointing.ts": 3,
     "src/reading.ts": 1,
     "src/rules.ts": 5,
     "src/searching.ts": 2,
     "src/set.ts": 8,
+    "src/tape.ts": 2,
     "src/verdict.ts": 9
   },
   "git": {

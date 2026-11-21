@@ -1,36 +1,43 @@
 /**
  * WHICH DOCUMENTS POINT WHERE — every source's forward references, filed
- * backwards and kept that way.
+ * backwards and kept that way. THE ONE TABLE: a record's fields and a
+ * document's links are one answer to "who points at this", in four parts.
  *
- * A note link, a `see`, a link in a note, a link in a body and an `@id`
+ * A note link, a `see`, an `after`, a placement, a link in a body and a tag
  * written in prose all point ONE WAY on disk. "What is talking about this
  * node?" and "what is talking about this document?" are that reading run
  * backwards, and until this module they were WALKS: {@link ./backlinks.ts}'s
  * two readers tested every link of every face in the directory, per revision,
- * per tab sitting on any page with a body. The node-to-node direction next
- * door has had its reverse indexes since `model-indices`
- * ({@link Derived.namedBy}, {@link Derived.taggedBy}); this is the one
- * direction that did not, and the roadmap node is `perf-doc-backlinks-index`.
+ * per tab sitting on any page with a body. The roadmap node is
+ * `perf-doc-backlinks-index`.
  *
- * ## What it is keyed by
+ * ## The four parts, and why they are four
  *
- * THE ADDRESS, WRITTEN — {@link printAddress}, which is the canonical spelling
- * the grammar promises, so two addresses that name one place print one string
- * and nothing here has to know how the arms are shaped. The MENTION lands on a
- * key by the same rule ({@link ./imports.ts} files an `@id` under the tag
- * `@id`, which is the very word the address's id half is made of, prefixed
- * with the sigil that says it was spoken rather than linked). Two namespaces,
- * one index, ways kept apart.
+ * BY WHAT IS POINTED AT ({@link ./imports.ts}'s `PARTS`), each part keyed in
+ * the plainest spelling of that thing:
  *
- * IT IS INJECTIVE over the arms, which is what lets them share a map: a path
- * prints its segments percent-encoded, so a file literally called `#notes.md`
- * prints `%23notes.md` and can never collide with the node addressed
- * `#notes.md`; and a heading's `#` is the only unescaped one in
- * `README.md#install`, because the slug beside it is encoded too. And the
- * MENTION lives in the `@`-namespace, one sigil apart from every address the
- * grammar can write — `printAddress` never prints one.
+ *   - `rows` — a row's own id (`herbs`): the fields `mirror`, `after`,
+ *     `blocks` and `see`, and every link that lands on a row;
+ *   - `files` — a path (`brief.md`), or a path and an element
+ *     (`brief.md#scope`, `house.olai#kitchen`), written by {@link printAddress};
+ *   - `names` — a wikilink's folded key, which the reading resolves against
+ *     the revision's own membership when it reads;
+ *   - `tags` — a tag AS WRITTEN, both sigils (`#herbs`, `@herbs`).
  *
- * A LINK ONTO A HEADING IS FILED TWICE, and that is this index's whole shape
+ * FOUR MAPS AND NOT ONE OF STRINGS, because a row PRINTS as `#herbs`
+ * ({@link printAddress}) and a topic is WRITTEN `#herbs`: in one map those are
+ * one key holding two unrelated things, and no spelling rule can tell them
+ * apart — the words are the same words. The parts do it instead, so the
+ * question decides the map before a key is ever looked up and no reader has to
+ * know what the other three hold.
+ *
+ * WITHIN A PART THE KEY IS INJECTIVE, which is what lets `files` hold the
+ * three path-rooted arms of the grammar together: a path prints its segments
+ * percent-encoded, so a file literally called `#notes.md` prints `%23notes.md`,
+ * and a heading's `#` is the only unescaped one in `README.md#install`,
+ * because the slug beside it is encoded too.
+ *
+ * A LINK ONTO A HEADING IS FILED TWICE, and that is this table's whole shape
  * decision. `[the scope](brief.md#scope)` is a reference to the heading AND a
  * reference to `brief.md` — the reader who opens that file is who wants to know
  * ({@link ./backlinks.ts} rules it, and the reverse does not hold: asking about
@@ -39,6 +46,14 @@
  * anybody had ever written, so the FOLD pays it instead: one extra key per
  * heading link, written once where the link is read, and the question a page
  * asks is one lookup.
+ *
+ * EACH READER NAMES THE WAYS IT COUNTS. The table files every way a document
+ * can point at something ({@link ./imports.ts}'s `FILED_WAYS`) and holds no
+ * opinion about which of them a question is about: **Referenced by** counts
+ * `see`, the mention half of `tags` and `link`, and says so in its own words
+ * ({@link ./backlinks.ts}'s `WAYS`); a refusal that asks "does anything still
+ * name this record" counts the field ways. A table that filed only what one
+ * reader counts would send the others back to walking the corpus.
  *
  * ## What it holds
  *
@@ -69,31 +84,31 @@
  * the fold below and `./splice.test.ts` has nothing to cover for it.
  *
  * NOTHING READS THE KEYS IN ORDER, exactly as {@link Derived.taggedBy} says of
- * its own: one reader asks this index and it asks by key. That is what lets the
- * patch add and drop keys in place rather than rebuilding the map to keep an
+ * its own: every reader of this table asks it by key. That is what lets the
+ * carry add and drop keys in place rather than rebuilding a map to keep an
  * order nobody promised.
  *
  * WHAT IS PUT AWAY IS IN IT, like every index of this format, and is left out
- * at the READ ({@link ./backlinks.ts} says it in its own words): an index that
+ * at the READ ({@link ./backlinks.ts} says it in its own words): a table that
  * knew about `_olai/Trash.olai` would be the format's storage rule wired into a
  * fold that is about what a file points at.
  *
  * ## Where it lives, and why it is not on `Derived`
  *
  * It travels on the {@link Reading} — beside the set and the derivation, for
- * the reason those two travel together ({@link ./derive.ts}): an index of one
+ * the reason those two travel together ({@link ./derive.ts}): a table of one
  * revision's documents handed to a reader holding another's is a plausible
  * answer about the wrong directory.
  *
  * It is NOT a thirteenth index on {@link Derived}, and the reason is
  * structural rather than tidy. `derive` is the derivation of the RECORDS — it
  * is handed a flat list of them and nothing else — and `patch` answers a
- * {@link SetDelta}, which carries a file's records and no face at all. A
- * links index inside that value would need every served file's face in both
+ * {@link SetDelta}, which carries a file's records and no face at all. A table
+ * inside that value would need every served file's face in both
  * places: in `derive`, which has never been shown a document; in the delta,
  * which the wire already speaks; and in `patch`'s own fallback, which rebuilds
  * from the delta applied to the previous grouping and therefore could not
- * reach the faces of the files the delta does NOT name. What this index needs
+ * reach the faces of the files the delta does NOT name. What this table needs
  * instead is exactly what {@link ./validate.ts} has in hand at the one place a
  * `Reading` is made: the set, and the reading this one follows.
  *
@@ -103,11 +118,12 @@
  * reverse readings used to make per read — and it happens where
  * a derivation is rebuilt: a first load, or a validation with nothing behind it.
  *
- * A PATCH costs the files that MOVED. The two sets are both in path order, so
+ * A CARRY costs the files that MOVED. The two sets are both in path order, so
  * finding them is one step through the pair ({@link moved}), and a file whose
- * face is unchanged is stepped over — which is nearly every file of nearly
- * every revision. An edit that moves no face at all hands back the map that
- * stood, uncloned, exactly as {@link ./patch.ts}'s re-filings do.
+ * face and records are the ones it had is stepped over — which is nearly every
+ * file of nearly every revision. An edit that moves no file at all hands back
+ * the table that stood, uncloned, and an edit that moves one hands on the
+ * parts it did not write, exactly as {@link ./patch.ts}'s re-filings do.
  *
  * THE SETS ARE COMPARED, NOT THE DELTA, and that is deliberate. A delta names
  * the files a probe re-decoded; the sets say what those files ARE. Two things
@@ -124,7 +140,7 @@ import { type Document, type Face, faceOf, sameFace, isOutline } from "./documen
 import { type Editable, overlay } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 import { type Located } from "./node.ts"
-import { contributionsOf, type Way } from "./imports.ts"
+import { contributionsOf, type Part, PARTS, type Way } from "./imports.ts"
 import { byCorpus } from "./derive.ts"
 import { type Claims } from "./kinds.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
@@ -134,12 +150,13 @@ import type { WikilinkName } from "@olai/prose/wikilink.ts"
  * the file holds no records, and the ways that source says the target.
  *
  * A body's source carries `at: undefined`: a `.md` has no finer grain than
- * itself, and the file IS the referrer. An outline's record is ALWAYS regular
- * — a mirror writes nothing, so no entry ever names one.
+ * itself, and the file IS the referrer. An outline's record is regular except
+ * under one way: a PLACEMENT is a source with the way `mirror`, and nothing
+ * else — it carries no prose, no edge and no link of its own.
  *
  * The {@link Face} is the file's own, shared: a document's every entry under
  * every key points at one object, so the row a reader draws needs no fetch and
- * the index holds nothing a serving document does not already.
+ * the table holds nothing a serving document does not already.
  */
 export interface Source {
   /** The record, for an outline; `undefined` for a body. */
@@ -147,51 +164,69 @@ export interface Source {
   /** The document the source lives in — its name, its path, and where it
    *  points. One object per file, shared across the file's entries. */
   readonly face: Face
-  /** The ways it says the target, in {@link Way} order. */
+  /** The ways it says the target, in the order the fold filed them. */
   readonly ways: ReadonlyArray<Way>
-  /** Under a WIKILINK's key (`[[name`), the names this source writes there,
-   *  which the reading resolves; under a NODE's key, the names of the
-   *  wikilinks to a ROW of it — counted only where the name finds a file that
-   *  draws that row ({@link ./backlinks.ts}). */
+  /** In the NAMES part, the names this source writes under that key, which the
+   *  reading resolves; in the ROWS part, the names of the wikilinks to a ROW
+   *  of that id — counted only where the name finds a file that draws that row
+   *  ({@link ./backlinks.ts}). */
   readonly written?: ReadonlyArray<WikilinkName>
-  /** Under a NODE's key, the files a standard link to a ROW of it names —
-   *  `[x](house.olai#kitchen)` is filed under `#kitchen` with `house.olai` —
+  /** In the ROWS part, the files a standard link to a ROW of that id names —
+   *  `[x](house.olai#kitchen)` is filed under `kitchen` with `house.olai` —
    *  counted only where the file draws that row. */
   readonly rows?: ReadonlyArray<string>
 }
 
 /** Whether a source counts only when the reading finds its link lands — a
- *  row link under a node's key — rather than by being filed there at all. */
+ *  row link under a row's key — rather than by being filed there at all. */
 export const conditional = (source: Source): boolean =>
   source.rows !== undefined || source.written !== undefined
 
 /**
- * WHAT A REFERENCE NAMES → the sources that write one there, in path order.
+ * THE TABLE: four maps, by what is pointed at, each from a key to the sources
+ * that write one there, in path order.
  *
- * A `ReadonlyMap` and nothing more: one index, so the type is the index rather
- * than a struct around it.
+ * A struct of maps and nothing more — the parts are the type, so a reader asks
+ * the part its question is about and a key cannot be looked up in a map it does
+ * not belong to (the header's four-maps argument).
  */
-export type Pointing = ReadonlyMap<string, ReadonlyArray<Source>>
+export type Pointing = { readonly [K in Part]: ReadonlyMap<string, ReadonlyArray<Source>> }
 
-/** The answer for an address nothing points at, which is most of them: ONE
+/** The table while it is still being filled — the same four parts, writable,
+ *  which is what the fold and both sides of the carry hand about. */
+type Filling = { readonly [K in Part]: Map<string, Array<Source>> }
+
+const filling = (): Filling => ({
+  rows: new Map(),
+  files: new Map(),
+  names: new Map(),
+  tags: new Map(),
+})
+
+/** The answer for a key nothing points at, which is most of them: ONE
  *  list, shared, for {@link ./backlinks.ts}'s reason — a page asks this per
  *  frame. */
 const NOTHING_POINTS: ReadonlyArray<Source> = []
 
 /**
- * WHO POINTS AT AN ADDRESS — the whole of what this index is read for, and one
+ * WHO POINTS AT AN ADDRESS — the two parts an address can land in, and one
  * lookup.
  *
- * The key is the address WRITTEN, which is the same spelling the fold below
- * files under, so the two cannot come to disagree about what naming a place
- * looks like.
+ * A bare node address is a ROW, by its id; everything else is path-rooted and
+ * is a FILE, by the address WRITTEN — the same spellings the fold files under,
+ * so the two cannot come to disagree about what naming a place looks like. The
+ * other two parts are not addressable at all: a wikilink's name is resolved by
+ * the reading and a tag is a word, so each is asked for by its own reader
+ * ({@link ./backlinks.ts}).
  */
 export const pointingAt = (pointing: Pointing, address: Address): ReadonlyArray<Source> =>
-  pointing.get(printAddress(address)) ?? NOTHING_POINTS
+  (address.kind === "node"
+    ? pointing.rows.get(address.id)
+    : pointing.files.get(printAddress(address))) ?? NOTHING_POINTS
 
 /**
- * ONE DOCUMENT FILED — the whole of how this index is built, in one place, for
- * `./derive.ts`'s `nameInto` reason: the patch below runs this same fold over
+ * ONE DOCUMENT FILED — the whole of how this table is built, in one place, for
+ * `./derive.ts`'s `nameInto` reason: the carry below runs this same fold over
  * the documents one revision brought in, and a second spelling of the heading
  * rule would be free to drift from this one. It is not exported, because unlike
  * the derivation's four folds both of its callers are in this file — the
@@ -199,7 +234,7 @@ export const pointingAt = (pointing: Pointing, address: Address): ReadonlyArray<
  * module of its own.
  */
 const pointInto = (
-  into: Map<string, Array<Source>>,
+  into: Filling,
   claims: Claims,
   document: Document,
 ): void => {
@@ -209,41 +244,40 @@ const pointInto = (
     const source: Source = contribution.wikilink === undefined
       ? { at: contribution.at, face, ways: [contribution.way] }
       : { at: contribution.at, face, ways: [contribution.way], written: [contribution.wikilink] }
-    fileAt(into, contribution.key, source)
+    fileAt(into[contribution.part], contribution.key, source)
     // A LINK ONTO A HEADING OR A ROW POINTS AT THE DOCUMENT AS WELL — one
     // extra key per heading link, the shape decision the module header
     // argues. The reverse is false: asking about a document does not make a
     // heading of it answer. A BARE NODE LINK (`[x](#herbs)`) files under the
-    // node alone — it is a reference to the id, not to the file the link was
+    // row alone — it is a reference to the id, not to the file the link was
     // written in.
     const address = contribution.address
     if (address !== undefined && address.kind !== "node" && address.kind !== "document") {
-      fileAt(into, printAddress({ kind: "document", path: address.path }), source)
+      fileAt(into.files, printAddress({ kind: "document", path: address.path }), source)
     }
-    // ...and a link onto a ROW points at the NODE in it: filed under the
-    // node's own key with the file it names, which the node arm checks draws
-    // the row.
+    // ...and a link onto a ROW points at the row in it: filed under the row's
+    // own id with the file it names, which the row arm checks draws it.
     if (address?.kind === "row") {
-      fileAt(into, printAddress({ kind: "node", id: address.id }), { at: contribution.at, face, ways: [contribution.way], rows: [address.path] })
+      fileAt(into.rows, address.id, { at: contribution.at, face, ways: [contribution.way], rows: [address.path] })
     }
   }
 }
 
 
 /**
- * THE INDEX, BUILT — every served file's references filed under everything it
- * points at.
+ * THE TABLE, BUILT — every served file's references filed under everything it
+ * points at, in the part that thing belongs to.
  *
  * The face is taken here ({@link faceOf}) rather than the document, so nothing
- * this index holds onto is a body (the module header says why). It is one
+ * this table holds onto is a body (the module header says why). It is one
  * projection per served file per rebuild, against a walk of every reference of
  * every record and body of the directory, which is the walk this replaces one
  * read of.
  */
 export const pointingOf = (claims: Claims, documents: ReadonlyArray<Document>): Pointing => {
-  const into = new Map<string, Array<Source>>()
+  const into = filling()
   // IN PATH ORDER, which is the order `assemble` puts the set in and the order
-  // this index promises its members in — inherited from the walk rather than
+  // this table promises its members in — inherited from the walk rather than
   // sorted for, exactly as `derive`'s reverse indexes inherit corpus order from
   // the list they are handed.
   for (const document of documents) pointInto(into, claims, document)
@@ -251,8 +285,9 @@ export const pointingOf = (claims: Claims, documents: ReadonlyArray<Document>): 
 }
 
 /**
- * THE INDEX, CARRIED ACROSS A REVISION — what the last one held, plus what the
- * files that moved did to it.
+ * THE TABLE, CARRIED ACROSS A REVISION — what the last one held, plus what the
+ * files that moved did to it. ONE CARRY for all four parts: the documents that
+ * moved are found once, and each part is re-filed from the same two sides.
  *
  * Held to {@link pointingOf} by a differential over generated corpora and over
  * this repository's own `docs/` (`./pointing.test.ts`), which is the
@@ -261,11 +296,14 @@ export const pointingOf = (claims: Claims, documents: ReadonlyArray<Document>): 
  * document points at — {@link pointInto} is asked of both sides of the change.
  *
  * NOTHING MOVED, NOTHING CLONED. A revision whose faces all say what they said
- * hands back the very map it was given, so a keystroke in an outline that
- * writes no reference pays nothing for this index at all — {@link ./patch.ts}'s
- * own economy, applied to a value it does not hold.
+ * hands back the very table it was given, so a keystroke in an outline that
+ * writes no reference pays nothing for this table at all — {@link ./patch.ts}'s
+ * own economy, applied to a value it does not hold. A part no moved file wrote
+ * a key in is handed on as the very map it was: a revision that moves one link
+ * leaves the tags, the names and the rows where they were, by identity, which
+ * is what lets a reader of one part be told nothing happened.
  *
- * A LAYER and not a clone ({@link ./overlay.ts}): this index is read BY KEY,
+ * A LAYER and not a clone ({@link ./overlay.ts}): this table is read BY KEY,
  * once per page per revision, and never walked.
  */
 export const repointed = (
@@ -275,25 +313,39 @@ export const repointed = (
   now: ReadonlyArray<Document>,
 ): Pointing => {
   const { touched, departing, arriving } = moved(was, claims, now)
-  const keys = new Set(arriving.keys())
-  for (const key of departing.keys()) keys.add(key)
-  if (keys.size === 0) return before
-  const map: Editable<string, ReadonlyArray<Source>> = overlay(before, "by key")
-  for (const key of keys) {
-    // WHAT IS LEFT OF THE KEY plus WHAT ARRIVED — `refiled`'s rule, spelled
-    // here because this index is re-filed by FILE rather than by record and
-    // therefore cannot be one of that function's clients. A key left holding
-    // nothing GOES AWAY rather than standing empty where a rebuild would have
-    // had no key at all: the differential compares what the map HOLDS and not
-    // only what it answers.
-    const own = [
-      ...(before.get(key) ?? []).filter((source) => !touched.has(source.face.path)),
-      ...(arriving.get(key) ?? []),
-    ].sort(bySource)
-    if (own.length === 0) map.delete(key)
-    else map.set(key, own)
+  if (touched.size === 0) return before
+  const parts: Partial<Record<Part, ReadonlyMap<string, ReadonlyArray<Source>>>> = {}
+  let changed = false
+  for (const part of PARTS) {
+    const keys = new Set(arriving[part].keys())
+    for (const key of departing[part].keys()) keys.add(key)
+    if (keys.size === 0) {
+      parts[part] = before[part]
+      continue
+    }
+    changed = true
+    const held = before[part]
+    const map: Editable<string, ReadonlyArray<Source>> = overlay(held, "by key")
+    for (const key of keys) {
+      // WHAT IS LEFT OF THE KEY plus WHAT ARRIVED — `refiled`'s rule, spelled
+      // here because this table is re-filed by FILE rather than by record and
+      // therefore cannot be one of that function's clients. A key left holding
+      // nothing GOES AWAY rather than standing empty where a rebuild would have
+      // had no key at all: the differential compares what the table HOLDS and
+      // not only what it answers.
+      const own = [
+        ...(held.get(key) ?? []).filter((source) => !touched.has(source.face.path)),
+        ...(arriving[part].get(key) ?? []),
+      ].sort(bySource)
+      if (own.length === 0) map.delete(key)
+      else map.set(key, own)
+    }
+    parts[part] = map.sealed()
   }
-  return map.sealed()
+  // A FILE WHOSE DOCUMENT CONTRIBUTES NOTHING can still be touched — an empty
+  // outline, a `.md` with no links — so the table itself is handed back
+  // uncloned here rather than only at the step above.
+  return changed ? (parts as Pointing) : before
 }
 
 /**
@@ -353,7 +405,7 @@ const fileAt = (into: Map<string, Array<Source>>, key: string, entry: Source): v
   held.push(entry)
 }
 
-/** Which of a node key's three kinds of entry a source is — see {@link fileAt}. */
+/** Which of a row key's three kinds of entry a source is — see {@link fileAt}. */
 const classOf = (source: Source): 0 | 1 | 2 =>
   source.rows !== undefined ? 1 : source.written !== undefined ? 2 : 0
 
@@ -405,11 +457,11 @@ const bySource = (one: Source, other: Source): number => {
  * what keeps the entry — and therefore the ARRAY holding it — carried by
  * identity across a document write.
  *
- * A file whose face is unchanged has also contributed the SAME record-granular
- * sources to the SAME keys with the SAME ways ({@link ./imports.ts} reads the
- * face's own links and tags, and the records' fields and `@` tags — everything
- * `sameFace` compares, and nothing else), which is the assumption the identity
- * carry rests on.
+ * A file whose face is unchanged, and whose RECORDS are the very objects they
+ * were, has also contributed the SAME record-granular sources to the SAME keys
+ * with the SAME ways — the face carries a body's links, tags and wikilinks,
+ * and the records array carries every field and every text the fold reads off
+ * a record — which is the assumption the identity carry rests on.
  */
 const moved = (
   was: ReadonlyArray<Document>,
@@ -420,12 +472,12 @@ const moved = (
   readonly touched: ReadonlySet<string>
   /** What those files pointed at BEFORE — for its KEYS, since the entries
    *  themselves are the ones being taken away. */
-  readonly departing: ReadonlyMap<string, ReadonlyArray<Source>>
-  readonly arriving: ReadonlyMap<string, ReadonlyArray<Source>>
+  readonly departing: Filling
+  readonly arriving: Filling
 } => {
   const touched = new Set<string>()
-  const departing = new Map<string, Array<Source>>()
-  const arriving = new Map<string, Array<Source>>()
+  const departing = filling()
+  const arriving = filling()
   let here = 0
   let there = 0
   // THE PROJECTION on BOTH sides, though only this one's KEYS are ever read:

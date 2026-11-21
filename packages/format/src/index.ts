@@ -579,21 +579,22 @@ export type {
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 /** THE ONE READING that answers "who refers to here" — {@link referencesOf},
- *  out of the pointing index the fold keeps ({@link ./pointing.ts}) and asked
+ *  out of the one table the fold keeps ({@link ./pointing.ts}) and asked
  *  with one address from the node page, the document page and the ops layer
- *  alike. `Way` is the SCHEMA the answer vocabulary (`Reference`) carries; the
- *  list it spells is {@link WAYS}, the closed list of how one place can refer
- *  to another, re-exported from the module that OWNS it ({@link ./imports.ts})
- *  because the fold files under the same words. */
-export { referencesOf, Way } from "./backlinks.ts"
-export { WAYS } from "./imports.ts"
+ *  alike. `Way` is the SCHEMA the answer vocabulary (`Reference`) carries, and
+ *  {@link WAYS} is the list it spells: the ways THIS reading counts, closed by
+ *  the rulings beside it. The table files more of them than that — the fields,
+ *  the placements, the tags — and each reader of it names its own
+ *  ({@link ./imports.ts}'s `FILED_WAYS`). */
+export { referencesOf, Way, WAYS } from "./backlinks.ts"
 export type { Reference } from "./backlinks.ts"
-/** WHICH DOCUMENTS POINT WHERE — the set's own forward links, filed backwards
- *  and kept that way (`perf-doc-backlinks-index`). It rides on the {@link Reading}
- *  and it is what `referencesOf` reads; the type is exported because that
- *  function takes one, and the fold and the patch are not — a caller holding a
- *  reading holds the index, and a caller building one goes through `validate`
- *  or `reading`, which is where the two are kept in step. */
+/** WHO POINTS AT WHAT — the set's own forward references, filed backwards and
+ *  kept that way (`perf-doc-backlinks-index`), in four parts by what is
+ *  pointed at. It rides on the {@link Reading} and it is what `referencesOf`
+ *  reads; the type is exported because that function takes one, and the fold
+ *  and the patch are not — a caller holding a reading holds the table, and a
+ *  caller building one goes through `validate` or `reading`, which is where the
+ *  two are kept in step. */
 export type { Pointing } from "./pointing.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and

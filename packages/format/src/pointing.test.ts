@@ -41,6 +41,7 @@ import { referencesOf } from "./backlinks.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { seeded } from "./fixtures.testlib.ts"
+import { PARTS } from "./imports.ts"
 import { pointingOf } from "./pointing.ts"
 import {
   addressesIn,
@@ -129,12 +130,14 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
       },
     })
     if (previous !== null && at.pointing === previous.pointing) carried++
-    keys = Math.max(keys, at.pointing.size)
+    keys = Math.max(keys, PARTS.reduce((held, part) => held + at.pointing[part].size, 0))
 
-    // (2) THE MAINTENANCE: what was carried is what a rebuild would have made.
+    // (2) THE MAINTENANCE: what was carried is what a rebuild would have made,
+    // in every part of the table.
     const rebuilt = pointingOf(TEST_CLAIMS, set.documents)
-    if (!sameIndex(at.pointing, rebuilt)) {
-      stale.push(`revision ${revisionsSeen}: ${storyOf(at.pointing, rebuilt)}`)
+    for (const part of PARTS) {
+      if (sameIndex(at.pointing[part], rebuilt[part])) continue
+      stale.push(`revision ${revisionsSeen}, ${part}: ${storyOf(at.pointing[part], rebuilt[part])}`)
     }
 
     // (3) THE NAME INDEX: handed on, the same object, exactly when no path
@@ -424,7 +427,7 @@ test("a body write that moves a link re-files it, and an emptied key goes away",
   expect(pointedAt(after, "two.md")).toBe("notes.md")
   // The key is GONE rather than holding an empty list, which is what a rebuild
   // would have and is the line another copy of this gets wrong.
-  expect(after.pointing.has("one.md")).toBe(false)
+  expect(after.pointing.files.has("one.md")).toBe(false)
 })
 
 // A WIKILINK IS FILED BY ITS NAME, so a file arriving that no link writes

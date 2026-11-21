@@ -23,6 +23,11 @@
  *     the before/after printed rather than quoted ({@link patching} states what
  *     it puts back and what it cannot).
  *
+ * …AND THE ONE TABLE BESIDE THEM ({@link tabling}): what a write costs the
+ * value that is not in the derivation — `table carry` against `table rebuild`,
+ * over the same vault and the same edits, because a write pays for both and
+ * two numbers about two corpora are two numbers nobody may add up.
+ *
  * AND FOUR MEASUREMENTS UNDER THEM, because a claim this file did not print
  * would be the unreproducible laptop sample the paragraph above says it
  * retired. Two are about the layer rather than the patch:
@@ -93,11 +98,18 @@ import {
   vaultOf,
 } from "./fixtures.testlib.ts"
 import { heapStats } from "bun:jsc"
+import { Result } from "effect"
 
+import { type Document } from "./document.ts"
+import { PARTS } from "./imports.ts"
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
 import { overlay, type Read } from "./overlay.ts"
 import { bySibling, patched, type SetDelta, spliced } from "./patch.ts"
 import { byPath } from "./paths.ts"
+import { type Pointing, pointingOf, repointed } from "./pointing.ts"
+import { decodedVault } from "./scope.testlib.ts"
+import { assemble } from "./set.ts"
+import { type Verdict } from "./verdict.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
@@ -960,6 +972,71 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
   return { parts: median([parts, again]), matchAll, loop }
 }
 
+// ── the table's carry ──────────────────────────────────────────────────
+
+/**
+ * WHAT THE ONE TABLE COSTS PER EDIT, beside what the derivation costs — the
+ * same vault, the same forty edits, carried and rebuilt.
+ *
+ * It is here rather than in `./pointing.bench.ts` because this is where the
+ * comparison is: a write pays for the derivation AND for the table, so the two
+ * numbers belong on one page about one directory. That leg prices the table
+ * over a corpus with BODIES in it and prices what a page's read saves; this
+ * one prices the carry over the corpus the patcher is measured on — outlines
+ * only, every edit one record's title in one file, which is what typing is.
+ *
+ * THE DOCUMENTS ARE DECODED OUTSIDE THE TIMED WINDOW, and the edited file is
+ * decoded again the way a probe decodes one: every other document is the very
+ * object the last revision held, which is the identity the carry steps over
+ * ({@link ./pointing.ts}'s `moved`). A decode inside the window would be
+ * timing the parser.
+ *
+ * BOTH ARMS, and the carried table is held to the rebuilt one at the end — a
+ * fast arm answering wrongly is worse than no arm, and the property test for
+ * this value is `./pointing.test.ts`'s differential rather than a fence here.
+ */
+const tabling = (): {
+  readonly carries: ReadonlyArray<number>
+  readonly rebuilds: ReadonlyArray<number>
+  readonly keys: number
+} => {
+  const decoded = decodedVault(corpus)
+  let was = assemble(TEST_CLAIMS, decoded).documents
+  let table = pointingOf(TEST_CLAIMS, was)
+  const carries: Array<number> = []
+  const rebuilds: Array<number> = []
+  for (const [which, { file }] of edits.entries()) {
+    const written = decodedVault(new Map([[file, retitled(corpus.get(file) as string, which)]]))
+    decoded.set(file, written.get(file) as Result.Result<Document, Verdict>)
+    const now = assemble(TEST_CLAIMS, decoded).documents
+    let next: Pointing | undefined
+    carries.push(timed(() => {
+      next = repointed(table, TEST_CLAIMS, was, now)
+    }))
+    rebuilds.push(timed(() => {
+      pointingOf(TEST_CLAIMS, now)
+    }))
+    table = next as Pointing
+    was = now
+  }
+  const said = (held: Pointing): string =>
+    PARTS.flatMap((part) =>
+      [...held[part]].map(([key, sources]) =>
+        `${part} ${key}: ${
+          sources.map((source) =>
+            `${source.at === undefined ? source.face.path : `${source.at.file}:${source.at.line}`}${source.ways.join("+")}`
+          ).join(",")
+        }`
+      ).sort()
+    ).join("\n")
+  if (said(table) !== said(pointingOf(TEST_CLAIMS, was))) {
+    throw new Error(
+      `${EDITS} carries deep, the carried table and a fresh fold disagree about the corpus`,
+    )
+  }
+  return { carries, rebuilds, keys: PARTS.reduce((held, part) => held + table[part].size, 0) }
+}
+
 const say = (name: string, times: ReadonlyArray<number>): void => {
   console.log(timesSaid(name, times, 14))
 }
@@ -977,6 +1054,12 @@ console.log(
     ` on one file's edit, and ${
       (median(patchedResidueMs) / median(patchedMs)).toFixed(1)
     }× the same patch paying the corpus-sized residue it used to owe`,
+)
+const tabled = tabling()
+console.log(
+  `\nthe one table over the same edits (${tabled.keys} keys in four parts):\n` +
+    `${timesSaid("table carry", tabled.carries, 14)}\n` +
+    `${timesSaid("table rebuild", tabled.rebuilds, 14)}`,
 )
 const [asMap, asLayer] = walked([oracle, carried])
 console.log(

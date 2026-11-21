@@ -59,6 +59,7 @@ import { type Address, addressOf } from "./address.ts"
 import { bodyKind } from "./kinds.ts"
 import { referencesOf } from "./backlinks.ts"
 import { alternating, median, parseOutline, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
+import { PARTS } from "./imports.ts"
 import { pointingOf, repointed } from "./pointing.ts"
 import {
   documentsAmong,
@@ -197,7 +198,7 @@ const leg = (label: string, wikilinks: number): void => {
   console.log(
     `pointing.bench, ${label} — ${first.set.documents.length} files ` +
       `(${OUTLINES} outlines × ${RECORDS} records, ${BODIES} bodies), ` +
-      `${first.at.pointing.size} keys, ${PAGES} pages and ${rows.length} rows open`,
+      `${PARTS.reduce((held, part) => held + first.at.pointing[part].size, 0)} keys, ${PAGES} pages and ${rows.length} rows open`,
   )
   console.log(
     `  referrers per body: min ${density[0]}, median ${
