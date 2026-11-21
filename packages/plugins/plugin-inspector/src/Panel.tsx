@@ -765,7 +765,7 @@ function Defined(props: {
             <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
               {/* EVERY CODE FILE, under its path in the folder — the two entries
                   for a serve that sends only those. */}
-              {(said().files ?? [
+              {(said().code ?? [
                 { path: PLUGIN_SERVER_FILE, text: said().server },
                 ...(said().browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: said().browser }]),
               ])

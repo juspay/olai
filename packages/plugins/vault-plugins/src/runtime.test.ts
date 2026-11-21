@@ -302,7 +302,7 @@ describe("a plugin waits for a person", () => {
         return yield* now()
       })
     )
-    expect(rows[0]?.source?.files?.find((one) => one.path === "server.ts")?.approved).toBe(SERVER)
+    expect(rows[0]?.source?.code?.find((one) => one.path === "server.ts")?.approved).toBe(SERVER)
     expect(rows[0]?.source?.server).toContain("// and more")
   })
 
@@ -313,8 +313,8 @@ describe("a plugin waits for a person", () => {
         return yield* now()
       })
     )
-    expect(rows[0]?.source?.files?.every((one) => one.approved === undefined)).toBe(true)
-    expect(rows[0]?.source?.files?.map((one) => one.path)).toEqual(["server.ts"])
+    expect(rows[0]?.source?.code?.every((one) => one.approved === undefined)).toBe(true)
+    expect(rows[0]?.source?.code?.map((one) => one.path)).toEqual(["server.ts"])
   })
 
   test("a README edit is not a fresh decision", async () => {
@@ -469,13 +469,13 @@ describe("a browser half is compiled and served", () => {
     expect(said.before?.state).toBe("running")
     expect(said.after?.state).toBe("pending")
     expect(said.after?.running).toBe(false)
-    expect(said.after?.source?.files?.find((one) => one.path === "lib/said.ts")).toEqual({
+    expect(said.after?.source?.code?.find((one) => one.path === "lib/said.ts")).toEqual({
       path: "lib/said.ts",
       text: `export const said = "two"`,
       approved: `export const said = "one"`,
     })
     // ...and a file nobody touched carries no second copy.
-    expect(said.after?.source?.files?.find((one) => one.path === "server.ts")?.approved).toBeUndefined()
+    expect(said.after?.source?.code?.find((one) => one.path === "server.ts")?.approved).toBeUndefined()
   })
 })
 
@@ -762,7 +762,7 @@ describe("a folder that goes away takes its fiber with it", () => {
     expect(rows[0]?.source?.on).toBe(false)
     // ...and no diff against a predecessor nobody approved: the copy left with
     // the folder.
-    expect(rows[0]?.source?.files?.every((one) => one.approved === undefined)).toBe(true)
+    expect(rows[0]?.source?.code?.every((one) => one.approved === undefined)).toBe(true)
   })
 })
 

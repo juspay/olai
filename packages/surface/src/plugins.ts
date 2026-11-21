@@ -388,7 +388,7 @@ export const BuiltPlugin = Schema.Struct({
      * nobody has touched would carry its source twice, on every roster, for a
      * diff nothing draws.
      */
-    files: Schema.optionalKey(Schema.Array(Schema.Struct({
+    code: Schema.optionalKey(Schema.Array(Schema.Struct({
       path: Schema.String,
       text: Schema.optionalKey(Schema.String),
       approved: Schema.optionalKey(Schema.String),

@@ -805,7 +805,7 @@ const rowOf = (
 ): BuiltPlugin => {
   const up = started?.up === true ? started : null
   // THE APPROVED FILES ONLY WHERE THEY DIFFER, which is exactly the paused
-  // row and exactly where a diff is drawn ({@link filesOf}). A row whose code
+  // row and exactly where a diff is drawn ({@link codeOnRow}). A row whose code
   // nobody has touched would otherwise carry its own source twice on every roster.
   const was = approvedSource === undefined || isApproved(one) ? undefined : approvedSource
   const source = {
@@ -828,7 +828,7 @@ const rowOf = (
     on: isOn(one),
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
-    files: filesOf(one.code, was),
+    code: codeOnRow(one.code, was),
     ...(one.uses.length === 0 ? {} : { uses: one.uses }),
     ...(chat ? { chat: true } : {}),
     ...(asking ? { asking: true } : {}),
@@ -872,7 +872,7 @@ const rowOf = (
  * paused row, the approved text of each file that differs: `""` for a file
  * added since the approval, and no `text` for one removed since.
  */
-const filesOf = (
+const codeOnRow = (
   code: ReadonlyMap<string, string>,
   was: ReadonlyMap<string, string> | undefined,
 ): ReadonlyArray<{ readonly path: string; readonly text?: string; readonly approved?: string }> =>

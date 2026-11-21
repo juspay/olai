@@ -64,7 +64,7 @@ export type Stage = "building" | "review" | "paused" | "on" | "off" | "broken"
 export type Defined = BuiltPlugin & { readonly source: NonNullable<BuiltPlugin["source"]> }
 
 /** One code file of the folder as the page draws it ({@link codeFiles}). */
-export type CodeFile = NonNullable<Defined["source"]["files"]>[number]
+export type CodeFile = NonNullable<Defined["source"]["code"]>[number]
 
 /**
  * EVERY CODE FILE THE ROW CARRIES, in the page's order — or, from a serve that
@@ -72,7 +72,7 @@ export type CodeFile = NonNullable<Defined["source"]["files"]>[number]
  * still here, with its approved text and no `text`, so the diff can show it go.
  */
 export const codeFiles = (source: Defined["source"]): ReadonlyArray<CodeFile> =>
-  source.files ?? [
+  source.code ?? [
     { path: PLUGIN_SERVER_FILE, text: source.server },
     ...(source.browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: source.browser }]),
   ]
@@ -154,9 +154,9 @@ export const metaOf = (plugin: Defined, stage: Stage): string => {
 /** The size of what somebody is being asked to read: every code file, which
  *  are the files an approval is about. */
 const halves = (source: Defined["source"]): string => {
-  const files = codeFiles(source).flatMap((one) => (one.text === undefined ? [] : [one.text]))
-  const lines = files.reduce((sum, text) => sum + count(text), 0)
-  return `${files.length} ${files.length === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
+  const texts = codeFiles(source).flatMap((one) => (one.text === undefined ? [] : [one.text]))
+  const lines = texts.reduce((sum, text) => sum + count(text), 0)
+  return `${texts.length} ${texts.length === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
 }
 
 const count = (text: string): number => (text.trim() === "" ? 0 : text.replace(/\n$/, "").split("\n").length)

@@ -320,7 +320,7 @@ export const definedIn = (
   }
   return [...folders.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([word, files]) => defined(word, files, consent, taken))
+    .map(([word, held]) => defined(word, held, consent, taken))
 }
 
 /** The settings file as this reading found it — the whole of what consent is
@@ -333,12 +333,12 @@ export interface Consent {
 /** One folder, read. */
 const defined = (
   name: string,
-  files: ReadonlyMap<string, string>,
+  held: ReadonlyMap<string, string>,
   consent: Consent,
   taken: ReadonlyArray<string>,
 ): Defined => {
-  const readme = files.get(PLUGIN_README_FILE) ?? null
-  const code = new Map([...files].filter(([path]) => path !== PLUGIN_README_FILE).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+  const readme = held.get(PLUGIN_README_FILE) ?? null
+  const code = new Map([...held].filter(([path]) => path !== PLUGIN_README_FILE).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
   const server = code.get(PLUGIN_SERVER_FILE) ?? null
   const browser = code.get(PLUGIN_BROWSER_FILE) ?? null
   const node = configurationNode(consent.nodes, name)
@@ -364,7 +364,7 @@ const defined = (
     uses: usesOf(...code.values()),
     consent: { file: consent.file, node, nodes: consent.nodes },
     fault: faultOf(name, server, taken),
-    holds: pluginFileOrder(files.keys()),
+    holds: pluginFileOrder(held.keys()),
   }
 }
 

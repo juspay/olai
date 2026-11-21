@@ -84,7 +84,7 @@ export const asDataUrl = (text: string): string =>
 export const buildPlugin = async (
   half: Half,
   entry: string,
-  files: ReadonlyMap<string, string>,
+  folder: ReadonlyMap<string, string>,
   link: (path: string, text: string) => string,
 ): Promise<Linked> => {
   const built = new Map<string, { readonly text: string; readonly url: string }>()
@@ -92,17 +92,17 @@ export const buildPlugin = async (
   /** Build `path` and everything it reaches; `chain` is the files above it,
    *  so an import of one of them is a cycle. */
   const visit = async (path: string, chain: ReadonlyArray<string>): Promise<string | null> => {
-    const source = files.get(path)
+    const source = folder.get(path)
     if (source === undefined) return `this plugin has no \`${path}\` to build.`
     const refused = unresolvable(source)
     if (refused !== null) return path === entry ? refused : `\`${path}\`: ${refused}`
     const local = new Map<string, string>()
     for (const spec of relativeIn(source)) {
-      const target = resolvedFrom(half, path, spec, files)
+      const target = resolvedFrom(half, path, spec, folder)
       if (!target.ok) return target.why
       if (target.path === path || chain.includes(target.path)) {
         return `\`${path}\` imports "${spec}", which imports \`${path}\` back: a cycle. `
-          + `Two files of a plugin may not import each other, directly or through others; `
+          + `No file of a plugin may import itself back, directly or through others; `
           + `move what both need into a third file.`
       }
       if (!built.has(target.path)) {
@@ -142,12 +142,12 @@ const resolvedFrom = (
   half: Half,
   from: string,
   spec: string,
-  files: ReadonlyMap<string, string>,
+  folder: ReadonlyMap<string, string>,
 ): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly why: string } => {
   const leaves = {
     ok: false as const,
     why: `\`${from}\` imports "${spec}", which is outside this plugin's folder. A plugin may `
-      + `import only the files in its own folder, by a path relative to the file importing them.`,
+      + `import only what is in its own folder, by a path relative to the file importing it.`,
   }
   if (spec.startsWith("/")) return leaves
   const parts = from.split("/").slice(0, -1)
@@ -168,7 +168,7 @@ const resolvedFrom = (
         + `this folder with its suffix, as in "./sm2.ts".`,
     }
   }
-  if (!files.has(path)) {
+  if (!folder.has(path)) {
     return { ok: false, why: `\`${from}\` imports "${spec}", but this plugin's folder holds no \`${path}\`.` }
   }
   if (half === "server" && path.endsWith(".tsx")) {
