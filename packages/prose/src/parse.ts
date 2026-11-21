@@ -176,7 +176,7 @@ export const guarded = (text: string): Guarded => {
   const shape = shapeOf(text)
   for (const key of SHAPES) if (shape[key] > BOUNDS[key]) return { refused: key }
   try {
-    return { tree: parser.parse(text) }
+    return { tree: parse(text) }
   } catch {
     return { refused: "error" }
   }
