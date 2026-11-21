@@ -12,9 +12,11 @@ Top to bottom:
 | **Edit** and **Delete…** | drawn together, only for a file in the directory olai serves |
 | the line at the top | a chat about this document[^line][^keys] |
 | the properties | one chip per key in the file's frontmatter, the keys at its top[^props] |
+| plugins' faces | hung in `document.page.head` |
 | **Contents** | the document's headings, open by default[^contents] |
 | the body | the document, rendered |
 | **Referenced by `N` things** | what points at this document[^referrers] |
+| plugins' faces | hung in `document.page.foot` |
 
 A page says `Loading…` until olai has read the file.[^missing]
 

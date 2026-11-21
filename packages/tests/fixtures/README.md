@@ -473,7 +473,7 @@ it here, never the other way round.
 - The plugin is seven code files: the two entries, `words.ts` (the surface,
   imported by both), `columns.tsx`, `pairs.ts` (imported by both), `types.ts`,
   and `lib/sm2.ts` (imported by the server file). The status line on its page
-  reads `7 files, 316 lines`, which a scenario asserts: change a file and that
+  reads `7 files, 373 lines`, which a scenario asserts: change a file and that
   number moves.
 - The browser file adds a **Reading** section to the sidebar linking both
   files and the review, the shortcut `Cmd` + `Shift` + `Y` that opens the
@@ -488,6 +488,13 @@ it here, never the other way round.
 - The server file answers `words.add`, `words.next` and `words.grade`, and
   writes through the gate as `web`: a scenario finds the added word's file in
   the commit panel, and the graded word's next due date on its row.
+- `chapter-1.reader` is a transcribed page, two lines of French ` | ` English.
+  The server file claims `.reader` with `FileKinds` (kept, opaque) and answers
+  `pages.read` from the gate's reading; the browser file's `file.page` face
+  draws it as two columns, and a scenario rewrites it on disk to one line.
+  Unclaimed — the reader off — its address says olai can't open `.reader`.
+- `notes.md` is an ordinary note, under which the reader's
+  `document.page.foot` face draws a link to the review.
 
 There is no consent here: `reader` arrives off and unapproved, and a scenario
 turns it on at its page. It is an ordinary plugin and nothing in it is about

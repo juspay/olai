@@ -270,7 +270,7 @@ It is seven code files, and each file imports the ones it needs by a relative pa
 ```
 plugins/reader/
   README.md
-  server.ts      the reader-pair property kind, and the words.* calls
+  server.ts      the reader-pair property kind, the .reader file kind, and the calls
   browser.tsx    everything it draws
   words.ts       the calls the browser file may make, imported by both entries
   columns.tsx    the two columns, imported by browser.tsx
@@ -342,12 +342,16 @@ export const surface = defineSurface({
         output: Schema.Struct({ due: Schema.String }),
       },
     },
+    pages: {
+      // A transcribed page's text, as the vault holds it now.
+      read: { input: Schema.Struct({ file: Schema.String }), output: Schema.Struct({ text: Schema.String }) },
+    },
   },
 })
 
 // Who may call each one: the page in your browser, and not your agents.
 export const faces = {
-  browser: { "words.add": "tool", "words.next": "tool", "words.grade": "tool" },
+  browser: { "words.add": "tool", "words.next": "tool", "words.grade": "tool", "pages.read": "tool" },
 } as const
 ```
 
@@ -379,7 +383,7 @@ export const scheduled = (card: Card, grade: Grade, today: string): Card => {
 `server.ts`:
 
 ```ts
-import { definePlugin, Kinds, Ops, Surfaces } from "@olai/plugin-api"
+import { definePlugin, FileKinds, Kinds, Ops, Surfaces } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { scheduled } from "./lib/sm2.ts"
@@ -402,13 +406,26 @@ const cardOf = (word: string, custom: Readonly<Record<string, unknown>>): Card =
 
 export default definePlugin({
   name: "reader",
-  needs: [Kinds, Ops, Surfaces],
+  needs: [FileKinds, Kinds, Ops, Surfaces],
   apply: Effect.gen(function*() {
     const kinds = yield* Kinds
     yield* kinds.register({
       kind: "pair",
       takes: "`reader-pair`: a French sentence, ` | `, and its English",
       admits: (value: string) => splitPair(value) !== null,
+    })
+
+    // A `.reader` file is a transcribed page: one sentence and its English per
+    // line. The vault keeps its text (`kept`), and reads none of it as prose
+    // (`opaque`), so it is this plugin's to draw.
+    yield* (yield* FileKinds).register({
+      exts: [".reader"],
+      holds: "text",
+      kept: true,
+      opaque: true,
+      fetched: false,
+      noun: "transcribed page",
+      article: "a",
     })
 
     // The write gate: every write below goes through it, exactly as a
@@ -462,6 +479,15 @@ export default definePlugin({
                   .map(([key, value]) => ({ op: "prop" as const, id: input.node, key, value }))
                 if (ops.length > 0) yield* Effect.orDie(gate.run({ op: "apply", ops }, "web"))
                 return { due: next.due }
+              }),
+          },
+          pages: {
+            // The text of a transcribed page, as the gate last read the vault.
+            read: ({ input }: { readonly input: { readonly file: string } }) =>
+              Effect.gen(function*() {
+                const reading = yield* Effect.orDie(gate.read)
+                const document = reading.set.documents.find((one) => one.path === input.file)
+                return { text: document !== undefined && "body" in document ? document.body : "" }
               }),
           },
         },
@@ -523,7 +549,7 @@ export const Columns = (props: { readonly pair: Pair; readonly onWord: (word: st
 ```tsx
 import { clientOf, definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { createSignal, onMount, Show } from "solid-js"
+import { createEffect, createSignal, For, on, onMount, Show } from "solid-js"
 
 import { Columns } from "./columns.tsx"
 import { splitPair } from "./pairs.ts"
@@ -616,6 +642,35 @@ export default definePlugin({
       </section>
     )
 
+    // A transcribed page, drawn whole: each line's French beside its English.
+    // `revision` moves when the file does, and the text is read again.
+    const Transcribed = (props: { readonly file: string; readonly revision: number | undefined }) => {
+      const [text, setText] = createSignal("")
+      createEffect(on(() => [props.file, props.revision], () => {
+        const call = clientOf(surface, wired)?.procedures.pages.read({ file: props.file })
+        if (call !== undefined) void Effect.runPromise(call).then((read) => setText(read.text))
+      }))
+      const pairs = () => text().split("\n").flatMap((line) => {
+        const pair = splitPair(line)
+        return pair === null ? [] : [pair]
+      })
+      return (
+        <section data-reader="file" data-file={props.file} class="flex flex-col p-4">
+          <For each={pairs()}>{(pair) => <Columns pair={pair} onWord={(word) => {
+            const call = words()?.add({ word })
+            if (call !== undefined) void Effect.runPromise(call)
+          }} />}</For>
+        </section>
+      )
+    }
+
+    // Under every Markdown note: the way back to the review.
+    const Note = (props: { readonly file: string }) => (
+      <p data-reader="note" data-file={props.file} class="text-body">
+        <a href={REVIEW}>Review the words from your reading</a>
+      </p>
+    )
+
     yield* slots.register("sidebar.section", { said: "Reading", body: Section })
     yield* slots.register("app.keys", {
       key: "y",
@@ -640,6 +695,8 @@ export default definePlugin({
       run: () => open(REVIEW),
       chord: { key: "e", shift: true, whileEditing: false },
     })
+    yield* slots.register("file.page", Transcribed)
+    yield* slots.register("document.page.foot", Note)
   }),
 })
 ```
@@ -656,8 +713,10 @@ Read the files on the plugin's page and press **Turn on**. The columns appear un
 - Click a French word and a row with that word appears in `vocabulary.olai`, due today, and the commit panel lists the file as changed.
 - Open the **Vocabulary** row, the top row of `vocabulary.olai`, and the foot of its page shows the word due longest. **Again** makes it due tomorrow; **Good** and **Easy** push it further out.
 - The same review is a page of its own at `/plugins/reader/app/review`, and a reload draws it again.
+- A `.reader` file, one French sentence and its English per line, is listed under **Reference** and opens as the same two columns. Change it on disk and its page is drawn again.
+- Every Markdown note has a link to the review at its foot.
 - Edit any of the seven code files and the plugin pauses until you turn the new version on. Its page's address then says it is paused and links to the page where you turn it on again.
-- Switch it off and the columns, the review, the section, the key, the palette rows and the page go together, and the `words.*` calls leave the connection.
+- Switch it off and the columns, the review, the section, the key, the palette rows, the page and the note's link go together. The `words.*` and `pages.*` calls leave the connection, and while it is off olai cannot open `.reader` files.
 <!-- guide:end -->
 
 </details>

@@ -71,7 +71,7 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 
 [^levels]: A further step replaces the list, puts a breadcrumb for itself before the box, and empties the box. A step is either a group of ordinary rows or a box you type a value into. The closed block below holds both kinds, the keys that move through them, how a plugin declares one, and what happens when its plugin is switched off.
 
-[^locations]: The eight places a plugin can add to are `app.route`, `navigation.pages`, `navigation.content`, `navigation.palette-adapters`, `navigation.link-previews`, `app.keys`, `app.palette` and `app.command`. The closed block below says what each takes, and how a keyboard shortcut is registered.
+[^locations]: The nine places a plugin can add to are `app.route`, `navigation.pages`, `file.page`, `navigation.content`, `navigation.palette-adapters`, `navigation.link-previews`, `app.keys`, `app.palette` and `app.command`. The closed block below says what each takes, and how a keyboard shortcut is registered.
 
 [^services]: `navigation.state` writes a plugin's address, reads one, says which plugin is behind an address, and says whether a page takes a filter. `navigation.palette` is what another plugin may do to the box: open it, open it at a step, ask a question in it, or close it. `navigation.gestures` ignores the extra click a touch browser sends after a long press. The runtime these sit on is [../architecture/plugin-system.md](../architecture/plugin-system.md).
 
@@ -164,6 +164,7 @@ The palette's steps are tested end to end against the maintained fixture in [tes
 | `app.keys` | a keyboard shortcut |
 | `app.palette` | a row that opens an address |
 | `app.command` | a row that runs a function, and optionally a shortcut that runs it too |
+| `file.page` | the page for files of the kind the registering plugin claimed, one face per plugin, handed the file's path and revision; it is chosen over a page for what such a file holds |
 
 Each address carries which of the two kinds it is, so tabs, pane labels, breadcrumbs, link intents and the palette all treat both kinds alike. The plugin drawing them can still tell its own addresses apart after another plugin has been switched off. A pane still holding a departed plugin's address draws `Page not found` with **Go home**, whichever kind it was.
 

@@ -12,6 +12,8 @@ A plugin in your directory draws the same places a built-in plugin does, and its
 | the palette | a row that opens an address, or one that runs something |
 | the keyboard | a shortcut that does what the plugin says |
 | a page of its own | a whole page at `/plugins/<name>/app`, and any address under it |
+| a file of its own kind | the whole page of every file with a suffix the plugin claims |
+| a Markdown note | something above its text, or under it |
 | the header | a readout, a banner, or a row of the health popover |
 
 Each of these is a slot, a named place a plugin registers a component in.[^slot] What a plugin draws there stays only while the plugin is running: switch it off and every one of them goes.[^off]
@@ -48,6 +50,8 @@ A browser file draws by registering a face in a slot with `Slots.register`. `vau
 | `app.palette` | a palette row that opens an address |
 | `app.command` | a palette row that runs a function, and a key that runs it too |
 | `plugin.page` | the plugin's own page at `/plugins/<word>/app`, handed the rest of the address |
+| `file.page` | the whole page of a file of the kind the plugin's server file claimed, handed the file's path and its revision |
+| `document.page.head`, `document.page.foot` | a component handed a Markdown note's path, drawn above its text or under it |
 | `app.header`, `app.banner` | a readout in the header or the health popover, or a banner across the top |
 | `app.viewer`, `app.mount` | the app's one viewer, or a wrapper around the whole app |
 | `plugins.row` | words and buttons on the plugin's own row of the **Plugins** panel |
@@ -79,6 +83,30 @@ yield* slots.register("app.command", {
   chord: { key: "e", shift: true, whileEditing: false },
 })
 ```
+
+### A file of its own kind, and a note's head and foot
+
+A server file claims a suffix with `FileKinds`, and the browser file's `file.page` face draws every file of that kind:
+
+```ts
+yield* (yield* FileKinds).register({
+  exts: [".reader"],
+  holds: "text",
+  kept: true,
+  opaque: true,
+  fetched: false,
+  noun: "transcribed page",
+  article: "a",
+})
+```
+
+- The kind is named after the plugin, so the claim and the face need nothing more to find each other.
+- `kept: true` keeps the file's text where the gate reads the vault: `(yield* gate.read).set.documents` holds it as `body`. `opaque: true` keeps search and the list of notes out of it.
+- The face is handed `{ file, revision }`. `revision` changes when the file does, so the face reads the text again through its own server file.
+- The sidebar lists such a file under **Reference**, with the plain file mark: a plugin in your directory cannot give its kind a mark of its own.
+- Switched off, the plugin's claim goes with it, and the file's address says olai cannot open that suffix.
+
+`document.page.head` and `document.page.foot` are lists on a Markdown note's page, above its text and under the list of what links to it. Each face is handed `{ file }`.
 
 ### A sidebar section, a key and a palette row
 
