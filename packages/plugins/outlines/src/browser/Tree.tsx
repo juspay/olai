@@ -421,6 +421,7 @@ function Branch(props: {
       text={typing("title")?.text ?? ""}
       caret={typing("title")?.caret}
       section={section()}
+      from={shown()?.file ?? props.row.at.file}
       onInput={editor.type}
       onKey={keyHandler("line", editor.press)}
       onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "title" }, left)}
@@ -577,7 +578,7 @@ function Branch(props: {
       // fold follows too and the format spells once (`shownRecord`).
       data-match={matchedAttr(narrowed, shownId())}
     >
-      <Ghosts parked={parked("before")} live={live("before")} />
+      <Ghosts parked={parked("before")} live={live("before")} from={props.row.at.file} />
 
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal
@@ -951,7 +952,7 @@ function Branch(props: {
           (!collapsed() && props.row.children.length > 0)}
       >
         <ul class={CHILD_INDENT} data-sweep="">
-          <Ghosts parked={parked("under")} live={live("under")} />
+          <Ghosts parked={parked("under")} live={live("under")} from={props.row.at.file} />
           <Show when={!collapsed()}>
             <Key each={props.row.children} by="key">
               {(child) => <Branch row={child()} depth={props.depth + 1} />}
@@ -965,7 +966,7 @@ function Branch(props: {
           next sibling appears in an outline. It is not a row of the tree — no
           `<li>`, no testid a scenario counts nodes with — because nothing has
           been written. Enter Enter Enter parks the earlier empties here too. */}
-      <Ghosts parked={parked("after")} live={live("after")} />
+      <Ghosts parked={parked("after")} live={live("after")} from={props.row.at.file} />
     </li>
   )
 }

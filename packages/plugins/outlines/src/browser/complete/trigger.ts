@@ -55,6 +55,8 @@ export type Trigger =
     readonly query: string
   }
   | { readonly kind: "mirror"; readonly from: number; readonly query: string }
+  /** A `[[` being typed: the files a wikilink may name. */
+  | { readonly kind: "wikilink"; readonly from: number; readonly query: string }
 
 /** Past this many characters after `!`, a line is prose with an exclamation
  *  mark in it. Long enough for every phrase `../date/natural.ts` reads. */
@@ -96,6 +98,10 @@ export const sameTrigger = (was: Trigger | null, is: Trigger | null): boolean =>
 
 export const triggerIn = (text: string, caret: number): Trigger | null => {
   const before = text.slice(0, Math.max(0, caret))
+  // INSIDE AN OPEN `[[`, the wikilink list or none: what is typed there is a
+  // name, and a `#` in it is a heading, not a tag — so no other list opens.
+  const link = wikilinkIn(before)
+  if (link !== undefined) return link
   const brackets = bracketsIn(before)
   const sigil = sigilIn(before)
   // Rightmost wins: it is the one the caret is inside. Exactly two candidates,
@@ -103,6 +109,22 @@ export const triggerIn = (text: string, caret: number): Trigger | null => {
   if (sigil === null) return brackets
   if (brackets === null) return sigil
   return sigil.from > brackets.from ? sigil : brackets
+}
+
+/**
+ * The `[[` nearest the caret, when the caret is still inside it — `undefined`
+ * when it is not (none, or closed by a `]]`, or ended by a line break), and
+ * `null` when it is but there is nothing this list can offer: the alias after
+ * a `|`, the heading after a `#`, or more than a name's worth of text.
+ */
+const wikilinkIn = (before: string): Trigger | null | undefined => {
+  const at = before.lastIndexOf("[[")
+  if (at === -1) return undefined
+  const query = before.slice(at + 2)
+  if (query.includes("]]") || query.includes("\n")) return undefined
+  return query.length <= SEARCH_CAP && !/[|#\]]/.test(query)
+    ? { kind: "wikilink", from: at, query }
+    : null
 }
 
 /** The `((` nearest the caret, if it is still open. */
@@ -142,3 +164,19 @@ const sigilIn = (before: string): Trigger | null => {
 }
 
 export { written, type Written } from "@olai/markdown-ui/insert.ts"
+import type { Written } from "@olai/markdown-ui/insert.ts"
+
+/**
+ * The field once a wikilink is chosen: `name` written as `[[name]]` over the
+ * span from the `[[` to the caret, and the caret after the closing pair. A
+ * closing pair already typed after the caret is the link's own, so it is
+ * taken rather than doubled.
+ */
+export const linked = (text: string, found: Trigger, name: string, caret: number): Written => {
+  const after = text.slice(caret)
+  const link = `[[${name}]]`
+  return {
+    text: text.slice(0, found.from) + link + (after.startsWith("]]") ? after.slice(2) : after),
+    caret: found.from + link.length,
+  }
+}

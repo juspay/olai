@@ -69,6 +69,9 @@ export function TitleEditor(props: {
    *  draws, so the input is the same type as the title it replaces. Absent
    *  is a row. */
   readonly section?: boolean
+  /** The outline the row is written in — what a wikilink typed here is looked
+   *  up from. Absent is the top of the directory. */
+  readonly from?: string | undefined
   /** This editor holds the caret. A parked empty draft is an input so it
    *  can be clicked back into, but it must not take focus on mount — there
    *  is still only one caret. Absent is live, which is every other caller. */
@@ -148,6 +151,7 @@ export function TitleEditor(props: {
     // knows nothing about a draft.
     dated: (day) => editor.dated(day),
     mirrored: (target) => editor.mirrored(target),
+    from: () => props.from ?? "",
   })
 
   return (

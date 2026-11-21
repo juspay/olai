@@ -75,7 +75,8 @@ import {
   on,
 } from "solid-js"
 
-import { tagText } from "@olai/format"
+import { namesIn, tagText, wikilinkFor, wikilinkOffers } from "@olai/format"
+import { servedDirectory } from "../vault.ts"
 
 import { Completions } from "./Completions.tsx"
 import { nodePlace, type Place } from "olai-plugin-search/ui/place.ts"
@@ -85,9 +86,9 @@ import { createSearch } from "../search.ts"
 import { atOnce, spend, type Taking } from "@olai/web/client/settled.ts"
 import { useToday } from "../clock.ts"
 import { dayLabel, naturalDays } from "../date/natural.ts"
-import { createTags } from "./asking.ts"
+import { createTags, LIMIT } from "./asking.ts"
 import { listKey } from "@olai/web/client/keys.ts"
-import { sameTrigger, triggerIn, type Trigger, type Written, written } from "./trigger.ts"
+import { linked, sameTrigger, triggerIn, type Trigger, type Written, written } from "./trigger.ts"
 
 /** One row of the popup. `choose` is the whole of what it does, so the
  *  component that draws these knows nothing about dates, tags or mirrors. */
@@ -199,6 +200,9 @@ export const createCompletion = (field: {
    */
   readonly dated: (day: string) => void
   readonly mirrored: (target: string) => void
+  /** The file the field's text is written in — what a wikilink's name is
+   *  looked up from. Absent is the top of the directory. */
+  readonly from?: Accessor<string>
 }): Completion => {
   const today = useToday()
   const [dismissed, setDismissed] = field.dismissal ?? createSignal<string | null>(null)
@@ -316,6 +320,31 @@ export const createCompletion = (field: {
             field.mirrored(hit.id)
           },
         }))
+      case "wikilink": {
+        // THE DIRECTORY'S OWN NAMES, from the membership the vault publishes
+        // (`../vault.ts`) — so a file written while the list is open is
+        // offered, and one removed is withdrawn, with no question asked.
+        const served = servedDirectory()
+        const claims = served?.claims()
+        const members = served?.members()
+        if (claims === undefined || members === undefined) return []
+        const names = namesIn(claims, members)
+        return wikilinkOffers(names, claims, found.query, LIMIT).map((offer) => ({
+          id: offer.path,
+          label: offer.name,
+          // The PATH beside the name, so two notes of one name are two rows a
+          // reader can tell apart.
+          hint: offer.path,
+          taking: atOnce,
+          // The SHORTEST text that finds this very file from this row's file
+          // (`@olai/format`'s `wikilinkFor`), with the brackets closed — and
+          // never doubled, when the closing pair was typed already — and the
+          // caret after them, which is where the list has nothing left to say.
+          choose: () => {
+            field.rewrite(linked(field.text(), found, wikilinkFor(names, claims, field.from?.() ?? "", offer.path), field.caret()))
+          },
+        }))
+      }
     }
   })
 
@@ -347,9 +376,11 @@ export const createCompletion = (field: {
     const found = trigger()
     if (found === null) return null
     switch (found.kind) {
-      // A day list is a pure function of a phrase and a calendar; there is
-      // nothing it could be refused by.
+      // A day list is a pure function of a phrase and a calendar, and the
+      // wikilink list one of the names the directory holds; there is nothing
+      // either could be refused by.
       case "date":
+      case "wikilink":
         return null
       case "tag":
         return tags.failure()

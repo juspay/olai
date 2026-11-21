@@ -251,6 +251,56 @@ const spelledName = (claims: Claims, path: string): string =>
   isProse(claims, path) ? stemOf(claims, path) : basenameOf(path)
 
 /**
+ * THE SHORTEST TEXT a wikilink written in `from` can name `path` by, so that
+ * {@link wikilinkPath} takes it back to that very file: the name alone when
+ * that is enough, otherwise its path from the top of the directory. A
+ * document is written without its suffix and every other file with it, so an
+ * outline is `house.olai`.
+ */
+export const wikilinkFor = (names: Names, claims: Claims, from: string, path: string): string => {
+  const name = spelledName(claims, path)
+  if (wikilinkPath(names, claims, from, name) === path) return name
+  const whole = path.slice(0, path.length - basenameOf(path).length) + name
+  return wikilinkPath(names, claims, from, whole) === path ? whole : path
+}
+
+/** One file a wikilink being typed may name: what it is called and where it
+ *  is. */
+export interface WikilinkOffer {
+  readonly path: string
+  /** Its name as a wikilink writes it — a document's without its suffix. */
+  readonly name: string
+}
+
+/** The characters a wikilink cannot carry in a name: its own punctuation. */
+const UNWRITABLE = /[[\]|#^]/
+
+/**
+ * The files a wikilink being typed may name, for what has been typed: the
+ * Markdown documents whose name holds it, capitals ignored, and after them
+ * every other served file whose name does, each in path order. A file whose
+ * name a wikilink cannot spell (a `#`, a `|`, a bracket) is not offered.
+ */
+export const wikilinkOffers = (names: Names, claims: Claims, query: string, limit: number): ReadonlyArray<WikilinkOffer> => {
+  const wanted = fold(query.trim())
+  // A `/` typed is a folder typed: then the whole path is what must hold it.
+  const pathed = wanted.includes("/")
+  const documents: Array<WikilinkOffer> = []
+  const others: Array<WikilinkOffer> = []
+  for (const paths of names.everything.values()) {
+    for (const path of paths) {
+      if (UNWRITABLE.test(path)) continue
+      const name = spelledName(claims, path)
+      const said = pathed ? path.slice(0, path.length - basenameOf(path).length) + name : name
+      if (!fold(said).includes(wanted)) continue
+      ;(isProse(claims, path) ? documents : others).push({ path, name })
+    }
+  }
+  const byOffer = (one: WikilinkOffer, other: WikilinkOffer): number => byPath(one.path, other.path)
+  return [...documents.sort(byOffer), ...others.sort(byOffer)].slice(0, limit)
+}
+
+/**
  * The page an UNRESOLVED wikilink opens: the path its target would have if it
  * were written at the top of the directory — a document's suffix added to a
  * bare name — so a click reaches **Page not found** for that name, as a dead

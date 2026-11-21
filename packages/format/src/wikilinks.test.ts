@@ -6,7 +6,10 @@ import { type Address, printAddress, type Tag } from "./address.ts"
 import { tagsIn, titleParts } from "./derive.ts"
 import { wikilinksIn } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"
-import { namesIn, wikilinkAddress, wikilinkPath } from "./wikilinks.ts"
+import { namesIn, wikilinkAddress, wikilinkFor, wikilinkOffers, wikilinkPath } from "./wikilinks.ts"
+import { fileKind } from "./kinds.ts"
+import { readdirSync } from "node:fs"
+import { join, relative } from "node:path"
 
 const printed = (address: Address | null): string | null => address === null ? null : printAddress(address)
 
@@ -286,5 +289,61 @@ describe("which file a name finds", () => {
   test("the index is remembered against the membership it was built from", () => {
     expect(namesIn(TEST_CLAIMS, SERVED)).toBe(names)
     expect(namesIn(TEST_CLAIMS, new Set(SERVED))).not.toBe(names)
+  })
+})
+
+describe("what the row editor offers and writes", () => {
+  const ROOT = join(import.meta.dir, "../../tests/fixtures/wikilinks")
+  const filesUnder = (directory: string): ReadonlyArray<string> =>
+    readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory() ? filesUnder(join(directory, entry.name)) : [join(directory, entry.name)]
+    )
+  const SERVED = new Set(filesUnder(ROOT).map((file) => relative(ROOT, file)))
+  const names = namesIn(TEST_CLAIMS, SERVED)
+  // Every file that could write a wikilink, and two that the directory does
+  // not hold, to stand for a row in another folder.
+  const WRITERS = [...SERVED, "deep/down/new.olai", "rooms/new.olai"]
+
+  test("the fixture directory holds namesakes, an outline and files that are not documents", () => {
+    expect(SERVED.has("rooms/Note.md") && SERVED.has("garden/Note.md") && SERVED.has("house.olai")).toBe(true)
+  })
+
+  test("for every file, from every writer, the text a choice writes finds that very file", () => {
+    let asked = 0
+    for (const path of SERVED) {
+      for (const from of WRITERS) {
+        const written = wikilinkFor(names, TEST_CLAIMS, from, path)
+        expect([path, from, wikilinkPath(names, TEST_CLAIMS, from, written)]).toEqual([path, from, path])
+        asked++
+      }
+    }
+    expect(asked).toBeGreaterThan(100)
+  })
+
+  test("the bare name when it is enough, the path from the top when it is not", () => {
+    expect(wikilinkFor(names, TEST_CLAIMS, "house.olai", "finishes.md")).toBe("finishes")
+    expect(wikilinkFor(names, TEST_CLAIMS, "house.olai", "garden/Note.md")).toBe("Note")
+    expect(wikilinkFor(names, TEST_CLAIMS, "house.olai", "rooms/Note.md")).toBe("rooms/Note")
+    expect(wikilinkFor(names, TEST_CLAIMS, "rooms/plan.md", "rooms/Note.md")).toBe("Note")
+    expect(wikilinkFor(names, TEST_CLAIMS, "every-form.md", "house.olai")).toBe("house.olai")
+    expect(wikilinkFor(names, TEST_CLAIMS, "every-form.md", "art/handle.png")).toBe("handle.png")
+  })
+
+  test("documents are offered first, then every other file with its suffix", () => {
+    const offered = wikilinkOffers(names, TEST_CLAIMS, "", 100)
+    const firstOther = offered.findIndex((one) => fileKind(TEST_CLAIMS, one.path) !== "markdown")
+    expect(firstOther).toBeGreaterThan(0)
+    expect(offered.slice(firstOther).every((one) => fileKind(TEST_CLAIMS, one.path) !== "markdown")).toBe(true)
+    expect(offered.find((one) => one.path === "house.olai")?.name).toBe("house.olai")
+    expect(offered.find((one) => one.path === "finishes.md")?.name).toBe("finishes")
+  })
+
+  test("a name holding what was typed is offered, capitals aside, as many as asked", () => {
+    expect(wikilinkOffers(names, TEST_CLAIMS, "FIN", 8).map((one) => one.path)).toEqual(["finishes.md"])
+    expect(wikilinkOffers(names, TEST_CLAIMS, "note", 8).map((one) => one.path)).toEqual(["garden/Note.md", "rooms/Note.md"])
+    expect(wikilinkOffers(names, TEST_CLAIMS, "rooms/n", 8).map((one) => one.path)).toEqual(["rooms/Note.md"])
+    expect(wikilinkOffers(names, TEST_CLAIMS, "hou", 8).map((one) => one.path)).toEqual(["Greenhouse.md", "house.olai"])
+    expect(wikilinkOffers(names, TEST_CLAIMS, "zzz", 8)).toEqual([])
+    expect(wikilinkOffers(names, TEST_CLAIMS, "", 3)).toHaveLength(3)
   })
 })
