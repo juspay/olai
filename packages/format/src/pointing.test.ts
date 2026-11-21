@@ -42,7 +42,8 @@ import { bodiedDocument, type Document } from "./document.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { PARTS } from "./imports.ts"
-import { pointingOf } from "./pointing.ts"
+import { pointingOf, propertied } from "./pointing.ts"
+import { referenceKeys } from "./typing.ts"
 import {
   addressesIn,
   facesIn,
@@ -133,8 +134,15 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
     keys = Math.max(keys, PARTS.reduce((held, part) => held + at.pointing[part].size, 0))
 
     // (2) THE MAINTENANCE: what was carried is what a rebuild would have made,
-    // in every part of the table.
-    const rebuilt = pointingOf(TEST_CLAIMS, set.documents)
+    // in every part of the table — BOTH of its steps, in the order a
+    // validation takes them, since the property entries are carried by the
+    // same revision and have to be rebuilt by the same oracle.
+    const rebuilt = propertied(
+      pointingOf(TEST_CLAIMS, set.documents),
+      TEST_CLAIMS,
+      referenceKeys(at.derived),
+      set.documents,
+    )
     for (const part of PARTS) {
       if (sameIndex(at.pointing[part], rebuilt[part])) continue
       stale.push(`revision ${revisionsSeen}, ${part}: ${storyOf(at.pointing[part], rebuilt[part])}`)

@@ -398,3 +398,82 @@ test("a link inside an HTML comment is not a reference, either spelling", () => 
   ])
   expect(referring(view, "finishes.md")).toEqual([])
 })
+
+// ── a declared property is a reference ─────────────────────────────────
+//
+// The one way whose meaning comes from outside the grammar: a value names a
+// row or a file because the VAULT declared its key `ref`, `node` or `doc`
+// (`./typing.ts`), and the table files it in a second step. What is asserted
+// here is the meaning laid over those entries — which values count, and which
+// of the rulings beside them still hold.
+
+const declaring = (type: string): Record<string, string> => ({
+  "_olai/Properties.olai": `{"id":"prop-bed","ord":"a","title":"bed","custom":{"type":"${type}"}}`,
+})
+
+test("a `node` value names the row it holds, with the way `property`", () => {
+  const view = viewOf({
+    ...declaring("node"),
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "lanes.olai": `{"id":"lane","ord":"a","title":"the lane","custom":{"bed":"herbs"}}`,
+  })
+  expect(said(view, "herbs")).toEqual(["lane property"])
+})
+
+test("the same value under a key nobody declared names nothing", () => {
+  const view = viewOf({
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "lanes.olai": `{"id":"lane","ord":"a","title":"the lane","custom":{"bed":"herbs"}}`,
+  })
+  expect(said(view, "herbs")).toEqual([])
+})
+
+test("a `ref` value counts too, and the key is FOLDED as the declaration reads it", () => {
+  const view = viewOf({
+    "_olai/Properties.olai": `{"id":"prop-bed","ord":"a","title":"bed","custom":{"type":"ref","under":"garden"}}`,
+    "garden.olai": `{"id":"garden","ord":"a","title":"the garden"}\n` +
+      `{"id":"herbs","parent":"garden","ord":"a","title":"the herb bed"}`,
+    "lanes.olai": `{"id":"lane","ord":"a","title":"the lane","custom":{"Bed":"herbs"}}`,
+  })
+  expect(said(view, "herbs")).toEqual(["lane property"])
+})
+
+test("a record doing both is one referrer saying both, the property last", () => {
+  const view = viewOf({
+    ...declaring("node"),
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "lanes.olai": `{"id":"lane","ord":"a","title":"see @herbs","see":["herbs"],"custom":{"bed":"herbs"}}`,
+  })
+  expect(said(view, "herbs")).toEqual(["lane see+mention+property"])
+})
+
+test("a `doc` value names the file it resolves to, from the record's own place", () => {
+  const view = viewOf(
+    {
+      "_olai/Properties.olai": `{"id":"prop-brief","ord":"a","title":"brief","custom":{"type":"doc"}}`,
+      "notes/lanes.olai": `{"id":"lane","ord":"a","title":"the lane","custom":{"brief":"../finishes.md"}}`,
+    },
+    [FINISHES],
+  )
+  expect(referring(view, "finishes.md")).toEqual(["lane property"])
+})
+
+// The rulings the other ways keep, kept here too: what is put away is on the
+// Trash and nowhere else, a record does not refer to itself, and a placement
+// carries no properties to name anything with.
+test("a value written in the Trash is not a referrer", () => {
+  const view = viewOf({
+    ...declaring("node"),
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "_olai/Trash.olai": `{"id":"gone","ord":"a","title":"the old lane","custom":{"bed":"herbs"}}`,
+  })
+  expect(said(view, "herbs")).toEqual([])
+})
+
+test("a record naming ITSELF in a property is not a referrer", () => {
+  const view = viewOf({
+    ...declaring("node"),
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed","custom":{"bed":"herbs"}}`,
+  })
+  expect(said(view, "herbs")).toEqual([])
+})

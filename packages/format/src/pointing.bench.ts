@@ -61,6 +61,7 @@ import { referencesOf } from "./backlinks.ts"
 import { alternating, median, parseOutline, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
 import { PARTS } from "./imports.ts"
 import { pointingOf, repointed } from "./pointing.ts"
+import { NO_TYPING } from "./typing.ts"
 import {
   documentsAmong,
   facesIn,
@@ -163,10 +164,15 @@ const leg = (label: string, wikilinks: number): void => {
     before: (readings[at] as { readonly at: Reading }).at,
     after: one.at,
   }))
-  const carries = pairs.map((pair) => timed(() => repointed(pair.before.pointing, TEST_CLAIMS, pair.was.documents, pair.now.documents)))
+  // NO DECLARATIONS in this vault, so the table's second step files nothing
+  // and what is timed is the carry itself ({@link ./pointing.ts}).
+  const carries = pairs.map((pair) =>
+    timed(() => repointed(pair.before.pointing, TEST_CLAIMS, NO_TYPING, pair.was.documents, pair.now.documents))
+  )
   const rebuilds = pairs.map((pair) => timed(() => pointingOf(TEST_CLAIMS, pair.now.documents)))
   const carried = pairs.filter((pair) =>
-    repointed(pair.before.pointing, TEST_CLAIMS, pair.was.documents, pair.now.documents) === pair.before.pointing
+    repointed(pair.before.pointing, TEST_CLAIMS, NO_TYPING, pair.was.documents, pair.now.documents).pointing ===
+      pair.before.pointing
   ).length
   const named = pairs.filter((pair) => pair.after.names === pair.before.names).length
 

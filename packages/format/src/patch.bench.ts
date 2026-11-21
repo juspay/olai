@@ -106,6 +106,7 @@ import { byPath } from "./paths.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble } from "./set.ts"
+import { NO_TYPING } from "./typing.ts"
 import { type Verdict } from "./verdict.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -945,7 +946,10 @@ const tabling = (): {
     const now = assemble(TEST_CLAIMS, decoded).documents
     let next: Pointing | undefined
     carries.push(timed(() => {
-      next = repointed(table, TEST_CLAIMS, was, now)
+      // NO DECLARATIONS: this corpus has no `_olai/Properties.olai`, so the
+      // table's second step files nothing and the carry is the first step
+      // alone — which is what this arm is timing.
+      next = repointed(table, TEST_CLAIMS, NO_TYPING, was, now).pointing
     }))
     rebuilds.push(timed(() => {
       pointingOf(TEST_CLAIMS, now)

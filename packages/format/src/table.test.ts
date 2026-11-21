@@ -36,7 +36,9 @@ import { derive, writtenTags } from "./derive.ts"
 import { type Document } from "./document.ts"
 import { FIXTURE_FILE, nodesOf, seeded, settled, vaultOf } from "./fixtures.testlib.ts"
 import { targetsOf } from "./node.ts"
-import { namersOf, type Pointing, pointingOf, repointed, taggersOf } from "./pointing.ts"
+import { namersOf, type Pointing, pointingOf, propertied, taggersOf } from "./pointing.ts"
+import { PARTS } from "./imports.ts"
+import { referenceKeys } from "./typing.ts"
 import { linkyRevisions, linkyVault, type Revision } from "./pointing.testlib.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble, nodesIn } from "./set.ts"
@@ -349,13 +351,28 @@ test("the new ways are filed and not counted: Referenced by says what it always 
 
 /** The table one corpus leaves, and the table a carry makes of the next —
  *  held to a rebuild of the same corpus, so a case says what moved and the
- *  carry is checked while it says it. */
+ *  carry is checked while it says it.
+ *
+ *  THROUGH THE READING DOOR, which is the step a revision really takes: both
+ *  of the table's passes run in the order {@link ./validate.ts} runs them, so
+ *  a property entry — filed after the derivation, off the declarations — is
+ *  carried here exactly as the store carries it. The delta names every file of
+ *  the new corpus, which is the widest a probe can send and the one a test
+ *  need not reconstruct. */
 const carried = (before: Revision, after: Revision): { readonly table: Pointing; readonly rebuilt: Pointing } => {
-  const was = assemble(TEST_CLAIMS, decodedVault(new Map(before))).documents
-  const now = assemble(TEST_CLAIMS, decodedVault(new Map(after))).documents
+  const was = assemble(TEST_CLAIMS, decodedVault(new Map(before)))
+  const decoded = decodedVault(new Map(after))
+  const now = assemble(TEST_CLAIMS, decoded)
+  const read = reading(TEST_CLAIMS, was)
   return {
-    table: repointed(pointingOf(TEST_CLAIMS, was), TEST_CLAIMS, was, now),
-    rebuilt: pointingOf(TEST_CLAIMS, now),
+    table: reading(TEST_CLAIMS, now, {
+      read,
+      delta: {
+        upserts: [...decoded.keys()].map((file) => [file, { nodes: nodesIn(decoded.get(file)) }] as const),
+        removes: [...before.keys()].filter((file) => !after.has(file)),
+      },
+    }).pointing,
+    rebuilt: reading(TEST_CLAIMS, now).pointing,
   }
 }
 
@@ -522,4 +539,176 @@ test("the alphabet is the title's own, and a sigil inside a word starts nothing"
   expect(taggedWith(table, "@herbs")).toEqual(["c"])
   expect(taggedWith(table, "#herbs")).toEqual(["b"])
   expect(taggedWith(table, "@work/olai")).toEqual(["c"])
+})
+
+// ── the property entries, and the step that files them ─────────────────
+//
+// The table's SECOND step ({@link ./pointing.ts}): a value under a key this
+// vault declares `doc`, `ref` or `node` names a file or a row, and which keys
+// those are is read off the derivation — so the entries are filed after it,
+// and re-filed when a file moves OR when the declarations themselves do. What
+// is held here is that the carry and a rebuild agree in BOTH cases, which the
+// first step's own differential cannot reach: a revision that changes only a
+// declaration moves no file at all.
+
+/** A vault that declares one referring key, the record that writes a value
+ *  under it, and a `.md` for a `doc` value to name. */
+const DECLARING: Revision = new Map([
+  ["_olai/Properties.olai", `{"id":"prop-bed","ord":"a0","title":"bed","custom":{"type":"node"}}`],
+  ["garden.olai", `{"id":"herbs","ord":"a0","title":"the herb bed"}`],
+  ["notes.olai", `{"id":"sowing","ord":"a0","title":"sowing notes","custom":{"bed":"herbs"}}`],
+  ["brief.md", "# The brief\n\nnothing points anywhere.\n"],
+])
+
+/** The whole table, written down — every entry of every part, so a carry that
+ *  differs from a rebuild anywhere says where. */
+const wholeOf = (table: Pointing): ReadonlyArray<string> =>
+  PARTS.flatMap((part) =>
+    [...table[part]].map(([key, sources]) =>
+      `${part} ${key}: ${
+        sources.map((source) =>
+          `${source.at === undefined ? source.face.path : `${source.at.file}:${source.at.line}`}` +
+          ` ${source.ways.join("+")}${source.props === undefined ? "" : ` [${source.props.join(",")}]`}`
+        ).join(", ")
+      }`
+    ).sort()
+  )
+
+/** What the table's FILES part holds under one path, the way {@link rowsAt}
+ *  reads the rows. */
+const filesAt = (at: Reading, path: string): ReadonlyArray<string> =>
+  (at.pointing.files.get(path) ?? []).map((source) =>
+    `${source.at === undefined ? source.face.path : `${source.at.file}:${source.at.line}`} ${
+      source.ways.join("+")
+    }${source.props === undefined ? "" : ` [${source.props.join(",")}]`}`
+  )
+
+test("a declared `node` value is filed under the row it names, with the way `property`", () => {
+  const at = readingOf(DECLARING)
+  expect(rowsAt(at, "herbs")).toEqual(["notes.olai:1 property"])
+  expect(at.pointing.rows.get("herbs")?.[0]?.props).toEqual(["bed"])
+  // …and **Referenced by** counts it, which is the behaviour this stage adds.
+  expect(referrersOf(at, "herbs")).toEqual(["notes.olai#sowing property"])
+})
+
+test("a declared `doc` value is filed under the file it resolves to", () => {
+  const at = readingOf(
+    writing(
+      writing(
+        DECLARING,
+        "_olai/Properties.olai",
+        `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,
+      ),
+      "notes.olai",
+      `{"id":"sowing","ord":"a0","title":"sowing notes","custom":{"brief":"brief.md"}}`,
+    ),
+  )
+  expect(filesAt(at, "brief.md")).toEqual(["notes.olai:1 property [brief]"])
+  // A key nobody declared names nothing: the same value under `note` is text.
+  const text = readingOf(
+    writing(DECLARING, "notes.olai", `{"id":"sowing","ord":"a0","title":"sowing notes","custom":{"note":"brief.md"}}`),
+  )
+  expect(text.pointing.files.has("brief.md")).toBe(false)
+})
+
+test("one record naming one target under two keys is one source carrying both", () => {
+  const at = readingOf(
+    writing(
+      writing(
+        DECLARING,
+        "_olai/Properties.olai",
+        `{"id":"prop-bed","ord":"a0","title":"bed","custom":{"type":"node"}}\n` +
+          `{"id":"prop-next","ord":"a1","title":"next","custom":{"type":"ref"}}`,
+      ),
+      "notes.olai",
+      `{"id":"sowing","ord":"a0","title":"sowing notes","custom":{"bed":"herbs","next":"herbs"}}`,
+    ),
+  )
+  expect(rowsAt(at, "herbs")).toEqual(["notes.olai:1 property"])
+  expect(at.pointing.rows.get("herbs")?.[0]?.props).toEqual(["bed", "next"])
+  // …and one referrer, saying it one way.
+  expect(referrersOf(at, "herbs")).toEqual(["notes.olai#sowing property"])
+})
+
+test("a record that links a file and names it in a property is one source with two ways", () => {
+  const at = readingOf(
+    writing(
+      writing(
+        DECLARING,
+        "_olai/Properties.olai",
+        `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,
+      ),
+      "notes.olai",
+      `{"id":"sowing","ord":"a0","title":"sowing notes","desc":"[the brief](brief.md)","custom":{"brief":"brief.md"}}`,
+    ),
+  )
+  expect(filesAt(at, "brief.md")).toEqual(["notes.olai:1 link+property [brief]"])
+  // …and the document's page lists it once, saying both — asked with the
+  // FILE's address, where `referrersOf` above asks with a row's.
+  expect(
+    referencesOf(at, addressOf(TEST_CLAIMS, "brief.md", null)!).map((one) =>
+      `${"path" in one.source ? String(one.source.path) : `${one.source.file}#${one.source.node.id}`} ${
+        one.ways.join("+")
+      }`
+    ),
+  ).toEqual(["notes.olai#sowing link+property"])
+})
+
+// THE REVISION THAT MOVES NO FILE: a declaration edit is one record in one
+// outline, and every value of that key in the vault means something else than
+// it did. The carry has to re-file them all, and a rebuild is the oracle.
+test("a revision that only changes a declaration re-files the property entries", () => {
+  const undeclared = writing(
+    DECLARING,
+    "_olai/Properties.olai",
+    `{"id":"prop-bed","ord":"a0","title":"bed","custom":{"type":"text"}}`,
+  )
+  // Declared: the entry arrives, and the carried table is the rebuilt one.
+  const declared = carried(undeclared, DECLARING)
+  expect(wholeOf(declared.table)).toEqual(wholeOf(declared.rebuilt))
+  expect(declared.table.rows.get("herbs")?.map((source) => source.ways.join("+")))
+    .toEqual(["property"])
+
+  // …and taking the declaration back out takes the entry with it, leaving no
+  // key standing where a rebuild would have had none.
+  const back = carried(DECLARING, undeclared)
+  expect(wholeOf(back.table)).toEqual(wholeOf(back.rebuilt))
+  expect(back.table.rows.has("herbs")).toBe(false)
+})
+
+// …and the ordinary revision, where the declarations stand and a FILE moves:
+// the file that moved is re-read and every other file's entries are the ones
+// they were.
+test("a file that moves re-files its property entries and leaves the rest alone", () => {
+  const also = writing(
+    DECLARING,
+    "lanes.olai",
+    `{"id":"lane","ord":"a0","title":"a lane","custom":{"bed":"herbs"}}`,
+  )
+  const both = carried(DECLARING, also)
+  expect(wholeOf(both.table)).toEqual(wholeOf(both.rebuilt))
+  // PATH ORDER across the two files, which the second step sorts for: the
+  // arriving entry lands beside the one that was already there.
+  expect(both.table.rows.get("herbs")?.map((source) => `${source.at?.file}:${source.at?.line}`))
+    .toEqual(["lanes.olai:1", "notes.olai:1"])
+
+  // …and the value taken out of the moved file goes, while the untouched
+  // file's entry stays.
+  const quiet = carried(also, writing(also, "lanes.olai", `{"id":"lane","ord":"a0","title":"a lane"}`))
+  expect(wholeOf(quiet.table)).toEqual(wholeOf(quiet.rebuilt))
+  expect(quiet.table.rows.get("herbs")?.map((source) => `${source.at?.file}:${source.at?.line}`))
+    .toEqual(["notes.olai:1"])
+})
+
+// The guard, as a behaviour rather than as a comment: a vault that declares no
+// reference key is handed the very table the first step made.
+test("a vault that declares no reference key is handed the table uncloned", () => {
+  const plain: Revision = new Map([
+    ["_olai/Properties.olai", `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`],
+    ["notes.olai", `{"id":"sowing","ord":"a0","title":"sowing notes","custom":{"pr":"194"}}`],
+  ])
+  const at = readingOf(plain)
+  const first = pointingOf(TEST_CLAIMS, at.set.documents)
+  expect(referenceKeys(at.derived).size).toBe(0)
+  expect(propertied(first, TEST_CLAIMS, referenceKeys(at.derived), at.set.documents)).toBe(first)
 })

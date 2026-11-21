@@ -22,12 +22,12 @@
     "src/conventions.ts": 1,
     "src/derive.ts": 4,
     "src/errors.ts": 10,
-    "src/imports.ts": 2,
+    "src/imports.ts": 3,
     "src/message.ts": 4,
     "src/node.ts": 8,
     "src/page.ts": 5,
     "src/patch.ts": 2,
-    "src/pointing.ts": 3,
+    "src/pointing.ts": 4,
     "src/reading.ts": 1,
     "src/rules.ts": 5,
     "src/searching.ts": 2,
@@ -110,7 +110,7 @@
     "src/meaning.ts": 24,
     "src/page.ts": 4,
     "src/searching.ts": 1,
-    "src/typing.ts": 9,
+    "src/typing.ts": 17,
     "src/writing.ts": 1
   }
 }

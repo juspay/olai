@@ -672,16 +672,74 @@ export const declarationsOf = (
   derived: Derived,
   kinds: KindVocabulary,
 ): PropDeclarations => {
-  const held = DECLARED.get(derived)
+  const held = readDeclaring(derived)
   // THE VOCABULARY IS PART OF THE ANSWER now ({@link withClaims}), so it is part
   // of what the memo may reuse. It is one value for the life of a serve — the
   // composition root assembles it once — so the identity check is a hit every
   // time in production and a correctness guard in a bench that hands two
   // different tables to one revision.
-  if (held !== undefined && held.kinds === kinds) return held.declarations
-  const declarations = declaringIn(derived, kinds)
-  DECLARED.set(derived, { kinds, declarations })
+  if (held.folded?.kinds === kinds) return held.folded.declarations
+  const declarations = withClaims(held.vault, kinds)
+  DECLARED.set(derived, { ...held, folded: { kinds, declarations } })
   return declarations
+}
+
+/**
+ * WHICH KEYS' VALUES ARE REFERENCES — the three kinds that name something else
+ * in the directory, and the one place that list is written down.
+ *
+ * `doc` names a FILE, `ref` and `node` name a ROW, and the references table
+ * files a value of each under the thing it names, with the way `property`
+ * ({@link ./pointing.ts}). The two refusals in `@olai/ops` that used to walk
+ * every record's `custom` for exactly these three kinds read that table now, so
+ * a fourth referring kind is one entry here rather than three walks to find.
+ */
+export const isReference = (declared: Declared | undefined): boolean => {
+  const kind = declared?.type.kind
+  return kind === "doc" || kind === "ref" || kind === "node"
+}
+
+/**
+ * THE DECLARATIONS THE REFERENCES TABLE READS — the vault's own, narrowed to
+ * the keys whose values name something ({@link isReference}).
+ *
+ * NO VOCABULARY, and that is what makes the table buildable where it is built
+ * rather than a reason to carry the kinds down to it: a plugin's claim declares
+ * the key its own contributed KIND ({@link withClaims} is the only layer a
+ * vocabulary adds, and `{ kind: "contributed" }` is the only thing it can
+ * declare), so no claim can make a key a reference and no claim can take one
+ * away. The fold and the ops refusals therefore read the same three kinds out
+ * of one map, whatever this serve was built with.
+ *
+ * MEMOISED BESIDE THE FOLD, under the same entry: the carry asks it of the
+ * revision it follows and of the one it is building, once each, and a batch
+ * asks it per op of a view that has just changed — which is the walk
+ * {@link declarationsOf} is memoised to spend once and this shares.
+ *
+ * EMPTY IS THE COMMON ANSWER — every vault that declares no `doc`, `ref` or
+ * `node` key — and the fold reads it as "file nothing", so such a directory
+ * pays no walk of anybody's properties at all.
+ */
+export const referenceKeys = (derived: Derived): PropDeclarations => readDeclaring(derived).referring
+
+/** The declarations file, read once per view — the vault's own map, the
+ *  reference keys out of it, and the fold with whichever vocabulary asked
+ *  last. */
+interface Declaring {
+  readonly vault: PropDeclarations
+  readonly referring: PropDeclarations
+  readonly folded: { readonly kinds: KindVocabulary; readonly declarations: PropDeclarations } | undefined
+}
+
+const readDeclaring = (derived: Derived): Declaring => {
+  const held = DECLARED.get(derived)
+  if (held !== undefined) return held
+  const vault = declaringIn(derived)
+  const referring = new Map<string, Declared>()
+  for (const [key, declared] of vault) if (isReference(declared)) referring.set(key, declared)
+  const made: Declaring = { vault, referring: referring.size === 0 ? NO_TYPING : referring, folded: undefined }
+  DECLARED.set(derived, made)
+  return made
 }
 
 /**
@@ -702,20 +760,20 @@ export const declarationsOf = (
  * the only other table in this package keyed by a view: a revision nobody kept
  * takes its entry with it, and nothing above learns that anything is
  * remembered. What it buys is that the readers of this — the validator's two
- * arms, every search, and the write planner, which asks once per op of a batch
- * — pay one walk of the declarations file between them rather than one each. The walk
+ * arms, every search, the references table's property step
+ * ({@link referenceKeys}), and the write planner, which asks once per op of a
+ * batch — pay one walk of the declarations file between them rather than one
+ * each. The walk
  * itself is small; the `propertiesIn` in front of it is `O(files)`, and that
  * one was worth not paying a hundred times for a hundred-op batch.
  */
-const DECLARED = new WeakMap<
-  Derived,
-  { readonly kinds: KindVocabulary; readonly declarations: PropDeclarations }
->()
+const DECLARED = new WeakMap<Derived, Declaring>()
 
-/** The walk itself — {@link declarationsOf} with the memo taken off, and the
- *  convention still asked of the derivation's own file list. */
-const declaringIn = (derived: Derived, kinds: KindVocabulary): PropDeclarations =>
-  declarationsIn(derived, propertiesIn(derived.claims, derived.byFile.keys()), kinds)
+/** The walk itself — {@link declarationsOf} with the memo and the vocabulary
+ *  taken off, and the convention still asked of the derivation's own file
+ *  list. */
+const declaringIn = (derived: Derived): PropDeclarations =>
+  vaultIn(derived, propertiesIn(derived.claims, derived.byFile.keys()))
 
 /**
  * THE SAME READING WHEN THE CALLER ALREADY KNOWS WHICH FILE DECLARES — the
@@ -739,8 +797,14 @@ export const declarationsIn = (
   derived: Derived,
   file: string | undefined,
   kinds: KindVocabulary,
-): PropDeclarations => {
-  if (file === undefined) return withClaims(NO_TYPING, kinds)
+): PropDeclarations => withClaims(vaultIn(derived, file), kinds)
+
+/** THE VAULT'S OWN HALF of that reading, with the claims layer not yet on top
+ *  — the walk both doors above share, and the one the references table reads
+ *  through {@link referenceKeys}: no vocabulary reaches it, which is what lets
+ *  a `Derived` key the memo on its own ({@link readDeclaring}). */
+const vaultIn = (derived: Derived, file: string | undefined): PropDeclarations => {
+  if (file === undefined) return NO_TYPING
   const declarations = new Map<string, Declared>()
   for (const located of declaringIn0(derived, file)) {
     const key = keyOf(located.node.title)
@@ -749,7 +813,7 @@ export const declarationsIn = (
     if (type === undefined) continue
     declarations.set(key, { type, at: located.node.id })
   }
-  return withClaims(declarations, kinds)
+  return declarations
 }
 
 /**

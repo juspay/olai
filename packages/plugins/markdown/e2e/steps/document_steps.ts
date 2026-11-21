@@ -35,6 +35,7 @@ import {
 import {
   DOCUMENT_REFERRER,
   DOCUMENT_REFERRERS_SUMMARY,
+  documentReferrerRow,
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
@@ -416,6 +417,23 @@ Then(
     assert.deepStrictEqual(
       (await rows.allTextContents()).map((text) => oneLine(text)),
       wanted,
+    );
+  },
+);
+
+// …and the same list read ROW BY ROW, under the label a reader sees on it:
+// the ways are not one claim (a link in prose, a value under a declared key),
+// so a scenario that cared WHICH row a referrer landed in asks here.
+Then(
+  "what points at the document in the {string} row is {string}",
+  async function (this: OlaiWorld, label: string, expected: string) {
+    const wanted = expected.split(",").map((one) => one.trim()).join(", ");
+    const row = this.frontLane().locator(`${documentReferrerRow(label)}:visible`).first();
+    await this.waitUntil(
+      async () =>
+        (await row.count()) > 0 &&
+        (await row.locator(DOCUMENT_REFERRER).allTextContents()).map(oneLine).join(", ") === wanted,
+      `what points at the document in the \`${label}\` row to read ${JSON.stringify(wanted)}`,
     );
   },
 );

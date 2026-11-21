@@ -10,13 +10,13 @@
  *
  * This module is the one reading over the TABLE that makes it a lookup:
  * {@link ./pointing.ts} carries what every file POINTS AT — its links, its
- * `@` tags, its records' fields and the links in their notes, each filed under
- * the row, the file, the name or the tag it names — and this reading names the
- * three ways of saying it that **Referenced by** is about ({@link WAYS}).
- * {@link ./derive.ts}'s reverse indexes (`namedBy`, `taggedBy`) answer the
- * other doors, over the same facts. Every page that asks "who refers" — a
- * node, a document, a heading, a body — asks THIS function, and every wire
- * that carries the answer carries ONE shape.
+ * `@` tags, its records' fields, the links in their notes and the values of
+ * the keys this vault declares to be references, each filed under the row, the
+ * file, the name or the tag it names — and this reading names the four ways of
+ * saying it that **Referenced by** is about ({@link WAYS}).
+ * The table is the whole of what any door reads now; every page that asks
+ * "who refers" — a node, a document, a heading, a body — asks THIS function,
+ * and every wire that carries the answer carries ONE shape.
  *
  * ONE SHAPE, and it is {@link Reference}: the thing that wrote the reference,
  * and the way(s) it did. A record and a document are the two kinds of source,
@@ -42,6 +42,14 @@
  * a heading is pointing at the document it is in. {@link ./pointing.ts}
  * files every link under everything it names; this reading says what each
  * entry means.
+ *
+ * **A DECLARED PROPERTY VALUE counts.** A record whose `agent` names a roster
+ * row, or whose `brief` names a `.md`, is talking about that row and that file
+ * — the key says so because the vault declared it `ref`, `node` or `doc`
+ * ({@link ./typing.ts}). It is the one way whose meaning comes from outside
+ * the grammar, so it arrives in the table in a second step and reads here like
+ * any other ({@link ./pointing.ts}). What is NOT counted is every other kind
+ * of value: a `text`, an `int`, a `date` names nothing.
  *
  * **A `#topic` never counts, whatever it spells.** The index behind this files
  * both sigils under keys that keep them, so a set with a node called `herbs`
@@ -107,18 +115,25 @@ import { wikilinkAddress } from "./links/wikilink.ts"
  * referrers doing the same two things say them the same way round. One list, so
  * the order and the closure cannot be two facts.
  *
- * THE LINK WAY is the newest: a link in a record's note — or a body's own
- * prose — onto a node, a heading or a document is a reference to what it lands
- * on, and this way is how the references reading says so. The ways exist so a
- * row can tell "this record wrote an edge" from "this record named the node in
- * prose" from "this file links to the page".
+ * THE LINK WAY: a link in a record's note — or a body's own prose — onto a
+ * node, a heading or a document is a reference to what it lands on, and this
+ * way is how the references reading says so. The ways exist so a row can tell
+ * "this record wrote an edge" from "this record named the node in prose" from
+ * "this file links to the page".
+ *
+ * THE PROPERTY WAY is the newest, and it is the one way the FORMAT alone could
+ * not have found: a value under a key this vault declares `doc`, `ref` or
+ * `node` names a file or a row as plainly as a link does, and which keys those
+ * are is a fact about the declarations ({@link ./typing.ts}) rather than about
+ * the grammar. A lane whose `agent` names a roster row is talking about that
+ * row, and until this way the row's page could not say so.
  *
  * THIS READING NAMES THE WAYS IT COUNTS, which is what the one table asks of
  * every reader of it ({@link ./pointing.ts}). The table files every way a
  * document can point at something ({@link ./imports.ts}'s `FILED_WAYS`): the
  * placement that stands for a row, the ordering edges, the tags as written.
  * **Referenced by** is about what somebody SAID about a place, so it counts
- * three of them and the list is here, beside the rulings that close it —
+ * four of them and the list is here, beside the rulings that close it —
  * `mirror` is where a row is drawn a second time rather than a thing said
  * about it, and `after` and `blocks` are the ordering graph, which the refusals
  * in `@olai/ops` read and this answer does not.
@@ -129,7 +144,7 @@ import { wikilinkAddress } from "./links/wikilink.ts"
  * (`markdown-ui`'s `ReferrersSection`) and the words this answer carries
  * cannot gain a member on one side only.
  */
-export const WAYS = ["see", "mention", "link"] as const
+export const WAYS = ["see", "mention", "link", "property"] as const
 export const Way = Schema.Literals(WAYS)
 export type Way = typeof Way.Type
 
@@ -160,6 +175,7 @@ const COUNTED: { readonly [K in Filed]: ReadonlyArray<Way> } = {
   tag: ["mention"],
   mention: ["mention"],
   link: ["link"],
+  property: ["property"],
 }
 
 const counted = (ways: ReadonlyArray<Filed>): ReadonlyArray<Way> =>
@@ -216,12 +232,12 @@ const NOTHING_REFERS: ReadonlyArray<Reference> = []
  * publishes.
  *
  * THE NODE ARM reads the pointing index under `#<id>` and `@<id>` for the node
- * and every placement standing for it — the sees, the links and the mentions
- * all file there at the fold ({@link ./imports.ts}). The derivation's own
- * reverse indexes built the same answers and are read by other doors
- * (`namedBy` by the refusal that asks "does anything point at this record",
- * `taggedBy` by the tag vocabulary); nothing about the two of them is spelled
- * again here.
+ * and every placement standing for it — the sees, the links, the mentions and
+ * the declared `ref` and `node` property values all file there at the fold
+ * ({@link ./imports.ts}). The other doors read the same table and name their
+ * own ways: the refusal that asks "does anything still name this record" reads
+ * the fields and `property`, the tag list reads the `tag` half of the tags
+ * part; nothing about either of them is spelled again here.
  *
  * AN ID NOTHING CLAIMS HAS NO REFERRERS, and that line is the whole of where
  * the existence question is asked. `@alice` files under `@alice` whether or not

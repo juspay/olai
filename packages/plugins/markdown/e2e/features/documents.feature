@@ -527,6 +527,34 @@ Feature: Documents
     Then what points at the document is "install the cabinets, Palette"
     And there should be no page errors
 
+  # A value is a REFERENCE because the vault says its key is one: `brief`
+  # declared `doc` names a file as plainly as a link does, and until this row
+  # existed the file it named could not say so. The declaration and the value
+  # are both written here because the corpus declares nothing — which is also
+  # what makes the row's absence the default.
+  @scratch:good
+  Scenario: A document a declared `doc` property names is listed in its own row
+    Given I open the document "finishes.md"
+    And I mark the page
+    When I rewrite "_olai/Properties.olai" as:
+      """
+      {"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}
+      """
+    And I rewrite "notes.olai" as:
+      """
+      {"id":"sowing-notes","ord":"a0","title":"sowing notes","custom":{"brief":"finishes.md"}}
+      """
+    Then the document is pointed at by 2 things
+    When I open what points at the document
+    # ITS OWN ROW: the link in `install`'s note is one claim, the declared
+    # value is another, and the section keeps them apart.
+    Then what points at the document in the "Names this in a property" row is "sowing notes"
+    And what points at the document in the "Links to this" row is "install the cabinets"
+    # PATH ORDER across the whole list, as every referrer list is.
+    And what points at the document is "install the cabinets, sowing notes"
+    And the page has not reloaded
+    And there should be no page errors
+
   # The section is the browser's own `<details>` answer, so it survives a
   # rebuild the way the node page's does — the promise `website/docs/format.md` made
   # for both pages, and the half that was only ever tested on one.

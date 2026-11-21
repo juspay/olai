@@ -108,6 +108,7 @@ function Section(props: {
         see: TESTID.backlinkSeeRefs,
         mention: TESTID.backlinkMentionRefs,
         link: TESTID.backlinkLinkRefs,
+        property: TESTID.backlinkPropertyRefs,
       })}
       row={(one) => referrerRowOf(one, { file: (path) => hrefOf(atFile(path)), node: (id) => hrefOf(atNode(id)) })}
       stillShown={stillShown}

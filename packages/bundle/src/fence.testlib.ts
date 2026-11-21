@@ -144,6 +144,7 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   // MEMOS OVER IMMUTABLE INPUT, every one a `WeakMap` keyed by the value it
   // folds; a new input computes a new answer and the old entry goes with the
   // object it was about.
+  "packages/format/src/document.ts": "a WeakMap memo of a document's face, keyed by the document, so the table's two filing passes share one face",
   "packages/format/src/filter.ts": "two WeakMap memos of a record's folded text, keyed by the record",
   "packages/format/src/set.ts": "a WeakMap memo of a set's derived reading, keyed by the set",
   "packages/format/src/suggest.ts": "a WeakMap memo of a known table's index, keyed by the table",

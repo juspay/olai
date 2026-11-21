@@ -19,10 +19,12 @@
  *
  * THE WAYS ARE KEPT APART HERE because the readings need them apart, and each
  * reading names the ways it counts ({@link ./backlinks.ts}'s `WAYS` is the
- * three **Referenced by** counts): a record's FIELDS name a row with `mirror`,
+ * four **Referenced by** counts): a record's FIELDS name a row with `mirror`,
  * `after`, `blocks` and `see`, a record's PROSE writes a `tag`, a body's prose
- * writes a `mention`, and a link — or an embed — names a file, a row or a name
- * with `link`. One record doing two of them is one source with two ways.
+ * writes a `mention`, a link — or an embed — names a file, a row or a name
+ * with `link`, and a declared `doc`, `ref` or `node` VALUE names a file or a
+ * row with `property` ({@link propertiesOf}). One record doing two of them is
+ * one source with two ways.
  *
  * WHAT IS NOT HERE is a single decision about meaning: a `#topic` is not a
  * mention (only the `@` half of a tag is a name), a record never refers to
@@ -32,7 +34,7 @@
  * index of this format is read.
  */
 
-import { type Address, printAddress } from "./address.ts"
+import { type Address, addressOf, printAddress } from "./address.ts"
 import { writtenTags } from "./derive.ts"
 import { type Face } from "./document.ts"
 import { recordContributions, recordWikilinks } from "./documents.ts"
@@ -40,6 +42,7 @@ import { wikilinkKey, wikilinkRowNode } from "./links/wikilink.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
 import { type Claims } from "./kinds.ts"
 import { isRegular, type Located, targetsOf } from "./node.ts"
+import { declaredFor, isReference, type PropDeclarations, resolvedDoc } from "./typing.ts"
 
 /**
  * THE FOUR PARTS OF THE TABLE, by WHAT IS POINTED AT — a row of an outline, a
@@ -58,7 +61,9 @@ export type Part = (typeof PARTS)[number]
 /**
  * The ways a contribution is FILED under, in the order a source says them: the
  * fields somebody wrote with a verb first, then the prose they wrote after
- * them, then the links.
+ * them, then the links, then the property values — which are last because they
+ * are filed last ({@link propertiesOf}: a second pass, after the declarations
+ * are read), so a source's `ways` come out in this order however it was built.
  *
  * WIDER THAN WHAT A READING COUNTS, and that is the table's whole arrangement:
  * every way a document can point at something is filed once, and each reader
@@ -67,7 +72,7 @@ export type Part = (typeof PARTS)[number]
  * field ways). A list that held only the counted three would be the table
  * telling the derivation's readers to go and walk the corpus themselves.
  */
-export const FILED_WAYS = ["mirror", "after", "blocks", "see", "tag", "mention", "link"] as const
+export const FILED_WAYS = ["mirror", "after", "blocks", "see", "tag", "mention", "link", "property"] as const
 export type Way = (typeof FILED_WAYS)[number]
 
 /**
@@ -94,6 +99,11 @@ export interface Contribution {
   /** The WIKILINK as written, for the wikilink entries — the name the reading
    *  resolves against the name index when it reads. */
   readonly wikilink?: WikilinkName
+  /** The property KEY a `property` entry's value was written under, AS THE
+   *  RECORD WROTE IT ({@link propertiesOf}) — the word a refusal names when it
+   *  says what to re-point. The declaration it was matched against is folded
+   *  ({@link declaredFor}); this is the spelling in the file. */
+  readonly prop?: string
 }
 
 /**
@@ -196,3 +206,71 @@ const wikiInto = (found: Array<Contribution>, claims: Claims, link: WikilinkName
   const node = wikilinkRowNode(claims, link)
   if (node?.kind === "node") found.push({ part: "rows", key: node.id, way: "link", at, wikilink: link })
 }
+
+/**
+ * WHAT ONE OUTLINE'S RECORDS POINT AT THROUGH THEIR PROPERTIES — the table's
+ * SECOND fold, run after the first one for a reason that is about order rather
+ * than about tidiness.
+ *
+ * The format gives no key in `custom` a meaning: which ones hold REFERENCES is
+ * what the VAULT declares ({@link ./typing.ts}), and the declarations are read
+ * off the derivation, whose own carry is handed the table the first fold made
+ * ({@link ./pointing.ts}). So a revision goes: the fields, the prose and the
+ * tags; then the derivation; then the declared kinds; then this.
+ *
+ * A `doc` VALUE NAMES A FILE and a `ref` or a `node` value names a ROW, which
+ * is the whole of the mapping and is {@link isReference} read one level down.
+ * The resolution is {@link resolvedDoc}'s — the one both the write gate and the
+ * display ask, so what a value NAMES is one answer and this table cannot come
+ * to disagree with the fence about it — and a value that resolves to no
+ * CLAIMED path is filed nowhere, because nothing can ask about a place this
+ * directory does not serve.
+ *
+ * RECORDS ONLY. A body's frontmatter is a face's `props` and no refusal has
+ * ever read it: the two in `@olai/ops` that this fold feeds walk the records,
+ * and a table that quietly filed more than they asked for would be this fold
+ * deciding a question neither of them has been asked.
+ *
+ * A PLACEMENT CARRIES NO PROPERTIES, like it carries no prose and no link.
+ *
+ * THE KEY TRAVELS WITH THE ENTRY — the word as the record spelled it — because
+ * a refusal names it ("`lane` (`agent`, lanes.olai:12)"), and recovering it
+ * from the record at the read would be this fold's own matching done twice.
+ */
+export const propertiesOf = (
+  claims: Claims,
+  declarations: PropDeclarations,
+  records: ReadonlyArray<Located>,
+): ReadonlyArray<Contribution> => {
+  if (declarations.size === 0) return NO_PROPERTIES
+  const found: Array<Contribution> = []
+  for (const located of records) {
+    if (!isRegular(located)) continue
+    const custom = located.node.custom
+    if (custom === undefined) continue
+    for (const [key, value] of Object.entries(custom)) {
+      // FOLDED, through the format's own reading, so a record writing `Agent`
+      // is found by a vault declaring `agent` — the same word to the fence, to
+      // `prop:` and to this.
+      const declared = declaredFor(declarations, key)
+      if (!isReference(declared)) continue
+      const doc = declared?.type.kind === "doc"
+      for (const one of typeof value === "string" ? [value] : value) {
+        if (!doc) {
+          if (one !== "") found.push({ part: "rows", key: one, way: "property", at: located, prop: key })
+          continue
+        }
+        const resolved = resolvedDoc(declared, located.file, one)
+        const address = resolved === undefined ? null : addressOf(claims, resolved, null)
+        if (address === null) continue
+        found.push({ part: "files", key: printAddress(address), way: "property", at: located, prop: key, address })
+      }
+    }
+  }
+  return found
+}
+
+/** The answer for a vault that declares no reference key, which is most of
+ *  them: ONE list, shared — and the whole of what "such a directory pays no
+ *  walk" means ({@link referenceKeys}). */
+const NO_PROPERTIES: ReadonlyArray<Contribution> = []

@@ -20,6 +20,7 @@
  */
 
 import { selector } from "@olai/web/testlib";
+import { makeReferrerWays } from "@olai/markdown-ui/ReferrersSection.tsx";
 
 import { TESTID } from "../src/testids.ts";
 
@@ -48,3 +49,25 @@ export const TOC_LINK = selector(TESTID.tocLink);
 export const DOCUMENT_REFERRERS_SUMMARY = selector(TESTID.documentReferrersSummary);
 /** One row of that list. */
 export const DOCUMENT_REFERRER = selector(TESTID.documentReferrer);
+
+/** One ROW of that list, found by the label a READER sees on it — through the
+ *  shared section's own pairing (`@olai/markdown-ui`'s `makeReferrerWays`), so
+ *  a word is mapped to a testid where the component draws it rather than one
+ *  more time here. THROWS on a label no row carries, like the node page's
+ *  twin (`@olai/tests/harness/world.ts`'s `backlinkRow`): a helper handing
+ *  back `undefined` for the caller to re-check is the same refusal written
+ *  twice. */
+const REFERRING_ROWS = makeReferrerWays({
+  see: TESTID.documentSeeRefs,
+  mention: TESTID.documentMentionRefs,
+  link: TESTID.documentLinkRefs,
+  property: TESTID.documentPropertyRefs,
+});
+
+export const documentReferrerRow = (label: string): string => {
+  const drawn = REFERRING_ROWS.find((one) => one.label === label);
+  if (drawn === undefined) {
+    throw new Error(`what points at the document draws no \`${label}\` row`);
+  }
+  return selector(drawn.refs);
+};

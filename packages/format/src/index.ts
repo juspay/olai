@@ -597,13 +597,15 @@ export type { Reference } from "./backlinks.ts"
  *
  *  THE RELATIONS HALF of it is read by name: {@link namersOf} is `targetsOf`
  *  read backwards — the records that name a row with `mirror`, `after`,
- *  `blocks` or `see`, each with its fields — and {@link isNamed} is the same
- *  question asked for a yes or a no. Both are what the ops layer's refusals
- *  ask before a record is taken away, and both leave the LINKS filed under the
- *  same row out: a row something merely links to is not a row something
- *  declares about. */
-export type { Naming, Pointing } from "./pointing.ts"
-export { isNamed, namersOf } from "./pointing.ts"
+ *  `blocks` or `see`, each with its fields — {@link propertyNamersOf} is the
+ *  same reading for the way a VAULT declares (a `doc`, `ref` or `node` value
+ *  naming a file or a row, with the keys it was written under), and
+ *  {@link isNamed} is both questions asked for a yes or a no. All three are
+ *  what the ops layer's refusals ask before a record is taken away, and all
+ *  three leave the LINKS filed under the same row out: a row something merely
+ *  links to is not a row something declares about. */
+export type { Keyed, Naming, Pointing } from "./pointing.ts"
+export { isNamed, namersOf, propertyNamersOf } from "./pointing.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of

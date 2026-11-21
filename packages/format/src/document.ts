@@ -214,15 +214,35 @@ export interface FaceHead {
  * A PROJECTION and not a second type: every arm below IS one of these plus its
  * content, so what crosses the wire is a value this module made and not a shape
  * somebody assembled to match it.
+ *
+ * ONE FACE PER DOCUMENT, by identity, and that is a promise rather than a
+ * cache: the references table files a file's entries in TWO passes — the
+ * links, fields and tags, and then the property values, which cannot be read
+ * until the declarations are ({@link ./pointing.ts}) — and an entry each pass
+ * made would otherwise carry its own copy of one file's face. The table's
+ * header says a document's every entry points at ONE face object; this is
+ * where that is true. A `WeakMap` for the reason every other table keyed by a
+ * value of this package is one: a document nobody kept takes its entry with
+ * it, and a decode that hands the same bytes back as the same object
+ * ({@link ./set.ts}) hands back the same face with them.
  */
-export const faceOf = ({ path, title, links, tags, props, wikilinks }: Document): Face => ({
-  path,
-  title,
-  links,
-  tags,
-  props,
-  ...(wikilinks === undefined ? {} : { wikilinks }),
-})
+const FACES = new WeakMap<Document, Face>()
+
+export const faceOf = (document: Document): Face => {
+  const held = FACES.get(document)
+  if (held !== undefined) return held
+  const { path, title, links, tags, props, wikilinks } = document
+  const face: Face = {
+    path,
+    title,
+    links,
+    tags,
+    props,
+    ...(wikilinks === undefined ? {} : { wikilinks }),
+  }
+  FACES.set(document, face)
+  return face
+}
 
 /**
  * A `.olai`: the records this app is about, and the face they add up to.
