@@ -50,7 +50,7 @@ export default definePlugin({
       return pair === null ? null : <Columns pair={pair} onWord={add} />
     }
 
-    // At the foot of the vocabulary: the word due longest, and three buttons.
+    // At the foot of the vocabulary row's own page: the word due longest, and three buttons.
     const Review = (props: { readonly node: string }) => {
       const [card, setCard] = createSignal<{ readonly node: string; readonly word: string } | null>(null)
       const load = () => {

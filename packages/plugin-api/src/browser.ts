@@ -30,6 +30,8 @@ import {
 } from "@olai/effect-cordis"
 import { BusyFailure, NotFoundFailure } from "@olai/format"
 import { Effect, Scope, type Stream } from "effect"
+import type { Surface, SurfaceSpec } from "@kolu/surface/define"
+import type { SurfaceClient } from "@kolu/surface/solid"
 
 import { BrowserMount } from "./mount.ts"
 import { ownService, type OwnServices } from "./owned.ts"
@@ -706,6 +708,23 @@ export interface Wired {
   readonly client: () => unknown
 }
 export const Wired = serviceTag<Wired>("wired")
+
+/**
+ * THIS PLUGIN'S OWN CLIENT, TYPED BY ITS OWN SURFACE — the narrowing every
+ * plugin used to write as a cast at its own edge, written once.
+ *
+ * `surface` is the value the plugin's two files share: the server file
+ * registers it and the browser file exports it, so the wire carries exactly
+ * its members under this plugin's name. What comes back is that surface's
+ * client, or `null` where the wire carries no sibling for this plugin — the
+ * plugin's nothing-here arm, as {@link Wired} says.
+ *
+ * The narrowing is still a claim the wire keeps rather than a check made
+ * here: it holds because the tab dials the very surface the browser file
+ * exports (`@olai/web`'s `wire.ts`).
+ */
+export const clientOf = <S extends SurfaceSpec>(_surface: Surface<S>, wired: Wired): SurfaceClient<S> | null =>
+  (wired.client() as SurfaceClient<S> | null) ?? null
 
 /**
  * THE TAB'S SIDE OF THE TABLE — what `@olai/web` holds, and the other end of

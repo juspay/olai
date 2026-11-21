@@ -13,7 +13,9 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 
 import { Then, When } from "@olai/tests/harness/runner.ts"
+import { TESTID } from "@olai/tests/harness/testids.ts"
 import { attr, HYDRATION_TIMEOUT, nodeSelector, POLL_TIMEOUT, SIDEBAR } from "@olai/tests/harness/world.ts"
+import { selector } from "@olai/web/testlib"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
 /** One entry of `vault-plugins_inspect`'s slot list. */
@@ -126,7 +128,15 @@ Then("{string} has a row titled {string} carrying {string}", async function (thi
   )
 })
 
-/** The review the reader draws at the foot of the vocabulary's page. */
+/** An outline waiting in the commit panel is a group of its own, named by its
+ *  file and listing the rows that changed — not one of the other files. */
+Then("the commit panel lists the outline {string} with the row {string}", async function (this: OlaiWorld, file: string, title: string) {
+  const group = this.page.locator(`${selector(TESTID.commitGroup)}${attr("data-file", file)}`)
+  await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.waitUntil(async () => (await group.innerText()).includes(title), `the ${file} group to name ${JSON.stringify(title)}`)
+})
+
+/** The review the reader draws at the foot of the vocabulary row's own page. */
 const review = (world: OlaiWorld) => world.page.locator(attr("data-reader", "review"))
 
 Then("the review offers the word {string}", async function (this: OlaiWorld, word: string) {

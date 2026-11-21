@@ -5,7 +5,6 @@
 import { slotCatalog } from "@olai/plugin-api/slots"
 import { ConversationsWatch, definePlugin, FileKinds, HostLoading, Ops, Offers, Surfaces, Vault, BundleModules } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
-import type { Ops as Gate } from "@olai/ops"
 import { WRITABLE_MODULES } from "@olai/plugin-build"
 import { Effect } from "effect"
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
@@ -79,7 +78,7 @@ export default definePlugin({
     const moduleCatalog = yield* (yield* BundleModules).read
     const describedSlots = slotCatalog(moduleCatalog.map(module => module.exports))
     const loading = yield* HostLoading
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     // THE CONVERSATION DOOR, READ PER CALL rather than held: the broker is
     // core's and is always there, and what stands behind it comes and goes
     // with the chat row.

@@ -48,8 +48,8 @@ Feature: The reading companion
     Given I open the app
     When I go to the plugin "reader"
     Then the plugin page is "review"
-    And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/sm2.ts, pairs.ts, types.ts"
-    And the plugin page's status says "6 files, 138 lines"
+    And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/sm2.ts, pairs.ts, types.ts, words.ts"
+    And the plugin page's status says "7 files, 291 lines"
     When I open the plugin page's "lib/sm2.ts" tab
     Then the plugin page's code is "lib/sm2.ts"
     And the plugin page's code names "export const scheduled"
@@ -102,7 +102,7 @@ Feature: The reading companion
     Then the terminal agent was told the plugin "reader" compiles
     # The page was open when the file landed, so it shows the new file and
     # holds back its verbs until the reader says they have seen it.
-    And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/deck.ts, lib/sm2.ts, pairs.ts, types.ts"
+    And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/deck.ts, lib/sm2.ts, pairs.ts, types.ts, words.ts"
     And the plugin page has disarmed its verbs
 
     When I read the plugin "reader" again
@@ -117,18 +117,19 @@ Feature: The reading companion
     And I press the word "Phileas" under the row "s1"
     Then "vocabulary.olai" has a row titled "Phileas" carrying "reader-due"
     When I open the commit panel
-    Then the panel lists "vocabulary.olai" as "modified"
+    Then the commit panel lists the outline "vocabulary.olai" with the row "Phileas"
+    And "vocabulary.olai" is still waiting in the repository
     And there should be no page errors
 
   @scratch:reader
   Scenario: Again, Good and Easy write when a word is next due, and leave with the plugin
-    Given I open the outline "vocabulary.olai"
+    Given I open the node "vocabulary"
     When I approve the plugin "reader"
     Then the review offers the word "maison"
     When I grade the word "maison" as "good"
     Then the row "maison" of "vocabulary.olai" is next due after "2026-01-01"
 
     When I switch the plugin "reader" off on its page
-    And I open the outline "vocabulary.olai"
+    And I open the node "vocabulary"
     Then the review is not drawn
     And there should be no page errors

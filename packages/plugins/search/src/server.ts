@@ -4,7 +4,6 @@
  *  row still advertised them; declaring them here is what makes switching the
  *  row off take its tools along. */
 import { Ops, Vault, Surfaces, VaultViews } from "@olai/plugin-api/services"
-import type { Ops as Gate } from "@olai/ops"
 import { inMemoryChannel, type ImplementSurfaceDeps } from "@kolu/surface/server"
 import { surface, faces } from "./surface.ts"
 import { tools } from "./tools.ts"
@@ -108,7 +107,7 @@ export default definePlugin({
 export const components = { wire: definePlugin({
   name: "wire", needs: [Search, Ops, Vault, Surfaces, VaultViews],
   apply: Effect.gen(function*() {
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     /**
      * WHAT A QUERY IS ANSWERED BY, TOLD TO THE STORE THAT ASKS.
      *

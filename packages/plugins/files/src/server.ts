@@ -2,7 +2,6 @@
  * remains the write authority. All readings and subscriptions are acquired on
  * this provider's scope; UI and layout are not dependencies of this half. */
 import { definePlugin, Ops, Surfaces } from "@olai/plugin-api/services"
-import type { Ops as Gate } from "@olai/ops"
 import { Effect } from "effect"
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 import { applyEdit, runWrite } from "@olai/edit-intents/apply"
@@ -19,7 +18,7 @@ export { name } from "./name.ts"
 export default definePlugin({
   name, needs: [Ops, Surfaces],
   apply: Effect.gen(function*() {
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       procedures: {
         edit: { apply: ({ input }) => applyEdit(gate, input) },

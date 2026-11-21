@@ -109,7 +109,13 @@ export type {
   SlotName,
   EditWriters,
 } from "./browser.ts"
-export { Bar, Clocks, Edits, editApply, Landings, Faces, heldFaces, Links, NO_EDITS, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
+export { Bar, clientOf, Clocks, Edits, editApply, Landings, Faces, heldFaces, Links, NO_EDITS, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
+/** A PLUGIN'S OWN SURFACE, the same function the server door exports — so a
+ *  file both of a plugin's halves import builds one value in each — and the
+ *  type of its client, which {@link clientOf} answers. */
+export { defineSurface } from "@kolu/surface/define"
+export type { Surface, SurfaceSpec } from "@kolu/surface/define"
+export type { SurfaceClient } from "@kolu/surface/solid"
 /** ...and the bridge's own half of it, which is {@link ./runtime.ts}'s one list
  *  rather than this door's copy of it — see that module on why both doors read
  *  from one place. */

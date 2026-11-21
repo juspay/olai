@@ -152,6 +152,14 @@ const withRows = <A>(
     yield* mountBundle(plugins.host, selectFixtureRows([...ROWS]))
     yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
     yield* settled(plugins.host, [...ROWS])
+    // A plugin the vault defines mounts once the vault-plugins row has read
+    // the directory, after the rows above settle. The composition below is
+    // made once (this bench hands `bind` no change stream), so it waits here
+    // until each one is on the registry's list of composed siblings.
+    for (let tries = 0; vault.composes.some((name) => !plugins.composed().some((one) => one.name === name)); tries += 1) {
+      if (tries > 200) throw new Error(`${vault.composes.join(", ")} never composed: ${plugins.composed().map((one) => one.name).join(", ")}`)
+      yield* Effect.sleep("50 millis")
+    }
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
@@ -163,10 +171,6 @@ const withRows = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    for (let tries = 0; vault.composes.some((name) => !wired.bound.rows.some((row) => row.name === name)); tries += 1) {
-      if (tries > 200) throw new Error(`${vault.composes.join(", ")} never composed; rows: ${wired.bound.rows.map((row) => row.name).join(", ")}`)
-      yield* Effect.sleep("50 millis")
-    }
     const rows = wired.bound.rows.map((row) => ({
       name: row.name,
       surface: row.surface as Surface<SurfaceSpec>,

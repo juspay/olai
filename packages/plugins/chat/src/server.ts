@@ -114,7 +114,6 @@ import { Deferred, Duration, Effect, Scope, Semaphore, Stream } from "effect"
 
 import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
-import type { Ops as WriteGate } from "@olai/ops"
 import { applyMoves } from "./server/move.ts"
 import type { Forecast } from "./wire.ts"
 import { type Asked, makeSleeper, START } from "./server/sleep.ts"
@@ -580,7 +579,7 @@ export default definePlugin({
      *  row over the word this kind claims. */
     const bindingPermit = yield* Semaphore.make(1)
     const creationPermit = yield* Semaphore.make(1)
-    const gate = ops.gate as WriteGate
+    const gate = ops.gate
     const binding: Binding = {
       exclusive: work => bindingPermit.withPermit(work),
       changed: Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision)),

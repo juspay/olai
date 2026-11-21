@@ -129,5 +129,15 @@ const readHalf = (source: string): ReadonlyArray<Uses> => {
   for (let match: RegExpExecArray | null; (match = kinds.exec(source)) !== null;) {
     lines.push({ said: `Adds a property kind to this vault: ${match[1]!}`, named: `kind · ${match[1]!}` })
   }
+  // ...AND EVERY MEMBER IT GRANTS TO THE AGENT FACE, which an agent may then
+  // call: an `agent: { "<member>": … }` map, read as written. A grant the code
+  // computes at runtime is not seen here, like any other line of this list.
+  const agent = /\bagent\s*:\s*\{([^}]*)\}/g
+  for (let match: RegExpExecArray | null; (match = agent.exec(source)) !== null;) {
+    const members = /["']([A-Za-z][\w.-]*)["']\s*:/g
+    for (let member: RegExpExecArray | null; (member = members.exec(match[1]!)) !== null;) {
+      lines.push({ said: `Lets your agents call \`${member[1]!}\``, named: `agent · ${member[1]!}` })
+    }
+  }
   return lines
 }

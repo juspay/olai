@@ -44,7 +44,6 @@
  * reach `ops.run` at all reaches it here.
  */
 import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
-import type { Ops as Gate } from "@olai/ops"
 import { Effect } from "effect"
 import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
 import type { Reading } from "@olai/format"
@@ -75,7 +74,7 @@ export default definePlugin({
    *  `store` binding nothing used. */
   name, needs: [Directory, Ops, Vault, Surfaces],
   apply: Effect.gen(function*() {
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     const vault = yield* Vault
     let ctx: SurfaceRuntime<typeof surface.spec>["ctx"] | undefined
     let held: Projection<OutlineEntry> | undefined

@@ -69,14 +69,17 @@ export default definePlugin({
                 const custom: Readonly<Record<string, unknown>> = at !== undefined && "custom" in at.node ? at.node.custom ?? {} : {}
                 const title = at !== undefined && "title" in at.node ? at.node.title : ""
                 const next = scheduled(cardOf(title, custom), input.grade, today())
-                yield* Effect.orDie(gate.run({
-                  op: "apply",
-                  ops: [
-                    { op: "prop", id: input.node, key: "reader-due", value: next.due },
-                    { op: "prop", id: input.node, key: "reader-interval", value: String(next.interval) },
-                    { op: "prop", id: input.node, key: "reader-ease", value: String(next.ease) },
-                  ],
-                }, "web"))
+                const props: Readonly<Record<string, string>> = {
+                  "reader-due": next.due,
+                  "reader-interval": String(next.interval),
+                  "reader-ease": String(next.ease),
+                }
+                // The gate refuses a write that changes nothing, and one refusal
+                // stops the whole batch, so only the properties that moved go in.
+                const ops = Object.entries(props)
+                  .filter(([key, value]) => custom[key] !== value)
+                  .map(([key, value]) => ({ op: "prop" as const, id: input.node, key, value }))
+                if (ops.length > 0) yield* Effect.orDie(gate.run({ op: "apply", ops }, "web"))
                 return { due: next.due }
               }),
           },
