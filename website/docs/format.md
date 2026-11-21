@@ -78,7 +78,7 @@ Where the row sorts among its siblings, written as a fractional index: a string 
 
 The text of the row, stored exactly as it was typed. Tags are written inside it and are picked out when the row is drawn. `#topic` and `@person` are two markers over one set of characters (`[A-Za-z0-9_/-]`), so `#work/olai` is one tag. They are two separate sets of tags, so `#alice` and `@alice` are different tags. An `@` only starts a mention where a word starts, so `srid@srid.ca` stays an email address, while a `#` starts a tag anywhere.
 
-A title is drawn as inline markdown only: bold, links and code work, and block elements such as headings and lists do not. It goes through the same sanitiser a note goes through.
+A title is drawn as inline markdown only: bold, links and code work, and block elements such as headings and lists do not. A wikilink, `[[finishes]]`, is a link to the file its name finds, and `[[kitchen-sink#Tables]]` names a heading rather than the tag `#Tables` ([wikilinks.md](wikilinks.md)). It goes through the same sanitiser a note goes through.
 
 ### `done`, `cancelled`, `doing`, `todo`
 

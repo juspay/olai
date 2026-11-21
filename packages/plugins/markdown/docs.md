@@ -31,7 +31,7 @@ Clicking **Edit** replaces the body with a plain-text box named `Edit <file>`, h
 
 ## Headings and links
 
-Clicking a heading, or a line of **Contents**, goes to an address like `/notes/plan.md#slug`.[^click] `Alt` and a click open the same destination in a pane on the right.[^alt] A link to a file this directory does not serve says so.[^dead] Pictures load as you reach them.[^pictures]
+Clicking a heading, or a line of **Contents**, goes to an address like `/notes/plan.md#slug`.[^click] `Alt` and a click open the same destination in a pane on the right.[^alt] `[[plan]]`, a wikilink, opens the document `plan` ([wikilinks.md](../wikilinks.md)).[^unresolved] A link to a file this directory does not serve says so.[^dead] Pictures load as you reach them.[^pictures]
 
 ## What still works without this plugin
 
@@ -56,6 +56,8 @@ Switching `markdown` off takes away document pages and the read and write proced
 [^click]: A plain click records the heading in the address and scrolls to it once the page's typefaces have loaded, so where you land is measured in the type you will actually read.
 
 [^alt]: The pane that opens on the right includes a preview card. A link to a part of the text you are already in, such as a footnote inside an outline's note, scrolls in place and leaves the address alone.
+
+[^unresolved]: A wikilink whose name finds no file is marked as a dead link is, and a screen reader hears `no file is named plan` after its words. Clicking it opens **Page not found** for that name. It is marked or cleared as files arrive and leave, without drawing the page again, so a selection you made stays.
 
 [^dead]: A link to a file this directory does not serve keeps its words, and gains a sentence saying it is dead in the name a screen reader reads out. A keyboard and a screen reader meet it that way too, not only a pointer. The sentence goes as soon as the file is served.
 

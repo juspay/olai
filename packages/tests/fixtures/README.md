@@ -499,8 +499,9 @@ the real one, because the Agenda counts from the server's clock:
 `notes/cabinets.md` is the document the pictures show beside the outline:
 frontmatter, two headings, a table, a task list, links to `finishes.md` and
 `quote.html`, a link to the row `cabinets`, and `art/handle.png`, a copy of
-the one in `good/`. It holds no wikilink, math, or callout, because olai draws
-those as text today and the pictures must not show them as working.
+the one in `good/`. It holds no math or callout, because olai draws those as
+text today and the pictures must not show them as working. It holds no
+wikilink either: the pictures were taken with standard links.
 
 `notes/quote.html` is the HTML page in `html-page.png`: its own `<style>`, no
 script. `money.journal` is the ledger in `ledger.png`, a copy of
