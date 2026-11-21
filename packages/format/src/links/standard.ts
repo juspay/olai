@@ -4,7 +4,7 @@
  * references index, the dead-link reading and the page all ask it, so a
  * `[q](finishes.md?v=1)` is a link to `finishes.md` for all three.
  */
-import type { Cut } from "@olai/prose/read.ts"
+import type { Cut } from "@olai/prose/cut.ts"
 
 import { type Address, addressOf } from "../address.ts"
 import type { Claims } from "../kinds.ts"

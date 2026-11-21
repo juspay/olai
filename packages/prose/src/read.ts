@@ -26,16 +26,7 @@ import { guarded, type Refusal } from "./parse.ts"
 import { isPlain } from "./plain.ts"
 import { claim, type Slug, slugOf } from "./slug.ts"
 import { type Tag, tagsOf } from "./tags.ts"
-
-/** An address as written, cut once: the path before any `?` or `#`, the
- *  query between them, the fragment after the `#`. */
-export interface Cut {
-  /** The address as the text wrote it, escapes and references decoded. */
-  readonly url: string
-  readonly path: string
-  readonly query: string | null
-  readonly fragment: string | null
-}
+import { type Cut, cut } from "./cut.ts"
 
 /** A link or a picture, in the order the text writes them: `[words](address)`,
  *  `![words](address)`, or either through a definition (`[words][label]`). A
@@ -77,19 +68,6 @@ export interface Read {
 }
 
 const NONE: ReadonlyArray<never> = []
-
-/** Cut an address into its three parts, once. */
-export const cut = (url: string): Cut => {
-  const hash = url.indexOf("#")
-  const before = hash === -1 ? url : url.slice(0, hash)
-  const question = before.indexOf("?")
-  return {
-    url,
-    path: question === -1 ? before : before.slice(0, question),
-    query: question === -1 ? null : before.slice(question + 1),
-    fragment: hash === -1 ? null : url.slice(hash + 1),
-  }
-}
 
 /** A text read as plain words: a title with no markup, or a refused text. */
 const plainly = (text: string, refused?: Refusal): Read => {

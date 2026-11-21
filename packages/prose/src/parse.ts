@@ -19,29 +19,38 @@
  * (`./plain.ts`) are needed before it has loaded.
  */
 import type { Root } from "mdast"
-import remarkGfm from "remark-gfm"
-import remarkParse from "remark-parse"
-import { type Processor, unified } from "unified"
+import type remarkGfmPlugin from "remark-gfm"
+import type remarkParsePlugin from "remark-parse"
+import type * as Unified from "unified"
+import type { Processor } from "unified"
 
-import { obsidianFromMarkdown, obsidianSyntax } from "./obsidian.ts"
+import type * as Obsidian from "./obsidian.ts"
 
-/** `./obsidian.ts`'s two halves, attached the way `remark-gfm` attaches its
- *  own: after it, so a spaced address is tried before a footnote's `]`. */
-function remarkObsidian(this: Processor): void {
-  const data = this.data()
-  ;(data.micromarkExtensions ??= []).push(obsidianSyntax)
-  ;(data.fromMarkdownExtensions ??= []).push(obsidianFromMarkdown)
+/** Built once, on the first parse, and LOADED then too: the parser's modules
+ *  are required here rather than imported at the top, so importing this file
+ *  — which every reader of `@olai/format` does — runs none of them. A bundle
+ *  that never parses carries no parser, and a runtime without a DOM can import
+ *  the reading even though the parser's browser build of the entity decoder
+ *  (`decode-named-character-reference`) reaches for `document` when it loads. */
+let parser: Processor<Root> | undefined
+
+const dialect = (): Processor<Root> => {
+  const { unified } = require("unified") as typeof Unified
+  const remarkParse = (require("remark-parse") as { readonly default: typeof remarkParsePlugin }).default
+  const remarkGfm = (require("remark-gfm") as { readonly default: typeof remarkGfmPlugin }).default
+  const { obsidianFromMarkdown, obsidianSyntax } = require("./obsidian.ts") as typeof Obsidian
+  /** `./obsidian.ts`'s two halves, attached the way `remark-gfm` attaches its
+   *  own: after it, so a spaced address is tried before a footnote's `]`. */
+  function remarkObsidian(this: Processor): void {
+    const data = this.data()
+    ;(data.micromarkExtensions ??= []).push(obsidianSyntax)
+    ;(data.fromMarkdownExtensions ??= []).push(obsidianFromMarkdown)
+  }
+  return unified().use(remarkParse).use(remarkGfm).use(remarkObsidian).freeze() as unknown as Processor<Root>
 }
 
-/** Built once, on the first parse: attaching the extensions is work a parse
- *  per text must not repeat, and building it lazily leaves this module with
- *  nothing to run at import, so a bundle that imports `@olai/format` for a
- *  rule and never parses carries no parser. */
-let parser: ReturnType<typeof dialect> | undefined
-const dialect = () => unified().use(remarkParse).use(remarkGfm).use(remarkObsidian).freeze()
-
 /** The Markdown tree of a text, in the dialect this app reads. */
-export const parse = (text: string): Root => (parser ??= dialect()).parse(text)
+export const parse = (text: string): Root => (parser ??= dialect()).parse(text) as Root
 
 /**
  * THE FOUR SHAPES THE PARSER IS NOT LINEAR ON, measured in one pass over the

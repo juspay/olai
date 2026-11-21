@@ -56,7 +56,7 @@ import {
   pictureOf,
   placeOf,
 } from "@olai/format"
-import { cut } from "@olai/prose/read.ts"
+import { cut } from "@olai/prose/cut.ts"
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"

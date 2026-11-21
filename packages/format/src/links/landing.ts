@@ -5,7 +5,7 @@
  * name across the directory (`./wikilink.ts`). The dead-link reading and the
  * page ask this, so a link is dead for an agent exactly when it is drawn dead.
  */
-import type { Cut } from "@olai/prose/read.ts"
+import type { Cut } from "@olai/prose/cut.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
 
 import type { Address } from "../address.ts"
