@@ -10,7 +10,7 @@
 
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
-import { admits, blockersOf, datedOn, derive, type Node, markdownIn, nodesOf, type OpFailure, type OutlineSet, type RegularNode, NO_KINDS, outlinePaths, pinTargetIn, shelfOf, standingBefore, validate, AddRequest, type WriteRequest as Request } from "@olai/format"
+import { admits, blockersOf, datedOn, derive, type Node, markdownIn, namersOf as namedBy, nodesOf, type OpFailure, type OutlineSet, type RegularNode, NO_KINDS, outlinePaths, pinTargetIn, shelfOf, standingBefore, validate, AddRequest, type WriteRequest as Request } from "@olai/format"
 import { serializeOutline } from "olai-plugin-outline-olai/format"
 import { findingsIn, recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
@@ -2822,12 +2822,12 @@ const crossing = (): OutlineSet =>
     ].join("\n"),
   })
 
-/** Who NAMES this id, and with which field — `@olai/format`'s own reverse
- *  index, which is "does anything still point at this record" asked the way the
+/** Who NAMES this id, and with which field — the references table's rows,
+ *  which are "does anything still point at this record" asked the way the
  *  ops layer asks it. Flattened to strings so two readings of two sets compare
  *  by value rather than by identity. */
 const namersOf = (set: OutlineSet, id: string): ReadonlyArray<string> =>
-  (derive(TEST_CLAIMS, recordsOf(set)).namedBy.get(id) ?? [])
+  namedBy(readingOf(set).pointing, id)
     .flatMap((naming) => naming.fields.map((field) => `${naming.at.node.id}.${field}`))
     .slice()
     .sort()

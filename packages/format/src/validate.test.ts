@@ -16,6 +16,7 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { rowsOf } from "./derive.ts"
+import { isNamed } from "./pointing.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { blamedOn, implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
 import { blamed, type Verdict, verdictOf } from "./verdict.ts"
@@ -1169,11 +1170,12 @@ test("a mirror into a withheld file dangles, and does not break the file holding
   expect(dark).toEqual(["attic.olai"])
   expect(brokenIn(set, "plan.olai")).toBeUndefined()
 
-  const view = reading(TEST_CLAIMS, set).derived
+  const at = reading(TEST_CLAIMS, set)
+  const view = at.derived
   // The target is NAMED and not DECLARED, which is exactly what a dangling
-  // edge is — the derivation has had a word for it all along.
+  // edge is — the references table has had a word for it all along.
   expect(view.byId.has("lamps")).toBe(false)
-  expect(view.namedBy.has("lamps")).toBe(true)
+  expect(isNamed(at.pointing, "lamps")).toBe(true)
   const rows = rowsOf(view, "plan.olai")
   const mirror = rows[0]?.children[0]
   expect(mirror?.kind).toBe("dangling")

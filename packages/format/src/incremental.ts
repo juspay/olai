@@ -99,13 +99,15 @@
  * cycle walks, when the graph moved — and `./validate.bench.ts` prints both.
  */
 import type { Claims } from "./kinds.ts"
-import { byCorpus, type Derived } from "./derive.ts"
+import { type Derived } from "./derive.ts"
 import { isMarkdown } from "./document.ts"
 import type { OutlineError } from "./errors.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, targetsOf } from "./node.ts"
 import { claimsAreUnique, recordsIn, type SetDelta, touchedBy } from "./patch.ts"
+import { namersOf, type Pointing } from "./pointing.ts"
 import {
+  byNaming,
   reportAfterCycles,
   reportDeclarations,
   reportMirrorCycles,
@@ -211,6 +213,10 @@ export const incrementally = (
   delta: SetDelta,
   derived: Derived,
   kinds: KindVocabulary,
+  /** What the directory points at NOW — where the targets rule reads who
+   *  names an id ({@link ./pointing.ts}), carried across this revision beside
+   *  the view ({@link ./validate.ts}). */
+  pointing: Pointing,
 ): Narrowed | Decline => {
   // Fact 2: a verdict with anything in it belongs to a set that was refused,
   // and a refused set is not one anybody published — so there is nothing here
@@ -260,24 +266,28 @@ export const incrementally = (
 
   // targets: every id the edit NAMED, from either side, plus every id whose
   // claimant moved. One sentence rather than two: those are exactly the ids
-  // whose entry in `namedBy` or in `byId` this delta could have touched, and an
-  // id in neither has the answer it had — which was that it does not dangle.
+  // whose entry in the references table's rows or in `byId` this delta could
+  // have touched, and an id in neither has the answer it had — which was that
+  // it does not dangle.
   const named = new Set<string>(moved)
   for (const at of gone) for (const [, id] of targetsOf(at.node)) named.add(id)
   for (const at of fresh) for (const [, id] of targetsOf(at.node)) named.add(id)
   const dangling: Array<string> = []
   for (const id of named) {
-    if (derived.namedBy.has(id) && !derived.byId.has(id)) dangling.push(id)
+    // NAMED WITH A FIELD, which is what this rule is about: a link to an id
+    // nothing declares is filed under the same row and is the dead-link
+    // reading's sentence ({@link ./rules.ts}'s `danglingIn` argues it).
+    if (!derived.byId.has(id) && namersOf(pointing, id).length > 0) dangling.push(id)
   }
-  // PUT BACK IN `namedBy`'s KEY ORDER, which is the order the report promises
-  // for two findings at one site ({@link ./rules.ts}'s `reportUnknownTargets`).
-  // Sorted rather than maintained: a valid corpus has no dangling ids at all,
-  // so this list is nearly always empty and the sort is nearly always free —
-  // where keeping a dangling set in corpus order across every edit would be a
-  // second index, maintained on the write path, for the benefit of sets the
-  // validator is about to refuse anyway.
-  dangling.sort((one, other) => byNaming(derived, one, other))
-  reportUnknownTargets(dangling, derived, errors)
+  // PUT IN THE ORDER THE REPORT PROMISES for two findings at one site
+  // ({@link ./rules.ts}'s `reportUnknownTargets`), with that arm's own
+  // comparator. Sorted rather than maintained: a valid corpus has no dangling
+  // ids at all, so this list is nearly always empty and the sort is nearly
+  // always free — where keeping a dangling set in corpus order across every
+  // edit would be a second index, maintained on the write path, for the
+  // benefit of sets the validator is about to refuse anyway.
+  dangling.sort((one, other) => byNaming(pointing, one, other))
+  reportUnknownTargets(dangling, pointing, derived, errors)
 
   if (moving) {
     reportAfterCycles(derived.nodes, derived, errors)
@@ -396,32 +406,6 @@ const shapeOf = (at: Located): string =>
     isMirror(at.node) ? null : at.node.blocks ?? null,
   ])
 
-/**
- * Two dangling ids, in the order {@link Derived.namedBy} holds their keys.
- *
- * That map is built by one walk of the corpus filing each record's targets, so
- * a key sits where the record that FIRST named it sits — and where two ids are
- * first named by one record, in the order that record's own fields name them
- * ({@link targetsOf}). Both halves are read straight off the index rather than
- * reconstructed: the first naming is the head of the key's list, and the field
- * order is the record's.
- *
- * A key whose list is empty cannot happen — `namedBy` files a key by filing a
- * naming into it — and the fallback ties rather than throwing, because the
- * order two findings come out in is not where a validator gets to take a write
- * down.
- */
-const byNaming = (derived: Derived, one: string, other: string): number => {
-  const first = derived.namedBy.get(one)?.[0]?.at
-  const second = derived.namedBy.get(other)?.[0]?.at
-  if (first === undefined || second === undefined) return 0
-  if (first !== second) return byCorpus(first, second)
-  for (const [, id] of targetsOf(first.node)) {
-    if (id === one) return -1
-    if (id === other) return 1
-  }
-  return 0
-}
 
 /**
  * Whether a path is one of the `.md` files a declared `doc` property may point at — the kind

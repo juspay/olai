@@ -747,5 +747,8 @@ test("the narrowed verdict is the full verdict, over the real vault", () => {
   // nearly every revision here is one the narrowing was really asked about.
   holds(report, { narrowed: 60, whole: 0, declined: { first: 1 } })
 // This replays 120 revisions over the pinned real vault alongside other CI
-// workers. It checks equivalence, not a five-second performance budget.
-}, 20_000)
+// workers. It checks equivalence, not a performance budget: every edited file
+// is decoded through the parser and every revision is also validated whole,
+// which on a loaded machine is a minute rather than the twenty seconds it was
+// before decode read Markdown.
+}, 120_000)

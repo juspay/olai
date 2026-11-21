@@ -63,6 +63,7 @@ import {
   vaultOf,
 } from "./fixtures.testlib.ts"
 import { isLeftoverArchive, isMirror, isTrashed } from "./node.ts"
+import { type Pointing, pointingOf } from "./pointing.ts"
 import { type TagUse, vocabularyOf } from "./vocabulary.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -74,7 +75,12 @@ const ROUNDS = Number(process.env["OLAI_BENCH_ROUNDS"] ?? 20)
  *  here: path order is a promise of the format's own, and a bench that spells
  *  it again is a bench that can come to measure a corpus in an order no app
  *  holds. */
-const view = derive(TEST_CLAIMS, recordsOf(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS })))))
+const corpus = Object.fromEntries(vaultOf({ files: FILES, records: RECORDS }))
+const set = setOf(corpus)
+const view = derive(TEST_CLAIMS, recordsOf(set))
+/** …and the references table over the same vault, which is what the index arm
+ *  reads now (`./vocabulary.ts` counts the `tag` way of its tags part). */
+const table = pointingOf(TEST_CLAIMS, set.documents)
 
 /** One row of the vocabulary, built the way both walks below build one —
  *  they differ in what they walk, never in what they answer with. */
@@ -158,11 +164,20 @@ const titlesOnly = (derived: Derived): ReadonlyArray<TagUse> => {
   return ranked(counts)
 }
 
-/** A view the arm under test has never been handed: the same indexes under a
- *  new identity, which is what `vocabularyOf`'s per-derivation memo keys on. */
+/** A view the walking arms have never been handed, and a TABLE the index arm
+ *  has never been handed: the same maps under a new identity, which is what
+ *  `vocabularyOf`'s per-table memo keys on and what a server is left holding
+ *  when one file changes. */
 const fresh = (): Derived => ({ ...view })
 
-const arms = { index: vocabularyOf, walk: walked, titles: titlesOnly } as const
+const freshAt = (): { readonly claims: typeof TEST_CLAIMS; readonly pointing: Pointing } =>
+  ({ claims: TEST_CLAIMS, pointing: { ...table } })
+
+const arms = {
+  index: () => vocabularyOf(freshAt()),
+  walk: () => walked(fresh()),
+  titles: () => titlesOnly(fresh()),
+} as const
 
 // THE SAME ANSWER for the two that must have one, asserted before anything is
 // timed — see the header. A benchmark whose fast arm answers a shorter list is
@@ -170,8 +185,8 @@ const arms = { index: vocabularyOf, walk: walked, titles: titlesOnly } as const
 const spelling = (tags: ReadonlyArray<TagUse>): string =>
   tags.map((tag) => `${tagText({ sigil: tag.sigil, tag: tag.name })} ${tag.count}`)
     .join("\n")
-const found = spelling(arms.index(fresh()))
-const walkFound = spelling(arms.walk(fresh()))
+const found = spelling(arms.index())
+const walkFound = spelling(arms.walk())
 if (found !== walkFound) {
   throw new Error(
     "the index and the equivalent walk disagree about the set's tags, so neither" +
@@ -179,13 +194,13 @@ if (found !== walkFound) {
       `\n  walk:  ${walkFound.split("\n").length}`,
   )
 }
-const tags = view.taggedBy.size
+const tags = table.tags.size
 if (tags < 2) throw new Error(`the vault holds ${tags} tags — this measures nothing`)
 /** What the arm outside the guard answers, which must be SMALLER — a
  *  title-only reading of a corpus whose notes hold tags cannot be the whole
  *  vocabulary, and if it ever is, this vault stopped saying what it is for
  *  (`@olai/format`'s `vault.test.ts` is the fence for that). */
-const titlesFound = arms.titles(fresh()).length
+const titlesFound = arms.titles().length
 if (titlesFound >= tags) {
   throw new Error(
     `the title-only arm found ${titlesFound} of ${tags} tags — it is supposed to` +
@@ -197,13 +212,12 @@ const run = (name: keyof typeof arms): ReadonlyArray<number> => {
   const arm = arms[name]
   // Warmed, then measured, for `patch.bench.ts`'s reason: one of three arms has
   // to go first, and going first means paying for a JIT the others find warm.
-  for (let round = 0; round < 3; round++) arm(fresh())
-  return Array.from({ length: ROUNDS }, () => {
-    const derived = fresh()
-    return timed(() => {
-      arm(derived)
+  for (let round = 0; round < 3; round++) arm()
+  return Array.from({ length: ROUNDS }, () =>
+    timed(() => {
+      arm()
     })
-  })
+  )
 }
 
 console.log(

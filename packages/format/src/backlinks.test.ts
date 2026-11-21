@@ -69,9 +69,9 @@ test("`@word` is a reference exactly when a record claims the word", () => {
   expect(said(claimed, "alice")).toEqual(["note mention"])
 })
 
-// THE HALF OF THE INDEX THIS READING TAKES, asserted here because nothing else
-// can assert it. `taggedBy` files both sigils under keys that keep them, and a
-// reading that looked up the bare word — or looked up both spellings — would
+// THE HALF OF THE TABLE THIS READING TAKES, asserted here because nothing else
+// can assert it. The tags part files both sigils under keys that keep them, and
+// a reading that looked up the bare word — or looked up both spellings — would
 // draw `#herbs` as a referrer of the node called `herbs`. The oracle next door
 // cannot catch that: `derive` and `patch` would agree about a key either way,
 // and the widget's own tests are about the vocabulary rather than about who
@@ -83,8 +83,8 @@ test("a `#topic` spelled like an id is not a reference, and the `@` beside it is
       `{"id":"topic","ord":"b","title":"seed order","desc":"filed under #herbs"}`,
   })
   // Both keys are really there, so this is the READING choosing between them
-  // rather than an index that never filed the topic.
-  expect([...view.derived.taggedBy.keys()].sort()).toEqual(["#herbs", "@herbs"])
+  // rather than a table that never filed the topic.
+  expect([...view.pointing.tags.keys()].sort()).toEqual(["#herbs", "@herbs"])
   expect(said(view, "herbs")).toEqual(["ask mention"])
 })
 

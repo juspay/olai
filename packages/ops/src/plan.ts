@@ -62,6 +62,7 @@ import {
   drawingPath,
   fileKind,
   isMirror,
+  isNamed,
   isTrashed,
   type Located,
   type LocatedRegular,
@@ -69,6 +70,7 @@ import {
   MARKS,
   type Minted,
   type MirrorNode,
+  namersOf,
   NESTING,
   nextOccurrence,
   type Node,
@@ -4040,8 +4042,8 @@ const planUntrash = (
   // The archive after the removal, with the empty scaffold above the node
   // tidied away — deepest first, stopping at the first ancestor that still
   // holds anything, carries more than a scaffold record does, or is named by
-  // something. "Named" is a lookup in `namedBy` — the format's own `targetsOf`
-  // read backwards, built with the rest of the derivation — so a relation
+  // something. "Named" is a lookup in the references table's rows — the
+  // format's own `targetsOf` read backwards ({@link isNamed}) — so a relation
   // added later still cannot slip past it, and an edge written from anywhere,
   // the returning subtree included, keeps its target. The child counts are one
   // pass, decremented as ancestors drop, so the walk never re-scans the one
@@ -4061,7 +4063,7 @@ const planUntrash = (
     if (
       (holding.get(holder.id) ?? 0) > 0 ||
       !bareScaffold(holder) ||
-      scope.derived.namedBy.has(holder.id)
+      isNamed(scope.pointing, holder.id)
     ) break
     dropped.add(holder.id)
     if (holder.parent !== undefined) {
@@ -5396,7 +5398,7 @@ const planUnmirror = (
  * A mirror is addressable like any other record, so anything may name one: a
  * second placement chained onto it, or an `after` / `blocks` / `see` written at
  * it. WHICH fields those are is the format's answer rather than a list kept
- * here — `Derived.namedBy` is `targetsOf` reversed over the whole set — and a
+ * here — the references table's rows are `targetsOf` reversed over the whole set — and a
  * list of edge fields in this file is one a fourth relation would silently fall
  * out of, with the write it should have refused landing.
  *
@@ -5742,10 +5744,12 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
  * sentence that names them, in the two refusals a person is most likely to
  * meet one after the other.
  *
- * `namedBy` is the format's own `targetsOf` read backwards, built with the rest
- * of the derivation — so a relation the format grows later still cannot slip
+ * The table's rows are the format's own `targetsOf` read backwards
+ * ({@link namersOf}) — so a relation the format grows later still cannot slip
  * past this, and asking the question costs a lookup per id rather than a walk
- * of the corpus.
+ * of the corpus. A row something merely LINKS to is filed there too and is not
+ * read here: a link is not a relation, and re-pointing one is the dead-link
+ * reading's sentence rather than this refusal's.
  *
  * WHAT IS GOING IS NOT A DEPENDENT OF ITSELF, and that is why the argument is a
  * SET rather than an id with a self-check beside it. A record naming another
@@ -5766,7 +5770,7 @@ const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string>
     held.set(naming.at.node.id, entry)
   }
   for (const id of going) {
-    for (const naming of scope.derived.namedBy.get(id) ?? []) file(naming)
+    for (const naming of namersOf(scope.pointing, id)) file(naming)
   }
   for (const naming of namingByProp(scope, going)) file(naming)
   return [...held.values()].map((entry) =>
@@ -5777,10 +5781,10 @@ const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string>
 }
 
 /**
- * The records naming one of these ids through a TYPED PROPERTY — the half
- * `namedBy` structurally cannot see.
+ * The records naming one of these ids through a TYPED PROPERTY — the half the
+ * table's field ways structurally cannot see.
  *
- * `namedBy` is `targetsOf` read backwards, and `targetsOf` is the format's list
+ * Those ways are `targetsOf` read backwards, and `targetsOf` is the format's list
  * of FIELDS that name a record. A `ref` or a `node` value is a reference that
  * lives inside `custom`, where the format gives no key a meaning — so which
  * keys are references is a fact about what the VAULT declares

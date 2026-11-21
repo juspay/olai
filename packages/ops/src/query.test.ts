@@ -1595,7 +1595,7 @@ describe("which tags the set already uses", () => {
   // this shape — a field dropped between the reading and the answer would fail
   // nothing over there.
   test("the answer is the shortlist, ranked, in the envelope the wire carries", () => {
-    expect(tags(derivedOf(HOUSE()).derived, { sigil: "#", query: "ho", limit: 8 }))
+    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "ho", limit: 8 }))
       .toEqual({
         tags: [
           { name: "home", count: 2 },
@@ -1606,7 +1606,7 @@ describe("which tags the set already uses", () => {
   })
 
   test("the sigil asked with is the only namespace answered", () => {
-    expect(tags(derivedOf(HOUSE()).derived, { sigil: "@", query: "", limit: 8 }))
+    expect(tags(derivedOf(HOUSE()), { sigil: "@", query: "", limit: 8 }))
       .toEqual({ tags: [{ name: "alice", count: 1 }] })
   })
 

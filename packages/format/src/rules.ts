@@ -33,7 +33,7 @@
  */
 import type { Claims } from "./kinds.ts"
 import { conventionCalled, TRASH, INBOX, PINS } from "./node.ts"
-import { type Derived, drawnFrom } from "./derive.ts"
+import { byCorpus, type Derived, drawnFrom } from "./derive.ts"
 import {
   chainOf,
   compareErrors,
@@ -50,8 +50,10 @@ import {
   PROPERTIES,
   propertiesIn,
   type Site,
+  targetsOf,
 } from "./node.ts"
 import { byPath } from "./paths.ts"
+import { namersOf, type Pointing } from "./pointing.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
 import { didYouMeanDeclared } from "./suggest.ts"
 import {
@@ -224,30 +226,79 @@ export const reportParentCycles = (
 }
 
 /**
- * The ids nothing declares, in the order {@link Derived.namedBy} holds them —
- * which is the order the corpus first names each one.
+ * The ids nothing declares, sorted by the record that first names each one.
  *
- * The whole-corpus arm's answer to "which references dangle", and it is already
- * an index read rather than a walk of the records ({@link reportUnknownTargets}
- * says what that bought). The incremental arm arrives at the same list from the
- * other end — the handful of ids an edit could have moved — and puts it in this
- * order rather than inventing one of its own.
+ * The whole-corpus arm's answer to "which references dangle", and it is a read
+ * of the references table's ROWS rather than a walk of the records
+ * ({@link reportUnknownTargets} says what that bought). The incremental arm
+ * arrives at the same list from the other end — the handful of ids an edit
+ * could have moved — and both put it in {@link byNaming}'s order.
+ *
+ * SORTED HERE, where the whole-corpus arm used to inherit an order from the
+ * index it walked: the table promises nothing about its keys, which is what
+ * lets a carry add and drop them in place ({@link ./pointing.ts}). A valid
+ * corpus dangles nothing at all, so this list is nearly always empty and the
+ * sort is nearly always free.
+ *
+ * A ROW IS NOT A DANGLING TARGET BECAUSE SOMETHING LINKS TO IT. The table's
+ * rows hold every way anything points at an id — a `[x](#herbs)` in a note
+ * files there too — and a link to an id nothing declares is a DEAD LINK, which
+ * is the dead-link reading's sentence and not this rule's. So the keys read
+ * here are the ones a record NAMES with a field ({@link namersOf}), which is
+ * exactly what `targetsOf` answers and exactly what this rule has always been
+ * about.
  */
-export const danglingIn = (derived: Derived): ReadonlyArray<string> => {
+export const danglingIn = (
+  pointing: Pointing,
+  derived: Derived,
+): ReadonlyArray<string> => {
   const dangling: Array<string> = []
-  for (const id of derived.namedBy.keys()) if (!derived.byId.has(id)) dangling.push(id)
-  return dangling
+  for (const id of pointing.rows.keys()) {
+    if (!derived.byId.has(id) && namersOf(pointing, id).length > 0) dangling.push(id)
+  }
+  return dangling.sort((one, other) => byNaming(pointing, one, other))
 }
 
 /**
- * Asked ONCE PER NAMED ID, of the index that is `targetsOf` read backwards
- * ({@link Derived.namedBy}), rather than once per record of the corpus.
+ * Two dangling ids, in the order the CORPUS first names them.
  *
- * `targetsOf` is still the format's own list of what a record points at — this
- * rule reads the index derive built by asking it, so there is still exactly one
- * list of edge fields, and the day a fourth relation arrives this rule sees it
- * without being told. What changes is the direction: the question "does
- * everything this names exist?" is the same question as "is this named id
+ * A key of the table's rows holds its sources in path order, so the first
+ * record naming an id with a field is the first namer in the corpus — and
+ * where two ids are first named by one record, in the order that record's own
+ * fields name them ({@link targetsOf}). Both halves are read straight off the
+ * table rather than reconstructed.
+ *
+ * An id nothing names cannot reach this — both callers filter for namers
+ * first — and the fallback ties rather than throwing, because the order two
+ * findings come out in is not where a validator gets to take a write down.
+ *
+ * EXPORTED FOR THE INCREMENTAL ARM, which finds the same ids by asking which
+ * of them an edit could have moved and has to hand them over in this order or
+ * the two arms would put one record's two findings in two orders — the same
+ * bytes on disk producing a different report depending on how the reader got
+ * there.
+ */
+export const byNaming = (pointing: Pointing, one: string, other: string): number => {
+  const first = namersOf(pointing, one)[0]?.at
+  const second = namersOf(pointing, other)[0]?.at
+  if (first === undefined || second === undefined) return 0
+  if (first !== second) return byCorpus(first, second)
+  for (const [, id] of targetsOf(first.node)) {
+    if (id === one) return -1
+    if (id === other) return 1
+  }
+  return 0
+}
+
+/**
+ * Asked ONCE PER NAMED ID, of the references table's ROWS — `targetsOf` read
+ * backwards ({@link namersOf}) — rather than once per record of the corpus.
+ *
+ * `targetsOf` is still the format's own list of what a record points at — the
+ * fold files under it and this rule reads what it filed, so there is still
+ * exactly one list of edge fields, and the day a fourth relation arrives this
+ * rule sees it without being told. What changes is the direction: the question
+ * "does everything this names exist?" is the same question as "is this named id
  * declared?", and the second one has as many answers as there are ids named,
  * not as there are records.
  *
@@ -264,22 +315,22 @@ export const danglingIn = (derived: Derived): ReadonlyArray<string> => {
  * field per record, at that record's own site, naming the field it was written
  * with.
  *
- * THAT ORDER IS NOW A PROMISE TO A SECOND CALLER, which is what the `dangling`
+ * THAT ORDER IS A PROMISE BOTH ARMS KEEP, which is what the `dangling`
  * parameter is. The incremental validator finds the same ids by asking which
- * of them an edit could have moved, and it has to hand them over in this order
- * or the two arms would put one record's two findings in two orders — the same
- * bytes on disk producing a different report depending on how the reader got
- * there, which is the failure {@link ./patch.ts} keeps `namedBy`'s key order
- * for in the first place.
+ * of them an edit could have moved, and it hands them over in {@link byNaming}'s
+ * order — the same comparator the whole-corpus arm sorts with — or the two arms
+ * would put one record's two findings in two orders: the same bytes on disk
+ * producing a different report depending on how the reader got there.
  *
  * ONE thing is deliberately not preserved: a record naming the same unknown id
  * TWICE IN ONE FIELD (`"after":["x","x"]`, which only a hand-edited file can
  * hold — no op writes a repeat) used to be two identical findings and is now
- * one. The index folds a record's fields, and two copies of one sentence at one
- * site tell a reader nothing the first did not.
+ * one. The fold holds a record's fields as one source, and two copies of one
+ * sentence at one site tell a reader nothing the first did not.
  */
 export const reportUnknownTargets = (
   dangling: Iterable<string>,
+  pointing: Pointing,
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
@@ -288,7 +339,7 @@ export const reportUnknownTargets = (
     // is the same for every one of them, and the suggestion behind it is a
     // question about every declared id in the set.
     const said = suggest(id, derived)
-    for (const naming of derived.namedBy.get(id) ?? []) {
+    for (const naming of namersOf(pointing, id)) {
       for (const field of naming.fields) {
         errors.push({
           code: "unknown-target",

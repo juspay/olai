@@ -139,7 +139,7 @@ import { type Address, printAddress } from "./address.ts"
 import { type Document, type Face, faceOf, sameFace, isOutline } from "./document.ts"
 import { type Editable, overlay } from "./overlay.ts"
 import { byPath } from "./paths.ts"
-import { type Located } from "./node.ts"
+import { type Located, TARGET_FIELDS, type TargetField } from "./node.ts"
 import { contributionsOf, type Part, PARTS, type Way } from "./imports.ts"
 import { byCorpus } from "./derive.ts"
 import { type Claims } from "./kinds.ts"
@@ -223,6 +223,98 @@ export const pointingAt = (pointing: Pointing, address: Address): ReadonlyArray<
   (address.kind === "node"
     ? pointing.rows.get(address.id)
     : pointing.files.get(printAddress(address))) ?? NOTHING_POINTS
+
+/**
+ * A RECORD THAT NAMES A ROW WITH A FIELD, and the fields it names it with —
+ * {@link targetsOf} read backwards, out of the table's ROWS.
+ *
+ * One entry per RECORD rather than per field: a node that writes `after` and
+ * `see` on one id is one namer carrying both, in {@link TARGET_FIELDS} order,
+ * which is the order {@link targetsOf} answers in and the order a report says
+ * two findings at one site in.
+ *
+ * It is the shape the readings that are about RELATIONS want — the refusals in
+ * `@olai/ops`, the ids-nothing-declares report ({@link ./rules.ts}) — where the
+ * table's own shape is about every way a document points at something. The
+ * difference is one filter, spelled here once.
+ */
+export interface Naming {
+  readonly at: Located
+  readonly fields: ReadonlyArray<TargetField>
+}
+
+/** The answer for an id no record names, which is most of them: ONE list,
+ *  shared. */
+const NOTHING_NAMES: ReadonlyArray<Naming> = []
+
+/** What is filed under one ROW — every way anything points at it, which is
+ *  more than the fields ({@link namersOf} is the field half). */
+export const rowsAt = (pointing: Pointing, id: string): ReadonlyArray<Source> =>
+  pointing.rows.get(id) ?? NOTHING_POINTS
+
+/**
+ * Whether this source is a RECORD naming the row with this FIELD — the one
+ * test the hot readers spend ({@link ./patch.ts}'s dirty set and its ordering
+ * graph), so they walk the key's sources and allocate nothing.
+ *
+ * A BODY NEVER NAMES ONE: a `.md` writes links and prose, and a field is a
+ * record's. The predicate says so in the type, which is what lets a caller read
+ * `source.at` without a second check.
+ */
+export const namesWith = (
+  source: Source,
+  field: TargetField,
+): source is Source & { readonly at: Located } =>
+  source.at !== undefined && source.ways.includes(field)
+
+/** Whether ANY record names this row with a field — `trash_empty`'s and the
+ *  archive tidy's question, which is about relations rather than about links:
+ *  a row somebody merely links to is not a row something declares about. */
+export const isNamed = (pointing: Pointing, id: string): boolean => {
+  for (const source of rowsAt(pointing, id)) {
+    for (const field of TARGET_FIELDS) if (namesWith(source, field)) return true
+  }
+  return false
+}
+
+/**
+ * Every record that names this row with a field, each with its fields — the
+ * table's rows part read as the relations half of what it holds.
+ *
+ * IN PATH ORDER, which is the order the part itself promises, and therefore in
+ * CORPUS ORDER over the records: the first namer of an id is the first entry,
+ * which is what the ids-nothing-declares report sorts its findings by.
+ *
+ * A ROW NOTHING NAMES ALLOCATES NOTHING, which is nearly every row this is
+ * asked about: the shared empty list, for {@link targetsOf}'s own reason one
+ * level down.
+ */
+export const namersOf = (pointing: Pointing, id: string): ReadonlyArray<Naming> => {
+  let found: Array<Naming> | undefined
+  for (const source of rowsAt(pointing, id)) {
+    let fields: Array<TargetField> | undefined
+    for (const field of TARGET_FIELDS) if (namesWith(source, field)) (fields ??= []).push(field)
+    if (fields === undefined) continue
+    ;(found ??= []).push({ at: source.at as Located, fields })
+  }
+  return found ?? NOTHING_NAMES
+}
+
+/** The records whose own prose writes this tag, in path order — the `tag` way
+ *  of the TAGS part, which is a record's title and note and never a body's
+ *  ({@link ./imports.ts}). The tag list counts these ({@link ./vocabulary.ts});
+ *  a body's `@` mention is filed beside them and is the reading's
+ *  ({@link ./backlinks.ts}). */
+export const taggersOf = (pointing: Pointing, written: string): ReadonlyArray<Located> => {
+  let found: Array<Located> | undefined
+  for (const source of pointing.tags.get(written) ?? NOTHING_POINTS) {
+    if (source.at === undefined || !source.ways.includes("tag")) continue
+    ;(found ??= []).push(source.at)
+  }
+  return found ?? NOTHING_RECORDS
+}
+
+const NOTHING_RECORDS: ReadonlyArray<Located> = []
 
 /**
  * ONE DOCUMENT FILED — the whole of how this table is built, in one place, for

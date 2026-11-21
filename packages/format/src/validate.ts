@@ -90,7 +90,7 @@ import { type Document, isOutline } from "./document.ts"
 import type { BrokenFile, OutlineError } from "./errors.ts"
 import { type Decline, incrementally, type Ledger } from "./incremental.ts"
 import type { Located } from "./node.ts"
-import { type FileNodes, patch, patched, type SetDelta } from "./patch.ts"
+import { type FileNodes, patch, patched, type SetDelta, type Tables } from "./patch.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import { type Names, namesCarried, namesOf } from "./links/names.ts"
 import {
@@ -227,7 +227,7 @@ export const validate = (
   // rules the validator always ran, and it runs when — and only when — there
   // is nothing to narrow from ({@link Cold} names the six doors).
   const said = narrowly(set, previous, view, kinds)
-  const ledger = typeof said === "string" ? wholly(set, derived, kinds, said) : said
+  const ledger = typeof said === "string" ? wholly(set, derived, view.pointing, kinds, said) : said
 
   // WHAT A READER IS SHOWN: the parse errors first, which are the cause, the
   // guesses taken out, the whole thing in presentation order ({@link
@@ -297,14 +297,20 @@ const degraded = (
   // parse, which `assemble` had already withheld. The judged view is a view of
   // this set, so there is nothing to patch and nothing to re-point.
   if (withdrawn === set) return { claims: view.derived.claims, set, derived: view.derived, pointing: view.pointing, names: view.names }
+  // THE TABLE IS CARRIED FIRST, because the patcher is handed it on both sides
+  // ({@link ./patch.ts}'s `Tables`): it reads who stands for an id and who
+  // orders one out of the table rather than out of an index of its own. The
+  // carry reads the two SETS and needs no view at all, so the order is the
+  // table, then the derivation.
+  const pointing = repointed(view.pointing, view.derived.claims, set.documents, withdrawn.documents)
   return {
     claims: view.derived.claims,
     set: withdrawn,
     derived: patch(view.derived, {
       upserts: NO_UPSERTS,
       removes: broken.map((entry) => entry.file),
-    }),
-    pointing: repointed(view.pointing, view.derived.claims, set.documents, withdrawn.documents),
+    }, { before: view.pointing, after: pointing }),
+    pointing,
     names: namesCarried(view.names, view.derived.claims, set.documents, withdrawn.documents),
   }
 }
@@ -359,6 +365,7 @@ const narrowly = (
     previous.delta,
     view.derived,
     kinds,
+    view.pointing,
   )
   if (typeof narrowed === "string") return narrowed
   reached({ kind: "narrowed", walked: narrowed.walked })
@@ -383,6 +390,9 @@ const narrowly = (
 const wholly = (
   set: OutlineSet,
   derived: Derived,
+  /** What the directory points at — the ids-nothing-declares rule's own index
+   *  ({@link ./rules.ts}'s `danglingIn`). */
+  pointing: Pointing,
   kinds: KindVocabulary,
   why: Cold,
 ): Ledger => {
@@ -415,7 +425,7 @@ const wholly = (
   reportDuplicateIds(all, derived, errors)
   reportParents(all, derived, errors)
   reportParentCycles(all, derived, errors)
-  reportUnknownTargets(danglingIn(derived), derived, errors)
+  reportUnknownTargets(danglingIn(pointing, derived), pointing, derived, errors)
   reportAfterCycles(all, derived, errors)
   reportMirrorCycles(all, derived, errors)
   reportDeclarations(derived, kinds, errors)
@@ -576,16 +586,18 @@ export const following = (
   written: ReadonlyArray<Document>,
 ): Reading => {
   const set = withDocuments(read.set, written)
-  const view = viewAfter(read.derived, written)
+  // WHAT POINTS WHERE reads the two SETS rather than the delta, so it is
+  // offered whichever way the view goes — including the rebuild, since a
+  // patcher that declined has said nothing at all about what any file points
+  // at ({@link viewOf} makes the same call for the same reason). It is taken
+  // FIRST because the patcher is handed it on both sides ({@link Tables}).
+  const pointing = repointed(read.pointing, read.claims, read.set.documents, set.documents)
+  const view = viewAfter(read.derived, written, { before: read.pointing, after: pointing })
   return {
     claims: read.claims,
     set,
     derived: view ?? derive(read.claims, recordsIn(set)),
-    // WHAT POINTS WHERE reads the two SETS rather than the delta, so it is
-    // offered whichever way the view went — including the rebuild, since a
-    // patcher that declined has said nothing at all about what any file points
-    // at ({@link viewOf} makes the same call for the same reason).
-    pointing: repointed(read.pointing, read.claims, read.set.documents, set.documents),
+    pointing,
     names: namesCarried(read.names, read.claims, read.set.documents, set.documents),
   }
 }
@@ -629,6 +641,7 @@ export const following = (
 const viewAfter = (
   before: Derived,
   written: ReadonlyArray<Document>,
+  tables: Tables,
 ): Derived | undefined => {
   const surviving = new Map<string, Document>()
   for (const document of written) surviving.set(document.path, document)
@@ -640,7 +653,7 @@ const viewAfter = (
       return undefined
     }
   }
-  const view = patched(before, { upserts, removes: [] })
+  const view = patched(before, { upserts, removes: [] }, tables)
   if (view === undefined) return undefined
   for (const [file, entry] of upserts) {
     const records = view.byFile.get(file)
@@ -747,7 +760,10 @@ const viewOf = (claims: Claims, set: OutlineSet, previous: Previous | undefined)
     ? namesOf(claims, set.documents.map((document) => document.path))
     : namesCarried(previous.read.names, claims, previous.read.set.documents, set.documents)
   if (previous !== undefined) {
-    const view = patched(previous.read.derived, previous.delta)
+    const view = patched(previous.read.derived, previous.delta, {
+      before: previous.read.pointing,
+      after: pointing,
+    })
     if (view !== undefined && isSet(view, set)) {
       return { derived: view, pointing, names, patched: true }
     }

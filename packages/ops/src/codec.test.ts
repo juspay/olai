@@ -12,7 +12,7 @@
  * So each test validates the same set twice, once building on the last verdict
  * and once from nothing, and asserts the two are the same reading.
  */
-import { claims } from "@olai/format"
+import { claims, namersOf } from "@olai/format"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import type { Document, OutlineError, Reading } from "@olai/format"
 import {
@@ -70,7 +70,7 @@ const readable = (reading: Reading): unknown => ({
   nodes: reading.derived.nodes,
   byId: [...reading.derived.byId],
   byFile: [...reading.derived.byFile],
-  namedBy: [...reading.derived.namedBy],
+  rows: [...reading.pointing.rows],
   children: [...reading.derived.children],
   status: [...reading.derived.status],
   after: [...reading.derived.after],
@@ -151,7 +151,7 @@ test("an outline that goes away takes its records out of the indexes", () => {
   expect(reading.derived.mirrorsOf.has("cook")).toBe(false)
   // What still names it is what is left naming it: the `see` and the placement
   // went with the file, and the edge in the file that stayed did not.
-  expect((reading.derived.namedBy.get("cook") ?? []).map((naming) => naming.at.node.id))
+  expect(namersOf(reading.pointing, "cook").map((naming) => naming.at.node.id))
     .toEqual(["shop"])
 })
 

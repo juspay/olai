@@ -87,26 +87,22 @@ import {
   byOrd,
   derive,
   type Derived,
-  type Filing,
   type Index,
   follow,
   type InTheWay,
-  nameInto,
-  type Naming,
   byDayKey,
   nodeNamed,
   owingOn,
   parentInto,
   READ,
-  tagInto,
 } from "./derive.ts"
 import {
   isMirror,
   type Located,
-  type LocatedRegular,
   type Status,
   storedMarker,
 } from "./node.ts"
+import { namesWith, type Pointing, rowsAt } from "./pointing.ts"
 import { type Dated, dateInto } from "./occasion.ts"
 import { type Editable, overlay } from "./overlay.ts"
 import { byPath } from "./paths.ts"
@@ -144,6 +140,29 @@ export interface SetDelta {
 }
 
 /**
+ * THE REFERENCES TABLE ON BOTH SIDES of the edit — what the directory pointed
+ * at before it, and what it points at now ({@link ./pointing.ts}).
+ *
+ * The patcher is handed them rather than building them, and that is the shape
+ * of the whole arrangement: the table is a fold over DOCUMENTS and this
+ * function has never been shown one — it answers a {@link SetDelta}, which
+ * carries a file's records and no face. What it reads there is the RELATIONS
+ * half, which is the records' own fields read backwards ({@link namersOf}):
+ * who stands for an id with `mirror`, and who names one with `after` or
+ * `blocks`. The carry that makes the two tables is one step up, beside the one
+ * that makes this view ({@link ./validate.ts}), and it compares the two SETS,
+ * so it is offered even on the revisions this patcher declines.
+ *
+ * BOTH SIDES, because every question here is asked across the edit: what a
+ * record USED to stand for has to be unfiled, and what it stands for now has
+ * to be filed. One side would answer half of each.
+ */
+export interface Tables {
+  readonly before: Pointing
+  readonly after: Pointing
+}
+
+/**
  * The next view: patched where that is exact, rebuilt where it is not.
  *
  * The one function two callers use — the validator, which judges a write
@@ -152,9 +171,10 @@ export interface SetDelta {
  * be the counterexample to `derive`'s own argument, which is that the validator
  * and the view share one interpretation of the format.
  */
-export const patch = (derived: Derived, delta: SetDelta): Derived => {
+export const patch = (derived: Derived, delta: SetDelta, tables: Tables): Derived => {
   const grouped = regrouped(derived, delta)
-  return patched(derived, delta, grouped) ?? derive(derived.claims, flattened(grouped.byFile))
+  return patched(derived, delta, tables, grouped) ??
+    derive(derived.claims, flattened(grouped.byFile))
 }
 
 /**
@@ -169,6 +189,7 @@ export const patch = (derived: Derived, delta: SetDelta): Derived => {
 export const patched = (
   derived: Derived,
   delta: SetDelta,
+  tables: Tables,
   grouped: Regrouped = regrouped(derived, delta),
 ): Derived | undefined => {
   const { byFile, touched } = grouped
@@ -187,6 +208,7 @@ export const patched = (
 
   const edit: Edit = {
     before: derived,
+    tables,
     touched,
     outgoing: recordsIn(derived.byFile, touched),
     incoming: recordsIn(byFile, touched),
@@ -226,15 +248,15 @@ export const patched = (
   const nodes = (): ReadonlyArray<Located> => (flat ??= flattened(byFile))
 
   // One step per index, in the order each needs the last: who claims which id,
-  // what hangs under what, what names what, what everything resolves to, the
-  // ordering graph, and what cannot start yet.
+  // what hangs under what, what everything resolves to, the ordering graph,
+  // and what cannot start yet. What NAMES what is not a step here at all any
+  // more — it is the references table, carried beside this view and handed in
+  // ({@link Tables}).
   const byId = ids(edit, nodes, claimed)
   const children = containment(edit)
-  const namedBy = namings(edit, nodes)
-  const taggedBy = taggings(edit)
   const journal = dating(edit)
   const { status, mirrorsOf, dirty } = resolutions(edit, byId)
-  const { after, edgesTo, rewritten } = orderings(edit, { byId, mirrorsOf, namedBy }, dirty)
+  const { after, edgesTo, rewritten } = orderings(edit, { byId, mirrorsOf }, dirty)
   const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
 
   return {
@@ -250,24 +272,26 @@ export const patched = (
     byFile,
     mirrorsOf,
     edgesTo,
-    namedBy,
-    taggedBy,
     ...journal,
   }
 }
 
 /**
- * ONE EDIT, from both sides: the view it is against, which files it named, and
- * the records those files held and hold now.
+ * ONE EDIT, from both sides: the view it is against, the references table on
+ * either side of it, which files it named, and the records those files held
+ * and hold now.
  *
- * The four travel together because every step below asks about all of them —
+ * They travel together because every step below asks about all of them —
  * what a key kept is "what is left of it once the touched files are out", and
  * what it gains is "whatever arrived". Threading them one by one made each
- * signature a list of the same four things in a different order, which is the
- * shape a fifth would silently be left out of.
+ * signature a list of the same things in a different order, which is the
+ * shape the next one would silently be left out of.
  */
 interface Edit {
   readonly before: Derived
+  /** What the directory pointed at on either side — where the steps below read
+   *  who stands for an id and who orders one ({@link Tables}). */
+  readonly tables: Tables
   readonly touched: ReadonlySet<string>
   /** What the touched files held, and what they hold now — in the delta's own
    *  order, which nothing reads: every index that promises an order sorts what
@@ -277,11 +301,11 @@ interface Edit {
 }
 
 /**
- * ONE REVERSE INDEX, RE-FILED across the edit — the shape four of the steps
+ * ONE REVERSE INDEX, RE-FILED across the edit — the shape two of the steps
  * below ARE, written once.
  *
- * `children`, `namedBy`, `taggedBy` and `byDay` are four different questions
- * about a corpus and ONE question about a patch. What a key keeps is whatever
+ * `children` and `byDay` are two different questions about a corpus and ONE
+ * question about a patch. What a key keeps is whatever
  * of it is not in a TOUCHED FILE; what it gains is whatever arrived; the two
  * run together in the order that index promises its members in; and a key left
  * holding nothing GOES AWAY rather than standing empty where `derive` would
@@ -292,7 +316,7 @@ interface Edit {
  *
  * WHAT EACH INDEX STILL SAYS FOR ITSELF IS ITS FOLD, and it says it ONCE.
  * `derive` owns what a record files into an index — {@link parentInto},
- * {@link nameInto}, {@link tagInto}, {@link dateInto} — and this asks that one
+ * {@link dateInto} — and this asks that one
  * function of BOTH SIDES of the edit: over what arrived to get the members, and
  * over what left to get the keys they held. So the patcher runs the rebuild's
  * own rule rather than a second reading of it, in the direction where a second
@@ -302,8 +326,8 @@ interface Edit {
  * this edit could have moved.
  *
  * THE ENTRY IS PROJECTED BACK OUT to a {@link Located} rather than required to
- * be one: three of the four hold a record and one holds a naming beside the
- * fields it names with. Both questions this asks of an entry are about its
+ * be one: one of the two holds a record and one holds a record beside the day
+ * it lands on. Both questions this asks of an entry are about its
  * PLACE — which file is it in, and where in the corpus does it sort — so one
  * projection answers both, and no index has to be reshaped to be re-filed.
  *
@@ -311,10 +335,9 @@ interface Edit {
  * the map that stood, and the view being built shares it with the view it
  * patched — copy-on-write at the index rather than only at its values, which is
  * this file's own economy applied one level up. It is what a keystroke in an
- * outline that tags nothing and schedules nothing already paid for `taggedBy`
- * and `byDay` ({@link ./patch.bench.ts} prints what one clone of each index
- * costs), and now what a keystroke in an outline of plain rows pays for
- * `children` and `namedBy` too.
+ * outline that schedules nothing already pays for `byDay`
+ * ({@link ./patch.bench.ts} prints what one clone of each index costs), and
+ * what a keystroke in an outline of plain rows pays for `children`.
  */
 interface Refiled<T> {
   readonly map: ReadonlyMap<string, ReadonlyArray<T>>
@@ -343,12 +366,6 @@ interface Refiled<T> {
    *  a record puts on a day. Both are empty when the edit named no key. */
   readonly arriving: ReadonlyMap<string, ReadonlyArray<T>>
   readonly departing: ReadonlyMap<string, ReadonlyArray<T>>
-  /** Whether any key's FIRST member sits somewhere else now. A key sits where
-   *  the record that opens it sits in a map a single walk of the corpus built,
-   *  so this is what `namedBy` rebuilds for. Strictly wider than
-   *  {@link rekeyed}: a key that appears or empties moved its head by
-   *  definition. */
-  readonly headMoved: boolean
 }
 
 const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
@@ -357,15 +374,15 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
   filing: {
     /** What a record puts in this index — `derive`'s own fold, run here over
      *  both sides of the edit. `Filed` is what it files, which is the entry
-     *  while it is still being built ({@link Filing} against {@link Naming})
-     *  where an index has two spellings of one shape. */
+     *  while it is still being built where an index has two spellings of one
+     *  shape. */
     readonly into: (filed: Map<string, Array<Filed>>, at: Located) => void
     /** Where an entry IS — the file its survival is judged by, and the place it
      *  is ordered on. */
     readonly at: (one: Member<K>) => Located
     /**
-     * The order this index promises its members in: corpus order for three of
-     * the four, and the format's sibling order for `children`.
+     * The order this index promises its members in: corpus order for `byDay`,
+     * and the format's sibling order for `children`.
      *
      * A FIFTH INDEX REGISTERS ITS ORDER IN THE DIFFERENTIAL, and this is the
      * place that says so because it is the place its author is standing. What
@@ -380,7 +397,7 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
      * AND WHAT THE PAIR HAS TO DECLARE IS ITS TIES. The splice places an
      * arriving member AFTER every member it compares equal to, which is what
      * the rebuild's stable sort did — and that rule decides nothing for the
-     * four here, because each of their orders ends in {@link byCorpus} and a
+     * two here, because each of their orders ends in {@link byCorpus} and a
      * tie there means one file and one line, while a survivor and an arrival
      * are never in one file. The differential asserts exactly that of every key
      * it is handed, so an order that CAN tie the two sides — one keyed on a day,
@@ -408,15 +425,9 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
   const keys = new Set<string>(arriving.keys())
   for (const key of departing.keys()) keys.add(key)
   if (keys.size === 0) {
-    return { map: before, keys, arriving, departing, rekeyed: false, headMoved: false }
+    return { map: before, keys, arriving, departing, rekeyed: false }
   }
 
-  /** Where a key's members START, which is where the key itself sits in a map
-   *  the corpus was walked once to build. */
-  const head = (own: ReadonlyArray<Member<K>> | undefined): Located | undefined => {
-    const first = own?.[0]
-    return first === undefined ? undefined : at(first)
-  }
   /** Wrapped ONCE, above the loop that spends it, for the reason {@link namedIn}
    *  is: this is handed to a splice per touched key, and a closure minted inside
    *  would be one throwaway per key rather than one per index. */
@@ -431,18 +442,15 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
     ReadonlyArray<Member<K>>
   >
   let rekeyed = false
-  let headMoved = false
   for (const key of keys) {
     const held = before.get(key)
     // SPLICED into the list that stood rather than copied out of it and sorted
     // again — the one line this whole index step costs per touched key, and
     // {@link spliced} is where the promise it leans on is argued.
     const own = spliced(held ?? NOTHING, arriving.get(key) ?? NOTHING, departed, inOrder)
-    // One true answer settles it, and three of the four callers never ask.
-    if (!headMoved && elsewhere(head(held), head(own))) headMoved = true
     if (filedAt(map, key, own, own.length > 0)) rekeyed = true
   }
-  return { map: map.sealed(), keys, arriving, departing, rekeyed, headMoved }
+  return { map: map.sealed(), keys, arriving, departing, rekeyed }
 }
 
 /**
@@ -924,74 +932,11 @@ const ids = (
 }
 
 /**
- * What names what, raw — {@link Derived.namedBy} carried across the edit.
- *
- * Rebuilt when the key ORDER moved, for {@link ids}' reason and one of its own:
- * the validator walks this map to report every id nothing declares
- * ({@link ./validate.ts}'s `checkTargets`), and two findings at one site with
- * one code come out in the order the corpus first named those ids. A patched
- * map that had appended a key would reorder that pair — the same file, two
- * reports, in an order that depended on history rather than on the file.
- *
- * A key sits where the record that FIRST names it sits, so the question is not
- * whether the key set moved but whether any first namer did — a key can keep
- * its members and still change places when the record at the head of its list
- * is replaced by one further down the corpus. Every key this edit could move is
- * a key it touched, so checking those is checking all of them. It is
- * {@link refiled}'s `headMoved`, and this is the only one of the four indexes
- * that spends it: the re-filing is the same rule next door and what differs is
- * what each promises about its keys.
- */
-const namings = (
-  edit: Edit,
-  nodes: () => ReadonlyArray<Located>,
-): ReadonlyMap<string, ReadonlyArray<Naming>> => {
-  const { map, headMoved } = refiled(edit, "namedBy", {
-    into: nameInto,
-    at: (naming) => naming.at,
-  })
-  // A key that MOVED — including one that appeared and one that went away,
-  // both of which move a head by definition — is a key-order change, and this
-  // is the index that has to answer in the order one walk of the corpus would
-  // have left. So the walk is taken, over the same fold, and the re-filed map
-  // is what the edit cost to find that out.
-  if (!headMoved) return map
-  const namedBy = new Map<string, Array<Filing>>()
-  for (const at of nodes()) nameInto(namedBy, at)
-  return namedBy
-}
-
-/**
- * What prose tagged what — {@link Derived.taggedBy} carried across the edit.
- *
- * The same {@link refiled} call as {@link namings} above with the rebuild taken
- * OFF, and the missing half is the whole difference between the two indexes:
- * nothing reads these keys in order, so a key that arrives at the end of the map
- * or leaves a hole in it changes no answer, and there is nothing to rebuild the
- * map to preserve. What IS promised is each key's members in corpus order,
- * which is what the shared sort keeps.
- *
- * Every key this edit can move is a key it TOUCHED — a tag the arriving records
- * write, or one the departing records wrote — because a record in a file the
- * delta never named cannot have changed its prose.
- */
-const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>> =>
-  // NOTHING WROTE A TAG, and {@link refiled} is where that is answered: with no
-  // key on either side the map that stood IS the answer and no clone is paid at
-  // all. It fires on a file whose records tag nothing — rarer since this index
-  // gained `#`, which is the sigil people actually write, and the reason the
-  // clone's cost is a number this branch had to measure rather than assume
-  // ({@link ./patch.bench.ts}).
-  refiled(edit, "taggedBy", {
-    into: tagInto,
-    at: (one) => one,
-  }).map
-
-/**
  * What lands on what day — {@link Derived.byDay} carried across the edit.
  *
- * {@link taggings} above with a key ORDER to keep — {@link refiled}'s `rekeyed`
- * — which is the whole of the difference: nothing reads a tag's keys in order,
+ * {@link containment} above with a key ORDER to keep — {@link refiled}'s
+ * `rekeyed` — which is the whole of the difference: nothing reads what hangs
+ * under a node in key order,
  * and three readings spend this index's ({@link Derived.byDay}). So a day the
  * edit ADDS or EMPTIES re-sorts the keys, exactly as {@link regrouped} re-sorts
  * `byFile`'s when a file arrives or goes away — and the edits that neither add
@@ -1118,13 +1063,13 @@ const owing = (
  * moved — {@link Derived.status} and {@link Derived.mirrorsOf}, which `derive`
  * builds in one walk and this rebuilds over one dirty set.
  *
- * THE DIRTY SET IS A CLOSURE, and {@link Derived.namedBy} is what makes it
+ * THE DIRTY SET IS A CLOSURE, and the references table's ROWS are what make it
  * findable. A mirror shows whatever its chain ends at, so a record that changed
  * disturbs every mirror whose chain passes THROUGH it — a mirror of a mirror of
  * the edited node, in a file this delta never mentioned. `mirrorsOf` answers
  * the same question one hop too late: it files a chain under the node it ENDS
  * at, so a chain that has stopped ending there is filed where the answer no
- * longer is. The raw index is filed by what records SAY, which is one hop of
+ * longer is. The table's rows are filed by what records SAY, which is one hop of
  * the mirror graph read backwards, and walking it to a fixed point is the whole
  * of "what did this reach" — including the two cases the canonical index cannot
  * hold: a chain that dangled and now resolves, and one that closed a loop and
@@ -1160,8 +1105,10 @@ const resolutions = (
   for (const at of edit.incoming) wake(at.node.id)
   while (pending.length > 0) {
     const id = pending.pop() as string
-    for (const naming of edit.before.namedBy.get(id) ?? []) {
-      if (naming.fields.includes("mirror")) wake(naming.at.node.id)
+    // Who STOOD for this id before the edit — the `mirror` way of the row,
+    // which is `targetsOf` read backwards ({@link ./pointing.ts}).
+    for (const source of rowsAt(edit.tables.before, id)) {
+      if (namesWith(source, "mirror")) wake(source.at.node.id)
     }
     for (const mirror of arriving.get(id) ?? []) wake(mirror)
   }
@@ -1243,7 +1190,6 @@ const orderings = (
   view: {
     readonly byId: ReadonlyMap<string, Located>
     readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
-    readonly namedBy: ReadonlyMap<string, ReadonlyArray<Naming>>
   },
   dirty: ReadonlySet<string>,
 ): {
@@ -1254,7 +1200,7 @@ const orderings = (
    *  corpus-sized walk this whole file exists to stop doing. */
   readonly rewritten: ReadonlySet<string>
 } => {
-  const { byId, mirrorsOf, namedBy } = view
+  const { byId, mirrorsOf } = view
   const namedBefore = namedIn(edit.before.byId)
   const namedNow = namedIn(byId)
 
@@ -1273,17 +1219,15 @@ const orderings = (
   // An id that MEANS something else now moves every edge written AT it, in
   // whatever file wrote it: the source's own list changes, and the key its
   // `blocks` lands on changes with it. A mirror chain that moved is why `after`
-  // is canonical at all, and this is where that is paid for.
+  // is canonical at all, and this is where that is paid for. Who ordered the id
+  // is the table's rows on BOTH sides — an edge that left is as much a key to
+  // re-write as one that arrived.
   for (const id of dirty) {
     if (namedBefore(id) === namedNow(id)) continue
     keys.add(namedBefore(id))
     keys.add(namedNow(id))
-    for (
-      const naming of [...(edit.before.namedBy.get(id) ?? []), ...(namedBy.get(id) ?? [])]
-    ) {
-      if (naming.fields.includes("after") || naming.fields.includes("blocks")) {
-        keys.add(naming.at.node.id)
-      }
+    for (const source of [...rowsAt(edit.tables.before, id), ...rowsAt(edit.tables.after, id)]) {
+      if (namesWith(source, "after") || namesWith(source, "blocks")) keys.add(source.at.node.id)
     }
   }
 
@@ -1300,8 +1244,8 @@ const orderings = (
     const written = [...(mirrorsOf.get(key) ?? [])]
     if (namedNow(key) === key) written.push(key)
     for (const id of written) {
-      for (const naming of namedBy.get(id) ?? []) {
-        if (naming.fields.includes(field) && !found.includes(naming.at)) found.push(naming.at)
+      for (const source of rowsAt(edit.tables.after, id)) {
+        if (namesWith(source, field) && !found.includes(source.at)) found.push(source.at)
       }
     }
     return found.sort(byCorpus)

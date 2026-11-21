@@ -64,8 +64,9 @@
 import { Schema } from "effect"
 
 import { TAG_SIGILS, type TagSigil, tagPart } from "@olai/prose/tags.ts"
-import { type Derived } from "./derive.ts"
-import { isPutAway, type LocatedRegular } from "./node.ts"
+import { type Claims } from "./kinds.ts"
+import { isPutAway, type Located } from "./node.ts"
+import { type Pointing, taggersOf } from "./pointing.ts"
 
 /**
  * What a completion ASKS: one sigil's list, narrowed by what has been typed.
@@ -139,31 +140,48 @@ export interface TagUse {
 }
 
 /**
- * ONE READING PER DERIVATION, kept in a `WeakMap` keyed on the derivation
- * itself.
+ * ONE READING PER TABLE, kept in a `WeakMap` keyed on the references table
+ * itself ({@link ./pointing.ts}).
  *
- * The alternative — counting per question — re-reads the index on every settled
+ * The alternative — counting per question — re-reads the table on every settled
  * keystroke of a tag being typed, and the vocabulary of a set cannot have moved
- * between two of them unless the set did. Keyed on the VALUE rather than cached
- * by time, so a revision is read once and the old answer is collectable with
- * the old derivation. It is the same arrangement `./filter.ts` keeps for its
+ * between two of them unless the TAGS did. Keyed on the VALUE rather than
+ * cached by time, so a revision is read once and the old answer is collectable
+ * with the old table. It is the same arrangement `./filter.ts` keeps for its
  * per-record fold, one index up.
+ *
+ * THE TABLE AND NOT THE DERIVATION, and that is the sharper half of the memo:
+ * a revision that moves a record's mark or its place hands on the same table
+ * where it hands on a new derivation, so a directory somebody is typing in
+ * pays for this reading when the words change rather than when anything does.
+ *
+ * THE CLAIMS ARE HELD BESIDE IT, because what counts is a function of two
+ * things and only one of them is the table: which records write which tags,
+ * and which files are put away — and the second is {@link isPutAway} over the
+ * vault's own claims. A vault that re-declares its trash while writing nothing
+ * is the one revision that moves this answer without moving the table, and
+ * comparing one object is what keeps it from being missed.
  */
-const counted = new WeakMap<Derived, ReadonlyArray<TagUse>>()
+const counted = new WeakMap<Pointing, { readonly claims: Claims; readonly tags: ReadonlyArray<TagUse> }>()
 
 /**
  * Every tag in the set, most-used first and alphabetical within a count.
  *
  * MIRRORS ARE SKIPPED, which is the same rule every other reading of the set
  * follows: a placement has no title of its own, so a tag counted through one
- * would be the same node's tag counted twice. It is the INDEX that skips them
- * here — {@link Derived.taggedBy} files regular records only, and says so in
- * its type — so this reading does not have to remember the rule.
+ * would be the same node's tag counted twice. It is the FOLD that skips them —
+ * a placement writes no prose, so the table files none of its tags
+ * ({@link ./imports.ts}) — so this reading does not have to remember the rule.
  *
- * A TITLE OR A NOTE, because that is what the index files. A tag somebody wrote
+ * A TITLE OR A NOTE, because that is what the fold files. A tag somebody wrote
  * in a note is part of the vocabulary this set uses and is worth completing
  * towards; before the index it was invisible here, which was an accident of
  * where the old walk looked rather than a decision anybody made.
+ *
+ * ROWS ONLY, which is the table's own distinction read here: a `.md` body's
+ * `@name` is filed in the same part with the way `mention` and is the
+ * references reading's ({@link ./backlinks.ts}), while this list is a promise
+ * about ROWS and has always been one. A body's `#topic` reaches search.
  *
  * WHAT WAS PUT AWAY IS SKIPPED, and the count is why (ruled 2026-08-17:
  * archived nodes are drawn on the trash page and nowhere else). This number
@@ -171,24 +189,27 @@ const counted = new WeakMap<Derived, ReadonlyArray<TagUse>>()
  * reusing: counting the trash would rank a word by rows only that page draws,
  * and would go on offering a tag whose every user is put away. The tag stays
  * WRITABLE, exactly as any word is — this list is what the set has used, never
- * what a title may say. The index keeps the trash (nothing about storage
- * belongs in a fold over prose), so the skipping is here — over the index's
+ * what a title may say. The table keeps the trash (nothing about storage
+ * belongs in a fold over prose), so the skipping is here — over the table's
  * entries rather than over every node of the corpus, and against a set of
  * put-away PATHS judged once ({@link putAway}) rather than a rule asked per
  * entry.
  */
-export const vocabularyOf = (derived: Derived): ReadonlyArray<TagUse> => {
-  const seen = counted.get(derived)
-  if (seen !== undefined) return seen
-  const tags = counting(derived)
-  counted.set(derived, tags)
+export const vocabularyOf = (
+  at: { readonly claims: Claims; readonly pointing: Pointing },
+): ReadonlyArray<TagUse> => {
+  const seen = counted.get(at.pointing)
+  if (seen !== undefined && seen.claims === at.claims) return seen.tags
+  const tags = counting(at.claims, at.pointing)
+  counted.set(at.pointing, { claims: at.claims, tags })
   return tags
 }
 
-const counting = (derived: Derived): ReadonlyArray<TagUse> => {
-  const away = putAway(derived)
+const counting = (claims: Claims, pointing: Pointing): ReadonlyArray<TagUse> => {
+  const away = putAway(claims, pointing)
   const tags: Array<TagUse> = []
-  for (const [written, records] of derived.taggedBy) {
+  for (const written of pointing.tags.keys()) {
+    const records = taggersOf(pointing, written)
     // A DIRECTORY WITH NOTHING PUT AWAY pays nothing per entry, which is nearly
     // every directory: the count is then the entries themselves.
     const live = away.size === 0 ? records.length : alive(records, away)
@@ -202,27 +223,33 @@ const counting = (derived: Derived): ReadonlyArray<TagUse> => {
 }
 
 /**
- * Which of the served files are out of the live vocabulary — judged ONCE per
- * derivation, off the file index, rather than per index entry.
+ * Which of the files that write a tag are out of the live vocabulary — judged
+ * ONCE per table, over the files the table names, rather than per entry.
  *
  * {@link isTrashed} / {@link isLeftoverArchive} are questions about a PATH, and
  * `./node.ts`'s own note beside them says they are meant to be asked once per
  * file per probe. This reading has an entry per (record, tag) pair to get
  * through — more entries than the directory has files, by a lot, on a set where
  * a name is written on a thousand rows — so asking them there would put a
- * string comparison where the whole point of the index is that there is no walk
+ * string comparison where the whole point of the table is that there is no walk
  * left. The saving is measured: 0.63ms → 0.34ms per derivation on the bench
  * vault (`./vocabulary.bench.ts`).
  *
- * WHAT IS LEFT is one map lookup per entry, and the honest word for the shape
- * of this reading is not "a handful": it is one pass over every (record, tag)
- * pair the directory holds. What the index bought is not fewer entries — it is
- * that none of them costs a regex.
+ * THE FILES THE TAGS PART NAMES, and not every served file: a directory's
+ * outlines that tag nothing cannot take a tag out of the count, so judging them
+ * would be judging paths this answer is not about. Each file is judged once —
+ * the set is what makes that true, since one file writes many tags.
  */
-const putAway = (derived: Derived): ReadonlySet<string> => {
+const putAway = (claims: Claims, pointing: Pointing): ReadonlySet<string> => {
   const away = new Set<string>()
-  for (const file of derived.byFile.keys()) {
-    if (isPutAway(derived.claims, file)) away.add(file)
+  const judged = new Set<string>()
+  for (const sources of pointing.tags.values()) {
+    for (const source of sources) {
+      const file = source.face.path
+      if (judged.has(file)) continue
+      judged.add(file)
+      if (isPutAway(claims, file)) away.add(file)
+    }
   }
   return away
 }
@@ -231,7 +258,7 @@ const putAway = (derived: Derived): ReadonlySet<string> => {
  *  the COUNT rather than off the corpus, so the tag itself stays offerable and
  *  only the rows only the trash draws stop being counted. */
 const alive = (
-  records: ReadonlyArray<LocatedRegular>,
+  records: ReadonlyArray<Located>,
   away: ReadonlySet<string>,
 ): number => {
   let live = 0
@@ -249,14 +276,14 @@ const alive = (
  * what makes the memo worth having — but a CONSUMER wiring them together would
  * be a consumer holding the composition, and the composition is the primitive.
  * There is nothing a caller could usefully do between them: the enumeration is
- * memoised per derivation, so passing it in buys nothing it does not already
+ * memoised per table, so passing it in buys nothing it does not already
  * have, and passing it in wrong (an older revision's list) is a way to be wrong
  * that this shape does not admit.
  */
 export const completingTags = (
-  derived: Derived,
+  at: { readonly claims: Claims; readonly pointing: Pointing },
   request: TagsRequest,
-): ReadonlyArray<TagCompletion> => offering(vocabularyOf(derived), request)
+): ReadonlyArray<TagCompletion> => offering(vocabularyOf(at), request)
 
 /**
  * A PREFIX first and a substring second, folded for case: asking `ho` puts

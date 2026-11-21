@@ -91,6 +91,7 @@ import {
 } from "./fixtures.testlib.ts"
 import { timeOf } from "./occasion.ts"
 import { patch, type SetDelta } from "./patch.ts"
+import { tablesOf } from "./corpora.testlib.ts"
 
 // ── the corpora ────────────────────────────────────────────────────────
 
@@ -237,7 +238,7 @@ test("every day reading answers what the walk it replaced answered", () => {
       `after: ${JSON.stringify(after, null, 2)}`
 
     // The derived view and the PATCHED one, because a reader holds the second.
-    for (const view of [viewOf(after), patch(viewOf(corpus), delta)]) {
+    for (const view of [viewOf(after), patch(viewOf(corpus), delta, tablesOf(corpus, after))]) {
       const walked = walkedByDay(view)
       if (walked.size > 0) dated++
 

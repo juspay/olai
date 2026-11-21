@@ -1,30 +1,30 @@
 /**
- * THE TABLE'S ROW ENTRIES ≡ `namedBy`, AND ITS TAG ENTRIES ≡ `taggedBy` — over
- * generated directories, and over one written small enough to read.
+ * THE TABLE ≡ WHAT THE RECORDS SAY — its row entries against {@link targetsOf}
+ * read forwards, its tag entries against {@link writtenTags}, over generated
+ * directories and over one written small enough to read.
  *
- * The one table ({@link ./pointing.ts}) files what the derivation's two reverse
- * indexes file, out of the same two functions: a record's fields are
- * {@link targetsOf} on both sides and a record's tags are {@link writtenTags} on
- * both sides. While the two live side by side, this is what says they agree —
- * the same ids, the same records, the same fields; the same tags, the same
- * records — so the readers that move from one to the other move to an answer
- * that was already proved to be the one they had.
+ * The one table ({@link ./pointing.ts}) is a fold over the DOCUMENTS of a set;
+ * what it files under a row and under a tag is what the records themselves say,
+ * read backwards. This file holds the two together: a walk of every record on
+ * one side, the table's own parts on the other, at every revision of a stream.
+ * It is the shape `./patch.test.ts` has with `derive` — a walk is the
+ * definition and the fold is the optimisation — for the value that used to be
+ * two indexes on the derivation and is now one table beside it.
  *
- * COMPARED AS SETS PER KEY, which is the promise both shapes make and no more:
- * `namedBy` holds one entry per record with the fields it named the id with,
- * and the table holds one source per record per key with the ways it says it.
- * Nothing here compares key ORDER — neither value promises one — and nothing
- * compares the ways the table files that are not fields: a link onto a row is
- * in the table's `rows` part and has never been in `namedBy`.
+ * COMPARED AS SETS PER KEY, which is the promise the table makes and no more:
+ * one source per record per key, with the ways it says it. Nothing here
+ * compares key ORDER — the table promises none — and nothing compares the ways
+ * that are not a record's fields: a link onto a row is in the `rows` part too,
+ * and a link is not a relation.
  *
  * THE TABLE IS READ AS A REVISION CARRIED IT, not as a rebuild made it: the
  * streams below replay their edits through the same door the store comes
  * through, so a carry that dropped a field entry fails here as well as in
  * `./pointing.test.ts`'s differential.
  *
- * WHAT IS NOT HERE is what either value MEANS — which fields exist, what a
- * mirror is, which tags count as references. Those are `./derive.test.ts`'s and
- * `./backlinks.test.ts`'s. This file holds two shapes to one answer.
+ * WHAT IS NOT HERE is what any of it MEANS — which fields exist, what a mirror
+ * is, which tags count as references. Those are `./derive.test.ts`'s and
+ * `./backlinks.test.ts`'s. This file holds two readings to one answer.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -32,8 +32,11 @@ import { Result } from "effect"
 
 import { addressOf } from "./address.ts"
 import { referencesOf } from "./backlinks.ts"
+import { derive, writtenTags } from "./derive.ts"
 import { type Document } from "./document.ts"
-import { seeded, settled, vaultOf } from "./fixtures.testlib.ts"
+import { FIXTURE_FILE, nodesOf, seeded, settled, vaultOf } from "./fixtures.testlib.ts"
+import { targetsOf } from "./node.ts"
+import { namersOf, type Pointing, pointingOf, repointed, taggersOf } from "./pointing.ts"
 import { linkyRevisions, linkyVault, type Revision } from "./pointing.testlib.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble, nodesIn } from "./set.ts"
@@ -41,7 +44,7 @@ import { type Reading, reading } from "./validate.ts"
 import { type Verdict } from "./verdict.ts"
 
 /** The ways that are a record naming another by a FIELD — the four
- *  {@link targetsOf} answers with, which are what `namedBy` holds. */
+ *  {@link targetsOf} answers with. */
 const FIELDS = ["mirror", "after", "blocks", "see"] as const
 
 /** One record, said the way both shapes can say it: where it is written. A
@@ -68,15 +71,24 @@ const tableNamings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> => 
   return found
 }
 
-/** …and `Derived.namedBy`, said the same way. */
-const derivedNamings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> => {
+/** …and the same thing read FORWARDS: every record of the set, through
+ *  {@link targetsOf}, with a record naming one id twice folded into one entry
+ *  the way the fold folds it. The independent arm — a walk of the records,
+ *  where the table is a fold over the documents. */
+const walkedNamings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> => {
   const found = new Map<string, Set<string>>()
-  for (const [id, namings] of at.derived.namedBy) {
-    const held = new Set<string>()
-    for (const naming of namings) {
-      held.add(recordSaid(naming.at.file, naming.at.line, FIELDS.filter((field) => naming.fields.includes(field))))
+  for (const located of at.derived.nodes) {
+    const fields = new Map<string, Set<string>>()
+    for (const [field, id] of targetsOf(located.node)) {
+      const own = fields.get(id) ?? new Set<string>()
+      own.add(field)
+      fields.set(id, own)
     }
-    found.set(id, held)
+    for (const [id, own] of fields) {
+      const held = found.get(id) ?? new Set<string>()
+      held.add(recordSaid(located.file, located.line, FIELDS.filter((field) => own.has(field))))
+      found.set(id, held)
+    }
   }
   return found
 }
@@ -97,11 +109,16 @@ const tableTaggings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> =>
   return found
 }
 
-/** …and `Derived.taggedBy`, said the same way. */
-const derivedTaggings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> => {
+/** …and the same thing read FORWARDS: every record's own prose, through
+ *  {@link writtenTags}, which is what a tag the fold filed has to be. */
+const walkedTaggings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> => {
   const found = new Map<string, Set<string>>()
-  for (const [tag, records] of at.derived.taggedBy) {
-    found.set(tag, new Set(records.map((located) => `${located.file}:${located.line}`)))
+  for (const located of at.derived.nodes) {
+    for (const tag of writtenTags(located.node)) {
+      const held = found.get(tag) ?? new Set<string>()
+      held.add(`${located.file}:${located.line}`)
+      found.set(tag, held)
+    }
   }
   return found
 }
@@ -116,7 +133,7 @@ const differences = (
   for (const key of new Set([...found.keys(), ...wanted.keys()])) {
     const one = [...(found.get(key) ?? [])].sort().join(", ")
     const other = [...(wanted.get(key) ?? [])].sort().join(", ")
-    if (one !== other) wrong.push(`\`${key}\`: table ${one || "nothing"} — derivation ${other || "nothing"}`)
+    if (one !== other) wrong.push(`\`${key}\`: table ${one || "nothing"} — records ${other || "nothing"}`)
   }
   return wrong
 }
@@ -179,10 +196,10 @@ const replay = (revisions: Iterable<Revision>): Report => {
     for (const own of namings.values()) {
       for (const said of own) for (const field of FIELDS) if (said.includes(field)) fields.add(field)
     }
-    for (const said of differences(namings, derivedNamings(at))) {
+    for (const said of differences(namings, walkedNamings(at))) {
       wrong.push(`revision ${revisionsSeen}, rows: ${said}`)
     }
-    for (const said of differences(taggings, derivedTaggings(at))) {
+    for (const said of differences(taggings, walkedTaggings(at))) {
       wrong.push(`revision ${revisionsSeen}, tags: ${said}`)
     }
     previous = at
@@ -193,7 +210,7 @@ const replay = (revisions: Iterable<Revision>): Report => {
 // The corpus with links in every shape the format has — `see` edges, mirrors,
 // title and note links, wikilinks and bodies — edited by the stream that moves
 // a link, renames a file, removes one and brings it back.
-test("the table's rows are `namedBy` and its tags are `taggedBy`, over the linky corpus", () => {
+test("the table's rows and tags are what the records say, over the linky corpus", () => {
   const report = replay(linkyRevisions(linkyVault(), seeded(20260825), 60))
   expect(report.wrong).toEqual([])
   expect(report.revisions).toBe(61)
@@ -206,7 +223,7 @@ test("the table's rows are `namedBy` and its tags are `taggedBy`, over the linky
 // …and the vault the patcher's and the tag index's benches run on, which is
 // written the other way round: `after` edges, placements reaching into the file
 // before, `#topic` tags in titles and `@id` mentions in notes.
-test("the table's rows are `namedBy` and its tags are `taggedBy`, over the generated vault", () => {
+test("the table's rows and tags are what the records say, over the generated vault", () => {
   const vault = settled(vaultOf({ files: 40, records: 12 }))
   const report = replay([vault])
   expect(report.wrong).toEqual([])
@@ -282,9 +299,10 @@ test("every field a record names a row with is in the table's rows, under the ro
     "notes.md link",
   ])
   expect(rowsAt(at, "tap")).toEqual(["garden.olai:2 see"])
-  // …and the whole of it is `namedBy`, which is where `blocks` — the field
-  // neither generated corpus writes — is held to the derivation's own answer.
-  expect(differences(tableNamings(at), derivedNamings(at))).toEqual([])
+  // …and the whole of it is `targetsOf` read forwards, which is where `blocks`
+  // — the field neither generated corpus writes — is held to the records' own
+  // answer.
+  expect(differences(tableNamings(at), walkedNamings(at))).toEqual([])
 })
 
 test("a record's tags are in the table's tags with the way `tag`, and a body's `@` is a mention", () => {
@@ -304,7 +322,7 @@ test("a record's tags are in the table's tags with the way `tag`, and a body's `
   // A BODY'S `#topic` IS FILED NOWHERE, exactly as `taggedBy` holds none: the
   // tag list is a promise about rows, and `notes.md` writes `#upkeep` in prose.
   expect(tagsAt(at, "#upkeep").some((said) => said.startsWith("notes.md"))).toBe(false)
-  expect(differences(tableTaggings(at), derivedTaggings(at))).toEqual([])
+  expect(differences(tableTaggings(at), walkedTaggings(at))).toEqual([])
 })
 
 test("the new ways are filed and not counted: Referenced by says what it always said", () => {
@@ -318,4 +336,190 @@ test("the new ways are filed and not counted: Referenced by says what it always 
   // A `see` and a mention from one record is one referrer with two ways, which
   // is the merge the reading does across two parts of the table.
   expect(referrersOf(at, "tap")).toEqual(["garden.olai#herbs see"])
+})
+
+// ── the tags part across a carry ───────────────────────────────────────
+//
+// What the derivation's tag index was held to while it existed, asked of the
+// table that holds those entries now and of the CARRY that moves them: a word
+// typed into a note has to appear under a key nothing else in the revision
+// mentions, and taking it out has to leave no key standing. The carry is
+// `repointed` over the two sets, which is the step a revision really takes
+// ({@link ./validate.ts}).
+
+/** The table one corpus leaves, and the table a carry makes of the next —
+ *  held to a rebuild of the same corpus, so a case says what moved and the
+ *  carry is checked while it says it. */
+const carried = (before: Revision, after: Revision): { readonly table: Pointing; readonly rebuilt: Pointing } => {
+  const was = assemble(TEST_CLAIMS, decodedVault(new Map(before))).documents
+  const now = assemble(TEST_CLAIMS, decodedVault(new Map(after))).documents
+  return {
+    table: repointed(pointingOf(TEST_CLAIMS, was), TEST_CLAIMS, was, now),
+    rebuilt: pointingOf(TEST_CLAIMS, now),
+  }
+}
+
+/** The records filed under one tag with the way `tag`, as their ids. */
+const taggedWith = (table: Pointing, tag: string): ReadonlyArray<string> =>
+  taggersOf(table, tag).map((at) => at.node.id)
+
+const QUIET: Revision = new Map([
+  ["a.olai", `{"id":"cook","ord":"a","title":"cook"}`],
+  ["b.olai", `{"id":"note","ord":"a","title":"a note"}`],
+])
+
+const writing = (corpus: Revision, file: string, text: string): Revision =>
+  new Map([...corpus, [file, text]])
+
+test("a word typed into a note reaches the table, and taking it out empties the key", () => {
+  const said = writing(QUIET, "b.olai", `{"id":"note","ord":"a","title":"a note","desc":"see @cook first"}`)
+  const there = carried(QUIET, said)
+  expect(taggedWith(there.table, "@cook")).toEqual(["note"])
+  expect(taggedWith(there.rebuilt, "@cook")).toEqual(["note"])
+
+  // ...and out again. A key nothing says any more GOES, rather than standing
+  // empty where a rebuild would have had no key at all.
+  const quiet = carried(said, QUIET)
+  expect(quiet.table.tags.has("@cook")).toBe(false)
+  expect(quiet.rebuilt.tags.has("@cook")).toBe(false)
+})
+
+test("one record writing a tag twice is one entry, in the title and in the note", () => {
+  const both = writing(QUIET, "b.olai", `{"id":"note","ord":"a","title":"about @cook","desc":"and again: @cook"}`)
+  const there = carried(QUIET, both)
+  expect(taggedWith(there.table, "@cook")).toEqual(["note"])
+  expect(there.table.tags.get("@cook")?.length).toBe(1)
+})
+
+// A carry that moved `#cook` and `@cook` as one key would answer both of these
+// with the same list, and a rebuild would agree with it — the fold would have
+// collided them too. So the assertion is on the KEYS, and it is here rather
+// than left to a generator because it is the whole reason this part is keyed by
+// the written form.
+test("the two sigils are two keys, and an edit moves only the one it wrote", () => {
+  const both: Revision = new Map([
+    ["a.olai", `{"id":"cook","ord":"a","title":"cook"}`],
+    ["b.olai", `{"id":"topic","ord":"a","title":"about #cook"}`],
+    ["deep/c.olai", `{"id":"note","ord":"a","title":"ask @cook"}`],
+  ])
+  const table = pointingOf(TEST_CLAIMS, assemble(TEST_CLAIMS, decodedVault(new Map(both))).documents)
+  expect(taggedWith(table, "#cook")).toEqual(["topic"])
+  expect(taggedWith(table, "@cook")).toEqual(["note"])
+
+  const quiet = carried(both, writing(both, "b.olai", `{"id":"topic","ord":"a","title":"about nothing"}`))
+  expect(quiet.table.tags.has("#cook")).toBe(false)
+  // The mention is in a file the revision never touched, and it is still filed.
+  expect(taggedWith(quiet.table, "@cook")).toEqual(["note"])
+})
+
+// ── what the table files, written down ─────────────────────────────────
+//
+// The cases the derivation's two reverse indexes were held to while they
+// existed, asked of the table that holds those entries now. They moved
+// verbatim in what they assert: the same fixtures, the same answers, read
+// through `namersOf` and the `tag` way instead of through `namedBy` and
+// `taggedBy`.
+
+/** One file's records, as the table over them. */
+const filed = (contents: string): Pointing =>
+  pointingOf(
+    TEST_CLAIMS,
+    assemble(TEST_CLAIMS, decodedVault(new Map([[FIXTURE_FILE, contents]]))).documents,
+  )
+
+/** What the table says about an id, as `record field,field` per namer — one
+ *  string rather than a nested literal, so what an assertion is about is the
+ *  records and their reasons rather than the shape they arrive in. */
+const namers = (table: Pointing, id: string): ReadonlyArray<string> =>
+  namersOf(table, id).map((one) => `${one.at.node.id} ${one.fields.join(",")}`)
+
+// The rows part is the format's own `targetsOf` read backwards, and it is RAW
+// — what the records SAY, before a chain is followed or `blocks` is normalised
+// into `after`. That is the point of it being filed at all beside the
+// canonical maps: the ops layer refuses to retire a placement something still
+// names, and those maps have filed every one of those edges at the node the
+// placement shows, where a refusal about the PLACEMENT could never find them.
+test("a record is filed under the id it wrote, not the node that id means", () => {
+  const contents = `{"id":"x","ord":"a","title":"x"}\n` +
+    `{"id":"m","ord":"b","mirror":"x"}\n` +
+    `{"id":"a","ord":"c","title":"a","after":["m"],"see":["m"]}\n` +
+    `{"id":"b","ord":"d","title":"b","blocks":["m"]}`
+  const table = filed(contents)
+  // One entry per RECORD, with the fields in declaration order: a node naming
+  // the same id twice is one dependent with two reasons, not two dependents.
+  expect(namers(table, "m")).toEqual(["a after,see", "b blocks"])
+  // `see` is in here and in nothing else — no derivation reads it, and a
+  // reverse reading that left it out would let a write land that should not.
+  expect(derive(TEST_CLAIMS, nodesOf(contents)).edgesTo.has("m")).toBe(false)
+  // The placement's own claim on the node it shows is an entry like any other.
+  expect(namers(table, "x")).toEqual(["m mirror"])
+})
+
+// One field naming an id twice is still one field: a reader listing it twice
+// would be reporting the shape of the file rather than what it means.
+test("a field naming the same id twice is named once", () => {
+  const table = filed(
+    `{"id":"x","ord":"a","title":"x"}\n` +
+      `{"id":"a","ord":"b","title":"a","after":["x","x"],"see":["x"]}`,
+  )
+  expect(namers(table, "x")).toEqual(["a after,see"])
+})
+
+// The tags part is keyed by a TAG rather than by an id: what a title or a note
+// writes after a sigil, filed exactly as it is written. Whether an `@` tag
+// names a node — whether the mention is a REFERENCE — is asked at the read
+// (`./backlinks.ts`), so that minting a node does not have to re-walk every
+// note in the directory.
+test("a tag is filed under the tag as written, in prose of either kind", () => {
+  const table = filed(
+    `{"id":"x","ord":"a","title":"x"}\n` +
+      `{"id":"a","ord":"b","title":"about @x"}\n` +
+      `{"id":"b","ord":"c","title":"b","desc":"and @x again, and @alice"}`,
+  )
+  expect(taggedWith(table, "@x")).toEqual(["a", "b"])
+  // A word nothing declares files exactly the same way: this part is about
+  // what the prose SAYS, and `@alice` is a tag until somebody is called that.
+  expect(taggedWith(table, "@alice")).toEqual(["b"])
+})
+
+// The keys used to be sigil-stripped, so a topic and a mention spelled the
+// same word were one entry and neither reader could tell them apart.
+test("a `#topic` and an `@person` spelled alike are two keys", () => {
+  const table = filed(
+    `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"a","ord":"b","title":"ask @herbs"}\n` +
+      `{"id":"b","ord":"c","title":"filed under #herbs"}`,
+  )
+  expect(taggedWith(table, "@herbs")).toEqual(["a"])
+  expect(taggedWith(table, "#herbs")).toEqual(["b"])
+  // ...and the bare word is neither of them, which is what a stripped key was.
+  expect(table.tags.has("herbs")).toBe(false)
+})
+
+test("a record writing one tag twice is one entry of it", () => {
+  const table = filed(
+    `{"id":"x","ord":"a","title":"x"}\n` +
+      `{"id":"a","ord":"b","title":"@x and @x","desc":"still @x"}`,
+  )
+  expect(taggedWith(table, "@x")).toEqual(["a"])
+})
+
+test("a mirror tags nothing, having no prose to tag with", () => {
+  const table = filed(`{"id":"x","ord":"a","title":"x"}\n{"id":"m","ord":"b","mirror":"x"}`)
+  expect(table.tags.size).toBe(0)
+})
+
+test("the alphabet is the title's own, and a sigil inside a word starts nothing", () => {
+  const table = filed(
+    `{"id":"a","ord":"a","title":"write to sam@herbs.example"}\n` +
+      `{"id":"b","ord":"b","title":"filed under #herbs"}\n` +
+      `{"id":"c","ord":"c","title":"(@herbs) and @work/olai"}`,
+  )
+  // The bracket opens a word, the `.` ends one, and `/` is part of a tag name
+  // — `titleTagRe`'s rules, inherited rather than restated here. The `#` in the
+  // middle record is claimed wherever it is written, which is the asymmetry
+  // that regex owns and this part inherits whole.
+  expect(taggedWith(table, "@herbs")).toEqual(["c"])
+  expect(taggedWith(table, "#herbs")).toEqual(["b"])
+  expect(taggedWith(table, "@work/olai")).toEqual(["c"])
 })

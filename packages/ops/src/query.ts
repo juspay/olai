@@ -505,12 +505,13 @@ export const moving = (derived: Derived, request: MovingRequest): MovingAnswer =
  * opinion about.
  */
 export const tags = (
-  /** The DERIVATION alone, like {@link matches}: a tag is written in a record's
-   *  title or its note, and a document body's `#tags` reach search rather than
-   *  this list (`@olai/format`'s `derive.ts` files records). */
-  derived: Derived,
+  /** THE CLAIMS AND THE TABLE, which is what counts a tag now: a tag is
+   *  written in a record's title or its note and is filed in the references
+   *  table's tags part, and a document body's `#tags` reach search rather than
+   *  this list (`@olai/format`'s `vocabulary.ts` counts rows only). */
+  at: Pick<Reading, "claims" | "pointing">,
   request: TagsRequest,
-): TagsAnswer => ({ tags: completingTags(derived, request) })
+): TagsAnswer => ({ tags: completingTags(at, request) })
 
 // ── one node, and what is under it ─────────────────────────────────────
 
@@ -772,15 +773,15 @@ export const detail = (
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader
     // which one this node carries. It is the same spelling
-    // `@olai/format`'s tag index is keyed by (`Derived.taggedBy`), and
-    // deliberately not that index read forwards: this is a node's OWN title,
-    // which is what a caller about to edit the record is asking about, where
-    // the index also files what a NOTE says (`derive.ts`'s `writtenTags`). The
-    // two answers were one question until the browser's tag completion began
-    // reading the index, and the divergence is stated rather than harmonised —
-    // moving `tags` onto the index would put a note's words in a field that
-    // says "this node's title", and moving the completion off it would put the
-    // corpus walk back.
+    // `@olai/format`'s references table keys its tags part by (`./pointing.ts`),
+    // and deliberately not that table read forwards: this is a node's OWN
+    // title, which is what a caller about to edit the record is asking about,
+    // where the table also files what a NOTE says (`derive.ts`'s
+    // `writtenTags`). The two answers were one question until the browser's tag
+    // completion began reading the index, and the divergence is stated rather
+    // than harmonised — moving `tags` onto the table would put a note's words
+    // in a field that says "this node's title", and moving the completion off
+    // it would put the corpus walk back.
     tags: recordRead(node).title.tags,
     ...(progress === undefined ? {} : { progress }),
     ...(took === undefined ? {} : { took }),

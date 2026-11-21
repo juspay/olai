@@ -211,81 +211,6 @@ export interface Derived {
    */
   readonly edgesTo: ReadonlyMap<string, ReadonlySet<string>>
   /**
-   * id → the records that NAME it, and the fields they name it with:
-   * {@link targetsOf} read backwards, in corpus order.
-   *
-   * RAW, and that is the point of it being a third reverse index rather than a
-   * reading of the two above. Those two are about MEANING — a mirror chain
-   * followed to its end, `blocks` normalised into `after` — and they are what a
-   * recomputation follows. This one is about what the records SAY, which is
-   * what a refusal has to quote: an `after` naming a placement is named at the
-   * placement, and `see` (which no derivation reads at all) is named here too.
-   * Answering "does anything still point at this record" out of the canonical
-   * maps would miss all three, and it is the question the ops layer asks before
-   * it takes a record away.
-   */
-  readonly namedBy: ReadonlyMap<string, ReadonlyArray<Naming>>
-  /**
-   * A tag AS WRITTEN → the records that write it, in a title or a note, in
-   * corpus order: {@link writtenTags} read backwards.
-   *
-   * BOTH SIGILS, ONE INDEX, and the key carries which: `@herbs` and `#herbs`
-   * are two keys, never one. That is the format's own rule read backwards —
-   * `#topic` and `@person` are two namespaces over one alphabet
-   * ({@link titleTagRe}) — and it is what lets the two readers of this index
-   * ask their own question of it without either one filtering for the other.
-   * Backlinks want the `@` half ({@link ./backlinks.ts}); the tag COMPLETION
-   * wants the whole vocabulary and the sigil it was written with ({@link
-   * ./vocabulary.ts}, which the browser used to hold its own copy of and now
-   * asks for). Sigil-stripped keys would collide the
-   * two namespaces and make both questions unanswerable from here.
-   *
-   * KEYED BY THE TAG rather than by a node, and that is the whole of why this
-   * index can be patched at all. `@alice` and `@order` are the same thing to a
-   * title; what makes the second a REFERENCE is that some record claims the id
-   * `order`, which is a question about a different index and is asked at the
-   * READ ({@link ./backlinks.ts}). Were existence asked here, minting a node
-   * would have to walk every note in the directory to find the mentions that
-   * had just become references, and dropping one would have to walk them again
-   * — a corpus-wide pass per capture, inside an index whose whole claim is that
-   * an edit costs what it touched.
-   *
-   * ONE ENTRY PER RECORD, so a node writing `@order` in its title and again in
-   * its note is one entry rather than two — {@link Naming}'s rule next door,
-   * kept for the same reader: what asks this wants to know WHICH records to
-   * draw, and a record is one record however often it says the word. It is also
-   * what makes the completion's count a count of NODES rather than of
-   * occurrences, which is what that widget always claimed to say.
-   *
-   * A MIRROR IS NEVER IN IT — and that is in the TYPE rather than in this
-   * sentence: a placement has no title and no note of its own, so it has no
-   * prose to tag anything with, and a reader of this index should not have to
-   * re-narrow what the fold already proved. ({@link Derived.namedBy} next door
-   * stays `Located` because `mirror` IS one of the fields it files.)
-   *
-   * THE TRASH IS IN IT, like every other index here: what is put away is left
-   * out at the READ (both readers do, each in its own words), because an index
-   * that knew about `_olai/Trash.olai` would be the format's storage rule wired
-   * into a fold that is about what prose says.
-   *
-   * ONE KIND OF KEY CAN NEVER BECOME A REFERENCE, and that is a decision
-   * rather than an oversight: every `#topic` is one — the mention reading takes
-   * only the `@` half (they are two namespaces over one alphabet, because
-   * this format writes a person and a topic with two sigils). An `@`-key names
-   * an id whenever the set claims one, and nothing else is asked at the fold —
-   * filtering by id shape here would be this index knowing about ids, which is
-   * exactly what keying it by the written tag exists to avoid — and since the
-   * completion asks this index for the whole vocabulary, the keys that are
-   * nobody's id are half of what it is FOR.
-   *
-   * NOTHING READS THE KEYS IN ORDER, unlike the three indexes above, and the
-   * patcher spends exactly that — it adds and drops keys in place rather than
-   * rebuilding the map to keep an order nobody promised. The VALUES are ordered
-   * and promised so: a reader listing what refers to a node says them in the
-   * order the directory holds them.
-   */
-  readonly taggedBy: ReadonlyMap<string, ReadonlyArray<LocatedRegular>>
-  /**
    * A DAY (`YYYY-MM-DD`) → the dates that land on it, each with the record that
    * carries it: {@link ./occasion.ts}'s `datesOf` read backwards over the set.
    *
@@ -426,12 +351,6 @@ export const READ: { readonly [K in Index]: Read } = {
    *  keys. Also the one row close enough to have been timed rather than argued
    *  — `./patch.ts`'s `regrouped` carries the numbers. */
   byFile: "whole",
-  /** WALKED: the validator reports every id nothing declares by reading every
-   *  entry of this map (`./validate.ts`'s `checkTargets`). */
-  namedBy: "whole",
-  /** WALKED: tag completion reads every key and every member to rank them
-   *  (`./vocabulary.ts`). */
-  taggedBy: "whole",
   /** WALKED: the agenda's two directions and the calendar's month step this
    *  map's entries (`./agenda.ts`, `./dates.ts`). */
   byDay: "whole",
@@ -475,71 +394,6 @@ export const parentInto = (
 }
 
 /**
- * A record that names an id, and the fields it names it with — one entry per
- * RECORD, so a node naming the same id twice (`after` it and `see` it) is one
- * dependent with two fields rather than two dependents.
- *
- * The fields come in {@link targetsOf}'s declaration order, without repeats:
- * `after: ["b", "b"]` is one relation written twice, and a reader listing it
- * twice would be reporting the file's shape rather than what it means.
- *
- * `TargetField` rather than `string`, because the format owns that list and an
- * open type here would be a second, wider vocabulary for it — the same thing
- * {@link targetsOf} exists to stop one level down.
- */
-export interface Naming {
-  readonly at: Located
-  readonly fields: ReadonlyArray<TargetField>
-}
-
-/**
- * One entry of {@link Derived.namedBy} while it is still being built — the
- * fields are pushed into as the record's own list is read, and the map is
- * handed out `ReadonlyArray` once the walk is over.
- */
-export interface Filing {
-  readonly at: Located
-  readonly fields: Array<TargetField>
-}
-
-/**
- * One record's namings, filed into `namedBy` — the WHOLE of how that index is
- * built, in one place.
- *
- * Asked once per record, and nearly every record names nothing, which is why
- * {@link targetsOf} answers that with a shared empty list.
- *
- * A record naming one id with two fields is ONE dependent carrying both, and
- * the entry to add the second field to is the LAST one — entries are appended
- * as the walk reaches each record, so an entry already filed by the record in
- * hand can only be the one on the end. That is what makes the fold free: no
- * per-record scratch map, no search.
- *
- * It is a function rather than a loop body because a SECOND walk files records
- * into this index now — the patcher's, over the records one changed file
- * brought in ({@link ./patch.ts}) — and the folding rule above is exactly the
- * kind of thing two spellings drift on: one of them would go on filing a record
- * that names an id twice as two dependents, and the ops layer's refusals would
- * quote a file that says something else.
- */
-export const nameInto = (
-  namedBy: Map<string, Array<Filing>>,
-  located: Located,
-): void => {
-  for (const [field, target] of targetsOf(located.node)) {
-    const naming = namedBy.get(target)
-    const held = naming?.[naming.length - 1]
-    if (held?.at === located) {
-      if (!held.fields.includes(field)) held.fields.push(field)
-    } else if (naming === undefined) {
-      namedBy.set(target, [{ at: located, fields: [field] }])
-    } else {
-      naming.push({ at: located, fields: [field] })
-    }
-  }
-}
-
-/**
  * Every tag this record WRITES, AS WRITTEN (`#topic`, `@person`), title first
  * and then the note, in the order it wrote them — {@link targetsOf}'s shape for
  * the prose half of a reference, and the whole of the vocabulary a set uses.
@@ -576,32 +430,6 @@ export const writtenTags = (node: Node): ReadonlyArray<Tag> => {
 /** The answer for prose that tags nothing: ONE list, shared. */
 const NO_TAGS: ReadonlyArray<Tag> = []
 
-/**
- * One record's tags, filed into `taggedBy` — the whole of how that index is
- * built, in one place, for {@link nameInto}'s reason: the patcher runs this
- * same fold over the records one changed file brought in
- * ({@link ./patch.ts}), and a second spelling of the once-per-record rule is a
- * second spelling free to drift from this one.
- *
- * The entry to leave alone is the LAST one, exactly as next door: entries are
- * appended as the walk reaches each record, so an entry already filed by the
- * record in hand can only be the one on the end.
- */
-export const tagInto = (
-  taggedBy: Map<string, Array<LocatedRegular>>,
-  located: Located,
-): void => {
-  // The narrowing the index's type promises, done once at the fold: a mirror
-  // writes no prose, so this drops nothing that {@link writtenTags} would not
-  // have answered empty for anyway.
-  if (!isRegular(located)) return
-  for (const tag of writtenTags(located.node)) {
-    const held = taggedBy.get(tag)
-    if (held === undefined) taggedBy.set(tag, [located])
-    else if (held[held.length - 1] !== located) held.push(located)
-  }
-}
-
 export const derive = (claims: Claims, nodes: ReadonlyArray<Located>): Derived => {
   // `Map.groupBy` is the language's own group-by-key, and grouping by file is
   // exactly that — a hand-rolled accumulator here would be a second spelling
@@ -616,16 +444,12 @@ export const derive = (claims: Claims, nodes: ReadonlyArray<Located>): Derived =
 
   const byId = new Map<string, Located>()
   const children = new Map<string, Array<Located>>()
-  const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
-  const taggedBy = new Map<string, Array<LocatedRegular>>()
   const dated = new Map<string, Array<Dated>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
 
     parentInto(children, located)
-    nameInto(namedBy, located)
-    tagInto(taggedBy, located)
     dateInto(claims, dated, located)
   }
 
@@ -667,8 +491,6 @@ export const derive = (claims: Claims, nodes: ReadonlyArray<Located>): Derived =
     byFile,
     mirrorsOf,
     edgesTo,
-    namedBy,
-    taggedBy,
     byDay,
     owedByDay,
     days,
@@ -694,9 +516,10 @@ export const byLine = (a: Located, b: Located): number => a.line - b.line
  *
  * The order `assemble` puts a set in, and the order every reverse index here
  * promises its members in. It is one comparator rather than one per asker
- * because three of them promise that order — {@link Derived.namedBy},
- * {@link Derived.taggedBy} and the reading over both
- * ({@link ./backlinks.ts}) — and because reaching for the format's own path
+ * because two of them promise that order — {@link Derived.byFile} and the
+ * references table beside the derivation ({@link ./pointing.ts}, whose own
+ * reading is {@link ./backlinks.ts}) — and because reaching for the format's
+ * own path
  * order rather than comparing two strings is what makes a file and the
  * directory beside it come out where a rebuilt view puts them.
  *

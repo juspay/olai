@@ -28,8 +28,13 @@
  * `bun test` collects only `*.test.ts`.
  */
 
+import { TEST_CLAIMS } from "@olai/format/testlib"
+
 import { nodesOf } from "./fixtures.testlib.ts"
-import type { SetDelta } from "./patch.ts"
+import type { SetDelta, Tables } from "./patch.ts"
+import { type Pointing, pointingOf } from "./pointing.ts"
+import { decodedVault } from "./scope.testlib.ts"
+import { assemble } from "./set.ts"
 
 /** A corpus as a fixture writes one: path → the file's JSONL. */
 export type Corpus = Record<string, string>
@@ -47,6 +52,28 @@ export const deltaOf = (before: Corpus, after: Corpus): SetDelta => ({
     .filter(([file, text]) => before[file] !== text)
     .map(([file, text]) => [file, { nodes: nodesOf(text, file) }] as const),
   removes: Object.keys(before).filter((file) => !(file in after)),
+})
+
+/**
+ * A corpus, as the references table over it — the value the patcher is handed
+ * on both sides of an edit (`./patch.ts`'s `Tables`), built the way `validate`
+ * builds it: the set's own documents, folded.
+ *
+ * Here rather than in the suite that first needed it, for this module's own
+ * reason: three of them drive the patcher over corpora, and three spellings of
+ * "the table over this corpus" would be three chances to hand it one that is
+ * not about the set the view is.
+ */
+export const tableOf = (corpus: Corpus): Pointing =>
+  pointingOf(
+    TEST_CLAIMS,
+    assemble(TEST_CLAIMS, decodedVault(new Map(Object.entries(corpus)))).documents,
+  )
+
+/** …and both sides of one edit, which is what the patcher takes. */
+export const tablesOf = (before: Corpus, after: Corpus): Tables => ({
+  before: tableOf(before),
+  after: tableOf(after),
 })
 
 export const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>

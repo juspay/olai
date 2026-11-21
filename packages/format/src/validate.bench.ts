@@ -67,6 +67,7 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
+import { type Pointing, pointingOf } from "./pointing.ts"
 import {
   median,
   nodesOf,
@@ -220,7 +221,11 @@ const DELETIONS: ReadonlyArray<Edit> = documents
  * is that function's, so the two arms' findings can be compared line by line
  * below.
  */
-const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
+const whole = (
+  set: OutlineSet,
+  view: Derived,
+  pointing: Pointing,
+): ReadonlyArray<OutlineError> => {
   const errors: Array<OutlineError> = []
   const all = view.nodes
   const known = markdownPaths(set)
@@ -229,7 +234,7 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   reportDuplicateIds(all, view, errors)
   reportParents(all, view, errors)
   reportParentCycles(all, view, errors)
-  reportUnknownTargets(danglingIn(view), view, errors)
+  reportUnknownTargets(danglingIn(pointing, view), pointing, view, errors)
   reportAfterCycles(all, view, errors)
   reportMirrorCycles(all, view, errors)
   reportDeclarations(view, NO_KINDS, errors)
@@ -253,8 +258,12 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
   restore()
   let set = setOfHeld()
   let view = derive(TEST_CLAIMS, recordsIn(set))
+  /** The references table of the same revision — folded here, outside every
+   *  timed window, because both arms read it and the patcher is handed it on
+   *  both sides ({@link ./patch.ts}'s `Tables`). */
+  let table = pointingOf(TEST_CLAIMS, set.documents)
   let ledger: Ledger = {
-    errors: whole(set, view),
+    errors: whole(set, view, table),
     known: markdownPaths(set),
     typing: declarationsOf(view, NO_KINDS),
   }
@@ -273,9 +282,11 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
   for (const edit of edits) {
     const before = view
     const held = ledger
+    const was = table
     edit.apply()
     set = setOfHeld()
-    const next = patched(before, edit.delta)
+    table = pointingOf(TEST_CLAIMS, set.documents)
+    const next = patched(before, edit.delta, { before: was, after: table })
     if (next === undefined) {
       throw new Error(
         `${what}: the patcher declined, so this row would be timing two ` +
@@ -284,21 +295,21 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
     }
     view = next
     full += runs(() => {
-      whole(set, view)
+      whole(set, view, table)
     })
     narrow += runs(() => {
-      incrementally(set, before, held, edit.delta, view, NO_KINDS)
+      incrementally(set, before, held, edit.delta, view, NO_KINDS, table)
     })
     both += runs(() => {
-      whole(set, view)
-      incrementally(set, before, held, edit.delta, view, NO_KINDS)
+      whole(set, view, table)
+      incrementally(set, before, held, edit.delta, view, NO_KINDS, table)
     })
     // THE TWO ARMS ANSWERED THE SAME THING, or the milliseconds above are about
     // nothing. A decline is the same failure wearing a different face — it
     // would report the narrowing as free by having it do nothing at all, and it
     // says which door it turned back at.
-    const said = whole(set, view)
-    const narrowed = incrementally(set, before, held, edit.delta, view, NO_KINDS)
+    const said = whole(set, view, table)
+    const narrowed = incrementally(set, before, held, edit.delta, view, NO_KINDS, table)
     if (typeof narrowed === "string") {
       throw new Error(
         `${what}: the narrowing declined (${narrowed}) — the row above it is ` +

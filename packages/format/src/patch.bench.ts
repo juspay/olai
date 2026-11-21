@@ -43,17 +43,15 @@
  *
  * ...the third is what a TOUCHED KEY costs — the re-filing of one key timed as
  * a rebuild against a splice ({@link resorting}), on the biggest key each of
- * the four re-filed indexes has. It is the line `perf-key-resort` changed, and
+ * the two re-filed indexes has. It is the line `perf-key-resort` changed, and
  * it is on its own here for {@link lever}'s reason: the `patch` arm above pays
  * it on every edit, so what that arm's number does across the branch point is
  * the end-to-end figure and this is where it comes from.
  *
- * ...and the fourth is about the TAG INDEX's width: the corpus-wide fold timed
- * filing `@` alone against filing both sigils ({@link folds}), which is the
- * cost half of the trade `taggedBy` makes. The saving half is a leg of its own
- * beside it (`./vocabulary.bench.ts`), and the WALK under both — `tagParts`
- * in the three shapes it has been written in — is
- * {@link walks}, which exists because the figures for it were once quoted in a
+ * ...and the fourth is the WALK under every tag fold — `tagParts` in the three
+ * shapes it has been written in — which is
+ * {@link walks}, and which exists because the figures for it were once quoted
+ * in a
  * comment and printed by nothing.
  *
  * THE PATCHED ARM CARRIES ITS VIEW FORWARD, edit after edit, because that is
@@ -84,7 +82,6 @@ import {
   type Derived,
   type Index,
   READ,
-  tagInto,
 } from "./derive.ts"
 import {
   alternating,
@@ -104,7 +101,7 @@ import { type Document } from "./document.ts"
 import { PARTS } from "./imports.ts"
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
 import { overlay, type Read } from "./overlay.ts"
-import { bySibling, patched, type SetDelta, spliced } from "./patch.ts"
+import { bySibling, patched, type SetDelta, spliced, type Tables } from "./patch.ts"
 import { byPath } from "./paths.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import { decodedVault } from "./scope.testlib.ts"
@@ -156,6 +153,31 @@ const editOf = (which: number): {
 }
 
 const edits = Array.from({ length: EDITS }, (_, which) => editOf(which))
+
+/**
+ * THE REFERENCES TABLE ON EITHER SIDE OF EVERY EDIT, folded once, outside every
+ * timed window — the value the patcher is handed ({@link ./patch.ts}'s
+ * `Tables`).
+ *
+ * The edited file is decoded again the way a probe decodes one and every other
+ * document is the very object the last revision held, which is the identity the
+ * carry steps over ({@link ./pointing.ts}'s `moved`). Folded here rather than
+ * inside an arm because three arms spend these and a decode inside a window
+ * would be timing the parser.
+ */
+const tables: ReadonlyArray<Tables> = (() => {
+  const decoded = decodedVault(corpus)
+  let table = pointingOf(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded).documents)
+  const found: Array<Tables> = []
+  for (const [which, { file }] of edits.entries()) {
+    const written = decodedVault(new Map([[file, retitled(corpus.get(file) as string, which)]]))
+    decoded.set(file, written.get(file) as Result.Result<Document, Verdict>)
+    const next = pointingOf(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded).documents)
+    found.push({ before: table, after: next })
+    table = next
+  }
+  return found
+})()
 
 // ── the run ────────────────────────────────────────────────────────────
 
@@ -268,7 +290,7 @@ const patching = (name: string, alsoResidue: boolean): ReadonlyArray<number> => 
     const changes = own.map((at) => [at.node.id, at] as const)
     let next: Derived | undefined
     times.push(timed(() => {
-      next = patched(carrying, delta)
+      next = patched(carrying, delta, tables[which] as Tables)
       if (next !== undefined && alsoResidue) {
         next = { ...next, byId: cloned(carrying.byId, changes) }
       }
@@ -548,7 +570,7 @@ const flatly = (): readonly [built: number, counted: number] => {
  * builds one — a handful of keys re-filed over the map that stood.
  */
 const wholly = (): readonly [asMap: number, asLayer: number] => {
-  const base = first.namedBy
+  const base = first.byDay
   const keys = [...base.keys()].slice(0, 20)
   const held = overlay(base, "by key")
   for (const key of keys) held.set(key, base.get(key) as NonNullable<ReturnType<typeof base.get>>)
@@ -683,7 +705,7 @@ const untouched = (): void => {
   const never = new Map<Index, number>()
   let view = first
   for (const [which, { delta }] of edits.entries()) {
-    const next = patched(view, delta)
+    const next = patched(view, delta, tables[which] as Tables)
     if (next === undefined) throw new Error(`the patcher declined edit ${which}`)
     for (const index of LAYERED) {
       const was = view[index] as ReadonlyMap<string, unknown>
@@ -787,94 +809,6 @@ const biggest = <T>(
   for (const entry of index) if (entry[1].length > found[1].length) found = entry
   if (found[1].length === 0) throw new Error("the vault holds no key to re-file")
   return found
-}
-
-// ── what the tag index's WIDTH costs ───────────────────────────────────
-
-/**
- * THE FOLD, TIMED BOTH WAYS: the tag index filed under one sigil against under
- * both — the corpus-wide half of the trade the `taggedBy` branch was asked to
- * measure (`mentions-index-one-sigil`, deferred at #237 precisely because
- * nobody had).
- *
- * The narrow arm is a RECONSTRUCTION of the fold as it was, kept here for the
- * reason {@link cloned} is kept: a before/after this harness cannot print is
- * the unreproducible laptop sample this file exists to retire. What it costs a
- * READER to have the wider index is `./vocabulary.bench.ts`, which prints the
- * other half of the same trade.
- *
- * IT IS THE FOLD AND NOT THE WHOLE DERIVE, on purpose: the rest of `derive` is
- * byte-identical across the change, so a rebuild-vs-rebuild figure would put
- * this difference inside forty milliseconds of unrelated work and two noisy
- * machines apart. What is timed is every record of the vault filed, which is
- * exactly what a rebuild pays and forty times what one patched edit does.
- */
-const folds = (): readonly [narrow: number, wide: number] => {
-  const arms = [
-    () => {
-      const index = new Map<string, Array<LocatedRegular>>()
-      for (const at of first.nodes) mentionOnlyInto(index, at)
-      return index
-    },
-    () => {
-      const index = new Map<string, Array<LocatedRegular>>()
-      for (const at of first.nodes) tagInto(index, at)
-      return index
-    },
-  ] as const
-  // The wide arm files every key the narrow one does, and more; an arm that
-  // had quietly stopped filing anything would report a magnificent number.
-  const narrow = arms[0]()
-  const wide = arms[1]()
-  if (narrow.size === 0) {
-    throw new Error("the vault holds no `@` prose — the narrow arm measures nothing")
-  }
-  if (wide.size <= narrow.size) {
-    throw new Error("the wide arm files no more keys than the narrow one — check the vault")
-  }
-  return alternating(arms)
-}
-
-/**
- * The `@`-only fold, as {@link ./derive.ts} spelled it before `taggedBy` — the
- * expression the arm above is the before of.
- *
- * A private copy, and it may not be shared with the module it stands for: that
- * module now has one fold and this is the one it replaced.
- *
- * HELD TO THE SHAPE OF THE ONE IT STANDS FOR, down to what it allocates, so
- * that the two arms differ in exactly one thing — how many sigils the walk
- * claims. That is not a tidiness rule here, it is the measurement: the first
- * spelling of this looped over `[title, desc ?? ""]`, which is an array per
- * record that {@link tagInto} does not build and an empty string walked for
- * every record with no note. It made the BEFORE arm slower and so made the
- * second sigil look cheaper than it is. Two statements now, as next door, and
- * a note is not read when there is none.
- */
-const mentionOnlyInto = (
-  index: Map<string, Array<LocatedRegular>>,
-  located: Located,
-): void => {
-  if (!isRegular(located)) return
-  mentionsFrom(index, located, located.node.title)
-  if (located.node.desc !== undefined) mentionsFrom(index, located, located.node.desc)
-}
-
-/** One string of one record's prose, filed under every `@word` it holds —
- *  {@link mentionOnlyInto}'s inner half, which is one function here because the
- *  fold it stands for asks it of a title and of a note. */
-const mentionsFrom = (
-  index: Map<string, Array<LocatedRegular>>,
-  regular: LocatedRegular,
-  text: string,
-): void => {
-  if (!text.includes("@")) return
-  for (const part of tagParts(text)) {
-    if (part.kind !== "tag" || part.sigil !== "@") continue
-    const held = index.get(part.tag)
-    if (held === undefined) index.set(part.tag, [regular])
-    else if (held[held.length - 1] !== regular) held.push(regular)
-  }
 }
 
 // ── ...and what the WALK under it costs, three ways ────────────────────
@@ -1073,10 +1007,8 @@ console.log(`\nthe index handed on and NOT written, per index per edit:`)
 unwritten()
 untouched()
 console.log(`\nthe biggest key of each re-filed index, across one file's edit:`)
-resorting("taggedBy", first.taggedBy, (one) => one, byCorpus)
 resorting("byDay", first.byDay, (one) => one.at, byCorpus)
 resorting("children", first.children, (one) => one, bySibling)
-resorting("namedBy", first.namedBy, (one) => one.at, byCorpus)
 const [wasLayered, stayCloned] = beside()
 console.log(
   `\nthe indexes, cloned on their own: ${wasLayered.toFixed(3)}ms for the ${LAYERED.length}` +
@@ -1090,14 +1022,8 @@ console.log(
 )
 const [wholeMap, wholeLayer] = wholly()
 console.log(
-  `namedBy walked whole: ${wholeMap.toFixed(3)}ms as a map, ${wholeLayer.toFixed(3)}ms` +
-    ` through a layer — which is why the four read whole are not layered`,
-)
-const [narrowFold, wideFold] = folds()
-console.log(
-  `\nthe tag fold over the whole corpus: ${narrowFold.toFixed(2)}ms filing \`@\` alone,` +
-    ` ${wideFold.toFixed(2)}ms filing both sigils` +
-    ` — the width this index pays per REBUILD (${first.taggedBy.size} keys)`,
+  `byDay walked whole: ${wholeMap.toFixed(3)}ms as a map, ${wholeLayer.toFixed(3)}ms` +
+    ` through a layer — which is why the ones read whole are not layered`,
 )
 const walked3 = walks()
 console.log(

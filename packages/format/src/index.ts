@@ -572,7 +572,6 @@ export { Progress } from "./derive.ts"
 export type {
   Derived,
   InTheWay,
-  Naming,
   Row,
   Situated,
 } from "./derive.ts"
@@ -592,10 +591,19 @@ export type { Reference } from "./backlinks.ts"
  *  kept that way (`perf-doc-backlinks-index`), in four parts by what is
  *  pointed at. It rides on the {@link Reading} and it is what `referencesOf`
  *  reads; the type is exported because that function takes one, and the fold
- *  and the patch are not — a caller holding a reading holds the table, and a
+ *  and the carry are not — a caller holding a reading holds the table, and a
  *  caller building one goes through `validate` or `reading`, which is where the
- *  two are kept in step. */
-export type { Pointing } from "./pointing.ts"
+ *  two are kept in step.
+ *
+ *  THE RELATIONS HALF of it is read by name: {@link namersOf} is `targetsOf`
+ *  read backwards — the records that name a row with `mirror`, `after`,
+ *  `blocks` or `see`, each with its fields — and {@link isNamed} is the same
+ *  question asked for a yes or a no. Both are what the ops layer's refusals
+ *  ask before a record is taken away, and both leave the LINKS filed under the
+ *  same row out: a row something merely links to is not a row something
+ *  declares about. */
+export type { Naming, Pointing } from "./pointing.ts"
+export { isNamed, namersOf } from "./pointing.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of
