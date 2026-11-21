@@ -148,6 +148,11 @@ export interface Source {
   readonly face: Face
   /** The ways it says the target, in {@link Way} order. */
   readonly ways: ReadonlyArray<Way>
+  /** Under a WIKILINK's key (`[[name`), the names this source writes there,
+   *  in the order it writes them — what the reading resolves to tell which of
+   *  the files by that name each one finds ({@link ./backlinks.ts}). Absent
+   *  under every other key. */
+  readonly wikilinks?: ReadonlyArray<string>
 }
 
 /**
@@ -191,7 +196,9 @@ const pointInto = (
   const face = faceOf(document)
   const records = document.holds === "nodes" ? document.nodes : undefined
   for (const contribution of contributionsOf(claims, face, records)) {
-    const source: Source = { at: contribution.at, face, ways: [contribution.way] }
+    const source: Source = contribution.wikilink === undefined
+      ? { at: contribution.at, face, ways: [contribution.way] }
+      : { at: contribution.at, face, ways: [contribution.way], wikilinks: [contribution.wikilink] }
     fileAt(into, contribution.key, source)
     // A LINK ONTO A HEADING OR A ROW POINTS AT THE DOCUMENT AS WELL — one
     // extra key per heading link, the shape decision the module header
@@ -304,10 +311,16 @@ const fileAt = (into: Map<string, Array<Source>>, key: string, entry: Source): v
   // record of the same file is a different object and files separately.
   if (last.at === entry.at && last.face === entry.face) {
     // The ways arrive one at a time from the fold; a second way for a source
-    // already filed is merged in, keeping {@link Way} order.
-    if (!last.ways.includes(entry.ways[0] as Way)) {
-      held[held.length - 1] = { at: last.at, face: last.face, ways: [...last.ways, entry.ways[0] as Way] }
-    }
+    // already filed is merged in, keeping {@link Way} order. A second
+    // wikilink name under one key (`[[Note]]` and `[[Note#Part]]`) joins the
+    // first, so the reading resolves each.
+    const way = entry.ways[0] as Way
+    const names = entry.wikilinks?.filter((name) => !(last.wikilinks ?? []).includes(name)) ?? []
+    if (last.ways.includes(way) && names.length === 0) return
+    const ways = last.ways.includes(way) ? last.ways : [...last.ways, way]
+    held[held.length - 1] = names.length === 0 && last.wikilinks === undefined
+      ? { at: last.at, face: last.face, ways }
+      : { at: last.at, face: last.face, ways, wikilinks: [...(last.wikilinks ?? []), ...names] }
     return
   }
   held.push(entry)

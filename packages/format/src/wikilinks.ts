@@ -45,8 +45,11 @@ export interface Names {
   readonly stems: ReadonlyMap<string, ReadonlyArray<string>>
 }
 
-/** Capitals and the stored form of an accented letter set aside. */
-const fold = (text: string): string => text.normalize("NFC").toLowerCase()
+/** Capitals and the stored form of an accented letter set aside. ASCII has
+ *  one stored form, so only other text pays for normalising. */
+const fold = (text: string): string => (ASCII.test(text) ? text : text.normalize("NFC")).toLowerCase()
+
+const ASCII = /^[\x00-\x7f]*$/
 
 /** Remembered against the membership snapshot it was built from, which is
  *  replaced, never mutated, when the directory's files change. */

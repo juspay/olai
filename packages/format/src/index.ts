@@ -128,6 +128,7 @@ export {
   outlineNames,
   outlinePaths,
   outlinesIn,
+  servedIn,
   stopping,
   withDocuments,
 } from "./set.ts"

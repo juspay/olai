@@ -105,7 +105,7 @@ import { bodyKind, FileKind, fileKind } from "./kinds.ts"
 import { consult, Door, Licence, type Vault } from "./meaning.ts"
 import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular, propertiesIn } from "./node.ts"
 import { markdownPaths } from "./rules.ts"
-import { BrokenFile } from "./set.ts"
+import { BrokenFile, servedIn } from "./set.ts"
 import { pinTargetIn } from "./shelf.ts"
 import { declarationsIn, type KindVocabulary, NO_KINDS } from "./typing.ts"
 import type { Reading } from "./validate.ts"
@@ -419,7 +419,7 @@ export const pageOf = (
   request: PageRequest,
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
-  const served = new Set(at.set.documents.map(face => face.path))
+  const served = servedIn(at.set)
   const shows = shownOf(at, request)
   // THE DOORS FIRST, because the names table spends them: a value that turned
   // out to name a node is an id this page points at, and the chip drawing it
@@ -432,7 +432,7 @@ export const pageOf = (
   const warningRows = [...narrowableIn(shows)]
   if (shows.kind === "node" && shows.zoomed.kind === "node") warningRows.push(shows.zoomed.shows)
   for (const located of warningRows) {
-    const links = deadLinksOf(located, served)
+    const links = deadLinksOf(at.claims, located, served)
     if (links.length > 0) deadLinks[located.node.id] = links
   }
   return {

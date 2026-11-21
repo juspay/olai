@@ -52,7 +52,7 @@ import {
   scannedReferrers,
 } from "./pointing.testlib.ts"
 import { decodedVault, vaultAt } from "./scope.testlib.ts"
-import { assemble, nodesIn, type OutlineSet } from "./set.ts"
+import { assemble, nodesIn, type OutlineSet, servedIn } from "./set.ts"
 import { type Reading, reading } from "./validate.ts"
 
 /** What one replay found. Equality on the two lists is the gate; every other
@@ -137,7 +137,7 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
     for (const address of every === 1 ? addressesIn(set) : sampledAddresses(set, every)) {
       asked++
       const found = referencesOf(at, address)
-      const walked = scannedReferrers(address, faces, at.derived)
+      const walked = scannedReferrers(address, faces, at.derived, servedIn(set))
       if (found.length > 0) hits++
       if (!sameReferrers(found, walked)) {
         divergences.push(
@@ -390,4 +390,29 @@ test("a body write that moves a link re-files it, and an emptied key goes away",
   // The key is GONE rather than holding an empty list, which is what a rebuild
   // would have and is the line another copy of this gets wrong.
   expect(after.pointing.has("one.md")).toBe(false)
+})
+
+// A WIKILINK IS FILED BY ITS NAME, so a file arriving that no link writes
+// moves nothing in the index — and still re-aims the link, because the reading
+// resolves it against the revision's own membership.
+test("a namesake arriving moves no key, and the link now finds the nearer file", () => {
+  const before = readingOfVault({
+    "rooms/Note.md": "# Rooms\n",
+    "garden/beds.md": "# Beds\n\n[[Note]]\n",
+  })
+  expect(pointedAt(before, "rooms/Note.md")).toBe("garden/beds.md")
+  const files = decodedVault(
+    new Map([
+      ["rooms/Note.md", "# Rooms\n"],
+      ["garden/Note.md", "# Garden\n"],
+      ["garden/beds.md", "# Beds\n\n[[Note]]\n"],
+    ]),
+  )
+  const after = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, files), {
+    read: before,
+    delta: { upserts: [], removes: [] },
+  })
+  expect(after.pointing).toBe(before.pointing)
+  expect(pointedAt(after, "rooms/Note.md")).toBe("")
+  expect(pointedAt(after, "garden/Note.md")).toBe("garden/beds.md")
 })

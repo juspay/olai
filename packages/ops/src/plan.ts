@@ -5925,8 +5925,8 @@ export const plan = (scope: Scope, request: Request): Planned => {
   const served = new Set([...scope.set.documents.map(one => one.path), ...next.files.map(one => one.file), ...(next.documents ?? []).map(one => one.file)])
   const nudges: string[] = []
   const compare = (file: string, text: string | ReadonlyArray<string>, before: string | ReadonlyArray<string>) => {
-    const previous = new Set(deadLinksIn(file, before, served).map(one => one.written))
-    nudges.push(...deadLinksIn(file, text, served).filter(one => !previous.has(one.written)).map(deadLinkSaid))
+    const previous = new Set(deadLinksIn(scope.claims, file, before, served).map(one => one.written))
+    nudges.push(...deadLinksIn(scope.claims, file, text, served).filter(one => !previous.has(one.written)).map(deadLinkSaid))
   }
   for (const file of next.files) {
     for (const node of file.nodes) {

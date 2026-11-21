@@ -773,6 +773,27 @@ export const recordContributions = (
   return found
 }
 
+/** The names the wikilinks of some prose write, in order and never twice.
+ *  Each text is scanned on its own: a title and a note cannot complete each
+ *  other's brackets. */
+export const wikilinkNames = (texts: ReadonlyArray<string>): ReadonlyArray<string> => {
+  let named: Set<string> | undefined
+  for (const text of texts) {
+    for (const link of wikilinksIn(text)) (named ??= new Set()).add(link.name)
+  }
+  return named === undefined ? NO_NAMES : [...named]
+}
+
+const NO_NAMES: ReadonlyArray<string> = []
+
+/** The wikilinks one record writes in its title and its note — what the
+ *  references index files under each name, beside {@link recordContributions}.
+ *  A placement writes none. */
+export const recordWikilinks = (located: Located): ReadonlyArray<string> =>
+  isMirror(located.node)
+    ? NO_NAMES
+    : wikilinkNames(located.node.desc === undefined ? [located.node.title] : [located.node.title, located.node.desc])
+
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is.
  *

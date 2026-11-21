@@ -38,11 +38,12 @@ import { type Address, addressOf } from "./address.ts"
 import type { Reference, Way } from "./backlinks.ts"
 import { tagsIn, type Derived } from "./derive.ts"
 import { type Document, type Face, faceOf, type FaceHead } from "./document.ts"
-import { linksIn, recordLinks } from "./documents.ts"
+import { linksIn, recordLinks, recordWikilinks } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, isPutAway, isRegular, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
+import { namesIn, wikilinkAddress } from "./wikilinks.ts"
 
 // ── the reading as it STOOD, before the links index ────────────────────
 
@@ -60,6 +61,11 @@ import type { OutlineSet } from "./set.ts"
  * and row arms ask only about links, which is what the index files under
  * those keys.
  *
+ * WIKILINKS ARE RESOLVED HERE TOO, by the one resolver (`./wikilinks.ts`)
+ * against the revision's membership: every name every file writes, walked.
+ * A link to a ROW (`house.olai#kitchen`, either way it is written) is a
+ * reference to the node in it, at the file that holds the node.
+ *
  * THIS IS THE COST the roadmap node named: every link of every file, tested
  * per revision, per tab sitting on any page with a body. It is kept because
  * the index's answer is defined as being this one.
@@ -68,7 +74,11 @@ export const scannedReferrers = (
   address: Address,
   faces: ReadonlyArray<Face>,
   derived: Pick<Derived, "byFile">,
+  served: ReadonlySet<string>,
 ): ReadonlyArray<Reference> => {
+  const names = namesIn(TEST_CLAIMS, served)
+  const wikis = (from: string, written: ReadonlyArray<string>): ReadonlyArray<Address> =>
+    written.flatMap((name) => wikilinkAddress(names, TEST_CLAIMS, from, name) ?? [])
   /** Ways merged per source, in the reading's own order. */
   const found = new Map<object, { source: Reference["source"]; ways: Set<Way> }>()
   const add = (source: Reference["source"], ...ways: ReadonlyArray<Way>): void => {
@@ -81,18 +91,24 @@ export const scannedReferrers = (
     // THE MIRRORS RULE: a reference to a placement of this node is a
     // reference to this node.
     const asked = new Set([address.id, ...mirrorsOf(address.id, faces, derived)])
+    const holders = holdersOf(faces, derived)
+    /** Whether a link names one of the asked ids: bare, or as the row at the
+     *  file that holds it. */
+    const naming = (link: Address): boolean =>
+      (link.kind === "node" && asked.has(link.id)) ||
+      (link.kind === "row" && asked.has(link.id) && holders.get(link.id) === link.path)
     for (const face of faces) {
       if (isPutAway(TEST_CLAIMS, face.path)) continue
       const records = derived.byFile.get(face.path)
       if (records === undefined) {
         // A BODY: its prose names the node with a link or an `@`.
-        const ways = bodyWays(face, asked)
+        const ways = bodyWays(face, asked, naming, wikis(face.path, face.wikilinks ?? []))
         if (ways.length > 0) add(headOf(face), ...ways)
         continue
       }
       for (const located of records) {
         if (!isRegular(located) || located.node.id === address.id) continue
-        const ways = recordWays(located, asked)
+        const ways = recordWays(located, asked, naming, wikis(located.file, recordWikilinks(located)))
         if (ways.length > 0) add(located, ...ways)
       }
     }
@@ -106,7 +122,9 @@ export const scannedReferrers = (
     }
     for (const face of faces) {
       if (face.path === here || isPutAway(TEST_CLAIMS, face.path)) continue
-      if (!face.links.some(points)) continue
+      // The face is every link its file writes, so a file whose face names
+      // nothing here holds no record that does.
+      if (!face.links.some(points) && !wikis(face.path, face.wikilinks ?? []).some(points)) continue
       const records = derived.byFile.get(face.path)
       if (records === undefined) {
         add(headOf(face), "link")
@@ -114,7 +132,7 @@ export const scannedReferrers = (
       }
       for (const located of records) {
         if (!isRegular(located)) continue
-        if (!recordLinks(TEST_CLAIMS, located).some(points)) continue
+        if (!recordLinks(TEST_CLAIMS, located).some(points) && !wikis(located.file, recordWikilinks(located)).some(points)) continue
         add(located, "link")
       }
     }
@@ -123,6 +141,18 @@ export const scannedReferrers = (
     source,
     ways: ["see", "mention", "link"].filter((way) => ways.has(way as Way)) as ReadonlyArray<Way>,
   }))
+}
+
+/** Which file holds each id — the first record to claim it, in path order,
+ *  which is the claim the derivation keeps. */
+const holdersOf = (faces: ReadonlyArray<Face>, derived: Pick<Derived, "byFile">): ReadonlyMap<string, string> => {
+  const holders = new Map<string, string>()
+  for (const face of faces) {
+    for (const located of derived.byFile.get(face.path) ?? []) {
+      if (!holders.has(located.node.id)) holders.set(located.node.id, face.path)
+    }
+  }
+  return holders
 }
 
 const mirrorsOf = (
@@ -152,10 +182,15 @@ const mirrorsOf = (
   return asked
 }
 
-const bodyWays = (face: Face, asked: ReadonlySet<string>): ReadonlyArray<Way> => {
+const bodyWays = (
+  face: Face,
+  asked: ReadonlySet<string>,
+  names: (link: Address) => boolean,
+  wikilinked: ReadonlyArray<Address>,
+): ReadonlyArray<Way> => {
   const ways = new Set<Way>()
-  for (const link of face.links) {
-    if (link.kind === "node" && asked.has(link.id)) ways.add("link")
+  for (const link of [...face.links, ...wikilinked]) {
+    if (names(link)) ways.add("link")
   }
   for (const tag of face.tags) {
     if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
@@ -163,7 +198,12 @@ const bodyWays = (face: Face, asked: ReadonlySet<string>): ReadonlyArray<Way> =>
   return [...ways] as ReadonlyArray<Way>
 }
 
-const recordWays = (located: Located, asked: ReadonlySet<string>): ReadonlyArray<Way> => {
+const recordWays = (
+  located: Located,
+  asked: ReadonlySet<string>,
+  names: (link: Address) => boolean,
+  wikilinked: ReadonlyArray<Address>,
+): ReadonlyArray<Way> => {
   if (!isRegular(located)) return []
   const node = located.node
   const ways = new Set<Way>()
@@ -171,13 +211,14 @@ const recordWays = (located: Located, asked: ReadonlySet<string>): ReadonlyArray
     if (asked.has(id)) ways.add("see")
   }
   for (const address of linksIn(TEST_CLAIMS, located.file, node.title)) {
-    if (address.kind === "node" && asked.has(address.id)) ways.add("link")
+    if (names(address)) ways.add("link")
   }
   if (node.desc !== undefined) {
     for (const address of linksIn(TEST_CLAIMS, located.file, node.desc)) {
-      if (address.kind === "node" && asked.has(address.id)) ways.add("link")
+      if (names(address)) ways.add("link")
     }
   }
+  if (wikilinked.some(names)) ways.add("link")
   for (const tag of tagsIn(node.title)) {
     if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
   }
@@ -332,13 +373,29 @@ const targetsIn = (bodies: ReadonlyArray<string>): ReadonlyArray<string> => [
 const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>
   from[Math.floor(random() * from.length)] as T
 
-/** A markdown link, written the way prose writes one, from the file that holds
- *  it. */
+/** A link, written the way prose writes one, from the file that holds it — a
+ *  markdown link mostly, and a WIKILINK a third of the time, by the name of
+ *  the same target, since a vault written in Obsidian names its files that
+ *  way and the index files those under the name rather than the path. */
 const linked = (
   random: () => number,
   from: string,
   targets: ReadonlyArray<string>,
-): string => `[see](${spelled(from, pick(random, targets))})`
+): string => {
+  const target = pick(random, targets)
+  return random() < 0.35 ? wikilinked(target) : `[see](${spelled(from, target)})`
+}
+
+/** The wikilink that names a target by name: a document without its suffix,
+ *  a heading after a `#`, and a node as the row of the outline every corpus
+ *  holds ({@link WING}), whose first record is `n0x0`. */
+const wikilinked = (target: string): string => {
+  if (target.startsWith("#")) return `[[${WING}#${target.slice(1)}x0]]`
+  const [path, heading] = target.split("#") as [string, string | undefined]
+  const base = path.slice(path.lastIndexOf("/") + 1)
+  const name = base.endsWith(".md") ? base.slice(0, -3) : base
+  return `[[${name}${heading === undefined ? "" : `#${heading}`}]]`
+}
 
 /** One outline with `see` edges, title links and note links: all three
  *  sources read by `recordLinks`, including document links without fragments. */
@@ -457,7 +514,11 @@ export const linkyVault = (
  *     byte — which is the edit that moves an entry between two keys AND leaves
  *     every link that named the old path pointing at nothing;
  *   - a FILE DELETED and one ARRIVING BACK, which are the two ends of a key's
- *     life.
+ *     life;
+ *   - a NAMESAKE arriving in a folder — a file by a name another file already
+ *     has, with nothing in it, which is a revision where only the MEMBERSHIP
+ *     moves: every wikilink by that name is read again by the reading, and the
+ *     index must not move at all.
  *
  * A REVISION IS THE WHOLE DIRECTORY, and a file the edit did not name is handed
  * on with the very bytes the last one held — which is what lets the caller's
@@ -480,13 +541,23 @@ export const linkyRevisions = (
     const roll = random()
     if (roll < 0.5) editedRecord(random, next, at, targets)
     else if (roll < 0.72) editedBody(random, next, at, targets)
-    else if (roll < 0.84) renamed(random, next, away)
-    else if (roll < 0.92) removed(random, next, away)
+    else if (roll < 0.8) renamed(random, next, away)
+    else if (roll < 0.86) namesake(random, next)
+    else if (roll < 0.93) removed(random, next, away)
     else restored(random, next, away)
     held = next
     stream.push(held)
   }
   return stream
+}
+
+/** A file by the NAME of a served body, written into a folder, holding no
+ *  link — so the revision moves the membership and nothing else. */
+const namesake = (random: () => number, vault: Map<string, string>): void => {
+  const bodies = documentsAmong(vault.keys()).filter((file) => !file.includes("/"))
+  if (bodies.length === 0) return
+  const to = `deep/${pick(random, bodies)}`
+  if (!vault.has(to)) vault.set(to, "# namesake\n")
 }
 
 /** One record of one outline, rewritten in one of the four fields that can hold

@@ -60,7 +60,7 @@ import {
   scannedReferrers,
 } from "./pointing.testlib.ts"
 import { decodedVault } from "./scope.testlib.ts"
-import { assemble, type OutlineSet } from "./set.ts"
+import { assemble, type OutlineSet, servedIn } from "./set.ts"
 import { type Reading, reading } from "./validate.ts"
 
 const OUTLINES = Number(process.env["OLAI_BENCH_OUTLINES"] ?? 300)
@@ -125,7 +125,7 @@ const readIndex = (at: Reading, which = open): number =>
   which.reduce((held, address) => held + referencesOf(at, address).length, 0)
 
 const readScan = (at: Reading, which = open): number =>
-  which.reduce((held, address) => held + scannedReferrers(address, faces, at.derived).length, 0)
+  which.reduce((held, address) => held + scannedReferrers(address, faces, at.derived, servedIn(at.set)).length, 0)
 
 /** The answers are compared before anything is timed: two arms that disagree
  *  are not two arms of one comparison. */
