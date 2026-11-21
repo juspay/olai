@@ -535,6 +535,7 @@ export { surface }
 
 const BOOK = "/book.olai"
 const VOCABULARY = "/vocabulary.olai"
+const REVIEW = "/plugins/reader/app/review"
 
 // Opens an address the way a link on the page does: the app follows it in the
 // pane you are reading in, with no reload.
@@ -551,6 +552,7 @@ const Section = () => (
     <span class="text-label text-muted">Reading</span>
     <a href={BOOK}>The book</a>
     <a href={VOCABULARY}>Vocabulary</a>
+    <a href={REVIEW}>Review</a>
   </nav>
 )
 
@@ -573,8 +575,8 @@ export default definePlugin({
       return pair === null ? null : <Columns pair={pair} onWord={add} />
     }
 
-    // At the foot of the vocabulary row's own page: the word due longest, and three buttons.
-    const Review = (props: { readonly node: string }) => {
+    // The word due longest, and three buttons.
+    const Review = () => {
       const [card, setCard] = createSignal<{ readonly node: string; readonly word: string } | null>(null)
       const load = () => {
         const call = words()?.next({})
@@ -586,7 +588,7 @@ export default definePlugin({
       }
       onMount(load)
       return (
-        <Show when={props.node === "vocabulary" ? card() : null}>
+        <Show when={card()}>
           {(due) => (
             <div data-reader="review" data-word={due().word} class="flex items-center gap-2 py-2 text-body">
               <span class="font-medium">{due().word}</span>
@@ -598,6 +600,21 @@ export default definePlugin({
         </Show>
       )
     }
+
+    // At the foot of the vocabulary row's own page, the review.
+    const Foot = (props: { readonly node: string }) => (
+      <Show when={props.node === "vocabulary"}><Review /></Show>
+    )
+
+    // The plugin's own page: `/plugins/reader/app`, and the review under it.
+    const Own = (props: { readonly rest: string }) => (
+      <section data-reader="app" data-rest={props.rest} class="flex flex-col gap-2 p-4 text-body">
+        <h1 class="text-title">Reading</h1>
+        <Show when={props.rest === "review"} fallback={<a href={REVIEW}>Start review</a>}>
+          <Review />
+        </Show>
+      </section>
+    )
 
     yield* slots.register("sidebar.section", { said: "Reading", body: Section })
     yield* slots.register("app.keys", {
@@ -614,14 +631,23 @@ export default definePlugin({
       href: BOOK,
     })
     yield* slots.register("outline.row.block", "pair", Pair)
-    yield* slots.register("outline.page.foot", Review)
+    yield* slots.register("outline.page.foot", Foot)
+    yield* slots.register("plugin.page", Own)
+    yield* slots.register("app.command", {
+      id: "reader-review",
+      label: "Start review",
+      search: "reader review start words vocabulary",
+      run: () => open(REVIEW),
+      chord: { key: "e", shift: true, whileEditing: false },
+    })
   }),
 })
 ```
 
 - `export { surface }` is what connects the tab to the plugin's server file. Without it `clientOf` answers `null`, so no call is made and nothing is written.
 - `pairs.ts`, `types.ts` and `words.ts` are imported by both entries. Each entry builds its own copy, so in each it reaches the services of the entry that imported it.
-- `outline.page.foot` is drawn at the foot of every row's own page, the page you open by zooming into a row, and not on a whole file's page. So `Review` checks `props.node` and draws only on the page of the row whose id is `vocabulary`.
+- `outline.page.foot` is drawn at the foot of every row's own page, the page you open by zooming into a row, and not on a whole file's page. So `Foot` checks `props.node` and draws the review only on the page of the row whose id is `vocabulary`.
+- `Own` is the plugin's own page, drawn at `/plugins/reader/app` and handed what follows it, so `/plugins/reader/app/review` is the review. **Start review** in the palette, `Cmd` + `Shift` + `E` and the sidebar's **Review** link all open it.
 
 ### 5. Turn it on, and click a word
 
@@ -629,8 +655,9 @@ Read the files on the plugin's page and press **Turn on**. The columns appear un
 
 - Click a French word and a row with that word appears in `vocabulary.olai`, due today, and the commit panel lists the file as changed.
 - Open the **Vocabulary** row, the top row of `vocabulary.olai`, and the foot of its page shows the word due longest. **Again** makes it due tomorrow; **Good** and **Easy** push it further out.
-- Edit any of the seven code files and the plugin pauses until you turn the new version on.
-- Switch it off and the columns, the review, the section, the key and the palette row go together, and the `words.*` calls leave the connection.
+- The same review is a page of its own at `/plugins/reader/app/review`, and a reload draws it again.
+- Edit any of the seven code files and the plugin pauses until you turn the new version on. Its page's address then says it is paused and links to the page where you turn it on again.
+- Switch it off and the columns, the review, the section, the key, the palette rows and the page go together, and the `words.*` calls leave the connection.
 <!-- guide:end -->
 
 </details>

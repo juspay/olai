@@ -473,14 +473,18 @@ it here, never the other way round.
 - The plugin is seven code files: the two entries, `words.ts` (the surface,
   imported by both), `columns.tsx`, `pairs.ts` (imported by both), `types.ts`,
   and `lib/sm2.ts` (imported by the server file). The status line on its page
-  reads `7 files, 291 lines`, which a scenario asserts: change a file and that
+  reads `7 files, 316 lines`, which a scenario asserts: change a file and that
   number moves.
 - The browser file adds a **Reading** section to the sidebar linking both
-  files, the shortcut `Cmd` + `Shift` + `Y` that opens the vocabulary, a palette
-  row that opens the book, the two columns under every sentence with each French
-  word a button, and the review at the foot of the page of the vocabulary's top
-  row (`/zoom/#vocabulary`; a whole file's page draws no page foot). Each is found by
-  a `data-reader` attribute the files write themselves.
+  files and the review, the shortcut `Cmd` + `Shift` + `Y` that opens the
+  vocabulary, a palette row that opens the book, the two columns under every
+  sentence with each French word a button, and the review at the foot of the
+  page of the vocabulary's top row (`/zoom/#vocabulary`; a whole file's page
+  draws no page foot).
+- Its own page is `/plugins/reader/app`, and the review is
+  `/plugins/reader/app/review`, opened by the command **Start review** in the
+  palette and by `Cmd` + `Shift` + `E`. Each face is found by a `data-reader`
+  attribute the files write themselves.
 - The server file answers `words.add`, `words.next` and `words.grade`, and
   writes through the gate as `web`: a scenario finds the added word's file in
   the commit panel, and the graded word's next due date on its row.

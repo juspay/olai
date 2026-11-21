@@ -9,11 +9,14 @@ A plugin in your directory draws the same places a built-in plugin does, and its
 | a row of an outline | a chip, a pane or a block for one of the plugin's properties, or a verb on the row's **•••** menu |
 | an outline's page | something above or below the rows |
 | the sidebar | a section of its own, or an entry among the app's |
-| the palette | a row that opens an address |
+| the palette | a row that opens an address, or one that runs something |
 | the keyboard | a shortcut that does what the plugin says |
+| a page of its own | a whole page at `/plugins/<name>/app`, and any address under it |
 | the header | a readout, a banner, or a row of the health popover |
 
 Each of these is a slot, a named place a plugin registers a component in.[^slot] What a plugin draws there stays only while the plugin is running: switch it off and every one of them goes.[^off]
+
+A plugin's own page is always under its own name, and `/plugins/<name>` stays the page where you read its code and turn it on. While the plugin is off, its page's address says so and links there.
 
 ## Buttons that change your files
 
@@ -43,16 +46,39 @@ A browser file draws by registering a face in a slot with `Slots.register`. `vau
 | `sidebar.section`, `sidebar.entry` | a section of the sidebar, or an entry among the app's own |
 | `app.keys` | a keyboard shortcut, `Cmd` and a key (`Ctrl` elsewhere) |
 | `app.palette` | a palette row that opens an address |
+| `app.command` | a palette row that runs a function, and a key that runs it too |
+| `plugin.page` | the plugin's own page at `/plugins/<word>/app`, handed the rest of the address |
 | `app.header`, `app.banner` | a readout in the header or the health popover, or a banner across the top |
 | `app.viewer`, `app.mount` | the app's one viewer, or a wrapper around the whole app |
 | `plugins.row` | words and buttons on the plugin's own row of the **Plugins** panel |
 | `conversation.wake`, `tool.reply`, `delivery.mark` | a conversation's controls, how its replies are drawn, and its mark |
-| `app.route` | not open to a plugin in your directory: it takes only a page built with navigation's own functions, which such a plugin cannot import |
+| `app.route` | not open to a plugin in your directory: it takes only a page built with navigation's own functions, which such a plugin cannot import; use `plugin.page` |
 
 A slot keyed by plugin holds one face per plugin, and a slot keyed by nothing is a list, so a plugin may put several faces in it.
 
 - `app.keys` refuses a key the app already answers, such as `Cmd` + `K`, and a key an earlier plugin took. That key is not listened for, and the browser's console says which plugin asked for it.
 - `app.viewer` holds one face in all: while another plugin holds it, a second registration fails the plugin that asked.
+- `app.command`'s key follows `app.keys`' rule, and its line in the shortcut list is the command's label.
+
+### A page of its own, and a command
+
+`plugin.page` takes one component per plugin. It is drawn at `/plugins/<word>/app`, handed `{ rest: "" }`, and at `/plugins/<word>/app/<rest>`, handed the rest. A reload draws it again.
+
+- `/plugins/<word>` is always the page where the plugin is read and turned on, and `/plugins/<word>/<file>` opens that page at one of the folder's files. A path under `app/` that names a code file, such as `app/review.ts`, is that file.
+- While the plugin is not running, its addresses under `app` say so and link to `/plugins/<word>`.
+
+The reading companion's review is its own page, opened from the palette, a key and the sidebar:
+
+```tsx
+yield* slots.register("plugin.page", Own)
+yield* slots.register("app.command", {
+  id: "reader-review",
+  label: "Start review",
+  search: "reader review start words vocabulary",
+  run: () => open(REVIEW),
+  chord: { key: "e", shift: true, whileEditing: false },
+})
+```
 
 ### A sidebar section, a key and a palette row
 

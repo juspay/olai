@@ -6,13 +6,13 @@
 
 | Thing | What it is |
 | --- | --- |
-| the folders | `plugins/<name>/`, holding `README.md`, `server.ts` and, if the plugin draws anything, `browser.tsx` |
-| the files it claims | `.ts` and `.tsx` files, under `plugins/` and nowhere else, shown on the plugin's own page rather than under **Reference** |
-| the pages | `/plugins/<name>`, the chat about each,[^builder] and the **Plugins** section of the sidebar |
-| the palette | the **New plugin** command, the two steps it asks you for, and the `+` on that heading |
+| the folders | `plugins/<name>/`, holding `README.md`, `server.ts`, `browser.tsx` and any other `.ts` or `.tsx` files |
+| the files it claims | `.ts` and `.tsx` files under `plugins/`, shown on the plugin's page rather than under **Reference** |
+| the pages | `/plugins/<name>`, the chat about each,[^builder] the sidebar's **Plugins** section, and `/plugins/<name>/app`, drawn by the plugin |
+| the palette | **New plugin**, its two steps, and the `+` on the section's heading |
 | the tools | `vault-plugins_guide`, `_inspect`, `_write`, `_run` and `_stop` |
 
-The folder's name is the plugin's name.[^readme] A version is a hash of the two code files, and not of the `README.md`.[^edit]
+The folder's name is the plugin's name.[^readme] A version is a hash of every code file in the folder, and not of the `README.md`.[^edit]
 
 ## Where your approval is kept
 
@@ -30,7 +30,7 @@ A plugin from your directory runs with the same powers as olai's server, so only
 
 [^readme]: The `README.md` is an ordinary Markdown file. This plugin reads its first heading for the plugin's title, and its first paragraph for the line shown under that title. Its frontmatter carries the tie to the builder chat. So the builder is told to leave the `---` block at the top of the file exactly as it is, and olai refuses a write by an agent that changes or drops that tie.
 
-[^edit]: Editing either code file pauses the plugin, stops it, and leaves its page showing a diff against the version that was approved. Editing the `README.md` changes no version, so it never asks anyone to approve the plugin again.
+[^edit]: Editing, adding or removing any code file pauses the plugin, stops it, and leaves its page showing a diff of each changed file against the version that was approved. Editing the `README.md` changes no version, so it never asks anyone to approve the plugin again.
 
 [^builder]: Asking for a new plugin starts a chat about the plugin's own `README.md`, and that chat is the plugin's builder ([chat.md](chat.md)). It is named after the folder, so the builder of `plugins/swatch/README.md` reads `swatch`. The page reads **Being built** until the agent calls `vault-plugins_run` without a fault.
 
