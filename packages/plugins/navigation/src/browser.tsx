@@ -127,8 +127,8 @@ export const components = {
    // ...AND THE `file.page` FACES, settled into one page per registration in
    // this same root and held for PageView, so a plugin's file page exists
    // exactly while this component holds the faces it is read from
-   // (`./file-pages.ts`).
-   const stopFiles=holdPluginFilePages(filePagesOver(()=>routeFaces("file.page"),(face,file)=><PluginFilePage face={face} file={file}/>))
+   // (`./file-pages.ts`). A memo, as the claim table above is.
+   const stopFiles=holdPluginFilePages(createMemo(filePagesOver(()=>routeFaces("file.page"),(face,file)=><PluginFilePage face={face} file={file}/>)))
    return ()=>{dispose();stopFiles();stop()}
  })),stop=>Effect.sync(stop))
 })}), files:definePlugin({name:"files",needs:[fileAccess],apply:Effect.gen(function*(){

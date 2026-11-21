@@ -37,12 +37,8 @@ const pageOf = ({ plugin, face }: Hung<FilePageFace>, draw: Draw): FilePage => (
   page: (address: Address) => draw(face, "path" in address ? address.path : ""),
 })
 
-/** The pages for these registrations, as they stand now — one each. */
-export const filePagesOf = (entries: ReadonlyArray<Hung<FilePageFace>>, draw: Draw): ReadonlyArray<FilePage> =>
-  entries.map((one) => pageOf(one, draw))
-
 /**
- * ...AND OVER A READING THAT MOVES, keeping each registration's page: a
+ * THE PAGES OVER A READING THAT MOVES, keeping each registration's page: a
  * registration is the object the slot table holds for as long as the face is
  * hung, so the same object is the same page, and a new one is a new page.
  * Solid's `mapArray` keeps one mapped value per source object, which is that

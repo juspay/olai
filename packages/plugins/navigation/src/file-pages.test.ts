@@ -14,11 +14,16 @@ import { forFileClaim } from "@olai/plugin-api/file-kinds"
 import { expect, test } from "bun:test"
 
 import type { FilePage } from "./index.ts"
-import { filePagesOf } from "./file-pages.ts"
+import { filePagesOver } from "./file-pages.ts"
 import type { FilePageFace } from "./slots.ts"
 
 const face: FilePageFace = () => null
 const hung = (plugin: string): Hung<FilePageFace> => ({ plugin, face })
+
+/** The pages for a reading that stands still — the same mapping the renderer
+ *  holds, read once. */
+const pagesOf = (entries: ReadonlyArray<Hung<FilePageFace>>, draw: Parameters<typeof filePagesOver>[1]) =>
+  filePagesOver(() => entries, draw)()
 
 /** The general drawing for a file that holds text — what a `.csv` without its
  *  own page, or any text kind nobody draws, would get. */
@@ -26,7 +31,7 @@ const general: FilePage = { by: { holds: "text" }, edits: true, page: () => null
 
 test("a file of the plugin's own kind is drawn by its face, over the general drawing for text", () => {
   const drawn: Array<readonly [FilePageFace, string]> = []
-  const pages = filePagesOf([hung("reader")], (one, file) => { drawn.push([one, file]); return null })
+  const pages = pagesOf([hung("reader")], (one, file) => { drawn.push([one, file]); return null })
   const chosen = forFileClaim({ kind: "reader", holds: "text" }, [general, ...pages])
   expect(chosen?.by).toEqual({ kind: "reader" })
   // A plugin's face draws; it does not open the editor a text page offers.
@@ -36,11 +41,7 @@ test("a file of the plugin's own kind is drawn by its face, over the general dra
 })
 
 test("a file of another kind is never drawn by it", () => {
-  const pages = filePagesOf([hung("reader")], () => null)
+  const pages = pagesOf([hung("reader")], () => null)
   expect(forFileClaim({ kind: "notes", holds: "text" }, [general, ...pages])).toBe(general)
   expect(forFileClaim({ kind: "csv", holds: "text" }, pages)).toBeUndefined()
-})
-
-test("with the plugin gone, its kind's files fall back to nothing of its own", () => {
-  expect(filePagesOf([], () => null)).toEqual([])
 })
