@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { loadRows, retryableModule, ModuleReloadRequired } from "./loading.ts"
+import { heldToWord, loadRows, retryableModule, ModuleReloadRequired } from "./loading.ts"
 
 test("optional module failures leave independent shell modules available in roster order", async () => {
   const result = await loadRows([
@@ -56,4 +56,24 @@ test("a failed retry requires reload without repeatedly importing its cached dep
   expect(result.reloadRequired).toEqual(new Set(["optional"]))
   expect(result.failed.get("optional")).toContain("Reload the page")
   expect(retries).toBe(1)
+})
+
+test("a vault chunk that declares another word is not mounted, and its row says both words", async () => {
+  const named = (name: string) => ({ default: { name } })
+  const result = await loadRows([
+    { id: "reader", load: heldToWord("reader", async () => named("tabs")) },
+    { id: "swatch", load: heldToWord("swatch", async () => named("swatch")) },
+  ])
+  expect(result.loaded).toEqual([named("swatch")])
+  expect([...result.failed.keys()]).toEqual(["reader"])
+  const said = result.failed.get("reader") ?? ""
+  expect(said).toContain(`"reader"`)
+  expect(said).toContain(`"tabs"`)
+  expect(result.reloadRequired.size).toBe(0)
+})
+
+test("a vault chunk that exports no plugin is refused by the same check", async () => {
+  const result = await loadRows([{ id: "reader", load: heldToWord("reader", async () => ({})) }])
+  expect(result.loaded).toEqual([])
+  expect(result.failed.get("reader")).toContain(`"reader"`)
 })
