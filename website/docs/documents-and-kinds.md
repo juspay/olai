@@ -114,6 +114,8 @@ A note is read as plain text, because the part of olai that finds references has
 
 So `@herbs` can be styled as a tag on one row's page while that row is missing from the list of what refers to the herb bed, because a `*` does not start a word.
 
+A link inside an HTML comment, `<!-- [x](finishes.md) -->` or `<!-- [[finishes]] -->`, parts the same way: it counts as a reference to `finishes.md`, and the page draws nothing there.
+
 </details>
 
 <details>

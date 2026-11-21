@@ -25,7 +25,7 @@ import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "olai-plugin-outlines/changes"
-import { renderTitle } from "@olai/markdown-ui/title.ts"
+import { renderTitle, type TitleRender } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { Moved } from "./Moved.tsx"
 import { HOW, HOW_TONE, localOf } from "./said.ts"
@@ -33,6 +33,13 @@ import type { Selection } from "./selection.ts"
 import { TESTID } from "../../testids.ts"
 import { Tick } from "./Tick.tsx"
 import { Tip } from "@olai/web/client/Tip.tsx"
+
+/** The membership a title's wikilinks are looked up in — asked only by a
+ *  title that holds one, so a file arriving redraws only those rows. */
+const linksOf = (title: string): TitleRender => {
+  const members = title.includes("[[") ? servedDirectory()?.members() : undefined
+  return members === undefined ? {} : { members }
+}
 
 export function Outlines(props: {
   readonly outlines: ReadonlyArray<DirtyOutline>
@@ -106,7 +113,7 @@ export function Outlines(props: {
                         naming an address is spelled as written (the
                         `../search/row.ts` contract). */}
                     <span class="min-w-0 truncate">
-                      <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
+                      <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file, linksOf(change.title))} />
                     </span>
                     <span class="ml-auto shrink-0 text-label text-muted">
                       {SAID[change.sort]}

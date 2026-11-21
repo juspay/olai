@@ -26,7 +26,7 @@ A note's **Referenced by** section lists every row and document that wikilinks t
 
 [^bar]: Inside a table cell, write the bar as `\|`, as in Obsidian. The words after the bar are shown as plain text, never as markdown.
 
-[^heading]: The heading is matched the way olai names headings, so capitals and punctuation do not matter. `[[kitchen-sink#Lists#Nested]]` lands on the last heading named, and `[[#Tables]]` names a heading of the same document. A heading that is not there opens the document at its top. A block reference, `[[finishes#^abc123]]`, opens the document.
+[^heading]: The heading is matched the way olai names headings, so capitals and punctuation do not matter. `[[kitchen-sink#Lists#Nested]]` lands on the last heading named. `[[#Tables]]` names a heading of the same document, and in a row or an agent's answer opens nothing. A missing heading opens the document at its top, as does a block reference, `[[finishes#^abc123]]`. A heading holding a wikilink is named by its shown words: `## See [[finishes|the finishes]]` is `#see-the-finishes`.
 
 [^suffix]: An outline is always written with its suffix: `[[house.olai]]` opens the outline, and `[[house.olai#kitchen]]` lands on the row with the id `kitchen`.
 
@@ -36,7 +36,7 @@ A note's **Referenced by** section lists every row and document that wikilinks t
 
 [^dead]: A screen reader hears the link's words and then `no file is named nowhere`. An agent that writes one is told at once, with the nearest names, such as `did you mean [[finishes]]?`, and `markdown_read` and `outlines_read` list it under `deadLinks`. A link that finds nothing is never an error: the file still saves.
 
-[^backlinks]: A wikilink is listed in the **Links to this** row, and one to a heading counts for the whole document. A file that something wikilinks to cannot be deleted until the link goes, as for a standard link. `markdown_read` lists who refers to a document under `referencedBy`.
+[^backlinks]: A wikilink is listed in the **Links to this** row, and one to a heading counts for the whole document. A link to a row, either spelling, also counts on that row's page, through any outline that shows the row, placements included; one whose outline does not show it does not. A file that something wikilinks to cannot be deleted until the link goes. `markdown_read` lists who refers to a document under `referencedBy`.
 
 <details>
 <summary>How a name finds its file</summary>

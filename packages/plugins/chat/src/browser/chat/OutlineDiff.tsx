@@ -25,7 +25,7 @@ import type { FileDiff } from "@kolu/acp/wire"
 import { createMemo, For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "olai-plugin-outlines/changes"
-import { renderTitle } from "@olai/markdown-ui/title.ts"
+import { renderTitle, type TitleRender } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
@@ -35,6 +35,13 @@ import { createOutlineDiff } from "./outline.ts"
 /** How many node rows a trimmed outline change shows. The text diff's number,
  *  because it is the same promise about the same panel. */
 const TRIMMED = 6
+
+/** The membership a title's wikilinks are looked up in — asked only by a
+ *  title that holds one, so a file arriving redraws only those rows. */
+const linksOf = (title: string): TitleRender => {
+  const members = title.includes("[[") ? servedDirectory()?.members() : undefined
+  return members === undefined ? {} : { members }
+}
 
 export function OutlineDiff(props: {
   /** This block of change, by the name its call gave it ({@link
@@ -133,7 +140,7 @@ export function OutlineDiff(props: {
                         that names an address is spelled as written here, the
                         same contract a search row keeps (`../search/row.ts`). */}
                     <span class="min-w-0 truncate text-ink">
-                      <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
+                      <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file, linksOf(change.title))} />
                     </span>
                     <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
                     {/* WHICH FIELDS MOVED — the one fact `⊕ Pick the hinges

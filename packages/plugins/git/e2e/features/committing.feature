@@ -84,6 +84,29 @@ Feature: Committing on purpose
     And the panel says the last commit was "you"
     And there should be no page errors
 
+  Scenario: A wikilink in a waiting change opens the note it names, wherever that note lives
+    # `palette.md` lives in `notes/`. The panel draws a changed title the way
+    # the tree does, so the link is looked up in the directory — a guess from
+    # the name alone would be `/palette.md`, which is Page not found.
+    When I rewrite "garden.olai" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden #outdoors"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint, colours in [[palette]]","doing":true}
+      {"id":"frames","parent":"garden","ord":"a1","title":"the cold frames"}
+      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","done":"2026-07-15"}
+      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","done":"2026-08-11"}
+      {"id":"slugs","parent":"frames","ord":"a2","title":"the slugs got the seedlings last year"}
+      {"id":"compost","parent":"garden","ord":"a2","title":"the compost heap"}
+      {"id":"turned","parent":"compost","ord":"a0","title":"turn the pile","done":"2026-07-01"}
+      {"id":"straw","parent":"compost","ord":"a1","title":"add the straw","done":"2026-07-02"}
+      """
+    Then the commit pill says "waiting"
+    When I open the commit panel
+    Then the change to "mint" links to "/notes/palette.md"
+    And there should be no page errors
+
   Scenario: A document edited by hand is waiting too, and can be committed on its own
     # The bug this whole item was filed for, in the human's words: "the git
     # commit thing should work across whole repo, not just .olai files edited

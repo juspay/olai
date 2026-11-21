@@ -7,9 +7,9 @@
  * so the page and the index agree on what a text holds) is written as an
  * ordinary `[words](#carrier)` before parsing ({@link wikilinked}). The words
  * are escaped, so a wikilink shows its words as text; the carrier names which
- * link of the text it was and carries a seal made from the whole text, which a
- * note cannot spell for itself, so a hand-written `[x](#olai-wikilink-0)` stays
- * a fragment link.
+ * link of the text it was and carries a seal made from the whole text, so a
+ * hand-written `[x](#olai-wikilink-0)` stays a fragment link — and a carrier
+ * stands only for a wikilink the text really holds ({@link carriersOf}).
  *
  * WHAT IT FINDS DEPENDS ON THE DIRECTORY, so the drawing is a function of the
  * membership ({@link drawnWikilink}) and is written twice from one answer: by
@@ -42,8 +42,9 @@ export const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " 
 const CARRIER = "#olai-wikilink-"
 
 /** A short seal of a whole text — FNV-1a, for "this carrier came from this
- *  text", which a note cannot spell for itself without knowing the hash of a
- *  text that holds that hash. */
+ *  text". 32 bits promise no note cannot spell it; what keeps a hand-written
+ *  carrier harmless is that one stands only for a wikilink the text really
+ *  holds ({@link carriersOf}), so a forged one draws that link and no other. */
 const sealOf = (source: string): string => {
   let hash = 0x811c9dc5
   for (let at = 0; at < source.length; at++) {
@@ -118,7 +119,9 @@ export type Drawn =
 
 /**
  * What one wikilink draws as, from the file `from`, with `members` the served
- * files — `undefined` when they are not known yet, which judges nothing.
+ * files — `undefined` when they are not known yet, which judges nothing and
+ * guesses nothing: the link opens nothing until its name is looked up, as a
+ * picture embed waits.
  *
  * A picture embed (`![[handle.png]]`) is the picture, through the same
  * allowlist a `![](…)` meets: a picture kind's file, inside the directory,
@@ -142,8 +145,8 @@ export const drawnWikilink = (
       ? { kind: "picture", src: mediaHref(path) }
       : { kind: "undrawn", words: `this picture could not be drawn: ${target}` }
   }
-  if (claims === undefined) return { kind: "link" }
-  const address = names === undefined ? null : wikilinkAddress(names, claims, from, written.name)
+  if (claims === undefined || names === undefined) return { kind: "link" }
+  const address = wikilinkAddress(names, claims, from, written.name)
   if (address !== null) return { kind: "link", href: "/" + printAddress(address) }
   if (target === "") return { kind: "link" }
   const fallback = wikilinkFallback(claims, target)
@@ -151,7 +154,7 @@ export const drawnWikilink = (
   return {
     kind: "link",
     ...(page === null ? {} : { href: "/" + printAddress(page) }),
-    ...(names === undefined ? {} : { dead: deadLinkSaid({ written: `[[${written.name}]]`, resolved: target, suggest: [] }) }),
+    dead: deadLinkSaid({ written: `[[${written.name}]]`, resolved: target, suggest: [] }),
   }
 }
 

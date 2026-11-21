@@ -731,8 +731,22 @@ const WIKI_MEMBERS: ReadonlySet<string> = new Set([
 const anchorsIn = (html: string): ReadonlyArray<{ readonly attributes: Readonly<Record<string, string>>; readonly words: string }> =>
   [...html.matchAll(/<a\s([^>]*)>(.*?)<\/a>/g)].map((match) => ({
     attributes: Object.fromEntries([...(match[1] as string).matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map((one) => [one[1], one[2] ?? ""])),
-    words: (match[2] as string).replace(/<[^>]+>/g, ""),
+    words: textOf(match[2] as string),
   }))
+
+/** The characters of some HTML outside its tags — one pass that drops
+ *  everything from a `<` to the next `>`, so no removal can join two halves
+ *  of a tag back into one. A `>` outside a tag is text. */
+const textOf = (html: string): string => {
+  let out = ""
+  let inTag = false
+  for (const char of html) {
+    if (inTag) inTag = char !== ">"
+    else if (char === "<") inTag = true
+    else out += char
+  }
+  return out
+}
 
 const wikiAnchor = (source: string, from = "every-form.md", members: ReadonlySet<string> | null = WIKI_MEMBERS) => {
   const found = anchorsIn(renderMarkdown(TEST_CLAIMS, source, from, members ?? undefined)).filter((one) => "data-wikilink" in one.attributes)
@@ -788,10 +802,31 @@ test("a bare name never finds an outline, so it is unresolved", () => {
   expect(anchor.attributes["href"]).toBe("/house.md")
 })
 
-test("with no membership in hand a wikilink is drawn but not judged", () => {
-  const anchor = wikiAnchor("[[nowhere]] ", "a.md", null)
+test("with no membership in hand a wikilink is drawn, but neither judged nor aimed", () => {
+  const anchor = wikiAnchor("[[beds]] ", "house.olai", null)
   expect(anchor.attributes).not.toHaveProperty("data-dead")
-  expect(anchor.attributes["data-wikilink"]).toBe("nowhere")
+  expect(anchor.attributes).not.toHaveProperty("href")
+  expect(anchor.attributes["data-wikilink"]).toBe("beds")
+})
+
+test("a title drawn before the membership is known opens nothing, rather than a guess", () => {
+  // `beds.md` lives in `garden/`: a guess from the name alone would be
+  // `/beds.md`, which is Page not found.
+  expect(titleHtml("check [[beds]]", "house.olai")).not.toContain("href")
+  expect(titleHtml("check [[beds]]", "house.olai", { members: WIKI_MEMBERS })).toContain('href="/garden/beds.md"')
+})
+
+test("`[[#kitchen]]` outside a document opens nothing and is not marked", () => {
+  const html = titleHtml("after [[#kitchen]]", "house.olai", { members: WIKI_MEMBERS })
+  const [anchor] = anchorsIn(html)
+  expect(anchor?.attributes).not.toHaveProperty("href")
+  expect(anchor?.attributes).not.toHaveProperty("data-dead")
+  expect(anchor?.words).toBe("kitchen")
+})
+
+test("a wikilink inside an HTML comment is drawn as nothing, though the index counts it", () => {
+  // The other half of a known gap `@olai/format`'s backlinks test pins.
+  expect(renderMarkdown(TEST_CLAIMS, "<!-- see [[finishes]] -->", "a.md", WIKI_MEMBERS)).not.toContain("data-wikilink")
 })
 
 test("a file arriving re-aims the link, and the rendering is not reused across memberships", () => {
