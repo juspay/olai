@@ -33,12 +33,15 @@ function remarkObsidian(this: Processor): void {
   ;(data.fromMarkdownExtensions ??= []).push(obsidianFromMarkdown)
 }
 
-/** Built once, when this module is evaluated: attaching the extensions is
- *  work a parse per text must not repeat. */
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkObsidian).freeze()
+/** Built once, on the first parse: attaching the extensions is work a parse
+ *  per text must not repeat, and building it lazily leaves this module with
+ *  nothing to run at import, so a bundle that imports `@olai/format` for a
+ *  rule and never parses carries no parser. */
+let parser: ReturnType<typeof dialect> | undefined
+const dialect = () => unified().use(remarkParse).use(remarkGfm).use(remarkObsidian).freeze()
 
 /** The Markdown tree of a text, in the dialect this app reads. */
-export const parse = (text: string): Root => parser.parse(text)
+export const parse = (text: string): Root => (parser ??= dialect()).parse(text)
 
 /**
  * THE FOUR SHAPES THE PARSER IS NOT LINEAR ON, measured in one pass over the

@@ -28,7 +28,7 @@ export interface RecordRead {
   readonly desc: Read | null
 }
 
-const KEPT: unique symbol = Symbol("olai.read")
+const KEPT: unique symbol = /* @__PURE__ */ Symbol("olai.read")
 
 const keep = <A>(holder: object, made: A): A => {
   Object.defineProperty(holder, KEPT, { value: made, enumerable: false, writable: false, configurable: false })
