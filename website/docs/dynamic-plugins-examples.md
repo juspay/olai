@@ -197,7 +197,7 @@ plugins/swatch/
   browser.tsx
 ```
 
-Both code files declare the same `name`, and it has to be the folder's own name. A file that declares a different name is started under a name nothing on screen is looking for, so nothing it registers is ever drawn.
+Both code files declare the same `name`, and it has to be the folder's own name. A server file that declares a different name makes the plugin fail with a sentence naming both. A browser file that does is not loaded: the plugin's row in the **Plugins** panel says **Failed in this tab**, with a sentence naming both names.
 
 ### 2. Write `server.ts`, which teaches olai the property kind
 

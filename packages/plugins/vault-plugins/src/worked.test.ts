@@ -1,6 +1,6 @@
 /**
  * THE DOC'S WORKED EXAMPLES, COMPILED — every half in
- * `website/docs/dynamic-plugins-examples.md` read out of the file and put through the
+ * `website/docs/dynamic-plugins-examples.md` and `dynamic-plugins-faces.md` read out of the files and put through the
  * same call the serve makes.
  *
  * ## Why the doc is the fixture rather than a copy of it
@@ -33,10 +33,11 @@ import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-/** The page the worked examples are on, from the tree rather than from a copy.
- *  The authoring guide is `website/docs/dynamic-plugins.md` and the two examples are
- *  the page beside it, which is where every half a reader may paste lives. */
-const DOC = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "website", "docs", "dynamic-plugins-examples.md")
+/** The pages the worked examples are on, from the tree rather than from a copy.
+ *  The authoring guide is `website/docs/dynamic-plugins.md`; the examples are
+ *  the two pages beside it, which is where every half a reader may paste lives. */
+const DOCS = ["dynamic-plugins-examples.md", "dynamic-plugins-faces.md"].map((doc) =>
+  join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "website", "docs", doc))
 
 /**
  * EVERY HALF ON THE PAGE, by the label the page puts over it.
@@ -59,7 +60,7 @@ const halvesIn = (page: string, label: string): ReadonlyArray<string> => {
     new RegExp("`" + label + "`:\\n+```[a-z]*\\n([\\s\\S]*?)```", "g"),
   )].flatMap((hit) => (hit[1] === undefined ? [] : [hit[1]]))
   if (found.length === 0) {
-    throw new Error(`website/docs/dynamic-plugins-examples.md has no fenced block under \`${label}\`:`)
+    throw new Error(`the worked-example pages have no fenced block under \`${label}\`:`)
   }
   return found
 }
@@ -82,14 +83,14 @@ const halfNaming = (label: string, marker: string): string => {
   const found = halvesIn(page, label).filter((one) => one.includes(marker))
   if (found.length !== 1) {
     throw new Error(
-      `website/docs/dynamic-plugins-examples.md has ${found.length} \`${label}\` blocks mentioning `
+      `the worked-example pages have ${found.length} \`${label}\` blocks mentioning `
         + `${JSON.stringify(marker)}; this claim is about the one that does.`,
     )
   }
   return found[0] as string
 }
 
-const page = readFileSync(DOC, "utf8")
+const page = DOCS.map((doc) => readFileSync(doc, "utf8")).join("\n\n")
 
 test("every server half on the page builds", async () => {
   const halves = halvesIn(page, "server.ts")

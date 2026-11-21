@@ -34,6 +34,8 @@ A plugin that goes away takes its own state and leaves unrelated work standing.
 
 [^api]: The plugin API defines the type that refers to a slot, and the calls that add a component and take it away. It holds no list of slots and no types for what they draw: each plugin owns the descriptions of its own slots and its own types, exported from its `/slots` or `/contract` subpath.
 
+    Each description carries its owner's sentence saying what a component there is handed, which `vault-plugins_inspect` lists. The server reads a browser-only plugin's descriptions off its `/slots` subpath and never imports its browser code.
+
 [^owners]: The owners are these plugins: outlines, navigation, layout, the sidebar, chat, markdown, files, preferences, search, the plugins panel and the renderer. The files plugin also owns the `files.state` service, which is a service rather than a slot.
 
 [^list]: A slot keyed by nothing is a list, and it refuses nothing, because there is no key for two components to collide on. Where a collision in a list does matter, such as two plugins claiming one keyboard chord, the plugin that reads the list refuses it.

@@ -456,6 +456,26 @@ replace it, so the consumer's kind starts admitting a different set of colours.
 Consent is absent here too, so each plugin is turned on at its page in the order
 a scenario means to prove something about.
 
+## `reader/` — the reading companion, a vault plugin that draws outside outlines
+
+`plugins/reader/` is a companion for reading a book in French, and the worked
+material of `website/docs/dynamic-plugins-faces.md`: its `browser.tsx` is the
+file that page prints, held equal to it by `../reader.test.ts`. Change the page
+and copy it here, never the other way round.
+
+- `book.olai` is the book, one row per page.
+- `vocabulary.olai` is where the words being learnt go.
+- The browser file adds a **Reading** section to the sidebar linking both, the
+  shortcut `Cmd` + `Shift` + `Y` that opens the vocabulary, and a palette row
+  that opens the book. Each is found by a `data-reader` attribute the file
+  writes itself.
+
+There is no consent here: `reader` arrives off and unapproved, and a scenario
+turns it on at its page. It is an ordinary plugin and nothing in it is about
+getting past that page.
+`packages/plugins/vault-plugins/e2e/features/the_reading_companion.feature` is
+what it is for.
+
 ## `tour/` — the directory the website's pictures are taken in
 
 No scenario names this corpus. `../tour.sh` copies it to a scratch directory

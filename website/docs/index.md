@@ -72,6 +72,7 @@ Ask an agent for a plugin of your own, or look up the plugins olai comes with. o
 | Page | What it covers |
 | --- | --- |
 | [Ask an agent for a plugin of your own](dynamic-plugins.md) | Asking an agent to write a plugin for you: where its folder goes, turning it on, and writing one yourself. |
+| [Where a plugin of your own can draw](dynamic-plugins-faces.md) | Every place a plugin in your directory can draw, and a worked one that adds a sidebar section, a shortcut and a palette row. |
 | [Two example plugins you can copy](dynamic-plugins-examples.md) | Two complete plugins, file by file: one sends the day's agenda to a chat every morning, one shows a colour square beside a row. |
 
 ### Server and transport

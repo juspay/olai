@@ -20,9 +20,9 @@ import { fileURLToPath } from "node:url"
 
 import { GUIDE, GUIDE_END, GUIDE_START } from "./guide.ts"
 
-/** The two pages the guide is cut from, in the order an agent reads them: how
- *  to write one, then the two worked ones. */
-const DOCS = ["dynamic-plugins.md", "dynamic-plugins-examples.md"] as const
+/** The pages the guide is cut from, in the order an agent reads them: how to
+ *  write one, where a face can go, then the worked ones. */
+const DOCS = ["dynamic-plugins.md", "dynamic-plugins-faces.md", "dynamic-plugins-examples.md"] as const
 const at = (page: string): string =>
   join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "website", "docs", page)
 

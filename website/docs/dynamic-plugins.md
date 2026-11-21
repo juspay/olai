@@ -182,7 +182,7 @@ export default definePlugin({
 | Tool | Answers |
 | --- | --- |
 | `vault-plugins_guide` | this guide, which ships inside the binary |
-| `vault-plugins_inspect` | what a plugin may name: the three modules, the service keys, the slots and their keys, the folder layout, and the names in use |
+| `vault-plugins_inspect` | what a plugin may name: the three modules, the service keys, every slot with its key rule and what a face there is handed, the folder layout, and the names in use |
 | `vault-plugins_write` | writes one file of one plugin, and says whether that file compiles |
 | `vault-plugins_run` | the state of one plugin right now: its state, its version, and the fault sentence if it has one |
 | `vault-plugins_stop` | switches one plugin off for good, by writing `on: no` |
