@@ -129,7 +129,7 @@ plugins/reader/
 - `server.ts` is required, and is a whole plugin on its own: it can teach the directory a property kind, or send a message at seven each morning.
 - `browser.tsx` is optional. It is the file that draws on screen.
 - Every other `.ts` and `.tsx` file in the folder, at any depth, is code the two may import. It is part of the plugin whether anything imports it or not.
-- Anything else in the folder is ordinary content, and olai leaves it alone.
+- Anything else in the folder is ordinary content, and olai leaves it alone. That includes a `.ts` file whose name holds a line break or another control character: it is never compiled, and importing it is refused.
 
 The plugin's page shows every code file, and its version is a hash of all of them, so changing any one of them asks you to turn the plugin on again.
 

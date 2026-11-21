@@ -146,7 +146,7 @@ A browser file asks its own server file for things through a surface: a list of 
 
 - The calls are on the connection under the plugin's own name, and only while it is running.
 - `writes` lists the calls that write, as `surface/<group>/<call>`. For each of these the transport hands the handler `RequestAuthority`: the caller's writer and its session's rules, for the handler to pass to `gate.run`. Nothing checks that it does; that is in the code you read before turning it on. Any call not listed is handed `{ writer: "web" }` and no rules, whoever made it.
-- A call the `faces` map grants to `agent` must be listed in `writes`; otherwise the plugin does not start, and its page says which call and how to fix it. So such a plugin cannot grant an agent a cell or a stream. The check is made when the server file registers its surface, which is the first start after you turn it on.
+- A call the `faces` map grants to `agent` must be listed in `writes`, even a call that only reads; otherwise the plugin does not start, and its page says which call and how to fix it. So such a plugin cannot grant an agent a cell or a stream. The check is made when the server file registers its surface, which is the first start after you turn it on.
 - Each call an agent may make is listed on the plugin's page under **What it uses**.
 - The gate's types come with `@olai/plugin-api`: `Gate`, `WriteRequest`, `Writer`, `WriteResult`, and `OpFailure` as a schema too.
 

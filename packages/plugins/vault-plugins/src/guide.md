@@ -16,7 +16,7 @@ plugins/reader/
 - `server.ts` is required, and is a whole plugin on its own: it can teach the directory a property kind, or send a message at seven each morning.
 - `browser.tsx` is optional. It is the file that draws on screen.
 - Every other `.ts` and `.tsx` file in the folder, at any depth, is code the two may import. It is part of the plugin whether anything imports it or not.
-- Anything else in the folder is ordinary content, and olai leaves it alone.
+- Anything else in the folder is ordinary content, and olai leaves it alone. That includes a `.ts` file whose name holds a line break or another control character: it is never compiled, and importing it is refused.
 
 The plugin's page shows every code file, and its version is a hash of all of them, so changing any one of them asks you to turn the plugin on again.
 
@@ -272,7 +272,7 @@ A browser file asks its own server file for things through a surface: a list of 
 
 - The calls are on the connection under the plugin's own name, and only while it is running.
 - `writes` lists the calls that write, as `surface/<group>/<call>`. For each of these the transport hands the handler `RequestAuthority`: the caller's writer and its session's rules, for the handler to pass to `gate.run`. Nothing checks that it does; that is in the code you read before turning it on. Any call not listed is handed `{ writer: "web" }` and no rules, whoever made it.
-- A call the `faces` map grants to `agent` must be listed in `writes`; otherwise the plugin does not start, and its page says which call and how to fix it. So such a plugin cannot grant an agent a cell or a stream. The check is made when the server file registers its surface, which is the first start after you turn it on.
+- A call the `faces` map grants to `agent` must be listed in `writes`, even a call that only reads; otherwise the plugin does not start, and its page says which call and how to fix it. So such a plugin cannot grant an agent a cell or a stream. The check is made when the server file registers its surface, which is the first start after you turn it on.
 - Each call an agent may make is listed on the plugin's page under **What it uses**.
 - The gate's types come with `@olai/plugin-api`: `Gate`, `WriteRequest`, `Writer`, `WriteResult`, and `OpFailure` as a schema too.
 
