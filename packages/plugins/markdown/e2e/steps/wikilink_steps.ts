@@ -9,7 +9,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
-import { HYDRATION_TIMEOUT, type OlaiWorld } from "@olai/tests/harness/world.ts";
+import { attr, HYDRATION_TIMEOUT, type OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const exactly = (words: string): RegExp => new RegExp(`^\\s*${words.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`);
 
@@ -98,7 +98,7 @@ Then("the words {string} are still selected", async function (this: OlaiWorld, w
 
 /** The pictures the page embeds by name: `![[handle.png]]` and its kin. */
 const embedded = (world: OlaiWorld, name: string): Locator =>
-  world.frontLane().locator(`img[data-wikilink="${name}"]`);
+  world.frontLane().locator(`img${attr("data-wikilink", name)}`);
 
 Then("the embedded picture {string} is drawn", async function (this: OlaiWorld, name: string) {
   const picture = embedded(this, name).first();

@@ -65,6 +65,10 @@ const DAY_CAP = 24
 /** The same fence for `((`, and tighter: a node search is a few words. */
 const SEARCH_CAP = 48
 
+/** ...and the same length for a name typed after `[[`: a wikilink names one
+ *  file, which is a few words at most. */
+const NAME_CAP = 48
+
 /**
  * Whether two triggers are the SAME offer — the widget, where its span starts,
  * and what is inside it.
@@ -122,7 +126,7 @@ const wikilinkIn = (before: string): Trigger | null | undefined => {
   if (at === -1) return undefined
   const query = before.slice(at + 2)
   if (query.includes("]]") || query.includes("\n")) return undefined
-  return query.length <= SEARCH_CAP && !/[|#\]]/.test(query)
+  return query.length <= NAME_CAP && !/[|#\]]/.test(query)
     ? { kind: "wikilink", from: at, query }
     : null
 }
