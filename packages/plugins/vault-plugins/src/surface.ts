@@ -280,15 +280,17 @@ export const surface = defineSurface({
        * It goes through the ORDINARY write gate: the same planner, the same
        * validation, the same ledger commit as a keystroke. What it adds is the
        * part an agent would otherwise have to get right by hand — the folder,
-       * the path, which of the three files is which, and whether that half
-       * COMPILES, answered in the same reply so the loop is one call rather
-       * than a write and a guess.
+       * the path, and whether the plugin still COMPILES with this file in it,
+       * answered in the same reply so the loop is one call rather than a write
+       * and a guess.
        */
       write: {
         input: Schema.Struct({
           /** The plugin's word. Its folder is created if it is not there. */
           name: Schema.String,
-          /** Which of the three files: `README.md`, `server.ts`, `browser.tsx`. */
+          /** Which file, by its path in the folder: `README.md`, or any `.ts`
+           *  or `.tsx` file at any depth — `server.ts`, `browser.tsx`,
+           *  `lib/sm2.ts`. */
           file: Schema.String,
           /** The file's whole text. */
           text: Schema.String,
@@ -296,12 +298,13 @@ export const surface = defineSurface({
         output: Schema.Struct({
           /** The path that was written, as the set lists it. */
           path: Schema.String,
-          /** Whether this half compiles — absent for the README, which is
+          /** Whether the plugin's entries, and every file they import, build
+           *  with this file as written — absent for the README, which is
            *  prose and compiles nothing. */
           compiles: Schema.optionalKey(Schema.Boolean),
           /** Why it does not, verbatim from the builder. */
           why: Schema.optionalKey(Schema.String),
-          /** The version of the two halves after this write. */
+          /** The version of the plugin's code after this write. */
           version: Schema.String,
         }),
         error: OpFailure,

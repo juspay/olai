@@ -94,14 +94,18 @@ Feature: The reading companion
   @scratch:reader
   Scenario: An agent writes a helper, and Delete takes every file
     Given I open the app
-    When the terminal agent writes "lib/deck.ts" of the plugin "reader" as:
+    When I go to the plugin "reader"
+    And the terminal agent writes "lib/deck.ts" of the plugin "reader" as:
       """
       export const DECK = "vocabulary.olai"
       """
     Then the terminal agent was told the plugin "reader" compiles
-    When I go to the plugin "reader"
-    Then the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/deck.ts, lib/sm2.ts, pairs.ts, types.ts"
+    # The page was open when the file landed, so it shows the new file and
+    # holds back its verbs until the reader says they have seen it.
+    And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/deck.ts, lib/sm2.ts, pairs.ts, types.ts"
+    And the plugin page has disarmed its verbs
 
-    When I delete the plugin "reader" from its page
+    When I read the plugin "reader" again
+    And I delete the plugin "reader" from its page
     Then the vault holds no files for the plugin "reader"
     And there should be no page errors

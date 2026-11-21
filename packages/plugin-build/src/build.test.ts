@@ -9,7 +9,7 @@
 import { describe, expect, test } from "bun:test"
 
 import { bind } from "./bind.ts"
-import { asDataUrl, buildHalf, buildPlugin } from "./build.ts"
+import { asDataUrl, buildPlugin, type Half } from "./build.ts"
 import { unresolvable } from "./imports.ts"
 import { BROWSER_MODULES, REGISTRY, SERVER_MODULES } from "./shared.ts"
 
@@ -29,6 +29,10 @@ const evaluated = async (
     ;(globalThis as Record<string, unknown>)[REGISTRY] = held
   }
 }
+
+/** A plugin of one file: the half's own entry and nothing beside it. */
+const buildHalf = (half: Half, source: string) =>
+  buildPlugin(half, half === "server" ? "server.ts" : "browser.tsx", new Map([[half === "server" ? "server.ts" : "browser.tsx", source]]), (_path, text) => asDataUrl(text))
 
 describe("what a plugin's source may name", () => {
   test("the three, and nothing else", () => {

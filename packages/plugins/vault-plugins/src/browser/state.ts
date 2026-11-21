@@ -49,7 +49,7 @@
  * it is the plugin they approved, changed, which is *Paused* with a diff.
  */
 
-import { type BuiltPlugin, pluginState } from "@olai/surface"
+import { type BuiltPlugin, PLUGIN_BROWSER_FILE, PLUGIN_SERVER_FILE, pluginState } from "@olai/surface"
 
 /**
  * THE SIX WORDS A PLUGIN'S PAGE CAN BE HEADED WITH — the mockup's six screens,
@@ -62,6 +62,20 @@ export type Stage = "building" | "review" | "paused" | "on" | "off" | "broken"
  *  the build shipped (`@olai/surface`'s `BuiltPlugin.source`). The word is the
  *  server half's own for the same reading (`../source.ts`'s `Defined`). */
 export type Defined = BuiltPlugin & { readonly source: NonNullable<BuiltPlugin["source"]> }
+
+/** One code file of the folder as the page draws it ({@link codeFiles}). */
+export type CodeFile = NonNullable<Defined["source"]["files"]>[number]
+
+/**
+ * EVERY CODE FILE THE ROW CARRIES, in the page's order — or, from a serve that
+ * sends only the two entries, those two. A file removed since the approval is
+ * still here, with its approved text and no `text`, so the diff can show it go.
+ */
+export const codeFiles = (source: Defined["source"]): ReadonlyArray<CodeFile> =>
+  source.files ?? [
+    { path: PLUGIN_SERVER_FILE, text: source.server },
+    ...(source.browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: source.browser }]),
+  ]
 
 /** Whether this row was written into the directory rather than compiled in. */
 export const defined = (plugin: BuiltPlugin): plugin is Defined => plugin.source !== undefined
@@ -137,12 +151,12 @@ export const metaOf = (plugin: Defined, stage: Stage): string => {
   return ""
 }
 
-/** The size of what somebody is being asked to read: the two halves, which are
- *  the only files an approval is about. */
+/** The size of what somebody is being asked to read: every code file, which
+ *  are the files an approval is about. */
 const halves = (source: Defined["source"]): string => {
-  const written = source.browser === undefined ? 1 : 2
-  const lines = count(source.server) + (source.browser === undefined ? 0 : count(source.browser))
-  return `${written} ${written === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
+  const files = codeFiles(source).flatMap((one) => (one.text === undefined ? [] : [one.text]))
+  const lines = files.reduce((sum, text) => sum + count(text), 0)
+  return `${files.length} ${files.length === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
 }
 
 const count = (text: string): number => (text.trim() === "" ? 0 : text.replace(/\n$/, "").split("\n").length)

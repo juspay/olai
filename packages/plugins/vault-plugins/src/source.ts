@@ -9,19 +9,20 @@
  *   README.md     what it does, for a person
  *   server.ts     required
  *   browser.tsx   optional
+ *   lib/sm2.ts    any other .ts or .tsx, at any depth
  * ```
  *
- * Three plain files a person can open in any editor, review in a pull request
- * and keep in git — which is the whole of why the shape changed. It used to be
- * a node with a `plugin` property and two children carrying the halves in their
- * notes, and the argument for that was real at the time: `.ts` was not a kind
- * of file olai served, so a half on the disk was a half the store would not
- * read, the ledger would not record and no write door would write. Every clause
- * of that is now false. A claim may say WHERE it applies (`@olai/format`'s
+ * Plain files a person can open in any editor, review in a pull request and
+ * keep in git. A claim may say WHERE it applies (`@olai/format`'s
  * `Claim.under`), so `.ts` under `plugins/` is a kind of file this serve holds
  * and nothing else in the vault is swept up with it; `create-doc` mints any
  * kept-text kind the claims admit; and the write gate, the revision, the
- * commit panel and the diff all treat the three files as what they are.
+ * commit panel and the diff all treat the files as what they are.
+ *
+ * THE PLUGIN'S CODE IS EVERY `.ts` AND `.tsx` IN ITS FOLDER, imported or not.
+ * `server.ts` and `browser.tsx` are the two entries; any other code file is one
+ * an entry may import, and all of them are in the version and on the page,
+ * because a person approves every line that could run.
  *
  * What that bought is not tidiness. It is that a plugin is now a thing you can
  * SHOW somebody: a folder, with a README at the top of it, that travels by
@@ -55,11 +56,12 @@ import {
 } from "@olai/format"
 import { configurationNode, configurationNodes } from "@olai/plugin-api/configuration"
 import {
+  isPluginCode,
   PLUGIN_BROWSER_FILE,
-  PLUGIN_FILES,
   PLUGIN_FOLDER,
   PLUGIN_README_FILE,
   PLUGIN_SERVER_FILE,
+  pluginFileOrder,
   WORD,
 } from "@olai/surface"
 import { isKeptText, proseIn } from "@olai/format"
@@ -117,15 +119,19 @@ export interface Defined {
   /** The README verbatim, or `null` for a folder with none. */
   readonly readme: string | null
   /**
-   * The two halves' sources, verbatim. `browser` is absent for a plugin with
+   * The two entries' sources, verbatim. `browser` is absent for a plugin with
    * no face — a server-only plugin is a whole plugin (a kind, a doorbell), the
    * same way an engine is a browser-only one.
    */
   readonly server: string
   readonly browser: string | null
-  /** THE VERSION: a content hash of both halves. What a person approves, and
-   *  what tells an edit from a redraw. The README is NOT in it: fixing a typo
-   *  in the prose is not a fresh decision about code. */
+  /** EVERY CODE FILE of the folder, entries included, by its path in the
+   *  folder, in path order — what the version hashes, what is built, and what
+   *  the page draws. */
+  readonly code: ReadonlyMap<string, string>
+  /** THE VERSION: a content hash of every code file and its path. What a
+   *  person approves, and what tells an edit from a redraw. The README is NOT
+   *  in it: fixing a typo in the prose is not a fresh decision about code. */
   readonly version: string
   /** What the `approved` property says, verbatim — the version, {@link ALWAYS},
    *  or `null` for a plugin nobody has decided about. */
@@ -160,11 +166,11 @@ export interface Defined {
   }
   /** Why this definition cannot be built, in a whole sentence, or `null`. */
   readonly fault: string | null
-  /** WHICH OF THE FOLDER'S FILES THE SET ACTUALLY HOLDS, by name. The three
-   *  texts above fold absence into emptiness, which is right for reading and
-   *  wrong for the one verb that has to name files that are there: removing a
-   *  plugin deletes what exists, and a delete of a path the set does not hold
-   *  is a refusal rather than a no-op. */
+  /** WHICH OF THE FOLDER'S FILES THE SET ACTUALLY HOLDS, by path, in the
+   *  order the page lists them. The texts above fold absence into emptiness,
+   *  which is right for reading and wrong for the one verb that has to name
+   *  files that are there: removing a plugin deletes what exists, and a delete
+   *  of a path the set does not hold is a refusal rather than a no-op. */
   readonly holds: ReadonlyArray<string>
 }
 
@@ -293,14 +299,14 @@ export const definedIn = (
     if (!document.path.startsWith(PLUGIN_FOLDER)) continue
     const rest = document.path.slice(PLUGIN_FOLDER.length)
     const cut = rest.indexOf("/")
-    // A FILE DIRECTLY UNDER `plugins/` IS NOT A PLUGIN, and neither is one
-    // nested deeper: the folder is the plugin, so `plugins/notes.md` and
-    // `plugins/hex-swatch/src/helper.ts` are ordinary vault content that
-    // nothing here claims.
+    // A FILE DIRECTLY UNDER `plugins/` IS NOT A PLUGIN: the folder is the
+    // plugin, so `plugins/notes.md` is ordinary vault content. Inside a folder,
+    // its README and every code file at any depth are the plugin's; anything
+    // else in it is the author's own business.
     if (cut <= 0) continue
     const word = rest.slice(0, cut)
     const name = rest.slice(cut + 1)
-    if (!PLUGIN_FILES.some((held) => held === name)) continue
+    if (name !== PLUGIN_README_FILE && !isPluginCode(name)) continue
     // THE STORAGE QUESTION and never the prose one: only a kept-text document
     // carries its body in the revision, and an unkept claim would hand back a
     // face with nothing in it. The two halves are kept text that is NOT prose
@@ -331,9 +337,10 @@ const defined = (
   consent: Consent,
   taken: ReadonlyArray<string>,
 ): Defined => {
-  const server = files.get(PLUGIN_SERVER_FILE) ?? null
-  const browser = files.get(PLUGIN_BROWSER_FILE) ?? null
   const readme = files.get(PLUGIN_README_FILE) ?? null
+  const code = new Map([...files].filter(([path]) => path !== PLUGIN_README_FILE).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+  const server = code.get(PLUGIN_SERVER_FILE) ?? null
+  const browser = code.get(PLUGIN_BROWSER_FILE) ?? null
   const node = configurationNode(consent.nodes, name)
   const said = (key: string): string | null => {
     const raw = node === undefined || !isRegular(node) ? undefined : customText(node.node, key)
@@ -349,14 +356,15 @@ const defined = (
     readme,
     server: server ?? "",
     browser,
-    version: versionOf(server ?? "", browser),
+    code,
+    version: versionOf(code),
     approved: said(APPROVED_KEY),
     on: said(ON_KEY),
     checked: said(CHECKED_KEY),
-    uses: usesOf(server ?? "", browser),
+    uses: usesOf(...code.values()),
     consent: { file: consent.file, node, nodes: consent.nodes },
     fault: faultOf(name, server, taken),
-    holds: [...files.keys()],
+    holds: pluginFileOrder(files.keys()),
   }
 }
 
@@ -418,17 +426,20 @@ const faultOf = (
   return null
 }
 
-/** What {@link versionOf} puts between the two halves — a byte no source file
- *  can contain, spelled as an escape so this file holds none itself. */
+/** What {@link versionOf} puts after each path and each text — a byte no
+ *  source file and no path can contain, spelled as an escape so this file
+ *  holds none itself. */
 const SEPARATOR = "\u0000"
 
 /**
- * THE VERSION — a hash of what would run.
+ * THE VERSION — a hash of what could run.
  *
- * BOTH HALVES, because approval is about the whole thing: a person who read a
- * server half and approved it has not approved a face that arrived afterwards.
- * The separator is a byte no source can contain, so two plugins cannot hash
- * alike by having their halves cut at a different point.
+ * EVERY CODE FILE, because approval is about the whole thing: a person who read
+ * a server file and approved it has not approved a helper that arrived
+ * afterwards, nor one nothing imports yet. Each file goes in as its path and
+ * its text, in path order, each followed by a byte no path or source can
+ * contain, so two folders cannot hash alike by moving text between files or a
+ * file between paths.
  *
  * AND THE README IS NOT IN IT. The version is what a person said yes to, and
  * what they said yes to is code. Prose about the code is prose: an author
@@ -440,10 +451,10 @@ const SEPARATOR = "\u0000"
  * Sixteen hex digits of SHA-256 is the same trade every content-addressed name
  * in this tree makes.
  */
-export const versionOf = (server: string, browser: string | null): string =>
-  new Bun.CryptoHasher("sha256")
-    .update(server)
-    .update(SEPARATOR)
-    .update(browser ?? "")
-    .digest("hex")
-    .slice(0, 16)
+export const versionOf = (code: ReadonlyMap<string, string>): string => {
+  const hasher = new Bun.CryptoHasher("sha256")
+  for (const path of [...code.keys()].sort()) {
+    hasher.update(path).update(SEPARATOR).update(code.get(path)!).update(SEPARATOR)
+  }
+  return hasher.digest("hex").slice(0, 16)
+}

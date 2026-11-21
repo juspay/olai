@@ -12,7 +12,7 @@
  * no serve.
  */
 
-export { buildHalf, type Half } from "./build.ts"
+export { asDataUrl, buildPlugin, type Half, type Linked, type Module } from "./build.ts"
 export { bind, type Made } from "./bind.ts"
-export { modulesFor, unresolvable } from "./imports.ts"
+export { modulesFor, relativeIn, unresolvable } from "./imports.ts"
 export { BROWSER_MODULES, REGISTRY, SERVER_MODULES, WRITABLE_MODULES } from "./shared.ts"

@@ -63,7 +63,8 @@ export type Made =
   | { readonly ok: false; readonly why: string }
 
 /**
- * BIND `text`'s IMPORTS against the host registry.
+ * BIND `text`'s IMPORTS against the host registry, and its own folder's files
+ * against the addresses they were linked at.
  *
  * `allowed` is what this half's host actually holds (`./shared.ts`'s two
  * lists). A specifier outside it is refused HERE as well as at the gate, and the
@@ -71,8 +72,14 @@ export type Made =
  * reads the COMPILER's output, so a transform that started emitting an import of
  * its own — a Solid version reaching for a helper package, say — is caught by
  * this one and by nothing else.
+ *
+ * `local` is each relative specifier this file wrote, already resolved and
+ * built (`./build.ts`), mapped to the address that built module is loaded
+ * from. It becomes an `await import()` of that literal address, so the
+ * post-condition below still holds — no import statement is left — and the
+ * module still names nothing it was not handed.
  */
-export const bind = (text: string, allowed: ReadonlyArray<string>): Made => {
+export const bind = (text: string, allowed: ReadonlyArray<string>, local: ReadonlyMap<string, string> = new Map()): Made => {
   let bound = ""
   let read = 0
   KEYWORD.lastIndex = 0
@@ -83,19 +90,24 @@ export const bind = (text: string, allowed: ReadonlyArray<string>): Made => {
     // this cannot bind, and binding half of something is the failure the
     // post-condition exists to make impossible.
     if (one === null) continue
-    if (!allowed.includes(one.spec)) {
+    const linked = local.get(one.spec)
+    if (linked === undefined && !allowed.includes(one.spec)) {
       return {
         ok: false,
         why: `the built module imports "${one.spec}", which this serve does not hold. `
           + `A plugin mounted from a vault reaches only the modules olai binds for it.`,
       }
     }
-    const ref = `globalThis[${JSON.stringify(REGISTRY)}][${JSON.stringify(one.spec)}]`
+    const ref = linked === undefined
+      ? `globalThis[${JSON.stringify(REGISTRY)}][${JSON.stringify(one.spec)}]`
+      : `(await import(${JSON.stringify(linked)}))`
     // The LEAD is the newline the statement sits after, kept so the emitted
     // declarations start on their own line; the indent before `import` goes
     // with the statement it belonged to.
     bound += text.slice(read, hit.index + (hit[1] ?? "").length)
-    bound += one.clause === null ? "" : bindings(one.clause, ref)
+    // A BARE IMPORT of a host module is dropped: its namespace is already
+    // loaded. One of the folder's own files is evaluated for what it does.
+    bound += one.clause === null ? (linked === undefined ? "" : `${ref};`) : bindings(one.clause, ref)
     read = one.end
     KEYWORD.lastIndex = one.end
   }

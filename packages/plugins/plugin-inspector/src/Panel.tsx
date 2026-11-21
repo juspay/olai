@@ -763,11 +763,14 @@ function Defined(props: {
                 claim about itself rather than anything this panel composed. */}
             <Show when={said().description}>{(says) => <p class="mt-1 text-muted">{says()}</p>}</Show>
             <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
-              {`// ${said().folder}${PLUGIN_SERVER_FILE}\n${said().server}${
-                said().browser === undefined
-                  ? ""
-                  : `\n\n// ${said().folder}${PLUGIN_BROWSER_FILE}\n${said().browser}`
-              }`}
+              {/* EVERY CODE FILE, under its path in the folder — the two entries
+                  for a serve that sends only those. */}
+              {(said().files ?? [
+                { path: PLUGIN_SERVER_FILE, text: said().server },
+                ...(said().browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: said().browser }]),
+              ])
+                .flatMap((one) => (one.text === undefined ? [] : [`// ${said().folder}${one.path}\n${one.text}`]))
+                .join("\n\n")}
             </pre>
             <Show when={pending()}>
               <Show

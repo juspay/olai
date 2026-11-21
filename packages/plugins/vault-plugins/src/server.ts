@@ -6,7 +6,7 @@ import { slotCatalog } from "@olai/plugin-api/slots"
 import { ConversationsWatch, definePlugin, FileKinds, HostLoading, Ops, Offers, Surfaces, Vault, BundleModules } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import type { Ops as Gate } from "@olai/ops"
-import { buildHalf, WRITABLE_MODULES } from "@olai/plugin-build"
+import { WRITABLE_MODULES } from "@olai/plugin-build"
 import { Effect } from "effect"
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 /** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
@@ -19,15 +19,15 @@ import { NotFoundFailure, UsageFailure, type Reading } from "@olai/format"
 import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { Snapshot } from "@olai/store"
 import {
+  isPluginCode,
   PLUGIN_BROWSER_FILE,
-  PLUGIN_FILES,
   PLUGIN_FOLDER,
   PLUGIN_README_FILE,
   PLUGIN_SERVER_FILE,
   WORD,
 } from "@olai/surface"
 import { name, chunks, pluginReadme, readmeItem, slugOf } from "./index.ts"
-import { openDynamic, RESERVED } from "./runtime.ts"
+import { compiles, openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
 import { GUIDE } from "./guide.ts"
@@ -64,10 +64,10 @@ const preambleFor = (word: string, title: string): ReadonlyArray<string> => [
   `Call \`vault-plugins_guide\` before you write anything. It is the whole authoring guide, `
     + `shipped inside this binary, and it is the only correct description of what a half may `
     + `import and what it may name. Call \`vault-plugins_inspect\` for the live lists.`,
-  `Write all three files with \`vault-plugins_write\`: \`${PLUGIN_README_FILE}\` first and for a `
+  `Write each file with \`vault-plugins_write\`: \`${PLUGIN_README_FILE}\` first and for a `
     + `PERSON — a \`# Title\` line, a blank line, then one sentence saying what it does, then as `
-    + `much prose as it deserves — and then \`${PLUGIN_SERVER_FILE}\`, and `
-    + `\`${PLUGIN_BROWSER_FILE}\` if it draws anything.`,
+    + `much prose as it deserves — and then \`${PLUGIN_SERVER_FILE}\`, any other .ts or .tsx file `
+    + `the code imports, and \`${PLUGIN_BROWSER_FILE}\` last if it draws anything.`,
   `Finish by calling \`vault-plugins_run\`. If it answers a fault, fix it and run again.`,
   `You cannot turn it on. \`pending\` is not a failure — it is a person being asked, with your `
     + `code in front of them, and only they can press the button. Say when it is ready.`,
@@ -327,13 +327,14 @@ export default definePlugin({
                 + `and hyphens, starting with a letter — it names the folder this file goes in.`,
             }))
           }
-          // THE FOLDER'S OWN THREE NAMES (`@olai/surface`'s `PLUGIN_FILES`): this
-          // was a membership table of its own, which is the same list the page's
-          // address, the folder reader and **Delete…** each kept a copy of.
-          if (!PLUGIN_FILES.some((held) => held === input.file)) {
+          // A PATH IN THE FOLDER: its README, or any code file at any depth
+          // (`@olai/surface`'s `isPluginCode`) — the same rule the folder
+          // reader, the page's address and **Delete…** keep.
+          if (input.file !== PLUGIN_README_FILE && !isPluginCode(input.file)) {
             return yield* Effect.fail(new UsageFailure({
-              reason: `a plugin holds three files and "${input.file}" is none of them: `
-                + `\`${PLUGIN_README_FILE}\`, \`${PLUGIN_SERVER_FILE}\` and \`${PLUGIN_BROWSER_FILE}\`. `
+              reason: `"${input.file}" is not a file of a plugin. A plugin's folder holds `
+                + `\`${PLUGIN_README_FILE}\` and its code: \`${PLUGIN_SERVER_FILE}\`, \`${PLUGIN_BROWSER_FILE}\` `
+                + `and any other .ts or .tsx file, named by its path in the folder, such as "lib/sm2.ts". `
                 + `Anything else belongs in your own notes.`,
             }))
           }
@@ -352,15 +353,17 @@ export default definePlugin({
           yield* gate.run(held ? { op: "doc", file: path, text: input.text } : { op: "create-doc", file: path, text: input.text }, "mcp")
           yield* abreast
           const one = dynamic.defined(word)
-          const version = one?.version ?? versionOf(input.file === PLUGIN_SERVER_FILE ? input.text : "", null)
-          if (input.file === PLUGIN_README_FILE) return { path, version }
+          const version = one?.version ?? versionOf(new Map(input.file === PLUGIN_README_FILE ? [] : [[input.file, input.text]]))
+          if (input.file === PLUGIN_README_FILE || one === null) return { path, version }
           // ...AND THE COMPILE RESULT IN THE SAME REPLY, which is the whole of
           // why this verb exists rather than `markdown_write` with a path: the
           // author's loop is write, learn, fix, and a write that answered only
-          // "written" would make every one of those two calls.
-          const half = input.file === PLUGIN_SERVER_FILE ? "server" as const : "browser" as const
-          const built = yield* Effect.promise(() => buildHalf(half, input.text))
-          return { path, version, compiles: built.ok, ...(built.ok ? {} : { why: built.why }) }
+          // "written" would make every one of those two calls. It is the
+          // PLUGIN's answer — both entries and every file they import, as the
+          // folder now stands — because a helper compiles or not as part of
+          // what imports it.
+          const why = yield* compiles(one)
+          return { path, version, compiles: why === null, ...(why === null ? {} : { why }) }
         }),
 
       inspect: () =>

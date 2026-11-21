@@ -298,7 +298,7 @@ describe("a plugin waits for a person", () => {
         return yield* now()
       })
     )
-    expect(rows[0]?.source?.approvedServer).toBe(SERVER)
+    expect(rows[0]?.source?.files?.find((one) => one.path === "server.ts")?.approved).toBe(SERVER)
     expect(rows[0]?.source?.server).toContain("// and more")
   })
 
@@ -309,8 +309,8 @@ describe("a plugin waits for a person", () => {
         return yield* now()
       })
     )
-    expect(rows[0]?.source?.approvedServer).toBeUndefined()
-    expect(rows[0]?.source?.approvedBrowser).toBeUndefined()
+    expect(rows[0]?.source?.files?.every((one) => one.approved === undefined)).toBe(true)
+    expect(rows[0]?.source?.files?.map((one) => one.path)).toEqual(["server.ts"])
   })
 
   test("a README edit is not a fresh decision", async () => {
@@ -728,7 +728,7 @@ describe("a folder that goes away takes its fiber with it", () => {
     expect(rows[0]?.source?.on).toBe(false)
     // ...and no diff against a predecessor nobody approved: the copy left with
     // the folder.
-    expect(rows[0]?.source?.approvedServer).toBeUndefined()
+    expect(rows[0]?.source?.files?.every((one) => one.approved === undefined)).toBe(true)
   })
 })
 

@@ -36,7 +36,7 @@
 
 import { defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 
-import { PLUGIN_FILES, WORD } from "@olai/surface"
+import { isPluginCode, PLUGIN_README_FILE, WORD } from "@olai/surface"
 import { PLUGIN_PATH } from "../index.ts"
 import { PluginGlyph } from "./glyph.tsx"
 
@@ -80,13 +80,13 @@ export const pluginPage = defineSelfDrawnRoute<PluginPage>({
     if (!WORD.test(word)) return null
     if (cut === -1) return { word }
     const file = rest.slice(cut + 1)
-    // THE FOLDER'S OWN THREE NAMES (`@olai/surface`'s `PLUGIN_FILES`), so a
-    // fourth file is one edit and not four: an address may open at a file
-    // the folder could hold, and at nothing else.
-    return PLUGIN_FILES.some((held) => held === file) ? { word, file } : null
+    // A FILE THE FOLDER COULD HOLD — its README or any code file at any depth
+    // (`@olai/surface`'s `isPluginCode`), the rule the folder reader keeps: an
+    // address may open at such a file, and at nothing else.
+    return file === PLUGIN_README_FILE || isPluginCode(file) ? { word, file } : null
   },
   href: ({ word, file }) =>
-    `${PLUGIN_PATH}${encodeURIComponent(word)}${file === undefined ? "" : `/${encodeURIComponent(file)}`}`,
+    `${PLUGIN_PATH}${encodeURIComponent(word)}${file === undefined ? "" : `/${file.split("/").map(encodeURIComponent).join("/")}`}`,
   // The crumb is the WORD and not the title, and that is a limit worth being
   // plain about: a breadcrumb is drawn from the address alone, and the title
   // is the README's — a fact about the folder, which this grammar has never

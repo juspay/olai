@@ -64,7 +64,7 @@ import { readmeItem } from "../index.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
-import { faultSaid, LOOK, metaOf, pluginNamed, stageOf, TRUST_SAID, wakes, type Defined } from "./state.ts"
+import { codeFiles, faultSaid, LOOK, metaOf, pluginNamed, stageOf, TRUST_SAID, wakes, type Defined } from "./state.ts"
 
 export function PluginPage(props: {
   readonly word: string
@@ -452,6 +452,9 @@ function Landing(props: { readonly source: Defined["source"] }) {
     { file: PLUGIN_README_FILE, there: props.source.readme !== undefined, said: "what it does, for people" },
     { file: PLUGIN_SERVER_FILE, there: props.source.server.trim() !== "", said: "what runs on the server" },
     { file: PLUGIN_BROWSER_FILE, there: props.source.browser !== undefined, said: "what draws in the page — optional" },
+    ...codeFiles(props.source)
+      .filter((one) => one.text !== undefined && one.path !== PLUGIN_SERVER_FILE && one.path !== PLUGIN_BROWSER_FILE)
+      .map((one) => ({ file: one.path, there: true, said: "code the plugin may import" })),
   ]
   return (
     <ul class="m-0 flex list-none flex-col gap-1 p-0 font-mono text-label">
@@ -469,13 +472,11 @@ function Landing(props: { readonly source: Defined["source"] }) {
 }
 
 /** The banner's own sentence about a paused plugin: how much moved, and in
- *  which half. Read off the same walk the block below it draws. */
+ *  which file. Read off the same walk the block below it draws. */
 const changedSaid = (plugin: Defined): string => {
-  const source = plugin.source
-  const halves = [
-    { file: PLUGIN_SERVER_FILE, was: source.approvedServer, now: source.server },
-    { file: PLUGIN_BROWSER_FILE, was: source.approvedBrowser, now: source.browser ?? "" },
-  ].filter((half) => half.was !== undefined)
+  const halves = codeFiles(plugin.source)
+    .filter((one) => one.approved !== undefined)
+    .map((one) => ({ file: one.path, was: one.approved, now: one.text ?? "" }))
   if (halves.length === 0) return "The code changed since you turned it on."
   const counted = halves.map((half) => ({ file: half.file, lines: changedCount(diffLines(half.was!, half.now)) }))
   const total = counted.reduce((sum, half) => sum + half.lines, 0)

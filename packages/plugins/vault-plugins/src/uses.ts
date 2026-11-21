@@ -72,17 +72,18 @@ const DOORS: Readonly<Record<string, string>> = {
 const PLUMBING: Readonly<Record<string, true>> = { definePlugin: true, serviceTag: true }
 
 /**
- * THE LIST, for one plugin — both halves folded into one reading, deduped by
- * the technical name, in the order the code names them.
+ * THE LIST, for one plugin — every code file folded into one reading, deduped
+ * by the technical name, in the order the code names them.
  *
- * Both halves together because a person is deciding about a PLUGIN. The two
- * files are an implementation fact; "draws a chip on outline rows" is true of
- * the plugin whichever half does it.
+ * Every file together because a person is deciding about a PLUGIN. Which file
+ * a call sits in is an implementation fact; "draws a chip on outline rows" is
+ * true of the plugin whichever file does it, and a helper reaches as far as an
+ * entry does.
  */
-export const usesOf = (server: string, browser: string | null = null): ReadonlyArray<Uses> => {
+export const usesOf = (...sources: ReadonlyArray<string | null>): ReadonlyArray<Uses> => {
   const found = new Map<string, Uses>()
-  for (const half of [server, browser ?? ""]) {
-    for (const one of readHalf(half)) if (!found.has(one.named)) found.set(one.named, one)
+  for (const source of sources) {
+    for (const one of readHalf(source ?? "")) if (!found.has(one.named)) found.set(one.named, one)
   }
   return [...found.values()]
 }

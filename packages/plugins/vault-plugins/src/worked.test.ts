@@ -27,7 +27,7 @@
  * wrong.
  */
 
-import { buildHalf } from "@olai/plugin-build"
+import { asDataUrl, buildPlugin, type Half } from "@olai/plugin-build"
 import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
@@ -90,28 +90,46 @@ const halfNaming = (label: string, marker: string): string => {
   return found[0] as string
 }
 
-const page = DOCS.map((doc) => readFileSync(doc, "utf8")).join("\n\n")
+const pages = DOCS.map((doc) => readFileSync(doc, "utf8"))
+const page = pages.join("\n\n")
+
+/**
+ * ONE ENTRY AS A PLUGIN FOLDER: the entry, and every other code file the same
+ * page prints under its own path, because an example split over several files
+ * builds only with the files beside it.
+ */
+const built = (half: Half, text: string, source: string) => {
+  const entry = half === "server" ? "server.ts" : "browser.tsx"
+  const helpers = [...text.matchAll(/`([^`\n]+\.tsx?)`:\n+```[a-z]*\n([\s\S]*?)```/g)]
+    .flatMap((hit) => (hit[1] === undefined || hit[2] === undefined || hit[1] === "server.ts" || hit[1] === "browser.tsx" ? [] : [[hit[1], hit[2]] as const]))
+  return buildPlugin(half, entry, new Map([[entry, source], ...helpers]), (_path, module) => asDataUrl(module))
+}
 
 test("every server half on the page builds", async () => {
-  const halves = halvesIn(page, "server.ts")
   // A FLOOR, so a page that lost its examples to a rewrite cannot pass by
   // having none. A count and not an order: which example is which is asked by
   // {@link halfNaming}, and the page is free to rearrange itself.
-  expect(halves.length).toBeGreaterThanOrEqual(2)
-  for (const source of halves) {
-    const built = await buildHalf("server", source)
-    if (!built.ok) throw new Error(built.why)
-    expect(built.ok).toBe(true)
+  expect(halvesIn(page, "server.ts").length).toBeGreaterThanOrEqual(2)
+  for (const text of pages) {
+    if (!text.includes("`server.ts`:")) continue
+    for (const source of halvesIn(text, "server.ts")) {
+      const made = await built("server", text, source)
+      if (!made.ok) throw new Error(made.why)
+      expect(made.ok).toBe(true)
+    }
   }
 })
 
 test("every browser half on the page builds", async () => {
-  for (const source of halvesIn(page, "browser.tsx")) {
-    const built = await buildHalf("browser", source)
-    if (!built.ok) throw new Error(built.why)
-    // ...and comes out bound, which is what a tab is handed.
-    expect(built.text).toContain("__olai_plugin_modules")
-    expect(built.text).not.toMatch(/^\s*import\s/m)
+  for (const text of pages) {
+    if (!text.includes("`browser.tsx`:")) continue
+    for (const source of halvesIn(text, "browser.tsx")) {
+      const made = await built("browser", text, source)
+      if (!made.ok) throw new Error(made.why)
+      // ...and comes out bound, which is what a tab is handed.
+      expect(made.text).toContain("__olai_plugin_modules")
+      expect(made.text).not.toMatch(/^\s*import\s/m)
+    }
   }
 })
 
