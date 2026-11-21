@@ -38,11 +38,12 @@ import { type Address, addressOf } from "./address.ts"
 import type { Reference, Way } from "./backlinks.ts"
 import { tagsIn, type Derived } from "./derive.ts"
 import { type Document, type Face, faceOf, type FaceHead } from "./document.ts"
-import { linksIn, recordLinks } from "./documents.ts"
+import { linksIn, recordLinks, recordWikilinks } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"
-import { fileKind } from "./kinds.ts"
+import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, isPutAway, isRegular, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
+import { namesIn, wikilinkAddress } from "./wikilinks.ts"
 
 // ── the reading as it STOOD, before the links index ────────────────────
 
@@ -60,6 +61,11 @@ import type { OutlineSet } from "./set.ts"
  * and row arms ask only about links, which is what the index files under
  * those keys.
  *
+ * WIKILINKS ARE RESOLVED HERE TOO, by the one resolver (`./wikilinks.ts`)
+ * against the revision's membership: every name every file writes, walked.
+ * A link to a ROW (`house.olai#kitchen`, either way it is written) is a
+ * reference to the node in it, at the file that holds the node.
+ *
  * THIS IS THE COST the roadmap node named: every link of every file, tested
  * per revision, per tab sitting on any page with a body. It is kept because
  * the index's answer is defined as being this one.
@@ -68,7 +74,11 @@ export const scannedReferrers = (
   address: Address,
   faces: ReadonlyArray<Face>,
   derived: Pick<Derived, "byFile">,
+  served: ReadonlySet<string>,
 ): ReadonlyArray<Reference> => {
+  const names = namesIn(TEST_CLAIMS, served)
+  const wikis = (from: string, written: ReadonlyArray<string>): ReadonlyArray<Address> =>
+    written.flatMap((name) => wikilinkAddress(names, TEST_CLAIMS, from, name) ?? [])
   /** Ways merged per source, in the reading's own order. */
   const found = new Map<object, { source: Reference["source"]; ways: Set<Way> }>()
   const add = (source: Reference["source"], ...ways: ReadonlyArray<Way>): void => {
@@ -80,19 +90,31 @@ export const scannedReferrers = (
   if (address.kind === "node") {
     // THE MIRRORS RULE: a reference to a placement of this node is a
     // reference to this node.
-    const asked = new Set([address.id, ...mirrorsOf(address.id, faces, derived)])
+    const mirrors = mirrorsOf(address.id, faces, derived)
+    const asked = new Set([address.id, ...mirrors])
+    const holders = holdersOf(faces, derived)
+    /** The files that draw a row for an asked id: the one holding it, and —
+     *  for the node itself — each one holding a placement of it, since a page
+     *  lands on the first row that shows the id, mirror or not. */
+    const drawers = (id: string): ReadonlyArray<string | undefined> =>
+      id === address.id ? [holders.get(id), ...mirrors.map((one) => holders.get(one))] : [holders.get(id)]
+    /** Whether a link names one of the asked ids: bare, or as a row in a file
+     *  that draws it. */
+    const naming = (link: Address): boolean =>
+      (link.kind === "node" && asked.has(link.id)) ||
+      (link.kind === "row" && asked.has(link.id) && drawers(link.id).includes(link.path))
     for (const face of faces) {
       if (isPutAway(TEST_CLAIMS, face.path)) continue
       const records = derived.byFile.get(face.path)
       if (records === undefined) {
         // A BODY: its prose names the node with a link or an `@`.
-        const ways = bodyWays(face, asked)
+        const ways = bodyWays(face, asked, naming, wikis(face.path, face.wikilinks ?? []))
         if (ways.length > 0) add(headOf(face), ...ways)
         continue
       }
       for (const located of records) {
         if (!isRegular(located) || located.node.id === address.id) continue
-        const ways = recordWays(located, asked)
+        const ways = recordWays(located, asked, naming, wikis(located.file, recordWikilinks(located)))
         if (ways.length > 0) add(located, ...ways)
       }
     }
@@ -106,7 +128,9 @@ export const scannedReferrers = (
     }
     for (const face of faces) {
       if (face.path === here || isPutAway(TEST_CLAIMS, face.path)) continue
-      if (!face.links.some(points)) continue
+      // The face is every link its file writes, so a file whose face names
+      // nothing here holds no record that does.
+      if (!face.links.some(points) && !wikis(face.path, face.wikilinks ?? []).some(points)) continue
       const records = derived.byFile.get(face.path)
       if (records === undefined) {
         add(headOf(face), "link")
@@ -114,7 +138,7 @@ export const scannedReferrers = (
       }
       for (const located of records) {
         if (!isRegular(located)) continue
-        if (!recordLinks(TEST_CLAIMS, located).some(points)) continue
+        if (!recordLinks(TEST_CLAIMS, located).some(points) && !wikis(located.file, recordWikilinks(located)).some(points)) continue
         add(located, "link")
       }
     }
@@ -123,6 +147,18 @@ export const scannedReferrers = (
     source,
     ways: ["see", "mention", "link"].filter((way) => ways.has(way as Way)) as ReadonlyArray<Way>,
   }))
+}
+
+/** Which file holds each id — the first record to claim it, in path order,
+ *  which is the claim the derivation keeps. */
+const holdersOf = (faces: ReadonlyArray<Face>, derived: Pick<Derived, "byFile">): ReadonlyMap<string, string> => {
+  const holders = new Map<string, string>()
+  for (const face of faces) {
+    for (const located of derived.byFile.get(face.path) ?? []) {
+      if (!holders.has(located.node.id)) holders.set(located.node.id, face.path)
+    }
+  }
+  return holders
 }
 
 const mirrorsOf = (
@@ -152,10 +188,15 @@ const mirrorsOf = (
   return asked
 }
 
-const bodyWays = (face: Face, asked: ReadonlySet<string>): ReadonlyArray<Way> => {
+const bodyWays = (
+  face: Face,
+  asked: ReadonlySet<string>,
+  names: (link: Address) => boolean,
+  wikilinked: ReadonlyArray<Address>,
+): ReadonlyArray<Way> => {
   const ways = new Set<Way>()
-  for (const link of face.links) {
-    if (link.kind === "node" && asked.has(link.id)) ways.add("link")
+  for (const link of [...face.links, ...wikilinked]) {
+    if (names(link)) ways.add("link")
   }
   for (const tag of face.tags) {
     if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
@@ -163,7 +204,12 @@ const bodyWays = (face: Face, asked: ReadonlySet<string>): ReadonlyArray<Way> =>
   return [...ways] as ReadonlyArray<Way>
 }
 
-const recordWays = (located: Located, asked: ReadonlySet<string>): ReadonlyArray<Way> => {
+const recordWays = (
+  located: Located,
+  asked: ReadonlySet<string>,
+  names: (link: Address) => boolean,
+  wikilinked: ReadonlyArray<Address>,
+): ReadonlyArray<Way> => {
   if (!isRegular(located)) return []
   const node = located.node
   const ways = new Set<Way>()
@@ -171,13 +217,14 @@ const recordWays = (located: Located, asked: ReadonlySet<string>): ReadonlyArray
     if (asked.has(id)) ways.add("see")
   }
   for (const address of linksIn(TEST_CLAIMS, located.file, node.title)) {
-    if (address.kind === "node" && asked.has(address.id)) ways.add("link")
+    if (names(address)) ways.add("link")
   }
   if (node.desc !== undefined) {
     for (const address of linksIn(TEST_CLAIMS, located.file, node.desc)) {
-      if (address.kind === "node" && asked.has(address.id)) ways.add("link")
+      if (names(address)) ways.add("link")
     }
   }
+  if (wikilinked.some(names)) ways.add("link")
   for (const tag of tagsIn(node.title)) {
     if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
   }
@@ -332,13 +379,34 @@ const targetsIn = (bodies: ReadonlyArray<string>): ReadonlyArray<string> => [
 const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>
   from[Math.floor(random() * from.length)] as T
 
-/** A markdown link, written the way prose writes one, from the file that holds
- *  it. */
+/** A link, written the way prose writes one, from the file that holds it — a
+ *  markdown link, or a WIKILINK by the name of the same target `share` of the
+ *  time, since a vault written in Obsidian names its files that way and the
+ *  index files those under the name rather than the path. A share of `0` asks
+ *  nothing of `random` for it, so a corpus with no wikilinks is the very
+ *  corpus the generator wrote before it could write one. */
 const linked = (
   random: () => number,
   from: string,
   targets: ReadonlyArray<string>,
-): string => `[see](${spelled(from, pick(random, targets))})`
+  share: number,
+): string => {
+  const target = pick(random, targets)
+  return share > 0 && random() < share ? wikilinked(target) : `[see](${spelled(from, target)})`
+}
+
+/** How often a generated link is a wikilink, unless a caller says. */
+export const WIKILINK_SHARE = 0.35
+
+/** The wikilink that names a target by name: a document without its suffix,
+ *  a heading after a `#`, and a node as the row of the outline every corpus
+ *  holds ({@link WING}), whose first record is `n0x0`. */
+const wikilinked = (target: string): string => {
+  if (target.startsWith("#")) return `[[${WING}#${target.slice(1)}x0]]`
+  const [path, heading] = target.split("#") as [string, string | undefined]
+  const name = fileKind(TEST_CLAIMS, path) === "markdown" ? stemOf(TEST_CLAIMS, path) : path.slice(path.lastIndexOf("/") + 1)
+  return `[[${name}${heading === undefined ? "" : `#${heading}`}]]`
+}
 
 /** One outline with `see` edges, title links and note links: all three
  *  sources read by `recordLinks`, including document links without fragments. */
@@ -347,6 +415,7 @@ const outlineWritten = (
   file: string,
   ids: ReadonlyArray<string>,
   targets: ReadonlyArray<string>,
+  share: number,
 ): string =>
   ids
     .map((id, at) => {
@@ -359,13 +428,13 @@ const outlineWritten = (
       const record: Record<string, unknown> = {
         id,
         ord: `a${at}`,
-        title: random() < 0.3 ? `row ${id} ${linked(random, file, targets)}` : `row ${id}`,
+        title: random() < 0.3 ? `row ${id} ${linked(random, file, targets, share)}` : `row ${id}`,
       }
       if (random() < 0.25) {
         record["title"] = String(record["title"]) + " [document](" + (spelled(file, pick(random, targets).split("#")[0] as string)) + ")"
       }
       if (random() < 0.2) record["see"] = [pick(random, ids)]
-      if (random() < 0.25) record["desc"] = `a note ${linked(random, file, targets)}`
+      if (random() < 0.25) record["desc"] = `a note ${linked(random, file, targets, share)}`
       return JSON.stringify(record)
     })
     .join("\n")
@@ -378,6 +447,7 @@ const bodyOf = (
   file: string,
   headings: ReadonlyArray<string>,
   targets: ReadonlyArray<string>,
+  share: number,
 ): string =>
   [
     `# ${file}`,
@@ -385,10 +455,10 @@ const bodyOf = (
     ...headings.flatMap((heading) => [
       `## ${heading}`,
       "",
-      `prose ${linked(random, file, targets)}`,
+      `prose ${linked(random, file, targets, share)}`,
       "",
     ]),
-    `and ${linked(random, file, targets)} at the end`,
+    `and ${linked(random, file, targets, share)} at the end`,
     "",
   ].join("\n")
 
@@ -404,14 +474,16 @@ const idsFor = (which: number, many: number): ReadonlyArray<string> =>
  *
  * SEEDED, so the corpus is a fixture rather than a lottery, and the seed is a
  * parameter so a caller that wants a second, different vault of the same shape
- * can have one.
+ * can have one. `wikilinks` is the share of links written as wikilinks; at `0`
+ * the corpus is byte for byte the one written before wikilinks existed.
  */
 export const linkyVault = (
-  { outlines = 4, bodies = 4, records = 6, seed = 20260825 }: {
+  { outlines = 4, bodies = 4, records = 6, seed = 20260825, wikilinks = WIKILINK_SHARE }: {
     readonly outlines?: number
     readonly bodies?: number
     readonly records?: number
     readonly seed?: number
+    readonly wikilinks?: number
   } = {},
 ): Revision => {
   const random = seeded(seed)
@@ -424,9 +496,9 @@ export const linkyVault = (
   const vault = new Map<string, string>()
   for (let at = 0; at < outlines; at++) {
     const file = at === 0 ? WING : at === 1 ? TRASH : pathOf(at)
-    vault.set(file, outlineWritten(random, file, idsFor(at, records), targets))
+    vault.set(file, outlineWritten(random, file, idsFor(at, records), targets, wikilinks))
   }
-  for (const file of bodyPaths) vault.set(file, bodyOf(random, file, HEADINGS, targets))
+  for (const file of bodyPaths) vault.set(file, bodyOf(random, file, HEADINGS, targets, wikilinks))
   // A file the set holds the path of and not the bytes.
   vault.set(SHOWN, "")
   return vault
@@ -457,7 +529,13 @@ export const linkyVault = (
  *     byte — which is the edit that moves an entry between two keys AND leaves
  *     every link that named the old path pointing at nothing;
  *   - a FILE DELETED and one ARRIVING BACK, which are the two ends of a key's
- *     life.
+ *     life;
+ *   - a NAMESAKE arriving in a folder — a file by a name another file already
+ *     has, with nothing in it, which is a revision where only the MEMBERSHIP
+ *     moves: every wikilink by that name is read again by the reading, and the
+ *     index must not move at all. Only in a stream that writes wikilinks: with
+ *     `wikilinks` at `0` the arms are the ones the stream had before them, so
+ *     the two corpora a bench compares are one corpus.
  *
  * A REVISION IS THE WHOLE DIRECTORY, and a file the edit did not name is handed
  * on with the very bytes the last one held — which is what lets the caller's
@@ -468,6 +546,7 @@ export const linkyRevisions = (
   first: Revision,
   random: () => number,
   many: number,
+  wikilinks = WIKILINK_SHARE,
 ): ReadonlyArray<Revision> => {
   let held = new Map(first)
   const stream: Array<Revision> = [held]
@@ -478,15 +557,29 @@ export const linkyRevisions = (
   for (let at = 0; at < many; at++) {
     const next = new Map(held)
     const roll = random()
-    if (roll < 0.5) editedRecord(random, next, at, targets)
-    else if (roll < 0.72) editedBody(random, next, at, targets)
-    else if (roll < 0.84) renamed(random, next, away)
-    else if (roll < 0.92) removed(random, next, away)
+    if (roll < 0.5) editedRecord(random, next, at, targets, wikilinks)
+    else if (roll < 0.72) editedBody(random, next, at, targets, wikilinks)
+    else if (wikilinks === 0) {
+      if (roll < 0.84) renamed(random, next, away)
+      else if (roll < 0.92) removed(random, next, away)
+      else restored(random, next, away)
+    } else if (roll < 0.8) renamed(random, next, away)
+    else if (roll < 0.86) namesake(random, next)
+    else if (roll < 0.93) removed(random, next, away)
     else restored(random, next, away)
     held = next
     stream.push(held)
   }
   return stream
+}
+
+/** A file by the NAME of a served body, written into a folder, holding no
+ *  link — so the revision moves the membership and nothing else. */
+const namesake = (random: () => number, vault: Map<string, string>): void => {
+  const bodies = documentsAmong(vault.keys()).filter((file) => !file.includes("/"))
+  if (bodies.length === 0) return
+  const to = `deep/${pick(random, bodies)}`
+  if (!vault.has(to)) vault.set(to, "# namesake\n")
 }
 
 /** One record of one outline, rewritten in one of the four fields that can hold
@@ -496,6 +589,7 @@ const editedRecord = (
   vault: Map<string, string>,
   at: number,
   targets: ReadonlyArray<string>,
+  share: number,
 ): void => {
   const files = outlinesAmong(vault.keys()).filter((file) => (vault.get(file) ?? "") !== "")
   if (files.length === 0) return
@@ -509,9 +603,9 @@ const editedRecord = (
   if ("mirror" in record) return
   const roll = random()
   if (roll < 0.3) record["title"] = `row ${at} plainly retitled`
-  else if (roll < 0.42) record["title"] = `row ${at} ${linked(random, file, targets)}`
+  else if (roll < 0.42) record["title"] = `row ${at} ${linked(random, file, targets, share)}`
   else if (roll < 0.55) {
-    if (random() < 0.8) record["desc"] = `a note ${linked(random, file, targets)}`
+    if (random() < 0.8) record["desc"] = `a note ${linked(random, file, targets, share)}`
     else delete record["desc"]
   } else if (roll < 0.82) {
     if (random() < 0.75) {
@@ -534,6 +628,7 @@ const editedBody = (
   vault: Map<string, string>,
   at: number,
   targets: ReadonlyArray<string>,
+  share: number,
 ): void => {
   const files = documentsAmong(vault.keys())
   if (files.length === 0) return
@@ -544,7 +639,7 @@ const editedBody = (
     ? [...HEADINGS, `extra${at % 3}`]
     : HEADINGS
   const file = pick(random, files)
-  vault.set(file, bodyOf(random, file, headings, targets))
+  vault.set(file, bodyOf(random, file, headings, targets, share))
 }
 
 /** A file RENAMED: taken from one path and written at another, byte for byte.

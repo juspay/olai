@@ -45,12 +45,19 @@
  * notes, and `.md` bodies with links and headings in their prose. Size it with
  * OLAI_BENCH_OUTLINES / OLAI_BENCH_BODIES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_PAGES / OLAI_BENCH_EDITS.
+ *
+ * TWO CORPORA, one leg each: one whose links are all standard — byte for byte
+ * the corpus the generator wrote before wikilinks existed, so its figures sit
+ * beside a run of this bench from before them — and one where a third of the
+ * links are wikilinks. Each prints the three reads a page makes — a document
+ * somebody points at, a document nobody does, and a ROW (the node arm) — the
+ * two write costs, and how many edits handed the name index on untouched.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { addressOf } from "./address.ts"
+import { type Address, addressOf } from "./address.ts"
 import { referencesOf } from "./backlinks.ts"
 import { alternating, median, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
-import { type Pointing, pointingOf, repointed } from "./pointing.ts"
+import { pointingOf, repointed } from "./pointing.ts"
 import {
   documentsAmong,
   facesIn,
@@ -58,6 +65,7 @@ import {
   linkyVault,
   type Revision,
   scannedReferrers,
+  WIKILINK_SHARE,
 } from "./pointing.testlib.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble, type OutlineSet } from "./set.ts"
@@ -70,131 +78,114 @@ const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
  *  node is about, since the walk was paid once per page per revision. */
 const PAGES = Number(process.env["OLAI_BENCH_PAGES"] ?? 10)
 const EDITS = Number(process.env["OLAI_BENCH_EDITS"] ?? 20)
-
-// ── the vault, and the stream of edits over it ─────────────────────────
-
-const vault = linkyVault({ outlines: OUTLINES, bodies: BODIES, records: RECORDS })
-const random = seeded(20260825)
-const stream = linkyRevisions(vault, random, EDITS)
-
-/** Every revision, decoded the way a probe decodes one: only what MOVED is
- *  re-read, so every other file is the object the last revision held — which is
- *  the property the carry is about, and a harness that re-decoded the directory
- *  each time would measure a carry that can never happen. */
-const readings: Array<{ readonly set: OutlineSet; readonly at: Reading }> = []
-{
-  const decoded = decodedVault(new Map())
-  let held: Revision = new Map()
-  let previous: Reading | null = null
-  for (const revision of stream) {
-    for (const file of held.keys()) if (!revision.has(file)) decoded.delete(file)
-    const moved = new Map<string, string>()
-    for (const [file, text] of revision) if (held.get(file) !== text) moved.set(file, text)
-    for (const [file, one] of decodedVault(moved)) decoded.set(file, one)
-    held = revision
-    const set = assemble(TEST_CLAIMS, decoded)
-    // Through the format's own door, so the index a revision carries is the one
-    // production carries. The DELTA is not offered: this leg times the two
-    // index arms directly below, and a reading built here only has to be a real
-    // one to time them against.
-    previous = reading(TEST_CLAIMS, set)
-    readings.push({ set, at: previous })
-  }
-}
-
-const first = readings[0] as { readonly set: OutlineSet; readonly at: Reading }
-const faces = facesIn(first.set)
-
-/** The pages a reader has open — document addresses drawn evenly across the
- *  directory rather than off the front of it, so the figure is not about the
- *  files that happen to sort first. */
-const bodies = documentsAmong(first.set.documents.map((one) => one.path))
-const open = bodies
-  .filter((_, which) => which % Math.max(1, Math.floor(bodies.length / PAGES)) === 0)
-  .slice(0, PAGES)
-  .map((path) => addressOf(TEST_CLAIMS, path, null)!)
-
-/** …and a page NOTHING points at, which is most pages in most directories: a
- *  `.md` the vault does not hold, asked for by name. The scan still opens every
- *  file to find that out. */
-const unpointed = addressOf(TEST_CLAIMS, "nobody-points-here.md", null)!
-
-// ── the arms ───────────────────────────────────────────────────────────
-
-const readIndex = (at: Reading, which = open): number =>
-  which.reduce((held, address) => held + referencesOf(at, address).length, 0)
-
-const readScan = (at: Reading, which = open): number =>
-  which.reduce((held, address) => held + scannedReferrers(address, faces, at.derived).length, 0)
-
-/** The answers are compared before anything is timed: two arms that disagree
- *  are not two arms of one comparison. */
-const drawn = readIndex(first.at)
-if (drawn !== readScan(first.at)) {
-  throw new Error("the two read arms disagree, so there is nothing to compare")
-}
-
 const ROUNDS = 9
 
-const [scan, index] = alternating(
-  [() => readScan(first.at), () => readIndex(first.at)],
-  ROUNDS,
-)
-const [scanCold, indexCold] = alternating(
-  [
-    () => readScan(first.at, [unpointed]),
-    () => readIndex(first.at, [unpointed]),
-  ],
-  ROUNDS,
-)
+/** Every pick spread evenly over a list rather than taken off the front of it,
+ *  so a figure is not about the files that happen to sort first. */
+const spread = <T>(all: ReadonlyArray<T>): ReadonlyArray<T> =>
+  all.filter((_, which) => which % Math.max(1, Math.floor(all.length / PAGES)) === 0).slice(0, PAGES)
 
-/** The write half, over the whole stream: every consecutive pair carried, and
- *  the same revision rebuilt from scratch. A median over the stream rather than
- *  one edit, because which edit it is decides everything — a body rewritten is
- *  one file's links re-filed, a file renamed is two. */
-const pairs = readings.slice(1).map((one, at) => ({
-  was: (readings[at] as { readonly set: OutlineSet }).set,
-  now: one.set,
-  before: (readings[at] as { readonly at: Reading }).at.pointing,
-}))
-const carries = pairs.map((pair) => timed(() => repointed(pair.before, TEST_CLAIMS, pair.was.documents, pair.now.documents)))
-const rebuilds = pairs.map((pair) => timed(() => pointingOf(TEST_CLAIMS, pair.now.documents)))
+/** One corpus, measured: `wikilinks` is the share of its links written as
+ *  wikilinks. */
+const leg = (label: string, wikilinks: number): void => {
+  const vault = linkyVault({ outlines: OUTLINES, bodies: BODIES, records: RECORDS, wikilinks })
+  const stream = linkyRevisions(vault, seeded(20260825), EDITS, wikilinks)
 
-/** …and how many of those edits handed the index straight on, uncloned. */
-const carried = pairs.filter((pair) =>
-  repointed(pair.before, TEST_CLAIMS, pair.was.documents, pair.now.documents) === pair.before
-).length
+  // Every revision, decoded the way a probe decodes one: only what MOVED is
+  // re-read, so every other file is the object the last revision held — which
+  // is the property the carry is about. Each reading FOLLOWS the one before,
+  // through the format's own door, so the name index a revision holds is the
+  // one production hands on.
+  const readings: Array<{ readonly set: OutlineSet; readonly at: Reading }> = []
+  {
+    const decoded = decodedVault(new Map())
+    let held: Revision = new Map()
+    let previous: Reading | undefined
+    for (const revision of stream) {
+      for (const file of held.keys()) if (!revision.has(file)) decoded.delete(file)
+      const moved = new Map<string, string>()
+      for (const [file, text] of revision) if (held.get(file) !== text) moved.set(file, text)
+      for (const [file, one] of decodedVault(moved)) decoded.set(file, one)
+      held = revision
+      const set = assemble(TEST_CLAIMS, decoded)
+      previous = reading(TEST_CLAIMS, set, previous === undefined ? undefined : { read: previous, delta: { upserts: [], removes: [] } })
+      readings.push({ set, at: previous })
+    }
+  }
 
-/** How thickly the corpus points at its own bodies — printed because the read
- *  ratio is a function of it: what this index takes off a read is the walk of
- *  every OTHER file, and what is left is the walk of the ones that really point
- *  here. A directory whose pages have a handful of referrers each sees the
- *  `unpointed` row; one whose every page has dozens sees the `read` row. */
-const density = bodies
-  .map((path) => referencesOf(first.at, addressOf(TEST_CLAIMS, path, null)!).length)
-  .sort((one, other) => one - other)
+  const first = readings[0] as { readonly set: OutlineSet; readonly at: Reading }
+  const faces = facesIn(first.set)
 
-console.log(
-  `pointing.bench — ${first.set.documents.length} files ` +
-    `(${OUTLINES} outlines × ${RECORDS} records, ${BODIES} bodies), ` +
-    `${first.at.pointing.size} keys, ${PAGES} pages open, ${drawn} referrers drawn`,
-)
-console.log(
-  `  referrers per body: min ${density[0]}, median ${
-    density[Math.floor(density.length / 2)]
-  }, max ${density[density.length - 1]}`,
-)
+  /** The pages a reader has open — document addresses, and rows. */
+  const bodies = documentsAmong(first.set.documents.map((one) => one.path))
+  const open = spread(bodies).map((path) => addressOf(TEST_CLAIMS, path, null)!)
+  const rows = spread([...first.at.derived.byId.keys()]).map((id) => addressOf(TEST_CLAIMS, null, id)!)
+  /** …and a page NOTHING points at, which is most pages in most directories:
+   *  a `.md` the vault does not hold, asked for by name. The scan still opens
+   *  every file to find that out. */
+  const unpointed = [addressOf(TEST_CLAIMS, "nobody-points-here.md", null)!]
+
+  const readIndex = (at: Reading, which: ReadonlyArray<Address>): number =>
+    which.reduce((held, address) => held + referencesOf(at, address).length, 0)
+  const readScan = (at: Reading, which: ReadonlyArray<Address>): number =>
+    which.reduce((held, address) => held + scannedReferrers(address, faces, at.derived, at.names.served).length, 0)
+
+  // The answers are compared before anything is timed: two arms that disagree
+  // are not two arms of one comparison.
+  for (const which of [open, rows, unpointed]) {
+    if (readIndex(first.at, which) !== readScan(first.at, which)) {
+      throw new Error(`${label}: the two read arms disagree, so there is nothing to compare`)
+    }
+  }
+  const arms = (which: ReadonlyArray<Address>) =>
+    alternating([() => readScan(first.at, which), () => readIndex(first.at, which)], ROUNDS)
+  const [scan, index] = arms(open)
+  const [scanCold, indexCold] = arms(unpointed)
+  const [scanRow, indexRow] = arms(rows)
+
+  // The write half, over the whole stream: every consecutive pair carried, and
+  // the same revision rebuilt from scratch.
+  const pairs = readings.slice(1).map((one, at) => ({
+    was: (readings[at] as { readonly set: OutlineSet }).set,
+    now: one.set,
+    before: (readings[at] as { readonly at: Reading }).at,
+    after: one.at,
+  }))
+  const carries = pairs.map((pair) => timed(() => repointed(pair.before.pointing, TEST_CLAIMS, pair.was.documents, pair.now.documents)))
+  const rebuilds = pairs.map((pair) => timed(() => pointingOf(TEST_CLAIMS, pair.now.documents)))
+  const carried = pairs.filter((pair) =>
+    repointed(pair.before.pointing, TEST_CLAIMS, pair.was.documents, pair.now.documents) === pair.before.pointing
+  ).length
+  const named = pairs.filter((pair) => pair.after.names === pair.before.names).length
+
+  const density = bodies
+    .map((path) => referencesOf(first.at, addressOf(TEST_CLAIMS, path, null)!).length)
+    .sort((one, other) => one - other)
+
+  console.log(
+    `pointing.bench, ${label} — ${first.set.documents.length} files ` +
+      `(${OUTLINES} outlines × ${RECORDS} records, ${BODIES} bodies), ` +
+      `${first.at.pointing.size} keys, ${PAGES} pages and ${rows.length} rows open`,
+  )
+  console.log(
+    `  referrers per body: min ${density[0]}, median ${
+      density[Math.floor(density.length / 2)]
+    }, max ${density[density.length - 1]}`,
+  )
+  console.log(`  read              scan ${scan.toFixed(3)}ms   index ${index.toFixed(3)}ms`)
+  console.log(`  read (unpointed)  scan ${scanCold.toFixed(3)}ms   index ${indexCold.toFixed(3)}ms`)
+  console.log(`  read (rows)       scan ${scanRow.toFixed(3)}ms   index ${indexRow.toFixed(3)}ms`)
+  console.log(
+    `  write             rebuild ${median(rebuilds).toFixed(3)}ms   carry ${
+      median(carries).toFixed(3)
+    }ms   (${carried} of ${pairs.length} edits carried uncloned, ${named} handed the name index on)`,
+  )
+  console.log(timesSaid("carry", carries, 8))
+  console.log(timesSaid("rebuild", rebuilds, 8))
+  console.log("")
+}
+
 console.log(runtimeSaid())
 console.log("")
-console.log(`  read              scan ${scan.toFixed(3)}ms   index ${index.toFixed(3)}ms`)
-console.log(
-  `  read (unpointed)  scan ${scanCold.toFixed(3)}ms   index ${indexCold.toFixed(3)}ms`,
-)
-console.log(
-  `  write             rebuild ${median(rebuilds).toFixed(3)}ms   carry ${
-    median(carries).toFixed(3)
-  }ms   (${carried} of ${pairs.length} edits carried uncloned)`,
-)
-console.log("")
-console.log(timesSaid("carry", carries, 8))
-console.log(timesSaid("rebuild", rebuilds, 8))
+leg("no wikilinks", 0)
+leg("wikilinks", WIKILINK_SHARE)

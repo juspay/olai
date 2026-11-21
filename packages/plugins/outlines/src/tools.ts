@@ -145,14 +145,14 @@ export const tools: ReadonlyArray<Tool> = [
   write(
     "title",
     "Retitle a node",
-    "Replace a node's title. Inline tags live in the title — `#topic` and `@person` — so this is also how a tag is added or removed. A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served.",
+    "Replace a node's title. Inline tags live in the title — `#topic` and `@person` — so this is also how a tag is added or removed. A relative link resolves beside the file this node lives in, not beside the reader; a wikilink, `[[name]]`, finds the file of that name anywhere in the directory (a name with no suffix finds a `.md` only, so an outline is `[[house.olai]]`). The answer names any link that lands on nothing served, with the nearest names.",
     TitleRequest,
     { op: "title" },
   ),
   write(
     "desc",
     "Write a note",
-    "Replace a node's note (markdown, stored verbatim). `null` removes it. A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served.",
+    "Replace a node's note (markdown, stored verbatim). `null` removes it. A relative link resolves beside the file this node lives in, not beside the reader; a wikilink, `[[name]]`, finds the file of that name anywhere in the directory. The answer names any link that lands on nothing served, with the nearest names.",
     DescRequest,
     { op: "desc" },
   ),

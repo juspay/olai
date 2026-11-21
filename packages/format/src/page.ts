@@ -419,7 +419,7 @@ export const pageOf = (
   request: PageRequest,
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
-  const served = new Set(at.set.documents.map(face => face.path))
+  const served = at.names.served
   const shows = shownOf(at, request)
   // THE DOORS FIRST, because the names table spends them: a value that turned
   // out to name a node is an id this page points at, and the chip drawing it
@@ -432,7 +432,7 @@ export const pageOf = (
   const warningRows = [...narrowableIn(shows)]
   if (shows.kind === "node" && shows.zoomed.kind === "node") warningRows.push(shows.zoomed.shows)
   for (const located of warningRows) {
-    const links = deadLinksOf(located, served)
+    const links = deadLinksOf(at.names, located)
     if (links.length > 0) deadLinks[located.node.id] = links
   }
   return {

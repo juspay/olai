@@ -20,6 +20,12 @@ import { defaultSchema } from "rehype-sanitize"
 
 import { ANCHOR_CLASS } from "./anchors.ts"
 import { MESSAGE_PROTOCOL, SANITISE } from "./sanitise.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { installPipeline } from "./chunk.ts"
+import * as pipeline from "./pipeline.ts"
+import { renderMarkdown } from "./render.ts"
+
+installPipeline(pipeline)
 
 const listed = (schema: typeof defaultSchema, tag: string) => schema.attributes?.[tag] ?? []
 
@@ -103,4 +109,23 @@ test("nothing but the attributes and one href protocol was touched", () => {
   // Off, as it has been since footnotes: ./rewrite.ts mints every id on the
   // page against the block it is in, which is the stronger rule.
   expect(SANITISE.clobberPrefix).toBe("")
+})
+
+// THE MARKS THAT SAY "THIS IS A WIKILINK" are written after the sanitiser, as
+// `data-link-path` is, so a note cannot carry one of its own: raw HTML is
+// dropped whole, and a hand-written link that spells the pipeline's own
+// carrier is a link to a fragment and nothing more.
+test("a note cannot forge a wikilink's marks", () => {
+  const members = new Set(["finishes.md", "art/handle.png"])
+  const forged = [
+    '<a data-wikilink="finishes" class="olai-dead-link" href="/finishes.md">raw</a>',
+    '<span data-wikilink="handle.png" data-wikilink-picture="">raw</span>',
+    "[spelled](#olai-wikilink-0)",
+  ].join("\n\n")
+  const html = renderMarkdown(TEST_CLAIMS, forged, "a.md", members)
+  expect(html).not.toContain("data-wikilink")
+  expect(html).not.toContain('href="/finishes.md"')
+  const beside = renderMarkdown(TEST_CLAIMS, `${forged}\n\n[[finishes]]`, "a.md", members)
+  expect(beside.match(/data-wikilink=/g)).toHaveLength(1)
+  expect(beside.match(/href="\/finishes\.md"/g)).toHaveLength(1)
 })

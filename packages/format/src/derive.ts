@@ -57,6 +57,7 @@ import {
 import { type Dated, dateInto } from "./occasion.ts"
 import type { Read } from "./overlay.ts"
 import { byPath } from "./paths.ts"
+import { type Wikilink, wikilinkSpans } from "./documents.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
  *  of `./node.ts`'s {@link MARKS}, and it lives beside that list because it is
@@ -2461,10 +2462,21 @@ export const tagOpensAt = (text: string, at: number): boolean =>
 export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   const parts: Array<TitlePart> = []
   const tags = titleTagRe()
+  // A WIKILINK'S `#heading` IS NOT A TAG: `[[kitchen-sink#Tables]]` names a
+  // heading of another note, so a match that starts inside a link is stepped
+  // over, for the index, the search fold and the drawn title alike.
+  const links = wikilinkSpans(title)
+  let link = 0
   let at = 0
   let match: RegExpExecArray | null
   while ((match = tags.exec(title)) !== null) {
     const start = match.index
+    while (link < links.length && (links[link] as Wikilink).end <= start) link++
+    const inside = links[link]
+    if (inside !== undefined && inside.start <= start) {
+      tags.lastIndex = inside.end
+      continue
+    }
     if (start > at) parts.push({ kind: "text", text: title.slice(at, start) })
     // Split by {@link tagPart}, which is where this file says the sigil sits.
     // A match IS a written tag, so the walk that finds one and the reader that

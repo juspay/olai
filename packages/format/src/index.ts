@@ -299,7 +299,25 @@ export {
    *  itself whether it serves the answer. */
   pathedOf,
   pictureOf,
+  /** Every `[[…]]` and `![[…]]` a piece of prose writes, with where it sits. */
+  wikilinksIn,
+  /** The text with each wikilink as the words it shows. */
+  wikilinksShown,
+  type Wikilink,
 } from "./documents.ts"
+export {
+  namesIn,
+  namesOf,
+  type Names,
+  wikilinkAddress,
+  wikilinkFallback,
+  wikilinkFor,
+  wikilinkOffers,
+  type WikilinkOffer,
+  wikilinkPath,
+  wikilinkPicture,
+  wikilinkSuggestions,
+} from "./wikilinks.ts"
 export {
   INBOX,
   inboxIn,

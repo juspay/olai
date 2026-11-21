@@ -161,3 +161,11 @@ test("a heading whose text is a link is where the two readings part", () => {
   expect(drawn(body)).toEqual(["install"])
   expect(slugsIn(body).map(String)).toEqual(["installsetupmd"])
 })
+
+/** …and a WIKILINK is not one of them: it needs no parser, the format holds
+ *  the scan the page draws it by, so both read it as the words it shows. */
+test("a heading that holds a wikilink is read as the words it shows, by both", () => {
+  const body = ["## See [[finishes|the finishes]]", "", "## About [[finishes#Doors]]"].join("\n")
+  expect(drawn(body)).toEqual(slugsIn(body).map(String))
+  expect(drawn(body)).toEqual(["see-the-finishes", "about-finishes--doors"])
+})

@@ -718,7 +718,7 @@ export const detail = (
   at: Reading,
   id: string,
   fields?: ReadonlyArray<string> | undefined,
-  served?: ReadonlySet<string>,
+  deadLinks = false,
 ): Result.Result<Detail | null, OpFailure> => {
   const derived = at.derived
   let wants: Wants | undefined
@@ -756,9 +756,8 @@ export const detail = (
     // MISSING TARGETS, READ OFF THE SAME PROSE — a write that names nothing
     // served is a finding a reader reports, and `outlines_read` answers it
     // exactly where `outlines_desc` and the subtree rows do (dead-links
-    // feature). The set is asked HERE rather than carried: `served` is the
-    // caller's copy of the directory, which is the reading's own.
-    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(located, served))),
+    // feature), against the reading's own membership (`Reading.names`).
+    ...(deadLinks ? deadLinkFields(deadLinksOf(at.names, located)) : {}),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
@@ -1087,13 +1086,12 @@ export const subtree = (
     }
   }
 
-  const served = new Set(at.set.documents.map(one => one.path))
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
-      ...deadLinkFields(deadLinksOf(located, served)),
+      ...deadLinkFields(deadLinksOf(at.names, located)),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
@@ -1118,7 +1116,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
-      ...deadLinkFields(deadLinksOf(located, served)),
+      ...deadLinkFields(deadLinksOf(at.names, located)),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
@@ -1324,10 +1322,10 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
  * file, then read it.
  */
 export const document = (
-  claims: Claims,
-  set: OutlineSet,
+  at: Reading,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
+  const { claims, set } = at
   const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
@@ -1336,5 +1334,13 @@ export const document = (
   }
   const broken = brokenIn(set, file)
   if (broken !== undefined) return Result.fail(notLoaded(claims, file, broken))
-  return Result.succeed({ file, text: entry.body, ...deadLinkFields(deadLinksIn(file, proseIn(entry.body), new Set(set.documents.map(one => one.path)))) })
+  // WHO REFERS TO IT, as the document's page draws it under **Referenced by**
+  // — standard links and wikilinks alike — omitted when nothing does.
+  const referencedBy = referencesOf(at, { kind: "document", path: entry.path })
+  return Result.succeed({
+    file,
+    text: entry.body,
+    ...deadLinkFields(deadLinksIn(at.names, file, proseIn(entry.body))),
+    ...(referencedBy.length === 0 ? {} : { referencedBy }),
+  })
 }

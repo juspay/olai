@@ -90,6 +90,7 @@ import type { Root } from "hast"
 import { AUTOLINK } from "./anchors.ts"
 import { SANITISE } from "./sanitise.ts"
 import { rehypeSlugs } from "./slugs.ts"
+import { wikilinked } from "./wikilinks.ts"
 
 /**
  * The grammars a fence may name: `lowlight`'s common set, plus Nix.
@@ -168,8 +169,12 @@ export interface Pipeline {
  * wrong: a loss check reading a different string from the render's would call
  * every spaced destination a lost link. Every parse below goes through this,
  * so two readings of one source cannot be readings of two strings.
+ *
+ * A WIKILINK is the second thing it rewrites: `[[name|words]]` is handed over
+ * as the markdown link `./wikilinks.ts` writes for it, so the loss check of a
+ * title counts the words it shows rather than its brackets and its name.
  */
-const asRead = (source: string): string => bracketSpacedLinks(source)
+const asRead = (source: string): string => bracketSpacedLinks(wikilinked(source))
 
 export const treeOf = (source: string): Root =>
   pipeline.runSync(pipeline.parse(asRead(source))) as Root

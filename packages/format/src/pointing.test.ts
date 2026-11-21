@@ -54,6 +54,7 @@ import {
 import { decodedVault, vaultAt } from "./scope.testlib.ts"
 import { assemble, nodesIn, type OutlineSet } from "./set.ts"
 import { type Reading, reading } from "./validate.ts"
+import { type Names, namesOf } from "./wikilinks.ts"
 
 /** What one replay found. Equality on the two lists is the gate; every other
  *  field is a claim that the gate was asked anything at all. */
@@ -75,6 +76,9 @@ interface Report {
   readonly carried: number
   /** Keys the index ever held, at its widest — the other non-vacuity floor. */
   readonly keys: number
+  /** Revisions that handed the NAME INDEX on as the very object the last one
+   *  held — every one that brought no path in and took none away. */
+  readonly named: number
 }
 
 /**
@@ -96,6 +100,7 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
   let hits = 0
   let carried = 0
   let keys = 0
+  let named = 0
   for (const revision of revisions) {
     revisionsSeen++
     const changed: Array<string> = []
@@ -132,12 +137,27 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
       stale.push(`revision ${revisionsSeen}: ${storyOf(at.pointing, rebuilt)}`)
     }
 
+    // (3) THE NAME INDEX: handed on, the same object, exactly when no path
+    // arrived or left, and holding what a fresh build of these paths holds.
+    const paths = set.documents.map((one) => one.path)
+    if (!sameNames(at.names, namesOf(TEST_CLAIMS, paths))) {
+      stale.push(`revision ${revisionsSeen}: the name index is not what a fresh build holds`)
+    }
+    if (previous !== null) {
+      const was = previous.set.documents.map((one) => one.path)
+      const same = was.length === paths.length && was.every((path, at) => path === paths[at])
+      if (same !== (at.names === previous.names)) {
+        stale.push(`revision ${revisionsSeen}: the name index was ${same ? "rebuilt though no path moved" : "handed on though a path moved"}`)
+      }
+      if (same) named++
+    }
+
     // (1) THE ANSWERS: the index arm against the walk arm, per address.
     const faces = facesIn(set)
     for (const address of every === 1 ? addressesIn(set) : sampledAddresses(set, every)) {
       asked++
       const found = referencesOf(at, address)
-      const walked = scannedReferrers(address, faces, at.derived)
+      const walked = scannedReferrers(address, faces, at.derived, new Set(paths))
       if (found.length > 0) hits++
       if (!sameReferrers(found, walked)) {
         divergences.push(
@@ -148,7 +168,7 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
     }
     previous = at
   }
-  return { divergences, stale, revisions: revisionsSeen, asked, hits, carried, keys }
+  return { divergences, stale, revisions: revisionsSeen, asked, hits, carried, keys, named }
 }
 
 /** Two answers, compared the way a page would tell them apart: which record or
@@ -171,6 +191,18 @@ const sameReferrers = (
 
 const sameFaceValue = (one: unknown, other: unknown): boolean =>
   JSON.stringify(one) === JSON.stringify(other)
+
+/** Two name indexes, compared for what they HOLD — every table, whole. */
+const sameNames = (one: Names, other: Names): boolean => {
+  const said = (names: Names): string =>
+    JSON.stringify([
+      [...names.served].sort(),
+      ...[names.documents, names.everything, names.stems, names.keys].map((table) =>
+        [...table].sort(([a], [b]) => (a < b ? -1 : 1))
+      ),
+    ])
+  return one.claims === other.claims && said(one) === said(other)
+}
 
 /**
  * The two indexes, compared for what they HOLD.
@@ -234,6 +266,9 @@ test("the index answers what the scan answered, over generated corpora", () => {
   // mean every revision pays for the whole directory.
   expect(report.carried).toBeGreaterThan(15)
   expect(report.carried).toBeLessThan(REVISIONS)
+  // …and so was the name index, on every revision whose paths stood still.
+  expect(report.named).toBeGreaterThan(150)
+  expect(report.named).toBeLessThan(REVISIONS)
 })
 
 test("…and over this repository's own website/docs/, edited", () => {
@@ -390,4 +425,29 @@ test("a body write that moves a link re-files it, and an emptied key goes away",
   // The key is GONE rather than holding an empty list, which is what a rebuild
   // would have and is the line another copy of this gets wrong.
   expect(after.pointing.has("one.md")).toBe(false)
+})
+
+// A WIKILINK IS FILED BY ITS NAME, so a file arriving that no link writes
+// moves nothing in the index — and still re-aims the link, because the reading
+// resolves it against the revision's own membership.
+test("a namesake arriving moves no key, and the link now finds the nearer file", () => {
+  const before = readingOfVault({
+    "rooms/Note.md": "# Rooms\n",
+    "garden/beds.md": "# Beds\n\n[[Note]]\n",
+  })
+  expect(pointedAt(before, "rooms/Note.md")).toBe("garden/beds.md")
+  const files = decodedVault(
+    new Map([
+      ["rooms/Note.md", "# Rooms\n"],
+      ["garden/Note.md", "# Garden\n"],
+      ["garden/beds.md", "# Beds\n\n[[Note]]\n"],
+    ]),
+  )
+  const after = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, files), {
+    read: before,
+    delta: { upserts: [], removes: [] },
+  })
+  expect(after.pointing).toBe(before.pointing)
+  expect(pointedAt(after, "rooms/Note.md")).toBe("")
+  expect(pointedAt(after, "garden/Note.md")).toBe("garden/beds.md")
 })

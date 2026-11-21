@@ -52,6 +52,7 @@ import {
 } from "./narrowing.ts"
 import { type PageRequest, type Shown, shownOf } from "./page.ts"
 import { pointingOf } from "./pointing.ts"
+import { namesOf } from "./wikilinks.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
 
@@ -104,6 +105,7 @@ const READING: Reading = {
   set: { documents: FACES, broken: READABLE } as unknown as OutlineSet,
   derived: SET,
   pointing: pointingOf(TEST_CLAIMS, FACES as unknown as ReadonlyArray<Document>),
+  names: namesOf(TEST_CLAIMS, FACES.map((face) => face.path)),
 }
 
 const at = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null)! })

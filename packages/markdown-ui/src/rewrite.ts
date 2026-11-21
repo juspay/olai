@@ -55,6 +55,7 @@ import {
   printAddress,
   bodyKind,
   pictureOf,
+  type Wikilink,
 } from "@olai/format"
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
@@ -62,6 +63,7 @@ import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
+import { carriersOf, drawingOf, drawnWikilink, sizeOf, UNDRAWN, type Written } from "./wikilinks.ts"
 
 
 export interface Rewrite {
@@ -74,15 +76,23 @@ export interface Rewrite {
   readonly members?: ReadonlySet<string>
   /** This block's id namespace. */
   readonly ids: string
+  /** The text this tree was parsed from, which is where a wikilink's carrier
+   *  is read back ({@link ./wikilinks.ts}). Without it no link is one. */
+  readonly source?: string
+  /** A title: one line high, so an embed of a picture draws as a link. */
+  readonly inline?: boolean
 }
 
 /** Rewrite the tree in place, and say what headings it turned out to have —
  *  in document order, which is the order a table of contents is read in. */
 export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
   const headings: Heading[] = []
-  walk(tree, options, headings, headingRoute(options.claims, options.from), { drawn: 0 })
+  const carried = options.source === undefined ? NO_CARRIER : carriersOf(options.source)
+  walk(tree, options, headings, headingRoute(options.claims, options.from), { drawn: 0 }, carried)
   return headings
 }
+
+const NO_CARRIER = (): undefined => undefined
 
 /** The app route a heading of this block stands for, by its authored slug — or
  *  `undefined` where the slug names no heading of a document. */
@@ -110,20 +120,26 @@ const walk = (
   headings: Heading[],
   route: HeadingRoute | null,
   pictures: { drawn: number },
+  carried: (href: string) => Wikilink | undefined,
 ): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
     if (child.tagName === "img") resolvePicture(child, options.claims, options.from, pictures)
     if (child.tagName === "a") {
-      // Document first: a relative `.md` becomes a page address and must not then
-      // be treated as something that leaves the app.
-      resolveDocument(child, options.claims, options.from, options.members)
-      openExternal(child)
+      const href = child.properties?.["href"]
+      const link = typeof href === "string" ? carried(href) : undefined
+      if (link !== undefined) drawWikilink(child, link, options, pictures)
+      else {
+        // Document first: a relative `.md` becomes a page address and must not then
+        // be treated as something that leaves the app.
+        resolveDocument(child, options.claims, options.from, options.members)
+        openExternal(child)
+      }
     }
     // The slug as authored, before `mint` moves it into this block's namespace.
     const slug = child.properties?.["id"]
     mint(child, options.ids, route)
-    walk(child, options, headings, route, pictures)
+    walk(child, options, headings, route, pictures, carried)
     // AFTER the subtree, so what a heading reads as is what is left of it.
     const heading = headingOf(child)
     if (heading === null) continue
@@ -340,11 +356,29 @@ const openExternal = (element: Element): void => {
  *  leave the origin the way a pasted web address does, and none are stamped. */
 const isHttp = (href: string): boolean => /^https?:\/\//i.test(href)
 
-/** What an undrawn picture looks like: a quiet inline box, in the same family
- *  as the app's other readouts — visible enough to be seen where the picture
- *  was, quiet enough that a page of them is still a page of text. */
-const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " +
-  "font-mono text-xs text-muted"
+/**
+ * A wikilink, drawn from its carrier: the link to the page its name finds,
+ * marked dead when the membership in hand finds nothing — or, for a picture
+ * embed, the picture, or the words saying why there is none. The marks are
+ * written HERE, after the sanitiser, so a note cannot carry one of its own.
+ */
+const drawWikilink = (element: Element, link: Wikilink, options: Rewrite, pictures: { drawn: number }): void => {
+  const size = link.embed ? sizeOf(link.alias) : undefined
+  const written: Written = { name: link.name, embed: link.embed, ...(size === undefined ? {} : { size }) }
+  const drawn = drawnWikilink(options.claims, options.members, options.from, written, options.inline === true)
+  const drawing = drawingOf(drawn, written, drawn.kind === "link" ? textIn(element).trim() : "")
+  const { class: classes, ...attributes } = drawing.attributes
+  element.tagName = drawing.tag
+  element.properties = { ...attributes, ...(classes === undefined ? {} : { className: classes.split(" ") }) }
+  if (drawing.tag === "img") {
+    // The same rule a `![](…)` keeps: the first picture of a block is not
+    // deferred, every one after it is.
+    element.properties["loading"] = pictures.drawn++ === 0 ? "eager" : "lazy"
+    element.children = []
+  } else if (drawing.text !== undefined) {
+    element.children = drawing.text === "" ? [] : [{ type: "text", value: drawing.text }]
+  }
+}
 
 /** Move this element's id, and any link into this block, into the block's own
  *  namespace. Applied to every id rather than to the footnote ids alone: the

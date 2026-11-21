@@ -1,6 +1,13 @@
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-import { deadLinksIn, deadLinksOf, relativeFrom } from "./dead-links.ts"
+import { deadLinksIn as deadLinksWith, deadLinksOf as deadLinksOfWith, deadLinkSaid, relativeFrom } from "./dead-links.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
+import type { Located } from "./node.ts"
+import { namesOf } from "./wikilinks.ts"
+
+const deadLinksIn = (from: string, text: string | ReadonlyArray<string>, served: ReadonlySet<string>) =>
+  deadLinksWith(namesOf(TEST_CLAIMS, served), from, text)
+const deadLinksOf = (at: Located, served: ReadonlySet<string>) => deadLinksOfWith(namesOf(TEST_CLAIMS, served), at)
 
 const served = new Set(["notes/nix-flakes.md", "other/nix-flakes.md", "the brief.md"])
 test("missing links name their resolved path and all basename matches beside the writer", () => {
@@ -35,4 +42,50 @@ test("directory targets are not missing files and URL suffixes do not change mem
   expect(deadLinksIn("a.olai", "[x](.) [x](..) [x](notes/) [x](?v=1) [x](%2E%2E) [x](notes%2F)", served)).toEqual([])
   expect(deadLinksIn("a.olai", "[x](the%20brief.md?v=1#heading)", served)).toEqual([])
   expect(deadLinksIn("a.olai", "[x](missing.md?v=1#heading)", served)[0]?.resolved).toBe("missing.md")
+})
+
+// ── wikilinks ──────────────────────────────────────────────────────────
+
+const named = new Set(["finishes.md", "notes/palette.md", "house.olai", "art/handle.png"])
+
+test("an unresolved wikilink is reported by name, with the nearest names", () => {
+  expect(deadLinksIn("notes/a.md", "see [[finsihes]]", named)).toEqual([
+    { written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] },
+  ])
+})
+
+test("a bare name that only an outline has is offered with its suffix", () => {
+  expect(deadLinksIn("notes/a.md", "[[house]] and [[house#kitchen]]", named)).toEqual([
+    { written: "[[house]]", resolved: "house", suggest: ["[[house.olai]]"] },
+    { written: "[[house#kitchen]]", resolved: "house", suggest: ["[[house.olai]]"] },
+  ])
+})
+
+test("a resolved wikilink is not dead, wherever its file is", () => {
+  expect(deadLinksIn("notes/a.md", "[[finishes]] [[palette#Swatches]] ![[handle.png]] [[house.olai#kitchen]] [[#Here]]", named)).toEqual([])
+})
+
+test("a wikilink in code is not a link at all", () => {
+  expect(deadLinksIn("notes/a.md", "`[[nowhere]]`\n\n```\n[[nowhere]]\n```\n\\[[nowhere]]", named)).toEqual([])
+})
+
+test("a missing picture embed is dead, written as an embed", () => {
+  expect(deadLinksIn("notes/a.md", "![[gone.png]]", named).map(one => one.written)).toEqual(["![[gone.png]]"])
+})
+
+test("one name written twice is reported once, across a title and a note", () => {
+  const at = nodesOf('{"id":"a","ord":"a0","title":"[[nowhere]]","desc":"again [[nowhere|there]]"}', "house.olai")[0]!
+  expect(deadLinksOf(at, named)).toHaveLength(1)
+})
+
+test("a wikilink heals the moment a file by its name is served", () => {
+  const at = nodesOf('{"id":"a","ord":"a0","title":"see [[shed]]"}', "house.olai")[0]!
+  expect(deadLinksOf(at, named)).toHaveLength(1)
+  expect(deadLinksOf(at, new Set([...named, "garden/shed.md"]))).toEqual([])
+})
+
+test("an unresolved wikilink says that no file has that name", () => {
+  expect(deadLinkSaid({ written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] }))
+    .toBe("no file is named finsihes — did you mean `[[finishes]]`?")
+  expect(deadLinkSaid({ written: "[[nowhere]]", resolved: "nowhere", suggest: [] })).toBe("no file is named nowhere.")
 })

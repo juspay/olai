@@ -408,6 +408,20 @@ Then(
   },
 );
 
+/** The page a wikilink in a waiting change's title opens — its `href`, which
+ *  is what the click follows. */
+Then(
+  "the change to {string} links to {string}",
+  async function (this: OlaiWorld, id: string, href: string) {
+    await this.expectChromeAttribute(
+      `${COMMIT_CHANGE}${attr("data-node-id", id)} a[data-wikilink]`,
+      "href",
+      href,
+      `the wikilink in the pending change to "${id}"`,
+    );
+  },
+);
+
 Then("the commit button is disabled", async function (this: OlaiWorld) {
   const disabled = await this.page.locator(COMMIT_NOW).isDisabled();
   assert.ok(disabled, "expected the commit button to be disabled");

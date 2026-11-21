@@ -10,7 +10,7 @@
 
 import { expect, test } from "bun:test"
 
-import { sameTrigger, triggerIn, written } from "./trigger.ts"
+import { linked, sameTrigger, type Trigger, triggerIn, written } from "./trigger.ts"
 
 /** The caret at the end of what has been typed — the ordinary case, and the
  *  one every scenario below is about unless it says otherwise. */
@@ -197,4 +197,75 @@ test("nothing armed is the same as nothing armed", () => {
   expect(sameTrigger(null, null)).toBe(true)
   expect(sameTrigger(null, at("#ho"))).toBe(false)
   expect(sameTrigger(at("#ho"), null)).toBe(false)
+})
+
+// ── the wikilink widget ────────────────────────────────────────────────
+
+// A table: what is typed (the caret at its end), and what is armed.
+const WIKILINKS: ReadonlyArray<readonly [typed: string, armed: Trigger | null]> = [
+  ["see [[", { kind: "wikilink", from: 4, query: "" }],
+  ["see [[fin", { kind: "wikilink", from: 4, query: "fin" }],
+  ["[[paint col", { kind: "wikilink", from: 0, query: "paint col" }],
+  ["[[rooms/No", { kind: "wikilink", from: 0, query: "rooms/No" }],
+  // Closed: the caret is past the link, and nothing is open.
+  ["see [[finishes]] ", null],
+  ["see [[finishes]", null],
+  // Words after a bar, a heading after a `#`: this list has nothing to offer.
+  ["[[finishes|the fin", null],
+  ["[[kitchen-sink#Ta", null],
+  // One bracket is not two.
+  ["see [fin", null],
+  // The length cap the node search keeps.
+  [`[[${"a".repeat(48)}`, { kind: "wikilink", from: 0, query: "a".repeat(48) }],
+  [`[[${"a".repeat(49)}`, null],
+  // `[[` after `((`: the one nearest the caret is the one it is inside.
+  ["((herb [[fin", { kind: "wikilink", from: 7, query: "fin" }],
+  // `((` after `[[`: still inside the `[[`, so the node search stays shut.
+  ["[[fin ((herb", { kind: "wikilink", from: 0, query: "fin ((herb" }],
+  // Inside an open `[[`, no other list opens.
+  ["[[#he", null],
+  ["[[a #he", null],
+  ["[[a !to", { kind: "wikilink", from: 0, query: "a !to" }],
+  ["[[a @sam", { kind: "wikilink", from: 0, query: "a @sam" }],
+  // A link closed further back leaves the other lists as they were.
+  ["[[finishes]] #ho", { kind: "tag", sigil: "#", from: 13, query: "ho" }],
+  ["[[finishes]] ((herb", { kind: "mirror", from: 13, query: "herb" }],
+  ["[[finishes]] !tom", { kind: "date", from: 13, query: "tom" }],
+]
+
+for (const [typed, armed] of WIKILINKS) {
+  test(`${JSON.stringify(typed)} arms ${armed === null ? "nothing" : `the ${armed.kind} list`}`, () => {
+    expect(at(typed)).toEqual(armed)
+  })
+}
+
+test("a line break ends an open `[[`", () => {
+  expect(at("[[fin\nmore")).toBeNull()
+})
+
+test("the caret in the middle of a link being typed reads up to the caret", () => {
+  expect(triggerIn("see [[finishes]]", 9)).toEqual({ kind: "wikilink", from: 4, query: "fin" })
+})
+
+test("a wikilink offer is the same offer while its query is", () => {
+  expect(sameTrigger(at("[[fin"), at("[[fin"))).toBe(true)
+  expect(sameTrigger(at("[[fin"), at("[[fini"))).toBe(false)
+})
+
+test("a chosen wikilink is written with its brackets closed, and the caret after them", () => {
+  const text = "paint the shed [[fin"
+  expect(linked(text, at(text)!, "finishes", text.length)).toEqual({ text: "paint the shed [[finishes]]", caret: 27 })
+})
+
+test("a closing pair already typed is taken, never doubled", () => {
+  const text = "paint the shed [[house.]] today"
+  const caret = text.indexOf("]]")
+  const found = triggerIn(text, caret)!
+  expect(linked(text, found, "house.olai", caret)).toEqual({ text: "paint the shed [[house.olai]] today", caret: 29 })
+})
+
+test("only what is before the caret is replaced", () => {
+  const text = "[[fin and more"
+  const found = triggerIn(text, 5)!
+  expect(linked(text, found, "finishes", 5)).toEqual({ text: "[[finishes]] and more", caret: 12 })
 })

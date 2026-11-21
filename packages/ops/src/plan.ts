@@ -29,6 +29,8 @@ import {
   addressOf,
   referencesOf,
   deadLinksIn,
+  type Names,
+  namesOf,
   deadLinkSaid,
   markdownAt,
   outlineCalled,
@@ -5923,10 +5925,14 @@ export const plan = (scope: Scope, request: Request): Planned => {
   if (Result.isFailure(planned) || !["title", "desc", "add", "create", "doc", "create-doc"].includes(request.op)) return planned
   const next = planned.success
   const served = new Set([...scope.set.documents.map(one => one.path), ...next.files.map(one => one.file), ...(next.documents ?? []).map(one => one.file)])
+  // The reading's own name index unless this write adds a file, which a
+  // wikilink beside it may already name.
+  let names: Names | undefined
   const nudges: string[] = []
   const compare = (file: string, text: string | ReadonlyArray<string>, before: string | ReadonlyArray<string>) => {
-    const previous = new Set(deadLinksIn(file, before, served).map(one => one.written))
-    nudges.push(...deadLinksIn(file, text, served).filter(one => !previous.has(one.written)).map(deadLinkSaid))
+    names ??= served.size === scope.names.served.size ? scope.names : namesOf(scope.claims, served)
+    const previous = new Set(deadLinksIn(names, file, before).map(one => one.written))
+    nudges.push(...deadLinksIn(names, file, text).filter(one => !previous.has(one.written)).map(deadLinkSaid))
   }
   for (const file of next.files) {
     for (const node of file.nodes) {

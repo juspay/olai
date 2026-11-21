@@ -219,3 +219,26 @@ Feature: Referenced by — a zoomed node says what points at it
     # A record row opens the node with the outline it was written in muted
     # beside it — which is how the two kinds of referrer stay apart on screen.
     And there should be no page errors
+
+  Scenario: A document that links the node's row is listed, whichever way it writes it
+    # `herbs` lives in garden.olai, and house.olai draws it through the
+    # placement `kitchen-herbs` — a link to the row in either file lands on it.
+    # One document writes a standard link to the placement's file, the other a
+    # wikilink to the holder's; `order`'s `see` is the third thing.
+    When I rewrite "finishes.md" as:
+      """
+      # Finishes
+
+      [the herb bed](house.olai#herbs)
+      """
+    And I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      Colours for [[garden.olai#herbs]].
+      """
+    Then the page says it is referenced by 3 things
+    When I open the referenced-by section
+    Then the referenced-by "Links to this" row reads "Finishes, Palette"
+    And the page has not reloaded
+    And there should be no page errors

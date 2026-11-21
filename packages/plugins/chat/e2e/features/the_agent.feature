@@ -345,6 +345,18 @@ Feature: Talking to a node agent
     And the chat shows no diff
 
   @scratch:chat
+  Scenario: A wikilink in an outline change opens the note it names, wherever that note lives
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    # `cabinets.md` lives in `notes/`. The change row draws the title the way
+    # the tree does, so the name is looked up in the directory — a guess from
+    # the name alone would be `/cabinets.md`, which is Page not found.
+    When I ask the agent "edit yard.olai"
+    Then the chat shows the outline "yard.olai" changing
+    And the outline change to "gate" links to "/notes/cabinets.md"
+    And there should be no page errors
+
+  @scratch:chat
   Scenario: A long line in a file-edit diff wraps inside the box
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready

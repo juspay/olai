@@ -101,3 +101,10 @@ test("a list's bullet mark is not a character of the note-tap", () => {
 test("an all-blank note has only the start", () => {
   expect(measuredAt("\n \n", 3)).toBe(0)
 })
+
+test("a wikilink is the words it shows, never its brackets or its name", () => {
+  expect(plainLine("Measure against [[kitchen-sink#Tables|the sink table]] and [[finishes]].")).toBe(
+    "Measure against the sink table and finishes.",
+  )
+  expect(plainLine("see `[[code]]` here")).toBe("see [[code]] here")
+})

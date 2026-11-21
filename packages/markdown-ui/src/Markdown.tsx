@@ -48,6 +48,7 @@ import { renderMarkdown, renderStreaming, renderLineLanding } from "./render.ts"
 import { markdownExcerpt } from "./excerpt.ts"
 import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
+import { applyWikilink } from "./wikilinks.ts"
 
 export function Markdown(props: {
   readonly claims: Claims | undefined
@@ -115,6 +116,15 @@ export function Markdown(props: {
         const words = (link.textContent ?? "").trim()
         link.setAttribute("aria-label", words === "" ? warning : `${words} — ${warning}`)
       } else link.removeAttribute("aria-label")
+    }
+    // A WIKILINK FINDS ITS FILE BY NAME, so a file arriving or leaving can
+    // heal one, kill one or re-aim one at a nearer namesake. Each is brought
+    // in step here, in place — the prose is not rendered again, so a reader's
+    // selection and the folds around it stay where they were.
+    const claims = props.claims
+    const from = props.from
+    for (const link of container?.querySelectorAll<HTMLElement>("[data-wikilink]") ?? []) {
+      applyWikilink(link, claims, members, from)
     }
   })
   /** Is this block still WAITING on the renderer — the arrival's own answer

@@ -82,11 +82,16 @@ export function NodeTitle(props: {
    *  changed must not push a new value through to the element — which is what
    *  a memo over an object does by default (`===`). */
   const drawing = createMemo(
-    () =>
-      renderTitle(servedDirectory()?.claims(), props.title, props.from, {
+    () => {
+      // Only a title with a wikilink asks the directory what it holds, so a
+      // file arriving re-draws the rows that name one and no others.
+      const members = props.title.includes("[[") ? servedDirectory()?.members() : undefined
+      return renderTitle(servedDirectory()?.claims(), props.title, props.from, {
         links: props.links,
         needles: props.needles,
-      }),
+        ...(members === undefined ? {} : { members }),
+      })
+    },
     undefined,
     { equals: sameDrawing },
   )

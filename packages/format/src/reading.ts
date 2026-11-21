@@ -402,6 +402,9 @@ export const DocumentBody = Schema.Struct({
    *  keep the body of is not a document this read answers (`./documents.ts`
    *  holds that split, and the tool refuses the other kinds by name). */
   text: Schema.String,
+  /** Who refers to the document — its page's **Referenced by**, standard links
+   *  and wikilinks alike. Absent when nothing does. */
+  referencedBy: Schema.optionalKey(Schema.Array(Reference)),
 })
 export type DocumentBody = typeof DocumentBody.Type
 

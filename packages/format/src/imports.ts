@@ -29,7 +29,8 @@
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { writtenTags } from "./derive.ts"
 import { type Face } from "./document.ts"
-import { recordContributions } from "./documents.ts"
+import { recordContributions, recordWikilinks } from "./documents.ts"
+import { wikilinkKey, wikilinkRowNode } from "./wikilinks.ts"
 import { type Claims } from "./kinds.ts"
 import { isRegular, type Located } from "./node.ts"
 
@@ -59,6 +60,9 @@ export interface Contribution {
    *  well). Absent for the field and prose ways, which file under one key
    *  only. */
   readonly address?: Address
+  /** The name a WIKILINK writes, for a contribution filed under one
+   *  (`./wikilinks.ts`'s `wikilinkKey`) — what the reading resolves. */
+  readonly wikilink?: string
 }
 
 /**
@@ -88,8 +92,12 @@ export const contributionsOf = (
       if (tag.charAt(0) !== "@") continue
       found.push({ key: tag, way: "mention", at: undefined })
     }
+    for (const name of face.wikilinks ?? []) wikiInto(found, claims, name, undefined)
     return found
   }
+  // THE FACE SAYS whether any record of the file writes a wikilink, so a file
+  // that writes none pays no scan of its titles and notes for `[[`.
+  const linking = face.wikilinks !== undefined
   for (const located of records) {
     if (!isRegular(located)) continue
     // THE RECORD'S WRITTEN TARGETS are ONE walk ({@link ./documents.ts}'s
@@ -104,6 +112,21 @@ export const contributionsOf = (
       if (tag.charAt(0) !== "@") continue
       found.push({ key: tag, way: "mention", at: located })
     }
+    if (linking) for (const name of recordWikilinks(located)) wikiInto(found, claims, name, located)
   }
   return found
+}
+
+/** A WIKILINK, filed under the name it writes rather than the file it finds
+ *  (`./wikilinks.ts`'s `wikilinkKey`) — the `@mention` arrangement, and for its
+ *  reason: which file a name finds moves with the directory, so the reading
+ *  resolves it when it reads and a file arriving makes no one re-read another
+ *  file. A link to the writer's own heading refers to nothing else, and is not
+ *  filed. A link to a ROW is filed a second time, under the row's NODE
+ *  (`wikilinkRowNode`), which is where the node arm of the reading asks. */
+const wikiInto = (found: Array<Contribution>, claims: Claims, name: string, at: Located | undefined): void => {
+  const key = wikilinkKey(claims, name)
+  if (key !== null) found.push({ key, way: "link", at, wikilink: name })
+  const node = wikilinkRowNode(claims, name)
+  if (node !== null) found.push({ key: printAddress(node), way: "link", at, wikilink: name })
 }

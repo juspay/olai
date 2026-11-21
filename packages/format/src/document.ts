@@ -96,7 +96,7 @@ import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./add
 import { Custom } from "./custom.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
 import { frontmatterIn, proseIn } from "./frontmatter.ts"
-import { bytesOf, firstLine, linksIn, recordLinks } from "./documents.ts"
+import { bytesOf, firstLine, linksIn, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
@@ -133,6 +133,11 @@ export const Face = Schema.Struct({
   /** The tags its prose writes, as written — both sigils, `#topic` and
    *  `@person`, which are two namespaces over one alphabet (`./derive.ts`). */
   tags: Schema.Array(Tag),
+  /** The WIKILINKS its prose writes, by name as written (`kitchen-sink#Tables`)
+   *  and never twice — absent when it writes none. Names rather than
+   *  addresses, because which file a name finds moves with the directory
+   *  (`./wikilinks.ts`); the reading resolves them when it reads. */
+  wikilinks: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
    * The named facts the file writes ABOUT ITSELF — a `.md`'s YAML frontmatter,
    * read by {@link ./frontmatter.ts} and answered by `prop:` in the query
@@ -198,12 +203,13 @@ export interface FaceHead {
  * content, so what crosses the wire is a value this module made and not a shape
  * somebody assembled to match it.
  */
-export const faceOf = ({ path, title, links, tags, props }: Document): Face => ({
+export const faceOf = ({ path, title, links, tags, props, wikilinks }: Document): Face => ({
   path,
   title,
   links,
   tags,
   props,
+  ...(wikilinks === undefined ? {} : { wikilinks }),
 })
 
 /**
@@ -347,6 +353,7 @@ export const outlineDocument = (
     seen.add(key)
     links.push(address)
   }
+  const named = new Set<string>()
   for (const located of nodes) {
     for (const address of recordLinks(claims, located)) add(address)
     if (isMirror(located.node)) continue
@@ -355,6 +362,7 @@ export const outlineDocument = (
       written.add(tag)
       tags.push(tag)
     }
+    for (const name of recordWikilinks(located)) named.add(name)
   }
   return {
     kind: fileKind(claims, file) ?? (() => { throw new Error(`unclaimed outline: ${file}`) })(),
@@ -367,6 +375,7 @@ export const outlineDocument = (
     title: stemOf(claims, file),
     links,
     tags,
+    ...(named.size === 0 ? {} : { wikilinks: [...named] }),
     // A FILE writes no properties of its own here: an outline's named facts
     // are on its records, where `outlines_prop` puts them, and a `.olai` has no
     // frontmatter to read. Empty because nothing wrote one, which is the same
@@ -434,6 +443,7 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
   // other and skipping it would be this package inventing frontmatter for a
   // bullet.
   const prose = proseIn(body)
+  const named = wikilinkNames([prose])
   return {
     kind: claim.kind,
     holds: "text",
@@ -445,6 +455,7 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
     title: firstLine(body) || stemOf(claims, file),
     links: linksIn(claims, file, prose),
     tags: tagsIn(prose),
+    ...(named.length === 0 ? {} : { wikilinks: named }),
     // The record a document is allowed to write about itself, and the one
     // field of this face that is not derived from prose at all.
     props: frontmatterIn(body),

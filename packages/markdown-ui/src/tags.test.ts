@@ -214,3 +214,14 @@ test("without a query these titles are written exactly as they were", () => {
     expect(lit(title), title).not.toContain("olai-hit")
   }
 })
+
+// A WIKILINK'S HEADING IS NOT A TAG: `[[kitchen-sink#Tables]]` names a heading
+// of another note, and a pill drawn on `#Tables` would also be a tag the index
+// never filed — the two readings parting company on one title.
+test("the heading half of a wikilink is never drawn as a tag", () => {
+  const html = lit("check [[kitchen-sink#Tables]] and [[kitchen-sink#Lists|#Lists]] #home")
+  expect(html.match(/data-testid="tag"/g)).toHaveLength(1)
+  expect(html).toContain('data-tag="#home"')
+  expect(html).not.toContain('data-tag="#Tables"')
+  expect(html).not.toContain('data-tag="#Lists"')
+})

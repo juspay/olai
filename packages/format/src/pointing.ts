@@ -148,7 +148,21 @@ export interface Source {
   readonly face: Face
   /** The ways it says the target, in {@link Way} order. */
   readonly ways: ReadonlyArray<Way>
+  /** Under a WIKILINK's key (`[[name`), the names this source writes there,
+   *  which the reading resolves; under a NODE's key, the names of the
+   *  wikilinks to a ROW of it — counted only where the name finds a file that
+   *  draws that row ({@link ./backlinks.ts}). */
+  readonly written?: ReadonlyArray<string>
+  /** Under a NODE's key, the files a standard link to a ROW of it names —
+   *  `[x](house.olai#kitchen)` is filed under `#kitchen` with `house.olai` —
+   *  counted only where the file draws that row. */
+  readonly rows?: ReadonlyArray<string>
 }
+
+/** Whether a source counts only when the reading finds its link lands — a
+ *  row link under a node's key — rather than by being filed there at all. */
+export const conditional = (source: Source): boolean =>
+  source.rows !== undefined || source.written !== undefined
 
 /**
  * WHAT A REFERENCE NAMES → the sources that write one there, in path order.
@@ -191,7 +205,9 @@ const pointInto = (
   const face = faceOf(document)
   const records = document.holds === "nodes" ? document.nodes : undefined
   for (const contribution of contributionsOf(claims, face, records)) {
-    const source: Source = { at: contribution.at, face, ways: [contribution.way] }
+    const source: Source = contribution.wikilink === undefined
+      ? { at: contribution.at, face, ways: [contribution.way] }
+      : { at: contribution.at, face, ways: [contribution.way], written: [contribution.wikilink] }
     fileAt(into, contribution.key, source)
     // A LINK ONTO A HEADING OR A ROW POINTS AT THE DOCUMENT AS WELL — one
     // extra key per heading link, the shape decision the module header
@@ -202,6 +218,12 @@ const pointInto = (
     const address = contribution.address
     if (address !== undefined && address.kind !== "node" && address.kind !== "document") {
       fileAt(into, printAddress({ kind: "document", path: address.path }), source)
+    }
+    // ...and a link onto a ROW points at the NODE in it: filed under the
+    // node's own key with the file it names, which the node arm checks draws
+    // the row.
+    if (address?.kind === "row") {
+      fileAt(into, printAddress({ kind: "node", id: address.id }), { at: contribution.at, face, ways: [contribution.way], rows: [address.path] })
     }
   }
 }
@@ -295,22 +317,53 @@ const fileAt = (into: Map<string, Array<Source>>, key: string, entry: Source): v
     into.set(key, [entry])
     return
   }
-  const last = held[held.length - 1] as Source
   // THE SAME SOURCE — the same record, by identity, or the same body file,
   // which is the ONE source a body's file can contribute per key: every
   // contribution of one document comes from one `pointInto` call, so two
   // entries with the same record object (or two body entries, which always
   // carry the same `undefined` record) are the same source. A different
   // record of the same file is a different object and files separately.
-  if (last.at === entry.at && last.face === entry.face) {
+  //
+  // ONE ENTRY PER SOURCE PER CLASS: a node's key holds what counts by being
+  // there, and — apart, so a stale one cannot lend its way to the rest — the
+  // standard row links and the row wikilinks the reading checks
+  // ({@link conditional}). A source's entries sit together at the end.
+  for (let at = held.length - 1; at >= 0; at--) {
+    const last = held[at] as Source
+    if (last.at !== entry.at || last.face !== entry.face) break
+    if (classOf(last) !== classOf(entry)) continue
     // The ways arrive one at a time from the fold; a second way for a source
-    // already filed is merged in, keeping {@link Way} order.
-    if (!last.ways.includes(entry.ways[0] as Way)) {
-      held[held.length - 1] = { at: last.at, face: last.face, ways: [...last.ways, entry.ways[0] as Way] }
+    // already filed is merged in, keeping {@link Way} order. A second thing
+    // written under one key (`[[Note]]` and `[[Note#Part]]`, or two rows'
+    // files) joins the first, so the reading checks each.
+    const way = entry.ways[0] as Way
+    const written = joined(last.written, entry.written)
+    const rows = joined(last.rows, entry.rows)
+    if (last.ways.includes(way) && written === last.written && rows === last.rows) return
+    held[at] = {
+      at: last.at,
+      face: last.face,
+      ways: last.ways.includes(way) ? last.ways : [...last.ways, way],
+      ...(written === undefined ? {} : { written }),
+      ...(rows === undefined ? {} : { rows }),
     }
     return
   }
   held.push(entry)
+}
+
+/** Which of a node key's three kinds of entry a source is — see {@link fileAt}. */
+const classOf = (source: Source): 0 | 1 | 2 =>
+  source.rows !== undefined ? 1 : source.written !== undefined ? 2 : 0
+
+/** Two lists of things written, as one, keeping the first when the second
+ *  adds nothing. */
+const joined = (
+  held: ReadonlyArray<string> | undefined,
+  more: ReadonlyArray<string> | undefined,
+): ReadonlyArray<string> | undefined => {
+  const added = more?.filter((one) => !(held ?? []).includes(one)) ?? []
+  return added.length === 0 ? held : [...(held ?? []), ...added]
 }
 
 /** Path order over two sources: by file, and by CORPUS ORDER within a file —

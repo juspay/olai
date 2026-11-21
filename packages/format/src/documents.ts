@@ -361,7 +361,11 @@ export const bytesOf = (text: string): number => UTF8.encode(text).length
 
 /**
  * BLOCK CONTEXT, LOCALLY — the lines that are a fenced or indented code block,
- * replaced with blank lines so the link scan below never sees inside one.
+ * blanked to spaces so the link scans below never see inside one.
+ *
+ * LENGTH-PRESERVING: every character keeps its offset, so a scan that reads
+ * this mask can report where in the WRITTEN text a link sits (the wikilink
+ * scan's spans are what the renderer replaces).
  *
  * List continuation indentation belongs to prose; four further spaces
  * introduce code within that item. Blank lines retain the list context.
@@ -384,20 +388,21 @@ const withoutCodeBlocks = (text: string): string => {
     const match = /^(?: {0,3}> ?)* {0,3}(`{3,}|~{3,})(.*)$/.exec(content)
     if (fence !== undefined) {
       if (match && match[1]![0] === fence.marker && match[1]!.length >= fence.length && match[2]!.trim() === "") fence = undefined
-      return ""
+      return " ".repeat(line.length)
     }
     if (match && (match[1]![0] !== "`" || !match[2]!.includes("`"))) {
       fence = { marker: match[1]![0]!, length: match[1]!.length }
-      return ""
+      return " ".repeat(line.length)
     }
-    return /^( {4}|\t)/.test(content) ? "" : content
+    return /^( {4}|\t)/.test(content) ? " ".repeat(line.length) : line
   }).join("\n")
 }
 
 /**
  * INLINE CODE has its own delimiter rules, independent of block indentation —
  * the mirror half of {@link withoutCodeBlocks}, applied AFTER it so a span
- * split across nothing a fence let through is still removed.
+ * split across nothing a fence let through is still removed. Length-preserving
+ * for the same reason: a span becomes spaces, and its line breaks stay.
  */
 const withoutCodeSpans = (lines: string): string => {
   let prose = ""
@@ -410,9 +415,150 @@ const withoutCodeSpans = (lines: string): string => {
     let close = lines.indexOf(marker, end)
     while (close !== -1 && (lines[close - 1] === "`" || lines[close + marker.length] === "`")) close = lines.indexOf(marker, close + marker.length)
     if (close === -1) { prose += marker; i = end }
-    else { prose += " "; i = close + marker.length }
+    else { prose += lines.slice(i, close + marker.length).replace(/[^\n]/g, " "); i = close + marker.length }
   }
   return prose
+}
+
+/** The text with its literal code blanked, every character at its offset. */
+const proseMask = (text: string): string => withoutCodeSpans(withoutCodeBlocks(text))
+
+/**
+ * ONE WIKILINK AS WRITTEN — `[[target#heading|alias]]`, or the embed
+ * `![[target]]` — with where it sits in the text it was read from.
+ *
+ * What it NAMES is {@link Wikilink.name}: the target and its headings, never
+ * the alias. Which file that is depends on what the directory holds, so it is
+ * answered by `./wikilinks.ts` whenever it is asked, never here.
+ */
+export interface Wikilink {
+  /** Offset of the link's first character (the `!` of an embed). */
+  readonly start: number
+  /** Offset just after its closing `]]`. */
+  readonly end: number
+  readonly embed: boolean
+  /** The text before any `#` and `|`, trimmed. Empty for `[[#Heading]]`. */
+  readonly target: string
+  /** Each `#` part after the target, trimmed, in order; the last is the one
+   *  it lands on. A part opening with `^` is a block reference. */
+  readonly fragments: ReadonlyArray<string>
+  /** The words after the `|`, trimmed; `null` when there are none. */
+  readonly alias: string | null
+  /** What the link draws: the alias, or the target and headings joined
+   *  by ` > `. */
+  readonly shown: string
+  /** The target and its fragments, `#`-joined — what is looked up. */
+  readonly name: string
+}
+
+const NO_WIKILINKS: ReadonlyArray<Wikilink> = []
+
+const OPEN = 0x5b
+const CLOSE = 0x5d
+const NEWLINE = 0x0a
+const BACKSLASH = 0x5c
+const BANG = 0x21
+
+/**
+ * EVERY WIKILINK IN A PIECE OF PROSE, in the order it writes them — the
+ * literal code removed first by the same mask {@link proseLinks} reads, so a
+ * `[[…]]` in a code span or block is text here exactly as it is on the page.
+ *
+ * ONE FORWARD SCAN, linear in the text, for {@link writtenLinks}' reason: this
+ * reads every body and note of a served directory, which is text nobody here
+ * wrote. A link opens at the last `[[` before its `]]`, stays on one line,
+ * holds no lone bracket, and is not opened by an escaped `[`.
+ */
+export const wikilinksIn = (text: string): ReadonlyArray<Wikilink> =>
+  text.includes("[[") ? wikilinkScan(text, proseMask(text)) : NO_WIKILINKS
+
+/**
+ * The same scan over the text as written, code included — for the tag walk,
+ * which keeps a link's `#heading` out of the tags wherever the link is, since
+ * the title walk it serves has never read code apart from prose either.
+ */
+export const wikilinkSpans = (text: string): ReadonlyArray<Wikilink> =>
+  text.includes("[[") ? wikilinkScan(text, text) : NO_WIKILINKS
+
+/**
+ * The text with each wikilink as the words it shows — `[[kitchen-sink#Tables|the
+ * table]]` is `the table` — which is what the page draws in its place. A
+ * heading's slug is made from these words ({@link ./slug.ts}'s `headingsIn`),
+ * and a note's preview line reads them.
+ */
+export const wikilinksShown = (text: string): string => {
+  const links = wikilinksIn(text)
+  if (links.length === 0) return text
+  let out = ""
+  let last = 0
+  for (const link of links) {
+    out += text.slice(last, link.start) + link.shown
+    last = link.end
+  }
+  return out + text.slice(last)
+}
+
+const wikilinkScan = (text: string, mask: string): ReadonlyArray<Wikilink> => {
+  let found: Array<Wikilink> | undefined
+  let open = -1
+  // How many backslashes stand immediately before `at` — an odd run escapes.
+  let slashes = 0
+  for (let at = 0; at < mask.length; at++) {
+    const char = mask.charCodeAt(at)
+    const escaped = slashes % 2 === 1
+    slashes = char === BACKSLASH ? slashes + 1 : 0
+    if (char === NEWLINE) open = -1
+    else if (char === OPEN) {
+      if (escaped || mask.charCodeAt(at + 1) !== OPEN) { open = -1; continue }
+      // A run of `[` opens at its last pair.
+      while (mask.charCodeAt(at + 2) === OPEN) at++
+      open = at
+      at++
+    } else if (char === CLOSE) {
+      if (open !== -1 && !escaped && mask.charCodeAt(at + 1) === CLOSE) {
+        const link = wikilinkAt(text, open, at)
+        if (link !== null) (found ??= []).push(link)
+        at++
+      }
+      open = -1
+    }
+  }
+  return found ?? NO_WIKILINKS
+}
+
+/** The link whose `[[` is at `open` and whose `]]` is at `close`, or `null`
+ *  for brackets that name nothing. */
+const wikilinkAt = (text: string, open: number, close: number): Wikilink | null => {
+  // `\|` is the bar a table cell needs written escaped; inside a link it is
+  // the alias bar either way.
+  const inner = text.slice(open + 2, close).replaceAll("\\|", "|")
+  const bar = inner.indexOf("|")
+  const named = bar === -1 ? inner : inner.slice(0, bar)
+  const words = bar === -1 ? "" : inner.slice(bar + 1).trim()
+  const parts = named.split("#")
+  const target = (parts[0] as string).trim()
+  const fragments = parts.slice(1).map(part => part.trim()).filter(part => part !== "")
+  if (target === "" && fragments.length === 0) return null
+  const embed = open > 0 && text.charCodeAt(open - 1) === BANG && !escapedAt(text, open - 1)
+  const alias = words === "" ? null : words
+  return {
+    start: embed ? open - 1 : open,
+    end: close + 2,
+    embed,
+    target,
+    fragments,
+    alias,
+    shown: alias ?? (target === "" ? fragments : [target, ...fragments]).join(" > "),
+    name: [target, ...fragments].join("#"),
+  }
+}
+
+/** Whether the character at `at` is escaped: an odd run of backslashes
+ *  stands right before it. */
+const escapedAt = (text: string, at: number): boolean => {
+  let slashes = 0
+  while (at - slashes - 1 >= 0 && text.charCodeAt(at - slashes - 1) === BACKSLASH) slashes++
+  return slashes % 2 === 1
 }
 
 /**
@@ -505,7 +651,7 @@ export const writtenLinks = (text: string): ReadonlyArray<string> => {
  * may treat it as a link.
  */
 export const proseLinks = (text: string): ReadonlyArray<string> =>
-  text.includes("](") ? writtenLinks(withoutCodeSpans(withoutCodeBlocks(text))) : []
+  text.includes("](") ? writtenLinks(proseMask(text)) : []
 
 /**
  * Rewrite a `[…](…)` whose destination holds a space into the angle-bracket
@@ -644,6 +790,27 @@ export const recordContributions = (
   }
   return found
 }
+
+/** The names the wikilinks of some prose write, in order and never twice.
+ *  Each text is scanned on its own: a title and a note cannot complete each
+ *  other's brackets. */
+export const wikilinkNames = (texts: ReadonlyArray<string>): ReadonlyArray<string> => {
+  let named: Set<string> | undefined
+  for (const text of texts) {
+    for (const link of wikilinksIn(text)) (named ??= new Set()).add(link.name)
+  }
+  return named === undefined ? NO_NAMES : [...named]
+}
+
+const NO_NAMES: ReadonlyArray<string> = []
+
+/** The wikilinks one record writes in its title and its note — what the
+ *  references index files under each name, beside {@link recordContributions}.
+ *  A placement writes none. */
+export const recordWikilinks = (located: Located): ReadonlyArray<string> =>
+  isMirror(located.node)
+    ? NO_NAMES
+    : wikilinkNames(located.node.desc === undefined ? [located.node.title] : [located.node.title, located.node.desc])
 
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is.
