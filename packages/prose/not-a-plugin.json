@@ -1,3 +1,11 @@
 {
-  "//": "How a text is read: tags, slugs, the frontmatter edge, the plain-title test. Nothing here names a plugin row."
+  "//": "How a text is read: tags, slugs, the frontmatter edge, the plain-title test, the parse and its reading.",
+  "//markdown": "obsidian.ts extends the Markdown parser: micromark's and mdast's own names for it (`markdownLineEnding`, `FromMarkdownExtension`), not the markdown row.",
+  "markdown": {
+    "src/obsidian.ts": 11
+  },
+  "//image": "read.ts reads the parser's `image` and `imageReference` nodes, Markdown's own words for a picture, not the image row.",
+  "image": {
+    "src/read.ts": 2
+  }
 }
