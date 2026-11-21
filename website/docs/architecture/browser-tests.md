@@ -1,6 +1,6 @@
 # The browser tests
 
-olai's browser suite starts a real server and a real Chromium and drives them through Cucumber features, covering 2,379 entries in 302 feature files.
+olai's browser suite starts a real server and a real Chromium and drives them through Cucumber features, covering 2,465 entries in 314 feature files.
 
 ## Run the suite
 
@@ -31,7 +31,7 @@ Each scenario is served one of the directories of test files under `packages/tes
 
 ## What the suite covers
 
-Cucumber runs those 2,379 entries as about 2,533 cases.[^count] What each group of features proves, which unit tests the browser tests repeat, what a run costs, and what nothing tests at all are in the closed blocks at the foot of this page.
+Cucumber runs those 2,465 entries as about 2,624 cases.[^count] What each group of features proves, which unit tests the browser tests repeat, what a run costs, and what nothing tests at all are in the closed blocks at the foot of this page.
 
 [^e2e]: `just e2e` is one of the jobs `just check` runs. The suite picks how many workers to run from the machine: the number of cores minus one, up to four, and from twenty cores up, one worker per four cores, up to eight.
 
