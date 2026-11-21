@@ -186,3 +186,33 @@ Then("the own page of {string} says it is {string}", async function (this: OlaiW
   await this.waitUntil(async () => (await absent.getAttribute("data-stage")) === stage, `the own page of ${word} to say ${stage}`)
   assert.equal(await absent.locator(`a[href="/plugins/${word}"]`).count(), 1, `the own page of ${word} links to its approval page`)
 })
+
+/** A transcribed page as the reader draws it, and its sentences: one row of
+ *  columns per line of the file. */
+const transcribed = (world: OlaiWorld, file: string) =>
+  world.page.locator(`${attr("data-reader", "file")}${attr("data-file", file)}`)
+
+Then("the reader draws {string} as {int} sentence(s) beside their/its English", async function (this: OlaiWorld, file: string, count: number) {
+  const page = transcribed(this, file)
+  await page.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  await this.waitUntil(
+    async () => (await page.locator(attr("data-reader", "columns")).count()) === count,
+    `${file} to be drawn as ${count} sentence(s)`,
+  )
+})
+
+When("the served file {string} becomes:", function (this: OlaiWorld, file: string, text: string) {
+  this.writeServed(file, text)
+})
+
+const note = (world: OlaiWorld) => world.page.locator(attr("data-reader", "note"))
+
+Then("the reader's note foot is drawn under {string}", async function (this: OlaiWorld, file: string) {
+  await note(this).and(this.page.locator(attr("data-file", file))).first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+})
+
+Then("the reader's note foot is not drawn", async function (this: OlaiWorld) {
+  await this.waitForFrame()
+  await this.waitUntil(async () => (await note(this).count()) === 0, "the reader's note foot to be absent")
+})

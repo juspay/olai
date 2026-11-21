@@ -1,6 +1,6 @@
 import { clientOf, definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { createSignal, onMount, Show } from "solid-js"
+import { createEffect, createSignal, For, on, onMount, Show } from "solid-js"
 
 import { Columns } from "./columns.tsx"
 import { splitPair } from "./pairs.ts"
@@ -93,6 +93,35 @@ export default definePlugin({
       </section>
     )
 
+    // A transcribed page, drawn whole: each line's French beside its English.
+    // `revision` moves when the file does, and the text is read again.
+    const Transcribed = (props: { readonly file: string; readonly revision: number | undefined }) => {
+      const [text, setText] = createSignal("")
+      createEffect(on(() => [props.file, props.revision], () => {
+        const call = clientOf(surface, wired)?.procedures.pages.read({ file: props.file })
+        if (call !== undefined) void Effect.runPromise(call).then((read) => setText(read.text))
+      }))
+      const pairs = () => text().split("\n").flatMap((line) => {
+        const pair = splitPair(line)
+        return pair === null ? [] : [pair]
+      })
+      return (
+        <section data-reader="file" data-file={props.file} class="flex flex-col p-4">
+          <For each={pairs()}>{(pair) => <Columns pair={pair} onWord={(word) => {
+            const call = words()?.add({ word })
+            if (call !== undefined) void Effect.runPromise(call)
+          }} />}</For>
+        </section>
+      )
+    }
+
+    // Under every Markdown note: the way back to the review.
+    const Note = (props: { readonly file: string }) => (
+      <p data-reader="note" data-file={props.file} class="text-body">
+        <a href={REVIEW}>Review the words from your reading</a>
+      </p>
+    )
+
     yield* slots.register("sidebar.section", { said: "Reading", body: Section })
     yield* slots.register("app.keys", {
       key: "y",
@@ -117,5 +146,7 @@ export default definePlugin({
       run: () => open(REVIEW),
       chord: { key: "e", shift: true, whileEditing: false },
     })
+    yield* slots.register("file.page", Transcribed)
+    yield* slots.register("document.page.foot", Note)
   }),
 })

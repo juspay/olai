@@ -1,4 +1,4 @@
-import { definePlugin, Kinds, Ops, Surfaces } from "@olai/plugin-api"
+import { definePlugin, FileKinds, Kinds, Ops, Surfaces } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { scheduled } from "./lib/sm2.ts"
@@ -21,13 +21,26 @@ const cardOf = (word: string, custom: Readonly<Record<string, unknown>>): Card =
 
 export default definePlugin({
   name: "reader",
-  needs: [Kinds, Ops, Surfaces],
+  needs: [FileKinds, Kinds, Ops, Surfaces],
   apply: Effect.gen(function*() {
     const kinds = yield* Kinds
     yield* kinds.register({
       kind: "pair",
       takes: "`reader-pair`: a French sentence, ` | `, and its English",
       admits: (value: string) => splitPair(value) !== null,
+    })
+
+    // A `.reader` file is a transcribed page: one sentence and its English per
+    // line. The vault keeps its text (`kept`), and reads none of it as prose
+    // (`opaque`), so it is this plugin's to draw.
+    yield* (yield* FileKinds).register({
+      exts: [".reader"],
+      holds: "text",
+      kept: true,
+      opaque: true,
+      fetched: false,
+      noun: "transcribed page",
+      article: "a",
     })
 
     // The write gate: every write below goes through it, exactly as a
@@ -81,6 +94,15 @@ export default definePlugin({
                   .map(([key, value]) => ({ op: "prop" as const, id: input.node, key, value }))
                 if (ops.length > 0) yield* Effect.orDie(gate.run({ op: "apply", ops }, "web"))
                 return { due: next.due }
+              }),
+          },
+          pages: {
+            // The text of a transcribed page, as the gate last read the vault.
+            read: ({ input }: { readonly input: { readonly file: string } }) =>
+              Effect.gen(function*() {
+                const reading = yield* Effect.orDie(gate.read)
+                const document = reading.set.documents.find((one) => one.path === input.file)
+                return { text: document !== undefined && "body" in document ? document.body : "" }
               }),
           },
         },

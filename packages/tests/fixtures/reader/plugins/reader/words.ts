@@ -16,10 +16,14 @@ export const surface = defineSurface({
         output: Schema.Struct({ due: Schema.String }),
       },
     },
+    pages: {
+      // A transcribed page's text, as the vault holds it now.
+      read: { input: Schema.Struct({ file: Schema.String }), output: Schema.Struct({ text: Schema.String }) },
+    },
   },
 })
 
 // Who may call each one: the page in your browser, and not your agents.
 export const faces = {
-  browser: { "words.add": "tool", "words.next": "tool", "words.grade": "tool" },
+  browser: { "words.add": "tool", "words.next": "tool", "words.grade": "tool", "pages.read": "tool" },
 } as const

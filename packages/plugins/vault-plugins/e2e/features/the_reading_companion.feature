@@ -13,7 +13,7 @@ Feature: The reading companion
 
   Scenario: An agent is told every place a face can go, and what each is handed
     Given I open the app
-    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, app.command, plugins.row, plugin.page"
+    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, app.command, file.page, plugins.row, plugin.page, document.page.head, document.page.foot"
     And every slot in the catalog says what its face is handed
 
   @scratch:reader
@@ -49,7 +49,7 @@ Feature: The reading companion
     When I go to the plugin "reader"
     Then the plugin page is "review"
     And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/sm2.ts, pairs.ts, types.ts, words.ts"
-    And the plugin page's status says "7 files, 316 lines"
+    And the plugin page's status says "7 files, 373 lines"
     When I open the plugin page's "lib/sm2.ts" tab
     Then the plugin page's code is "lib/sm2.ts"
     And the plugin page's code names "export const scheduled"
@@ -185,4 +185,34 @@ Feature: The reading companion
     And I press the palette shortcut
     And I type "start review" into the palette
     Then the palette does not offer "Start review"
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: A transcribed page is a file the plugin draws whole, again when it changes on disk
+    Given I open the app
+    When I approve the plugin "reader"
+    And I click sidebar file "chapter-1.reader"
+    Then the reader draws "chapter-1.reader" as 2 sentences beside their English
+    When the served file "chapter-1.reader" becomes:
+      """
+      Phileas Fogg n'avait ni femme ni enfants. | Phileas Fogg had neither wife nor children.
+      """
+    Then the reader draws "chapter-1.reader" as 1 sentence beside its English
+
+    When I switch the plugin "reader" off on its page
+    And I open the address "/chapter-1.reader"
+    Then the empty page says "Page not found"
+    And the empty page explains "olai can't open .reader files."
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: A note carries the plugin's face at its foot, and it leaves with the plugin
+    Given I open the address "/notes.md"
+    Then the reader's note foot is not drawn
+    When I approve the plugin "reader"
+    Then the reader's note foot is drawn under "notes.md"
+
+    When I switch the plugin "reader" off on its page
+    And I open the address "/notes.md"
+    Then the reader's note foot is not drawn
     And there should be no page errors
