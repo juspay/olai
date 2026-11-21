@@ -5,18 +5,17 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { printAddress } from "./address.ts"
+import { bytesOf } from "./document.ts"
 import {
-  bytesOf,
   bracketSpacedLinks,
   firstLine,
-  isAsset,
-  isPicture,
   linksIn,
   pathedOf,
   pictureOf,
   proseLinks,
   resolveRelative,
 } from "./documents.ts"
+import { isAsset, isPicture } from "./serving.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
 const nodeOf = (line: string, file: string) => {
   const [located] = nodesOf(`${line}\n`, file)

@@ -96,7 +96,7 @@ import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./add
 import { Custom } from "./custom.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
 import { frontmatterIn, proseIn } from "./frontmatter.ts"
-import { bytesOf, firstLine, linksIn, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
+import { firstLine, linksIn, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
@@ -384,6 +384,45 @@ export const outlineDocument = (
     nodes,
   }
 }
+
+/** One encoder for the process, because `bytesOf` is the definition of a
+ *  document's weight and constructing one per call is the only avoidable cost
+ *  here. Paid at decode ({@link bodiedDocument}), not per
+ *  listing. */
+const UTF8 = new TextEncoder()
+
+/**
+ * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
+ *
+ * Beside `./documents.ts`'s `firstLine` because it is the same kind of fact — the two things
+ * that can be said about a document without walking its markdown, and the two a
+ * listing carries. What a caller does with it is decide whether to ask for the
+ * whole of it.
+ *
+ * BYTES rather than `text.length`, which is UTF-16 units and would report a
+ * different number than every other tool a person has for the same file. This
+ * was fifteen lines of code-unit arithmetic — the same count without the
+ * transient buffer — and the buffer is the better trade: a surrogate-pair
+ * branch and a lone-surrogate rule are exactly the kind of thing that is
+ * subtly wrong for years, and `TextEncoder` is the runtime's own answer.
+ * `Buffer.byteLength` is the other one-liner and is not available to this
+ * package, which runs in a browser as readily as in a server.
+ *
+ * IT MEASURES THE TEXT, not the file, and those part company for a `.md`
+ * that is not valid UTF-8: the store decodes leniently, so bytes it could not
+ * read are already replacement characters by the time this counts them, and
+ * the answer can exceed the file's size on disk. That is the RIGHT number for
+ * what this field is for — it matches the text `markdown_read` hands over and
+ * the text `markdown_write`'s `was` is compared against.
+ *
+ * PAID AT DECODE. {@link bodiedDocument} remembers the
+ * answer on the document, so a listing is O(documents) rather than O(the bytes
+ * of every served `.md`). This function stays the definition of the number —
+ * the listing's test holds the remembered field to a recompute from the body,
+ * including over multi-byte UTF-8, which is the case a UTF-16-unit count would
+ * silently get wrong.
+ */
+export const bytesOf = (text: string): number => UTF8.encode(text).length
 
 /**
  * The document a BODIED file amounts to — a `.md` with its text, or a `.html`

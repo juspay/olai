@@ -286,13 +286,11 @@ export {
   writtenAddress,
   titleAddress,
 } from "./address.ts"
+export { bytesOf } from "./document.ts"
+export { isAsset, isPicture, servingOf } from "./serving.ts"
 export {
   bracketSpacedLinks,
-  bytesOf,
   firstLine,
-  isAsset,
-  isPicture,
-  servingOf,
   /** The path in this directory a relative reference names, whatever kind of
    *  file it is — the same arithmetic and refusals as the picture rule, with
    *  no suffix allowlist at the end, for the caller that can ask the directory
