@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
 import { environmentReadings } from "@olai/plugin-api/configuration"
-import { EnvironmentReading } from "./plugins.ts"
+import { EnvironmentReading, isPluginCode } from "./plugins.ts"
 
 test("a secret reading has no value; machine paths retain theirs", () => {
   const readings = environmentReadings([
@@ -50,4 +50,15 @@ test("controls and file problems survive the row and process wire readings", asy
     expect(reading).not.toHaveProperty("control")
     expect(reading).not.toHaveProperty("value")
   }
+})
+
+test("a name with a line break, a line separator or another control character is not plugin code", () => {
+  // A file's name is shown as a tab's label, never as code; a name that could
+  // end a line is refused rather than carried anywhere text is evaluated.
+  for (const name of ["a\nb.ts", "a\rb.ts", "lib/a\u2028b.ts", "a\u2029b.tsx", "a\u0000b.ts", "a\tb.ts", "a\u007fb.ts"]) {
+    expect(isPluginCode(name)).toBe(false)
+  }
+  expect(isPluginCode("lib/sm2.ts")).toBe(true)
+  expect(isPluginCode("a#b.tsx")).toBe(true)
+  expect(isPluginCode("app/étude.ts")).toBe(true)
 })

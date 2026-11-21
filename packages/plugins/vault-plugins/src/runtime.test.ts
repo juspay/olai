@@ -28,7 +28,7 @@ import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 import { Effect, Option, Stream } from "effect"
 
-import { type DynamicRuntime, openDynamic } from "./runtime.ts"
+import { type DynamicRuntime, openDynamic, serverModuleText } from "./runtime.ts"
 import { ALWAYS, versionOf as versionOfCode } from "./source.ts"
 
 /** The version of a folder holding these two entries and any other code
@@ -1127,6 +1127,21 @@ describe("a server module belongs to one plugin at one version", () => {
     expect(said.mounted).toEqual(["alpha:1", "beta:1"])
     expect(said.after).toEqual(["alpha:1"])
   })
+})
+
+describe("nothing of a file's name is evaluated", () => {
+  // ON TEXT ONLY: what the serve would evaluate for a file, given a name that
+  // holds a line break. The name never ends the closing comment's line.
+  for (const [label, path] of [["a line feed", "lib/a\nexport const x = 1;//.ts"], ["U+2028", "lib/a\u2028export const x = 1;//.ts"]] as const) {
+    test(`a path holding ${label} leaves the built file followed by exactly one comment line`, () => {
+      const built = `export const said = "one"`
+      const text = serverModuleText("reader", "0123456789abcdef", path, built)
+      expect(text.startsWith(`${built}\n`)).toBe(true)
+      const after = text.slice(built.length + 1).replace(/\n$/, "")
+      expect(after.startsWith("//")).toBe(true)
+      expect(after).not.toMatch(/[\n\r\u2028\u2029]/)
+    })
+  }
 })
 
 describe("a helper's address is the address its file is found at", () => {

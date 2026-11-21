@@ -166,9 +166,10 @@ const withRows = <A>(
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // THE ROWS THE LOADER WAS OPENED WITH are the build's, as in a serve:
-      // a plugin the vault defines is not one of them.
-      plugins: { ...(yield* runtimeFor(plugins, [...ROWS], onChange)), reserved: [...ROWS] },
+      // ONE LIST, the rows the loader was opened with, as in a serve: a plugin
+      // the vault defines is not one of them, and its agent grants are held
+      // to its `writes` by that list alone.
+      plugins: yield* runtimeFor(plugins, [...ROWS], onChange),
     })
     // The runtime's `done` REJECTS when it is closed, so something has to hold
     // that catch or the teardown is an unhandled rejection the runner charges

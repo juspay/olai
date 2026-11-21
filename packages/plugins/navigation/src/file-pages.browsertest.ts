@@ -1,23 +1,26 @@
 /**
- * A PLUGIN-DRAWN FILE PAGE KEEPS ITS IDENTITY while the slot table moves for
- * any other reason.
+ * A PLUGIN-DRAWN FILE PAGE IS SETTLED WHERE ITS FACES ARE HELD, AND KEEPS ITS
+ * IDENTITY while the slot table moves for any other reason.
  *
- * The table's reading is tracked on the renderer's one signal, which moves when
- * a face arrives or leaves in ANY slot. `./PageView.tsx` draws the chosen page
- * through a keyed `<Show>`, so a page object minted afresh on every reading is
- * a page unmounted and mounted again — its scroll, its selection and any read
- * it had in flight thrown away because some other plugin hung a chip. What is
- * held here is the object the keyed `<Show>` is keyed by: one per
- * registration, for as long as that registration stands.
+ * The `file.page` faces are read through navigation's `renderer` component,
+ * which holds the faces and settles the pages in its own root, as it settles
+ * `app.route`; `./PageView.tsx` reads the tracked holder in `./pages.ts`. So
+ * the pages exist exactly while that component stands, whatever order its
+ * holds are taken in.
  *
- * Under the browser condition because the subject is a memo, and a
- * server-resolved Solid never recomputes one.
+ * And one page per registration: `./PageView.tsx` draws the chosen page
+ * through a keyed `<Show>`, so a page minted afresh per reading would be the
+ * open file drawn again from nothing each time some other plugin hung a chip.
+ *
+ * Under the browser condition because the subjects are memos and a tracked
+ * holder, and a server-resolved Solid never recomputes one.
  */
 import { expect, test } from "bun:test"
 import type { Hung } from "@olai/plugin-api"
-import { createRoot, createSignal } from "solid-js"
+import { createMemo, createRoot, createSignal } from "solid-js"
 
 import { filePagesOver } from "./file-pages.ts"
+import { holdPluginFilePages, pluginFilePages } from "./pages.ts"
 import type { FilePageFace } from "./slots.ts"
 
 test("one page per registration, the same object while other faces come and go", () => {
@@ -43,6 +46,19 @@ test("one page per registration, the same object while other faces come and go",
     const again: Hung<FilePageFace> = { plugin: "reader", face: () => null }
     setTable([again])
     expect(pages()[0]).not.toBe(held)
+    dispose()
+  })
+})
+
+test("the pages are read through the holder: empty unheld, there once held, empty once released, with no other signal moving", () => {
+  createRoot((dispose) => {
+    const reader: Hung<FilePageFace> = { plugin: "reader", face: () => null }
+    const seen = createMemo(() => pluginFilePages().map((page) => page.by))
+    expect(seen()).toEqual([])
+    const release = holdPluginFilePages(filePagesOver(() => [reader], () => null))
+    expect(seen()).toEqual([{ kind: "reader" }])
+    release()
+    expect(seen()).toEqual([])
     dispose()
   })
 })
