@@ -41,9 +41,9 @@ Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plu
 
     All three ask the same two questions: what the plugin should do, and what to call it.
 
-[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are below that, one tab each, beside the folder they are in. Settings it declares sit under **Settings**, and **Ask for a change…** opens the builder chat in the pane beside.
+[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are below that, one tab each by path, beside the folder they are in, and the status line counts the code files and their lines. Settings it declares sit under **Settings**, and **Ask for a change…** opens the builder chat in the pane beside.
 
-[^version]: A version is a hash of the plugin's two code files. Editing either one pauses the plugin, stops it running, and shows what changed since the version you approved. Editing the `README.md` changes nothing, because prose is not code. Every approval carries the version the page showed you, so one made after the source changed is refused.
+[^version]: A version is a hash of every `.ts` and `.tsx` file in the plugin's folder, with its path. Editing, adding, renaming or removing any of them pauses the plugin, stops it running, and shows what changed in each file since the version you approved. Editing the `README.md` changes nothing, because prose is not code. Every approval carries the version the page showed you, so one made after the source changed is refused.
 
 [^builder]: Asking for a new plugin starts the chat of the plugin's own `README.md`, named after its folder: the chat for `plugins/hex-swatch/README.md` is `hex-swatch`. That chat is the builder: the page reads **Being built** while it works, says when the agent has finished, and carries **Ask for a change…**. A plugin whose `README.md` has no chat offers **Ask about Hex Swatch…**, which starts one.
 
@@ -83,7 +83,7 @@ You ask for a plugin and then go and do something else, so three events reach yo
 | --- | --- |
 | **Ready for you** | the agent called `vault-plugins_run` at the version on disk, and got no fault back |
 | **Paused** | a plugin that was running stopped, because its code changed |
-| **Couldn't start** | the plugin's `apply` threw an error, or one of its two code files will not compile |
+| **Couldn't start** | the plugin's `apply` threw an error, or one of its code files will not compile |
 
 Nothing else notifies you. A plugin starting is not news, because you pressed the button, and one being built is not news, because you asked for it.
 
@@ -116,21 +116,26 @@ A `builder` property on this row is ordinary text that olai reads nothing from: 
 A plugin your directory defines is a folder under `plugins/`, and the folder's name is the plugin's name:
 
 ```
-plugins/hex-swatch/
+plugins/reader/
   README.md     what it does, for a person
   server.ts     required
   browser.tsx   optional
+  pairs.ts      any other .ts or .tsx file, at any depth
+  lib/sm2.ts
 ```
 
 - The name has the same shape a built-in plugin's does, `[a-z][a-z0-9-]*`, and may not be a name this server already uses. A folder named anything else is not compiled, and is shown with a sentence saying so.
 - `README.md` is a `# Title`, a blank line, one sentence, then as much prose as the plugin deserves. The heading is the plugin's name on screen, and the first paragraph the line under it.
 - `server.ts` is required, and is a whole plugin on its own: it can teach the directory a property kind, or send a message at seven each morning.
 - `browser.tsx` is optional. It is the file that draws on screen.
+- Every other `.ts` and `.tsx` file in the folder, at any depth, is code the two may import. It is part of the plugin whether anything imports it or not.
 - Anything else in the folder is ordinary content, and olai leaves it alone.
 
-olai treats these two code files as a plugin only under `plugins/`, so a code checkout somebody keeps beside their notes is untouched. They stay plain text: stored like any other file, recorded in the ledger, and listed by path in the commit panel, where you commit changes.
+The plugin's page shows every code file, and its version is a hash of all of them, so changing any one of them asks you to turn the plugin on again.
 
-They are not rows in the sidebar's **Reference** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/hex-swatch/server.ts` opens the plugin at that file.
+olai treats these files as a plugin only under `plugins/`, so a code checkout somebody keeps beside their notes is untouched. They stay plain text: stored like any other file, recorded in the ledger, and listed by path in the commit panel, where you commit changes.
+
+They are not rows in the sidebar's **Reference** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/reader/lib/sm2.ts` opens the plugin at that file.
 
 ## What each file may import
 
@@ -150,7 +155,18 @@ a vault, and nothing else — so "left-pad" names nothing this serve can hand
 over. A vault has no node_modules.
 ```
 
-A subpath is also refused (`effect/Schema`, `solid-js/web`), and so is an `import()` whose path is computed while the plugin runs. A person approves the source they read, so every module a plugin imports must be visible in it. A relative import is refused with its own sentence, because a plugin is these two files and nothing else.
+A subpath is also refused (`effect/Schema`, `solid-js/web`), and so is an `import()` whose path is computed while the plugin runs. A person approves the source they read, so every module a plugin imports must be visible in it.
+
+A file imports another file of its own folder by a relative path with its suffix, such as `import { splitPair } from "./pairs.ts"`. Each of these is refused with a sentence naming the import:
+
+- a path that leaves the folder, such as `../other/server.ts`, or one starting with `/`;
+- a file the folder does not hold;
+- a path without `.ts` or `.tsx` at the end;
+- two files that import each other, directly or through others;
+- a `.tsx` file imported, directly or through others, by `server.ts`;
+- `export … from`, which re-exports another file: import what you need, then export it.
+
+A file both entries import is built once for each, so in each it reaches the services of the entry that imported it.
 
 Both files import the bare `@olai/plugin-api`, and olai gives each different services: the server file `Kinds`, `Vault`, `Surfaces` and `Deliveries`, the browser file `Slots`, `Clocks` and `Wired`.
 
@@ -183,13 +199,13 @@ export default definePlugin({
 | --- | --- |
 | `vault-plugins_guide` | this guide, which ships inside the binary |
 | `vault-plugins_inspect` | what a plugin may name: the three modules, the service keys, every slot with its key rule and what a face there is handed, the folder layout, and the names in use |
-| `vault-plugins_write` | writes one file of one plugin, and says whether that file compiles |
+| `vault-plugins_write` | writes one file of one plugin, by its path in the folder, and says whether the plugin compiles with it |
 | `vault-plugins_run` | the state of one plugin right now: its state, its version, and the fault sentence if it has one |
 | `vault-plugins_stop` | switches one plugin off for good, by writing `on: no` |
 
 - Call `vault-plugins_inspect` before you write code. Each service record says which file it belongs to, and `availability` says whether a server file provides it now or has declared it for the browser.
 - Its `taken` list holds every name this server uses, built-in plugins and folders under `plugins/` alike: a new plugin may use neither.
-- `vault-plugins_write` creates the folder if it is not there. It is all the vocabulary you need: no paths, no rules about which files olai claims, no guessing.
+- `vault-plugins_write` creates the folder if it is not there. You name the file by its path in the folder, such as `lib/sm2.ts`; no other paths, no rules about which files olai claims, no guessing.
 - `vault-plugins_run` answers `pending` for a plugin nobody has approved. That is the approval boundary answering you: say so and stop.
 - `vault-plugins_stop` works on these plugins only. Naming a built-in plugin is answered as no such plugin.
 
@@ -197,14 +213,16 @@ export default definePlugin({
 
 Every edit changes the version, and every version costs a person a decision, so be sure the file is right before you ask for approval.
 
-Write the file with `vault-plugins_write`, which says in the same reply whether it compiled, so the loop is one call rather than a write and a guess. Or compile it yourself, with the call the server makes:
+Write each file with `vault-plugins_write`, which says in the same reply whether the plugin compiles with that file in it, so the loop is one call rather than a write and a guess. Or compile it yourself, with the call the server makes:
 
 ```ts
-import { buildHalf } from "@olai/plugin-build"
-console.log(await buildHalf("browser", source))   // { ok: true, text } | { ok: false, why }
+import { asDataUrl, buildPlugin } from "@olai/plugin-build"
+// files: every code file of the folder, by its path in the folder
+console.log(await buildPlugin("browser", "browser.tsx", files, (_path, text) => asDataUrl(text)))
+// { ok: true, text, modules } | { ok: false, why }
 ```
 
-Run that from a package that depends on `@olai/plugin-build`; `packages/server` does. It catches every way a file can fail to become a module: a module olai does not provide, a relative import, a computed `import()`, a syntax error. Then typecheck both files with `bun x tsc --noEmit`.
+Run that from a package that depends on `@olai/plugin-build`; `packages/server` does. It catches every way the folder can fail to become modules: a module olai does not provide, an import of a file the folder does not hold, a computed `import()`, a syntax error. Then typecheck the files with `bun x tsc --noEmit`.
 
 > The typecheck has one trap. Both files import the bare `@olai/plugin-api`, and each gets different services, so typechecking a server file as written reports `has no exported member 'Kinds'`. Point that import at `@olai/plugin-api/services` for the check, then put it back.
 
@@ -241,7 +259,7 @@ The server file is compiled, evaluated and started as a fiber on the registry th
 
 Then olai reads the served directory again, which is what draws the plugin on values that were already there. Without that, the plugin's kind would be in force, but its chip would not be drawn until the next keystroke somewhere in your files.
 
-The browser file is compiled to a chunk of JavaScript, served at `/_olai/plugins/<name>-<version>.js`. The tab loads it as it loads a built-in plugin's chunk, and what the plugin draws appears with no reload. The version is in the path, so an approved edit has a different address, and no cache can return the code approved before it.
+The browser file is compiled to a chunk of JavaScript, served at `/_olai/plugins/<name>-<version>.js`, and each file it imports at `/_olai/plugins/<name>-<version>/<path>.js`. The tab loads it as it loads a built-in plugin's chunk, and what the plugin draws appears with no reload. The version is in the path, so an approved edit has a different address, and no cache can return the code approved before it.
 
 The server keeps the last chunk served for each plugin name, so a tab still fetching one while the plugin stops gets that code rather than a 404.
 

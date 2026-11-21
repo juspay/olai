@@ -3,21 +3,26 @@
 A plugin your directory defines is a folder under `plugins/`, and the folder's name is the plugin's name:
 
 ```
-plugins/hex-swatch/
+plugins/reader/
   README.md     what it does, for a person
   server.ts     required
   browser.tsx   optional
+  pairs.ts      any other .ts or .tsx file, at any depth
+  lib/sm2.ts
 ```
 
 - The name has the same shape a built-in plugin's does, `[a-z][a-z0-9-]*`, and may not be a name this server already uses. A folder named anything else is not compiled, and is shown with a sentence saying so.
 - `README.md` is a `# Title`, a blank line, one sentence, then as much prose as the plugin deserves. The heading is the plugin's name on screen, and the first paragraph the line under it.
 - `server.ts` is required, and is a whole plugin on its own: it can teach the directory a property kind, or send a message at seven each morning.
 - `browser.tsx` is optional. It is the file that draws on screen.
+- Every other `.ts` and `.tsx` file in the folder, at any depth, is code the two may import. It is part of the plugin whether anything imports it or not.
 - Anything else in the folder is ordinary content, and olai leaves it alone.
 
-olai treats these two code files as a plugin only under `plugins/`, so a code checkout somebody keeps beside their notes is untouched. They stay plain text: stored like any other file, recorded in the ledger, and listed by path in the commit panel, where you commit changes.
+The plugin's page shows every code file, and its version is a hash of all of them, so changing any one of them asks you to turn the plugin on again.
 
-They are not rows in the sidebar's **Reference** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/hex-swatch/server.ts` opens the plugin at that file.
+olai treats these files as a plugin only under `plugins/`, so a code checkout somebody keeps beside their notes is untouched. They stay plain text: stored like any other file, recorded in the ledger, and listed by path in the commit panel, where you commit changes.
+
+They are not rows in the sidebar's **Reference** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/reader/lib/sm2.ts` opens the plugin at that file.
 
 ## What each file may import
 
@@ -37,7 +42,18 @@ a vault, and nothing else — so "left-pad" names nothing this serve can hand
 over. A vault has no node_modules.
 ```
 
-A subpath is also refused (`effect/Schema`, `solid-js/web`), and so is an `import()` whose path is computed while the plugin runs. A person approves the source they read, so every module a plugin imports must be visible in it. A relative import is refused with its own sentence, because a plugin is these two files and nothing else.
+A subpath is also refused (`effect/Schema`, `solid-js/web`), and so is an `import()` whose path is computed while the plugin runs. A person approves the source they read, so every module a plugin imports must be visible in it.
+
+A file imports another file of its own folder by a relative path with its suffix, such as `import { splitPair } from "./pairs.ts"`. Each of these is refused with a sentence naming the import:
+
+- a path that leaves the folder, such as `../other/server.ts`, or one starting with `/`;
+- a file the folder does not hold;
+- a path without `.ts` or `.tsx` at the end;
+- two files that import each other, directly or through others;
+- a `.tsx` file imported, directly or through others, by `server.ts`;
+- `export … from`, which re-exports another file: import what you need, then export it.
+
+A file both entries import is built once for each, so in each it reaches the services of the entry that imported it.
 
 Both files import the bare `@olai/plugin-api`, and olai gives each different services: the server file `Kinds`, `Vault`, `Surfaces` and `Deliveries`, the browser file `Slots`, `Clocks` and `Wired`.
 
@@ -70,13 +86,13 @@ export default definePlugin({
 | --- | --- |
 | `vault-plugins_guide` | this guide, which ships inside the binary |
 | `vault-plugins_inspect` | what a plugin may name: the three modules, the service keys, every slot with its key rule and what a face there is handed, the folder layout, and the names in use |
-| `vault-plugins_write` | writes one file of one plugin, and says whether that file compiles |
+| `vault-plugins_write` | writes one file of one plugin, by its path in the folder, and says whether the plugin compiles with it |
 | `vault-plugins_run` | the state of one plugin right now: its state, its version, and the fault sentence if it has one |
 | `vault-plugins_stop` | switches one plugin off for good, by writing `on: no` |
 
 - Call `vault-plugins_inspect` before you write code. Each service record says which file it belongs to, and `availability` says whether a server file provides it now or has declared it for the browser.
 - Its `taken` list holds every name this server uses, built-in plugins and folders under `plugins/` alike: a new plugin may use neither.
-- `vault-plugins_write` creates the folder if it is not there. It is all the vocabulary you need: no paths, no rules about which files olai claims, no guessing.
+- `vault-plugins_write` creates the folder if it is not there. You name the file by its path in the folder, such as `lib/sm2.ts`; no other paths, no rules about which files olai claims, no guessing.
 - `vault-plugins_run` answers `pending` for a plugin nobody has approved. That is the approval boundary answering you: say so and stop.
 - `vault-plugins_stop` works on these plugins only. Naming a built-in plugin is answered as no such plugin.
 
@@ -84,14 +100,16 @@ export default definePlugin({
 
 Every edit changes the version, and every version costs a person a decision, so be sure the file is right before you ask for approval.
 
-Write the file with `vault-plugins_write`, which says in the same reply whether it compiled, so the loop is one call rather than a write and a guess. Or compile it yourself, with the call the server makes:
+Write each file with `vault-plugins_write`, which says in the same reply whether the plugin compiles with that file in it, so the loop is one call rather than a write and a guess. Or compile it yourself, with the call the server makes:
 
 ```ts
-import { buildHalf } from "@olai/plugin-build"
-console.log(await buildHalf("browser", source))   // { ok: true, text } | { ok: false, why }
+import { asDataUrl, buildPlugin } from "@olai/plugin-build"
+// files: every code file of the folder, by its path in the folder
+console.log(await buildPlugin("browser", "browser.tsx", files, (_path, text) => asDataUrl(text)))
+// { ok: true, text, modules } | { ok: false, why }
 ```
 
-Run that from a package that depends on `@olai/plugin-build`; `packages/server` does. It catches every way a file can fail to become a module: a module olai does not provide, a relative import, a computed `import()`, a syntax error. Then typecheck both files with `bun x tsc --noEmit`.
+Run that from a package that depends on `@olai/plugin-build`; `packages/server` does. It catches every way the folder can fail to become modules: a module olai does not provide, an import of a file the folder does not hold, a computed `import()`, a syntax error. Then typecheck the files with `bun x tsc --noEmit`.
 
 > The typecheck has one trap. Both files import the bare `@olai/plugin-api`, and each gets different services, so typechecking a server file as written reports `has no exported member 'Kinds'`. Point that import at `@olai/plugin-api/services` for the check, then put it back.
 
@@ -128,7 +146,7 @@ The server file is compiled, evaluated and started as a fiber on the registry th
 
 Then olai reads the served directory again, which is what draws the plugin on values that were already there. Without that, the plugin's kind would be in force, but its chip would not be drawn until the next keystroke somewhere in your files.
 
-The browser file is compiled to a chunk of JavaScript, served at `/_olai/plugins/<name>-<version>.js`. The tab loads it as it loads a built-in plugin's chunk, and what the plugin draws appears with no reload. The version is in the path, so an approved edit has a different address, and no cache can return the code approved before it.
+The browser file is compiled to a chunk of JavaScript, served at `/_olai/plugins/<name>-<version>.js`, and each file it imports at `/_olai/plugins/<name>-<version>/<path>.js`. The tab loads it as it loads a built-in plugin's chunk, and what the plugin draws appears with no reload. The version is in the path, so an approved edit has a different address, and no cache can return the code approved before it.
 
 The server keeps the last chunk served for each plugin name, so a tab still fetching one while the plugin stops gets that code rather than a 404.
 
@@ -167,15 +185,118 @@ A slot keyed by plugin holds one face per plugin, and a slot keyed by nothing is
 - `app.keys` refuses a key the app already answers, such as `Cmd` + `K`, and a key an earlier plugin took. That key is not listened for, and the browser's console says which plugin asked for it.
 - `app.viewer` holds one face in all: while another plugin holds it, a second registration fails the plugin that asked.
 
-### A sidebar section, a key and a palette row
+### The reading companion, file by file
 
-This is the browser file of `reader`, a companion for reading a book in French. It adds a **Reading** section to the sidebar with a link to the book and one to the vocabulary, a key that opens the vocabulary, and a palette row that opens the book.
+`reader` is a companion for reading a book in French. Each sentence of the book is a row of `book.olai` whose `reader-pair` property holds the French, ` | `, and the English, and the plugin draws the two side by side under the row. It also adds a **Reading** section to the sidebar, a key that opens the vocabulary, and a palette row that opens the book.
+
+It is six code files, and each entry imports the ones it needs by a relative path:
+
+```
+plugins/reader/
+  README.md
+  server.ts      the reader-pair property kind
+  browser.tsx    everything it draws
+  columns.tsx    the two columns, imported by browser.tsx
+  pairs.ts       reading a reader-pair value, imported by both entries
+  types.ts       the shapes both entries agree on
+  lib/sm2.ts     when a word is next due, which nothing imports yet
+```
+
+`lib/sm2.ts` is part of the plugin although nothing imports it: it is on the plugin's page, it is in the version, and changing it asks you to turn the plugin on again.
+
+`types.ts`:
+
+```ts
+// The shapes both halves of the reader agree on.
+
+/** One sentence of the book and its translation. */
+export interface Pair {
+  readonly french: string
+  readonly english: string
+}
+
+/** How hard a word was to recall, as the review's three buttons say it. */
+export type Grade = "again" | "good" | "easy"
+
+/** A word being learnt, and when it is next due. */
+export interface Card {
+  readonly word: string
+  readonly due: string
+  readonly interval: number
+  readonly ease: number
+}
+```
+
+`pairs.ts`:
+
+```ts
+import type { Pair } from "./types.ts"
+
+/** A `reader-pair` value is the French sentence, ` | `, and its English. */
+export const splitPair = (value: string): Pair | null => {
+  const cut = value.indexOf(" | ")
+  if (cut <= 0 || cut + 3 >= value.length) return null
+  return { french: value.slice(0, cut).trim(), english: value.slice(cut + 3).trim() }
+}
+```
+
+`server.ts`:
+
+```ts
+import { definePlugin, Kinds } from "@olai/plugin-api"
+import { Effect } from "effect"
+
+import { splitPair } from "./pairs.ts"
+
+export default definePlugin({
+  name: "reader",
+  needs: [Kinds],
+  apply: Effect.gen(function*() {
+    const kinds = yield* Kinds
+    yield* kinds.register({
+      kind: "pair",
+      takes: "`reader-pair`: a French sentence, ` | `, and its English",
+      admits: (value: string) => splitPair(value) !== null,
+    })
+  }),
+})
+```
+
+`columns.tsx`:
+
+```tsx
+import { createSignal } from "solid-js"
+
+import type { Pair } from "./types.ts"
+
+/**
+ * A sentence and its translation side by side. Pointing at either half lights
+ * both, so you can see which English goes with which French.
+ */
+export const Columns = (props: { readonly pair: Pair }) => {
+  const [lit, light] = createSignal(false)
+  return (
+    <div
+      data-reader="columns"
+      class="grid grid-cols-2 gap-4 py-1 text-body"
+      onPointerEnter={() => light(true)}
+      onPointerLeave={() => light(false)}
+    >
+      <p lang="fr" class={lit() ? "bg-doing/10" : ""}>{props.pair.french}</p>
+      <p lang="en" class={lit() ? "bg-doing/10" : ""}>{props.pair.english}</p>
+    </div>
+  )
+}
+```
 
 `browser.tsx`:
 
 ```tsx
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
+
+import { Columns } from "./columns.tsx"
+import { splitPair } from "./pairs.ts"
 
 const BOOK = "/book.olai"
 const VOCABULARY = "/vocabulary.olai"
@@ -193,10 +314,16 @@ const open = (address: string) => {
 const Section = () => (
   <nav data-reader="section" class="flex flex-col px-3 py-2 text-body">
     <span class="text-label text-muted">Reading</span>
-    <a href={BOOK}>Le Petit Prince</a>
+    <a href={BOOK}>The book</a>
     <a href={VOCABULARY}>Vocabulary</a>
   </nav>
 )
+
+// A `reader-pair` property, drawn under its row as two columns.
+const Pair = (context: { readonly entry: { readonly value: string } }) => {
+  const pair = splitPair(context.entry.value)
+  return pair === null ? null : <Columns pair={pair} />
+}
 
 export default definePlugin({
   name: "reader",
@@ -217,14 +344,16 @@ export default definePlugin({
       search: "reader book french read",
       href: BOOK,
     })
+    yield* slots.register("outline.row.block", "pair", Pair)
   }),
 })
 ```
 
+- `pairs.ts` is imported by both entries. Each builds its own copy, so in each it reaches the services of the entry that imported it.
 - A link in a face is an ordinary `<a href>`. olai follows a link to one of its own addresses inside the app, with no reload.
 - A key's `press` gets nothing, so `open` follows an address the same way a link does. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
 - A palette row opens its `href` when you choose it, and is found by the words in its `search`.
-- Switch the plugin off and the section, the key and the palette row go together.
+- Switch the plugin off and the section, the key, the palette row and the columns go together.
 
 ## The morning agenda
 

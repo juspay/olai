@@ -19,15 +19,21 @@ const FOLDER = path.join(ROOT, "packages", "tests", "fixtures", "reader", "plugi
 
 /** Where each printed file of the fixture is printed. */
 const PRINTED: ReadonlyArray<readonly [file: string, page: string]> = [
+  ["types.ts", "dynamic-plugins-faces.md"],
+  ["pairs.ts", "dynamic-plugins-faces.md"],
+  ["server.ts", "dynamic-plugins-faces.md"],
+  ["columns.tsx", "dynamic-plugins-faces.md"],
   ["browser.tsx", "dynamic-plugins-faces.md"],
 ];
 
 for (const [file, page] of PRINTED) {
   test(`the reader's ${file} is the one ${page} prints`, () => {
     const text = fs.readFileSync(path.join(ROOT, "website", "docs", page), "utf8");
-    const printed = [...text.matchAll(new RegExp("`" + file.replace(".", "\\.") + "`:\\n+```[a-z]*\\n([\\s\\S]*?)```", "g"))]
-      .map((hit) => hit[1] ?? "")
-      .filter((block) => block.includes(`name: "reader"`));
+    const blocks = [...text.matchAll(new RegExp("`" + file.replaceAll(".", "\\.") + "`:\\n+```[a-z]*\\n([\\s\\S]*?)```", "g"))]
+      .map((hit) => hit[1] ?? "");
+    // A page with several examples prints an entry once per example; the
+    // reader's is the one that names it.
+    const printed = blocks.length === 1 ? blocks : blocks.filter((block) => block.includes(`name: "reader"`));
     expect(printed.length).toBe(1);
     expect(fs.readFileSync(path.join(FOLDER, file), "utf8").trimEnd()).toBe(printed[0]!.trimEnd());
   });

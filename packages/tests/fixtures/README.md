@@ -459,16 +459,23 @@ a scenario means to prove something about.
 ## `reader/` — the reading companion, a vault plugin that draws outside outlines
 
 `plugins/reader/` is a companion for reading a book in French, and the worked
-material of `website/docs/dynamic-plugins-faces.md`: its `browser.tsx` is the
-file that page prints, held equal to it by `../reader.test.ts`. Change the page
-and copy it here, never the other way round.
+material of `website/docs/dynamic-plugins-faces.md`: every code file that page
+prints is held equal to it by `../reader.test.ts`. Change the page and copy it
+here, never the other way round.
 
-- `book.olai` is the book, one row per page.
+- `book.olai` is the book: a page row, and under it a sentence row `s1` whose
+  `reader-pair` property holds the French, ` | `, and the English. The text is
+  the opening of Jules Verne's *Le Tour du monde en quatre-vingts jours*, which
+  is in the public domain.
 - `vocabulary.olai` is where the words being learnt go.
-- The browser file adds a **Reading** section to the sidebar linking both, the
-  shortcut `Cmd` + `Shift` + `Y` that opens the vocabulary, and a palette row
-  that opens the book. Each is found by a `data-reader` attribute the file
-  writes itself.
+- The plugin is six code files: the two entries, `columns.tsx`, `pairs.ts`
+  (imported by both entries), `types.ts`, and `lib/sm2.ts`, which nothing
+  imports. The status line on its page reads `6 files, 138 lines`, which a
+  scenario asserts: change a file and that number moves.
+- The browser file adds a **Reading** section to the sidebar linking both
+  files, the shortcut `Cmd` + `Shift` + `Y` that opens the vocabulary, a palette
+  row that opens the book, and the two columns under every sentence. Each is
+  found by a `data-reader` attribute the files write themselves.
 
 There is no consent here: `reader` arrives off and unapproved, and a scenario
 turns it on at its page. It is an ordinary plugin and nothing in it is about

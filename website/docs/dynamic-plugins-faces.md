@@ -48,15 +48,118 @@ A slot keyed by plugin holds one face per plugin, and a slot keyed by nothing is
 - `app.keys` refuses a key the app already answers, such as `Cmd` + `K`, and a key an earlier plugin took. That key is not listened for, and the browser's console says which plugin asked for it.
 - `app.viewer` holds one face in all: while another plugin holds it, a second registration fails the plugin that asked.
 
-### A sidebar section, a key and a palette row
+### The reading companion, file by file
 
-This is the browser file of `reader`, a companion for reading a book in French. It adds a **Reading** section to the sidebar with a link to the book and one to the vocabulary, a key that opens the vocabulary, and a palette row that opens the book.
+`reader` is a companion for reading a book in French. Each sentence of the book is a row of `book.olai` whose `reader-pair` property holds the French, ` | `, and the English, and the plugin draws the two side by side under the row. It also adds a **Reading** section to the sidebar, a key that opens the vocabulary, and a palette row that opens the book.
+
+It is six code files, and each entry imports the ones it needs by a relative path:
+
+```
+plugins/reader/
+  README.md
+  server.ts      the reader-pair property kind
+  browser.tsx    everything it draws
+  columns.tsx    the two columns, imported by browser.tsx
+  pairs.ts       reading a reader-pair value, imported by both entries
+  types.ts       the shapes both entries agree on
+  lib/sm2.ts     when a word is next due, which nothing imports yet
+```
+
+`lib/sm2.ts` is part of the plugin although nothing imports it: it is on the plugin's page, it is in the version, and changing it asks you to turn the plugin on again.
+
+`types.ts`:
+
+```ts
+// The shapes both halves of the reader agree on.
+
+/** One sentence of the book and its translation. */
+export interface Pair {
+  readonly french: string
+  readonly english: string
+}
+
+/** How hard a word was to recall, as the review's three buttons say it. */
+export type Grade = "again" | "good" | "easy"
+
+/** A word being learnt, and when it is next due. */
+export interface Card {
+  readonly word: string
+  readonly due: string
+  readonly interval: number
+  readonly ease: number
+}
+```
+
+`pairs.ts`:
+
+```ts
+import type { Pair } from "./types.ts"
+
+/** A `reader-pair` value is the French sentence, ` | `, and its English. */
+export const splitPair = (value: string): Pair | null => {
+  const cut = value.indexOf(" | ")
+  if (cut <= 0 || cut + 3 >= value.length) return null
+  return { french: value.slice(0, cut).trim(), english: value.slice(cut + 3).trim() }
+}
+```
+
+`server.ts`:
+
+```ts
+import { definePlugin, Kinds } from "@olai/plugin-api"
+import { Effect } from "effect"
+
+import { splitPair } from "./pairs.ts"
+
+export default definePlugin({
+  name: "reader",
+  needs: [Kinds],
+  apply: Effect.gen(function*() {
+    const kinds = yield* Kinds
+    yield* kinds.register({
+      kind: "pair",
+      takes: "`reader-pair`: a French sentence, ` | `, and its English",
+      admits: (value: string) => splitPair(value) !== null,
+    })
+  }),
+})
+```
+
+`columns.tsx`:
+
+```tsx
+import { createSignal } from "solid-js"
+
+import type { Pair } from "./types.ts"
+
+/**
+ * A sentence and its translation side by side. Pointing at either half lights
+ * both, so you can see which English goes with which French.
+ */
+export const Columns = (props: { readonly pair: Pair }) => {
+  const [lit, light] = createSignal(false)
+  return (
+    <div
+      data-reader="columns"
+      class="grid grid-cols-2 gap-4 py-1 text-body"
+      onPointerEnter={() => light(true)}
+      onPointerLeave={() => light(false)}
+    >
+      <p lang="fr" class={lit() ? "bg-doing/10" : ""}>{props.pair.french}</p>
+      <p lang="en" class={lit() ? "bg-doing/10" : ""}>{props.pair.english}</p>
+    </div>
+  )
+}
+```
 
 `browser.tsx`:
 
 ```tsx
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
+
+import { Columns } from "./columns.tsx"
+import { splitPair } from "./pairs.ts"
 
 const BOOK = "/book.olai"
 const VOCABULARY = "/vocabulary.olai"
@@ -74,10 +177,16 @@ const open = (address: string) => {
 const Section = () => (
   <nav data-reader="section" class="flex flex-col px-3 py-2 text-body">
     <span class="text-label text-muted">Reading</span>
-    <a href={BOOK}>Le Petit Prince</a>
+    <a href={BOOK}>The book</a>
     <a href={VOCABULARY}>Vocabulary</a>
   </nav>
 )
+
+// A `reader-pair` property, drawn under its row as two columns.
+const Pair = (context: { readonly entry: { readonly value: string } }) => {
+  const pair = splitPair(context.entry.value)
+  return pair === null ? null : <Columns pair={pair} />
+}
 
 export default definePlugin({
   name: "reader",
@@ -98,14 +207,16 @@ export default definePlugin({
       search: "reader book french read",
       href: BOOK,
     })
+    yield* slots.register("outline.row.block", "pair", Pair)
   }),
 })
 ```
 
+- `pairs.ts` is imported by both entries. Each builds its own copy, so in each it reaches the services of the entry that imported it.
 - A link in a face is an ordinary `<a href>`. olai follows a link to one of its own addresses inside the app, with no reload.
 - A key's `press` gets nothing, so `open` follows an address the same way a link does. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
 - A palette row opens its `href` when you choose it, and is found by the words in its `search`.
-- Switch the plugin off and the section, the key and the palette row go together.
+- Switch the plugin off and the section, the key, the palette row and the columns go together.
 
 <!-- guide:end -->
 
