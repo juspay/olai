@@ -127,7 +127,9 @@ test("the reading companion's page names what it reaches for in plain words", ()
   const by = new Map(list.map((one) => [one.named, one.said]))
   // THE DOORS THIS PR ADDED that reach something, each with its sentence.
   expect(by.get("Navigate")).toBe("Opens pages in the app")
-  expect(by.get("RequestAuthority")).toBe("Writes as whoever made the call, you or an agent")
+  // WHAT THE IMPORT SHOWS, and no more: the plugin learns who called. Whether
+  // it hands that to the gate is in the code, which this list never vouches for.
+  expect(by.get("RequestAuthority")).toBe("Learns who made each call, you or an agent")
   // ...THE PLUMBING, and the TYPES, which reach nothing.
   for (const quiet of ["clientOf", "defineSurface", "OpFailure", "ImplementSurfaceDeps", "WriteRequest"]) {
     expect(by.has(quiet)).toBe(false)
