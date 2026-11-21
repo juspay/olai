@@ -20,21 +20,16 @@ import {
   situate,
   standingBefore,
   type Status,
-  isTagName,
   memoryFiles,
-  mayHoldTag,
   nearestAtOrAbove,
-  TAG_SIGILS,
-  tagOpensAt,
-  tagText,
   titleParts,
-  titleTagRe,
   tookOf,
   under,
   unfinishedWithin,
 
   withoutDone,
 } from "./derive.ts"
+import { isTagName, mayHoldTag, TAG_SIGILS, tagOpensAt, tagText, titleTagRe } from "@olai/prose/tags.ts"
 import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { isMirror, type Located, type RegularNode, storedMarker } from "./node.ts"
 

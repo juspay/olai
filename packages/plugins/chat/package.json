@@ -33,6 +33,7 @@
     "@olai/format": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/ops": "workspace:*",
+    "@olai/prose": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "@olai/plugin-kit": "workspace:*",
     "@olai/surface": "workspace:*",

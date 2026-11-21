@@ -28,8 +28,9 @@
  * has any bearing on the answer.
  */
 
+import { proseIn } from "@olai/prose/frontmatter.ts"
+import { tagText } from "@olai/prose/tags.ts"
 import {
-  proseIn,
   deadLinksIn,
   deadLinksOf,
   deadLinkFields,
@@ -116,7 +117,6 @@ import {
   type SubtreeRequest,
   type TagsAnswer,
   type TagsRequest,
-  tagText,
   titleParts,
   UsageFailure,
 } from "@olai/format"

@@ -2,7 +2,8 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
-import { type Address, printAddress, type Tag } from "./address.ts"
+import { type Tag } from "@olai/prose/tags.ts"
+import { type Address, printAddress } from "./address.ts"
 import { tagsIn, titleParts } from "./derive.ts"
 import { wikilinksIn } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"

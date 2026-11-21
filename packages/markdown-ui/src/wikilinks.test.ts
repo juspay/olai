@@ -9,7 +9,8 @@
  * syntax is drawn, and the names on the page are held to the names the scan
  * read, in order.
  */
-import { fileKind, proseIn, slugsIn, wikilinksIn } from "@olai/format"
+import { fileKind, slugsIn, wikilinksIn } from "@olai/format"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"

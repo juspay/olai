@@ -19,6 +19,7 @@
     "@olai/fonts": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/plugin-api": "workspace:*",
+    "@olai/prose": "workspace:*",
     "@olai/surface": "workspace:*",
     "@olai/web": "workspace:*",
     "@olai/markdown-ui": "workspace:*",

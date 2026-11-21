@@ -31,7 +31,7 @@ import { type Address, addressOf } from "./address.ts"
 import { resolveRelative } from "./documents.ts"
 import { type Claims, fileKind, holdsBody, stemOf } from "./kinds.ts"
 import { basenameOf, byPath } from "./paths.ts"
-import { slugOf } from "./slug.ts"
+import { slugOf } from "@olai/prose/slug.ts"
 import { nearestId } from "./suggest.ts"
 
 /**

@@ -43,20 +43,19 @@ import { isMarkdown, isOpaque } from "./document.ts"
 import type { Outline } from "./document.ts"
 import { Schema } from "effect"
 
+import { mayHoldTag, tagText } from "@olai/prose/tags.ts"
+import { proseIn, proseLineOffset } from "@olai/prose/frontmatter.ts"
 import {
   ancestorsOf,
   byCorpus,
   type Derived,
   isBlocked,
   isMirrored,
-  mayHoldTag,
   type Row,
-  tagText,
   titleParts,
 } from "./derive.ts"
 import type { Markdown, Unkept } from "./document.ts"
 import { type Custom, customOf } from "./custom.ts"
-import { proseIn, proseLineOffset } from "./frontmatter.ts"
 import { shiftDay, shiftMinutes, shiftMonth, weekdayOf } from "./calendar.ts"
 import type { DayGroup } from "./dates.ts"
 import { datesOf, dayOf, monthOf } from "./occasion.ts"

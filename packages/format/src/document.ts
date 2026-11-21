@@ -92,10 +92,13 @@
 
 import { Schema } from "effect"
 
-import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./address.ts"
+import { Slug } from "@olai/prose/slug.ts"
+import { proseIn } from "@olai/prose/frontmatter.ts"
+import { Tag } from "@olai/prose/tags.ts"
+import { Address, addressOf, DocumentPath, printAddress } from "./address.ts"
 import { Custom } from "./custom.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
-import { frontmatterIn, proseIn } from "./frontmatter.ts"
+import { frontmatterIn } from "./frontmatter.ts"
 import { firstLine, linksIn, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"

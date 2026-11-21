@@ -26,7 +26,7 @@
  * design's later evolution lands.
  */
 
-import { claim, type Slug, slugOf } from "@olai/format"
+import { claim, type Slug, slugOf } from "@olai/prose/slug.ts"
 import type { Element, Root } from "hast"
 
 import { textOf } from "./anchors.ts"

@@ -11,7 +11,8 @@
 
 import { expect, test } from "bun:test"
 
-import { headingsIn, slugOf, slugsIn } from "./slug.ts"
+import { slugOf } from "@olai/prose/slug.ts"
+import { headingsIn, slugsIn } from "./slug.ts"
 
 const said = (values: ReadonlyArray<string>): ReadonlyArray<string> => [...values]
 

@@ -1,6 +1,7 @@
 const OUTLINE_EXT = mintExt(TEST_CLAIMS, "outline-olai")!
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
+import { MENTION_ALPHABET } from "@olai/prose/tags.ts"
 
 import { nodesOf } from "./fixtures.testlib.ts"
 import { mintExt } from "./kinds.ts"
@@ -8,7 +9,6 @@ import {
   TRASH,
   TRASH_FILE,
   ID_SHAPE,
-  MENTION_ALPHABET,
   INBOX,
   inboxIn,
   inOlaiDir,

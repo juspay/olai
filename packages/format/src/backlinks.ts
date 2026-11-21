@@ -84,7 +84,8 @@
 import { Schema } from "effect"
 
 import { type Address, addressOf, DocumentPath, printAddress } from "./address.ts"
-import { byCorpus, tagText, type Derived } from "./derive.ts"
+import { tagText } from "@olai/prose/tags.ts"
+import { byCorpus, type Derived } from "./derive.ts"
 import { Face, type FaceHead } from "./document.ts"
 import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
 import { byPath } from "./paths.ts"

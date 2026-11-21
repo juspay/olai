@@ -13,7 +13,8 @@
  * app writes and cannot open.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { proseIn, slugsIn } from "@olai/format"
+import { slugsIn } from "@olai/format"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"

@@ -39,9 +39,9 @@
 // WHERE A TAG STARTS AND STOPS IS THE FORMAT'S, and none of it is re-declared
 // here: the sigils it recognises, the alphabet a name is made of, and the rule
 // about a sigil sitting inside a word are three exports rather than three
-// literals in a widget (`@olai/format`'s derive.ts says why, beside the regex
+// literals in a widget (`@olai/prose`'s tags.ts says why, beside the regex
 // they all answer for). What is left in this file is only WHERE the caret is.
-import { isTagName, TAG_SIGILS, type TagSigil, tagOpensAt } from "@olai/format"
+import { isTagName, TAG_SIGILS, type TagSigil, tagOpensAt } from "@olai/prose/tags.ts"
 
 /** What the caret is inside, if anything. `from` is the index of the opener's
  *  FIRST character, so `[from, caret)` is the span a chosen completion

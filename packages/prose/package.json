@@ -1,0 +1,17 @@
+{
+  "name": "@olai/prose",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "//exports": "Importable one file at a time, as @olai/markdown-ui is: the browser draws its first paint with the tag grammar and the plain-title test, and neither may pull a heavier file in with it.",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "The bottom of the layering, below @olai/format: how a text is read — its tags, its slugs, where a file's frontmatter ends, whether a title holds any markup. `effect` and nothing in the workspace, so everything above can read text the same way.",
+  "dependencies": {
+    "effect": "4.1.4"
+  }
+}

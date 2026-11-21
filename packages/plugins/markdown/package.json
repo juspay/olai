@@ -27,6 +27,7 @@
   "dependencies": {
     "@kobalte/core": "^0.13.13",
     "@olai/format": "workspace:*",
+    "@olai/prose": "workspace:*",
     "@olai/surface": "workspace:*",
     "@solid-primitives/keyed": "^1.5.3",
     "@solid-primitives/scheduled": "^1.5.3",

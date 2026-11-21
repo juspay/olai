@@ -26,7 +26,7 @@
  * floor deliberately cannot import a markdown parser at all.
  */
 
-import { proseIn } from "@olai/format"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import { expect, test } from "bun:test"
 import rehypeStringify from "rehype-stringify"
 import remarkFrontmatter from "remark-frontmatter"

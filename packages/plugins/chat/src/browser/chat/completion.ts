@@ -62,7 +62,7 @@
  * `issue#42` and about `srid@example.com`.
  */
 
-import { tagOpensAt } from "@olai/format"
+import { tagOpensAt } from "@olai/prose/tags.ts"
 
 import { type Written, written } from "@olai/markdown-ui/insert.ts"
 

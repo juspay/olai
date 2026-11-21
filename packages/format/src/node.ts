@@ -22,6 +22,7 @@
 
 import { Schema } from "effect"
 
+import { MENTION_ALPHABET } from "@olai/prose/tags.ts"
 import { Custom } from "./custom.ts"
 import { type Claims, fileKind, stemOf, mintExt } from "./kinds.ts"
 import { basenameOf } from "./paths.ts"
@@ -481,15 +482,6 @@ export const isRegular = (at: Located): at is LocatedRegular => !isMirror(at.nod
  */
 export const storedMarker = (node: RegularNode): Status | undefined =>
   MARKS.find((mark) => node[mark] !== undefined)
-
-/** THE ONE ALPHABET a tag name and a node id are written in — letters, digits,
- *  `_`, `-` and `/`, the last so `#work/olai` is one tag. Declared HERE rather
- *  than beside the tag grammar (`./derive.ts`) or the completion
- *  (`@olai/web`'s client): this is the leaf everything downstream already
- *  imports, so a heartbeat where the id rule and the grammar drifted apart
- *  would be an id nobody can mention and a completion offering ids its own
- *  trigger cannot see, two ways to learn the same lesson. */
-export const MENTION_ALPHABET = "A-Za-z0-9_/-"
 
 /** Ids are `MENTION_ALPHABET` tags — a chosen name or a minted short string,
  *  spelling in the one alphabet a mention of an id can be written in. The

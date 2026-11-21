@@ -13,7 +13,8 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { derive, type Derived, tagText } from "./derive.ts"
+import { tagText } from "@olai/prose/tags.ts"
+import { derive, type Derived } from "./derive.ts"
 import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import {
   completingTags,

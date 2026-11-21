@@ -1,6 +1,6 @@
 import { createMemo, Show } from "solid-js"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
-import { proseIn } from "@olai/format"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import type { Route } from "olai-plugin-navigation/contract"
 import { markdownReady } from "@olai/markdown-ui/chunk.ts"
 import { outlineOf, landingId } from "@olai/markdown-ui/render.ts"

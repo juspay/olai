@@ -24,8 +24,8 @@
  * validator speak for everything else, in its own words, with `file:line`.
  */
 
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import {
-  proseIn,
   addressOf,
   referencesOf,
   deadLinksIn,

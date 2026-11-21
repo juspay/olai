@@ -33,7 +33,8 @@
  * has widened, and ./plain.test.ts's sweep is what says so.
  */
 import { TESTID } from "@olai/markdown-ui/testids.ts"
-import { litBy, type Lit, mayHoldTag, tagText, titleParts } from "@olai/format"
+import { litBy, type Lit, titleParts } from "@olai/format"
+import { mayHoldTag, tagText } from "@olai/prose/tags.ts"
 import type { Element, ElementContent, Root } from "hast"
 
 import { HIT_CLASS, NO_NEEDLES, runsIn } from "@olai/markdown-ui/lit.ts"

@@ -1,4 +1,5 @@
-import { Slug, isNodeHit, printAddress, type SearchHit } from "@olai/format"
+import { isNodeHit, printAddress, type SearchHit } from "@olai/format"
+import { Slug } from "@olai/prose/slug.ts"
 
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"
 import { documentProps, nodeProps } from "olai-plugin-search/ui/props.ts"

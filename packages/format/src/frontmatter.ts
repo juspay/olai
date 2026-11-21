@@ -13,7 +13,7 @@
  * This module is the one reading. Two questions, and everything else asks one
  * of them:
  *
- *   - {@link proseIn} — the body WITHOUT the block, which is what every scanner
+ *   - `@olai/prose`'s `proseIn` — the body WITHOUT the block, which is what every scanner
  *     that reads a document's content wants. The face's title, its links, its
  *     tags and its headings are all facts about the prose, and none of them is
  *     a fact about the record above it.
@@ -28,7 +28,7 @@
  * editor colours it, a static site builds from it — and every one of them uses
  * micromark's frontmatter construct or a copy of it. A vault whose owner sees
  * the block hidden on GitHub and drawn as a phantom heading here has met two
- * answers about their own file. So {@link matterIn} is that construct's rule,
+ * answers about their own file. So `@olai/prose`'s `matterIn` is that construct's rule,
  * written out, and held to it by a test (`@olai/web`'s
  * `markdown/frontmatter.test.ts`, which renders each corner below through
  * `remark-frontmatter` and through this function and requires the same page):
@@ -140,48 +140,8 @@
  */
 
 import type { Custom, CustomValue } from "./custom.ts"
+import { matterIn } from "@olai/prose/frontmatter.ts"
 import { nothing } from "./write.ts"
-
-/**
- * A body with its frontmatter taken off — the text every reading of a
- * document's CONTENT is about.
- *
- * IDENTITY for a body that opens with none, which is nearly all of them: the
- * scan below answers `null` on the first character of the first line, so this
- * costs a `startsWith` per document and allocates nothing.
- *
- * IT IS THE ONE SPELLING OF THE SKIP, in this package and in the browser
- * alike. {@link ./documents.ts}'s `firstLine` and {@link ./slug.ts}'s
- * `headingsIn` ask it themselves, because a BODY is the only thing either is
- * ever about; {@link ./document.ts}'s `bodiedDocument` asks it on behalf of
- * `tagsIn` and `linksIn`, because those two are also asked of a record's title
- * and note, where a leading `---` is a thematic break like any other; and
- * `./filter.ts`'s document fold asks it so a word only the block holds is
- * found by `prop:` rather than by typing it.
- *
- * AND THE BROWSER SPENDS IT TOO, which is why it is exported from the package
- * (`./index.ts`): the three faces that draw a whole file strip the block with
- * this call before the markdown pipeline sees it: Markdown's page and
- * and Journal's `browser/day/DayNote.tsx`. So the page
- * and the face cannot disagree about which lines a document has — they are the
- * same function, rather than two rules held together by a test.
- *
- * A `remark-frontmatter` in that pipeline was the other way to do it, and it
- * is wrong for a reason worth keeping written down: that is ONE pipeline for
- * every piece of markdown the app draws, so the plugin would change the dialect
- * for a node's NOTE and for the agent's replies as well — hiding a leading
- * `---` block off the screen while `tagsIn` and `linksIn` went on reading it as
- * the prose it is. Two readings of one block, which is the thing this module
- * exists to end.
- */
-export const proseIn = (body: string): string => {
-  const matter = matterIn(body)
-  return matter === null ? body : body.slice(matter.from)
-}
-
-/** Number of source lines removed before the prose, shared by search and rendering. */
-export const proseLineOffset = (body: string): number =>
-  body.slice(0, body.length - proseIn(body).length).split("\n").length - 1
 
 /**
  * The properties a body's frontmatter writes — EMPTY for a body that opens
@@ -358,49 +318,9 @@ const spelled = (key: string, value: string): string => {
 const quotedValue = (value: string): string =>
   `"${value.replace(/[\\"]/g, (one) => `\\${one}`).replace(/\r/g, "\\r").replace(/\n/g, "\\n")}"`
 
-/** Where a body's frontmatter is: the text BETWEEN the fences, and the offset
- *  the prose begins at. `null` for a body that carries none — which includes
- *  one whose opening fence is never closed. */
-const matterIn = (body: string): { readonly text: string; readonly from: number } | null => {
-  // The cheap negative first, and it is the answer for every document in a
-  // directory but the few that carry a block: the fence is the FIRST line, so
-  // one character decides it.
-  if (body.charCodeAt(0) !== DASH) return null
-  const opens = body.indexOf("\n")
-  if (opens === -1 || !isFence(body, 0, opens)) return null
-  let at = opens + 1
-  while (at < body.length) {
-    const end = body.indexOf("\n", at)
-    if (isFence(body, at, end === -1 ? body.length : end)) {
-      return { text: body.slice(opens + 1, at), from: end === -1 ? body.length : end + 1 }
-    }
-    if (end === -1) break
-    at = end + 1
-  }
-  // UNCLOSED IS NOT FRONTMATTER, which is micromark's answer and now this
-  // one — the header says what reading it the other way cost.
-  return null
-}
-
-const DASH = "-".charCodeAt(0)
 const SPACE = " ".charCodeAt(0)
 const TAB = "\t".charCodeAt(0)
 const RETURN = "\r".charCodeAt(0)
-
-/**
- * Is the span `[from, to)` of `text` the block's fence — exactly three dashes
- * at the left margin, and after them nothing a line ending may carry?
- *
- * OVER OFFSETS rather than over a line, which is what keeps the walk above
- * allocation-free on the path that matters: an UNCLOSED `---` is scanned to
- * the end of the file before it can be refused, and a line materialised per
- * line of a whole document is the cost `./documents.ts`'s `firstLine` and
- * `./slug.ts`'s `headingsIn` both refuse by name. Every line of that walk now
- * costs three `charCodeAt`s and stops on the first one that is not a dash.
- */
-const isFence = (text: string, from: number, to: number): boolean =>
-  to - from >= 3 && text.charCodeAt(from) === DASH && text.charCodeAt(from + 1) === DASH &&
-  text.charCodeAt(from + 2) === DASH && blank(text, from + 3, to)
 
 /** Whether the span holds only the whitespace a line ending may drag along —
  *  spaces, tabs, and the `\r` of a file written on Windows. */

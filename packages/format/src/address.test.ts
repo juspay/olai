@@ -15,8 +15,8 @@ import {
   PIN_NAME_UNWRITABLE,
   pinTitle,
   printAddress,
-  Slug,
 } from "./address.ts"
+import { Slug } from "@olai/prose/slug.ts"
 const document = (path: string): Address => ({
   kind: "document",
   path: DocumentPath.make(path),

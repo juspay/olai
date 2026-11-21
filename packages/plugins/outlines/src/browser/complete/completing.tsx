@@ -75,7 +75,8 @@ import {
   on,
 } from "solid-js"
 
-import { namesIn, tagText, wikilinkFor, wikilinkOffers } from "@olai/format"
+import { namesIn, wikilinkFor, wikilinkOffers } from "@olai/format"
+import { tagText } from "@olai/prose/tags.ts"
 import { servedDirectory } from "../vault.ts"
 
 import { Completions } from "./Completions.tsx"

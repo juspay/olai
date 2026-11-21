@@ -51,13 +51,8 @@
  * what a server is left holding when one file changes.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import {
-  derive,
-  type Derived,
-  mayHoldTag,
-  tagText,
-  titleParts,
-} from "./derive.ts"
+import { mayHoldTag, tagText } from "@olai/prose/tags.ts"
+import { derive, type Derived, titleParts } from "./derive.ts"
 import {
   median,
   recordsOf,

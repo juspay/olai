@@ -3,7 +3,7 @@
  * dead-links.ts asks that separate question against a revision's paths.
  */
 import { type Address, addressOf, printAddress } from "./address.ts"
-import { proseIn } from "./frontmatter.ts"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import { bodyKind, type Claims } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { isPicture } from "./serving.ts"

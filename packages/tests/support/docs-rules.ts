@@ -28,7 +28,7 @@
  * tap away, and the page-length rule still counts it.
  */
 
-import { claim, slugOf } from "@olai/format"
+import { claim, slugOf } from "@olai/prose/slug.ts"
 import { type MarkdownNode, mdastOf } from "@olai/markdown-ui/pipeline.ts"
 
 /** One rule broken, in one place, with enough of the text to find it. */

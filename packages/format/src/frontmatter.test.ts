@@ -25,7 +25,8 @@
 
 import { expect, test } from "bun:test"
 
-import { frontmatterIn, matterWith, proseIn } from "./frontmatter.ts"
+import { proseIn } from "@olai/prose/frontmatter.ts"
+import { frontmatterIn, matterWith } from "./frontmatter.ts"
 
 // ── where the block ends ───────────────────────────────────────────────
 

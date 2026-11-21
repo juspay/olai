@@ -81,6 +81,7 @@
 
 import { Schema } from "effect"
 
+import { Slug } from "@olai/prose/slug.ts"
 import { type Claims, fileKind, holdsBody } from "./kinds.ts"
 
 /** A structurally valid root-relative file path. This schema carries no
@@ -99,26 +100,6 @@ export type DocumentPath = typeof DocumentPath.Type
  *  working the day somebody wrote `#kitchen`. */
 export const NodeId = Schema.String.pipe(Schema.brand("NodeId"))
 export type NodeId = typeof NodeId.Type
-
-/** What a heading in a body is called: the id it is drawn with — `rehype-slug`'s
- *  derivation of the words in it for a `.md`, and whatever its author wrote for
- *  a `.html`. Derived rather than stored, which is exactly why rewording a
- *  heading breaks the address that names it. */
-export const Slug = Schema.String.pipe(Schema.brand("Slug"))
-export type Slug = typeof Slug.Type
-
-/**
- * A tag AS IT IS WRITTEN — the sigil and the name, `#topic` or `@person`.
- *
- * It is a primitive of this vocabulary rather than of the walk that finds one
- * because a tag is a NAME in the same sense the three above are: `./derive.ts`
- * decides where one starts and stops in a title, and what it hands back is one
- * of these. Two namespaces, never two spellings of one — `#alice` and `@alice`
- * are different tags — which is why the sigil is part of the value and not
- * something a reader adds back.
- */
-export const Tag = Schema.String.pipe(Schema.brand("Tag"))
-export type Tag = typeof Tag.Type
 
 /** A whole document: `Tasks.olai`, `notes/README.md`. */
 export const AtDocument = Schema.Struct({

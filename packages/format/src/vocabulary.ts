@@ -63,12 +63,8 @@
 
 import { Schema } from "effect"
 
-import {
-  type Derived,
-  TAG_SIGILS,
-  type TagSigil,
-  tagPart,
-} from "./derive.ts"
+import { TAG_SIGILS, type TagSigil, tagPart } from "@olai/prose/tags.ts"
+import { type Derived } from "./derive.ts"
 import { isPutAway, type LocatedRegular } from "./node.ts"
 
 /**

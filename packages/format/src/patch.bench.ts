@@ -72,17 +72,15 @@
  * to work out whether it ever did.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
+import { mayHoldTag, tagText, titleTagRe } from "@olai/prose/tags.ts"
 import {
   byCorpus,
   derive,
   type Derived,
   type Index,
-  mayHoldTag,
   READ,
   tagInto,
-  tagText,
   titleParts,
-  titleTagRe,
 } from "./derive.ts"
 import {
   alternating,

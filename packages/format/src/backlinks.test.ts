@@ -12,7 +12,8 @@
  */
 import { expect, test } from "bun:test"
 
-import { DocumentPath, NodeId, Slug, type Address } from "./address.ts"
+import { Slug } from "@olai/prose/slug.ts"
+import { DocumentPath, NodeId, type Address } from "./address.ts"
 import { referencesOf } from "./backlinks.ts"
 import { readingOf, setOf } from "./fixtures.testlib.ts"
 import type { Reading } from "./validate.ts"

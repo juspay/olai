@@ -162,20 +162,11 @@ export {
   outlineDocument,
   Unkept,
 } from "./document.ts"
-/** A heading's derived id, and the headings of a body — the element half of
- *  the address grammar. Exported because the BROWSER assigns the same ids as
- *  it renders (`/web`'s `markdown/slugs.ts`), and a slug spelled twice is
- *  an address this app writes and cannot open. */
-export { claim, slugOf, slugsIn } from "./slug.ts"
-/** A document body with its `---` block taken off — the ONE place the app
- *  decides where frontmatter ends. Exported because the BROWSER spends it too:
- *  a document is drawn from its prose, so the block is off the page, off the
- *  contents and off the heading ids, and the page and the face cannot come to
- *  disagree about which lines a document has. A NOTE is not a file and does not
- *  spend it — a leading `---` in one is the thematic break markdown says it is
- *  (`./document.ts` argues both halves). */
-export { proseIn, proseLineOffset } from "./frontmatter.ts"
-/** ...and the block itself, read and written. A `.md`'s front matter is where
+/** The headings of a body, as the face lists them. A heading's slug and the
+ *  counter behind a repeated one are `@olai/prose`'s `slug.ts`. */
+export { slugsIn } from "./slug.ts"
+/** A `.md`'s `---` block, read and written (where it ends is `@olai/prose`'s
+ *  `frontmatter.ts`). A `.md`'s front matter is where
  *  a NOTE keeps its properties — including the two a chat is made of — so the
  *  reading is public for the ops layer's write fence (which refuses an agent
  *  the keys it may not move, in a document exactly as on a row) and the writer
@@ -277,12 +268,10 @@ export {
    *  (`olai-plugin-chat`'s `/chat/<note path>`). */
   readPath,
   spellPath,
-  Slug,
   /** Path, query and fragment of an address, cut the way this app writes one —
    *  the URL's own punctuation, read on both sides of the wire. What the halves
    *  MEAN stays the browser's. */
   splitAddress,
-  Tag,
   writtenAddress,
   titleAddress,
 } from "./address.ts"
@@ -578,14 +567,7 @@ export {
    *  layer refuses `outlines_doing` with THIS one, which is the same reading from
    *  the other end of the arrow. */
   standingBefore,
-  isTagName,
-  mayHoldTag,
-  TAG_SIGILS,
-  tagOpensAt,
-  tagPart,
-  tagText,
   titleParts,
-  titleTagRe,
   unfinished,
   unfinishedWithin,
   withoutDone,
@@ -597,9 +579,6 @@ export type {
   Naming,
   Row,
   Situated,
-  TagSigil,
-  TitlePart,
-  TitleTag,
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
@@ -1332,7 +1311,7 @@ export type { OutlineFormat } from "./format.ts"
 
 export { mintExt, parserFor } from "./kinds.ts"
 export { claimedOf, outlineAt } from "./address.ts"
-export { ID_SHAPE, MENTION_ALPHABET } from "./node.ts"
+export { ID_SHAPE } from "./node.ts"
 export { isMarkdown } from "./document.ts"
 
 export { ClaimData, FileKind } from "./kinds.ts"

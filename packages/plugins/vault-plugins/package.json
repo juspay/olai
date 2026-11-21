@@ -24,6 +24,7 @@
     "@olai/surface": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/format": "workspace:*",
+    "@olai/prose": "workspace:*",
     "@olai/store": "workspace:*",
     "@olai/web": "workspace:*",
     "@olai/markdown-ui": "workspace:*",
