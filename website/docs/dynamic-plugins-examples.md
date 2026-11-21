@@ -1,6 +1,6 @@
-# Two example plugins you can copy
+# Three example plugins you can copy
 
-Two complete plugins, written out file by file. Copy either one into the directory olai serves, turn it on, and watch it run.[^how]
+Three complete plugins, written out file by file. Copy any one into the directory olai serves, turn it on, and watch it run.[^how]
 
 ## A plugin that runs on a schedule
 
@@ -10,16 +10,22 @@ The morning agenda plugin reads your journal's agenda, which lists the rows that
 
 The swatch plugin teaches olai a `hex` property kind, so a row that carries a property such as `swatch-hex: "#ff8800"` shows a small square of that colour beside it. A property is a key and a value on one line of an outline.[^swatch]
 
-Both plugins are written out below, step by step: asking olai which names and services are free, writing each file, and pressing **Turn on** on the plugin's page.
+## A plugin that writes to your notes
 
-[^how]: How a plugin is written, approved and checked is explained in [dynamic-plugins.md](dynamic-plugins.md). This page shows the two plugins end to end instead.
+The reading companion shows a book in French beside its English, one sentence per row. Click a French word and it becomes a row of your vocabulary. Open the **Vocabulary** row and it asks you the word due longest, and **Again**, **Good** or **Easy** writes when you see it next.[^reader]
+
+All three are written out below, step by step: writing each file, reading it on the plugin's page, and pressing **Turn on**.
+
+[^how]: How a plugin is written, approved and checked is explained in [dynamic-plugins.md](dynamic-plugins.md). This page shows the three plugins end to end instead.
 
 [^agenda]: The morning agenda has no browser file, because it draws nothing on screen: it is two files, a `README.md` and a `server.ts`. It does not ship with olai, so you get one by asking your agent to write it into your directory, or by copying the code on this page.
 
 [^swatch]: The swatch is three files, and both code files declare the same `name`, which has to be the folder's name. On a row the property key is `swatch-hex`: the plugin contributes the bare word `hex`, and olai puts the plugin's own name in front of it.
 
+[^reader]: The reading companion is a README and seven code files, one of them in a folder of its own. Its writes go through the same checks as your typing, so each one shows in the commit panel. Switch it off and all it drew goes with it.
+
 <details>
-<summary>The two plugins, file by file</summary>
+<summary>The three plugins, file by file</summary>
 
 <!-- guide:start -->
 
@@ -250,6 +256,381 @@ Read the files on the plugin's page and press **Turn on**. The browser file's co
 - The property kind is called `swatch-hex`: the plugin contributes the bare word `hex`, and olai puts the plugin's own name in front of it, exactly as it does for a built-in plugin.
 - Registering the kind claims that name, so a property `swatch-hex: "#ff8800"` is checked against the pattern and shows the coloured square, with no `_olai/Properties.olai` file in your directory at all.
 - What you cannot do is declare the kind yourself. A `type` in `_olai/Properties.olai` is checked against the kinds the binary was built with, so `{"title":"colour","custom":{"type":"swatch-hex"}}` is refused. Use `swatch-hex` as the property key instead.
+
+## A reading companion that writes to your vocabulary
+
+`reader` is a companion for reading a book in French. Each sentence of the book is a row of `book.olai` whose `reader-pair` property holds the French, ` | `, and the English, and the plugin draws the two side by side under the row. Each French word is a button that adds it to `vocabulary.olai`, and the page of the vocabulary's top row asks you, at its foot, the word that has been due longest.
+
+It also adds a **Reading** section to the sidebar, a key that opens the vocabulary, and a palette row that opens the book, as [dynamic-plugins-faces.md](dynamic-plugins-faces.md) shows.
+
+### 1. Make the folder
+
+It is seven code files, and each file imports the ones it needs by a relative path:
+
+```
+plugins/reader/
+  README.md
+  server.ts      the reader-pair property kind, and the words.* calls
+  browser.tsx    everything it draws
+  words.ts       the calls the browser file may make, imported by both entries
+  columns.tsx    the two columns, imported by browser.tsx
+  pairs.ts       reading a reader-pair value, imported by both entries
+  types.ts       the shapes both entries agree on
+  lib/sm2.ts     when a word is next due, imported by server.ts
+```
+
+`vocabulary.olai` has to exist with a root row whose id is `vocabulary`, since each new word is added under it.
+
+### 2. Write the files both entries import
+
+`types.ts`:
+
+```ts
+// The shapes both halves of the reader agree on.
+
+/** One sentence of the book and its translation. */
+export interface Pair {
+  readonly french: string
+  readonly english: string
+}
+
+/** How hard a word was to recall, as the review's three buttons say it. */
+export type Grade = "again" | "good" | "easy"
+
+/** A word being learnt, and when it is next due. */
+export interface Card {
+  readonly word: string
+  readonly due: string
+  readonly interval: number
+  readonly ease: number
+}
+```
+
+`pairs.ts`:
+
+```ts
+import type { Pair } from "./types.ts"
+
+/** A `reader-pair` value is the French sentence, ` | `, and its English. */
+export const splitPair = (value: string): Pair | null => {
+  const cut = value.indexOf(" | ")
+  if (cut <= 0 || cut + 3 >= value.length) return null
+  return { french: value.slice(0, cut).trim(), english: value.slice(cut + 3).trim() }
+}
+```
+
+`words.ts` is the surface: the three calls the browser file may make, what each takes and what it answers, and who may make them.
+
+`words.ts`:
+
+```ts
+import { defineSurface } from "@olai/plugin-api"
+import { Schema } from "effect"
+
+// What the browser file may ask the server file. Both import this one value:
+// the server file answers it, and the browser file calls it.
+export const surface = defineSurface({
+  procedures: {
+    words: {
+      add: { input: Schema.Struct({ word: Schema.String }), output: Schema.Struct({}) },
+      next: {
+        input: Schema.Struct({}),
+        output: Schema.NullOr(Schema.Struct({ node: Schema.String, word: Schema.String })),
+      },
+      grade: {
+        input: Schema.Struct({ node: Schema.String, grade: Schema.Literals(["again", "good", "easy"]) }),
+        output: Schema.Struct({ due: Schema.String }),
+      },
+    },
+  },
+})
+
+// Who may call each one: the page in your browser, and not your agents.
+export const faces = {
+  browser: { "words.add": "tool", "words.next": "tool", "words.grade": "tool" },
+} as const
+```
+
+### 3. Write `server.ts`, which answers the calls and writes through the gate
+
+`lib/sm2.ts`:
+
+```ts
+import type { Card, Grade } from "../types.ts"
+
+const DAY = 24 * 60 * 60 * 1000
+
+/** The day `days` after `from`, both as `YYYY-MM-DD`. */
+const after = (from: string, days: number): string =>
+  new Date(Date.parse(`${from}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10)
+
+/**
+ * When a word is next due, by the SM-2 rule: a word you missed comes back
+ * tomorrow, and one you knew comes back after a gap that grows each time.
+ */
+export const scheduled = (card: Card, grade: Grade, today: string): Card => {
+  if (grade === "again") return { ...card, interval: 1, due: after(today, 1) }
+  const ease = Math.max(1.3, card.ease + (grade === "easy" ? 0.15 : 0))
+  const interval = card.interval <= 1 ? (grade === "easy" ? 4 : 2) : Math.round(card.interval * ease)
+  return { ...card, ease, interval, due: after(today, interval) }
+}
+```
+
+`server.ts`:
+
+```ts
+import { definePlugin, Kinds, Ops, Surfaces } from "@olai/plugin-api"
+import { Effect } from "effect"
+
+import { scheduled } from "./lib/sm2.ts"
+import { splitPair } from "./pairs.ts"
+import type { Card, Grade } from "./types.ts"
+import { faces, surface } from "./words.ts"
+
+const VOCABULARY = "vocabulary.olai"
+
+// Today, the way the vocabulary writes dates, by the server's clock.
+const today = (): string => new Date().toISOString().slice(0, 10)
+
+// A word's card, read off the properties of its row.
+const cardOf = (word: string, custom: Readonly<Record<string, unknown>>): Card => ({
+  word,
+  due: typeof custom["reader-due"] === "string" ? custom["reader-due"] : today(),
+  interval: Number(custom["reader-interval"] ?? 0),
+  ease: Number(custom["reader-ease"] ?? 2.5),
+})
+
+export default definePlugin({
+  name: "reader",
+  needs: [Kinds, Ops, Surfaces],
+  apply: Effect.gen(function*() {
+    const kinds = yield* Kinds
+    yield* kinds.register({
+      kind: "pair",
+      takes: "`reader-pair`: a French sentence, ` | `, and its English",
+      admits: (value: string) => splitPair(value) !== null,
+    })
+
+    // The write gate: every write below goes through it, exactly as a
+    // keystroke's does, and lands in the ledger beside it.
+    const gate = (yield* Ops).gate
+    yield* (yield* Surfaces).register({
+      surface,
+      faces,
+      deps: {
+        procedures: {
+          words: {
+            // A clicked word becomes a row of the vocabulary, due today.
+            add: ({ input }: { readonly input: { readonly word: string } }) =>
+              gate.run({
+                op: "add",
+                parent: "vocabulary",
+                title: input.word,
+                props: { "reader-due": today(), "reader-interval": "0", "reader-ease": "2.5" },
+              }, "web").pipe(Effect.as({}), Effect.orDie),
+            // The word that has been due longest, or nothing.
+            next: () =>
+              Effect.gen(function*() {
+                const reading = yield* Effect.orDie(gate.read)
+                const due = reading.derived.nodes.flatMap((at) => {
+                  const custom: Readonly<Record<string, unknown>> = "custom" in at.node ? at.node.custom ?? {} : {}
+                  const when = custom["reader-due"]
+                  return at.file === VOCABULARY && typeof when === "string" && when <= today()
+                    ? [{ node: at.node.id, word: "title" in at.node ? at.node.title : "", when }]
+                    : []
+                })
+                const first = due.sort((a, b) => a.when.localeCompare(b.when))[0]
+                return first === undefined ? null : { node: first.node, word: first.word }
+              }),
+            // Again, Good or Easy: the next due date, written on the word's row.
+            grade: ({ input }: { readonly input: { readonly node: string; readonly grade: Grade } }) =>
+              Effect.gen(function*() {
+                const reading = yield* Effect.orDie(gate.read)
+                const at = reading.derived.byId.get(input.node)
+                const custom: Readonly<Record<string, unknown>> = at !== undefined && "custom" in at.node ? at.node.custom ?? {} : {}
+                const title = at !== undefined && "title" in at.node ? at.node.title : ""
+                const next = scheduled(cardOf(title, custom), input.grade, today())
+                const props: Readonly<Record<string, string>> = {
+                  "reader-due": next.due,
+                  "reader-interval": String(next.interval),
+                  "reader-ease": String(next.ease),
+                }
+                // The gate refuses a write that changes nothing, and one refusal
+                // stops the whole batch, so only the properties that moved go in.
+                const ops = Object.entries(props)
+                  .filter(([key, value]) => custom[key] !== value)
+                  .map(([key, value]) => ({ op: "prop" as const, id: input.node, key, value }))
+                if (ops.length > 0) yield* Effect.orDie(gate.run({ op: "apply", ops }, "web"))
+                return { due: next.due }
+              }),
+          },
+        },
+      },
+    })
+  }),
+})
+```
+
+- `gate.read` answers the vault as the gate last read it: `derived.nodes` is every row with its file, and `derived.byId` finds one row by its id.
+- `gate.run` takes the same write a keystroke makes. `"web"` is the writer the ledger records it under, the same one your own typing in a tab is recorded under.
+- `{ op: "apply", ops }` writes several changes as one, or none of them. A change that sets a property to the value it already has is refused, so `grade` leaves out the ones that did not move.
+
+### 4. Write `browser.tsx`, which draws and calls
+
+`columns.tsx`:
+
+```tsx
+import { createSignal, For } from "solid-js"
+
+import type { Pair } from "./types.ts"
+
+/** A word as it is learnt: without the punctuation around it. */
+const bare = (word: string): string => word.replace(/^[«"(]+|[.,;:!?»")]+$/g, "")
+
+/**
+ * A sentence and its translation side by side. Pointing at either half lights
+ * both, so you can see which English goes with which French, and each French
+ * word is a button that adds it to your vocabulary.
+ */
+export const Columns = (props: { readonly pair: Pair; readonly onWord: (word: string) => void }) => {
+  const [lit, light] = createSignal(false)
+  return (
+    <div
+      data-reader="columns"
+      class="grid grid-cols-2 gap-4 py-1 text-body"
+      onPointerEnter={() => light(true)}
+      onPointerLeave={() => light(false)}
+    >
+      <p lang="fr" class={lit() ? "bg-doing/10" : ""}>
+        <For each={props.pair.french.split(" ")}>
+          {(word) => (
+            <>
+              <button type="button" data-reader="word" data-word={bare(word)} class="hover:underline" onClick={() => props.onWord(bare(word))}>
+                {word}
+              </button>{" "}
+            </>
+          )}
+        </For>
+      </p>
+      <p lang="en" class={lit() ? "bg-doing/10" : ""}>{props.pair.english}</p>
+    </div>
+  )
+}
+```
+
+`browser.tsx`:
+
+```tsx
+import { clientOf, definePlugin, Slots, Wired } from "@olai/plugin-api"
+import { Effect } from "effect"
+import { createSignal, onMount, Show } from "solid-js"
+
+import { Columns } from "./columns.tsx"
+import { splitPair } from "./pairs.ts"
+import type { Grade } from "./types.ts"
+import { surface } from "./words.ts"
+
+// The tab dials this plugin's server file by the surface its browser file exports.
+export { surface }
+
+const BOOK = "/book.olai"
+const VOCABULARY = "/vocabulary.olai"
+
+// Opens an address the way a link on the page does: the app follows it in the
+// pane you are reading in, with no reload.
+const open = (address: string) => {
+  const link = document.createElement("a")
+  link.href = address
+  document.body.append(link)
+  link.click()
+  link.remove()
+}
+
+const Section = () => (
+  <nav data-reader="section" class="flex flex-col px-3 py-2 text-body">
+    <span class="text-label text-muted">Reading</span>
+    <a href={BOOK}>The book</a>
+    <a href={VOCABULARY}>Vocabulary</a>
+  </nav>
+)
+
+export default definePlugin({
+  name: "reader",
+  needs: [Slots, Wired],
+  apply: Effect.gen(function*() {
+    const slots = yield* Slots
+    const wired = yield* Wired
+    // This plugin's own server file, by the surface both files share.
+    const words = () => clientOf(surface, wired)?.procedures.words
+
+    // A `reader-pair` property, drawn under its row as two columns.
+    const Pair = (context: { readonly entry: { readonly value: string } }) => {
+      const pair = splitPair(context.entry.value)
+      const add = (word: string) => {
+        const call = words()?.add({ word })
+        if (call !== undefined) void Effect.runPromise(call)
+      }
+      return pair === null ? null : <Columns pair={pair} onWord={add} />
+    }
+
+    // At the foot of the vocabulary row's own page: the word due longest, and three buttons.
+    const Review = (props: { readonly node: string }) => {
+      const [card, setCard] = createSignal<{ readonly node: string; readonly word: string } | null>(null)
+      const load = () => {
+        const call = words()?.next({})
+        if (call !== undefined) void Effect.runPromise(call).then(setCard)
+      }
+      const grade = (node: string, value: Grade) => {
+        const call = words()?.grade({ node, grade: value })
+        if (call !== undefined) void Effect.runPromise(call).then(load)
+      }
+      onMount(load)
+      return (
+        <Show when={props.node === "vocabulary" ? card() : null}>
+          {(due) => (
+            <div data-reader="review" data-word={due().word} class="flex items-center gap-2 py-2 text-body">
+              <span class="font-medium">{due().word}</span>
+              <button type="button" data-grade="again" onClick={() => grade(due().node, "again")}>Again</button>
+              <button type="button" data-grade="good" onClick={() => grade(due().node, "good")}>Good</button>
+              <button type="button" data-grade="easy" onClick={() => grade(due().node, "easy")}>Easy</button>
+            </div>
+          )}
+        </Show>
+      )
+    }
+
+    yield* slots.register("sidebar.section", { said: "Reading", body: Section })
+    yield* slots.register("app.keys", {
+      key: "y",
+      shift: true,
+      whileEditing: false,
+      said: "Open your vocabulary",
+      press: () => open(VOCABULARY),
+    })
+    yield* slots.register("app.palette", {
+      id: "reader-book",
+      label: "Open the book you are reading",
+      search: "reader book french read",
+      href: BOOK,
+    })
+    yield* slots.register("outline.row.block", "pair", Pair)
+    yield* slots.register("outline.page.foot", Review)
+  }),
+})
+```
+
+- `export { surface }` is what connects the tab to the plugin's server file. Without it `clientOf` answers `null`, so no call is made and nothing is written.
+- `pairs.ts`, `types.ts` and `words.ts` are imported by both entries. Each entry builds its own copy, so in each it reaches the services of the entry that imported it.
+- `outline.page.foot` is drawn at the foot of every row's own page, the page you open by zooming into a row, and not on a whole file's page. So `Review` checks `props.node` and draws only on the page of the row whose id is `vocabulary`.
+
+### 5. Turn it on, and click a word
+
+Read the files on the plugin's page and press **Turn on**. The columns appear under each sentence of `book.olai`.
+
+- Click a French word and a row with that word appears in `vocabulary.olai`, due today, and the commit panel lists the file as changed.
+- Open the **Vocabulary** row, the top row of `vocabulary.olai`, and the foot of its page shows the word due longest. **Again** makes it due tomorrow; **Good** and **Easy** push it further out.
+- Edit any of the seven code files and the plugin pauses until you turn the new version on.
+- Switch it off and the columns, the review, the section, the key and the palette row go together, and the `words.*` calls leave the connection.
 <!-- guide:end -->
 
 </details>

@@ -19,11 +19,13 @@ const FOLDER = path.join(ROOT, "packages", "tests", "fixtures", "reader", "plugi
 
 /** Where each printed file of the fixture is printed. */
 const PRINTED: ReadonlyArray<readonly [file: string, page: string]> = [
-  ["types.ts", "dynamic-plugins-faces.md"],
-  ["pairs.ts", "dynamic-plugins-faces.md"],
-  ["server.ts", "dynamic-plugins-faces.md"],
-  ["columns.tsx", "dynamic-plugins-faces.md"],
-  ["browser.tsx", "dynamic-plugins-faces.md"],
+  ["types.ts", "dynamic-plugins-examples.md"],
+  ["pairs.ts", "dynamic-plugins-examples.md"],
+  ["words.ts", "dynamic-plugins-examples.md"],
+  ["lib/sm2.ts", "dynamic-plugins-examples.md"],
+  ["server.ts", "dynamic-plugins-examples.md"],
+  ["columns.tsx", "dynamic-plugins-examples.md"],
+  ["browser.tsx", "dynamic-plugins-examples.md"],
 ];
 
 for (const [file, page] of PRINTED) {

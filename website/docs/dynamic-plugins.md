@@ -168,7 +168,7 @@ A file imports another file of its own folder by a relative path with its suffix
 
 A file both entries import is built once for each, so in each it reaches the services of the entry that imported it.
 
-Both files import the bare `@olai/plugin-api`, and olai gives each different services: the server file `Kinds`, `Vault`, `Surfaces` and `Deliveries`, the browser file `Slots`, `Clocks` and `Wired`.
+Both files import the bare `@olai/plugin-api`, and olai gives each different services: the server file `Kinds`, `Vault`, `Ops`, `Surfaces` and `Deliveries`, the browser file `Slots`, `Clocks` and `Wired`. The browser file calls its own server file through a surface the two share, as [dynamic-plugins-faces.md](dynamic-plugins-faces.md) shows.
 
 ## Give it settings
 

@@ -459,23 +459,31 @@ a scenario means to prove something about.
 ## `reader/` — the reading companion, a vault plugin that draws outside outlines
 
 `plugins/reader/` is a companion for reading a book in French, and the worked
-material of `website/docs/dynamic-plugins-faces.md`: every code file that page
-prints is held equal to it by `../reader.test.ts`. Change the page and copy it
-here, never the other way round.
+material of `website/docs/dynamic-plugins-examples.md`: every code file that
+page prints is held equal to it by `../reader.test.ts`. Change the page and copy
+it here, never the other way round.
 
 - `book.olai` is the book: a page row, and under it a sentence row `s1` whose
   `reader-pair` property holds the French, ` | `, and the English. The text is
   the opening of Jules Verne's *Le Tour du monde en quatre-vingts jours*, which
   is in the public domain.
-- `vocabulary.olai` is where the words being learnt go.
-- The plugin is six code files: the two entries, `columns.tsx`, `pairs.ts`
-  (imported by both entries), `types.ts`, and `lib/sm2.ts`, which nothing
-  imports. The status line on its page reads `6 files, 138 lines`, which a
-  scenario asserts: change a file and that number moves.
+- `vocabulary.olai` is where the words being learnt go: a root row whose id is
+  `vocabulary`, which the server file adds each new word under, and one word,
+  `maison`, due `2026-01-01`, so the review always has a word to offer.
+- The plugin is seven code files: the two entries, `words.ts` (the surface,
+  imported by both), `columns.tsx`, `pairs.ts` (imported by both), `types.ts`,
+  and `lib/sm2.ts` (imported by the server file). The status line on its page
+  reads `7 files, 291 lines`, which a scenario asserts: change a file and that
+  number moves.
 - The browser file adds a **Reading** section to the sidebar linking both
   files, the shortcut `Cmd` + `Shift` + `Y` that opens the vocabulary, a palette
-  row that opens the book, and the two columns under every sentence. Each is
-  found by a `data-reader` attribute the files write themselves.
+  row that opens the book, the two columns under every sentence with each French
+  word a button, and the review at the foot of the page of the vocabulary's top
+  row (`/zoom/#vocabulary`; a whole file's page draws no page foot). Each is found by
+  a `data-reader` attribute the files write themselves.
+- The server file answers `words.add`, `words.next` and `words.grade`, and
+  writes through the gate as `web`: a scenario finds the added word's file in
+  the commit panel, and the graded word's next due date on its row.
 
 There is no consent here: `reader` arrives off and unapproved, and a scenario
 turns it on at its page. It is an ordinary plugin and nothing in it is about

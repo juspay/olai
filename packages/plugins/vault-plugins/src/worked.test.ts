@@ -172,3 +172,18 @@ test("...and the swatch's face reads the chip's context rather than a bare value
   expect(face).toContain("context.entry.value")
   expect(face).not.toContain("props.value")
 })
+
+/**
+ * THE READING COMPANION'S BROWSER FILE EXPORTS THE SURFACE IT CALLS.
+ *
+ * A build cannot see this either: a browser file that calls `clientOf(surface,
+ * wired)` without `export { surface }` compiles and mounts, and the tab never
+ * connects to the plugin's server file, so every call is skipped and a click
+ * writes nothing. The server file is the one that answers through the gate.
+ */
+test("...and the reading companion's browser file exports the surface its server file answers", () => {
+  const browser = halfNaming("browser.tsx", "clientOf(")
+  expect(browser).toContain("export { surface }")
+  const server = halfNaming("server.ts", "Surfaces")
+  expect(server).toContain("gate.run(")
+})
