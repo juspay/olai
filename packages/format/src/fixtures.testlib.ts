@@ -34,7 +34,7 @@ import { type Agenda, type AgendaDay, type OwedRow, UPCOMING_DAYS } from "./agen
 import { type DayGroup, groupedOn } from "./dates.ts"
 import { byDayKey, derive, unfinished, type Derived } from "./derive.ts"
 import type { OutlineError } from "./errors.ts"
-import { unkept } from "./kinds.ts"
+import { type Claims, unkept } from "./kinds.ts"
 import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
 import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
 import { Node } from "./node.ts"
@@ -50,7 +50,7 @@ import { type Reading, validate } from "./validate.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 
 /** Fixture-only JSON records; production format parsing is tested in its owning row. */
-export const parseOutline = (file: string, text: string, claims: import("./kinds.ts").Claims): Result.Result<Outline, ReadonlyArray<OutlineError>> => {
+export const parseOutline = (file: string, text: string, claims: Claims, previous?: Document): Result.Result<Outline, ReadonlyArray<OutlineError>> => {
   const nodes: Located[] = []
   for (const [i, line] of text.split("\n").entries()) {
     if (!line.trim()) continue
@@ -61,7 +61,7 @@ export const parseOutline = (file: string, text: string, claims: import("./kinds
     if (Result.isFailure(decoded)) return Result.fail([{ file, line: i + 1, code: "bad-record", message: "fixture line is not a record" }])
     nodes.push({ file, line: i + 1, node: decoded.success })
   }
-  return Result.succeed(outlineDocument(claims, file, nodes))
+  return Result.succeed(outlineDocument(claims, file, nodes, previous))
 }
 
 /** The default fixture file name. Named once so a test that cares about paths

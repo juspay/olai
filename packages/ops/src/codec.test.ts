@@ -16,9 +16,11 @@ import { claims } from "@olai/format"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import type { Document, OutlineError, Reading } from "@olai/format"
 import {
+  isRegular,
   markdownIn,
   NO_KINDS,
   outlinePaths,
+  recordRead,
   type Verdict,
 } from "@olai/format"
 import { expect, test } from "bun:test"
@@ -212,4 +214,29 @@ test("withdrawing a referenced body's kind reports the missing document and rein
   expect(withdrawn.set.broken).toEqual([])
   table.current = TEST_CLAIMS
   expect(accepted(live.validate(files)).set.broken).toEqual([])
+})
+
+// ONE TITLE CHANGED reads one text: decode is handed the file's previous
+// document, and a record whose title and note are the same strings keeps the
+// reading it had — the same object — while the changed one is read again.
+test("an unchanged record's reading is the same object across a revision of its file", () => {
+  const before = `{"id":"cook","ord":"a","title":"cook dinner #kitchen","desc":"see [the plan](plan.md)"}\n` +
+    `{"id":"shop","ord":"b","title":"shop for @herbs"}`
+  const after = `{"id":"cook","ord":"a","title":"cook dinner #kitchen","desc":"see [the plan](plan.md)"}\n` +
+    `{"id":"shop","ord":"b","title":"shop for @herbs and bread"}`
+  const was = codec.decode("kitchen.olai", before)
+  const now = codec.decode("kitchen.olai", after, was)
+  const fresh = codec.decode("kitchen.olai", after)
+  const said = (decoded: Result.Result<Document, Verdict>, id: string) => {
+    const document = Result.getOrThrow(decoded)
+    if (document.holds !== "nodes") throw new Error("kitchen.olai decoded to no outline")
+    const located = document.nodes.find((one) => one.node.id === id)
+    if (located === undefined || !isRegular(located)) throw new Error(`no record ${id}`)
+    return recordRead(located.node)
+  }
+  expect(said(now, "cook")).toBe(said(was, "cook"))
+  expect(said(now, "shop")).not.toBe(said(was, "shop"))
+  expect(said(now, "shop").title.tags.map(String)).toEqual(["@herbs"])
+  // Handed nothing, a decode reads every text afresh.
+  expect(said(fresh, "cook")).not.toBe(said(was, "cook"))
 })

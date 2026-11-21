@@ -101,7 +101,7 @@ import { Custom } from "./custom.ts"
 import { writtenTags } from "./derive.ts"
 import { frontmatterIn } from "./frontmatter.ts"
 import { readAddresses, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
-import { keepBodyRead } from "./kept.ts"
+import { carryRecordReads, keepBodyRead } from "./kept.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 
@@ -338,12 +338,19 @@ export type Document = typeof Document.Type
  * corpus's prose this arc adds: a decode already read every line of the file to
  * get here, and this reads what those lines SAY. The nodes are handed straight
  * through.
+ *
+ * `previous` is the document this file decoded to at the revision before, when
+ * the caller holds one: a record whose title and note did not change keeps the
+ * reading it had (`./kept.ts`'s `carryRecordReads`), so a write reads the texts
+ * it changed and no others.
  */
 export const outlineDocument = (
   claims: Claims,
   file: string,
   nodes: ReadonlyArray<Located>,
+  previous?: Document,
 ): Outline => {
+  if (previous !== undefined && previous.holds === "nodes") carryRecordReads(nodes, previous.nodes)
   const links: Array<Address> = []
   const tags: Array<Tag> = []
   const seen = new Set<string>()

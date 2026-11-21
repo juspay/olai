@@ -54,9 +54,10 @@
  * two write costs, and how many edits handed the name index on untouched.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
+import { Result } from "effect"
 import { type Address, addressOf } from "./address.ts"
 import { referencesOf } from "./backlinks.ts"
-import { alternating, median, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
+import { alternating, median, parseOutline, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
 import { pointingOf, repointed } from "./pointing.ts"
 import {
   documentsAmong,
@@ -84,6 +85,15 @@ const ROUNDS = 9
  *  so a figure is not about the files that happen to sort first. */
 const spread = <T>(all: ReadonlyArray<T>): ReadonlyArray<T> =>
   all.filter((_, which) => which % Math.max(1, Math.floor(all.length / PAGES)) === 0).slice(0, PAGES)
+
+/** One title changed in an outline, timed: the file decoded again, handed
+ *  what it decoded to before — the write's whole reading cost. */
+const oneWrite = (file: string, text: string): ReadonlyArray<number> => {
+  const before = Result.getOrThrow(parseOutline(file, text, TEST_CLAIMS))
+  const at = text.indexOf(`"title":"`) + `"title":"`.length
+  const edited = `${text.slice(0, at)}changed ${text.slice(at)}`
+  return Array.from({ length: ROUNDS * 5 }, () => timed(() => parseOutline(file, edited, TEST_CLAIMS, before)))
+}
 
 /** One corpus, measured: `wikilinks` is the share of its links written as
  *  wikilinks. */
@@ -160,20 +170,24 @@ const leg = (label: string, wikilinks: number): void => {
 
   // What reading every text through the parser costs, settled rather than
   // hidden: a FIRST LOAD (the whole vault decoded, each text read once and the
-  // reading kept) and ONE WRITE (one outline file decoded again — every text
-  // in it read again). The rebuild above is the index alone over readings
-  // already kept.
+  // reading kept) and ONE WRITE (one title changed, its file decoded again
+  // with the document it decoded to before, so only the changed text is read
+  // again) — over a 22-text outline and over one of 2,000 records. The rebuild
+  // above is the index alone over readings already kept.
   const loads = Array.from({ length: 3 }, () => timed(() => decodedVault(vault)))
   const textsIn = (text: string): number =>
     text.split("\n").filter((line) => line !== "").reduce((held, line) => {
       const record = JSON.parse(line) as { readonly title?: string; readonly desc?: string }
       return held + (record.title ? 1 : 0) + (record.desc ? 1 : 0)
     }, 0)
-  const [outline, texts] = [...vault]
-    .filter(([file]) => file.endsWith(".olai"))
-    .map(([file, text]) => [[file, text], textsIn(text)] as const)
+  const [[file, text], texts] = [...vault]
+    .filter(([path]) => path.endsWith(".olai"))
+    .map(([path, written]) => [[path, written], textsIn(written)] as const)
     .sort((one, other) => Math.abs(one[1] - 22) - Math.abs(other[1] - 22))[0]!
-  const writes = Array.from({ length: ROUNDS * 5 }, () => timed(() => decodedVault(new Map([outline]))))
+  const writes = oneWrite(file, text)
+  const [hugeFile, hugeText] = [...linkyVault({ outlines: 1, bodies: 0, records: 2_000, wikilinks })]
+    .find(([path]) => path.endsWith(".olai"))!
+  const hugeWrites = oneWrite(hugeFile, hugeText)
 
   const density = bodies
     .map((path) => referencesOf(first.at, addressOf(TEST_CLAIMS, path, null)!).length)
@@ -198,7 +212,8 @@ const leg = (label: string, wikilinks: number): void => {
     }ms   (${carried} of ${pairs.length} edits carried uncloned, ${named} handed the name index on)`,
   )
   console.log(`  first load        ${median(loads).toFixed(1)}ms   (every file decoded, every text read once)`)
-  console.log(`  one write         ${median(writes).toFixed(3)}ms   (one outline of ${texts} texts decoded again)`)
+  console.log(`  one write         ${median(writes).toFixed(3)}ms   (one title changed in an outline of ${texts} texts)`)
+  console.log(`  one write (2,000) ${median(hugeWrites).toFixed(3)}ms   (one title changed in an outline of 2,000 records)`)
   console.log(timesSaid("carry", carries, 8))
   console.log(timesSaid("rebuild", rebuilds, 8))
   console.log("")

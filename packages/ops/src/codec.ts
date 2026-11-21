@@ -83,13 +83,16 @@ export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claim
    *  here would be the second answer to a question the format already
    *  settles — and the way that reads is a file parsed as records nobody wrote
    *  as records. */
-  decode: (path, contents) => {
+  decode: (path, contents, previous) => {
     const claims = table.current
     if (bodyKind(claims, path) !== null) return Result.succeed(bodiedDocument(claims, path, contents))
     const format = parserFor(claims, path)
     return format === null
       ? Result.fail(verdictOf([{ file: path, line: 0, code: "unreadable-file", message: `No active format claims ${path}` }]))
-      : Result.mapError(format.parse(path, contents, claims), verdictOf)
+      : Result.mapError(
+        format.parse(path, contents, claims, previous !== undefined && Result.isSuccess(previous) ? previous.success : undefined),
+        verdictOf,
+      )
   },
 
   /** Failures included: what an unreadable file costs the rest of the set is a

@@ -20,7 +20,7 @@
 import { proseIn } from "@olai/prose/frontmatter.ts"
 import { read, type Read } from "@olai/prose/read.ts"
 
-import type { RegularNode } from "./node.ts"
+import { isMirror, type Located, type RegularNode } from "./node.ts"
 
 /** A record's reading: its title's, and its note's when it has one. */
 export interface RecordRead {
@@ -48,6 +48,31 @@ export const recordRead = (node: RegularNode): RecordRead =>
     title: read(node.title),
     desc: node.desc === undefined ? null : read(node.desc),
   })
+
+/**
+ * A FILE DECODED AGAIN keeps what it already read: each record of `nodes`
+ * whose title and note are the same strings as the record with its id in
+ * `previous` — the file's records at the revision before — takes that
+ * record's reading, the same object, and is not read again. One title changed
+ * in a file of two thousand records reads one text. A record with no match,
+ * or a changed one, is read when it is first asked.
+ */
+export const carryRecordReads = (
+  nodes: ReadonlyArray<Located>,
+  previous: ReadonlyArray<Located>,
+): void => {
+  if (previous.length === 0) return
+  const before = new Map<string, RegularNode>()
+  for (const located of previous) if (!isMirror(located.node)) before.set(located.node.id, located.node)
+  for (const located of nodes) {
+    const node = located.node
+    if (isMirror(node) || keptOn<RecordRead>(node) !== undefined) continue
+    const was = before.get(node.id)
+    if (was === undefined || was.title !== node.title || was.desc !== node.desc) continue
+    const said = keptOn<RecordRead>(was)
+    if (said !== undefined) keep(node, said)
+  }
+}
 
 /** What a document's prose says: the reading decode kept on it, or — for a
  *  document built anywhere else — its body read now, frontmatter off. */

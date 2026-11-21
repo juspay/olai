@@ -43,6 +43,9 @@ interface Loaded {
 }
 
 let decodes: Array<string> = []
+/** One entry per decode that was handed a previous decode of its path: the
+ *  path, and the text that previous decode held. */
+let handed: Array<readonly [string, string | undefined]> = []
 /** One per {@link Codec.match} call, which is one per directory entry the
  *  WALK looked at. It is the cheapest true measure of "somebody statted this
  *  tree" that a codec can take, and it is what the cheap read has to leave at
@@ -100,8 +103,9 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
 
   byName: (path) => (path.endsWith(".blob") ? Result.succeed(NOT_READ) : null),
 
-  decode: (path, contents) => {
+  decode: (path, contents, previous) => {
     decodes.push(path)
+    if (previous !== undefined) handed.push([path, Result.isSuccess(previous) ? previous.success : undefined])
     const during = whileDecoding
     whileDecoding = null
     during?.()
@@ -946,6 +950,23 @@ test("a commit writes, re-reads and publishes the next revision", () =>
       expect(after?.rev).toBe((before?.rev ?? 0) + 1)
       expect(after?.value.text["a.txt"]).toBe("alpha, committed")
       expect(yield* errorsOf(store)).toBeNull()
+    })))
+
+// What a file decoded to before is handed to its next decode — by the probe
+// from its own cache, and by the write gate from the published set — so a
+// codec can keep what did not change. The cache stays the probe's.
+test("a file decoded again is handed what it decoded to before", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, write }) =>
+    Effect.gen(function*() {
+      handed = []
+      write("b.txt", "beta, revised")
+      yield* store.refresh("cheap")
+      expect(handed).toEqual([["b.txt", "beta"]])
+
+      handed = []
+      const before = yield* snapshotOf(store)
+      yield* store.commit({ baseRev: before?.rev ?? 0, changes: [{ path: "a.txt", contents: "alpha, committed" }] })
+      expect(handed).toEqual([["a.txt", "alpha"]])
     })))
 
 // The one the coarse stamp would otherwise lose: same length, same second. It

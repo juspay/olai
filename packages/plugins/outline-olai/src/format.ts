@@ -23,7 +23,7 @@ import type { OutlineFormat } from "@olai/format"
 import { isIsoInstant, type Claims } from "@olai/format"
 import { Result, Schema } from "effect"
 import * as SchemaIssue from "effect/SchemaIssue"
-import { type Outline, outlineDocument } from "@olai/format"
+import { type Document, type Outline, outlineDocument } from "@olai/format"
 import type { OutlineError } from "@olai/format"
 import {
   ID_SHAPE,
@@ -73,6 +73,7 @@ export const parseOutline = (
   file: string,
   contents: string,
   claims: Claims,
+  previous?: Document,
 ): Result.Result<Outline, ReadonlyArray<OutlineError>> => {
   const nodes: Array<Located> = []
   const errors: Array<OutlineError> = []
@@ -98,7 +99,7 @@ export const parseOutline = (
   // keystroke in some other file (`./document.ts`).
   return errors.length > 0
     ? Result.fail(errors)
-    : Result.succeed(outlineDocument(claims, file, nodes))
+    : Result.succeed(outlineDocument(claims, file, nodes, previous))
 }
 
 /** JSON, then shape. */
