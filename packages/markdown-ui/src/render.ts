@@ -39,7 +39,7 @@
  * without waiting for anything, which is what keeps a tree of rows off this
  * path entirely.
  */
-import type { Claims } from "@olai/format"
+import type { Claims, Names } from "@olai/format"
 import { styleTags } from "./tags.ts"
 import type { Element } from "hast"
 import type { Root } from "hast"
@@ -87,16 +87,16 @@ const renderingOf = (
   source: string,
   from: string,
   shape: "block" | "inline",
-  members?: ReadonlySet<string>,
+  names?: Names,
 ): Rendered => {
-  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape, members)
+  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape, names)
   let revisions = renderings.get(claims)
   if (revisions === undefined) {
     revisions = new WeakMap()
     renderings.set(claims, revisions)
   }
-  // Membership identity scopes the cache; it must not move heading IDs.
-  const namespace = members ?? claims
+  // The name index's identity scopes the cache; it must not move heading IDs.
+  const namespace = names ?? claims
   let rendered = revisions.get(namespace)
   if (rendered === undefined) {
     rendered = new Map()
@@ -106,14 +106,14 @@ const renderingOf = (
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(claims, source, from, key, shape, members)
+  const result = render(claims, source, from, key, shape, names)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
-export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, members?: ReadonlySet<string>): string =>
-  renderingOf(claims, source, from, "block", members).html
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, names?: Names): string =>
+  renderingOf(claims, source, from, "block", names).html
 
 /**
  * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
@@ -170,12 +170,12 @@ export const renderToTree = (
   source: string,
   from: string,
   shape: "block" | "inline",
-  members?: ReadonlySet<string>,
+  names?: Names,
 ): Root => {
   const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(members === undefined ? {} : { members }) })
+  rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(names === undefined ? {} : { names }) })
   return tree
 }
 
@@ -229,12 +229,12 @@ const render = (
   from: string,
   key: string,
   shape: "block" | "inline",
-  members?: ReadonlySet<string>,
+  names?: Names,
 ): Rendered => {
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(members === undefined ? {} : { members }) })
+  const headings = rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(names === undefined ? {} : { names }) })
   return { html: pipeline.htmlOf(tree), headings }
 }
 
@@ -263,8 +263,8 @@ const idsFor = (key: string): string => {
 
 /** Render a source-line landing through the existing parsed tree and highlight walk.
  * No shared cache retains a page's query or highlights. */
-export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, members?: ReadonlySet<string>): string => {
-  const tree = renderToTree(claims, source, from, "block", members)
+export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, names?: Names): string => {
+  const tree = renderToTree(claims, source, from, "block", names)
   if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
   const lines = source.split("\n")
   const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])

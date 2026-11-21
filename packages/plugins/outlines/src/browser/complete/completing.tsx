@@ -75,7 +75,7 @@ import {
   on,
 } from "solid-js"
 
-import { namesIn, wikilinkFor, wikilinkOffers } from "@olai/format"
+import { wikilinkFor, wikilinkOffers } from "@olai/format"
 import { tagText } from "@olai/prose/tags.ts"
 import { servedDirectory } from "../vault.ts"
 
@@ -322,14 +322,13 @@ export const createCompletion = (field: {
           },
         }))
       case "wikilink": {
-        // THE DIRECTORY'S OWN NAMES, from the membership the vault publishes
-        // (`../vault.ts`) — so a file written while the list is open is
-        // offered, and one removed is withdrawn, with no question asked.
+        // THE DIRECTORY'S OWN NAME INDEX, published beside the membership by
+        // the vault (`../vault.ts`) — so a file written while the list is open
+        // is offered, and one removed is withdrawn, with no question asked.
         const served = servedDirectory()
         const claims = served?.claims()
-        const members = served?.members()
-        if (claims === undefined || members === undefined) return []
-        const names = namesIn(claims, members)
+        const names = served?.names()
+        if (claims === undefined || names === undefined) return []
         return wikilinkOffers(names, claims, found.query, LIMIT).map((offer) => ({
           id: offer.path,
           label: offer.name,

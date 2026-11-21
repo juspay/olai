@@ -50,6 +50,7 @@
 import {
   deadLinkSaid,
   type Claims,
+  type Names,
   addressOf,
   printAddress,
   bodyKind,
@@ -72,8 +73,9 @@ export interface Rewrite {
    *  document itself, for a document. A relative picture is resolved beside
    *  it, exactly as a relative prose link is. */
   readonly from: string
-  /** Immutable membership snapshot, supplied by the owning directory. */
-  readonly members?: ReadonlySet<string>
+  /** The directory's name index, which holds its membership too — the vault
+   *  plugin's served directory owns it and hands it down. */
+  readonly names?: Names
   /** This block's id namespace. */
   readonly ids: string
   /** A title: one line high, so an embed of a picture draws as a link. */
@@ -128,7 +130,7 @@ const walk = (
       else {
         // Document first: a relative `.md` becomes a page address and must not then
         // be treated as something that leaves the app.
-        resolveDocument(child, options.claims, options.from, options.members)
+        resolveDocument(child, options.claims, options.from, options.names)
         openExternal(child)
       }
     }
@@ -274,7 +276,7 @@ const textIn = (node: { readonly type: string; readonly value?: unknown; readonl
  * a screen that names a document it does not have, and a link quietly left
  * relative would send the reader somewhere with nothing to say at all.
  */
-const resolveDocument = (element: Element, claims: Claims | undefined, from: string, members?: ReadonlySet<string>): void => {
+const resolveDocument = (element: Element, claims: Claims | undefined, from: string, names?: Names): void => {
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
   // One rule for where a link goes (`@olai/format`'s `placeOf`): the index and
@@ -285,7 +287,7 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
   element.properties = { ...element.properties,
     "data-link-path": resolved, "data-link-written": written,
     "data-link-title": typeof element.properties["title"] === "string" ? element.properties["title"] : "" }
-  if (members !== undefined && !members.has(resolved)) {
+  if (names !== undefined && !names.served.has(resolved)) {
     const warning = deadLinkSaid({ kind: "path", resolved, suggest: [] })
     const authored = element.properties["title"]
     const classes = element.properties["className"]
@@ -355,13 +357,13 @@ const isHttp = (href: string): boolean => /^https?:\/\//i.test(href)
 
 /**
  * A wikilink, drawn from the marks the pipeline put on it: the link to the
- * page its name finds, marked dead when the membership in hand finds nothing
+ * page its name finds, marked dead when the name index in hand finds nothing
  * — or, for a picture embed, the picture, or the words saying why there is
  * none. Drawn HERE, after the sanitiser, so a note cannot carry a mark of its
  * own.
  */
 const drawWikilink = (element: Element, written: Written, options: Rewrite, pictures: { drawn: number }): void => {
-  const drawn = drawnWikilink(options.claims, options.members, options.from, written, options.inline === true)
+  const drawn = drawnWikilink(options.claims, options.names, options.from, written, options.inline === true)
   const drawing = drawingOf(drawn, written, drawn.kind === "link" ? textIn(element).trim() : "")
   const { class: classes, ...attributes } = drawing.attributes
   element.tagName = drawing.tag

@@ -7,7 +7,7 @@ import { read } from "@olai/prose/read.ts"
 import { type Address, printAddress } from "../address.ts"
 import { wikilinksIn } from "./shown.ts"
 import { seeded } from "../fixtures.testlib.ts"
-import { namesIn } from "./names.ts"
+import { namesOf } from "./names.ts"
 import { wikilinkAddress, wikilinkFor, wikilinkOffers, wikilinkPath } from "./wikilink.ts"
 import { fileKind } from "../kinds.ts"
 import { readdirSync } from "node:fs"
@@ -158,7 +158,7 @@ describe("which file a name finds", () => {
     "q/Same.md",
     "p/Same.md",
   ])
-  const names = namesIn(TEST_CLAIMS, SERVED)
+  const names = namesOf(TEST_CLAIMS, SERVED)
   const path = (from: string, target: string): string | null => wikilinkPath(names, TEST_CLAIMS, from, target)
   /** The name as the reader reads it out of the written wikilink. */
   const address = (from: string, name: string): string | null => {
@@ -275,11 +275,6 @@ describe("which file a name finds", () => {
   test("an unresolved name has no address", () => {
     expect(address("x.md", "nowhere#Tables")).toBeNull()
   })
-
-  test("the index is remembered against the membership it was built from", () => {
-    expect(namesIn(TEST_CLAIMS, SERVED)).toBe(names)
-    expect(namesIn(TEST_CLAIMS, new Set(SERVED))).not.toBe(names)
-  })
 })
 
 describe("what the row editor offers and writes", () => {
@@ -289,7 +284,7 @@ describe("what the row editor offers and writes", () => {
       entry.isDirectory() ? filesUnder(join(directory, entry.name)) : [join(directory, entry.name)]
     )
   const SERVED = new Set(filesUnder(ROOT).map((file) => relative(ROOT, file)))
-  const names = namesIn(TEST_CLAIMS, SERVED)
+  const names = namesOf(TEST_CLAIMS, SERVED)
   // Every file that could write a wikilink, and two that the directory does
   // not hold, to stand for a row in another folder.
   const WRITERS = [...SERVED, "deep/down/new.olai", "rooms/new.olai"]

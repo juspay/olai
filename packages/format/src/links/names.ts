@@ -13,8 +13,10 @@ import { basenameOf, byPath } from "../paths.ts"
  * WHO HOLDS ONE: a revision's reading carries its own (`../validate.ts`'s
  * `Reading.names`), built at the first load and handed on untouched by every
  * revision that brings no path in and takes none away ({@link namesCarried});
- * the browser asks {@link namesIn} of the membership snapshot the vault
- * plugin publishes, which is replaced only when a path arrives or leaves.
+ * in the browser the vault plugin's served directory publishes one beside its
+ * membership (`plugins/vault/src/browser/directory.ts`), built with
+ * {@link namesOf} from the paths it holds and dropped, with a fresh one in its
+ * place, when a path arrives or leaves.
  */
 export interface Names {
   readonly claims: Claims
@@ -84,23 +86,6 @@ export const namesCarried = (
     return before
   }
   return namesOf(claims, now.map((one) => one.path))
-}
-
-/** Remembered against the membership snapshot it was built from, which is
- *  replaced, never mutated, when the directory's files change. */
-const NAMES = new WeakMap<object, Names>()
-
-/**
- * The name index of the browser's membership snapshot — the same snapshot and
- * claims answer the same object, so a page drawing a hundred links builds it
- * once, and a file arriving (a new snapshot) builds it again.
- */
-export const namesIn = (claims: Claims, served: ReadonlySet<string>): Names => {
-  const held = NAMES.get(served)
-  if (held !== undefined && held.claims === claims) return held
-  const names = namesOf(claims, served)
-  NAMES.set(served, names)
-  return names
 }
 
 const filed = (into: Map<string, Array<string>>, key: string, path: string): void => {

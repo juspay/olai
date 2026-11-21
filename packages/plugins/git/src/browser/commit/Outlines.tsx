@@ -35,11 +35,11 @@ import { Tick } from "./Tick.tsx"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { mayHoldWikilink } from "@olai/prose/wikilink.ts"
 
-/** The membership a title's wikilinks are looked up in — asked only by a
+/** The name index a title's wikilinks are looked up in — asked only by a
  *  title that holds one, so a file arriving redraws only those rows. */
 const linksOf = (title: string): TitleRender => {
-  const members = mayHoldWikilink(title) ? servedDirectory()?.members() : undefined
-  return members === undefined ? {} : { members }
+  const names = mayHoldWikilink(title) ? servedDirectory()?.names() : undefined
+  return names === undefined ? {} : { names }
 }
 
 export function Outlines(props: {

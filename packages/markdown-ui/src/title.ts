@@ -50,7 +50,7 @@
  * is the "show what you wrote" fallback, and marking it up is exactly what it
  * is refusing to do.
  */
-import type { Claims } from "@olai/format"
+import type { Claims, Names } from "@olai/format"
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
 import { NO_NEEDLES } from "@olai/markdown-ui/lit.ts"
@@ -74,11 +74,10 @@ export interface TitleRender {
    */
   readonly needles?: ReadonlyArray<string>
   /**
-   * The served files, as the directory's immutable membership snapshot — what
-   * a wikilink in the title is looked up against. Absent, a wikilink is drawn
-   * and not judged.
+   * The directory's name index — what a wikilink in the title is looked up
+   * in. Absent, a wikilink is drawn and not judged.
    */
-  readonly members?: ReadonlySet<string>
+  readonly names?: Names
 }
 
 /**
@@ -190,20 +189,20 @@ export const renderTitle = (
   }
 
   // A WIKILINK'S PAGE IS A QUESTION ABOUT THE DIRECTORY, so a title holding
-  // one is remembered per membership snapshot — the identity the directory
-  // replaces whenever a file arrives or leaves — and every other title per
-  // claims alone, as before.
-  const members = options.members !== undefined && mayHoldWikilink(title) ? options.members : undefined
-  let byMembers = claims === undefined ? undefined : renderings.get(claims)
-  if (byMembers === undefined) {
-    byMembers = new WeakMap()
-    if (claims !== undefined) renderings.set(claims, byMembers)
+  // one is remembered per NAME INDEX — the identity the directory replaces
+  // whenever a file arrives or leaves — and every other title per claims
+  // alone, as before.
+  const names = options.names !== undefined && mayHoldWikilink(title) ? options.names : undefined
+  let byNames = claims === undefined ? undefined : renderings.get(claims)
+  if (byNames === undefined) {
+    byNames = new WeakMap()
+    if (claims !== undefined) renderings.set(claims, byNames)
   }
-  const namespace: object = members ?? byMembers
-  let rendered = byMembers.get(namespace)
+  const namespace: object = names ?? byNames
+  let rendered = byNames.get(namespace)
   if (rendered === undefined) {
     rendered = new Map()
-    if (claims !== undefined) byMembers.set(namespace, rendered)
+    if (claims !== undefined) byNames.set(namespace, rendered)
   }
   const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
   const hit = rendered.get(key)
@@ -222,7 +221,7 @@ export const renderTitle = (
     return { html: escapeHtml(title), waiting: markdownWaiting() }
   }
 
-  return remember(rendered, key, build(claims, title, from, links, needles, members))
+  return remember(rendered, key, build(claims, title, from, links, needles, names))
 }
 
 const remember = (
@@ -242,9 +241,9 @@ const build = (
   from: string,
   links: boolean,
   needles: ReadonlyArray<string>,
-  members: ReadonlySet<string> | undefined,
+  names: Names | undefined,
 ): string => {
-  const tree = renderToTree(claims, title, from, "inline", members)
+  const tree = renderToTree(claims, title, from, "inline", names)
   styleTags(tree, needles)
   if (!links) unwrapAnchors(tree)
 

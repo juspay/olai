@@ -86,11 +86,11 @@ export function NodeTitle(props: {
     () => {
       // Only a title with a wikilink asks the directory what it holds, so a
       // file arriving re-draws the rows that name one and no others.
-      const members = mayHoldWikilink(props.title) ? servedDirectory()?.members() : undefined
+      const names = mayHoldWikilink(props.title) ? servedDirectory()?.names() : undefined
       return renderTitle(servedDirectory()?.claims(), props.title, props.from, {
         links: props.links,
         needles: props.needles,
-        ...(members === undefined ? {} : { members }),
+        ...(names === undefined ? {} : { names }),
       })
     },
     undefined,

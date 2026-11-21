@@ -6,17 +6,23 @@
  * words it shows (`./pipeline.ts`).
  *
  * WHAT IT FINDS DEPENDS ON THE DIRECTORY, so the drawing is a function of the
- * membership ({@link drawnWikilink}) and is written twice from one answer: by
- * `./rewrite.ts` after the sanitiser, when a rendering has the membership in
- * hand, and by `./Markdown.tsx` in the page, every time the membership moves,
- * without re-rendering the prose ({@link applyWikilink}).
+ * directory's NAME INDEX ({@link drawnWikilink}) — the served files by the
+ * name each is found under, which the vault plugin's served directory owns and
+ * publishes (`plugins/vault/src/browser/directory.ts`'s `names`), replacing it
+ * only when a path arrives or leaves. Nothing here builds one or remembers
+ * one: it is handed in, and it carries the membership with it.
+ *
+ * The drawing is written twice from one answer: by `./rewrite.ts` after the
+ * sanitiser, when a rendering has the index in hand, and by `./Markdown.tsx`
+ * in the page, every time the index moves, without re-rendering the prose
+ * ({@link applyWikilink}).
  */
 import {
   addressOf,
   type Claims,
   deadLinkSaid,
   isPicture,
-  namesIn,
+  type Names,
   printAddress,
   wikilinkFallback,
   wikilinkLanding,
@@ -64,10 +70,10 @@ export type Drawn =
   | { readonly kind: "waiting" }
 
 /**
- * What one wikilink draws as, from the file `from`, with `members` the served
- * files — `undefined` when they are not known yet, which judges nothing and
- * guesses nothing: the link opens nothing until its name is looked up, as a
- * picture embed waits.
+ * What one wikilink draws as, from the file `from`, with `names` the
+ * directory's name index — `undefined` when the directory is not in hand yet,
+ * which judges nothing and guesses nothing: the link opens nothing until its
+ * name is looked up, as a picture embed waits.
  *
  * A picture embed (`![[handle.png]]`) is the picture, through the same
  * allowlist a `![](…)` meets: a picture kind's file, inside the directory,
@@ -77,13 +83,12 @@ export type Drawn =
  */
 export const drawnWikilink = (
   claims: Claims | undefined,
-  members: ReadonlySet<string> | undefined,
+  names: Names | undefined,
   from: string,
   written: Written,
   inline = false,
 ): Drawn => {
   const target = written.link.target
-  const names = claims === undefined || members === undefined ? undefined : namesIn(claims, members)
   if (claims !== undefined && written.embed && !inline && wikilinkPicture(claims, target)) {
     if (names === undefined) return { kind: "waiting" }
     const path = wikilinkPath(names, claims, from, target)
@@ -177,7 +182,7 @@ const MANAGED = ["href", "data-dead", "aria-label", "src", "alt", "width", "heig
 export const applyWikilink = (
   element: HTMLElement,
   claims: Claims | undefined,
-  members: ReadonlySet<string> | undefined,
+  names: Names | undefined,
   from: string,
 ): void => {
   const target = element.dataset["wikilink"]
@@ -190,7 +195,7 @@ export const applyWikilink = (
     embed: picture,
     ...(size === undefined ? {} : { size }),
   }
-  const drawing = drawingOf(drawnWikilink(claims, members, from, written), written, picture ? "" : (element.textContent ?? "").trim())
+  const drawing = drawingOf(drawnWikilink(claims, names, from, written), written, picture ? "" : (element.textContent ?? "").trim())
   if (element.tagName.toLowerCase() !== drawing.tag) {
     const next = element.ownerDocument.createElement(drawing.tag)
     for (const [key, value] of Object.entries(drawing.attributes)) next.setAttribute(key, value)

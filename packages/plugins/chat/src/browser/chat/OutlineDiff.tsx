@@ -37,11 +37,11 @@ import { mayHoldWikilink } from "@olai/prose/wikilink.ts"
  *  because it is the same promise about the same panel. */
 const TRIMMED = 6
 
-/** The membership a title's wikilinks are looked up in — asked only by a
+/** The name index a title's wikilinks are looked up in — asked only by a
  *  title that holds one, so a file arriving redraws only those rows. */
 const linksOf = (title: string): TitleRender => {
-  const members = mayHoldWikilink(title) ? servedDirectory()?.members() : undefined
-  return members === undefined ? {} : { members }
+  const names = mayHoldWikilink(title) ? servedDirectory()?.names() : undefined
+  return names === undefined ? {} : { names }
 }
 
 export function OutlineDiff(props: {

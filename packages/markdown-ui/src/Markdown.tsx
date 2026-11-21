@@ -40,7 +40,7 @@ import { intentOf } from "@olai/surface"
  * document whose renderer never came would otherwise be a page of source with
  * no explanation.
  */
-import { deadLinkSaid, type Claims } from "@olai/format"
+import { deadLinkSaid, type Claims, type Names } from "@olai/format"
 import { createEffect, createMemo, Show } from "solid-js"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
@@ -53,8 +53,9 @@ import { applyWikilink } from "./wikilinks.ts"
 export function Markdown(props: {
   readonly claims: Claims | undefined
   readonly source: string
-  /** Immutable directory membership: identity changes only with its contents. */
-  readonly members?: ReadonlySet<string>
+  /** The directory's name index, which holds its membership too: identity
+   *  changes only when a path arrives or leaves. */
+  readonly names?: Names
   readonly from: string
   readonly class?: string
   readonly testid?: string
@@ -82,14 +83,14 @@ export function Markdown(props: {
     const value = rendered()
     return value !== undefined && props.excerpt ? markdownExcerpt(value, props.excerpt) : value
   })
-  // File membership changes link decoration, never the rendered prose or its
+  // The directory's name index changes link decoration, never the rendered
   // selection/details state. The rewrite pass records authored link metadata.
   createEffect(() => {
     html()
-    const members = props.members
+    const names = props.names
     for (const link of container?.querySelectorAll<HTMLAnchorElement>("a[data-link-path]") ?? []) {
       const path = link.dataset["linkPath"]!
-      const dead = members !== undefined && !members.has(path)
+      const dead = names !== undefined && !names.served.has(path)
       link.classList.toggle("olai-dead-link", dead)
       if (dead) link.setAttribute("data-dead", "true")
       else link.removeAttribute("data-dead")
@@ -124,7 +125,7 @@ export function Markdown(props: {
     const claims = props.claims
     const from = props.from
     for (const link of container?.querySelectorAll<HTMLElement>("[data-wikilink]") ?? []) {
-      applyWikilink(link, claims, members, from)
+      applyWikilink(link, claims, names, from)
     }
   })
   /** Is this block still WAITING on the renderer — the arrival's own answer

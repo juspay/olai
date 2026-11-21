@@ -17,7 +17,7 @@
  * about a page, and is answered in the browser suite
  * (`packages/plugins/markdown/e2e/features/markdown_arrives.feature`).
  */
-import { claims } from "@olai/format"
+import { claims, namesOf, type Names } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { expect, test, spyOn } from "bun:test"
@@ -681,44 +681,45 @@ test("a rendering cache belongs to its Claims snapshot, including withdrawal and
 
 test("served membership marks missing links and clears independently of the source cache", () => {
   const source = "[x](../gone%20away.md#scope)"
-  const missing = renderMarkdown(TEST_CLAIMS, source, "notes/a.md", new Set())
+  const missing = renderMarkdown(TEST_CLAIMS, source, "notes/a.md", namesOf(TEST_CLAIMS, []))
   expect(missing).toContain("data-dead")
   expect(missing).toContain("link resolves to nothing served: gone away.md")
   expect(missing).toContain('href="/gone%20away.md#scope"')
-  expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md", new Set(["gone away.md"]))).not.toContain("data-dead")
+  expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md", namesOf(TEST_CLAIMS, ["gone away.md"]))).not.toContain("data-dead")
   expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md")).not.toContain("data-dead")
 })
 
 test("membership revisions keep render caching and stable heading IDs", () => {
-  const members = new Set<string>()
-  const membership = spyOn(members, "has")
+  const names = namesOf(TEST_CLAIMS, [])
+  const membership = spyOn(names.served as Set<string>, "has")
   const source = '# Cache revision\n[x](cached-target.md "authored title")'
-  const first = renderMarkdown(TEST_CLAIMS, source, "a.md", members)
+  const first = renderMarkdown(TEST_CLAIMS, source, "a.md", names)
   const initial = membership.mock.calls.length
   expect(initial).toBeGreaterThan(0)
-  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", members)).toBe(first)
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", names)).toBe(first)
   expect(membership.mock.calls.length).toBe(initial)
   expect(first).toContain("authored title — link resolves to nothing served")
   expect(first).toContain("olai-dead-link")
   expect(first).not.toContain('style="text-decoration')
-  const next = renderMarkdown(TEST_CLAIMS, source, "a.md", new Set(["cached-target.md"]))
+  const next = renderMarkdown(TEST_CLAIMS, source, "a.md", namesOf(TEST_CLAIMS, ["cached-target.md"]))
   expect(next).not.toContain("data-dead")
   expect(next.match(/id="([^"]+)"/)?.[1]).toBe(first.match(/id="([^"]+)"/)?.[1])
 })
 
 test("membership withdrawal and reconnection cannot reuse a stale warning", () => {
   const source = "[x](fresh.md)"
-  const missing = new Set<string>()
+  const missing = namesOf(TEST_CLAIMS, [])
   expect(renderMarkdown(TEST_CLAIMS, source, "a.md", missing)).toContain("data-dead")
   expect(renderMarkdown(TEST_CLAIMS, source, "a.md")).not.toContain("data-dead")
-  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", new Set(["fresh.md"]))).not.toContain("data-dead")
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", namesOf(TEST_CLAIMS, ["fresh.md"]))).not.toContain("data-dead")
   expect(renderMarkdown(TEST_CLAIMS, source, "a.md", missing)).toContain("data-dead")
 })
 
 // ── wikilinks ──────────────────────────────────────────────────────────
 
-/** The served files of `packages/tests/fixtures/wikilinks/`, as a membership. */
-const WIKI_MEMBERS: ReadonlySet<string> = new Set([
+/** The served files of `packages/tests/fixtures/wikilinks/`, and the name
+ *  index of them the directory would publish. */
+const WIKI_FILES: ReadonlyArray<string> = [
   "finishes.md",
   "kitchen-sink.md",
   "every-form.md",
@@ -733,7 +734,8 @@ const WIKI_MEMBERS: ReadonlySet<string> = new Set([
   "art/handle.png",
   "art/diagram.svg",
   "reports/report.pdf",
-])
+]
+const WIKI_NAMES: Names = namesOf(TEST_CLAIMS, WIKI_FILES)
 
 /** Every `<a>` in some HTML, as its attributes and its words — found by
  *  scanning for the open, its `>` and the close in turn, so the cost is one
@@ -768,8 +770,8 @@ const textOf = (html: string): string => {
   return out
 }
 
-const wikiAnchor = (source: string, from = "every-form.md", members: ReadonlySet<string> | null = WIKI_MEMBERS) => {
-  const found = anchorsIn(renderMarkdown(TEST_CLAIMS, source, from, members ?? undefined)).filter((one) => "data-wikilink" in one.attributes)
+const wikiAnchor = (source: string, from = "every-form.md", names: Names | null = WIKI_NAMES) => {
+  const found = anchorsIn(renderMarkdown(TEST_CLAIMS, source, from, names ?? undefined)).filter((one) => "data-wikilink" in one.attributes)
   expect(found).toHaveLength(1)
   return found[0]!
 }
@@ -833,11 +835,11 @@ test("a title drawn before the membership is known opens nothing, rather than a 
   // `beds.md` lives in `garden/`: a guess from the name alone would be
   // `/beds.md`, which is Page not found.
   expect(titleHtml("check [[beds]]", "house.olai")).not.toContain("href")
-  expect(titleHtml("check [[beds]]", "house.olai", { members: WIKI_MEMBERS })).toContain('href="/garden/beds.md"')
+  expect(titleHtml("check [[beds]]", "house.olai", { names: WIKI_NAMES })).toContain('href="/garden/beds.md"')
 })
 
 test("`[[#kitchen]]` outside a document opens nothing and is not marked", () => {
-  const html = titleHtml("after [[#kitchen]]", "house.olai", { members: WIKI_MEMBERS })
+  const html = titleHtml("after [[#kitchen]]", "house.olai", { names: WIKI_NAMES })
   const [anchor] = anchorsIn(html)
   expect(anchor?.attributes).not.toHaveProperty("href")
   expect(anchor?.attributes).not.toHaveProperty("data-dead")
@@ -846,24 +848,24 @@ test("`[[#kitchen]]` outside a document opens nothing and is not marked", () => 
 
 test("a wikilink inside an HTML comment is drawn as nothing, though the index counts it", () => {
   // The other half of a known gap `@olai/format`'s backlinks test pins.
-  expect(renderMarkdown(TEST_CLAIMS, "<!-- see [[finishes]] -->", "a.md", WIKI_MEMBERS)).not.toContain("data-wikilink")
+  expect(renderMarkdown(TEST_CLAIMS, "<!-- see [[finishes]] -->", "a.md", WIKI_NAMES)).not.toContain("data-wikilink")
 })
 
 test("a file arriving re-aims the link, and the rendering is not reused across memberships", () => {
-  const without = new Set([...WIKI_MEMBERS].filter((path) => path !== "garden/Note.md"))
+  const without = namesOf(TEST_CLAIMS, WIKI_FILES.filter((path) => path !== "garden/Note.md"))
   expect(wikiAnchor("[[Note]]", "garden/beds.md", without).attributes["href"]).toBe("/rooms/Note.md")
   expect(wikiAnchor("[[Note]]", "garden/beds.md").attributes["href"]).toBe("/garden/Note.md")
   expect(wikiAnchor("[[Note]]", "garden/beds.md", without).attributes["href"]).toBe("/rooms/Note.md")
 })
 
 test("code, an escape and an unclosed pair stay text", () => {
-  const html = renderMarkdown(TEST_CLAIMS, "`[[finishes]]` \\[[finishes]] [[finishes\n\n```\n[[finishes]]\n```", "a.md", WIKI_MEMBERS)
+  const html = renderMarkdown(TEST_CLAIMS, "`[[finishes]]` \\[[finishes]] [[finishes\n\n```\n[[finishes]]\n```", "a.md", WIKI_NAMES)
   expect(html).not.toContain("data-wikilink")
   expect(html.match(/\[\[finishes/g)).toHaveLength(4)
 })
 
 test("an alias in a table cell is written with an escaped bar, as in Obsidian", () => {
-  const html = renderMarkdown(TEST_CLAIMS, "| Where | Link |\n| --- | --- |\n| here | [[kitchen-sink\\|the sink table]] |", "a.md", WIKI_MEMBERS)
+  const html = renderMarkdown(TEST_CLAIMS, "| Where | Link |\n| --- | --- |\n| here | [[kitchen-sink\\|the sink table]] |", "a.md", WIKI_NAMES)
   expect(html).toMatch(/<td><a [^>]*href="\/kitchen-sink\.md"[^>]*>the sink table<\/a><\/td>/)
 })
 
@@ -883,18 +885,18 @@ test("a name that is a scheme or a host is only a name, and its page is one of o
 })
 
 test("a title draws a wikilink as the words it shows, never as its source", () => {
-  const members = WIKI_MEMBERS
-  const html = titleHtml("compare [[finishes|the chosen finishes]] today", "house.olai", { members })
+  const names = WIKI_NAMES
+  const html = titleHtml("compare [[finishes|the chosen finishes]] today", "house.olai", { names })
   expect(html).toContain(">the chosen finishes</a>")
   expect(html).not.toContain("[[")
-  expect(titleHtml("compare [[finishes|the chosen finishes]] today", "house.olai", { members, links: false }))
+  expect(titleHtml("compare [[finishes|the chosen finishes]] today", "house.olai", { names, links: false }))
     .toBe("compare the chosen finishes today")
 })
 
 test("a title's wikilink follows the membership it is drawn with", () => {
-  const without = new Set([...WIKI_MEMBERS].filter((path) => path !== "finishes.md"))
-  expect(titleHtml("see [[finishes]]", "house.olai", { members: without })).toContain("data-dead")
-  expect(titleHtml("see [[finishes]]", "house.olai", { members: WIKI_MEMBERS })).not.toContain("data-dead")
+  const without = namesOf(TEST_CLAIMS, WIKI_FILES.filter((path) => path !== "finishes.md"))
+  expect(titleHtml("see [[finishes]]", "house.olai", { names: without })).toContain("data-dead")
+  expect(titleHtml("see [[finishes]]", "house.olai", { names: WIKI_NAMES })).not.toContain("data-dead")
 })
 
 // ── wikilink pictures ──────────────────────────────────────────────────
@@ -909,7 +911,7 @@ const wikiPictures = (html: string): ReadonlyArray<{ readonly tag: string; reado
   }))
 
 test("a picture embedded by name alone is drawn from whatever folder it is in", () => {
-  const [picture] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png]]", "every-form.md", WIKI_MEMBERS))
+  const [picture] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png]]", "every-form.md", WIKI_NAMES))
   expect(picture?.tag).toBe("img")
   expect(picture?.attributes["src"]).toBe("/media/art/handle.png")
   expect(picture?.attributes["alt"]).toBe("handle.png")
@@ -917,13 +919,13 @@ test("a picture embedded by name alone is drawn from whatever folder it is in", 
 })
 
 test("a width, or a width and a height, after the bar sizes the picture", () => {
-  const [narrow] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|40]]", "a.md", WIKI_MEMBERS))
+  const [narrow] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|40]]", "a.md", WIKI_NAMES))
   expect(narrow?.attributes["width"]).toBe("40")
   expect(narrow?.attributes).not.toHaveProperty("height")
-  const [boxed] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|40x30]]", "a.md", WIKI_MEMBERS))
+  const [boxed] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|40x30]]", "a.md", WIKI_NAMES))
   expect(boxed?.attributes["width"]).toBe("40")
   expect(boxed?.attributes["height"]).toBe("30")
-  const [worded] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|the handle]]", "a.md", WIKI_MEMBERS))
+  const [worded] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|the handle]]", "a.md", WIKI_NAMES))
   expect(worded?.attributes).not.toHaveProperty("width")
 })
 
@@ -933,7 +935,7 @@ test("an embed meets the allowlist a markdown picture meets, and is refused in w
     ["![[gone.png]]", "this picture could not be drawn: gone.png"],
     ["![[https://example.com/a.png]]", "this picture could not be drawn: https://example.com/a.png"],
   ] as const) {
-    const html = renderMarkdown(TEST_CLAIMS, written, "a.md", WIKI_MEMBERS)
+    const html = renderMarkdown(TEST_CLAIMS, written, "a.md", WIKI_NAMES)
     const [refused] = wikiPictures(html)
     expect(refused?.tag).toBe("span")
     expect(refused?.words).toBe(words)
@@ -950,7 +952,7 @@ test("an embed of a note, a pdf or an outline is a link to it", () => {
 })
 
 test("a picture embedded in a title is a link, since a title is one line high", () => {
-  const html = titleHtml("the knobs ![[handle.png]]", "house.olai", { members: WIKI_MEMBERS })
+  const html = titleHtml("the knobs ![[handle.png]]", "house.olai", { names: WIKI_NAMES })
   expect(html).not.toContain("<img")
   expect(html).toMatch(/<a [^>]*href="\/art\/handle\.png"[^>]*>handle\.png<\/a>/)
 })

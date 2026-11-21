@@ -183,7 +183,7 @@ export function Rendered(props: { readonly file: string }) {
       </Show>
       <Show when={isServed(served())}>
         <Toc file={props.file} headings={headings()} />
-        <Markdown members={servedDirectory()?.members()}
+        <Markdown names={servedDirectory()?.names()}
             claims={servedDirectory()?.claims()}
           source={text()}
           landing={lineDrawing()}

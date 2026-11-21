@@ -291,7 +291,7 @@ export {
    *  preview line, before the parser has loaded. */
   wikilinksShown,
 } from "./links/shown.ts"
-export { namesIn, namesOf, type Names } from "./links/names.ts"
+export { namesOf, type Names } from "./links/names.ts"
 export {
   wikilinkAddress,
   wikilinkFallback,

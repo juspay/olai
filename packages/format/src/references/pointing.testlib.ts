@@ -44,7 +44,7 @@ import { seeded } from "../fixtures.testlib.ts"
 import { fileKind, stemOf } from "../kinds.ts"
 import { isMirror, isPutAway, isRegular, type Located } from "../node.ts"
 import type { OutlineSet } from "../set.ts"
-import { namesIn } from "../links/names.ts"
+import { namesOf } from "../links/names.ts"
 import { wikilinkAddress } from "../links/wikilink.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
 
@@ -79,7 +79,7 @@ export const scannedReferrers = (
   derived: Pick<Derived, "byFile">,
   served: ReadonlySet<string>,
 ): ReadonlyArray<Reference> => {
-  const names = namesIn(TEST_CLAIMS, served)
+  const names = namesOf(TEST_CLAIMS, served)
   const wikis = (from: string, written: ReadonlyArray<WikilinkName>): ReadonlyArray<Address> =>
     written.flatMap((link) => wikilinkAddress(names, TEST_CLAIMS, from, link) ?? [])
   /** Ways merged per source, in the reading's own order. */

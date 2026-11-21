@@ -13,6 +13,7 @@
  */
 import { fixtureRows, realDocuments } from "@olai/prose/corpus.testlib.ts"
 import { read, type Read } from "@olai/prose/read.ts"
+import { namesOf } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -61,6 +62,10 @@ const pills = (html: string): ReadonlyArray<string> =>
 const DOCUMENTS = realDocuments()
 const ROWS = fixtureRows()
 
+/** A directory holding nothing: this check is about what the page DRAWS, and
+ *  a wikilink that finds no file is still drawn and still named. */
+const NO_NAMES = namesOf(TEST_CLAIMS, [])
+
 test("the texts this check reads are the repository's", () => {
   expect(DOCUMENTS.length).toBeGreaterThan(50)
   expect(ROWS.length).toBeGreaterThan(100)
@@ -71,7 +76,7 @@ test("the texts this check reads are the repository's", () => {
 for (const document of DOCUMENTS) {
   test(`${document.from}: the page draws what the reading holds`, () => {
     const said = read(document.text)
-    const html = renderMarkdown(TEST_CLAIMS, document.text, document.from, new Set())
+    const html = renderMarkdown(TEST_CLAIMS, document.text, document.from, NO_NAMES)
     expect(drawn(html)).toEqual(held(said))
     const namespace = landingId(document.text, document.from, "")
     const ids = [...html.matchAll(/<h[1-6] id="([^"]*)"/g)].map((one) => (one[1] as string).slice(namespace.length))
@@ -85,8 +90,8 @@ test("every fixture row's title and note draws what its reading holds", () => {
     const file = row.from.slice(0, row.from.indexOf("#"))
     const said = read(row.text)
     const html = row.field === "title"
-      ? renderTitle(TEST_CLAIMS, row.text, file, { members: new Set() }).html
-      : renderMarkdown(TEST_CLAIMS, row.text, file, new Set())
+      ? renderTitle(TEST_CLAIMS, row.text, file, { names: NO_NAMES }).html
+      : renderMarkdown(TEST_CLAIMS, row.text, file, NO_NAMES)
     const page = { ...drawn(html), ...(row.field === "title" ? { tags: pills(html) } : {}) }
     const reading = { ...held(said), ...(row.field === "title" ? { tags: said.tags.map(String) } : {}) }
     if (JSON.stringify(page) !== JSON.stringify(reading)) {
