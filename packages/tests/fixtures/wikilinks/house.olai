@@ -1,0 +1,3 @@
+{"id":"kitchen","ord":"a0","title":"kitchen remodel, see [[finishes]]"}
+{"id":"sink","parent":"kitchen","ord":"a0","title":"fit the sink","desc":"Measure against [[kitchen-sink#Tables|the sink table]]."}
+{"id":"shed","ord":"a1","title":"paint the shed"}

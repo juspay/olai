@@ -150,6 +150,7 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   "packages/format/src/tape.ts": "two WeakMap memos over a derived pair, keyed by the pair",
   "packages/format/src/typing.ts": "a WeakMap memo of a derivation's declared kinds, keyed by it",
   "packages/format/src/vocabulary.ts": "a WeakMap memo of a derivation's tag counts, keyed by it",
+  "packages/format/src/wikilinks.ts": "a WeakMap memo of a membership snapshot's name index, keyed by the snapshot",
   // ...and one file with a memo AND a diagnostic slot: `watching(null)` is the
   // default, a suite installs a listener for the length of its own case, and
   // what it hears is every narrowed write rather than any activation's value.

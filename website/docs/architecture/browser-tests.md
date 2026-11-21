@@ -43,7 +43,7 @@ Cucumber runs those 2,379 entries as about 2,533 cases.[^count] What each group 
 
 [^note]: The note's lines also go to the run's output, each prefixed `olai-e2e-evidence:`, and `just e2e` prints the notes and lists the kept files when the run ends.
 
-[^corpora]: The directories of test files are `good`, `broken`, `tangled`, `empty`, `typed`, `chat`, `journal`, `agenda`, `morning-agenda`, `lanes`, `legacy-pins`, `mail`, `odu-run`, `plugins`, `plugin-services`, `browser-services` and `browser-services-failed`.
+[^corpora]: The directories of test files are `good`, `broken`, `tangled`, `empty`, `typed`, `chat`, `journal`, `agenda`, `morning-agenda`, `lanes`, `legacy-pins`, `mail`, `odu-run`, `plugins`, `plugin-services`, `browser-services`, `browser-services-failed` and `wikilinks`.
 
 [^scratch]: A scenario tagged `@scratch:<name>` is served a temporary copy of that directory. `@share-scratch` shares one copy per worker and puts the files back as they were between scenarios.
 
