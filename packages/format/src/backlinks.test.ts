@@ -203,83 +203,46 @@ test("the referrers come in byPath order, so a directory sorts before the file b
   expect(said(view, "herbs")).toEqual(["also see", "plan see"])
 })
 
-// ── a note is markdown, and this reading is not ────────────────────────
+// ── one reading of a note ───────────────────────────────────────────────
 //
-// The decision is `./derive.ts`'s `writtenTags`: this package holds no markdown
-// parser, and deciding what a reference IS out of one would put a parser under
-// the write gate — so what the record SAYS is the answer. What that costs is a
-// disagreement with the browser, which DOES parse before it styles a tag
-// (`web/src/client/markdown/tags.ts`, which reads no tag inside `code` or `a`).
-//
-// THE DISAGREEMENT GOES BOTH WAYS, and these tests are the enumeration. Two
-// reviewers of #237 each found the prose one case short of the truth — it said
-// "one case, not two" — so the cases are pinned rather than described. What
-// decides every one of them is a single inherited rule: `titleTagRe` claims `@`
-// only where a WORD STARTS (the beginning of the text, or after a space, `(`,
-// `[` or `{`), because `@` sits inside ordinary words all the time.
+// A note is Markdown, and it is read as Markdown: the parser decides what is
+// code and what is a link, and a mention is a word of the text outside both —
+// the rule the page draws a pill by, so a mention the page draws is the one
+// the reference reading counts. `titleTagRe` still claims `@` only where a word
+// STARTS, because `@` sits inside ordinary words all the time.
 
-test("markdown the browser skips: a `@id` that still starts a word IS a mention", () => {
-  // Over-report, three shapes, all of them the same rule: the character before
-  // the sigil opens a word even though the markup around it is something the
-  // browser would decline to style a tag inside.
+test("code and a link's words hold no mention, however the code is written", () => {
   const view = viewOf({
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
-      // A space INSIDE an inline code span. The backtick does not open a word;
-      // the space after it does.
       `{"id":"spanned","ord":"b","title":"spanned","desc":"write \`see @herbs here\` please"}\n` +
-      // A fenced block: the content line begins after a newline, and `\\n` is
-      // whitespace, so the sigil starts a word.
-      `{"id":"fenced","ord":"c","title":"fenced","desc":"\`\`\`\\n@herbs do this\\n\`\`\`"}\n` +
-      // An indented block, for the same reason.
-      `{"id":"indented","ord":"d","title":"indented","desc":"    @herbs do this"}\n` +
-      // A link's TEXT: `[` is in the opening alphabet.
-      `{"id":"linked","ord":"e","title":"linked","desc":"see [@herbs](https://example.invalid)"}`,
-  })
-  expect(said(view, "herbs")).toEqual([
-    "spanned mention",
-    "fenced mention",
-    "indented mention",
-    "linked mention",
-  ])
-})
-
-test("...and a TIGHT code span is not one, on either side", () => {
-  // The one case where the two agree, and it is worth pinning because the
-  // agreement is an ACCIDENT of the sigil rule rather than knowledge: a
-  // backtick is not in the opening alphabet, so nothing here has to know what
-  // a code span is.
-  const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
-      `{"id":"tight","ord":"b","title":"tight","desc":"write \`@herbs\` in the note"}`,
+      `{"id":"tight","ord":"c","title":"tight","desc":"write \`@herbs\` in the note"}\n` +
+      `{"id":"fenced","ord":"d","title":"fenced","desc":"\`\`\`\\n@herbs do this\\n\`\`\`"}\n` +
+      `{"id":"indented","ord":"e","title":"indented","desc":"    @herbs do this"}\n` +
+      `{"id":"linked","ord":"f","title":"linked","desc":"see [@herbs](https://example.invalid)"}`,
   })
   expect(referencesOf(view, atNode("herbs"))).toEqual([])
 })
 
-test("and the divergence runs the OTHER way too: emphasis is styled and is not a mention", () => {
-  // The half that is easy to miss, and the reason "the bias is toward showing
-  // more" is not a safe thing to say: `*` and `_` are not in the opening
-  // alphabet, so this reading skips them — while the client's tag styling walks
-  // into `em` and `strong` (they are not in `NO_TAGS_IN`) and draws the pill.
-  // So a reader can see `@herbs` styled as a tag on a record's own page and not
-  // find that record in the herb bed's referenced-by section.
+test("emphasis round a mention is still a mention, as the page draws it", () => {
   const view = viewOf({
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"emphasised","ord":"b","title":"emphasised","desc":"see *@herbs* today"}\n` +
       `{"id":"strong","ord":"c","title":"strong","desc":"see **@herbs** today"}`,
   })
-  expect(referencesOf(view, atNode("herbs"))).toEqual([])
+  expect(said(view, "herbs")).toEqual(["emphasised mention", "strong mention"])
 })
 
 test("a word inside another word is not a mention", () => {
-  // `titleTagRe`'s own rule for `@`, inherited rather than restated: the sigil
-  // is claimed only where a word starts, because `@` sits inside addresses all
-  // the time. `#herbs` is the other namespace and is never one either.
+  // `titleTagRe`'s own rule for `@`: the sigil is claimed only where a word
+  // starts, because `@` sits inside addresses all the time. `#herbs` is the
+  // other namespace and is never one either.
   const view = viewOf({
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"mail","ord":"b","title":"write to sam@herbs.example","desc":"filed under #herbs"}`,
   })
   expect(referencesOf(view, atNode("herbs"))).toEqual([])
 })
+
 // ── wikilinks ──────────────────────────────────────────────────────────
 
 /** Who refers to one file, or one heading of it, as the document page asks. */
@@ -424,16 +387,14 @@ test("`[[#kitchen]]` in a row names no heading, so the page and the index both l
   expect(wikilinkAddress(view.names, view.claims, "house.olai", "#kitchen")).toBeNull()
 })
 
-// A KNOWN GAP, pinned so it moves only on purpose: the scan that finds links
-// has no rule for an HTML comment, so a link inside one — either spelling — is
-// counted here, while the page draws the comment as nothing at all
-// (`@olai/markdown-ui`'s render test holds the other half). Closing it is a
-// change to what standard links do, and is a follow-up of its own.
-test("a link inside an HTML comment is counted, either spelling, though the page draws none", () => {
+// AN HTML COMMENT IS NOT TEXT: the parser reads it as one, so a link inside
+// it — either spelling — refers to nothing, exactly as the page draws nothing
+// there.
+test("a link inside an HTML comment is not a reference, either spelling", () => {
   const view = viewOf({}, [
     FINISHES,
     ["wiki.md", "<!-- see [[finishes]] -->"],
     ["standard.md", "<!-- see [x](finishes.md) -->"],
   ])
-  expect(referring(view, "finishes.md")).toEqual(["standard.md link", "wiki.md link"])
+  expect(referring(view, "finishes.md")).toEqual([])
 })

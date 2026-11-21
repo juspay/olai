@@ -118,7 +118,7 @@ test("a heading of punctuation alone makes no slug", () => {
 
 test("an address is cut once into its path, query and fragment", () => {
   expect(read("[q](finishes.md?v=1#doors)").links).toEqual([
-    { url: "finishes.md?v=1#doors", path: "finishes.md", query: "v=1", fragment: "doors", words: "q" },
+    { url: "finishes.md?v=1#doors", path: "finishes.md", query: "v=1", fragment: "doors", words: "q", picture: false },
   ])
   expect(read("[a](my file.md)").links.map((one) => one.path)).toEqual(["my file.md"])
 })
@@ -127,8 +127,10 @@ test("a reference-style link is read through its definition", () => {
   expect(read("see [the brief][ref]\n\n[ref]: brief.md").links.map((one) => [one.path, one.words])).toEqual([["brief.md", "the brief"]])
 })
 
-test("a picture is read with its words", () => {
-  expect(read("![the handle](art/handle.png)").pictures.map((one) => [one.path, one.alt])).toEqual([["art/handle.png", "the handle"]])
+test("a picture is read with its words, in its place among the links", () => {
+  expect(read("[a](a.md) ![the handle](art/handle.png) [b](b.md)").links.map((one) => [one.path, one.words, one.picture]))
+    .toEqual([["a.md", "a", false], ["art/handle.png", "the handle", true], ["b.md", "b", false]])
+  expect(read("[![the handle](art/handle.png)](art.md)").links.map((one) => one.path)).toEqual(["art.md", "art/handle.png"])
 })
 
 // ── the first line and the words ───────────────────────────────────────

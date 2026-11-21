@@ -621,7 +621,10 @@ test("the patched view is the derived view over the real vault", () => {
   // The chain really compounded — every revision patched onto the one before
   // it, sixty deep.
   expect(folded).toBe(TYPED)
-})
+  // A decode reads every text through the parser now, once, and this test
+  // decodes the whole real vault and then one of its files sixty times over —
+  // seconds, not the default's five.
+}, 120_000)
 
 /** The four re-filed indexes and the readings carried beside the day index,
  *  compared the way each is READ: `byDay`'s keys and `namedBy`'s in order,

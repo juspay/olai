@@ -242,3 +242,45 @@ Feature: Referenced by — a zoomed node says what points at it
     Then the referenced-by "Links to this" row reads "Finishes, Palette"
     And the page has not reloaded
     And there should be no page errors
+
+  # A mention is a word of the note as the page draws it: emphasis round it is
+  # still a mention, while code and a link's own words hold none.
+  Scenario: A mention counts in emphasis, and not in code or in a link's words
+    When I rewrite "finishes.md" as:
+      """
+      # Finishes
+
+      Ask *@herbs* about the oak.
+      """
+    And I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      Not `see @herbs`, and not [@herbs](https://example.invalid).
+      """
+    Then the page says it is referenced by 2 things
+    When I open the referenced-by section
+    Then the referenced-by "Mentions this" row reads "Finishes"
+    And there should be no page errors
+
+  # An HTML comment is drawn as nothing, so a link inside it refers to nothing;
+  # a reference-style link is a link like any other.
+  Scenario: A link in an HTML comment refers to nothing, and a reference-style link does
+    When I rewrite "finishes.md" as:
+      """
+      # Finishes
+
+      <!-- [the herb bed](#herbs) -->
+      """
+    And I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      See [the herb bed][bed].
+
+      [bed]: #herbs
+      """
+    Then the page says it is referenced by 2 things
+    When I open the referenced-by section
+    Then the referenced-by "Links to this" row reads "Palette"
+    And there should be no page errors

@@ -25,8 +25,11 @@
  */
 
 import { proseIn } from "@olai/prose/frontmatter.ts"
+import { read, type Read } from "@olai/prose/read.ts"
 import {
   addressOf,
+  bodyRead,
+  recordRead,
   referencesOf,
   deadLinksIn,
   type Names,
@@ -5929,19 +5932,29 @@ export const plan = (scope: Scope, request: Request): Planned => {
   // wikilink beside it may already name.
   let names: Names | undefined
   const nudges: string[] = []
-  const compare = (file: string, text: string | ReadonlyArray<string>, before: string | ReadonlyArray<string>) => {
+  const compare = (file: string, said: ReadonlyArray<Read>, before: ReadonlyArray<Read>) => {
     names ??= served.size === scope.names.served.size ? scope.names : namesOf(scope.claims, served)
     const previous = new Set(deadLinksIn(names, file, before).map(one => one.written))
-    nudges.push(...deadLinksIn(names, file, text).filter(one => !previous.has(one.written)).map(deadLinkSaid))
+    nudges.push(...deadLinksIn(names, file, said).filter(one => !previous.has(one.written)).map(deadLinkSaid))
   }
   for (const file of next.files) {
     for (const node of file.nodes) {
       if (isMirror(node)) continue
       const before = scope.derived.byId.get(node.id)?.node
       if (before !== undefined && !isMirror(before) && before.title === node.title && before.desc === node.desc) continue
-      compare(file.file, [node.title, node.desc ?? ""], before === undefined || isMirror(before) ? "" : [before.title, before.desc ?? ""])
+      // The text being written is read here, once; what stood before is the
+      // reading decode kept for it.
+      const was = before === undefined || isMirror(before) ? undefined : recordRead(before)
+      compare(
+        file.file,
+        node.desc === undefined ? [read(node.title)] : [read(node.title), read(node.desc)],
+        was === undefined ? [] : was.desc === null ? [was.title] : [was.title, was.desc],
+      )
     }
   }
-  for (const document of next.documents ?? []) compare(document.file, proseIn(document.text), proseIn(markdownAt(scope.set, document.file)?.body ?? ""))
+  for (const document of next.documents ?? []) {
+    const standing = markdownAt(scope.set, document.file)
+    compare(document.file, [read(proseIn(document.text))], standing === undefined ? [] : [bodyRead(standing)])
+  }
   return nudges.length === 0 ? planned : Result.succeed({ ...next, nudge: [next.nudge, ...new Set(nudges)].filter(Boolean).join(" ") })
 }

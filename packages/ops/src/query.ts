@@ -28,9 +28,9 @@
  * has any bearing on the answer.
  */
 
-import { proseIn } from "@olai/prose/frontmatter.ts"
 import { tagText } from "@olai/prose/tags.ts"
 import {
+  bodyRead,
   deadLinksIn,
   deadLinksOf,
   deadLinkFields,
@@ -1340,7 +1340,7 @@ export const document = (
   return Result.succeed({
     file,
     text: entry.body,
-    ...deadLinkFields(deadLinksIn(at.names, file, proseIn(entry.body))),
+    ...deadLinkFields(deadLinksIn(at.names, file, [bodyRead(entry)])),
     ...(referencedBy.length === 0 ? {} : { referencedBy }),
   })
 }

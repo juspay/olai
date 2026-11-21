@@ -85,12 +85,14 @@ import rehypeStringify from "rehype-stringify"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import type { WikilinkNode } from "@olai/prose/obsidian.ts"
-import { parse } from "@olai/prose/parse.ts"
+import { guarded, parse } from "@olai/prose/parse.ts"
+import { type Read, readTree } from "@olai/prose/read.ts"
 import type { Element, Root } from "hast"
+import type { Nodes as MdastNodes, Root as MdastRoot } from "mdast"
 
 import { AUTOLINK } from "./anchors.ts"
 import { SANITISE } from "./sanitise.ts"
-import { rehypeSlugs } from "./slugs.ts"
+import { TESTID } from "./testids.ts"
 import { sizeOf } from "./wikilinks.ts"
 
 /**
@@ -145,7 +147,6 @@ const wikilinkElement: Handler = (state, wikilink): Element => {
  *  anchored, sanitised and highlighted. */
 const rendering = unified()
   .use(remarkRehype, { clobberPrefix: "", handlers: { wikilink: wikilinkElement } })
-  .use(rehypeSlugs)
   .use(rehypeAutolinkHeadings, AUTOLINK)
   .use(rehypeSanitize, SANITISE)
   .use(rehypeHighlight, { detect: false, languages })
@@ -188,8 +189,50 @@ export interface Pipeline {
   readonly htmlOf: (tree: Root) => string
 }
 
-export const treeOf = (source: string): Root =>
-  rendering.runSync(parse(source)) as Root
+/**
+ * The page's tree of a source: the guarded parse (`@olai/prose`'s `parse.ts`),
+ * each heading given the id `read` made for it — the one slug the face lists
+ * too, numbered once — and the rest of the pipeline run over it. A text the
+ * guard refused is drawn as the words it is, with one sentence saying it was
+ * not formatted: the index read it as plain words too.
+ */
+export const treeOf = (source: string): Root => {
+  const parsed = guarded(source)
+  if (parsed.refused !== undefined) return refusedTree(source)
+  headingIds(parsed.tree, readTree(parsed.tree))
+  return rendering.runSync(parsed.tree) as Root
+}
+
+/** Each heading of a tree, in document order, given the slug its reading
+ *  holds — the order `read` walks, so the two lists are one list. */
+const headingIds = (tree: MdastRoot, said: Read): void => {
+  let at = 0
+  const visit = (node: MdastNodes): void => {
+    if (node.type === "heading") {
+      const slug = said.headings[at++]?.slug
+      if (slug !== null && slug !== undefined) node.data = { ...node.data, hProperties: { ...node.data?.hProperties, id: slug } }
+    }
+    if ("children" in node) for (const child of node.children) visit(child)
+  }
+  visit(tree)
+}
+
+/** A refused text as the page draws it: its words, and the sentence. */
+const refusedTree = (source: string): Root => ({
+  type: "root",
+  children: [
+    { type: "element", tagName: "p", properties: { className: ["olai-refused"] }, children: [{ type: "text", value: source }] },
+    {
+      type: "element",
+      tagName: "p",
+      properties: { className: ["text-xs", "text-muted"], dataTestid: TESTID.refusedText },
+      children: [{ type: "text", value: REFUSED }],
+    },
+  ],
+})
+
+/** What the page says under a text it would not format. */
+export const REFUSED = "olai did not format this text: it is shaped in a way that would take too long to read."
 
 /**
  * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is
@@ -199,10 +242,12 @@ export const treeOf = (source: string): Root =>
  * itself, so the alt would otherwise go quietly). It is remark's own utility,
  * already in the lockfile under `mdast-util-from-markdown` (which is how
  * `remark-parse` reads a document at all); the walk was written out here once
- * and was this function line for line.
+ * and was this function line for line. A refused text accounts for itself.
  */
-export const sourceTextOf = (source: string): string =>
-  toString(parse(source))
+export const sourceTextOf = (source: string): string => {
+  const parsed = guarded(source)
+  return parsed.refused === undefined ? toString(parsed.tree) : source
+}
 
 export const htmlOf = (tree: Root): string => rendering.stringify(tree)
 

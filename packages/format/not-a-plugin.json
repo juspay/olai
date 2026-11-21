@@ -46,7 +46,7 @@
   "markdown": {
     "src/agents.ts": 2,
     "src/dates.ts": 1,
-    "src/document.ts": 8,
+    "src/document.ts": 9,
     "src/filter.ts": 2,
     "src/incremental.ts": 2,
     "src/index.ts": 3,

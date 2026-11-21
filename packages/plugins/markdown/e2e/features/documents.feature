@@ -220,6 +220,31 @@ Feature: Documents
     And the header search result "Palette" marks "agent" as why it matched
     And there should be no page errors
 
+  # The title is the first line's WORDS: markup on it is the page's business,
+  # and the name every row uses is what a reader sees there.
+  @scratch:good
+  Scenario: A document whose first line holds markup is called by that line's words
+    Given I open the outline "house.olai"
+    When I rewrite "notes/palette.md" as:
+      """
+      **Palette** for the [kitchen](../house.olai)
+      """
+    And I search the header for "Palette"
+    Then the header search result for the document "notes/palette.md" is called "Palette for the kitchen"
+    And there should be no page errors
+
+  # A text shaped past the parse guard's bounds is not formatted: the page
+  # draws its words and says so, rather than spending seconds on its shape.
+  @scratch:good
+  Scenario: A text too deeply quoted to format is drawn as its words, with a sentence saying so
+    When I rewrite "notes/deep.md" as:
+      """
+      >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> far down
+      """
+    And I open the document "notes/deep.md"
+    Then the document says it was not formatted
+    And there should be no page errors
+
   # A property is a property and NOT a record. The block carries a `date:` and a
   # `#`-looking value on purpose: neither becomes the thing it resembles, and
   # both are still findable by the name they actually have.

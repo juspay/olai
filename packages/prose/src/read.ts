@@ -37,14 +37,12 @@ export interface Cut {
   readonly fragment: string | null
 }
 
-/** A link, `[words](address)` or `[words][label]` with its definition. */
+/** A link or a picture, in the order the text writes them: `[words](address)`,
+ *  `![words](address)`, or either through a definition (`[words][label]`). A
+ *  picture's words are its alternative text. */
 export interface ReadLink extends Cut {
   readonly words: string
-}
-
-/** A picture, `![alt](address)` or `![alt][label]`. */
-export interface ReadPicture extends Cut {
-  readonly alt: string
+  readonly picture: boolean
 }
 
 /** A wikilink as it was written. */
@@ -66,7 +64,6 @@ export interface ReadHeading {
 /** Everything a text says. */
 export interface Read {
   readonly links: ReadonlyArray<ReadLink>
-  readonly pictures: ReadonlyArray<ReadPicture>
   readonly wikilinks: ReadonlyArray<ReadWikilink>
   readonly headings: ReadonlyArray<ReadHeading>
   /** Tags and mentions, as written, in reading order. */
@@ -99,7 +96,6 @@ const plainly = (text: string, refused?: Refusal): Read => {
   const first = firstLineOf(text)
   return {
     links: NONE,
-    pictures: NONE,
     wikilinks: NONE,
     headings: NONE,
     tags: tagsOf(text),
@@ -147,7 +143,6 @@ const BLOCKS = new Set(["paragraph", "heading", "code", "listItem", "tableRow", 
 class Walk {
   private readonly definitions: ReadonlyMap<string, string>
   private readonly links: Array<ReadLink> = []
-  private readonly pictures: Array<ReadPicture> = []
   private readonly wikilinks: Array<ReadWikilink> = []
   private readonly headings: Array<ReadHeading> = []
   private readonly tags: Array<Tag> = []
@@ -200,22 +195,24 @@ class Walk {
         this.wikilinks.push(wikilinkOf(node))
         return node.children[0].value
       case "link": {
+        const at = this.links.length
         const words = this.children(node, true)
-        this.links.push({ ...cut(node.url), words })
+        this.links.splice(at, 0, { ...cut(node.url), words, picture: false })
         return words
       }
       case "linkReference": {
+        const at = this.links.length
         const words = this.children(node, true)
         const url = this.definitions.get(node.identifier)
-        if (url !== undefined) this.links.push({ ...cut(url), words })
+        if (url !== undefined) this.links.splice(at, 0, { ...cut(url), words, picture: false })
         return words
       }
       case "image":
-        this.pictures.push({ ...cut(node.url), alt: node.alt ?? "" })
+        this.links.push({ ...cut(node.url), words: node.alt ?? "", picture: true })
         return ""
       case "imageReference": {
         const url = this.definitions.get(node.identifier)
-        if (url !== undefined) this.pictures.push({ ...cut(url), alt: node.alt ?? "" })
+        if (url !== undefined) this.links.push({ ...cut(url), words: node.alt ?? "", picture: true })
         return ""
       }
       case "html":
@@ -245,7 +242,6 @@ class Walk {
     const words = this.lines.join("\n")
     return {
       links: this.links.length === 0 ? NONE : this.links,
-      pictures: this.pictures.length === 0 ? NONE : this.pictures,
       wikilinks: this.wikilinks.length === 0 ? NONE : this.wikilinks,
       headings: this.headings.length === 0 ? NONE : this.headings,
       tags: this.tags.length === 0 ? NONE : this.tags,

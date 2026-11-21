@@ -158,6 +158,23 @@ const leg = (label: string, wikilinks: number): void => {
   ).length
   const named = pairs.filter((pair) => pair.after.names === pair.before.names).length
 
+  // What reading every text through the parser costs, settled rather than
+  // hidden: a FIRST LOAD (the whole vault decoded, each text read once and the
+  // reading kept) and ONE WRITE (one outline file decoded again — every text
+  // in it read again). The rebuild above is the index alone over readings
+  // already kept.
+  const loads = Array.from({ length: 3 }, () => timed(() => decodedVault(vault)))
+  const textsIn = (text: string): number =>
+    text.split("\n").filter((line) => line !== "").reduce((held, line) => {
+      const record = JSON.parse(line) as { readonly title?: string; readonly desc?: string }
+      return held + (record.title ? 1 : 0) + (record.desc ? 1 : 0)
+    }, 0)
+  const [outline, texts] = [...vault]
+    .filter(([file]) => file.endsWith(".olai"))
+    .map(([file, text]) => [[file, text], textsIn(text)] as const)
+    .sort((one, other) => Math.abs(one[1] - 22) - Math.abs(other[1] - 22))[0]!
+  const writes = Array.from({ length: ROUNDS * 5 }, () => timed(() => decodedVault(new Map([outline]))))
+
   const density = bodies
     .map((path) => referencesOf(first.at, addressOf(TEST_CLAIMS, path, null)!).length)
     .sort((one, other) => one - other)
@@ -180,6 +197,8 @@ const leg = (label: string, wikilinks: number): void => {
       median(carries).toFixed(3)
     }ms   (${carried} of ${pairs.length} edits carried uncloned, ${named} handed the name index on)`,
   )
+  console.log(`  first load        ${median(loads).toFixed(1)}ms   (every file decoded, every text read once)`)
+  console.log(`  one write         ${median(writes).toFixed(3)}ms   (one outline of ${texts} texts decoded again)`)
   console.log(timesSaid("carry", carries, 8))
   console.log(timesSaid("rebuild", rebuilds, 8))
   console.log("")

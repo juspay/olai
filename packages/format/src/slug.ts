@@ -43,6 +43,7 @@
 
 import { claim, type Slug, slugOf } from "@olai/prose/slug.ts"
 import { proseIn } from "@olai/prose/frontmatter.ts"
+import { read } from "@olai/prose/read.ts"
 import { wikilinksShown } from "./documents.ts"
 
 /**
@@ -60,7 +61,7 @@ import { wikilinksShown } from "./documents.ts"
  * an address, so it is not an element this document has.
  */
 export const slugsIn = (body: string): ReadonlyArray<Slug> =>
-  deduped(headingsIn(body).map(slugOf))
+  read(proseIn(body)).headings.flatMap((heading) => heading.slug === null ? [] : [heading.slug])
 
 /**
  * The same counter the renderer runs, over slugs that are already spelled —

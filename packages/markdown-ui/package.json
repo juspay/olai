@@ -33,6 +33,7 @@
   "//devDependencies": "remark-parse and remark-gfm are TEST-ONLY here: src/frontmatter.test.ts draws the ecosystem's frontmatter reading beside ours. The parse the app ships is @olai/prose's.",
   "devDependencies": {
     "@types/hast": "^3.0.5",
+    "@types/mdast": "^4.0.4",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0"

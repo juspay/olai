@@ -1,6 +1,8 @@
 /** Missing relative targets are a reading of a revision, never a verdict. */
 import { Schema } from "effect"
-import { pathedOf, proseLinks, wikilinksIn } from "./documents.ts"
+import type { Read } from "@olai/prose/read.ts"
+import { pathedOf } from "./documents.ts"
+import { recordRead } from "./kept.ts"
 import { isMirror, type Located } from "./node.ts"
 import { basenameOf } from "./paths.ts"
 import { nearestId } from "./suggest.ts"
@@ -32,9 +34,11 @@ export const deadLinkTarget = (from: string, written: string): string | null => 
 }
 
 /**
- * Scan fields independently: a title and note cannot complete each other's
- * Markdown. `names` is the membership they are read against — a revision's
- * own (`Reading.names`), or one a planned write builds for the files it adds.
+ * The dead links of some readings — each text's own (`@olai/prose`'s `read`),
+ * so a title and a note cannot complete each other's Markdown, and code, a
+ * comment or an escape holds no link. `names` is the membership they are read
+ * against — a revision's own (`Reading.names`), or one a planned write builds
+ * for the files it adds.
  *
  * A WIKILINK is dead when its name finds no served file from where it was
  * written (`./wikilinks.ts`). It is reported written as `[[name]]`, its
@@ -45,13 +49,13 @@ export const deadLinkTarget = (from: string, written: string): string | null => 
 export const deadLinksIn = (
   names: Names,
   from: string,
-  text: string | ReadonlyArray<string>,
+  reads: ReadonlyArray<Read>,
 ): ReadonlyArray<DeadLink> => {
   const { claims, served } = names
   const found: DeadLink[] = []
   const seen = new Set<string>()
-  const texts = typeof text === "string" ? [text] : text
-  for (const written of texts.flatMap(proseLinks)) {
+  for (const link of reads.flatMap((said) => said.links)) {
+    const written = link.url
     const resolved = deadLinkTarget(from, written)
     if (resolved === null || served.has(resolved) || seen.has(written)) continue
     seen.add(written)
@@ -60,9 +64,9 @@ export const deadLinksIn = (
     if (nearest !== null) candidates.push(nearest)
     found.push({ written, resolved, suggest: candidates.map(path => relativeFrom(from, path)) })
   }
-  for (const link of texts.flatMap(wikilinksIn)) {
+  for (const link of reads.flatMap((said) => said.wikilinks)) {
     if (link.target === "") continue
-    const written = `${link.embed ? "!" : ""}[[${link.name}]]`
+    const written = `${link.embed ? "!" : ""}[[${[link.target, ...link.fragments].join("#")}]]`
     if (seen.has(written)) continue
     if (wikilinkPath(names, claims, from, link.target) !== null) continue
     seen.add(written)
@@ -71,8 +75,11 @@ export const deadLinksIn = (
   return found
 }
 
-export const deadLinksOf = (names: Names, at: Located): ReadonlyArray<DeadLink> =>
-  isMirror(at.node) ? [] : deadLinksIn(names, at.file, [at.node.title, at.node.desc ?? ""])
+export const deadLinksOf = (names: Names, at: Located): ReadonlyArray<DeadLink> => {
+  if (isMirror(at.node)) return []
+  const said = recordRead(at.node)
+  return deadLinksIn(names, at.file, said.desc === null ? [said.title] : [said.title, said.desc])
+}
 
 /** Whether a dead link was written as a wikilink rather than as a path. */
 const isWikilink = (link: DeadLink): boolean => link.written.startsWith("[[") || link.written.startsWith("![[")

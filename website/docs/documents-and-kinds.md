@@ -100,21 +100,20 @@ A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][
 [^fetch]: A `.html` page follows the file on disk. The frame asks for the file's details and its revision, then fetches the bytes itself, so the page arrives one fetch after a document's text would, and two readers mean two reads. An agent that reads the bytes reads them again at every later revision.
 
 <details>
-<summary>When a mention is a reference but is not drawn as a tag</summary>
+<summary>What counts as a mention, a tag or a link in a note</summary>
 
-A note is read as plain text, because the part of olai that finds references has no markdown parser in it. An `@` only starts a mention where a word starts: at the start of the text, or after a space, `(`, `[` or `{`. The browser, on the other hand, styles tags in rendered markdown, so the two can disagree.
+olai reads a note as Markdown once, and every part of olai asks that reading. A tag or a mention is a word of the note's text outside code and outside a link's words. An `@` starts a mention only where a word starts.
 
 | | A reference | Drawn as a tag |
 |---|---|---|
-| `` `@herbs` `` — a code span holding only that | no | no |
-| `` `see @herbs here` `` — a space inside the span | yes | no |
-| a fenced or indented code block, `@herbs` after a newline | yes | no |
-| `[@herbs](…)` — a link's text | yes | no |
-| `*@herbs*` / `**@herbs**` — emphasis around it | no | yes |
+| `` `@herbs` `` or `` `see @herbs here` `` — inside a code span | no | no |
+| a fenced or indented code block | no | no |
+| `[@herbs](…)` — a link's text | no | no |
+| `*@herbs*` / `**@herbs**` — emphasis around it | yes | yes |
 
-So `@herbs` can be styled as a tag on one row's page while that row is missing from the list of what refers to the herb bed, because a `*` does not start a word.
+A link inside an HTML comment, `<!-- [x](finishes.md) -->` or `<!-- [[finishes]] -->`, counts for nothing, and the page draws nothing there. A reference-style link, `[the finishes][f]` with `[f]: finishes.md` on a line of its own, counts like any other.
 
-A link inside an HTML comment, `<!-- [x](finishes.md) -->` or `<!-- [[finishes]] -->`, parts the same way: it counts as a reference to `finishes.md`, and the page draws nothing there.
+A note nested past what olai will format, such as a quote a hundred deep, is shown as its words with a sentence saying it was not formatted. Its tags and mentions still count; its links do not.
 
 </details>
 

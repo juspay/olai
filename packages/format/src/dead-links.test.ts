@@ -4,9 +4,10 @@ import { deadLinksIn as deadLinksWith, deadLinksOf as deadLinksOfWith, deadLinkS
 import { nodesOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { namesOf } from "./wikilinks.ts"
+import { read } from "@olai/prose/read.ts"
 
 const deadLinksIn = (from: string, text: string | ReadonlyArray<string>, served: ReadonlySet<string>) =>
-  deadLinksWith(namesOf(TEST_CLAIMS, served), from, text)
+  deadLinksWith(namesOf(TEST_CLAIMS, served), from, (typeof text === "string" ? [text] : text).map(read))
 const deadLinksOf = (at: Located, served: ReadonlySet<string>) => deadLinksOfWith(namesOf(TEST_CLAIMS, served), at)
 
 const served = new Set(["notes/nix-flakes.md", "other/nix-flakes.md", "the brief.md"])

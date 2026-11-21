@@ -92,17 +92,18 @@
 
 import { Schema } from "effect"
 
-import { Slug } from "@olai/prose/slug.ts"
 import { proseIn } from "@olai/prose/frontmatter.ts"
+import { read } from "@olai/prose/read.ts"
+import { Slug } from "@olai/prose/slug.ts"
 import { Tag } from "@olai/prose/tags.ts"
 import { Address, addressOf, DocumentPath, printAddress } from "./address.ts"
 import { Custom } from "./custom.ts"
-import { tagsIn, writtenTags } from "./derive.ts"
+import { writtenTags } from "./derive.ts"
 import { frontmatterIn } from "./frontmatter.ts"
-import { firstLine, linksIn, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
+import { readAddresses, recordLinks, recordWikilinks, wikilinkNames } from "./documents.ts"
+import { keepBodyRead } from "./kept.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
-import { slugsIn } from "./slug.ts"
 
 /**
  * WHAT EVERY DOCUMENT HAS, whichever kind it is — the fields a feature is
@@ -476,27 +477,24 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
       headings: [],
     }
   }
-  // THE PROSE, ONCE — the body with any frontmatter taken off
-  // ({@link ./frontmatter.ts}). Two of the four readings below ask for it here
-  // rather than themselves, and the split is not arbitrary: `firstLine` and
-  // `slugsIn` are only ever about a document's BODY, so each asks on its own
-  // and is honest to any caller; `tagsIn` and `linksIn` are asked of a record's
-  // title and note as well, where a leading `---` is a thematic break like any
-  // other and skipping it would be this package inventing frontmatter for a
-  // bullet.
-  const prose = proseIn(body)
-  const named = wikilinkNames([prose])
-  return {
+  // THE PROSE, READ ONCE — the body with any frontmatter taken off
+  // (`@olai/prose`'s `frontmatter.ts`), through the one parser, and the
+  // reading kept on the document (`./kept.ts`). Every field of the face below
+  // that comes from the prose is read off it, and so is everything a later
+  // reader asks of the body — its dead links, its references.
+  const said = read(proseIn(body))
+  const named = wikilinkNames([said])
+  return keepBodyRead({
     kind: claim.kind,
     holds: "text",
     kept: true,
     path,
-    // The first line, and the FILENAME when there is none — an empty document
-    // and one that opens with a picture both have a name on screen, and the
-    // name they have is the one the sidebar already draws.
-    title: firstLine(body) || stemOf(claims, file),
-    links: linksIn(claims, file, prose),
-    tags: tagsIn(prose),
+    // The first line's words, and the FILENAME when there are none — an empty
+    // document and one that opens with a picture both have a name on screen,
+    // and the name they have is the one the sidebar already draws.
+    title: said.firstLine || stemOf(claims, file),
+    links: readAddresses(claims, file, said),
+    tags: said.tags,
     ...(named.length === 0 ? {} : { wikilinks: named }),
     // The record a document is allowed to write about itself, and the one
     // field of this face that is not derived from prose at all.
@@ -506,8 +504,8 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
     // reports, and calling it here (cached with the decode) is what makes a
     // listing O(documents) rather than O(the bytes of every served `.md`).
     bytes: bytesOf(body),
-    headings: slugsIn(body),
-  }
+    headings: said.headings.flatMap((heading) => heading.slug === null ? [] : [heading.slug]),
+  } satisfies Markdown, said)
 }
 
 /**

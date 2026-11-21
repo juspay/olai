@@ -4,6 +4,7 @@ export const TESTID = {
   tag: "tag",
   hit: "hit",
   undrawnPicture: "undrawn-picture",
+  refusedText: "refused-text",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

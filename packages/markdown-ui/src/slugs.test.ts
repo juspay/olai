@@ -145,26 +145,15 @@ test("a setext heading is one to both readings", () => {
   expect(drawn(body)).toEqual(["the-plan", "next"])
 })
 
-/**
- * WHERE THEY PART, pinned rather than left to be discovered: the browser reads
- * a heading's TEXT out of a parsed tree, so inline markup is gone by the time
- * it is slugged; the face reads the line as written. `## **Install**` agrees by
- * accident (a `*` is not a character a slug is made of); a heading whose text
- * is a link does not.
- *
- * The cost is a face that does not list one address, which is a backlink
- * nobody gets — never a page that will not render. Fixing it correctly is
- * having a parser in the format, which is the trade `./derive.ts` already
- * refuses about tags.
- */
-test("a heading whose text is a link is where the two readings part", () => {
+/** A heading whose text is a link is named by the link's words: the face and
+ *  the page read one parse, so `## [Install](setup.md)` is `install` to both. */
+test("a heading whose text is a link is named by its words, by both", () => {
   const body = "## [Install](setup.md)"
   expect(drawn(body)).toEqual(["install"])
-  expect(slugsIn(body).map(String)).toEqual(["installsetupmd"])
+  expect(slugsIn(body).map(String)).toEqual(["install"])
 })
 
-/** …and a WIKILINK is not one of them: it needs no parser, the format holds
- *  the scan the page draws it by, so both read it as the words it shows. */
+/** …and a heading holding a wikilink by the words it shows. */
 test("a heading that holds a wikilink is read as the words it shows, by both", () => {
   const body = ["## See [[finishes|the finishes]]", "", "## About [[finishes#Doors]]"].join("\n")
   expect(drawn(body)).toEqual(slugsIn(body).map(String))

@@ -43,7 +43,6 @@ import { isMarkdown, isOpaque } from "./document.ts"
 import type { Outline } from "./document.ts"
 import { Schema } from "effect"
 
-import { mayHoldTag, tagText } from "@olai/prose/tags.ts"
 import { proseIn, proseLineOffset } from "@olai/prose/frontmatter.ts"
 import {
   ancestorsOf,
@@ -52,8 +51,8 @@ import {
   isBlocked,
   isMirrored,
   type Row,
-  titleParts,
 } from "./derive.ts"
+import { recordRead } from "./kept.ts"
 import type { Markdown, Unkept } from "./document.ts"
 import { type Custom, customOf } from "./custom.ts"
 import { shiftDay, shiftMinutes, shiftMonth, weekdayOf } from "./calendar.ts"
@@ -161,16 +160,12 @@ const foldOf = (
 ): Record<SearchField, ReadonlyArray<string>> => ({
   title: [node.title.toLowerCase()],
   id: [node.id.toLowerCase()],
-  // Guarded by the format's own cheap negative: `titleParts` runs a global
-  // regex and allocates a part per segment, and most titles hold no tag at
-  // all. The semantics are identical — it only ever yields a tag after a sigil.
-  tag: mayHoldTag(node.title)
-    ? titleParts(node.title).flatMap((part) => {
-      if (part.kind !== "tag") return []
-      const written = tagText(part).toLowerCase()
-      return [written.slice(1), written]
-    })
-    : [],
+  // The TITLE's tags as decode read them (`./kept.ts`): outside code and
+  // outside links, the one rule the page draws pills by.
+  tag: recordRead(node).title.tags.flatMap((tag) => {
+    const written = tag.toLowerCase()
+    return [written.slice(1), written]
+  }),
   desc: node.desc === undefined ? [] : [node.desc.toLowerCase()],
 })
 

@@ -91,13 +91,10 @@ test("a markdown document carries a face", () => {
 
   const plan = markdownIn(set).find((one) => one.path === "notes/plan.md")!
   expect(plan.title).toBe("The plan")
-  // `#scope` is in there because a body is READ AS TEXT by the tag walk, the
-  // same way a note is (`./derive.ts` makes that refusal and says why: this
-  // package holds no markdown parser, and putting one under the write gate is
-  // the trade it declines). A link's fragment looks exactly like a tag, and it
-  // is left as it falls rather than special-cased by a scan pretending to know
-  // what a link is.
-  expect(spelled(plan.tags)).toEqual(["@alice", "#kitchen", "#scope"])
+  // `#scope` is NOT in there: it is the fragment of a link's address, and a
+  // body is read as Markdown, so a tag is a word of its text outside code and
+  // outside links — the rule the page draws a pill by.
+  expect(spelled(plan.tags)).toEqual(["@alice", "#kitchen"])
   expect(spelled(plan.headings)).toEqual(["the-plan", "next-steps"])
   // WRITTEN, because a canonical spelling is what an address promises and it is
   // what a reader of this test wants to see.

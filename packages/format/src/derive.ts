@@ -65,6 +65,7 @@ import { type Dated, dateInto } from "./occasion.ts"
 import type { Read } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 import { type Wikilink, wikilinkSpans } from "./documents.ts"
+import { recordRead } from "./kept.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
  *  of `./node.ts`'s {@link MARKS}, and it lives beside that list because it is
@@ -576,8 +577,9 @@ export const nameInto = (
  */
 export const writtenTags = (node: Node): ReadonlyArray<Tag> => {
   if (isMirror(node)) return NO_TAGS
-  const title = tagsIn(node.title)
-  const note = node.desc === undefined ? NO_TAGS : tagsIn(node.desc)
+  const said = recordRead(node)
+  const title = said.title.tags
+  const note = said.desc === null ? NO_TAGS : said.desc.tags
   // Three answers rather than one concat, and each shares a list the caller
   // does not own: most records say nothing at all, and of the ones that do,
   // most say it in one of the two places. Statements rather than a nested

@@ -8,6 +8,8 @@ import { bodyKind, type Claims } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { isPicture } from "./serving.ts"
 import { headingText } from "./slug.ts"
+import { recordRead } from "./kept.ts"
+import type { Read, ReadWikilink } from "@olai/prose/read.ts"
 
 /**
  * WHAT WAS HERE, and where it went: a `Document` of `{file, text}` — the whole
@@ -595,20 +597,43 @@ export const recordContributions = (
     const address = addressOf(claims, null, id)
     if (address !== null) found.push({ way: "see", address, at: located })
   }
-  for (const address of linksIn(claims, located.file, located.node.title)) found.push({ way: "link", address, at: located })
-  if (located.node.desc !== undefined) {
-    for (const address of linksIn(claims, located.file, located.node.desc)) found.push({ way: "link", address, at: located })
+  const said = recordRead(located.node)
+  for (const address of readAddresses(claims, located.file, said.title)) found.push({ way: "link", address, at: located })
+  if (said.desc !== null) {
+    for (const address of readAddresses(claims, located.file, said.desc)) found.push({ way: "link", address, at: located })
   }
   return found
 }
 
-/** The names the wikilinks of some prose write, in order and never twice.
- *  Each text is scanned on its own: a title and a note cannot complete each
- *  other's brackets. */
-export const wikilinkNames = (texts: ReadonlyArray<string>): ReadonlyArray<string> => {
+/**
+ * EVERY ADDRESS A TEXT'S READING POINTS AT, in the order it writes them and
+ * never twice — its links and its pictures, each resolved from `from`, the
+ * file the text was written in. The reading made one call of the parser, so
+ * code, a comment and an escape hold no link here exactly as on the page.
+ */
+export const readAddresses = (claims: Claims, from: string, said: Read): ReadonlyArray<Address> => {
+  let found: Array<Address> | undefined
+  let seen: Set<string> | undefined
+  for (const link of said.links) {
+    const address = linkTo(claims, from, link.url)
+    if (address === null) continue
+    const written = printAddress(address)
+    if ((seen ??= new Set()).has(written)) continue
+    seen.add(written)
+    ;(found ??= []).push(address)
+  }
+  return found ?? NO_LINKS
+}
+
+/** The name of a wikilink as read — its target and its `#` parts, the name
+ *  the references index files it under. */
+const nameOf = (link: ReadWikilink): string => [link.target, ...link.fragments].join("#")
+
+/** The names the wikilinks of some readings write, in order and never twice. */
+export const wikilinkNames = (reads: ReadonlyArray<Read>): ReadonlyArray<string> => {
   let named: Set<string> | undefined
-  for (const text of texts) {
-    for (const link of wikilinksIn(text)) (named ??= new Set()).add(link.name)
+  for (const said of reads) {
+    for (const link of said.wikilinks) (named ??= new Set()).add(nameOf(link))
   }
   return named === undefined ? NO_NAMES : [...named]
 }
@@ -618,10 +643,11 @@ const NO_NAMES: ReadonlyArray<string> = []
 /** The wikilinks one record writes in its title and its note — what the
  *  references index files under each name, beside {@link recordContributions}.
  *  A placement writes none. */
-export const recordWikilinks = (located: Located): ReadonlyArray<string> =>
-  isMirror(located.node)
-    ? NO_NAMES
-    : wikilinkNames(located.node.desc === undefined ? [located.node.title] : [located.node.title, located.node.desc])
+export const recordWikilinks = (located: Located): ReadonlyArray<string> => {
+  if (isMirror(located.node)) return NO_NAMES
+  const said = recordRead(located.node)
+  return wikilinkNames(said.desc === null ? [said.title] : [said.title, said.desc])
+}
 
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is.

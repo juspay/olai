@@ -24,6 +24,16 @@ Feature: An open tag completion follows the vault's current vocabulary
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A tag written inside code is not offered
+    When I rewrite "tag-source.olai" as:
+      """
+      {"id":"tag-source","ord":"a0","title":"source `#uniquecode` and #uniqueplain"}
+      """
+    And I click the title of "handles"
+    And I type " #unique"
+    Then the completions list "#uniqueplain"
+    And there should be no page errors
+
   Scenario: A disappearing namespace offer recovers without replacing the typed prefix
     When I click the title of "handles"
     And I type " @"

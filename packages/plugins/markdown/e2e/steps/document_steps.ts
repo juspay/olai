@@ -178,6 +178,14 @@ Then(
   },
 );
 
+/** A text the parse guard refused: drawn as its words, with the one sentence
+ *  saying so — and none of the structure it would have been. */
+Then("the document says it was not formatted", async function (this: OlaiWorld) {
+  const rendered = await body(this);
+  await rendered.locator(`[data-testid="${TESTID.refusedText}"]`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(await rendered.locator("blockquote").count(), 0, "the refused text was drawn as quotes")
+});
+
 /** No thematic break at all — the other half of what a `---` block used to
  *  leave behind, and the half no text assertion can see. */
 Then("the document draws no rule", async function (this: OlaiWorld) {

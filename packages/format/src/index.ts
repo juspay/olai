@@ -1320,3 +1320,6 @@ export { outlineCalled } from "./node.ts"
 export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
 
 export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields, deadLinkTarget } from "./dead-links.ts"
+/** What decode read out of each text, kept beside it: a record's title and
+ *  note, a document's prose (`./kept.ts`). */
+export { bodyRead, type RecordRead, recordRead } from "./kept.ts"
