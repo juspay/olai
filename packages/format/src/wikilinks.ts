@@ -28,6 +28,7 @@
  *    whose capitals match exactly is preferred over one that does not.
  */
 import { type Address, addressOf } from "./address.ts"
+import { resolveRelative } from "./documents.ts"
 import { type Claims, fileKind, holdsBody, stemOf } from "./kinds.ts"
 import { basenameOf, byPath } from "./paths.ts"
 import { slugOf } from "./slug.ts"
@@ -248,3 +249,37 @@ export const wikilinkSuggestions = (names: Names, claims: Claims, target: string
  *  every other file with it. */
 const spelledName = (claims: Claims, path: string): string =>
   isProse(claims, path) ? stemOf(claims, path) : basenameOf(path)
+
+/**
+ * The page an UNRESOLVED wikilink opens: the path its target would have if it
+ * were written at the top of the directory — a document's suffix added to a
+ * bare name — so a click reaches **Page not found** for that name, as a dead
+ * standard link does. `null` for a target that spells no path at all.
+ *
+ * A `..` that would climb out of the directory is dropped, as a standard
+ * link's is, and a leading `/` is only a name: the answer is always a path
+ * under the served root, never a host or a scheme.
+ */
+export const wikilinkFallback = (claims: Claims, target: string): string | null => {
+  const path = resolveRelative("", target.replaceAll("\\", "/"))
+  if (path === "") return null
+  if (hasSuffix(claims, path)) return path
+  for (const claim of claims.byKind.values()) {
+    if (claim.holds === "text" && claim.kept && claim.opaque !== true) return path + (claim.exts[0] as string)
+  }
+  return null
+}
+
+/**
+ * Whether a target names a PICTURE by its suffix — any kind that draws inline,
+ * including the suffixes it serves inert (`.svg`). An embed of one is drawn as
+ * the picture, or as words saying why it is not; an embed of anything else
+ * draws as a link.
+ */
+export const wikilinkPicture = (claims: Claims, target: string): boolean => {
+  const lower = target.toLowerCase()
+  for (const claim of claims.byKind.values()) {
+    if (claim.picture === true && claim.exts.some((ext) => lower.endsWith(ext.toLowerCase()))) return true
+  }
+  return false
+}

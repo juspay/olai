@@ -456,6 +456,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           {(report) => (
             <Markdown
             claims={servedDirectory()?.claims()}
+              members={servedDirectory()?.members()}
               source={report()}
               from=""
               class="olai-md-compact border-t border-rule px-2 py-1 text-body"

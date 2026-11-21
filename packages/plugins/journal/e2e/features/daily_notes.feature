@@ -119,6 +119,26 @@ Feature: Daily notes
       | <../../../notes/the brief.md> |
       | ../../../notes/the brief.md   |
 
+  # A WIKILINK in a day note names the note by NAME, so the route the note is
+  # drawn under — `/d/2019-11-13`, which is not a file — has nothing to do
+  # with where it lands.
+  @scratch:journal
+  Scenario: A wikilink in a day note lands on the note its name finds
+    Given I open the app
+    And I rewrite "Daily/2019/11/2019-11-13.md" as:
+      """
+      # Tuesday
+
+      See [[ferry|the ferry times]].
+      """
+    And I open the day "2019-11-13"
+    And the day shows the note "Daily/2019/11/2019-11-13.md"
+    And I mark the page
+    When I follow the link "the ferry times" in the rendered markdown
+    Then the document open is "notes/ferry.md"
+    And the page has not reloaded
+    And there should be no page errors
+
   @corpus:journal
   Scenario: A day whose only content is a note is still a day worth opening
     When I open the day "2019-11-08"

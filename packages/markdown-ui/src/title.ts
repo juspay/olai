@@ -72,6 +72,12 @@ export interface TitleRender {
    * is also why a highlighted title is not remembered below.
    */
   readonly needles?: ReadonlyArray<string>
+  /**
+   * The served files, as the directory's immutable membership snapshot — what
+   * a wikilink in the title is looked up against. Absent, a wikilink is drawn
+   * and not judged.
+   */
+  readonly members?: ReadonlySet<string>
 }
 
 /**
@@ -103,7 +109,7 @@ export interface TitleRender {
  * on every keystroke is the cost this cache exists to refuse.
  */
 const plainTitles = new Map<string, TitleDrawing>()
-const renderings = new WeakMap<Claims, Map<string, TitleDrawing>>()
+const renderings = new WeakMap<Claims, WeakMap<object, Map<string, TitleDrawing>>>()
 const CACHE_LIMIT = 1024
 
 /**
@@ -182,10 +188,21 @@ export const renderTitle = (
       : finished(plain)
   }
 
-  let rendered = claims === undefined ? undefined : renderings.get(claims)
+  // A WIKILINK'S PAGE IS A QUESTION ABOUT THE DIRECTORY, so a title holding
+  // one is remembered per membership snapshot — the identity the directory
+  // replaces whenever a file arrives or leaves — and every other title per
+  // claims alone, as before.
+  const members = options.members !== undefined && title.includes("[[") ? options.members : undefined
+  let byMembers = claims === undefined ? undefined : renderings.get(claims)
+  if (byMembers === undefined) {
+    byMembers = new WeakMap()
+    if (claims !== undefined) renderings.set(claims, byMembers)
+  }
+  const namespace: object = members ?? byMembers
+  let rendered = byMembers.get(namespace)
   if (rendered === undefined) {
     rendered = new Map()
-    if (claims !== undefined) renderings.set(claims, rendered)
+    if (claims !== undefined) byMembers.set(namespace, rendered)
   }
   const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
   const hit = rendered.get(key)
@@ -204,7 +221,7 @@ export const renderTitle = (
     return { html: escapeHtml(title), waiting: markdownWaiting() }
   }
 
-  return remember(rendered, key, build(claims, title, from, links, needles))
+  return remember(rendered, key, build(claims, title, from, links, needles, members))
 }
 
 const remember = (
@@ -224,8 +241,9 @@ const build = (
   from: string,
   links: boolean,
   needles: ReadonlyArray<string>,
+  members: ReadonlySet<string> | undefined,
 ): string => {
-  const tree = renderToTree(claims, title, from, "inline")
+  const tree = renderToTree(claims, title, from, "inline", members)
   styleTags(tree, needles)
   if (!links) unwrapAnchors(tree)
 

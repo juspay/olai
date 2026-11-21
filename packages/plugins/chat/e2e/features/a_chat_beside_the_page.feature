@@ -123,6 +123,22 @@ Feature: A chat opens in the pane beside what it is about
     And the chat page conversation is ready
     And there should be no page errors
 
+  # A WIKILINK in an answer is looked up by name across the directory, the
+  # way a note's is: the answer was written in no file, so a name is all it
+  # has. One that finds nothing is marked, as a dead link in a note is.
+  Scenario: A wikilink in an answer opens the note its name finds
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    And I ask the agent "wikilinks"
+    Then the agent's answer mentions "the cabinets by name"
+    And the rendered link to "nowhere" is marked dead
+    When I follow the link "the cabinets by name" in the agent's answer
+    Then there are 2 panes
+    And pane 1 is showing "/notes/cabinets.md"
+    And there should be no page errors
+
   # A PANE DRAGGED SHUT IS STILL A PANE: it keeps its page and shows a rail
   # with its name on it. *Shown beside* points at exactly that column, so the
   # press has to OPEN it — a press that only moved the caret into a shut

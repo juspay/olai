@@ -19,6 +19,7 @@
  * document's one-line preview (`@olai/format`'s `firstLine`): one dim truncated
  * line, no block rendering.
  */
+import { wikilinksIn } from "@olai/format"
 
 export const plainLine = (desc: string): string => {
   // Scanned rather than split: a preview reads the top of a note, and
@@ -96,7 +97,7 @@ export const measuredAt = (desc: string, at: number): number => {
  *  second renderer: only the shapes that would otherwise print as source
  *  (`**`, `*`, `` ` ``, links, leading list/heading markers). */
 const stripMarks = (line: string): string => {
-  let text = line
+  let text = shownWikilinks(line)
   // Leading block marks: a heading or a list item is still a line of words.
   text = text.replace(/^#{1,6}\s+/, "")
   text = text.replace(/^([-*+]|\d+[.)])\s+/, "")
@@ -122,4 +123,18 @@ const stripMarks = (line: string): string => {
     if (before < end) text = text.slice(0, before)
   }
   return text.trim()
+}
+
+/** A wikilink is the words it shows — `[[kitchen-sink#Tables|the table]]` is
+ *  "the table" — as the drawn note shows it, read by the scan the page uses. */
+const shownWikilinks = (line: string): string => {
+  const links = wikilinksIn(line)
+  if (links.length === 0) return line
+  let out = ""
+  let last = 0
+  for (const link of links) {
+    out += line.slice(last, link.start) + link.shown
+    last = link.end
+  }
+  return out + line.slice(last)
 }

@@ -3286,6 +3286,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  // …and the same answer written the way an Obsidian user's agent writes it:
+  // by NAME, which the page looks up across the directory rather than beside
+  // a file the answer was never written in.
+  if (verb === "wikilinks") {
+    say("the note is [[cabinets|the cabinets by name]] and nothing is [[nowhere]].\n")
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "done" || verb === "late-done") {
     await useTool("outlines_done", { id: argument }, verb === "late-done")
     say(`marked \`${argument}\` done.`)

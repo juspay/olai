@@ -308,7 +308,9 @@ export {
   namesIn,
   type Names,
   wikilinkAddress,
+  wikilinkFallback,
   wikilinkPath,
+  wikilinkPicture,
   wikilinkSuggestions,
 } from "./wikilinks.ts"
 export {
