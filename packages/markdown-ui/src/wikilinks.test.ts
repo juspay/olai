@@ -9,7 +9,7 @@
  * syntax is drawn, and the names on the page are held to the names the scan
  * read, in order.
  */
-import { proseIn, wikilinksIn } from "@olai/format"
+import { fileKind, proseIn, wikilinksIn } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
@@ -31,6 +31,8 @@ const filesUnder = (directory: string): ReadonlyArray<string> =>
 
 const PATHS = filesUnder(ROOT).map((file) => relative(ROOT, file)).sort()
 const MEMBERS: ReadonlySet<string> = new Set(PATHS)
+/** The documents: what the claims say is prose, rather than a suffix. */
+const DOCUMENTS = PATHS.filter((path) => fileKind(TEST_CLAIMS, path) === "markdown")
 
 /** The names the page drew, in order: every element the pipeline marked. */
 const drawnNames = (html: string): ReadonlyArray<string> =>
@@ -41,11 +43,11 @@ const drawnNames = (html: string): ReadonlyArray<string> =>
 const scannedNames = (text: string): ReadonlyArray<string> => wikilinksIn(text).map((link) => link.name)
 
 test("the fixture directory holds the documents this check reads", () => {
-  expect(PATHS.filter((path) => path.endsWith(".md")).length).toBeGreaterThan(5)
+  expect(DOCUMENTS.length).toBeGreaterThan(5)
   expect(scannedNames(proseIn(readFileSync(join(ROOT, "every-form.md"), "utf8"))).length).toBeGreaterThan(15)
 })
 
-for (const path of PATHS.filter((one) => one.endsWith(".md"))) {
+for (const path of DOCUMENTS) {
   test(`${path}: the page draws exactly the wikilinks the index reads`, () => {
     const prose = proseIn(readFileSync(join(ROOT, path), "utf8"))
     expect(drawnNames(renderMarkdown(TEST_CLAIMS, prose, path, MEMBERS))).toEqual(scannedNames(prose))
