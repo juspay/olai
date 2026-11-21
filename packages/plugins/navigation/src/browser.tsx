@@ -10,7 +10,7 @@ import { protectComposition } from "@olai/web/client/composition.ts"
 import { followKeys, KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { atElement } from "./routes.ts"
-import type { FileLink } from "@olai/plugin-api"
+import type { FileLink, Navigate } from "@olai/plugin-api"
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdPaletteFaces, holdRouteFaces, routeFaces } from "./faces.ts"
 import { readings } from "olai-plugin-search/reading"
@@ -78,6 +78,10 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   }}))
   yield* offers.own("links", () => ({ File }))
   yield* offers.own("gestures", () => ({ swallowGhost: ghosts.swallow }))
+  // OPEN AN ADDRESS, as a link to it opens and as the palette opens an
+  // `app.palette` row: the router's own grammar reads it (`@olai/plugin-api`'s
+  // `Navigate`), so a key or a command moves the pane with no link of its own.
+  yield* offers.own("open", (): Navigate => ({ open: (address) => state.value.go(routing.routeOf(address)) }))
 }) })
 /**
  * WHAT THIS ROW READS OF THE RENDERER — a COMPONENT, because the row is not

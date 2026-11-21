@@ -653,15 +653,32 @@ const optionsKey = (one: Defined): string => {
 const builtFrom = (one: Defined) =>
   Effect.gen(function*() {
     const server = yield* Effect.promise(() =>
-      buildPlugin("server", PLUGIN_SERVER_FILE, one.code, (_path, text) => asDataUrl(text)))
+      buildPlugin("server", PLUGIN_SERVER_FILE, one.code, (path, text) => serverModule(one, path, text)))
     if (!server.ok) return { ok: false as const, why: server.why }
     if (one.browser === null) return { ok: true as const, server, browser: null }
     const base = chunkBaseOf(one)
+    // EACH SEGMENT ENCODED, because a file's name may hold what a URL gives a
+    // meaning to — `#`, `?`, `%` — and the address is fetched as a URL. The
+    // route decodes it back to the path stored here (`./route.ts`).
     const browser = yield* Effect.promise(() =>
-      buildPlugin("browser", PLUGIN_BROWSER_FILE, one.code, (path) => `${base}/${path}.js`))
+      buildPlugin("browser", PLUGIN_BROWSER_FILE, one.code, (path) => `${base}/${path.split("/").map(encodeURIComponent).join("/")}.js`))
     if (!browser.ok) return { ok: false as const, why: browser.why }
     return { ok: true as const, server, browser }
   })
+
+/**
+ * ONE SERVER FILE AS THE MODULE IT IS EVALUATED AS — its text, closed by a
+ * line naming the plugin, the version and the path.
+ *
+ * A `data:` module is evaluated once per URL and shared by every importer of
+ * that URL, and the URL is the text. Two plugins holding the same bytes in a
+ * helper would share its module-level state, and so would two versions of one
+ * plugin whose helper did not change. The closing line makes the URL — so the
+ * module — one plugin's at one version, as the tab's addresses already are
+ * (`chunkBaseOf`). It is a comment, so it changes nothing the file does.
+ */
+const serverModule = (one: Defined, path: string, text: string): string =>
+  asDataUrl(`${text}\n//# sourceURL=olai-plugin:/${one.name}@${one.version}/${path}\n`)
 
 /** Where a version's face is served from: the entry at `<base>.js`, and each
  *  file it imports at `<base>/<path>.js`. The version is in it, so an approved
@@ -714,7 +731,7 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
     const built = yield* builtFrom(one)
     if (!built.ok) return faulted(built.why)
     const { server, browser } = built
-    const plugin = yield* Effect.promise(() => loaded(server.text))
+    const plugin = yield* Effect.promise(() => loaded(serverModule(one, PLUGIN_SERVER_FILE, server.text)))
     if (typeof plugin === "string") return faulted(plugin)
     // THE WORD IS THE VAULT'S, and a half that named itself something else would
     // be a fiber bound under a word no row draws — its kinds prefixed wrongly,
@@ -761,8 +778,7 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
  * evaluation: the module cache is keyed by the URL, and the URL carries the
  * bytes.
  */
-const loaded = async (text: string): Promise<Plugin | string> => {
-  const url = asDataUrl(text)
+const loaded = async (url: string): Promise<Plugin | string> => {
   let module: { readonly default?: unknown }
   try {
     module = await import(url) as { readonly default?: unknown }

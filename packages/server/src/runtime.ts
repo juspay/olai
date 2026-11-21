@@ -23,6 +23,16 @@ export interface PluginRuntime {
   readonly plugins: Plugins
   readonly onChange: { run: () => void }
   readonly built: ReadonlyArray<string>
+  /**
+   * THE ROWS THIS BUILD COMPILED IN — the static list the serve hands the
+   * loader as `reserved`, which an owned loader cannot mount a name from
+   * (`@olai/plugin-api`'s `loading.ts`). A sibling whose word is not in it was
+   * mounted from outside the build, and its agent grants are held to its
+   * `writes` (`./composition.ts`'s `mount`). Absent, no sibling is taken to
+   * be from outside the build: a bench that mounts doubles directly has no
+   * loader to have reserved anything.
+   */
+  readonly reserved?: ReadonlyArray<string>
   readonly instance?: () => NonNullable<PluginRoster["instance"]>
   readonly browserOnly?: ReadonlyArray<string>
   readonly offByDefault?: ReadonlyArray<string>
@@ -330,11 +340,13 @@ app: {
           })
           continue
         }
+        // A sibling whose word the build did not reserve is from outside the
+        // build, and its agent grants are held to its `writes` ({@link PluginRuntime.reserved}).
         const mount = runtime.mount(
           key,
           one.surface as never,
           one.deps as never,
-          { writes: one.writes, faces: one.faces as never },
+          { writes: one.writes, faces: one.faces as never, outsideBuild: offered?.reserved !== undefined && !offered.reserved.includes(key.split("/")[0]!) },
         )
         mounted.set(key, mount)
         // A throw is not a mount, so the count moves after `runtime.mount`

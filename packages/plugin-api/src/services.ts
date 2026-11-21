@@ -96,11 +96,12 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import type { AgentItem } from "@olai/format"
-import type { Ops as Gate } from "@olai/ops"
+import type { AgentItem, Writer } from "@olai/format"
+import type { Ops as Gate, SessionRule } from "@olai/ops"
+import { RequestAuthority as authorityReference } from "./authority.ts"
 import { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
 export { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
-import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
+import { Context, Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
 import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
@@ -2114,24 +2115,43 @@ export type { SlotKey } from "./slots.ts"
 export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"
 
 /**
- * THE WRITE GATE'S OWN VOCABULARY, as types — the gate on {@link Ops}, what it
- * runs, who it says wrote it, how it refuses and what it answers. Types only:
- * nothing of `@olai/ops` or `@olai/format` is loaded through this door, and a
- * plugin the vault defines, which may import this door and nothing of those
- * two, can still write its calls against their real shapes.
+ * THE WRITE GATE'S OWN VOCABULARY — the gate on {@link Ops}, what it runs, who
+ * it says wrote it and what it answers, as types; and how it refuses, as the
+ * schema too. A plugin the vault defines, which may import this door and
+ * nothing of `@olai/ops` or `@olai/format`, writes its calls against their
+ * real shapes, and declares `error: OpFailure` on a member that writes, so the
+ * gate's refusal reaches its caller with the sentence the gate wrote.
  */
 export type { Ops as Gate, SessionRule } from "@olai/ops"
-export type { OpFailure, WriteRequest, WriteResult, Writer } from "@olai/format"
+export type { WriteRequest, WriteResult, Writer } from "@olai/format"
+export { OpFailure } from "@olai/format"
 
 /**
  * A PLUGIN'S OWN SURFACE — the one value its server file registers through
  * {@link Surfaces} and its browser file exports, so the tab dials it. The same
  * function on both doors, so a file both halves import builds the same value
- * in each.
+ * in each. `ImplementSurfaceDeps` types the handlers a server file registers
+ * against that same surface: a member's input is what it declares, and an
+ * answer or a failure it does not declare is a type error.
  */
 export { defineSurface } from "@kolu/surface/define"
 export type { Surface, SurfaceSpec } from "@kolu/surface/define"
 export type { SurfaceClient } from "@kolu/surface/solid"
+export type { ImplementSurfaceDeps } from "@kolu/surface/server"
+
+/**
+ * WHO MADE THIS CALL — the writer and session rule the transport hands a
+ * member a registration lists in `writes` (`./authority.ts`). A member not
+ * listed is handed the default, `{ writer: "web" }` with no rule, whoever
+ * called it. Typed here as what a transport supplies, a {@link Writer} and a
+ * {@link SessionRule}, so a handler passes both to `gate.run` as they are.
+ */
+export const RequestAuthority = authorityReference as unknown as Context.Reference<Caller>
+/** The caller a transport hands a listed member: {@link RequestAuthority}'s value. */
+export interface Caller {
+  readonly writer: Writer
+  readonly rule?: SessionRule
+}
 
 /** Rows supply policy and (for nodes) a pure parser, never the identity stamped
  * by the registry. The policy is the same inert contract format and wire readers use. */

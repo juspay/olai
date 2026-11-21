@@ -41,11 +41,15 @@ export const loadRows = async <T>(rows: ReadonlyArray<{
  */
 export const heldToWord = <T>(id: string, load: () => Promise<T>): (() => Promise<T>) => async () => {
   const half = await load()
-  const declared = typeof half === "object" && half !== null && "default" in half
-    && typeof half.default === "object" && half.default !== null && "name" in half.default
-    ? half.default.name
+  const plugin = typeof half === "object" && half !== null && "default" in half
+    && typeof half.default === "object" && half.default !== null
+    ? half.default
     : undefined
-  if (declared === id) return half
+  // READ ONCE: what is handed on is a copy stamped with the word that was
+  // checked, so the mount reads the roster's word whatever the half's own
+  // `name` would answer a second time.
+  const declared = plugin !== undefined && "name" in plugin ? plugin.name : undefined
+  if (declared === id) return { ...half, default: { ...plugin, name: id } } as T
   throw new Error(typeof declared === "string"
     ? `the browser file served for "${id}" declares the plugin "${declared}", so it is not mounted. `
       + `A plugin's browser file must declare its folder's word, "${id}".`

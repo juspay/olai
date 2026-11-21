@@ -149,3 +149,8 @@ import { faces as standaloneFaces } from "./surface.ts"
 const siblingFaces = { browser: standaloneFaces.browser }
 export { siblingFaces as faces }
 export { surface } from "./surface.ts"
+import { boxBelow } from "./contracts/box.ts"
+// The seat under the search box, listed by `vault-plugins_inspect` with every
+// other slot. Search fills it itself, so a registration by anybody else is
+// refused; it is listed so an author is told that, not left to find it.
+export const slots = { "search.box.below": boxBelow }

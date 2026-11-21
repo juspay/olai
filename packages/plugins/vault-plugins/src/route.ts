@@ -47,9 +47,10 @@ export const pluginChunks = (dynamic: Pick<DynamicRuntime, "chunk"> | null) =>
     `${PLUGIN_CHUNK_PREFIX}*`,
     (request: HttpServerRequest.HttpServerRequest) =>
       Effect.sync(() => {
-        // DECODED, because the paths the runtime built are a folder's own file
-        // names and a browser percent-encodes whatever in them a URL may not
-        // hold. A path that does not decode names nothing.
+        // DECODED, because the runtime encodes each segment of a helper's path
+        // where it makes the address (`./runtime.ts`'s `builtFrom`) — a name
+        // may hold `#`, `?` or `%`, which a URL gives a meaning to — and the
+        // runtime keeps the path itself. A path that does not decode names nothing.
         let path: string | null
         try { path = decodeURIComponent(new URL(request.url, "http://olai").pathname) } catch { path = null }
         const text = path === null ? null : dynamic?.chunk(path) ?? null

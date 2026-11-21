@@ -9,11 +9,19 @@ export interface Hung<F> {readonly plugin: string;readonly face: F}
  *  what a face contributed there is and what it is handed when it is drawn —
  *  the line an author reads in `vault-plugins_inspect` before writing one. */
 export interface SlotContract<F> extends Location<Hung<F>> {readonly slotKey: SlotKey;readonly handed: string}
-export const slotContract = <F>(name: string, keyedBy: SlotKey, handed: string): SlotContract<F> => Object.freeze({
-  ...location<Hung<F>>(name,keyedBy === "app" ? "one" : "many",keyedBy === "plugin" ? "owner" : keyedBy === "kind" ? "key" : undefined),
-  slotKey: keyedBy,
-  handed,
-})
+/** Declare a slot. The sentence is required where the slot is declared: a slot
+ *  with none would be left out of the catalog with nothing said, so an author
+ *  would never learn it exists. */
+export const slotContract = <F>(name: string, keyedBy: SlotKey, handed: string): SlotContract<F> => {
+  if (handed.trim() === "") {
+    throw new Error(`the slot "${name}" is declared without the sentence saying what a face there is handed`)
+  }
+  return Object.freeze({
+    ...location<Hung<F>>(name,keyedBy === "app" ? "one" : "many",keyedBy === "plugin" ? "owner" : keyedBy === "kind" ? "key" : undefined),
+    slotKey: keyedBy,
+    handed,
+  })
+}
 export const slotReference = <F>(name: string) => locationReference<Hung<F>>(name)
 
 /** One slot as the catalog describes it. */

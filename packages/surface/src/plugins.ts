@@ -506,6 +506,29 @@ export const pluginFileOrder = (paths: Iterable<string>): ReadonlyArray<string> 
   ]
 }
 
+/** One code file as a row carries it — `BuiltPlugin.source.code`'s element. */
+export interface PluginCodeFile {
+  readonly path: string
+  readonly text?: string
+  readonly approved?: string
+}
+
+/**
+ * ...AND EVERY CODE FILE A ROW CARRIES, in the page's order — or, from a serve
+ * that sends only the two entries, those two. Beside the schema because both
+ * pages that print a plugin's code read it, and the fallback is a fact about
+ * this wire's two shapes rather than about either page.
+ */
+export const codeFilesOf = (source: {
+  readonly code?: ReadonlyArray<PluginCodeFile>
+  readonly server: string
+  readonly browser?: string
+}): ReadonlyArray<PluginCodeFile> =>
+  source.code ?? [
+    { path: PLUGIN_SERVER_FILE, text: source.server },
+    ...(source.browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: source.browser }]),
+  ]
+
 /**
  * THE WORD — a plugin's folder name, and the same shape a bundle row's `id`
  * has.

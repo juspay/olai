@@ -7,7 +7,7 @@ import { HOME_ROUTE } from "./routes.ts"
 import { readLocation } from "./locations.ts"
 import { directory } from "./pages.ts"
 import { routeFaces } from "./faces.ts"
-import { filePagesOf } from "./file-pages.ts"
+import { filePagesOver } from "./file-pages.ts"
 import type { FilePageFace } from "./slots.ts"
 import { forFileClaim } from "@olai/plugin-api/file-kinds"
 import { createMemo, Show, type JSX } from "solid-js"
@@ -34,10 +34,13 @@ export function PageView() {
     return path === undefined ? undefined : files?.claims().byKind.get(fileKind(files.claims(), path) ?? "")
   })
   // The location's pages, then each plugin's `file.page` face as the page for
-  // the kind that plugin claimed (`./file-pages.ts`).
+  // the kind that plugin claimed — one page per registration, so another
+  // plugin's face coming or going does not draw this one again
+  // (`./file-pages.ts`).
+  const pluginPages = filePagesOver(() => routeFaces("file.page"), (face, file) => <PluginFilePage face={face} file={file} />)
   const contributions = createMemo(() => [
     ...readLocation(pages).map(entry => entry.value),
-    ...filePagesOf(routeFaces("file.page"), (face, file) => <PluginFilePage face={face} file={file} />),
+    ...pluginPages(),
   ])
   const page = createMemo(() => forFileClaim(claim(), contributions()))
   const handler = createMemo(() => readLocation(content).find(({ value }) => value.matches(route()))?.value)

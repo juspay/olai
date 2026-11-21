@@ -109,13 +109,16 @@ export type {
   SlotName,
   EditWriters,
 } from "./browser.ts"
-export { Bar, clientOf, Clocks, Edits, editApply, Landings, Faces, heldFaces, Links, NO_EDITS, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
+export { Bar, clientOf, Clocks, Edits, editApply, Landings, Faces, heldFaces, Links, Navigate, NO_EDITS, Offers, openApp, Slots, Wired, slotLocation, slotFacade } from "./browser.ts"
 /** A PLUGIN'S OWN SURFACE, the same function the server door exports — so a
  *  file both of a plugin's halves import builds one value in each — and the
- *  type of its client, which {@link clientOf} answers. */
+ *  type of its client, which {@link clientOf} answers. `OpFailure` is the
+ *  gate's refusal, the same schema the server door exports, so a surface both
+ *  halves import declares it once and the client's failure carries it. */
 export { defineSurface } from "@kolu/surface/define"
 export type { Surface, SurfaceSpec } from "@kolu/surface/define"
 export type { SurfaceClient } from "@kolu/surface/solid"
+export { OpFailure } from "@olai/format"
 /** ...and the bridge's own half of it, which is {@link ./runtime.ts}'s one list
  *  rather than this door's copy of it — see that module on why both doors read
  *  from one place. */

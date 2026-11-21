@@ -426,20 +426,16 @@ const faultOf = (
   return null
 }
 
-/** What {@link versionOf} puts after each path and each text — a byte no
- *  source file and no path can contain, spelled as an escape so this file
- *  holds none itself. */
-const SEPARATOR = "\u0000"
-
 /**
  * THE VERSION — a hash of what could run.
  *
  * EVERY CODE FILE, because approval is about the whole thing: a person who read
  * a server file and approved it has not approved a helper that arrived
  * afterwards, nor one nothing imports yet. Each file goes in as its path and
- * its text, in path order, each followed by a byte no path or source can
- * contain, so two folders cannot hash alike by moving text between files or a
- * file between paths.
+ * its text, in path order, EACH PRECEDED BY ITS LENGTH IN BYTES, so the stream
+ * says where every field ends. Two folders cannot hash alike by moving text
+ * between files or a file between paths, whatever bytes the files hold — the
+ * framing needs no byte a file could not contain.
  *
  * AND THE README IS NOT IN IT. The version is what a person said yes to, and
  * what they said yes to is code. Prose about the code is prose: an author
@@ -453,8 +449,10 @@ const SEPARATOR = "\u0000"
  */
 export const versionOf = (code: ReadonlyMap<string, string>): string => {
   const hasher = new Bun.CryptoHasher("sha256")
+  const field = (text: string) => hasher.update(`${Buffer.byteLength(text, "utf8")}:`).update(text)
   for (const path of [...code.keys()].sort()) {
-    hasher.update(path).update(SEPARATOR).update(code.get(path)!).update(SEPARATOR)
+    field(path)
+    field(code.get(path)!)
   }
   return hasher.digest("hex").slice(0, 16)
 }

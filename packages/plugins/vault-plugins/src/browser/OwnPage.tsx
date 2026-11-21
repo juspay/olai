@@ -12,11 +12,12 @@
  * at the approval page's own address (`./address.ts`).
  */
 import type { BrowserManagement } from "@olai/surface/management"
-import { createMemo, Show } from "solid-js"
+import { createMemo } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { pluginPageHref } from "./address.ts"
 import { ownPageOf } from "./faces.ts"
+import { drawOwnPage } from "./own-page.ts"
 import { LOOK, pluginNamed, type Stage, stageOf } from "./state.ts"
 
 export function OwnPage(props: {
@@ -28,14 +29,11 @@ export function OwnPage(props: {
   const roster = props.management.roster()
   const plugin = createMemo(() => pluginNamed(roster(), props.word))
   const face = createMemo(() => ownPageOf(props.word))
-  return (
-    <Show when={face()} fallback={<Absent word={props.word} stage={plugin() === undefined ? "missing" : stageOf(plugin()!)} />}>
-      {(Face) => {
-        const Drawn = Face()
-        return <Drawn rest={props.rest} />
-      }}
-    </Show>
-  )
+  // KEYED on the face (`./own-page.ts`): a face replaced by another is the
+  // new one drawn.
+  return drawOwnPage(face, () => props.rest, () => (
+    <Absent word={props.word} stage={plugin() === undefined ? "missing" : stageOf(plugin()!)} />
+  ))
 }
 
 function Absent(props: { readonly word: string; readonly stage: Stage | "missing" }) {

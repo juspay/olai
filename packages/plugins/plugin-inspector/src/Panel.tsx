@@ -112,9 +112,8 @@ import { createEffect, createMemo, createSelector, createSignal, For, onCleanup,
 
 import {
   type BuiltPlugin,
+  codeFilesOf,
   NO_ROSTER,
-  PLUGIN_BROWSER_FILE,
-  PLUGIN_SERVER_FILE,
   type PluginRoster,
   pluginState,
 } from "@olai/surface"
@@ -763,12 +762,9 @@ function Defined(props: {
                 claim about itself rather than anything this panel composed. */}
             <Show when={said().description}>{(says) => <p class="mt-1 text-muted">{says()}</p>}</Show>
             <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
-              {/* EVERY CODE FILE, under its path in the folder — the two entries
-                  for a serve that sends only those. */}
-              {(said().code ?? [
-                { path: PLUGIN_SERVER_FILE, text: said().server },
-                ...(said().browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: said().browser }]),
-              ])
+              {/* EVERY CODE FILE, under its path in the folder (`@olai/surface`'s
+                  `codeFilesOf`). */}
+              {codeFilesOf(said())
                 .flatMap((one) => (one.text === undefined ? [] : [`// ${said().folder}${one.path}\n${one.text}`]))
                 .join("\n\n")}
             </pre>

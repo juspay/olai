@@ -49,7 +49,7 @@
  * it is the plugin they approved, changed, which is *Paused* with a diff.
  */
 
-import { type BuiltPlugin, PLUGIN_BROWSER_FILE, PLUGIN_SERVER_FILE, pluginState } from "@olai/surface"
+import { type BuiltPlugin, codeFilesOf, pluginState } from "@olai/surface"
 
 /**
  * THE SIX WORDS A PLUGIN'S PAGE CAN BE HEADED WITH — the mockup's six screens,
@@ -67,15 +67,11 @@ export type Defined = BuiltPlugin & { readonly source: NonNullable<BuiltPlugin["
 export type CodeFile = NonNullable<Defined["source"]["code"]>[number]
 
 /**
- * EVERY CODE FILE THE ROW CARRIES, in the page's order — or, from a serve that
- * sends only the two entries, those two. A file removed since the approval is
- * still here, with its approved text and no `text`, so the diff can show it go.
+ * EVERY CODE FILE THE ROW CARRIES, in the page's order (`@olai/surface`'s
+ * `codeFilesOf`). A file removed since the approval is still here, with its
+ * approved text and no `text`, so the diff can show it go.
  */
-export const codeFiles = (source: Defined["source"]): ReadonlyArray<CodeFile> =>
-  source.code ?? [
-    { path: PLUGIN_SERVER_FILE, text: source.server },
-    ...(source.browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: source.browser }]),
-  ]
+export const codeFiles = (source: Defined["source"]): ReadonlyArray<CodeFile> => codeFilesOf(source)
 
 /** Whether this row was written into the directory rather than compiled in. */
 export const defined = (plugin: BuiltPlugin): plugin is Defined => plugin.source !== undefined

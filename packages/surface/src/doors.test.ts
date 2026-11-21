@@ -87,6 +87,7 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "attachmentRejection",
       "chunkFile",
       "chunkUrl",
+      "codeFilesOf",
       "heard",
       "intentOf",
       "isAttachable",
