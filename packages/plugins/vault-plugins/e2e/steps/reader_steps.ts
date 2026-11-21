@@ -205,14 +205,45 @@ When("the served file {string} becomes:", function (this: OlaiWorld, file: strin
   this.writeServed(file, text)
 })
 
-const note = (world: OlaiWorld) => world.page.locator(attr("data-reader", "note"))
+/** The two faces the reader hangs on a note: above its text and under it. */
+const noteFaces = (world: OlaiWorld) =>
+  world.page.locator(`${attr("data-reader", "note-head")}, ${attr("data-reader", "note")}`)
 
-Then("the reader's note foot is drawn under {string}", async function (this: OlaiWorld, file: string) {
-  await note(this).and(this.page.locator(attr("data-file", file))).first()
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+Then("the reader's note faces are drawn on {string}", async function (this: OlaiWorld, file: string) {
+  for (const which of ["note-head", "note"]) {
+    await this.page.locator(`${attr("data-reader", which)}${attr("data-file", file)}`).first()
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  }
 })
 
-Then("the reader's note foot is not drawn", async function (this: OlaiWorld) {
+Then("the reader's note faces are not drawn", async function (this: OlaiWorld) {
   await this.waitForFrame()
-  await this.waitUntil(async () => (await note(this).count()) === 0, "the reader's note foot to be absent")
+  await this.waitUntil(async () => (await noteFaces(this).count()) === 0, "the reader's note faces to be absent")
+})
+
+/** The gate's sentence, where the reader draws a refused write: beside what was
+ *  pressed, under the row the word is on. */
+Then("the reader says under the row {string} why the word was not added", async function (this: OlaiWorld, node: string) {
+  const said = this.page.locator(`${nodeSelector(node)} ${attr("data-reader", "refused")}`).first()
+  await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  const text = (await said.innerText()).trim()
+  assert.ok(text.length > 0, "the refusal is drawn with no sentence")
+  assert.ok(text.includes("vocabulary"), `the refusal does not name what was missing: ${text}`)
+})
+
+Then("{string} has no row titled {string}", async function (this: OlaiWorld, file: string, title: string) {
+  await this.waitForFrame()
+  assert.ok(!rowsOf(this, file).some((row) => row.title === title), `${file} holds a row titled ${JSON.stringify(title)}`)
+})
+
+/** HOLDING the element is marking it: a page mounted again draws a fresh
+ *  element, which carries no mark, so finding the mark is finding the same one. */
+When("I hold the reader's drawing of {string}", async function (this: OlaiWorld, file: string) {
+  await transcribed(this, file).evaluate((element) => { element.setAttribute("data-held", "yes") })
+})
+
+Then("the reader's drawing of {string} is the one I held", async function (this: OlaiWorld, file: string) {
+  await this.waitForFrame()
+  assert.equal(await transcribed(this, file).count(), 1, `${file} is not drawn once`)
+  assert.equal(await transcribed(this, file).getAttribute("data-held"), "yes", `${file} was drawn again rather than kept`)
 })

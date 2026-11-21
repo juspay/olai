@@ -13,7 +13,7 @@ Feature: The reading companion
 
   Scenario: An agent is told every place a face can go, and what each is handed
     Given I open the app
-    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, app.command, file.page, plugins.row, plugin.page, document.page.head, document.page.foot"
+    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, app.command, file.page, plugins.row, plugin.page, document.page.head, document.page.foot, search.box.below"
     And every slot in the catalog says what its face is handed
 
   @scratch:reader
@@ -49,7 +49,7 @@ Feature: The reading companion
     When I go to the plugin "reader"
     Then the plugin page is "review"
     And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/sm2.ts, pairs.ts, types.ts, words.ts"
-    And the plugin page's status says "7 files, 373 lines"
+    And the plugin page's status says "7 files, 429 lines"
     When I open the plugin page's "lib/sm2.ts" tab
     Then the plugin page's code is "lib/sm2.ts"
     And the plugin page's code names "export const scheduled"
@@ -208,13 +208,41 @@ Feature: The reading companion
     And there should be no page errors
 
   @scratch:reader
-  Scenario: A note carries the plugin's face at its foot, and it leaves with the plugin
+  Scenario: A note carries the plugin's faces above and below its text, and they leave with the plugin
     Given I open the address "/notes.md"
-    Then the reader's note foot is not drawn
+    Then the reader's note faces are not drawn
     When I approve the plugin "reader"
-    Then the reader's note foot is drawn under "notes.md"
+    Then the reader's note faces are drawn on "notes.md"
 
     When I switch the plugin "reader" off on its page
     And I open the address "/notes.md"
-    Then the reader's note foot is not drawn
+    Then the reader's note faces are not drawn
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: A word the gate refuses to add says why, under its sentence
+    # The vocabulary has no row called `vocabulary` to add a word under.
+    Given the served file "vocabulary.olai" becomes:
+      """
+      {"id":"words","ord":"a0","title":"Vocabulary"}
+      """
+    And I open the outline "book.olai"
+    When I approve the plugin "reader"
+    And I press the word "Phileas" under the row "s1"
+    Then the reader says under the row "s1" why the word was not added
+    And "vocabulary.olai" has no row titled "Phileas"
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: A transcribed page stays the same page while another plugin's faces come and go
+    Given I open the app
+    When I approve the plugin "reader"
+    And I expand the reference section
+    And I click sidebar file "chapter-1.reader"
+    Then the reader draws "chapter-1.reader" as 2 sentences beside their English
+    When I hold the reader's drawing of "chapter-1.reader"
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I switch the plugin "journal" on
+    Then the reader's drawing of "chapter-1.reader" is the one I held
     And there should be no page errors

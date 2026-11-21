@@ -49,3 +49,33 @@ test("the server door's Ops carries the write gate's own type", () => {
   expect(typeof gateOf).toBe("function")
   expect(typeof runs).toBe("function")
 })
+
+test("the server door types a plugin's own handlers against its surface", () => {
+  const deps: server.ImplementSurfaceDeps<typeof surface.spec> = {
+    procedures: { reader: { mark: ({ input }) => Effect.succeed(input.word.length) } },
+  }
+  const wrong: server.ImplementSurfaceDeps<typeof surface.spec> = {
+    // @ts-expect-error — an answer the member does not declare is refused
+    procedures: { reader: { mark: () => Effect.succeed("three") } },
+  }
+  void wrong
+  expect(typeof deps.procedures?.reader.mark).toBe("function")
+})
+
+test("both doors carry the schema a refused write fails with, so a plugin's surface can declare it", () => {
+  expect(Schema.isSchema(server.OpFailure)).toBe(true)
+  expect(browser.OpFailure).toBe(server.OpFailure)
+  const declaring = browser.defineSurface({
+    procedures: {
+      reader: {
+        mark: { input: Schema.Struct({ word: Schema.String }), output: Schema.Number, error: browser.OpFailure },
+      },
+    },
+  })
+  expect(typeof declaring).toBe("object")
+})
+
+test("the server door carries the transport's per-call authority", async () => {
+  const authority = await import("./authority.ts")
+  expect(server.RequestAuthority as unknown).toBe(authority.RequestAuthority)
+})

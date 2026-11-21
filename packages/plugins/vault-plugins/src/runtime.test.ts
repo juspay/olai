@@ -1078,3 +1078,81 @@ test("a stale builder property is a property nobody reads", () => bench((dynamic
   expect(yield* dynamic.set("swatch", false)).toBe(true)
   expect(written).toEqual([{ op: "prop", id: "c", key: "on", value: "no" }])
 })))
+
+describe("a server module belongs to one plugin at one version", () => {
+  /** A helper that counts in a module-level variable — the state the case is
+   *  about. Both plugins hold these exact bytes. */
+  const COUNTER = `let n = 0\nexport const bump = (): number => { n += 1; return n }`
+  /** A server half that records, on mount, which count its helper answered. */
+  const counting = (word: string, salt = "") => [
+    `import { definePlugin } from "@olai/plugin-api"`,
+    `import { Effect } from "effect"`,
+    `import { bump } from "./lib/count.ts"`,
+    `export default definePlugin({`,
+    `  name: "${word}",`,
+    `  needs: [],`,
+    `  apply: Effect.sync(() => {`,
+    `    const seen = globalThis as unknown as { __olaiCounted?: Array<string> }`,
+    `    ;(seen.__olaiCounted ??= []).push("${word}:" + bump())`,
+    `  }),`,
+    `})${salt}`,
+  ].join("\n")
+  /** Two plugins, both approved for every version and on. */
+  const two = (alpha: string) => readingOfVault(new Map([
+    ["plugins/alpha/server.ts", alpha],
+    ["plugins/alpha/lib/count.ts", COUNTER],
+    ["plugins/beta/server.ts", counting("beta")],
+    ["plugins/beta/lib/count.ts", COUNTER],
+    ["_olai/Settings.olai", [
+      `{"id":"c","ord":"a0","title":"alpha","custom":{"approved":"${ALWAYS}","on":"yes"}}`,
+      `{"id":"d","ord":"a1","title":"beta","custom":{"approved":"${ALWAYS}","on":"yes"}}`,
+    ].join("\n")],
+  ]))
+  const counted = (): ReadonlyArray<string> => ((globalThis as { __olaiCounted?: Array<string> }).__olaiCounted ?? [])
+
+  test("two plugins holding the same helper bytes do not share its state, and a new version starts it afresh", async () => {
+    (globalThis as { __olaiCounted?: Array<string> }).__olaiCounted = []
+    const said = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        yield* dynamic.follow(two(counting("alpha")))
+        const first = (yield* now()).map((one) => [one.name, one.running] as const)
+        const mounted = [...counted()].sort()
+        // ALPHA AT A NEW VERSION, its helper's bytes unchanged.
+        yield* dynamic.follow(two(counting("alpha", "\n// the second version")))
+        yield* now()
+        return { first, mounted, after: counted().slice(2) }
+      })
+    )
+    expect(said.first).toEqual([["alpha", true], ["beta", true]])
+    expect(said.mounted).toEqual(["alpha:1", "beta:1"])
+    expect(said.after).toEqual(["alpha:1"])
+  })
+})
+
+describe("a helper's address is the address its file is found at", () => {
+  /** An entry that imports one helper by the name under test. */
+  const importing = (file: string) => [`import { Face } from "./${file}"`, `export const Page = () => <Face />`].join("\n")
+  const helper = `export const Face = () => <div class="odd-name" />`
+
+  for (const file of ["a#b.tsx", "a?b.tsx", "50%41.tsx"]) {
+    test(`a helper named ${JSON.stringify(file)} is served at the address its entry imports`, async () => {
+      const said = await bench((dynamic, now) =>
+        Effect.gen(function*() {
+          yield* dynamic.follow(vault({ browser: importing(file), files: { [file]: helper }, approved: ALWAYS }))
+          const rows = yield* now()
+          const entry = dynamic.chunk(rows[0]?.source?.chunk ?? "") ?? ""
+          const base = `/_olai/plugins/swatch-${versionOf(SERVER, importing(file), { [file]: helper })}/`
+          const address = /"(\/_olai\/plugins\/[^"]+)"/.exec(entry)?.[1] ?? ""
+          // WHAT THE TAB AND THE ROUTE DO with that address: the browser
+          // fetches it as a URL, and the route decodes the URL's path
+          // (`./route.ts`) before it asks the runtime.
+          const fetched = decodeURIComponent(new URL(address, "http://olai").pathname)
+          return { address, base, fetched, helper: dynamic.chunk(fetched) }
+        })
+      )
+      expect(said.address.startsWith(said.base)).toBe(true)
+      expect(said.fetched).toBe(`${said.base}${file}.js`)
+      expect(said.helper).toContain("odd-name")
+    })
+  }
+})

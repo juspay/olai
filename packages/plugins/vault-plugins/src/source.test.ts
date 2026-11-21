@@ -281,6 +281,17 @@ describe("the version is about the code and nothing else", () => {
     expect(versionOf("ab", "c")).not.toBe(versionOf("a", "bc"))
   })
 
+  test("two folders that differ only in where a file ends cannot have one version", () => {
+    // The bytes in between are the same either way: a file `a.ts` whose text
+    // carries the next file's path and text after a NUL, against the two files
+    // themselves. Nothing here relies on a byte no file can hold.
+    const joined = new Map([["a.ts", "x\u0000b.ts\u0000y"]])
+    const apart = new Map([["a.ts", "x"], ["b.ts", "y"]])
+    expect(versionOfCode(joined)).not.toBe(versionOfCode(apart))
+    // ...and the same holds for where a PATH ends and its text begins.
+    expect(versionOfCode(new Map([["a.ts\u0000x", ""]]))).not.toBe(versionOfCode(new Map([["a.ts", "x\u0000"]])))
+  })
+
   /** The folder as a reading, so the version is the one the serve computes off
    *  the files on disk rather than one this case assembled itself. */
   const read = (files: Readonly<Record<string, string>>) =>

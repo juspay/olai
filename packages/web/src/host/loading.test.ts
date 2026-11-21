@@ -77,3 +77,14 @@ test("a vault chunk that exports no plugin is refused by the same check", async 
   expect(result.loaded).toEqual([])
   expect(result.failed.get("reader")).toContain(`"reader"`)
 })
+
+test("the word is read once: the half handed on is stamped with the roster's word", async () => {
+  // A name that answers the roster's word when it is checked and another word
+  // after: the mount must not get to read it a second time.
+  let reads = 0
+  const shifting = { default: { get name() { reads += 1; return reads === 1 ? "reader" : "tabs" } } }
+  const result = await loadRows([{ id: "reader", load: heldToWord("reader", async () => shifting) }])
+  const [half] = result.loaded as ReadonlyArray<{ readonly default: { readonly name: string } }>
+  expect(half?.default.name).toBe("reader")
+  expect(half?.default.name).toBe("reader")
+})

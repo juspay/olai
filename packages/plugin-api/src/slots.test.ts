@@ -16,3 +16,8 @@ test("a descriptor that does not say what its face is handed is not a slot the c
   expect(slotCatalog([{slots:{bare:{name:"reader.bare",slotKey:"plugin"}}}])).toEqual([])
   expect(slotCatalog([{slots:{blank:{name:"reader.blank",slotKey:"plugin",handed:"  "}}}])).toEqual([])
 })
+
+test("a slot declared without its sentence is refused where it is declared, naming the slot", () => {
+  expect(() => slotContract("reader.silent", "plugin", "")).toThrow(/reader\.silent/)
+  expect(() => slotContract("reader.blank", "nothing", "   ")).toThrow(/reader\.blank/)
+})
