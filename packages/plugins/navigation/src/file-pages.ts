@@ -19,8 +19,7 @@
  */
 import type { Address } from "@olai/format"
 import type { Hung } from "@olai/plugin-api"
-import { sameList } from "@olai/web/client/same.ts"
-import { type Accessor, createMemo, type JSX } from "solid-js"
+import type { JSX } from "solid-js"
 
 import type { FilePage } from "./index.ts"
 import type { FilePageFace } from "./slots.ts"
@@ -41,12 +40,16 @@ export const filePagesOf = (entries: ReadonlyArray<Hung<FilePageFace>>, draw: Dr
  * ...AND OVER A READING THAT MOVES, keeping each registration's page: a
  * registration is the object the slot table holds for as long as the face is
  * hung, so the same object is the same page, and a new one is a new page.
- * The answer is the same list while its members are, so a reader keyed on it
- * does not move either.
+ *
+ * A PLAIN FUNCTION, called inside the caller's own memo (`./PageView.tsx`'s
+ * `contributions`), so the reading is tracked by what that memo tracks — the
+ * renderer's slot signal — including on the frames before the faces are held,
+ * when `read` answers `[]` having read no signal at all. Its own memo would
+ * track nothing on such a frame and never run again.
  */
-export const filePagesOver = (read: Accessor<ReadonlyArray<Hung<FilePageFace>>>, draw: Draw): Accessor<ReadonlyArray<FilePage>> => {
+export const filePagesOver = (read: () => ReadonlyArray<Hung<FilePageFace>>, draw: Draw): (() => ReadonlyArray<FilePage>) => {
   let held = new Map<Hung<FilePageFace>, FilePage>()
-  return createMemo(() => {
+  return () => {
     const next = new Map<Hung<FilePageFace>, FilePage>()
     const pages = read().map((one) => {
       const page = held.get(one) ?? pageOf(one, draw)
@@ -55,5 +58,5 @@ export const filePagesOver = (read: Accessor<ReadonlyArray<Hung<FilePageFace>>>,
     })
     held = next
     return pages
-  }, undefined, { equals: sameList })
+  }
 }
