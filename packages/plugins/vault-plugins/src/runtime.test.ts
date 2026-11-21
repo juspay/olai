@@ -133,6 +133,9 @@ const bench = <A, E>(
     host: Host,
     written: ReadonlyArray<WriteRequest>,
     chats: { readonly here: Set<string>; readonly asked: ReadonlyArray<string> },
+    /** The siblings on the wire right now, by name — what a plugin's
+     *  `Surfaces.register` composed and what its unloading withdrew. */
+    composed: () => ReadonlyArray<string>,
   ) => Effect.Effect<A, E>,
   door = true,
 ): Promise<A> =>
@@ -190,6 +193,7 @@ const bench = <A, E>(
         plugins.host,
         written,
         chats,
+        () => plugins.composed().map((one) => one.name),
       ))
     })),
   )
@@ -474,6 +478,36 @@ describe("a browser half is compiled and served", () => {
     expect(said.after?.source?.files?.find((one) => one.path === "server.ts")?.approved).toBeUndefined()
   })
 })
+
+/**
+ * A SURFACE OF ITS OWN — what a server file registers through `Surfaces`, under
+ * its folder's word, for exactly as long as the plugin is mounted.
+ */
+test("a server file's surface is composed under its folder's word, and leaves when the plugin stops", () =>
+  bench((dynamic, now, _host, _written, _chats, composed) => Effect.gen(function*() {
+    const WIRED = [
+      `import { defineSurface, definePlugin, Surfaces } from "@olai/plugin-api"`,
+      `import { Effect, Schema } from "effect"`,
+      `const surface = defineSurface({ procedures: { words: { count: { input: Schema.Struct({}), output: Schema.Number } } } })`,
+      `export default definePlugin({`,
+      `  name: "swatch",`,
+      `  needs: [Surfaces],`,
+      `  apply: Effect.gen(function*() {`,
+      `    yield* (yield* Surfaces).register({`,
+      `      surface,`,
+      `      faces: { browser: { "words.count": "tool" } },`,
+      `      deps: { procedures: { words: { count: () => Effect.succeed(1) } } },`,
+      `    })`,
+      `  }),`,
+      `})`,
+    ].join("\n")
+    const before = composed()
+    yield* dynamic.follow(vault({ server: WIRED, approved: ALWAYS }))
+    expect((yield* now())[0]?.state).toBe("running")
+    expect(composed()).toEqual([...before, "swatch"])
+    yield* dynamic.follow(vault({ server: WIRED, approved: ALWAYS, on: false }))
+    expect(composed()).toEqual(before)
+  })))
 
 /**
  * WHAT A REVISION DOES TO THE ROWS, which is the whole of what `follow` is for.

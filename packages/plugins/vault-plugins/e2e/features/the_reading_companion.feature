@@ -109,3 +109,26 @@ Feature: The reading companion
     And I delete the plugin "reader" from its page
     Then the vault holds no files for the plugin "reader"
     And there should be no page errors
+
+  @scratch:reader @git:repo
+  Scenario: A word clicked in a sentence goes into the vocabulary, through the plugin's own server file
+    Given I open the outline "book.olai"
+    When I approve the plugin "reader"
+    And I press the word "Phileas" under the row "s1"
+    Then "vocabulary.olai" has a row titled "Phileas" carrying "reader-due"
+    When I open the commit panel
+    Then the panel lists "vocabulary.olai" as "modified"
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: Again, Good and Easy write when a word is next due, and leave with the plugin
+    Given I open the outline "vocabulary.olai"
+    When I approve the plugin "reader"
+    Then the review offers the word "maison"
+    When I grade the word "maison" as "good"
+    Then the row "maison" of "vocabulary.olai" is next due after "2026-01-01"
+
+    When I switch the plugin "reader" off on its page
+    And I open the outline "vocabulary.olai"
+    Then the review is not drawn
+    And there should be no page errors

@@ -9,6 +9,8 @@
  */
 
 import * as assert from "node:assert/strict"
+import * as fs from "node:fs"
+import * as path from "node:path"
 
 import { Then, When } from "@olai/tests/harness/runner.ts"
 import { attr, HYDRATION_TIMEOUT, nodeSelector, POLL_TIMEOUT, SIDEBAR } from "@olai/tests/harness/world.ts"
@@ -94,4 +96,58 @@ Then("the terminal agent was told the plugin {string} compiles", function (this:
   const answer = this.toolAnswer?.["structuredContent"] as { path?: string; compiles?: boolean; why?: string } | undefined
   assert.ok(answer?.path?.startsWith(`plugins/${word}/`), JSON.stringify(answer))
   assert.equal(answer?.compiles, true, answer?.why ?? JSON.stringify(answer))
+})
+
+/** One row of an outline file on disk, as the format writes it: one JSON
+ *  record per line. */
+interface Row {
+  readonly id: string
+  readonly title?: string
+  readonly custom?: Readonly<Record<string, unknown>>
+}
+
+/** The rows of an outline in this scenario's own copy of the corpus — the
+ *  durable half of a write, which is what a restart comes back to. */
+const rowsOf = (world: OlaiWorld, file: string): ReadonlyArray<Row> => {
+  const text = fs.readFileSync(path.join(world.scratch(), file), "utf8")
+  return text.split("\n").filter((line) => line.trim() !== "").map((line) => JSON.parse(line) as Row)
+}
+
+When("I press the word {string} under the row {string}", async function (this: OlaiWorld, word: string, node: string) {
+  const button = this.page.locator(`${nodeSelector(node)} ${attr("data-reader", "word")}${attr("data-word", word)}`).first()
+  await button.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  await this.press(button)
+})
+
+Then("{string} has a row titled {string} carrying {string}", async function (this: OlaiWorld, file: string, title: string, key: string) {
+  await this.waitUntil(
+    () => Promise.resolve(rowsOf(this, file).some((row) => row.title === title && typeof row.custom?.[key] === "string")),
+    `${file} to hold a row titled ${JSON.stringify(title)} carrying ${key}`,
+  )
+})
+
+/** The review the reader draws at the foot of the vocabulary's page. */
+const review = (world: OlaiWorld) => world.page.locator(attr("data-reader", "review"))
+
+Then("the review offers the word {string}", async function (this: OlaiWorld, word: string) {
+  await review(this).and(this.page.locator(attr("data-word", word))).first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+})
+
+When("I grade the word {string} as {string}", async function (this: OlaiWorld, word: string, grade: string) {
+  const button = review(this).and(this.page.locator(attr("data-word", word))).locator(`button${attr("data-grade", grade)}`).first()
+  await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.press(button)
+})
+
+Then("the row {string} of {string} is next due after {string}", async function (this: OlaiWorld, node: string, file: string, day: string) {
+  await this.waitUntil(() => {
+    const due = rowsOf(this, file).find((row) => row.id === node)?.custom?.["reader-due"]
+    return Promise.resolve(typeof due === "string" && due > day)
+  }, `the row ${node} of ${file} to be due after ${day}`)
+})
+
+Then("the review is not drawn", async function (this: OlaiWorld) {
+  await this.waitForFrame()
+  await this.waitUntil(async () => (await review(this).count()) === 0, "the review to be gone")
 })

@@ -126,9 +126,19 @@ interface Composed {
  * reach), and what is under test here is the CONTENT of the grant. What a
  * socket can see is asserted over a socket, further down.
  */
-const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
+const withRows = <A>(
+  use: (composed: Composed) => Promise<A>,
+  /** Files written into the served directory before the serve opens it, and
+   *  the composed rows to wait for — a plugin the vault defines mounts only
+   *  once the directory has been read. */
+  vault: { readonly files: Readonly<Record<string, string>>; readonly composes: ReadonlyArray<string> } = { files: {}, composes: [] },
+): Promise<A> => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-faces-"))
   fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
+  for (const [file, text] of Object.entries(vault.files)) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+    fs.writeFileSync(path.join(root, file), text)
+  }
   return Effect.gen(function*() {
     const plugins = yield* openPlugins({ vars: {}, now: () => "" })
     // The definitions row reads its plugins out of the vault through the
@@ -153,6 +163,10 @@ const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
+    for (let tries = 0; vault.composes.some((name) => !wired.bound.rows.some((row) => row.name === name)); tries += 1) {
+      if (tries > 200) throw new Error(`${vault.composes.join(", ")} never composed; rows: ${wired.bound.rows.map((row) => row.name).join(", ")}`)
+      yield* Effect.sleep("50 millis")
+    }
     const rows = wired.bound.rows.map((row) => ({
       name: row.name,
       surface: row.surface as Surface<SurfaceSpec>,
@@ -354,6 +368,41 @@ test("the plugin switch and the approval are a person's, and the three author ve
     }
   })
 })
+
+/**
+ * A PLUGIN THE VAULT DEFINES GRANTS ITS OWN FACES, and nothing else does: its
+ * members reach the agent face exactly when the approved source says so, under
+ * its folder's word, and never because some other row's grant was copied.
+ */
+test("a vault plugin's members are on the agent face only where its own faces grant them", async () => {
+  const wired = (word: string, agent: boolean) => [
+    `import { defineSurface, definePlugin, Surfaces } from "@olai/plugin-api"`,
+    `import { Effect, Schema } from "effect"`,
+    `const surface = defineSurface({ procedures: { words: { count: { input: Schema.Struct({}), output: Schema.Number } } } })`,
+    `export default definePlugin({ name: "${word}", needs: [Surfaces], apply: Effect.gen(function*() {`,
+    `  yield* (yield* Surfaces).register({`,
+    `    surface,`,
+    `    faces: { browser: { "words.count": "tool" }${agent ? `, agent: { "words.count": "tool" }` : ""} },`,
+    `    deps: { procedures: { words: { count: () => Effect.succeed(1) } } },`,
+    `  })`,
+    `}) })`,
+  ].join("\n")
+  const consent = (id: string, word: string, ord: string) =>
+    `{"id":"${id}","ord":"${ord}","title":"${word}","custom":{"approved":"always","on":"yes"}}`
+  await withRows(async ({ gates }) => {
+    expect(gates.agent.tags.has("surface/granted/words/count")).toBe(true)
+    expect(gates.agent.tags.has("surface/withheld/words/count")).toBe(false)
+    expect(gates.browser.tags.has("surface/granted/words/count")).toBe(true)
+    expect(gates.browser.tags.has("surface/withheld/words/count")).toBe(true)
+  }, {
+    files: {
+      "plugins/granted/server.ts": wired("granted", true),
+      "plugins/withheld/server.ts": wired("withheld", false),
+      "_olai/Settings.olai": `${consent("c1", "granted", "a0")}\n${consent("c2", "withheld", "a1")}\n`,
+    },
+    composes: ["granted", "withheld"],
+  })
+}, 60_000)
 
 test("the keyboard's door is nobody's but the browser's, on every row that has one", async () => {
   await withRows(async ({ rows, gates }) => {

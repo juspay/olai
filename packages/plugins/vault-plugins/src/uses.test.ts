@@ -97,3 +97,19 @@ test("a key whose shape is spelled out over a dozen lines is still a key it name
     { said: "Uses what the `journal` plugin offers", named: "journal.agenda" },
   ])
 })
+
+test("a member the source grants to the agent face is named, each one", () => {
+  // THE GRANT AS A PERSON MUST READ IT: an agent may call these, and what they
+  // do is whatever the approved code says. Read off the text like every other
+  // line of the list, so a grant computed at runtime is not seen.
+  const shared = [
+    `export const faces = {`,
+    `  browser: { "words.mark": "tool", "words.grade": "tool" },`,
+    `  agent: { "words.mark": "tool" },`,
+    `} as const`,
+  ].join("\n")
+  expect(usesOf(shared)).toEqual([
+    { said: "Lets your agents call `words.mark`", named: "agent · words.mark" },
+  ])
+  expect(usesOf(`export const faces = { browser: { "words.mark": "tool" } }`)).toEqual([])
+})

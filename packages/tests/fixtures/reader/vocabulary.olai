@@ -1,1 +1,2 @@
 {"id":"vocabulary","ord":"a0","title":"Vocabulary"}
+{"id":"maison","parent":"vocabulary","ord":"a0","title":"maison","custom":{"reader-due":"2026-01-01","reader-interval":"1","reader-ease":"2.5"}}
