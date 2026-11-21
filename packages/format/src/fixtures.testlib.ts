@@ -43,6 +43,7 @@ import { outlineDocument } from "./document.ts"
 import { TEST_CLAIMS } from "./claims.testlib.ts"
 export { TEST_CLAIMS, NO_CLAIMS } from "./claims.testlib.ts"
 import { pointingOf } from "./pointing.ts"
+import { namesOf } from "./wikilinks.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
 import { type Reading, validate } from "./validate.ts"
@@ -176,6 +177,7 @@ export const readingOf = (set: OutlineSet, table = TEST_CLAIMS): Reading & { rea
   // fixture that left this out would be a reading whose document pages had no
   // referrers and no way to say so.
   pointing: pointingOf(TEST_CLAIMS, set.documents),
+  names: namesOf(table, set.documents.map((document) => document.path)),
 })
 
 /**

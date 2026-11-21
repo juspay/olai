@@ -16,6 +16,7 @@ import { DocumentPath, NodeId, Slug, type Address } from "./address.ts"
 import { referencesOf } from "./backlinks.ts"
 import { readingOf, setOf } from "./fixtures.testlib.ts"
 import type { Reading } from "./validate.ts"
+import { wikilinkAddress } from "./wikilinks.ts"
 
 /** The node address the grammar spells, off a plain id — the tests' own
  *  {@link addressOf}, which needs claims. */
@@ -355,4 +356,83 @@ test("a link to a row refers to the node in it, whichever way it is written", ()
   )
   expect(said(view, "kitchen")).toEqual(["standard.md link", "wiki.md link"])
   expect(referring(view, "house.olai")).toEqual(["standard.md link", "wiki.md link"])
+})
+
+// THE ROW-LINK RULE'S EDGES, each spelling on its own line, since the
+// differential's walk changed with the index and only these can catch a wrong
+// ruling: a link to a row counts for the node when the file it names DRAWS
+// that row — the file holding the node, or one holding a placement of it,
+// since a page lands on the first row that shows the id, mirror or not.
+const DRAWN = {
+  "house.olai": `{"id":"kitchen","ord":"a","title":"kitchen"}`,
+  "now.olai": `{"id":"m1","ord":"a","mirror":"kitchen"}`,
+  "garden.olai": `{"id":"bed","ord":"a","title":"the bed"}`,
+}
+
+test("a link to a row counts through any file that draws the row", () => {
+  const view = viewOf(DRAWN, [
+    ["holder.md", "[k](house.olai#kitchen)"],
+    ["mirror.md", "[k](now.olai#kitchen)"],
+    ["placement.md", "[k](now.olai#m1)"],
+    ["wiki-holder.md", "[[house.olai#kitchen]]"],
+    ["wiki-mirror.md", "[[now.olai#kitchen]]"],
+    ["wiki-placement.md", "[[now.olai#m1]]"],
+  ])
+  expect(said(view, "kitchen")).toEqual([
+    "holder.md link",
+    "mirror.md link",
+    "placement.md link",
+    "wiki-holder.md link",
+    "wiki-mirror.md link",
+    "wiki-placement.md link",
+  ])
+})
+
+test("a link whose file half is stale names no row, and does not count", () => {
+  const view = viewOf(DRAWN, [
+    ["stale.md", "[k](garden.olai#kitchen)"],
+    ["wiki-stale.md", "[[garden.olai#kitchen]]"],
+    ["placement-elsewhere.md", "[k](house.olai#m1)"],
+  ])
+  expect(said(view, "kitchen")).toEqual([])
+})
+
+test("a link to a row from the Trash does not count", () => {
+  const view = viewOf({
+    ...DRAWN,
+    "_olai/Trash.olai": `{"id":"gone","ord":"a","title":"[k](house.olai#kitchen) [[now.olai#kitchen]]"}`,
+  })
+  expect(said(view, "kitchen")).toEqual([])
+})
+
+test("a row's link to its own row, through any file, is not a reference", () => {
+  const view = viewOf({
+    ...DRAWN,
+    "house.olai": `{"id":"kitchen","ord":"a","title":"kitchen","desc":"[here](house.olai#kitchen) [there](now.olai#kitchen) [[now.olai#m1]]"}`,
+  })
+  expect(said(view, "kitchen")).toEqual([])
+})
+
+test("`[[#kitchen]]` in a row names no heading, so the page and the index both leave it alone", () => {
+  const view = viewOf({
+    "house.olai": `{"id":"kitchen","ord":"a","title":"kitchen"}\n` +
+      `{"id":"order","ord":"b","title":"after [[#kitchen]]"}\n` +
+      `{"id":"std","ord":"c","title":"after [x](#kitchen)"}`,
+  })
+  expect(said(view, "kitchen")).toEqual(["std link"])
+  expect(wikilinkAddress(view.names, view.claims, "house.olai", "#kitchen")).toBeNull()
+})
+
+// A KNOWN GAP, pinned so it moves only on purpose: the scan that finds links
+// has no rule for an HTML comment, so a link inside one — either spelling — is
+// counted here, while the page draws the comment as nothing at all
+// (`@olai/markdown-ui`'s render test holds the other half). Closing it is a
+// change to what standard links do, and is a follow-up of its own.
+test("a link inside an HTML comment is counted, either spelling, though the page draws none", () => {
+  const view = viewOf({}, [
+    FINISHES,
+    ["wiki.md", "<!-- see [[finishes]] -->"],
+    ["standard.md", "<!-- see [x](finishes.md) -->"],
+  ])
+  expect(referring(view, "finishes.md")).toEqual(["standard.md link", "wiki.md link"])
 })

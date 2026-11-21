@@ -43,6 +43,7 @@
 
 import { Slug } from "./address.ts"
 import { proseIn } from "./frontmatter.ts"
+import { wikilinksShown } from "./documents.ts"
 
 /**
  * The slug of one heading's words.
@@ -155,6 +156,10 @@ export const claim = (seen: Map<string, number>, slug: Slug): Slug => {
  * since `*` is not a character a slug is made of — but `## [Install](x.md)`
  * is `install` there and `installxmd` here. Said rather than fixed: stripping
  * markup correctly is having a parser.
+ *
+ * A WIKILINK is the exception, because it needs no parser: the scan the page
+ * draws it by is in this package ({@link ./documents.ts}'s `wikilinksShown`),
+ * so `## See [[finishes|the finishes]]` is `See the finishes` here as there.
  */
 export const headingsIn = (body: string): ReadonlyArray<string> => {
   const found: Array<string> = []
@@ -194,12 +199,12 @@ export const headingsIn = (body: string): ReadonlyArray<string> => {
     }
     const atx = headingText(line)
     if (atx !== null) {
-      found.push(atx)
+      found.push(wikilinksShown(atx))
       previous = null
       continue
     }
     if (previous !== null && SETEXT.test(line)) {
-      found.push(previous)
+      found.push(wikilinksShown(previous))
       previous = null
       continue
     }

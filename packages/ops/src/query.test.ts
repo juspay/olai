@@ -23,7 +23,6 @@ import {
   type NodeHit,
   type OpFailure,
   type OutlineSet,
-  servedIn,
   type PageRequest,
   Projected,
   NO_KINDS,
@@ -384,9 +383,8 @@ test("a node read reports the dead links its note names, against the served set"
       `{"id":"link-test","ord":"a0","title":"Links","desc":"[x](nix-flakes.md)"}`,
     ].join("\n"),
   }, ["notes/nix-flakes.md"])
-  const served = new Set(set.documents.map((one) => one.path))
   const answered = succeeded(
-    detail(derivedOf(set), "link-test", undefined, served),
+    detail(derivedOf(set), "link-test", undefined, true),
     "`outlines_read` to answer",
   )
   expect(answered?.deadLinks?.map((one) => one.resolved)).toEqual(["projects/nix-flakes.md"])
@@ -1644,7 +1642,7 @@ describe("wikilinks in what an agent reads", () => {
 
   test("`outlines_read` says who wikilinks to a row, and reports the row's own dead wikilinks", () => {
     const at = derivedOf(WIKI())
-    const answered = succeeded(detail(at, "sink", undefined, servedIn(at.set)), "`outlines_read` to answer")
+    const answered = succeeded(detail(at, "sink", undefined, true), "`outlines_read` to answer")
     expect(said(answered?.referencedBy)).toEqual(["plan.md link"])
     expect(answered?.deadLinks).toEqual([
       { written: "[[nowhere]]", resolved: "nowhere", suggest: [] },

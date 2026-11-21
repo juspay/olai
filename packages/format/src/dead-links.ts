@@ -1,11 +1,10 @@
 /** Missing relative targets are a reading of a revision, never a verdict. */
 import { Schema } from "effect"
 import { pathedOf, proseLinks, wikilinksIn } from "./documents.ts"
-import type { Claims } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { basenameOf } from "./paths.ts"
 import { nearestId } from "./suggest.ts"
-import { namesIn, wikilinkPath, wikilinkSuggestions } from "./wikilinks.ts"
+import { type Names, wikilinkPath, wikilinkSuggestions } from "./wikilinks.ts"
 
 export const DeadLink = Schema.Struct({
   written: Schema.String,
@@ -34,7 +33,8 @@ export const deadLinkTarget = (from: string, written: string): string | null => 
 
 /**
  * Scan fields independently: a title and note cannot complete each other's
- * Markdown.
+ * Markdown. `names` is the membership they are read against — a revision's
+ * own (`Reading.names`), or one a planned write builds for the files it adds.
  *
  * A WIKILINK is dead when its name finds no served file from where it was
  * written (`./wikilinks.ts`). It is reported written as `[[name]]`, its
@@ -43,11 +43,11 @@ export const deadLinkTarget = (from: string, written: string): string | null => 
  * no file and is never dead, as a standard `[x](#part)` is not.
  */
 export const deadLinksIn = (
-  claims: Claims,
+  names: Names,
   from: string,
   text: string | ReadonlyArray<string>,
-  served: ReadonlySet<string>,
 ): ReadonlyArray<DeadLink> => {
+  const { claims, served } = names
   const found: DeadLink[] = []
   const seen = new Set<string>()
   const texts = typeof text === "string" ? [text] : text
@@ -64,7 +64,6 @@ export const deadLinksIn = (
     if (link.target === "") continue
     const written = `${link.embed ? "!" : ""}[[${link.name}]]`
     if (seen.has(written)) continue
-    const names = namesIn(claims, served)
     if (wikilinkPath(names, claims, from, link.target) !== null) continue
     seen.add(written)
     found.push({ written, resolved: link.target, suggest: wikilinkSuggestions(names, claims, link.target) })
@@ -72,8 +71,8 @@ export const deadLinksIn = (
   return found
 }
 
-export const deadLinksOf = (claims: Claims, at: Located, served: ReadonlySet<string>): ReadonlyArray<DeadLink> =>
-  isMirror(at.node) ? [] : deadLinksIn(claims, at.file, [at.node.title, at.node.desc ?? ""], served)
+export const deadLinksOf = (names: Names, at: Located): ReadonlyArray<DeadLink> =>
+  isMirror(at.node) ? [] : deadLinksIn(names, at.file, [at.node.title, at.node.desc ?? ""])
 
 /** Whether a dead link was written as a wikilink rather than as a path. */
 const isWikilink = (link: DeadLink): boolean => link.written.startsWith("[[") || link.written.startsWith("![[")

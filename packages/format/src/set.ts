@@ -398,7 +398,6 @@ interface Held {
   broken?: ReadonlyMap<string, ReadonlyArray<OutlineError>>
   paths?: ReadonlyArray<string>
   names?: ReadonlySet<string>
-  served?: ReadonlySet<string>
 }
 
 const HELD = new WeakMap<OutlineSet, Held>()
@@ -489,18 +488,6 @@ export const outlinePaths = (set: OutlineSet): ReadonlyArray<string> => {
 export const outlineNames = (set: OutlineSet): ReadonlySet<string> => {
   const held = heldFor(set)
   return held.names ??= new Set(outlinePaths(set))
-}
-
-/**
- * EVERY PATH THE SET SERVES, as a membership test — what a dead link is read
- * against, and the snapshot a wikilink's name index is built from
- * (`./wikilinks.ts`'s `namesIn`, which remembers its answer against this very
- * object). Held with the set so one revision is one snapshot, however many
- * readers ask.
- */
-export const servedIn = (set: OutlineSet): ReadonlySet<string> => {
-  const held = heldFor(set)
-  return held.served ??= new Set(set.documents.map((document) => document.path))
 }
 
 /**

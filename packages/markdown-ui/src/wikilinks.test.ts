@@ -9,7 +9,7 @@
  * syntax is drawn, and the names on the page are held to the names the scan
  * read, in order.
  */
-import { fileKind, proseIn, wikilinksIn } from "@olai/format"
+import { fileKind, proseIn, slugsIn, wikilinksIn } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
@@ -17,7 +17,7 @@ import { join, relative } from "node:path"
 
 import { installPipeline } from "./chunk.ts"
 import * as pipeline from "./pipeline.ts"
-import { renderMarkdown } from "./render.ts"
+import { landingId, renderMarkdown } from "./render.ts"
 import { renderTitle } from "./title.ts"
 
 installPipeline(pipeline)
@@ -37,7 +37,8 @@ const DOCUMENTS = PATHS.filter((path) => fileKind(TEST_CLAIMS, path) === "markdo
 /** The names the page drew, in order: every element the pipeline marked. */
 const drawnNames = (html: string): ReadonlyArray<string> =>
   [...html.matchAll(/data-wikilink="([^"]*)"/g)].map((match) =>
-    (match[1] as string).replace(/&#x26;/g, "&").replace(/&#x22;/g, '"')
+    // One pass over both escapes, so `&#x26;#x22;` comes back as `&#x22;`.
+    (match[1] as string).replace(/&#x(26|22);/g, (_, code: string) => (code === "26" ? "&" : '"'))
   )
 
 const scannedNames = (text: string): ReadonlyArray<string> => wikilinksIn(text).map((link) => link.name)
@@ -52,7 +53,18 @@ for (const path of DOCUMENTS) {
     const prose = proseIn(readFileSync(join(ROOT, path), "utf8"))
     expect(drawnNames(renderMarkdown(TEST_CLAIMS, prose, path, MEMBERS))).toEqual(scannedNames(prose))
   })
+  test(`${path}: the page's heading ids are the ones the face promises`, () => {
+    const prose = proseIn(readFileSync(join(ROOT, path), "utf8"))
+    const namespace = landingId(prose, path, "")
+    const ids = [...renderMarkdown(TEST_CLAIMS, prose, path, MEMBERS).matchAll(/<h[1-6] id="([^"]*)"/g)]
+      .map((one) => (one[1] as string).slice(namespace.length))
+    expect(ids).toEqual(slugsIn(prose).map(String))
+  })
 }
+
+test("rooms/plan.md: a heading holding a wikilink is addressed by the words it shows", () => {
+  expect(slugsIn(proseIn(readFileSync(join(ROOT, "rooms/plan.md"), "utf8"))).map(String)).toContain("see-the-sink-table")
+})
 
 test("house.olai: each title and note draws the wikilinks the index reads", () => {
   const lines = readFileSync(join(ROOT, "house.olai"), "utf8").split("\n").filter((line) => line !== "")

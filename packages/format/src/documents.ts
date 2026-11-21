@@ -480,6 +480,24 @@ export const wikilinksIn = (text: string): ReadonlyArray<Wikilink> =>
 export const wikilinkSpans = (text: string): ReadonlyArray<Wikilink> =>
   text.includes("[[") ? wikilinkScan(text, text) : NO_WIKILINKS
 
+/**
+ * The text with each wikilink as the words it shows — `[[kitchen-sink#Tables|the
+ * table]]` is `the table` — which is what the page draws in its place. A
+ * heading's slug is made from these words ({@link ./slug.ts}'s `headingsIn`),
+ * and a note's preview line reads them.
+ */
+export const wikilinksShown = (text: string): string => {
+  const links = wikilinksIn(text)
+  if (links.length === 0) return text
+  let out = ""
+  let last = 0
+  for (const link of links) {
+    out += text.slice(last, link.start) + link.shown
+    last = link.end
+  }
+  return out + text.slice(last)
+}
+
 const wikilinkScan = (text: string, mask: string): ReadonlyArray<Wikilink> => {
   let found: Array<Wikilink> | undefined
   let open = -1

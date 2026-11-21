@@ -34,9 +34,19 @@ import { basenameOf, byPath } from "./paths.ts"
 import { slugOf } from "./slug.ts"
 import { nearestId } from "./suggest.ts"
 
-/** The directory's files by name, folded — built once per membership
- *  snapshot ({@link namesIn}). */
+/**
+ * The directory's files by name, folded — one membership's worth.
+ *
+ * WHO HOLDS ONE: a revision's reading carries its own ({@link ./validate.ts}'s
+ * `Reading.names`), built at the first load and handed on untouched by every
+ * revision that brings no path in and takes none away ({@link namesCarried});
+ * the browser asks {@link namesIn} of the membership snapshot the vault
+ * plugin publishes, which is replaced only when a path arrives or leaves.
+ */
 export interface Names {
+  readonly claims: Claims
+  /** Every path it was built from. */
+  readonly served: ReadonlySet<string>
   /** Folded stem of each Markdown document → its paths, in path order. */
   readonly documents: ReadonlyMap<string, ReadonlyArray<string>>
   /** Folded basename of each served file → its paths, in path order. */
@@ -44,6 +54,19 @@ export interface Names {
   /** Folded stem of each served file, of any kind → its paths. What a
    *  suggestion for an unresolved name reads. */
   readonly stems: ReadonlyMap<string, ReadonlyArray<string>>
+  /** Each served path → the key a wikilink to it is filed under
+   *  ({@link wikilinkKey}) — a fixed fact of the path and the claims, worked
+   *  out once here so a read is one lookup. A path it does not hold has no
+   *  entry, and no wikilink finds it. */
+  readonly keys: ReadonlyMap<string, string>
+  /**
+   * WHERE EACH NAME LANDS, as it is asked ({@link wikilinkAddress}) — by the
+   * writer's folder and the name, since nothing else of the writer moves the
+   * answer. Held here because the answer is a fact of this membership: it is
+   * dropped with the object when a path arrives or leaves, and every revision
+   * between hands it on, so a page asking again does lookups.
+   */
+  readonly found: Map<string, Address | null>
 }
 
 /** Capitals and the stored form of an accented letter set aside. ASCII has
@@ -52,29 +75,58 @@ const fold = (text: string): string => (ASCII.test(text) ? text : text.normalize
 
 const ASCII = /^[\x00-\x7f]*$/
 
-/** Remembered against the membership snapshot it was built from, which is
- *  replaced, never mutated, when the directory's files change. */
-const NAMES = new WeakMap<object, { readonly claims: Claims; readonly names: Names }>()
-
-/**
- * The name index of one membership snapshot — the browser's served set, or the
- * set of a revision's paths. The same snapshot and claims answer the same
- * object, so a page drawing a hundred links builds it once.
- */
-export const namesIn = (claims: Claims, served: ReadonlySet<string> | ReadonlyArray<string>): Names => {
-  const held = NAMES.get(served)
-  if (held !== undefined && held.claims === claims) return held.names
+/** The name index of these paths, built. */
+export const namesOf = (claims: Claims, paths: Iterable<string>): Names => {
+  const served = new Set(paths)
   const documents = new Map<string, Array<string>>()
   const everything = new Map<string, Array<string>>()
   const stems = new Map<string, Array<string>>()
+  const keys = new Map<string, string>()
   for (const path of [...served].sort(byPath)) {
-    filed(everything, fold(basenameOf(path)), path)
+    const whole = fold(basenameOf(path))
+    filed(everything, whole, path)
     const stem = fold(stemOf(claims, path))
     filed(stems, stem, path)
-    if (isProse(claims, path)) filed(documents, stem, path)
+    const prose = isProse(claims, path)
+    if (prose) filed(documents, stem, path)
+    keys.set(path, `[[${prose ? stem : whole}`)
   }
-  const names: Names = { documents, everything, stems }
-  NAMES.set(served, { claims, names })
+  return { claims, served, documents, everything, stems, keys, found: new Map() }
+}
+
+/**
+ * The name index of the revision after this one: the very object it was when
+ * no path arrived and none left, which is nearly every revision — a keystroke
+ * writes a file that was already there — and a fresh one otherwise. `was` and
+ * `now` are the two revisions' documents, both in path order, so telling is
+ * one step through the pair.
+ */
+export const namesCarried = (
+  before: Names,
+  claims: Claims,
+  was: ReadonlyArray<{ readonly path: string }>,
+  now: ReadonlyArray<{ readonly path: string }>,
+): Names => {
+  if (before.claims === claims && was.length === now.length && was.every((one, at) => one.path === now[at]?.path)) {
+    return before
+  }
+  return namesOf(claims, now.map((one) => one.path))
+}
+
+/** Remembered against the membership snapshot it was built from, which is
+ *  replaced, never mutated, when the directory's files change. */
+const NAMES = new WeakMap<object, Names>()
+
+/**
+ * The name index of the browser's membership snapshot — the same snapshot and
+ * claims answer the same object, so a page drawing a hundred links builds it
+ * once, and a file arriving (a new snapshot) builds it again.
+ */
+export const namesIn = (claims: Claims, served: ReadonlySet<string>): Names => {
+  const held = NAMES.get(served)
+  if (held !== undefined && held.claims === claims) return held
+  const names = namesOf(claims, served)
+  NAMES.set(served, names)
   return names
 }
 
@@ -193,41 +245,78 @@ const depthOf = (path: string): number => {
  * `Wikilink.name`). The LAST part is the one it lands on: a heading of a
  * document by its slug, the way olai names headings, or a row of an outline by
  * its id. A part opening with `^` is a block reference, which opens the file.
- * An empty target is a heading of the writing file itself.
+ * An empty target is a heading of the writing DOCUMENT itself; written
+ * anywhere else — a row of an outline, an agent's answer — it has no file to
+ * be a heading of, and names nothing.
  */
 export const wikilinkAddress = (names: Names, claims: Claims, from: string, name: string): Address | null => {
+  if (claims !== names.claims) return landing(names, claims, from, name)
+  // What a name finds depends on the writer's FOLDER and nothing else of it
+  // ({@link wikilinkPath}), except a link to the writer's own heading, which
+  // is about the writer itself.
+  const key = `${name.startsWith("#") || name === "" ? from : folderOf(from)}\0${name}`
+  const held = names.found.get(key)
+  if (held !== undefined) return held
+  const found = landing(names, claims, from, name)
+  names.found.set(key, found)
+  return found
+}
+
+const landing = (names: Names, claims: Claims, from: string, name: string): Address | null => {
   const parts = name.split("#")
   const target = parts[0] as string
   const path = target === ""
-    ? (from === "" || fileKind(claims, from) === null ? null : from)
+    ? (holdsBodyAt(claims, from) ? from : null)
     : wikilinkPath(names, claims, from, target)
   if (path === null) return null
   const last = parts.length > 1 ? (parts[parts.length - 1] as string) : ""
   if (last === "" || last.startsWith("^")) return addressOf(claims, path, null)
-  const kind = fileKind(claims, path)
-  return addressOf(claims, path, kind !== null && holdsBody(claims, kind) ? slugOf(last) : last)
+  return addressOf(claims, path, holdsBodyAt(claims, path) ? slugOf(last) : last)
+}
+
+/** Whether a path is a file whose content is a body — one with headings. */
+const holdsBodyAt = (claims: Claims, path: string): boolean => {
+  const kind = path === "" ? null : fileKind(claims, path)
+  return kind !== null && holdsBody(claims, kind)
 }
 
 /**
  * The key a wikilink is FILED under in the references index: its target's last
- * segment, folded, behind a `[[` no printed address can start with. `null` for
- * a link to the writing file's own heading, which refers to nothing else.
+ * segment, folded, behind a `[[` no printed address can start with — and a
+ * document's name without its suffix, so `[[finishes]]` and `[[finishes.md]]`
+ * share one key, which is the one {@link Names.keys} holds for `finishes.md`.
+ * `null` for a link to the writing file's own heading, which refers to
+ * nothing else.
  *
  * Filed by what is WRITTEN, the way an `@mention` is filed by its word, so
  * that a file arriving or leaving never makes anyone re-read another file:
- * the reading resolves each link it finds under {@link wikilinkKeys}.
+ * the reading resolves each link it finds under the key the name index holds
+ * for the file it asks about.
  */
-export const wikilinkKey = (name: string): string | null => {
+export const wikilinkKey = (claims: Claims, name: string): string | null => {
   const cut = name.indexOf("#")
   const base = basenameOf(cut === -1 ? name : name.slice(0, cut))
-  return base === "" ? null : `[[${fold(base)}`
+  if (base === "") return null
+  return `[[${fold(isProse(claims, base) ? stemOf(claims, base) : base)}`
 }
 
-/** The keys a link to `path` may be filed under: its whole name, and, for a
- *  Markdown document, its name without the suffix. */
-export const wikilinkKeys = (claims: Claims, path: string): ReadonlyArray<string> => {
-  const whole = `[[${fold(basenameOf(path))}`
-  return isProse(claims, path) ? [whole, `[[${fold(stemOf(claims, path))}`] : [whole]
+/**
+ * The NODE a wikilink to a ROW is filed under as well —
+ * `[[house.olai#kitchen]]` under `#kitchen` — so the node arm of the reading
+ * finds it under the key it already reads. A row is named by an outline's
+ * suffix and a last `#` part, which is all this reads; which file the name
+ * finds, and whether that file draws the row, is still the reading's
+ * question. `null` for every other wikilink.
+ */
+export const wikilinkRowNode = (claims: Claims, name: string): Address | null => {
+  const parts = name.split("#")
+  const target = parts[0] as string
+  const last = parts.length > 1 ? (parts[parts.length - 1] as string) : ""
+  if (target === "" || last === "" || last.startsWith("^")) return null
+  const kind = fileKind(claims, target)
+  if (kind === null || claims.byKind.get(kind)?.holds !== "nodes") return null
+  const node = addressOf(claims, null, last)
+  return node?.kind === "node" ? node : null
 }
 
 /**

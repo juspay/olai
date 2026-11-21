@@ -3,10 +3,11 @@ import { expect, test } from "bun:test"
 import { deadLinksIn as deadLinksWith, deadLinksOf as deadLinksOfWith, deadLinkSaid, relativeFrom } from "./dead-links.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
+import { namesOf } from "./wikilinks.ts"
 
 const deadLinksIn = (from: string, text: string | ReadonlyArray<string>, served: ReadonlySet<string>) =>
-  deadLinksWith(TEST_CLAIMS, from, text, served)
-const deadLinksOf = (at: Located, served: ReadonlySet<string>) => deadLinksOfWith(TEST_CLAIMS, at, served)
+  deadLinksWith(namesOf(TEST_CLAIMS, served), from, text)
+const deadLinksOf = (at: Located, served: ReadonlySet<string>) => deadLinksOfWith(namesOf(TEST_CLAIMS, served), at)
 
 const served = new Set(["notes/nix-flakes.md", "other/nix-flakes.md", "the brief.md"])
 test("missing links name their resolved path and all basename matches beside the writer", () => {

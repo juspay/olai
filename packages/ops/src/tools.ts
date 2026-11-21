@@ -78,7 +78,6 @@ import {
   SearchRequest,
   SubtreeAnswer,
   SubtreeRequest,
-  servedIn,
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
@@ -265,7 +264,7 @@ export const asking = (
   node: (request) =>
     Effect.map(
       Effect.flatMap(read, (at) =>
-        Effect.fromResult(Query.detail(at, request.id, request.fields, servedIn(at.set)))),
+        Effect.fromResult(Query.detail(at, request.id, request.fields, true))),
       (found) => found ?? { missing: request.id },
     ),
   // ONE OF THE TWO READS THAT CAN REFUSE FROM THE WALK ITSELF — see the note

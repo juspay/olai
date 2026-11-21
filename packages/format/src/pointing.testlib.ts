@@ -90,13 +90,19 @@ export const scannedReferrers = (
   if (address.kind === "node") {
     // THE MIRRORS RULE: a reference to a placement of this node is a
     // reference to this node.
-    const asked = new Set([address.id, ...mirrorsOf(address.id, faces, derived)])
+    const mirrors = mirrorsOf(address.id, faces, derived)
+    const asked = new Set([address.id, ...mirrors])
     const holders = holdersOf(faces, derived)
-    /** Whether a link names one of the asked ids: bare, or as the row at the
-     *  file that holds it. */
+    /** The files that draw a row for an asked id: the one holding it, and —
+     *  for the node itself — each one holding a placement of it, since a page
+     *  lands on the first row that shows the id, mirror or not. */
+    const drawers = (id: string): ReadonlyArray<string | undefined> =>
+      id === address.id ? [holders.get(id), ...mirrors.map((one) => holders.get(one))] : [holders.get(id)]
+    /** Whether a link names one of the asked ids: bare, or as a row in a file
+     *  that draws it. */
     const naming = (link: Address): boolean =>
       (link.kind === "node" && asked.has(link.id)) ||
-      (link.kind === "row" && asked.has(link.id) && holders.get(link.id) === link.path)
+      (link.kind === "row" && asked.has(link.id) && drawers(link.id).includes(link.path))
     for (const face of faces) {
       if (isPutAway(TEST_CLAIMS, face.path)) continue
       const records = derived.byFile.get(face.path)
@@ -374,17 +380,23 @@ const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>
   from[Math.floor(random() * from.length)] as T
 
 /** A link, written the way prose writes one, from the file that holds it — a
- *  markdown link mostly, and a WIKILINK a third of the time, by the name of
- *  the same target, since a vault written in Obsidian names its files that
- *  way and the index files those under the name rather than the path. */
+ *  markdown link, or a WIKILINK by the name of the same target `share` of the
+ *  time, since a vault written in Obsidian names its files that way and the
+ *  index files those under the name rather than the path. A share of `0` asks
+ *  nothing of `random` for it, so a corpus with no wikilinks is the very
+ *  corpus the generator wrote before it could write one. */
 const linked = (
   random: () => number,
   from: string,
   targets: ReadonlyArray<string>,
+  share: number,
 ): string => {
   const target = pick(random, targets)
-  return random() < 0.35 ? wikilinked(target) : `[see](${spelled(from, target)})`
+  return share > 0 && random() < share ? wikilinked(target) : `[see](${spelled(from, target)})`
 }
+
+/** How often a generated link is a wikilink, unless a caller says. */
+export const WIKILINK_SHARE = 0.35
 
 /** The wikilink that names a target by name: a document without its suffix,
  *  a heading after a `#`, and a node as the row of the outline every corpus
@@ -403,6 +415,7 @@ const outlineWritten = (
   file: string,
   ids: ReadonlyArray<string>,
   targets: ReadonlyArray<string>,
+  share: number,
 ): string =>
   ids
     .map((id, at) => {
@@ -415,13 +428,13 @@ const outlineWritten = (
       const record: Record<string, unknown> = {
         id,
         ord: `a${at}`,
-        title: random() < 0.3 ? `row ${id} ${linked(random, file, targets)}` : `row ${id}`,
+        title: random() < 0.3 ? `row ${id} ${linked(random, file, targets, share)}` : `row ${id}`,
       }
       if (random() < 0.25) {
         record["title"] = String(record["title"]) + " [document](" + (spelled(file, pick(random, targets).split("#")[0] as string)) + ")"
       }
       if (random() < 0.2) record["see"] = [pick(random, ids)]
-      if (random() < 0.25) record["desc"] = `a note ${linked(random, file, targets)}`
+      if (random() < 0.25) record["desc"] = `a note ${linked(random, file, targets, share)}`
       return JSON.stringify(record)
     })
     .join("\n")
@@ -434,6 +447,7 @@ const bodyOf = (
   file: string,
   headings: ReadonlyArray<string>,
   targets: ReadonlyArray<string>,
+  share: number,
 ): string =>
   [
     `# ${file}`,
@@ -441,10 +455,10 @@ const bodyOf = (
     ...headings.flatMap((heading) => [
       `## ${heading}`,
       "",
-      `prose ${linked(random, file, targets)}`,
+      `prose ${linked(random, file, targets, share)}`,
       "",
     ]),
-    `and ${linked(random, file, targets)} at the end`,
+    `and ${linked(random, file, targets, share)} at the end`,
     "",
   ].join("\n")
 
@@ -460,14 +474,16 @@ const idsFor = (which: number, many: number): ReadonlyArray<string> =>
  *
  * SEEDED, so the corpus is a fixture rather than a lottery, and the seed is a
  * parameter so a caller that wants a second, different vault of the same shape
- * can have one.
+ * can have one. `wikilinks` is the share of links written as wikilinks; at `0`
+ * the corpus is byte for byte the one written before wikilinks existed.
  */
 export const linkyVault = (
-  { outlines = 4, bodies = 4, records = 6, seed = 20260825 }: {
+  { outlines = 4, bodies = 4, records = 6, seed = 20260825, wikilinks = WIKILINK_SHARE }: {
     readonly outlines?: number
     readonly bodies?: number
     readonly records?: number
     readonly seed?: number
+    readonly wikilinks?: number
   } = {},
 ): Revision => {
   const random = seeded(seed)
@@ -480,9 +496,9 @@ export const linkyVault = (
   const vault = new Map<string, string>()
   for (let at = 0; at < outlines; at++) {
     const file = at === 0 ? WING : at === 1 ? TRASH : pathOf(at)
-    vault.set(file, outlineWritten(random, file, idsFor(at, records), targets))
+    vault.set(file, outlineWritten(random, file, idsFor(at, records), targets, wikilinks))
   }
-  for (const file of bodyPaths) vault.set(file, bodyOf(random, file, HEADINGS, targets))
+  for (const file of bodyPaths) vault.set(file, bodyOf(random, file, HEADINGS, targets, wikilinks))
   // A file the set holds the path of and not the bytes.
   vault.set(SHOWN, "")
   return vault
@@ -517,7 +533,9 @@ export const linkyVault = (
  *   - a NAMESAKE arriving in a folder — a file by a name another file already
  *     has, with nothing in it, which is a revision where only the MEMBERSHIP
  *     moves: every wikilink by that name is read again by the reading, and the
- *     index must not move at all.
+ *     index must not move at all. Only in a stream that writes wikilinks: with
+ *     `wikilinks` at `0` the arms are the ones the stream had before them, so
+ *     the two corpora a bench compares are one corpus.
  *
  * A REVISION IS THE WHOLE DIRECTORY, and a file the edit did not name is handed
  * on with the very bytes the last one held — which is what lets the caller's
@@ -528,6 +546,7 @@ export const linkyRevisions = (
   first: Revision,
   random: () => number,
   many: number,
+  wikilinks = WIKILINK_SHARE,
 ): ReadonlyArray<Revision> => {
   let held = new Map(first)
   const stream: Array<Revision> = [held]
@@ -538,9 +557,13 @@ export const linkyRevisions = (
   for (let at = 0; at < many; at++) {
     const next = new Map(held)
     const roll = random()
-    if (roll < 0.5) editedRecord(random, next, at, targets)
-    else if (roll < 0.72) editedBody(random, next, at, targets)
-    else if (roll < 0.8) renamed(random, next, away)
+    if (roll < 0.5) editedRecord(random, next, at, targets, wikilinks)
+    else if (roll < 0.72) editedBody(random, next, at, targets, wikilinks)
+    else if (wikilinks === 0) {
+      if (roll < 0.84) renamed(random, next, away)
+      else if (roll < 0.92) removed(random, next, away)
+      else restored(random, next, away)
+    } else if (roll < 0.8) renamed(random, next, away)
     else if (roll < 0.86) namesake(random, next)
     else if (roll < 0.93) removed(random, next, away)
     else restored(random, next, away)
@@ -566,6 +589,7 @@ const editedRecord = (
   vault: Map<string, string>,
   at: number,
   targets: ReadonlyArray<string>,
+  share: number,
 ): void => {
   const files = outlinesAmong(vault.keys()).filter((file) => (vault.get(file) ?? "") !== "")
   if (files.length === 0) return
@@ -579,9 +603,9 @@ const editedRecord = (
   if ("mirror" in record) return
   const roll = random()
   if (roll < 0.3) record["title"] = `row ${at} plainly retitled`
-  else if (roll < 0.42) record["title"] = `row ${at} ${linked(random, file, targets)}`
+  else if (roll < 0.42) record["title"] = `row ${at} ${linked(random, file, targets, share)}`
   else if (roll < 0.55) {
-    if (random() < 0.8) record["desc"] = `a note ${linked(random, file, targets)}`
+    if (random() < 0.8) record["desc"] = `a note ${linked(random, file, targets, share)}`
     else delete record["desc"]
   } else if (roll < 0.82) {
     if (random() < 0.75) {
@@ -604,6 +628,7 @@ const editedBody = (
   vault: Map<string, string>,
   at: number,
   targets: ReadonlyArray<string>,
+  share: number,
 ): void => {
   const files = documentsAmong(vault.keys())
   if (files.length === 0) return
@@ -614,7 +639,7 @@ const editedBody = (
     ? [...HEADINGS, `extra${at % 3}`]
     : HEADINGS
   const file = pick(random, files)
-  vault.set(file, bodyOf(random, file, headings, targets))
+  vault.set(file, bodyOf(random, file, headings, targets, share))
 }
 
 /** A file RENAMED: taken from one path and written at another, byte for byte.

@@ -37,6 +37,7 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { DocumentPageRequest, FiledPageReading, FiledPageRequest, PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
 import { pointingOf } from "./pointing.ts"
+import { namesOf } from "./wikilinks.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
 import { zoom } from "./zoom.ts"
@@ -101,6 +102,7 @@ const readingAt = (
   set: { documents: faces, broken } as unknown as OutlineSet,
   derived,
   pointing: pointingOf(TEST_CLAIMS, faces as unknown as ReadonlyArray<Document>),
+  names: namesOf(TEST_CLAIMS, faces.map((face) => face.path)),
 })
 
 const readAt = (

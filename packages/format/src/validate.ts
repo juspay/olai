@@ -92,6 +92,7 @@ import { type Decline, incrementally, type Ledger } from "./incremental.ts"
 import type { Located } from "./node.ts"
 import { type FileNodes, patch, patched, type SetDelta } from "./patch.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
+import { type Names, namesCarried, namesOf } from "./wikilinks.ts"
 import {
   danglingIn,
   markdownPaths,
@@ -154,6 +155,15 @@ export interface Reading {
    * another's set is a plausible answer about the wrong directory.
    */
   readonly pointing: Pointing
+  /**
+   * THE DIRECTORY'S FILES BY NAME — what a wikilink is resolved against
+   * ({@link ./wikilinks.ts}). A fourth member for the third's reason: it is
+   * one revision's membership, and an index of one revision's paths held
+   * against another's set is a plausible answer about the wrong directory.
+   * Built at the first load and handed on, the same object, by every
+   * revision that brings no path in and takes none away.
+   */
+  readonly names: Names
 }
 
 /**
@@ -240,7 +250,7 @@ export const validate = (
   // again and reaches the same verdict.
   const report = reportOf(set, [...ledger.errors, ...reportConventions(claims, set)])
   const answer: Reading = report.length === 0
-    ? { claims, set, derived, pointing: view.pointing }
+    ? { claims, set, derived, pointing: view.pointing, names: view.names }
     : degraded(set, view, blamed(report))
 
   // WHAT THIS VALIDATION LEAVES FOR THE NEXT ONE, filed under the view it
@@ -284,7 +294,7 @@ const degraded = (
   // Nothing moved — a directory whose only trouble is a file that would not
   // parse, which `assemble` had already withheld. The judged view is a view of
   // this set, so there is nothing to patch and nothing to re-point.
-  if (withdrawn === set) return { claims: view.derived.claims, set, derived: view.derived, pointing: view.pointing }
+  if (withdrawn === set) return { claims: view.derived.claims, set, derived: view.derived, pointing: view.pointing, names: view.names }
   return {
     claims: view.derived.claims,
     set: withdrawn,
@@ -293,6 +303,7 @@ const degraded = (
       removes: broken.map((entry) => entry.file),
     }),
     pointing: repointed(view.pointing, view.derived.claims, set.documents, withdrawn.documents),
+    names: namesCarried(view.names, view.derived.claims, set.documents, withdrawn.documents),
   }
 }
 
@@ -504,7 +515,7 @@ const reached = (one: Reached): void => {
  */
 export const reading = (claims: Claims, set: OutlineSet, previous?: Previous): Reading => {
   const view = viewOf(claims, set, previous)
-  return { claims: view.derived.claims, set, derived: view.derived, pointing: view.pointing }
+  return { claims: view.derived.claims, set, derived: view.derived, pointing: view.pointing, names: view.names }
 }
 
 /**
@@ -573,6 +584,7 @@ export const following = (
     // patcher that declined has said nothing at all about what any file points
     // at ({@link viewOf} makes the same call for the same reason).
     pointing: repointed(read.pointing, read.claims, read.set.documents, set.documents),
+    names: namesCarried(read.names, read.claims, read.set.documents, set.documents),
   }
 }
 
@@ -727,13 +739,18 @@ const viewOf = (claims: Claims, set: OutlineSet, previous: Previous | undefined)
   const pointing = previous === undefined
     ? pointingOf(claims, set.documents)
     : repointed(previous.read.pointing, claims, previous.read.set.documents, set.documents)
+  // THE NAME INDEX by the same step: the previous reading's own object
+  // whenever no path arrived and none left ({@link ./wikilinks.ts}).
+  const names = previous === undefined
+    ? namesOf(claims, set.documents.map((document) => document.path))
+    : namesCarried(previous.read.names, claims, previous.read.set.documents, set.documents)
   if (previous !== undefined) {
     const view = patched(previous.read.derived, previous.delta)
     if (view !== undefined && isSet(view, set)) {
-      return { derived: view, pointing, patched: true }
+      return { derived: view, pointing, names, patched: true }
     }
   }
-  return { derived: derive(claims, recordsIn(set)), pointing, patched: false }
+  return { derived: derive(claims, recordsIn(set)), pointing, names, patched: false }
 }
 
 /** A view, and whether it was PATCHED from the reading this validation follows
@@ -741,6 +758,7 @@ const viewOf = (claims: Claims, set: OutlineSet, previous: Previous | undefined)
 interface Taken {
   readonly derived: Derived
   readonly pointing: Pointing
+  readonly names: Names
   readonly patched: boolean
 }
 

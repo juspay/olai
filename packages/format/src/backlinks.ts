@@ -88,10 +88,9 @@ import { byCorpus, tagText, type Derived } from "./derive.ts"
 import { Face, type FaceHead } from "./document.ts"
 import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { type Pointing, pointingAt, type Source } from "./pointing.ts"
-import { servedIn } from "./set.ts"
+import { conditional, type Pointing, pointingAt, type Source } from "./pointing.ts"
 import type { Reading } from "./validate.ts"
-import { type Names, namesIn, wikilinkAddress, wikilinkKeys } from "./wikilinks.ts"
+import { wikilinkAddress } from "./wikilinks.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `outlines_see`, or a
@@ -165,10 +164,12 @@ const NOTHING_REFERS: ReadonlyArray<Reference> = []
  * {@link Reference}s — the node page's backlinks, the document page's
  * referrers, and `outlines_read`'s `referencedBy` alike.
  *
- * A LOOKUP rather than a walk: two index reads for a document address, and a
- * handful per node (one per id the node answers to, times the two keyspaces —
- * the node's own and the `@` prose half). Nothing here scans the corpus, which
- * is what lets a page ask it on every frame the store publishes.
+ * A LOOKUP rather than a walk: for a document address, its own key and the
+ * one its wikilinks are filed under (two reads, and a third into the name
+ * index for which); a handful per node (one per id the node answers to, times
+ * the two keyspaces — the node's own and the `@` prose half). Nothing here
+ * scans the corpus, which is what lets a page ask it on every frame the store
+ * publishes.
  *
  * THE NODE ARM reads the pointing index under `#<id>` and `@<id>` for the node
  * and every placement standing for it — the sees, the links and the mentions
@@ -192,7 +193,7 @@ const NOTHING_REFERS: ReadonlyArray<Reference> = []
  * why the two answers cannot drift.
  */
 export const referencesOf = (
-  at: Pick<Reading, "claims" | "derived" | "pointing" | "set">,
+  at: Pick<Reading, "claims" | "derived" | "pointing" | "names">,
   address: Address,
 ): ReadonlyArray<Reference> => {
   if (address.kind === "node") return nodeRefs(at, address.id)
@@ -210,12 +211,14 @@ export const referencesOf = (
  * ways when its two keys are merged here.
  *
  * A LINK TO THE ROW is a reference to the node in it, whether it is written
- * `[x](house.olai#kitchen)` or `[[house.olai#kitchen]]`: the row address names
- * the node at the file that holds it, so it is asked under that file's row key
- * and, for a wikilink, resolved to see that it lands on that very row.
+ * `[x](house.olai#kitchen)` or `[[house.olai#kitchen]]`, and whichever file
+ * that draws the row it names — the one holding the node, or one holding a
+ * placement of it: the fold files both spellings under the node's own key,
+ * apart from what counts by being there, and the read keeps a link whose file
+ * draws the row and, for a wikilink, whose name finds that file.
  */
 const nodeRefs = (
-  at: Pick<Reading, "claims" | "derived" | "pointing" | "set">,
+  at: Pick<Reading, "claims" | "derived" | "pointing" | "names">,
   id: string,
 ): ReadonlyArray<Reference> => {
   const { derived, pointing } = at
@@ -246,18 +249,27 @@ const nodeRefs = (
     if (merged.length !== held.ways.length) found.set(key, { source: held.source, ways: merged })
   }
   // THIS NODE, AND EVERY PLACEMENT STANDING FOR IT — the ids a forward reader
-  // resolves through, read backwards. The fold files under `#<id>` the sees
-  // and links, and under `@<id>` the mentions.
+  // resolves through, read backwards. The fold files under `#<id>` the sees,
+  // the links and every link onto a ROW of the node, and under `@<id>` the
+  // mentions — so a corpus with no row links reads what it always read.
   for (const named of [id, ...(derived.mirrorsOf.get(id) ?? [])]) {
     const node = addressOf(at.claims, null, named)
     if (node === null) continue
-    for (const source of pointingAt(pointing, node)) file(source)
+    let drawers: ReadonlyArray<string> | undefined
+    for (const source of pointingAt(pointing, node)) {
+      if (!conditional(source)) {
+        file(source)
+        continue
+      }
+      // A LINK ONTO A ROW names the node when the file it says draws the
+      // row: the file that holds the id, or one holding a placement of it —
+      // the row a page lands on is the first that shows the id, mirror or
+      // not. A link whose file half is stale lands nowhere, and is not
+      // counted; a wikilink counts when its name finds such a file.
+      drawers ??= drawersOf(derived, named)
+      if (lands(at, source, named, drawers)) file(source)
+    }
     for (const source of pointing.get(tagText({ sigil: "@", tag: named })) ?? []) file(source)
-    const holder = derived.byId.get(named)?.file
-    const row = holder === undefined ? null : addressOf(at.claims, holder, named)
-    if (row === null || row.kind !== "row") continue
-    for (const source of pointingAt(pointing, row)) file(source)
-    for (const source of wikiSourcesAt(at, row)) file(source)
   }
   return [...found.values()]
     // Sorted rather than merged: the index promises path order per key, and
@@ -266,12 +278,40 @@ const nodeRefs = (
     .sort(byReference)
 }
 
+/** Whether a row link filed under a node's key lands on a row of it — see
+ *  {@link nodeRefs}. */
+const lands = (
+  at: Pick<Reading, "claims" | "names">,
+  source: Source,
+  named: string,
+  drawers: ReadonlyArray<string>,
+): boolean => {
+  if (source.rows?.some((path) => drawers.includes(path)) === true) return true
+  for (const name of source.written ?? []) {
+    const found = wikilinkAddress(at.names, at.claims, source.face.path, name)
+    if (found?.kind === "row" && found.id === named && drawers.includes(found.path)) return true
+  }
+  return false
+}
+
+/** The files that draw a row for this id: the one holding it, and each one
+ *  holding a placement that shows it. */
+const drawersOf = (derived: Derived, named: string): ReadonlyArray<string> => {
+  const own = derived.byId.get(named)?.file
+  const drawers = own === undefined ? [] : [own]
+  for (const mirror of derived.mirrorsOf.get(named) ?? []) {
+    const file = derived.byId.get(mirror)?.file
+    if (file !== undefined && !drawers.includes(file)) drawers.push(file)
+  }
+  return drawers
+}
+
 /**
  * The document, heading and row arms: everything under the address's own key,
  * and every wikilink that finds it, with the face-level rulings.
  */
 const documentRefs = (
-  at: Pick<Reading, "claims" | "derived" | "pointing" | "set">,
+  at: Pick<Reading, "claims" | "derived" | "pointing" | "names">,
   address: Exclude<Address, { readonly kind: "node" }>,
 ): ReadonlyArray<Reference> => {
   const sources = pointingAt(at.pointing, address)
@@ -312,32 +352,33 @@ const ruled = (
 }
 
 /**
- * Every source that WIKILINKS to an address — read under the names a link to
- * its file could be filed by ({@link wikilinkKeys}), and kept when one of the
+ * Every source that WIKILINKS to an address — read under the key the name
+ * index holds for its file ({@link Names.keys}), and kept when one of the
  * names it writes there finds this very place from where it was written.
  *
- * RESOLVED HERE, at the read, against the set's own membership: that is what
- * lets a file arriving heal a link and a nearer namesake re-aim one, with no
- * file re-read. A document is found by a link to it or to any heading or row
- * of it; a heading or a row only by a link that lands on it.
+ * RESOLVED HERE, at the read, against the reading's own name index: that is
+ * what lets a file arriving heal a link and a nearer namesake re-aim one,
+ * with no file re-read. A document is found by a link to it or to any heading
+ * or row of it; a heading or a row only by a link that lands on it. A path the
+ * directory does not serve has no keys, and no wikilink finds it.
  */
 const wikiSourcesAt = (
-  at: Pick<Reading, "claims" | "pointing" | "set">,
+  at: Pick<Reading, "claims" | "pointing" | "names">,
   address: Exclude<Address, { readonly kind: "node" }>,
 ): ReadonlyArray<Source> => {
+  const key = at.names.keys.get(address.path)
+  if (key === undefined) return NO_SOURCES
+  const filed = at.pointing.get(key)
+  if (filed === undefined) return NO_SOURCES
   let found: Array<Source> | undefined
-  let names: Names | undefined
   let wanted: string | undefined
-  for (const key of wikilinkKeys(at.claims, address.path)) {
-    for (const source of at.pointing.get(key) ?? []) {
-      for (const name of source.wikilinks ?? []) {
-        names ??= namesIn(at.claims, servedIn(at.set))
-        const lands = wikilinkAddress(names, at.claims, source.face.path, name)
-        if (lands === null || lands.kind === "node" || lands.path !== address.path) continue
-        if (address.kind !== "document" && printAddress(lands) !== (wanted ??= printAddress(address))) continue
-        ;(found ??= []).push(source)
-        break
-      }
+  for (const source of filed) {
+    for (const name of source.written ?? []) {
+      const target = wikilinkAddress(at.names, at.claims, source.face.path, name)
+      if (target === null || target.kind === "node" || target.path !== address.path) continue
+      if (address.kind !== "document" && printAddress(target) !== (wanted ??= printAddress(address))) continue
+      ;(found ??= []).push(source)
+      break
     }
   }
   return found ?? NO_SOURCES

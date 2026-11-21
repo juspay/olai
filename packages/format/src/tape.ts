@@ -86,12 +86,13 @@ const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
  * merely a wasted rebuild). `Exclude<keyof Reading, …>` is what makes the next
  * one a typecheck failure here rather than a page that stops redrawing.
  *
- * The two fields taken out are the ones that are not by-key tables at all: the
- * SET, whose two arrays are compared whole ({@link carriedSet}), and the
- * DERIVATION, which is {@link INDEXES} and {@link LISTS} above.
+ * The fields taken out are the ones that are not by-key tables at all: the
+ * SET, whose two arrays are compared whole ({@link carriedSet}), the
+ * DERIVATION, which is {@link INDEXES} and {@link LISTS} above, and the NAME
+ * INDEX, which is one value held against its identity ({@link Tape.names}).
  */
 const BESIDE: {
-  readonly [K in Exclude<keyof Reading, "set" | "derived" | "claims">]: (
+  readonly [K in Exclude<keyof Reading, "set" | "derived" | "claims" | "names">]: (
     at: Reading,
   ) => ReadonlyMap<string, unknown>
 } = {
@@ -157,6 +158,10 @@ export interface Tape {
   /** Whether it read the served files, and whether it read the broken ones. */
   documents: boolean
   broken: boolean
+  /** Whether it read the NAME INDEX ({@link Reading.names}) — held whole,
+   *  against its identity: a reading hands the same object on for exactly as
+   *  long as no path arrives or leaves, which is the only thing it says. */
+  names: boolean
 }
 
 /**
@@ -268,6 +273,7 @@ export const taping = (
     lists: new Set(),
     documents: false,
     broken: false,
+    names: false,
   }
   const view: Record<string, unknown> = {}
   // ONE WRAPPER PER INDEX THE ANSWER ACTUALLY NAMES, minted on the way past and
@@ -324,6 +330,13 @@ export const taping = (
   // The entire Claims snapshot is an identity dependency of every taped reading.
   Object.defineProperty(view, "claims", { enumerable: true, get: () => at.claims })
   const reading = { claims: at.claims, set, derived: view as unknown as Derived } as Record<string, unknown>
+  Object.defineProperty(reading, "names", {
+    enumerable: true,
+    get: () => {
+      tape.names = true
+      return at.names
+    },
+  })
   for (const which of Object.keys(BESIDE) as ReadonlyArray<keyof typeof BESIDE>) {
     let held: Taped<unknown> | undefined
     Object.defineProperty(reading, which, {
@@ -357,6 +370,7 @@ export const stillHolds = (tape: Tape, was: Reading, now: Reading): boolean => {
   }
   if (tape.documents && !carriedSet(was.set, now.set).documents) return false
   if (tape.broken && !carriedSet(was.set, now.set).broken) return false
+  if (tape.names && was.names !== now.names) return false
   for (const which of tape.walked) {
     if (!carriedIndex(was, now, which)) return false
   }

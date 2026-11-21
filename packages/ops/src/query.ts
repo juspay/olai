@@ -38,7 +38,6 @@ import {
   ancestorTitles,
   addressOf,
   referencesOf,
-  servedIn,
   blockersOf,
   bodiedIn,
   brokenBy,
@@ -719,7 +718,7 @@ export const detail = (
   at: Reading,
   id: string,
   fields?: ReadonlyArray<string> | undefined,
-  served?: ReadonlySet<string>,
+  deadLinks = false,
 ): Result.Result<Detail | null, OpFailure> => {
   const derived = at.derived
   let wants: Wants | undefined
@@ -757,9 +756,8 @@ export const detail = (
     // MISSING TARGETS, READ OFF THE SAME PROSE — a write that names nothing
     // served is a finding a reader reports, and `outlines_read` answers it
     // exactly where `outlines_desc` and the subtree rows do (dead-links
-    // feature). The set is asked HERE rather than carried: `served` is the
-    // caller's copy of the directory, which is the reading's own.
-    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(at.claims, located, served))),
+    // feature), against the reading's own membership (`Reading.names`).
+    ...(deadLinks ? deadLinkFields(deadLinksOf(at.names, located)) : {}),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
@@ -1088,13 +1086,12 @@ export const subtree = (
     }
   }
 
-  const served = servedIn(at.set)
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
-      ...deadLinkFields(deadLinksOf(at.claims, located, served)),
+      ...deadLinkFields(deadLinksOf(at.names, located)),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
@@ -1119,7 +1116,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
-      ...deadLinkFields(deadLinksOf(at.claims, located, served)),
+      ...deadLinkFields(deadLinksOf(at.names, located)),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
@@ -1343,7 +1340,7 @@ export const document = (
   return Result.succeed({
     file,
     text: entry.body,
-    ...deadLinkFields(deadLinksIn(claims, file, proseIn(entry.body), servedIn(set))),
+    ...deadLinkFields(deadLinksIn(at.names, file, proseIn(entry.body))),
     ...(referencedBy.length === 0 ? {} : { referencedBy }),
   })
 }
