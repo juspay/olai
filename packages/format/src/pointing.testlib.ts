@@ -40,7 +40,7 @@ import { tagsIn, type Derived } from "./derive.ts"
 import { type Document, type Face, faceOf, type FaceHead } from "./document.ts"
 import { linksIn, recordLinks, recordWikilinks } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"
-import { fileKind } from "./kinds.ts"
+import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, isPutAway, isRegular, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
 import { namesIn, wikilinkAddress } from "./wikilinks.ts"
@@ -392,8 +392,7 @@ const linked = (
 const wikilinked = (target: string): string => {
   if (target.startsWith("#")) return `[[${WING}#${target.slice(1)}x0]]`
   const [path, heading] = target.split("#") as [string, string | undefined]
-  const base = path.slice(path.lastIndexOf("/") + 1)
-  const name = base.endsWith(".md") ? base.slice(0, -3) : base
+  const name = fileKind(TEST_CLAIMS, path) === "markdown" ? stemOf(TEST_CLAIMS, path) : path.slice(path.lastIndexOf("/") + 1)
   return `[[${name}${heading === undefined ? "" : `#${heading}`}]]`
 }
 
