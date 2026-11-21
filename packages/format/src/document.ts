@@ -62,7 +62,7 @@
  * land; its tags are the `#topic` and `@person` in its prose, read by the same
  * walk that reads a note's; its elements are the slugs of its headings. Those
  * were four helpers scattered across two packages, called by whoever
- * remembered them ({@link ./documents.ts}'s `firstLine` and the whole of the
+ * remembered them ({@link ./references/written.ts}'s `firstLine` and the whole of the
  * browser's link rewriting were both, and the browser had a `preview.ts` of
  * its own). They are FIELDS now, which is the whole difference: a consumer
  * cannot forget to call a field.
@@ -100,7 +100,7 @@ import { Address, addressOf, DocumentPath, printAddress } from "./address.ts"
 import { Custom } from "./custom.ts"
 import { writtenTags } from "./derive.ts"
 import { frontmatterIn } from "./frontmatter.ts"
-import { readAddresses, recordLinks, wikilinkNames } from "./documents.ts"
+import { readAddresses, recordLinks, wikilinkNames } from "./references/written.ts"
 import { carryRecordReads, keepBodyRead, recordRead } from "./kept.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
@@ -139,7 +139,7 @@ export const Face = Schema.Struct({
   /** Every address its content points at, in the order it writes them and never
    *  twice — a `see`, a link in a note, a link in a body.
    *  This is the forward half of the graph; a page that shows who points AT
-   *  something reads it backwards (`./backlinks.ts`). */
+   *  something reads it backwards (`./references/referring.ts`). */
   links: Schema.Array(Address),
   /** The tags its prose writes, as written — both sigils, `#topic` and
    *  `@person`, which are two namespaces over one alphabet (`./derive.ts`). */
@@ -185,7 +185,7 @@ export type Face = typeof Face.Type
 /**
  * A document source's HEAD — its path and its title — the only two facts
  * about a referring document that the reference reading's consumers read
- * (`./backlinks.ts`'s `Reference`). The full {@link Face} travels on the
+ * (`./references/referring.ts`'s `Reference`). The full {@link Face} travels on the
  * pointing index, which is a read-side structure; the WIRE carries this
  * projection so that a `Reference` cannot grow a consumer that reaches for a
  * body-only half of a face (`links`, `tags`, `props`) it was never sent.
@@ -218,7 +218,7 @@ export interface FaceHead {
  * ONE FACE PER DOCUMENT, by identity, and that is a promise rather than a
  * cache: the references table files a file's entries in TWO passes — the
  * links, fields and tags, and then the property values, which cannot be read
- * until the declarations are ({@link ./pointing.ts}) — and an entry each pass
+ * until the declarations are ({@link ./references/pointing.ts}) — and an entry each pass
  * made would otherwise carry its own copy of one file's face. The table's
  * header says a document's every entry points at ONE face object; this is
  * where that is true. A `WeakMap` for the reason every other table keyed by a
@@ -274,7 +274,7 @@ export type Outline = typeof Outline.Type
  *
  * `bytes` is what the body WEIGHS as UTF-8 — remembered here at decode so a
  * listing does not re-encode every served `.md` to report a size
- * (`markdown_index`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
+ * (`markdown_index`, `@olai/ops`' `query.ts`). {@link ./references/written.ts}'s
  * `bytesOf` is how it is measured; this is that answer given a field.
  *
  * `headings` is what makes a document ADDRESSABLE BELOW THE FILE, which is the
@@ -436,7 +436,7 @@ const UTF8 = new TextEncoder()
 /**
  * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
  *
- * Beside `./documents.ts`'s `firstLine` because it is the same kind of fact — the two things
+ * Beside `./references/written.ts`'s `firstLine` because it is the same kind of fact — the two things
  * that can be said about a document without walking its markdown, and the two a
  * listing carries. What a caller does with it is decide whether to ask for the
  * whole of it.
@@ -648,7 +648,7 @@ const pathOf = (file: string): DocumentPath => file as DocumentPath
  * holds two revisions' served files to it, so that a `.md` whose BODY changed
  * and whose face did not is not a reason to redraw every open page
  * (`./tape.ts`); and the links index carries a file's entries across a revision
- * exactly when this answers `true` (`./pointing.ts`). A second spelling would
+ * exactly when this answers `true` (`./references/pointing.ts`). A second spelling would
  * be two answers to "did this file move" inside one revision — one deciding
  * whether an answer stands and the other deciding what it would say.
  */

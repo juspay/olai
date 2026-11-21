@@ -79,7 +79,7 @@ const viewOf = (corpus: Corpus): Derived => derive(TEST_CLAIMS, recordsOf(setOf(
  *
  * WHAT NAMES WHAT AND WHAT TAGS WHAT ARE NOT HERE, because they are not in a
  * view any more: they are the references table, which rides beside the
- * derivation and is held to its own rebuild by `./pointing.test.ts`'s
+ * derivation and is held to its own rebuild by `./references/pointing.test.ts`'s
  * differential. The patcher READS that table — who stands for an id, who
  * orders one — and what says it reads it rightly is every index below that
  * those answers feed.

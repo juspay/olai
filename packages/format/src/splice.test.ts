@@ -59,7 +59,7 @@ import { decodedOf, recordsOf, seeded } from "./fixtures.testlib.ts"
 import { fileKind } from "./kinds.ts"
 import type { Located } from "./node.ts"
 import { bySibling, patched, spliced, touchedBy } from "./patch.ts"
-import { type Pointing, pointingOf } from "./pointing.ts"
+import { type Pointing, pointingOf } from "./references/pointing.ts"
 import { pinnedVault, vaultAt } from "./scope.testlib.ts"
 import { assemble, type OutlineSet } from "./set.ts"
 

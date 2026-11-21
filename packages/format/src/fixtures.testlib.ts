@@ -42,7 +42,7 @@ import { outlineDocument } from "./document.ts"
 
 import { TEST_CLAIMS } from "./claims.testlib.ts"
 export { TEST_CLAIMS, NO_CLAIMS } from "./claims.testlib.ts"
-import { pointingOf, propertied } from "./pointing.ts"
+import { pointingOf, propertied } from "./references/pointing.ts"
 import { referenceKeys } from "./typing.ts"
 import { namesOf } from "./links/names.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
@@ -176,7 +176,7 @@ export const readingOf = (set: OutlineSet, table = TEST_CLAIMS): Reading & { rea
     set,
     derived,
     // …and the third member, built the same way: the set's own links, filed
-    // backwards (`./pointing.ts`). A `Reading` is what a page is drawn from, so a
+    // backwards (`./references/pointing.ts`). A `Reading` is what a page is drawn from, so a
     // fixture that left this out would be a reading whose document pages had no
     // referrers and no way to say so. BOTH of its steps, in the order a
     // validation takes them — the property entries are read off the derivation

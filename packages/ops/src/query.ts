@@ -454,7 +454,7 @@ export const homes = (
  *
  * THE WHOLE READING is handed over, which is what that function takes: the set
  * it is about, the derivation over it, and the index that says which documents
- * point at a given address (`@olai/format`'s `pointing.ts`). Three fields of
+ * point at a given address (`@olai/format`'s `references/pointing.ts`). Three fields of
  * one value rather than three arguments, so this door cannot pair one
  * revision's set with another's view — which is the reason those three travel
  * together at all.
@@ -773,7 +773,7 @@ export const detail = (
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader
     // which one this node carries. It is the same spelling
-    // `@olai/format`'s references table keys its tags part by (`./pointing.ts`),
+    // `@olai/format`'s references table keys its tags part by (`references/pointing.ts`),
     // and deliberately not that table read forwards: this is a node's OWN
     // title, which is what a caller about to edit the record is asking about,
     // where the table also files what a NOTE says (`derive.ts`'s

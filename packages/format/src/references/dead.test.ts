@@ -1,10 +1,10 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-import { deadLinksIn as deadLinksWith, deadLinksOf as deadLinksOfWith, deadLinkSaid } from "./dead-links.ts"
-import { relativeFrom } from "./links/paths.ts"
-import { nodesOf } from "./fixtures.testlib.ts"
-import type { Located } from "./node.ts"
-import { namesOf } from "./links/names.ts"
+import { deadLinksIn as deadLinksWith, deadLinksOf as deadLinksOfWith, deadLinkSaid } from "./dead.ts"
+import { relativeFrom } from "../links/paths.ts"
+import { nodesOf } from "../fixtures.testlib.ts"
+import type { Located } from "../node.ts"
+import { namesOf } from "../links/names.ts"
 import { read } from "@olai/prose/read.ts"
 
 const deadLinksIn = (from: string, text: string | ReadonlyArray<string>, served: ReadonlySet<string>) =>

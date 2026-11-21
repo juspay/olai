@@ -7,7 +7,7 @@
  * what it files under a row and under a tag is what the records themselves say,
  * read backwards. This file holds the two together: a walk of every record on
  * one side, the table's own parts on the other, at every revision of a stream.
- * It is the shape `./patch.test.ts` has with `derive` — a walk is the
+ * It is the shape `../patch.test.ts` has with `derive` — a walk is the
  * definition and the fold is the optimisation — for the value that used to be
  * two indexes on the derivation and is now one table beside it.
  *
@@ -23,27 +23,27 @@
  * `./pointing.test.ts`'s differential.
  *
  * WHAT IS NOT HERE is what any of it MEANS — which fields exist, what a mirror
- * is, which tags count as references. Those are `./derive.test.ts`'s and
- * `./backlinks.test.ts`'s. This file holds two readings to one answer.
+ * is, which tags count as references. Those are `../derive.test.ts`'s and
+ * `./referring.test.ts`'s. This file holds two readings to one answer.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { addressOf } from "./address.ts"
-import { referencesOf } from "./backlinks.ts"
-import { derive, writtenTags } from "./derive.ts"
-import { type Document } from "./document.ts"
-import { FIXTURE_FILE, nodesOf, seeded, settled, vaultOf } from "./fixtures.testlib.ts"
-import { targetsOf } from "./node.ts"
+import { addressOf } from "../address.ts"
+import { referencesOf } from "./referring.ts"
+import { derive, writtenTags } from "../derive.ts"
+import { type Document } from "../document.ts"
+import { FIXTURE_FILE, nodesOf, seeded, settled, vaultOf } from "../fixtures.testlib.ts"
+import { targetsOf } from "../node.ts"
 import { namersOf, type Pointing, pointingOf, propertied, taggersOf } from "./pointing.ts"
-import { PARTS } from "./imports.ts"
-import { referenceKeys } from "./typing.ts"
+import { PARTS } from "./written.ts"
+import { referenceKeys } from "../typing.ts"
 import { linkyRevisions, linkyVault, type Revision } from "./pointing.testlib.ts"
-import { decodedVault } from "./scope.testlib.ts"
-import { assemble, nodesIn } from "./set.ts"
-import { type Reading, reading } from "./validate.ts"
-import { type Verdict } from "./verdict.ts"
+import { decodedVault } from "../scope.testlib.ts"
+import { assemble, nodesIn } from "../set.ts"
+import { type Reading, reading } from "../validate.ts"
+import { type Verdict } from "../verdict.ts"
 
 /** The ways that are a record naming another by a FIELD — the four
  *  {@link targetsOf} answers with. */
@@ -347,14 +347,14 @@ test("the new ways are filed and not counted: Referenced by says what it always 
 // typed into a note has to appear under a key nothing else in the revision
 // mentions, and taking it out has to leave no key standing. The carry is
 // `repointed` over the two sets, which is the step a revision really takes
-// ({@link ./validate.ts}).
+// ({@link ../validate.ts}).
 
 /** The table one corpus leaves, and the table a carry makes of the next —
  *  held to a rebuild of the same corpus, so a case says what moved and the
  *  carry is checked while it says it.
  *
  *  THROUGH THE READING DOOR, which is the step a revision really takes: both
- *  of the table's passes run in the order {@link ./validate.ts} runs them, so
+ *  of the table's passes run in the order {@link ../validate.ts} runs them, so
  *  a property entry — filed after the derivation, off the declarations — is
  *  carried here exactly as the store carries it. The delta names every file of
  *  the new corpus, which is the widest a probe can send and the one a test
@@ -485,7 +485,7 @@ test("a field naming the same id twice is named once", () => {
 // The tags part is keyed by a TAG rather than by an id: what a title or a note
 // writes after a sigil, filed exactly as it is written. Whether an `@` tag
 // names a node — whether the mention is a REFERENCE — is asked at the read
-// (`./backlinks.ts`), so that minting a node does not have to re-walk every
+// (`./referring.ts`), so that minting a node does not have to re-walk every
 // note in the directory.
 test("a tag is filed under the tag as written, in prose of either kind", () => {
   const table = filed(

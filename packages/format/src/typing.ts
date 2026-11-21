@@ -379,7 +379,7 @@ const kindWords = (kinds: KindVocabulary): ReadonlyArray<string> =>
  *
  * RELATIVE PROSE LINKS keep
  * beside-the-writer as its only premise, because a note has no key to declare
- * on ({@link ./documents.ts}'s `pathedOf`). This fact is about a PROPERTY, whose
+ * on ({@link ./references/written.ts}'s `pathedOf`). This fact is about a PROPERTY, whose
  * key is a row somebody can write a second word on.
  */
 export type PathBase =
@@ -473,7 +473,7 @@ export const BASE_KEY = "base"
  * they are standing.
  *
  * The empty string IS the root, which is not a sentinel but the arithmetic:
- * {@link ./documents.ts}'s `resolveRelative` takes the DIRECTORY of `from`, and
+ * {@link ./references/written.ts}'s `resolveRelative` takes the DIRECTORY of `from`, and
  * the directory of "" is the served root.
  *
  * Every other kind answers the default, and none of them asks: a `ref` names no
@@ -690,7 +690,7 @@ export const declarationsOf = (
  *
  * `doc` names a FILE, `ref` and `node` name a ROW, and the references table
  * files a value of each under the thing it names, with the way `property`
- * ({@link ./pointing.ts}). The two refusals in `@olai/ops` that used to walk
+ * ({@link ./references/pointing.ts}). The two refusals in `@olai/ops` that used to walk
  * every record's `custom` for exactly these three kinds read that table now, so
  * a fourth referring kind is one entry here rather than three walks to find.
  */
@@ -1387,7 +1387,7 @@ export interface Typed {
  * it is resolved AGAINST is the key's own declared basis ({@link basedAt}): the
  * naming outline's directory by default, as relative prose links are, or the
  * served root for a key whose row says `base: root`. The arithmetic itself is
- * one place either way ({@link ./documents.ts}).
+ * one place either way ({@link ./references/written.ts}).
  */
 export const wrongValue = (
   typed: Typed,

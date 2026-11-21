@@ -158,7 +158,7 @@ export const frontmatterIn = (body: string): Custom => {
 }
 
 /** One empty map for every document that carries no properties, which is
- *  nearly all of them — `./documents.ts`'s `NO_LINKS` next door, for its
+ *  nearly all of them — `./references/written.ts`'s `NO_LINKS` next door, for its
  *  reason. */
 const NO_PROPS: Custom = {}
 

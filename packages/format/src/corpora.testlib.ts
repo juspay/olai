@@ -32,7 +32,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 
 import { nodesOf } from "./fixtures.testlib.ts"
 import type { SetDelta, Tables } from "./patch.ts"
-import { type Pointing, pointingOf } from "./pointing.ts"
+import { type Pointing, pointingOf } from "./references/pointing.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble } from "./set.ts"
 

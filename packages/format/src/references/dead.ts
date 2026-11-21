@@ -2,14 +2,14 @@
 import { Schema } from "effect"
 import type { Read } from "@olai/prose/read.ts"
 import { wikilinkWritten } from "@olai/prose/wikilink.ts"
-import { recordRead } from "./kept.ts"
-import { standardLanding, wikilinkLanding } from "./links/landing.ts"
-import type { Names } from "./links/names.ts"
-import { relativeFrom } from "./links/paths.ts"
-import { wikilinkSuggestions } from "./links/wikilink.ts"
-import { isMirror, type Located } from "./node.ts"
-import { basenameOf } from "./paths.ts"
-import { nearestId } from "./suggest.ts"
+import { recordRead } from "../kept.ts"
+import { standardLanding, wikilinkLanding } from "../links/landing.ts"
+import type { Names } from "../links/names.ts"
+import { relativeFrom } from "../links/paths.ts"
+import { wikilinkSuggestions } from "../links/wikilink.ts"
+import { isMirror, type Located } from "../node.ts"
+import { basenameOf } from "../paths.ts"
+import { nearestId } from "../suggest.ts"
 
 /** A link that finds nothing: how it was written, the `path` it resolved to or
  *  the `name` it looked for, and what it may have meant. */

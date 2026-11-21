@@ -53,7 +53,7 @@ import {
   targetsOf,
 } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { namersOf, type Pointing } from "./pointing.ts"
+import { namersOf, type Pointing } from "./references/pointing.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
 import { didYouMeanDeclared } from "./suggest.ts"
 import {
@@ -236,7 +236,7 @@ export const reportParentCycles = (
  *
  * SORTED HERE, where the whole-corpus arm used to inherit an order from the
  * index it walked: the table promises nothing about its keys, which is what
- * lets a carry add and drop them in place ({@link ./pointing.ts}). A valid
+ * lets a carry add and drop them in place ({@link ./references/pointing.ts}). A valid
  * corpus dangles nothing at all, so this list is nearly always empty and the
  * sort is nearly always free.
  *

@@ -648,7 +648,7 @@ website-dev:
 #     `format/src/suggest.test.ts`) and the counts (that file's identity
 #     assertions, `set.walks`'s comparisons, `suggest.walks`'s matrices);
 #   - a DOCUMENT PAGE's referrers, timed as the links index against the walk of
-#     every face it replaced (`packages/format/src/pointing.bench.ts`, added
+#     every face it replaced (`packages/format/src/references/pointing.bench.ts`, added
 #     with `perf-doc-backlinks-index`). Both arms are in the tree for the
 #     scoped query's reason — the "before" is that walk kept as this lane's
 #     differential reference (`@olai/format`'s `pointing.testlib.ts`) — and
@@ -739,7 +739,7 @@ bench: install
     {{ nix_shell }} bun packages/server/src/published.bench.ts
     {{ nix_shell }} bun packages/ops/src/standing.bench.ts
     {{ nix_shell }} bun packages/format/src/validate.bench.ts
-    {{ nix_shell }} bun packages/format/src/pointing.bench.ts
+    {{ nix_shell }} bun packages/format/src/references/pointing.bench.ts
     {{ nix_shell }} bun packages/ops/src/walks.bench.ts
     {{ nix_shell }} bun packages/format/src/conventions.bench.ts
     {{ nix_shell }} bun packages/prose/src/parse.bench.ts

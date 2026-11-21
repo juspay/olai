@@ -517,8 +517,8 @@ export const byLine = (a: Located, b: Located): number => a.line - b.line
  * The order `assemble` puts a set in, and the order every reverse index here
  * promises its members in. It is one comparator rather than one per asker
  * because two of them promise that order — {@link Derived.byFile} and the
- * references table beside the derivation ({@link ./pointing.ts}, whose own
- * reading is {@link ./backlinks.ts}) — and because reaching for the format's
+ * references table beside the derivation ({@link ./references/pointing.ts}, whose own
+ * reading is {@link ./references/referring.ts}) — and because reaching for the format's
  * own path
  * order rather than comparing two strings is what makes a file and the
  * directory beside it come out where a rebuilt view puts them.

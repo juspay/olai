@@ -67,7 +67,7 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
-import { type Pointing, pointingOf } from "./pointing.ts"
+import { type Pointing, pointingOf } from "./references/pointing.ts"
 import {
   median,
   nodesOf,

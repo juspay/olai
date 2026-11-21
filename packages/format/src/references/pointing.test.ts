@@ -13,7 +13,7 @@
  *
  *   2. **THE MAINTENANCE.** At every revision, the index a reading CARRIED is
  *      the index a rebuild would have made — {@link pointingOf} over the set as
- *      it now stands. That is `./patch.test.ts`'s oracle, for the value one
+ *      it now stands. That is `../patch.test.ts`'s oracle, for the value one
  *      field over: the patch is an optimisation held to the definition, and
  *      what says the two are the same is a property test over corpora and over
  *      the edits that move a link.
@@ -28,7 +28,7 @@
  *
  * WHAT IS NOT HERE is what the index MEANS. Which links count, what a `see` is,
  * whether a mirror can carry one, what the trash is left out of — those are
- * `./backlinks.test.ts`'s and `./document.test.ts`'s, against fixtures small
+ * `./referring.test.ts`'s and `../document.test.ts`'s, against fixtures small
  * enough to write down. This file holds two implementations to one answer and
  * has no opinion about what the answer is.
  */
@@ -36,14 +36,14 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { addressOf, printAddress } from "./address.ts"
-import { referencesOf } from "./backlinks.ts"
-import { bodiedDocument, type Document } from "./document.ts"
-import { type Verdict, verdictOf } from "./verdict.ts"
-import { seeded } from "./fixtures.testlib.ts"
-import { PARTS } from "./imports.ts"
+import { addressOf, printAddress } from "../address.ts"
+import { referencesOf } from "./referring.ts"
+import { bodiedDocument, type Document } from "../document.ts"
+import { type Verdict, verdictOf } from "../verdict.ts"
+import { seeded } from "../fixtures.testlib.ts"
+import { PARTS } from "./written.ts"
 import { pointingOf, propertied } from "./pointing.ts"
-import { referenceKeys } from "./typing.ts"
+import { referenceKeys } from "../typing.ts"
 import {
   addressesIn,
   facesIn,
@@ -53,10 +53,10 @@ import {
   sampledAddresses,
   scannedReferrers,
 } from "./pointing.testlib.ts"
-import { decodedVault, vaultAt } from "./scope.testlib.ts"
-import { assemble, nodesIn, type OutlineSet } from "./set.ts"
-import { type Reading, reading } from "./validate.ts"
-import { type Names, namesOf } from "./links/names.ts"
+import { decodedVault, vaultAt } from "../scope.testlib.ts"
+import { assemble, nodesIn, type OutlineSet } from "../set.ts"
+import { type Reading, reading } from "../validate.ts"
+import { type Names, namesOf } from "../links/names.ts"
 
 /** What one replay found. Equality on the two lists is the gate; every other
  *  field is a claim that the gate was asked anything at all. */

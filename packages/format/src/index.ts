@@ -290,7 +290,7 @@ export {
   /** The text with each wikilink as the words it shows — the browser's
    *  preview line, before the parser has loaded. */
   wikilinksShown,
-} from "./documents.ts"
+} from "./links/shown.ts"
 export { namesIn, namesOf, type Names } from "./links/names.ts"
 export {
   wikilinkAddress,
@@ -578,15 +578,15 @@ export type {
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 /** THE ONE READING that answers "who refers to here" — {@link referencesOf},
- *  out of the one table the fold keeps ({@link ./pointing.ts}) and asked
+ *  out of the one table the fold keeps ({@link ./references/pointing.ts}) and asked
  *  with one address from the node page, the document page and the ops layer
  *  alike. `Way` is the SCHEMA the answer vocabulary (`Reference`) carries, and
  *  {@link WAYS} is the list it spells: the ways THIS reading counts, closed by
  *  the rulings beside it. The table files more of them than that — the fields,
  *  the placements, the tags — and each reader of it names its own
- *  ({@link ./imports.ts}'s `FILED_WAYS`). */
-export { referencesOf, Way, WAYS } from "./backlinks.ts"
-export type { Reference } from "./backlinks.ts"
+ *  ({@link ./references/written.ts}'s `FILED_WAYS`). */
+export { referencesOf, Way, WAYS } from "./references/referring.ts"
+export type { Reference } from "./references/referring.ts"
 /** WHO POINTS AT WHAT — the set's own forward references, filed backwards and
  *  kept that way (`perf-doc-backlinks-index`), in four parts by what is
  *  pointed at. It rides on the {@link Reading} and it is what `referencesOf`
@@ -604,8 +604,8 @@ export type { Reference } from "./backlinks.ts"
  *  what the ops layer's refusals ask before a record is taken away, and all
  *  three leave the LINKS filed under the same row out: a row something merely
  *  links to is not a row something declares about. */
-export type { Keyed, Naming, Pointing } from "./pointing.ts"
-export { isNamed, namersOf, propertyNamersOf } from "./pointing.ts"
+export type { Keyed, Naming, Pointing } from "./references/pointing.ts"
+export { isNamed, namersOf, propertyNamersOf } from "./references/pointing.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of
@@ -978,7 +978,7 @@ export {
 
 /** The set's own WORDS — every tag written down, counted, and which of them one
  *  prefix under one sigil means. The reading over `Derived.taggedBy` rather than
- *  the index, for `./backlinks.ts`'s reason: what a tag's COUNT means (one vote
+ *  the index, for `./references/referring.ts`'s reason: what a tag's COUNT means (one vote
  *  per record, nothing the trash draws) is a decision, and it is made there. It
  *  ran in the browser until `vault-in-browser`'s PR 2 took the vault out of it —
  *  see `./vocabulary.ts`. ONE function, not the enumeration and the match as two
@@ -1327,7 +1327,7 @@ export { outlineCalled } from "./node.ts"
 
 export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
 
-export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields } from "./dead-links.ts"
+export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields } from "./references/dead.ts"
 /** What decode read out of each text, kept beside it: a record's title and
  *  note, a document's prose (`./kept.ts`). */
 export { bodyRead, type RecordRead, recordRead } from "./kept.ts"

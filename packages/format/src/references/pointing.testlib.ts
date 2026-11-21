@@ -5,13 +5,13 @@
  * `./pointing.ts` is an INDEX where the reverse reading was a scan, and the
  * claim it makes is an equivalence: the same referrers, in the same order, for
  * every address, at every revision. So what holds it is a differential and not
- * a table of expectations, which is the arrangement `./patch.ts` has with
+ * a table of expectations, which is the arrangement `../patch.ts` has with
  * `derive` one value over.
  *
  * TWO ARMS AND ONE COPY OF EACH. The reference arm below is the walk as it
  * STOOD before `perf-doc-backlinks-index`, written out once and read by the
  * differential (`./pointing.test.ts`) and by the benchmark
- * (`./pointing.bench.ts`) alike — `./fixtures.testlib.ts`'s own argument for
+ * (`./pointing.bench.ts`) alike — `../fixtures.testlib.ts`'s own argument for
  * keeping the deleted day walks in one place, and it matters more here: two
  * reconstructions of one deleted scan could disagree, and then the ratio the
  * bench printed would be about the difference between them while the property
@@ -21,7 +21,7 @@
  * nothing that ships calls any of it, and nothing here is in the package's
  * exports.
  *
- * WHAT THE CORPORA ARE FOR is the other half. `./corpora.testlib.ts` writes the
+ * WHAT THE CORPORA ARE FOR is the other half. `../corpora.testlib.ts` writes the
  * awkward sets the patcher is held to and writes no LINK at all — no `[…](…)`
  * in a title or a note, no markdown body with anything in it — because
  * the derivation it is about reads none of them. This index reads nothing else,
@@ -34,25 +34,25 @@
  * `bun test` collects only `*.test.ts`.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { type Address, addressOf } from "./address.ts"
-import type { Reference, Way } from "./backlinks.ts"
-import type { Derived } from "./derive.ts"
-import { type Document, type Face, faceOf, type FaceHead } from "./document.ts"
-import { readAddresses, recordLinks, recordWikilinks } from "./documents.ts"
-import { recordRead } from "./kept.ts"
-import { seeded } from "./fixtures.testlib.ts"
-import { fileKind, stemOf } from "./kinds.ts"
-import { isMirror, isPutAway, isRegular, type Located } from "./node.ts"
-import type { OutlineSet } from "./set.ts"
-import { namesIn } from "./links/names.ts"
-import { wikilinkAddress } from "./links/wikilink.ts"
+import { type Address, addressOf } from "../address.ts"
+import type { Reference, Way } from "./referring.ts"
+import type { Derived } from "../derive.ts"
+import { type Document, type Face, faceOf, type FaceHead } from "../document.ts"
+import { readAddresses, recordLinks, recordWikilinks } from "./written.ts"
+import { recordRead } from "../kept.ts"
+import { seeded } from "../fixtures.testlib.ts"
+import { fileKind, stemOf } from "../kinds.ts"
+import { isMirror, isPutAway, isRegular, type Located } from "../node.ts"
+import type { OutlineSet } from "../set.ts"
+import { namesIn } from "../links/names.ts"
+import { wikilinkAddress } from "../links/wikilink.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
 
 // ── the reading as it STOOD, before the links index ────────────────────
 
 /**
  * WHO POINTS AT AN ADDRESS, by WALKING every face of the directory — the
- * {@link Reference} reading of `packages/format/src/backlinks.ts` as it is
+ * {@link Reference} reading of `packages/format/src/references/referring.ts` as it is
  * defined here, verified by hand against the index at every revision.
  *
  * The node arm asks EVERY way the node is named — the `@` prose half and the
@@ -64,7 +64,7 @@ import type { WikilinkName } from "@olai/prose/wikilink.ts"
  * and row arms ask only about links, which is what the index files under
  * those keys.
  *
- * WIKILINKS ARE RESOLVED HERE TOO, by the one resolver (`./wikilinks.ts`)
+ * WIKILINKS ARE RESOLVED HERE TOO, by the one resolver (`../wikilinks.ts`)
  * against the revision's membership: every name every file writes, walked.
  * A link to a ROW (`house.olai#kitchen`, either way it is written) is a
  * reference to the node in it, at the file that holds the node.
@@ -240,7 +240,7 @@ const recordWays = (
  *  on one side and a whole document on the other. */
 export const facesIn = (set: OutlineSet): ReadonlyArray<Face> => set.documents.map(faceOf)
 
-/** A body source's head — the wire's reference shape (backlinks.ts). */
+/** A body source's head — the wire's reference shape (referring.ts). */
 const headOf = (face: Face): FaceHead => ({ path: face.path, title: face.title })
 
 // ── what to ask about ──────────────────────────────────────────────────
@@ -311,7 +311,7 @@ export const documentsAmong = (paths: Iterable<string>): ReadonlyArray<string> =
 
 /**
  * One revision of the served directory: every path it holds and the bytes at
- * it — `./incremental.testlib.ts`'s own shape, so a generated corpus and a real
+ * it — `../incremental.testlib.ts`'s own shape, so a generated corpus and a real
  * one are the same value here.
  */
 export type Revision = ReadonlyMap<string, string>
@@ -353,7 +353,7 @@ const HEADINGS = ["scope", "risks"] as const
  * Every generated target sits at the top of the directory and every link is
  * written from wherever its file is, so a nested file writes `../` for each
  * segment above it — which is what a person writes and what the format resolves
- * ({@link ./documents.ts}'s `resolveRelative`). Written rather than assumed:
+ * ({@link ./written.ts}'s `resolveRelative`). Written rather than assumed:
  * a generator that spelled the bare path from a nested file would be writing
  * links that resolve into a directory nothing serves, and the whole corpus
  * would answer "nothing points anywhere" while passing.

@@ -29,14 +29,14 @@ import { Schema } from "effect"
 
 import { addressOf } from "./address.ts"
 import { agendaOf } from "./agenda.ts"
-import { referencesOf } from "./backlinks.ts"
+import { referencesOf } from "./references/referring.ts"
 import { dailyNotesOn, datedOn } from "./dates.ts"
 import { derive, type Derived, nodesOf, rowsOf } from "./derive.ts"
 import type { Document, Face } from "./document.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { DocumentPageRequest, FiledPageReading, FiledPageRequest, PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
-import { pointingOf } from "./pointing.ts"
+import { pointingOf } from "./references/pointing.ts"
 import { namesOf } from "./links/names.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
@@ -83,7 +83,7 @@ const READABLE: ReadonlyArray<BrokenFile> = []
 /**
  * The three-field {@link Reading} these cases are read through — a derivation,
  * the faces standing in for the served files, and the links index those faces
- * amount to (`./pointing.ts`).
+ * amount to (`./references/pointing.ts`).
  *
  * The SET is a stand-in and is cast as one: what a page reads off it is the two
  * arrays, and the fixtures above write faces rather than whole documents

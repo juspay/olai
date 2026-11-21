@@ -98,12 +98,12 @@ import { heapStats } from "bun:jsc"
 import { Result } from "effect"
 
 import { type Document } from "./document.ts"
-import { PARTS } from "./imports.ts"
+import { PARTS } from "./references/written.ts"
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
 import { overlay, type Read } from "./overlay.ts"
 import { bySibling, patched, type SetDelta, spliced, type Tables } from "./patch.ts"
 import { byPath } from "./paths.ts"
-import { type Pointing, pointingOf, repointed } from "./pointing.ts"
+import { type Pointing, pointingOf, repointed } from "./references/pointing.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble } from "./set.ts"
 import { NO_TYPING } from "./typing.ts"
@@ -162,7 +162,7 @@ const edits = Array.from({ length: EDITS }, (_, which) => editOf(which))
  *
  * The edited file is decoded again the way a probe decodes one and every other
  * document is the very object the last revision held, which is the identity the
- * carry steps over ({@link ./pointing.ts}'s `moved`). Folded here rather than
+ * carry steps over ({@link ./references/pointing.ts}'s `moved`). Folded here rather than
  * inside an arm because three arms spend these and a decode inside a window
  * would be timing the parser.
  */
@@ -913,7 +913,7 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
  * WHAT THE ONE TABLE COSTS PER EDIT, beside what the derivation costs — the
  * same vault, the same forty edits, carried and rebuilt.
  *
- * It is here rather than in `./pointing.bench.ts` because this is where the
+ * It is here rather than in `./references/pointing.bench.ts` because this is where the
  * comparison is: a write pays for the derivation AND for the table, so the two
  * numbers belong on one page about one directory. That leg prices the table
  * over a corpus with BODIES in it and prices what a page's read saves; this
@@ -923,12 +923,12 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
  * THE DOCUMENTS ARE DECODED OUTSIDE THE TIMED WINDOW, and the edited file is
  * decoded again the way a probe decodes one: every other document is the very
  * object the last revision held, which is the identity the carry steps over
- * ({@link ./pointing.ts}'s `moved`). A decode inside the window would be
+ * ({@link ./references/pointing.ts}'s `moved`). A decode inside the window would be
  * timing the parser.
  *
  * BOTH ARMS, and the carried table is held to the rebuilt one at the end — a
  * fast arm answering wrongly is worse than no arm, and the property test for
- * this value is `./pointing.test.ts`'s differential rather than a fence here.
+ * this value is `./references/pointing.test.ts`'s differential rather than a fence here.
  */
 const tabling = (): {
   readonly carries: ReadonlyArray<number>

@@ -1,18 +1,18 @@
 /** The one node of a one-line fixture, located in `file`. */
 
-import { claims, servingOf } from "./index.ts"
+import { claims, servingOf } from "../index.ts"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { printAddress } from "./address.ts"
-import { bytesOf } from "./document.ts"
+import { printAddress } from "../address.ts"
+import { bytesOf } from "../document.ts"
 import { read } from "@olai/prose/read.ts"
 import { proseIn } from "@olai/prose/frontmatter.ts"
-import { readAddresses } from "./documents.ts"
-import { pathedOf, resolveRelative } from "./links/paths.ts"
-import { pictureOf } from "./links/standard.ts"
-import { isAsset, isPicture } from "./serving.ts"
-import { nodesOf } from "./fixtures.testlib.ts"
+import { readAddresses } from "./written.ts"
+import { pathedOf, resolveRelative } from "../links/paths.ts"
+import { pictureOf } from "../links/standard.ts"
+import { isAsset, isPicture } from "../serving.ts"
+import { nodesOf } from "../fixtures.testlib.ts"
 const nodeOf = (line: string, file: string) => {
   const [located] = nodesOf(`${line}\n`, file)
   if (located === undefined) throw new Error("the fixture parsed to no nodes")

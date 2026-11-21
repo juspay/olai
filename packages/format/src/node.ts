@@ -497,14 +497,14 @@ export type EdgeField = (typeof EDGE_FIELDS)[number]
 
 /** Every field a record can NAME another record with: the one a placement
  *  points with, and the edge fields. The closed list {@link targetsOf} answers
- *  in and the references table files under ({@link ./pointing.ts}) — `string`
+ *  in and the references table files under ({@link ./references/pointing.ts}) — `string`
  *  there would be a second, open vocabulary for the closed one this file
  *  already owns, which is the failure `targetsOf` itself is written against one
  *  level down.
  *
  *  A LIST AS WELL AS A TYPE, because the table files every way a document
  *  points at something under one vocabulary and a reader asking for the FIELD
- *  ways has to name them at runtime ({@link ./pointing.ts}'s `namersOf`): a
+ *  ways has to name them at runtime ({@link ./references/pointing.ts}'s `namersOf`): a
  *  second list written out there is the drift this type exists to stop. */
 export const TARGET_FIELDS = ["mirror", ...EDGE_FIELDS] as const
 export type TargetField = (typeof TARGET_FIELDS)[number]

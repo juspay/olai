@@ -2,7 +2,7 @@
  * What a READ of the set asks, and what it says back.
  *
  * Data, and nothing but: there is no index in this file and nothing here walks
- * anything. It DOES reach `./derive.ts`, `./node.ts` and `./backlinks.ts`, for
+ * anything. It DOES reach `./derive.ts`, `./node.ts` and `./references/referring.ts`, for
  * five shapes each of them declares beside the thing that produces it —
  * {@link Progress}, {@link Status}, the record's own mark fields, {@link Site},
  * the `{file, line}` every answer here is situated by, and {@link Way}, the two
@@ -71,12 +71,12 @@
  * the next field somebody proposes.
  */
 
-import { DeadLink } from "./dead-links.ts"
+import { DeadLink } from "./references/dead.ts"
 
 import { ClaimData } from "./kinds.ts"
 import { Schema } from "effect"
 
-import { Reference, Way } from "./backlinks.ts"
+import { Reference, Way } from "./references/referring.ts"
 import { Custom } from "./custom.ts"
 import { Progress } from "./derive.ts"
 import { MARKS, MirrorNode, RegularNode, Site, STAMPED, Status } from "./node.ts"
@@ -306,7 +306,7 @@ export type PathsAnswer = typeof PathsAnswer.Type
  * omitted them while a search hit carried them would be two answers to one
  * map.
  *
- * `title` is a DERIVATION and not a field — `firstLine` (`./documents.ts`),
+ * `title` is a DERIVATION and not a field — `firstLine` (`./references/written.ts`),
  * the same rule the web draws on a document's page — because a document
  * has no record for a name to be written on. That is the whole of the
  * `md-second-class` asymmetry in one field, and it is answered here rather
@@ -399,7 +399,7 @@ export const DocumentBody = Schema.Struct({
   file: Schema.String,
   /** Verbatim, exactly as on disk. Markdown, interpreted only at view time —
    *  never `null` here, unlike the set's own `Document`: what the set does not
-   *  keep the body of is not a document this read answers (`./documents.ts`
+   *  keep the body of is not a document this read answers (`./references/written.ts`
    *  holds that split, and the tool refuses the other kinds by name). */
   text: Schema.String,
   /** Who refers to the document — its page's **Referenced by**, standard links
@@ -680,7 +680,7 @@ export const ProjectedPlaced = Schema.Struct({
 export type ProjectedPlaced = typeof ProjectedPlaced.Type
 
 // `Reference` — the one wire shape for who refers to what — lives in
-// ./backlinks.ts, the module that answers the question; this one's ANSWER
+// ./references/referring.ts, the module that answers the question; this one's ANSWER
 // field reads it. One name, one shape, on every door that asks.
 
 /**

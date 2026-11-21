@@ -4,7 +4,7 @@
  * target lives, and the WAY each one points.
  *
  * The references reading answers two questions that used to be two modules
- * and two walks ({@link ./backlinks.ts}); the fold IS those walks' readings,
+ * and two walks ({@link ./referring.ts}); the fold IS those walks' readings,
  * kept because the LINES OF PROSE are what make the difference and the table
  * is where the prose is spent once instead of once per page per revision.
  *
@@ -18,7 +18,7 @@
  * spelling rule can separate them — the table's shape does it instead.
  *
  * THE WAYS ARE KEPT APART HERE because the readings need them apart, and each
- * reading names the ways it counts ({@link ./backlinks.ts}'s `WAYS` is the
+ * reading names the ways it counts ({@link ./referring.ts}'s `WAYS` is the
  * four **Referenced by** counts): a record's FIELDS name a row with `mirror`,
  * `after`, `blocks` and `see`, a record's PROSE writes a `tag`, a body's prose
  * writes a `mention`, a link — or an embed — names a file, a row or a name
@@ -30,19 +30,21 @@
  * mention (only the `@` half of a tag is a name), a record never refers to
  * itself, a placement is a placement rather than a claim, and what is put away
  * is left out at the read. Those are the READING's rulings
- * ({@link ./backlinks.ts}), asked of this table the way every other reverse
+ * ({@link ./referring.ts}), asked of this table the way every other reverse
  * index of this format is read.
  */
 
-import { type Address, addressOf, printAddress } from "./address.ts"
-import { writtenTags } from "./derive.ts"
-import { type Face } from "./document.ts"
-import { recordContributions, recordWikilinks } from "./documents.ts"
-import { wikilinkKey, wikilinkRowNode } from "./links/wikilink.ts"
+import { type Address, addressOf, printAddress } from "../address.ts"
+import { writtenTags } from "../derive.ts"
+import { type Face } from "../document.ts"
+import { recordRead } from "../kept.ts"
+import { addressOfPlace, placeOf } from "../links/standard.ts"
+import { wikilinkKey, wikilinkRowNode } from "../links/wikilink.ts"
+import type { Read } from "@olai/prose/read.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
-import { type Claims } from "./kinds.ts"
-import { isRegular, type Located, targetsOf } from "./node.ts"
-import { declaredFor, isReference, type PropDeclarations, resolvedDoc } from "./typing.ts"
+import { type Claims } from "../kinds.ts"
+import { isMirror, isRegular, type Located, targetsOf } from "../node.ts"
+import { declaredFor, isReference, type PropDeclarations, resolvedDoc } from "../typing.ts"
 
 /**
  * THE FOUR PARTS OF THE TABLE, by WHAT IS POINTED AT — a row of an outline, a
@@ -67,7 +69,7 @@ export type Part = (typeof PARTS)[number]
  *
  * WIDER THAN WHAT A READING COUNTS, and that is the table's whole arrangement:
  * every way a document can point at something is filed once, and each reader
- * names the ways its own question is about ({@link ./backlinks.ts}'s `WAYS`
+ * names the ways its own question is about ({@link ./referring.ts}'s `WAYS`
  * for **Referenced by**; the refusals and the reports in `@olai/ops` for the
  * field ways). A list that held only the counted three would be the table
  * telling the derivation's readers to go and walk the corpus themselves.
@@ -125,7 +127,7 @@ export interface Contribution {
  * A PLACEMENT IS A SOURCE, and the only one whose record is not regular: it
  * names the node it stands for with `mirror` and writes nothing else — no
  * prose, no edges, no links. **Referenced by** does not count that way, so a
- * placement is filed here and left out there ({@link ./backlinks.ts}).
+ * placement is filed here and left out there ({@link ./referring.ts}).
  *
  * A RECORD'S TAGS GO IN WHOLE, BOTH SIGILS, with the way `tag` — which is
  * {@link Derived.taggedBy} filed into the table's own shape. The `@` half is
@@ -162,9 +164,9 @@ export const contributionsOf = (
     // …and nothing else comes off a placement: it has no title, no note and no
     // links of its own, which is what the type says one line down.
     if (!isRegular(located)) continue
-    // THE RECORD'S LINKS are ONE walk ({@link ./documents.ts}'s
-    // `recordContributions`, the same one {@link recordLinks} dedupes for the
-    // faces), filed under the addresses they land on. Its `see` arm is passed
+    // THE RECORD'S LINKS are ONE walk ({@link recordContributions}, the same
+    // one {@link recordLinks} dedupes for the faces), filed under the
+    // addresses they land on. Its `see` arm is passed
     // over here: the fields above are where this table reads `see` from, so
     // the two spellings of "which ids does this record name" cannot drift.
     for (const written of recordContributions(claims, located)) {
@@ -213,7 +215,7 @@ const wikiInto = (found: Array<Contribution>, claims: Claims, link: WikilinkName
  * than about tidiness.
  *
  * The format gives no key in `custom` a meaning: which ones hold REFERENCES is
- * what the VAULT declares ({@link ./typing.ts}), and the declarations are read
+ * what the VAULT declares ({@link ../typing.ts}), and the declarations are read
  * off the derivation, whose own carry is handed the table the first fold made
  * ({@link ./pointing.ts}). So a revision goes: the fields, the prose and the
  * tags; then the derivation; then the declared kinds; then this.
@@ -274,3 +276,121 @@ export const propertiesOf = (
  *  them: ONE list, shared — and the whole of what "such a directory pays no
  *  walk" means ({@link referenceKeys}). */
 const NO_PROPERTIES: ReadonlyArray<Contribution> = []
+
+// ── what a record or a body points at ──────────────────────────────────
+
+/** The answer for prose that points nowhere and for a record that does — which
+ *  is most of both: ONE list, shared, as `../derive.ts` shares its own. */
+const NO_LINKS: ReadonlyArray<Address> = []
+
+/**
+ * EVERY ADDRESS ONE RECORD POINTS AT, in the order it writes them.
+ *
+ * The forward half of a reference, per record — and it is a function of its own
+ * because it is read BOTH WAYS: `../document.ts`'s `outlineDocument` folds it
+ * into an outline's face, and the fold above reads it to say which record of a
+ * file an entry's `at` came from. Two walks of the same fields would be two
+ * answers to "does this node point there", and the page would draw one of
+ * them while the face claimed the other.
+ *
+ * The WAYS are kept apart because the fold needs them apart: {@link
+ * recordContributions} is this walk in the table's own vocabulary, so the
+ * fold files a `see` under the id it names and a link under the address it
+ * lands on — and here that is one list, deduped, which is the DRAWING's
+ * answer. One walk, two projections.
+ *
+ * Three things a record can point at, and one it deliberately cannot:
+ *
+ *   - a `see`, the format's free cross-reference.
+ *   - a `[…](…)` in its TITLE, and one in its NOTE — the same rule a
+ *     document's body is read by, so a link means the same thing wherever it
+ *     is written ({@link readAddresses}).
+ *
+ * `after` and `blocks` are NOT here: they are the ORDERING graph, and saying
+ * an ordering edge under the word "points at" would put one fact under a name
+ * that means something else — the ruling `./referring.ts` already makes from
+ * the other end.
+ *
+ * A MIRROR points at nothing of its own. It is a second placement of a node,
+ * carrying no prose and no edge fields; what it shows is the node's, and the
+ * node is where the reference is written.
+ */
+export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> =>
+  recordContributions(claims, located).map((one) => one.address).filter(isAddress)
+
+const isAddress = (address: Address | undefined): address is Address => address !== undefined
+
+/** One record's written targets, in the fold's own vocabulary, in the order
+ *  the record writes them. {@link recordLinks} is its deduped address
+ *  projection; the fold keeps the `way` and the target address it files
+ *  under. */
+export const recordContributions = (
+  claims: Claims,
+  located: Located,
+): ReadonlyArray<{ readonly way: "see" | "link"; readonly address: Address; readonly at: Located }> => {
+  const found: Array<{ readonly way: "see" | "link"; readonly address: Address; readonly at: Located }> = []
+  if (isMirror(located.node)) return found
+  for (const id of located.node.see ?? []) {
+    const address = addressOf(claims, null, id)
+    if (address !== null) found.push({ way: "see", address, at: located })
+  }
+  const said = recordRead(located.node)
+  for (const address of readAddresses(claims, located.file, said.title)) found.push({ way: "link", address, at: located })
+  if (said.desc !== null) {
+    for (const address of readAddresses(claims, located.file, said.desc)) found.push({ way: "link", address, at: located })
+  }
+  return found
+}
+
+/**
+ * EVERY ADDRESS A TEXT'S READING POINTS AT, in the order it writes them and
+ * never twice — its links and its pictures, each resolved from `from`, the
+ * file the text was written in, by the one rule the page and the dead-link
+ * reading ask too (`../links/standard.ts`). The reading made one call of the
+ * parser, so code, a comment and an escape hold no link here exactly as on the
+ * page.
+ *
+ * THE PATH HALF IS WIDE on purpose: any relative path a file of the set could
+ * hold is a document address, whatever suffix it carries, because the set
+ * gives EVERY file a page — and a picture names the same document an
+ * `[…](…)` would.
+ */
+export const readAddresses = (claims: Claims, from: string, said: Read): ReadonlyArray<Address> => {
+  let found: Array<Address> | undefined
+  let seen: Set<string> | undefined
+  for (const link of said.links) {
+    const place = placeOf(from, link)
+    const address = place === null ? null : addressOfPlace(claims, place)
+    if (address === null) continue
+    const written = printAddress(address)
+    if ((seen ??= new Set()).has(written)) continue
+    seen.add(written)
+    ;(found ??= []).push(address)
+  }
+  return found ?? NO_LINKS
+}
+
+/** The wikilinks some readings write, each as the name it looks up, in order
+ *  and never twice. */
+export const wikilinkNames = (reads: ReadonlyArray<Read>): ReadonlyArray<WikilinkName> => {
+  let named: Map<string, WikilinkName> | undefined
+  for (const said of reads) {
+    for (const link of said.wikilinks) {
+      // Told apart by a key of this loop's own, never read back.
+      const key = [link.target, ...link.fragments].join("\0")
+      if (!(named ??= new Map()).has(key)) named.set(key, { target: link.target, fragments: link.fragments })
+    }
+  }
+  return named === undefined ? NO_NAMES : [...named.values()]
+}
+
+const NO_NAMES: ReadonlyArray<WikilinkName> = []
+
+/** The wikilinks one record writes in its title and its note — what the table
+ *  files under each name, beside {@link recordContributions}. A placement
+ *  writes none. */
+export const recordWikilinks = (located: Located): ReadonlyArray<WikilinkName> => {
+  if (isMirror(located.node)) return NO_NAMES
+  const said = recordRead(located.node)
+  return wikilinkNames(said.desc === null ? [said.title] : [said.title, said.desc])
+}

@@ -27,7 +27,7 @@ import { agendaOf, owedIn } from "./agenda.ts"
 import { datedDays, datedOn } from "./dates.ts"
 import { tagPart, type TagSigil, tagText, type TitleTag } from "@olai/prose/tags.ts"
 import { derive } from "./derive.ts"
-import { pointingOf, taggersOf } from "./pointing.ts"
+import { pointingOf, taggersOf } from "./references/pointing.ts"
 import { recordsOf, setOf, vaultOf } from "./fixtures.testlib.ts"
 import { isRegular } from "./node.ts"
 import { datesOf, monthOf } from "./occasion.ts"
@@ -38,7 +38,7 @@ import { datesOf, monthOf } from "./occasion.ts"
 const set = setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))
 const view = derive(TEST_CLAIMS, recordsOf(set))
 /** …and the references table over the same vault, which is where the tags and
- *  the namings the benches print numbers about live now (`./pointing.ts`). */
+ *  the namings the benches print numbers about live now (`./references/pointing.ts`). */
 const table = pointingOf(TEST_CLAIMS, set.documents)
 
 test("the vault is the directory the published numbers name", () => {

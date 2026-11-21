@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test"
 
 import { read } from "@olai/prose/read.ts"
 import { type Address, printAddress } from "../address.ts"
-import { wikilinksIn } from "../documents.ts"
+import { wikilinksIn } from "./shown.ts"
 import { seeded } from "../fixtures.testlib.ts"
 import { namesIn } from "./names.ts"
 import { wikilinkAddress, wikilinkFor, wikilinkOffers, wikilinkPath } from "./wikilink.ts"

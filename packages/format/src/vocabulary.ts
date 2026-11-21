@@ -8,7 +8,7 @@
  * this file asks — which tags does the set hold, and how many records carry
  * each — is the keys of that map and the length of each entry, and this module
  * is the READING over it: which of them the trash is out of, and what order to
- * offer them in. It sits beside {@link ./backlinks.ts} for that reason, which
+ * offer them in. It sits beside {@link ./references/referring.ts} for that reason, which
  * is the other reading over the same pair of reverse indexes.
  *
  * IT WALKED THE WHOLE CORPUS ONCE (a tag split per node of the set, per
@@ -66,7 +66,7 @@ import { Schema } from "effect"
 import { TAG_SIGILS, type TagSigil, tagPart } from "@olai/prose/tags.ts"
 import { type Claims } from "./kinds.ts"
 import { isPutAway, type Located } from "./node.ts"
-import { type Pointing, taggersOf } from "./pointing.ts"
+import { type Pointing, taggersOf } from "./references/pointing.ts"
 
 /**
  * What a completion ASKS: one sigil's list, narrowed by what has been typed.
@@ -141,7 +141,7 @@ export interface TagUse {
 
 /**
  * ONE READING PER TABLE, kept in a `WeakMap` keyed on the references table
- * itself ({@link ./pointing.ts}).
+ * itself ({@link ./references/pointing.ts}).
  *
  * The alternative — counting per question — re-reads the table on every settled
  * keystroke of a tag being typed, and the vocabulary of a set cannot have moved
@@ -171,7 +171,7 @@ const counted = new WeakMap<Pointing, { readonly claims: Claims; readonly tags: 
  * follows: a placement has no title of its own, so a tag counted through one
  * would be the same node's tag counted twice. It is the FOLD that skips them —
  * a placement writes no prose, so the table files none of its tags
- * ({@link ./imports.ts}) — so this reading does not have to remember the rule.
+ * ({@link ./references/written.ts}) — so this reading does not have to remember the rule.
  *
  * A TITLE OR A NOTE, because that is what the fold files. A tag somebody wrote
  * in a note is part of the vocabulary this set uses and is worth completing
@@ -180,7 +180,7 @@ const counted = new WeakMap<Pointing, { readonly claims: Claims; readonly tags: 
  *
  * ROWS ONLY, which is the table's own distinction read here: a `.md` body's
  * `@name` is filed in the same part with the way `mention` and is the
- * references reading's ({@link ./backlinks.ts}), while this list is a promise
+ * references reading's ({@link ./references/referring.ts}), while this list is a promise
  * about ROWS and has always been one. A body's `#topic` reaches search.
  *
  * WHAT WAS PUT AWAY IS SKIPPED, and the count is why (ruled 2026-08-17:

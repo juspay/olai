@@ -63,7 +63,7 @@ import {
   vaultOf,
 } from "./fixtures.testlib.ts"
 import { isLeftoverArchive, isMirror, isTrashed } from "./node.ts"
-import { type Pointing, pointingOf } from "./pointing.ts"
+import { type Pointing, pointingOf } from "./references/pointing.ts"
 import { type TagUse, vocabularyOf } from "./vocabulary.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)

@@ -76,7 +76,7 @@ const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
 /**
  * …and every OTHER by-key table a reading carries, which today is the four
  * parts of the one table: {@link Reading.pointing}, the set's own references
- * filed backwards, by row, by file, by name and by tag (`./pointing.ts`).
+ * filed backwards, by row, by file, by name and by tag (`./references/pointing.ts`).
  *
  * A ROW PER FIELD AND A ROW PER PART, and both are EXHAUSTIVE BY THE TYPE, for
  * {@link LISTS}'s reason and against the same failure one field over. A view

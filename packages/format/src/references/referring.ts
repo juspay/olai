@@ -46,7 +46,7 @@
  * **A DECLARED PROPERTY VALUE counts.** A record whose `agent` names a roster
  * row, or whose `brief` names a `.md`, is talking about that row and that file
  * — the key says so because the vault declared it `ref`, `node` or `doc`
- * ({@link ./typing.ts}). It is the one way whose meaning comes from outside
+ * ({@link ../typing.ts}). It is the one way whose meaning comes from outside
  * the grammar, so it arrives in the table in a second step and reads here like
  * any other ({@link ./pointing.ts}). What is NOT counted is every other kind
  * of value: a `text`, an `int`, a `date` names nothing.
@@ -95,16 +95,16 @@
 
 import { Schema } from "effect"
 
-import { type Address, addressOf, DocumentPath, printAddress } from "./address.ts"
+import { type Address, addressOf, DocumentPath, printAddress } from "../address.ts"
 import { tagText } from "@olai/prose/tags.ts"
-import { byCorpus, type Derived } from "./derive.ts"
-import { Face, type FaceHead } from "./document.ts"
-import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
-import { byPath } from "./paths.ts"
+import { byCorpus, type Derived } from "../derive.ts"
+import { Face, type FaceHead } from "../document.ts"
+import { isPutAway, isRegular, LocatedRegular } from "../node.ts"
+import { byPath } from "../paths.ts"
 import { conditional, type Pointing, pointingAt, type Source } from "./pointing.ts"
-import type { Way as Filed } from "./imports.ts"
-import type { Reading } from "./validate.ts"
-import { wikilinkAddress } from "./links/wikilink.ts"
+import type { Way as Filed } from "./written.ts"
+import type { Reading } from "../validate.ts"
+import { wikilinkAddress } from "../links/wikilink.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `outlines_see`, or a
@@ -124,13 +124,13 @@ import { wikilinkAddress } from "./links/wikilink.ts"
  * THE PROPERTY WAY is the newest, and it is the one way the FORMAT alone could
  * not have found: a value under a key this vault declares `doc`, `ref` or
  * `node` names a file or a row as plainly as a link does, and which keys those
- * are is a fact about the declarations ({@link ./typing.ts}) rather than about
+ * are is a fact about the declarations ({@link ../typing.ts}) rather than about
  * the grammar. A lane whose `agent` names a roster row is talking about that
  * row, and until this way the row's page could not say so.
  *
  * THIS READING NAMES THE WAYS IT COUNTS, which is what the one table asks of
  * every reader of it ({@link ./pointing.ts}). The table files every way a
- * document can point at something ({@link ./imports.ts}'s `FILED_WAYS`): the
+ * document can point at something ({@link ./written.ts}'s `FILED_WAYS`): the
  * placement that stands for a row, the ordering edges, the tags as written.
  * **Referenced by** is about what somebody SAID about a place, so it counts
  * four of them and the list is here, beside the rulings that close it —
@@ -139,7 +139,7 @@ import { wikilinkAddress } from "./links/wikilink.ts"
  * in `@olai/ops` read and this answer does not.
  *
  * A SCHEMA beside it, and the wire vocabulary READS that one ({@link
- * ./reading.ts}`s `Reference` — the arrangement `Progress` already has with
+ * ../reading.ts}`s `Reference` — the arrangement `Progress` already has with
  * that module). One list, so the words a page draws rows for
  * (`markdown-ui`'s `ReferrersSection`) and the words this answer carries
  * cannot gain a member on one side only.
@@ -234,7 +234,7 @@ const NOTHING_REFERS: ReadonlyArray<Reference> = []
  * THE NODE ARM reads the pointing index under `#<id>` and `@<id>` for the node
  * and every placement standing for it — the sees, the links, the mentions and
  * the declared `ref` and `node` property values all file there at the fold
- * ({@link ./imports.ts}). The other doors read the same table and name their
+ * ({@link ./written.ts}). The other doors read the same table and name their
  * own ways: the refusal that asks "does anything still name this record" reads
  * the fields and `property`, the tag list reads the `tag` half of the tags
  * part; nothing about either of them is spelled again here.
@@ -249,7 +249,7 @@ const NOTHING_REFERS: ReadonlyArray<Reference> = []
  * files a link onto a heading or a row under BOTH the element and the document,
  * so asking about a document is a lookup under its path and asking about a
  * heading or a row is a lookup under the exact key — the page that draws one
- * normalises to the whole document first (`./page.ts`'s `shownOf`), which is
+ * normalises to the whole document first (`../page.ts`'s `shownOf`), which is
  * why the two answers cannot drift.
  */
 export const referencesOf = (

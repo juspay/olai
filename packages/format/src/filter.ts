@@ -1909,7 +1909,7 @@ const propsOf = (
 }
 
 /** One empty list for every hit of every query that named no property, which
- *  is nearly all of them — `./documents.ts`'s `NO_LINKS` next door, for its
+ *  is nearly all of them — `./references/written.ts`'s `NO_LINKS` next door, for its
  *  reason. */
 const NO_KEYS: ReadonlyArray<string> = []
 

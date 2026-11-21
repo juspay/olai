@@ -105,7 +105,7 @@ import type { OutlineError } from "./errors.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, targetsOf } from "./node.ts"
 import { claimsAreUnique, recordsIn, type SetDelta, touchedBy } from "./patch.ts"
-import { namersOf, type Pointing } from "./pointing.ts"
+import { namersOf, type Pointing } from "./references/pointing.ts"
 import {
   byNaming,
   reportAfterCycles,
@@ -214,7 +214,7 @@ export const incrementally = (
   derived: Derived,
   kinds: KindVocabulary,
   /** What the directory points at NOW — where the targets rule reads who
-   *  names an id ({@link ./pointing.ts}), carried across this revision beside
+   *  names an id ({@link ./references/pointing.ts}), carried across this revision beside
    *  the view ({@link ./validate.ts}). */
   pointing: Pointing,
 ): Narrowed | Decline => {

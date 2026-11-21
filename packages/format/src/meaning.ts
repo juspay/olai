@@ -562,7 +562,7 @@ const dayIn = (value: string): Meaning | null =>
  * by the two readings that promised nothing about the value: a declared `path`,
  * and a key nobody declared at all.
  *
- * The path arithmetic and its refusals are one place ({@link ./documents.ts}'s
+ * The path arithmetic and its refusals are one place ({@link ./references/written.ts}'s
  * `pathedOf`: no scheme, no `//host`, no absolute path, no bare fragment, and a
  * `..` clamped to the served root) and existence is the question after it —
  * which is what lets an `.olai` be named, since the app draws a page for one

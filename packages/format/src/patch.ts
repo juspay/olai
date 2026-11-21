@@ -102,7 +102,7 @@ import {
   type Status,
   storedMarker,
 } from "./node.ts"
-import { namesWith, type Pointing, rowsAt } from "./pointing.ts"
+import { namesWith, type Pointing, rowsAt } from "./references/pointing.ts"
 import { type Dated, dateInto } from "./occasion.ts"
 import { type Editable, overlay } from "./overlay.ts"
 import { byPath } from "./paths.ts"
@@ -141,7 +141,7 @@ export interface SetDelta {
 
 /**
  * THE REFERENCES TABLE ON BOTH SIDES of the edit — what the directory pointed
- * at before it, and what it points at now ({@link ./pointing.ts}).
+ * at before it, and what it points at now ({@link ./references/pointing.ts}).
  *
  * The patcher is handed them rather than building them, and that is the shape
  * of the whole arrangement: the table is a fold over DOCUMENTS and this
@@ -1106,7 +1106,7 @@ const resolutions = (
   while (pending.length > 0) {
     const id = pending.pop() as string
     // Who STOOD for this id before the edit — the `mirror` way of the row,
-    // which is `targetsOf` read backwards ({@link ./pointing.ts}).
+    // which is `targetsOf` read backwards ({@link ./references/pointing.ts}).
     for (const source of rowsAt(edit.tables.before, id)) {
       if (namesWith(source, "mirror")) wake(source.at.node.id)
     }

@@ -107,7 +107,7 @@ test("a markdown document carries a face", () => {
 // An OUTLINE has one too, and its face is read off the records: what its nodes
 // attach, what they cross-reference, what their prose links and tags. That is
 // what makes "who points at this document" a question with one answer for both
-// kinds (`./backlinks.ts`).
+// kinds (`./references/referring.ts`).
 test("an outline carries a face read off its records", () => {
   const set = assemble(TEST_CLAIMS, decoded({
     "home.olai": outline(

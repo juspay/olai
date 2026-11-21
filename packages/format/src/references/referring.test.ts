@@ -1,7 +1,7 @@
 /**
  * What refers to a node — the reading, and the rulings inside it.
  *
- * The INDEX is held to `derive` by `./patch.test.ts`'s oracle; what is
+ * The INDEX is held to `derive` by `../patch.test.ts`'s oracle; what is
  * asserted here is the meaning laid over it: which of the things a record can
  * do counts as a reference, which ids a node answers to, and who is left out.
  *
@@ -13,11 +13,11 @@
 import { expect, test } from "bun:test"
 
 import { Slug } from "@olai/prose/slug.ts"
-import { DocumentPath, NodeId, type Address } from "./address.ts"
-import { referencesOf } from "./backlinks.ts"
-import { readingOf, setOf } from "./fixtures.testlib.ts"
-import type { Reading } from "./validate.ts"
-import { wikilinkAddress } from "./links/wikilink.ts"
+import { DocumentPath, NodeId, type Address } from "../address.ts"
+import { referencesOf } from "./referring.ts"
+import { readingOf, setOf } from "../fixtures.testlib.ts"
+import type { Reading } from "../validate.ts"
+import { wikilinkAddress } from "../links/wikilink.ts"
 
 /** The node address the grammar spells, off a plain id — the tests' own
  *  {@link addressOf}, which needs claims. */
@@ -403,7 +403,7 @@ test("a link inside an HTML comment is not a reference, either spelling", () => 
 //
 // The one way whose meaning comes from outside the grammar: a value names a
 // row or a file because the VAULT declared its key `ref`, `node` or `doc`
-// (`./typing.ts`), and the table files it in a second step. What is asserted
+// (`../typing.ts`), and the table files it in a second step. What is asserted
 // here is the meaning laid over those entries — which values count, and which
 // of the rulings beside them still hold.
 

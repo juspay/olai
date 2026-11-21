@@ -2,7 +2,7 @@
  * WHAT A DOCUMENT'S PAGE COSTS PER WRITE — the walk against the index, on a
  * directory with links all through it.
  *
- * IT IS A LEG, NOT A CLAIM (`just bench`), for `./patch.bench.ts`'s reason: a
+ * IT IS A LEG, NOT A CLAIM (`just bench`), for `../patch.bench.ts`'s reason: a
  * timing that fails a lane on a busy machine teaches nobody anything, and a
  * number quoted in a docstring that nothing re-runs is the unreproducible
  * laptop sample this repository has already retired once.
@@ -55,13 +55,13 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { Result } from "effect"
-import { type Address, addressOf } from "./address.ts"
-import { bodyKind } from "./kinds.ts"
-import { referencesOf } from "./backlinks.ts"
-import { alternating, median, parseOutline, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
-import { PARTS } from "./imports.ts"
+import { type Address, addressOf } from "../address.ts"
+import { bodyKind } from "../kinds.ts"
+import { referencesOf } from "./referring.ts"
+import { alternating, median, parseOutline, runtimeSaid, seeded, timed, timesSaid } from "../fixtures.testlib.ts"
+import { PARTS } from "./written.ts"
 import { pointingOf, repointed } from "./pointing.ts"
-import { NO_TYPING } from "./typing.ts"
+import { NO_TYPING } from "../typing.ts"
 import {
   documentsAmong,
   facesIn,
@@ -71,9 +71,9 @@ import {
   scannedReferrers,
   WIKILINK_SHARE,
 } from "./pointing.testlib.ts"
-import { decodedVault } from "./scope.testlib.ts"
-import { assemble, type OutlineSet } from "./set.ts"
-import { type Reading, reading } from "./validate.ts"
+import { decodedVault } from "../scope.testlib.ts"
+import { assemble, type OutlineSet } from "../set.ts"
+import { type Reading, reading } from "../validate.ts"
 
 const OUTLINES = Number(process.env["OLAI_BENCH_OUTLINES"] ?? 300)
 const BODIES = Number(process.env["OLAI_BENCH_BODIES"] ?? 1500)

@@ -91,7 +91,7 @@ import type { BrokenFile, OutlineError } from "./errors.ts"
 import { type Decline, incrementally, type Ledger } from "./incremental.ts"
 import type { Located } from "./node.ts"
 import { type FileNodes, patch, patched, type SetDelta, type Tables } from "./patch.ts"
-import { type Carried, type Pointing, pointingOf, propertied, repointed, repropertied } from "./pointing.ts"
+import { type Carried, type Pointing, pointingOf, propertied, repointed, repropertied } from "./references/pointing.ts"
 import { type Names, namesCarried, namesOf } from "./links/names.ts"
 import {
   danglingIn,
@@ -151,7 +151,7 @@ export interface Reading {
   readonly derived: Derived
   /**
    * WHO POINTS AT WHAT — the set's own references, filed backwards, in four
-   * parts by what is pointed at ({@link ./pointing.ts}): the rows, the files,
+   * parts by what is pointed at ({@link ./references/pointing.ts}): the rows, the files,
    * the wikilink names and the tags. A record's fields and a document's links
    * are one table, so one question has one answer.
    *
@@ -309,7 +309,7 @@ const degraded = (
   // orders one out of the table rather than out of an index of its own. The
   // carry reads the two SETS and needs no view at all, so the order is the
   // table, then the derivation — and then the table's SECOND step, which needs
-  // the derivation it has just made ({@link ./pointing.ts}). A withheld file
+  // the derivation it has just made ({@link ./references/pointing.ts}). A withheld file
   // can be the declarations file itself, so what the property entries mean is
   // asked again of the view this reading answers with.
   const said = referenceKeys(view.derived)
@@ -765,7 +765,7 @@ const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
 const viewOf = (claims: Claims, set: OutlineSet, previous: Previous | undefined): Taken => {
   if (previous?.read.claims !== claims) previous = undefined
   // WHAT POINTS WHERE is carried across the same step and by its own rule
-  // ({@link ./pointing.ts}). It reads the two SETS rather than the delta, so it
+  // ({@link ./references/pointing.ts}). It reads the two SETS rather than the delta, so it
   // is offered whenever a previous reading is — including on the revisions the
   // derivation gives up on, since a patcher that declined over a duplicate id
   // has said nothing at all about what any file points at.

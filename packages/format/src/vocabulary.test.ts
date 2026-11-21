@@ -16,7 +16,7 @@ import { expect, test } from "bun:test"
 import { tagText } from "@olai/prose/tags.ts"
 import { tableOf } from "./corpora.testlib.ts"
 import { FIXTURE_FILE } from "./fixtures.testlib.ts"
-import type { Pointing } from "./pointing.ts"
+import type { Pointing } from "./references/pointing.ts"
 import {
   completingTags,
   type TagCompletion,
