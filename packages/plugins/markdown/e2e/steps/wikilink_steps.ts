@@ -95,3 +95,27 @@ When("I select the words {string} on the page", async function (this: OlaiWorld,
 Then("the words {string} are still selected", async function (this: OlaiWorld, words: string) {
   assert.strictEqual(await this.page.evaluate(() => window.getSelection()?.toString() ?? ""), words);
 });
+
+/** The pictures the page embeds by name: `![[handle.png]]` and its kin. */
+const embedded = (world: OlaiWorld, name: string): Locator =>
+  world.frontLane().locator(`img[data-wikilink="${name}"]`);
+
+Then("the embedded picture {string} is drawn", async function (this: OlaiWorld, name: string) {
+  const picture = embedded(this, name).first();
+  await picture.scrollIntoViewIfNeeded({ timeout: HYDRATION_TIMEOUT });
+  // The browser's own answer: it decoded bytes from the media route, so the
+  // name found a real file in another folder.
+  await this.waitUntil(
+    async () => await picture.evaluate((element) => (element as HTMLImageElement).complete && (element as HTMLImageElement).naturalWidth > 0),
+    `the picture ${name} to be fetched and decoded`,
+  );
+});
+
+Then("an embedded picture {string} is {int} pixels wide", async function (this: OlaiWorld, name: string, width: number) {
+  const pictures = embedded(this, name);
+  await pictures.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(
+    async () => (await pictures.evaluateAll((all) => all.map((one) => Math.round(one.getBoundingClientRect().width)))).includes(width),
+    `a picture ${name} drawn ${width} pixels wide`,
+  );
+});

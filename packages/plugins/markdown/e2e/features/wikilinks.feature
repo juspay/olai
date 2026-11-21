@@ -133,3 +133,42 @@ Feature: Wikilinks open the note their name finds
     And I confirm deleting the file
     Then the deletion is refused saying "`Greenhouse.md` is still named by `every-form.md` (`link`) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming link or record first."
     And there should be no page errors
+
+  @corpus:wikilinks
+  Scenario: A picture embedded by its name alone is drawn, at the width asked for
+    Given I open the document "every-form.md"
+    Then the embedded picture "handle.png" is drawn
+    And an embedded picture "handle.png" is 40 pixels wide
+    And there should be no page errors
+
+  @corpus:wikilinks
+  Scenario: The picture's page lists the note that embeds it
+    Given I open the document "art/handle.png"
+    When I open what points at the document
+    Then what points at the document is "Every form"
+    And there should be no page errors
+
+  @corpus:wikilinks
+  Scenario: A wikilink to a row lands on the row
+    Given I open the document "every-form.md"
+    When I click the wikilink "house.olai > kitchen"
+    Then the address is "/house.olai#kitchen"
+    And the unified destination row "kitchen" is selected
+    And there should be no page errors
+
+  @scratch:wikilinks
+  Scenario: A note embedded by name is a link to it, and counts on its page
+    Given I open the app
+    And I rewrite "embeds.md" as:
+      """
+      # Embeds
+
+      ![[paint colours]]
+      """
+    When I open the document "embeds.md"
+    Then the wikilink "paint colours" opens "/paint%20colours.md"
+    When I click the wikilink "paint colours"
+    Then the address is "/paint%20colours.md"
+    When I open what points at the document
+    Then what points at the document is "Embeds, Every form"
+    And there should be no page errors

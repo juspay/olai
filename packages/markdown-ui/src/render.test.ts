@@ -841,3 +841,68 @@ test("a title's wikilink follows the membership it is drawn with", () => {
   expect(titleHtml("see [[finishes]]", "house.olai", { members: without })).toContain("data-dead")
   expect(titleHtml("see [[finishes]]", "house.olai", { members: WIKI_MEMBERS })).not.toContain("data-dead")
 })
+
+// ── wikilink pictures ──────────────────────────────────────────────────
+
+/** Every element a rendering marked as a wikilink picture: its tag and its
+ *  attributes, in order. */
+const wikiPictures = (html: string): ReadonlyArray<{ readonly tag: string; readonly attributes: Readonly<Record<string, string>>; readonly words: string }> =>
+  [...html.matchAll(/<(img|span)\s([^>]*data-wikilink-picture[^>]*)>(?:(.*?)<\/span>)?/g)].map((match) => ({
+    tag: match[1] as string,
+    attributes: Object.fromEntries([...(match[2] as string).matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map((one) => [one[1], one[2] ?? ""])),
+    words: match[3] ?? "",
+  }))
+
+test("a picture embedded by name alone is drawn from whatever folder it is in", () => {
+  const [picture] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png]]", "every-form.md", WIKI_MEMBERS))
+  expect(picture?.tag).toBe("img")
+  expect(picture?.attributes["src"]).toBe("/media/art/handle.png")
+  expect(picture?.attributes["alt"]).toBe("handle.png")
+  expect(picture?.attributes).not.toHaveProperty("width")
+})
+
+test("a width, or a width and a height, after the bar sizes the picture", () => {
+  const [narrow] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|40]]", "a.md", WIKI_MEMBERS))
+  expect(narrow?.attributes["width"]).toBe("40")
+  expect(narrow?.attributes).not.toHaveProperty("height")
+  const [boxed] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|40x30]]", "a.md", WIKI_MEMBERS))
+  expect(boxed?.attributes["width"]).toBe("40")
+  expect(boxed?.attributes["height"]).toBe("30")
+  const [worded] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|the handle]]", "a.md", WIKI_MEMBERS))
+  expect(worded?.attributes).not.toHaveProperty("width")
+})
+
+test("an embed meets the allowlist a markdown picture meets, and is refused in words", () => {
+  for (const [written, words] of [
+    ["![[diagram.svg]]", "this picture could not be drawn: diagram.svg"],
+    ["![[gone.png]]", "this picture could not be drawn: gone.png"],
+    ["![[https://example.com/a.png]]", "this picture could not be drawn: https://example.com/a.png"],
+  ] as const) {
+    const html = renderMarkdown(TEST_CLAIMS, written, "a.md", WIKI_MEMBERS)
+    const [refused] = wikiPictures(html)
+    expect(refused?.tag).toBe("span")
+    expect(refused?.words).toBe(words)
+    expect(refused?.attributes["data-testid"]).toBe(TESTID.undrawnPicture)
+    expect(html).not.toContain("<img")
+    expect(html).not.toMatch(/\ssrc=/)
+  }
+})
+
+test("an embed of a note, a pdf or an outline is a link to it", () => {
+  expect(wikiAnchor("![[finishes]]").attributes["href"]).toBe("/finishes.md")
+  expect(wikiAnchor("![[report.pdf]]").attributes["href"]).toBe("/reports/report.pdf")
+  expect(wikiAnchor("![[house.olai#kitchen]]").attributes["href"]).toBe("/house.olai#kitchen")
+})
+
+test("a picture embedded in a title is a link, since a title is one line high", () => {
+  const html = titleHtml("the knobs ![[handle.png]]", "house.olai", { members: WIKI_MEMBERS })
+  expect(html).not.toContain("<img")
+  expect(html).toMatch(/<a [^>]*href="\/art\/handle\.png"[^>]*>handle\.png<\/a>/)
+})
+
+test("before the membership is known, a picture embed waits rather than refusing", () => {
+  const [waiting] = wikiPictures(renderMarkdown(TEST_CLAIMS, "![[handle.png|40]]", "a.md"))
+  expect(waiting?.tag).toBe("span")
+  expect(waiting?.words).toBe("")
+  expect(waiting?.attributes["data-wikilink-size"]).toBe("40")
+})
