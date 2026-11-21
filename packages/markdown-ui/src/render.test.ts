@@ -727,12 +727,24 @@ const WIKI_MEMBERS: ReadonlySet<string> = new Set([
   "reports/report.pdf",
 ])
 
-/** Every `<a>` in some HTML, as its attributes and its words. */
-const anchorsIn = (html: string): ReadonlyArray<{ readonly attributes: Readonly<Record<string, string>>; readonly words: string }> =>
-  [...html.matchAll(/<a\s([^>]*)>(.*?)<\/a>/g)].map((match) => ({
-    attributes: Object.fromEntries([...(match[1] as string).matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map((one) => [one[1], one[2] ?? ""])),
-    words: textOf(match[2] as string),
-  }))
+/** Every `<a>` in some HTML, as its attributes and its words — found by
+ *  scanning for the open, its `>` and the close in turn, so the cost is one
+ *  pass however the HTML is shaped. */
+const anchorsIn = (html: string): ReadonlyArray<{ readonly attributes: Readonly<Record<string, string>>; readonly words: string }> => {
+  const found: Array<{ readonly attributes: Readonly<Record<string, string>>; readonly words: string }> = []
+  let at = html.indexOf("<a ")
+  while (at !== -1) {
+    const open = html.indexOf(">", at)
+    const close = open === -1 ? -1 : html.indexOf("</a>", open)
+    if (close === -1) break
+    found.push({
+      attributes: Object.fromEntries([...html.slice(at + 3, open).matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map((one) => [one[1], one[2] ?? ""])),
+      words: textOf(html.slice(open + 1, close)),
+    })
+    at = html.indexOf("<a ", close)
+  }
+  return found
+}
 
 /** The characters of some HTML outside its tags — one pass that drops
  *  everything from a `<` to the next `>`, so no removal can join two halves
