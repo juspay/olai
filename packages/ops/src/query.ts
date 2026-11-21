@@ -28,7 +28,6 @@
  * has any bearing on the answer.
  */
 
-import { tagText } from "@olai/prose/tags.ts"
 import {
   bodyRead,
   deadLinksIn,
@@ -117,7 +116,7 @@ import {
   type SubtreeRequest,
   type TagsAnswer,
   type TagsRequest,
-  titleParts,
+  recordRead,
   UsageFailure,
 } from "@olai/format"
 
@@ -782,9 +781,7 @@ export const detail = (
     // moving `tags` onto the index would put a note's words in a field that
     // says "this node's title", and moving the completion off it would put the
     // corpus walk back.
-    tags: titleParts(node.title).flatMap((part) =>
-      part.kind === "tag" ? [tagText(part)] : []
-    ),
+    tags: recordRead(node).title.tags,
     ...(progress === undefined ? {} : { progress }),
     ...(took === undefined ? {} : { took }),
     // SHAPED, or today's rows, in the same sibling order either way: `fields`

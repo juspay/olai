@@ -12,7 +12,7 @@
 import { expect, test } from "bun:test"
 
 import { slugOf } from "@olai/prose/slug.ts"
-import { headingsIn, slugsIn } from "./slug.ts"
+import { slugsIn } from "./slug.ts"
 
 const said = (values: ReadonlyArray<string>): ReadonlyArray<string> => [...values]
 
@@ -58,23 +58,23 @@ test("a repeated heading takes the next number", () => {
 // The closing run markdown allows, and the one place it must NOT come off: a
 // heading that ends in a hash with no space before it is a heading about C#.
 test("the closing hashes come off, and a hash that is a word does not", () => {
-  expect(headingsIn("## Install ##")).toEqual(["Install"])
-  expect(headingsIn("## C#")).toEqual(["C#"])
-  expect(headingsIn("### ###")).toEqual([""])
+  expect(said(slugsIn("## Install ##"))).toEqual(["install"])
+  expect(said(slugsIn("## C# notes"))).toEqual(["c-notes"])
+  expect(said(slugsIn("### ###"))).toEqual([])
 })
 
 // The space is markdown's own rule and this format leans on it hard: a
 // directory of these is full of lines that open with a tag.
 test("a tag at the start of a line is not a heading", () => {
-  expect(headingsIn("#home is where the work is")).toEqual([])
-  expect(headingsIn("####### seven hashes")).toEqual([])
-  expect(headingsIn("# one")).toEqual(["one"])
+  expect(said(slugsIn("#home is where the work is"))).toEqual([])
+  expect(said(slugsIn("####### seven hashes"))).toEqual([])
+  expect(said(slugsIn("# one"))).toEqual(["one"])
 })
 
-// The one construct whose contents look like headings often enough to matter:
-// every shell example with a `# comment` in it. A fence closes on a fence of
-// the same character at least as long, which is what lets one hold another.
-test("nothing inside a fenced block is a heading", () => {
+// Code holds no heading: every shell example with a `# comment` in it, fenced
+// or indented. A fence closes on a fence of the same character at least as
+// long, which is what lets one hold another.
+test("nothing inside code is a heading", () => {
   const body = [
     "# Real",
     "```sh",
@@ -85,29 +85,29 @@ test("nothing inside a fenced block is a heading", () => {
     "### nor this",
     "~~~",
     "#### And this",
+    "",
+    "    # indented, so code",
   ].join("\n")
-  expect(headingsIn(body)).toEqual(["Real", "Also real", "And this"])
-  // A longer fence closes a shorter one and not the other way round.
-  expect(headingsIn("````\n```\n# still inside\n````\n# out")).toEqual(["out"])
+  expect(said(slugsIn(body))).toEqual(["real", "also-real", "and-this"])
+  expect(said(slugsIn("````\n```\n# still inside\n````\n# out"))).toEqual(["out"])
 })
 
 // A rule under a line of prose is a heading; the same rule after a blank line
 // is a thematic break, and the `---` at the top of a file is frontmatter.
-// Telling those apart is the whole of why the scan remembers the line above.
 test("a setext heading needs prose above the rule", () => {
-  expect(headingsIn("The plan\n========\n\nProse.\n\nNext\n----")).toEqual([
-    "The plan",
-    "Next",
-  ])
-  expect(headingsIn("Prose.\n\n---\n\nMore.")).toEqual([])
-  expect(headingsIn("---\ntitle: x\n---\n\n# Real")).toEqual(["Real"])
+  expect(said(slugsIn("The plan\n========\n\nProse.\n\nNext\n----"))).toEqual(["the-plan", "next"])
+  expect(said(slugsIn("Prose.\n\n---\n\nMore."))).toEqual([])
+  expect(said(slugsIn("---\ntitle: x\n---\n\n# Real"))).toEqual(["real"])
 })
 
-// Where the block ENDS is `./frontmatter.ts`'s rule now rather than this
-// scan's, and the corner that move fixed is this one: an unclosed `---` used
-// to swallow every heading below it, where the renderer draws a thematic break
-// and carries on. A face that lost a document's whole element list is an
-// address the app writes and cannot open.
+// An unclosed `---` is a thematic break, not a block that swallows every
+// heading below it.
 test("an unclosed frontmatter fence hides no heading", () => {
-  expect(headingsIn("---\ntitle: x\n\n# Real\n\n## Also")).toEqual(["Real", "Also"])
+  expect(said(slugsIn("---\ntitle: x\n\n# Real\n\n## Also"))).toEqual(["real", "also"])
+})
+
+// A heading in a quote or a list item is a heading of the document, as the
+// page draws it.
+test("a heading in a quote or a list item is a heading", () => {
+  expect(said(slugsIn("> ## Quoted\n\n- ## Listed"))).toEqual(["quoted", "listed"])
 })

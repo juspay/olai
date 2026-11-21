@@ -117,7 +117,7 @@ test("a phrase spanning two rendered pieces lights both", () => {
     `${hit("see ")}<a href="https://example.com" target="_blank" ` +
       `rel="noopener noreferrer">${hit("https")}://example.com</a> first`,
   )
-  // Tag in a later piece (`from !== 0`). Seeding the titleParts cursor at 0
+  // Tag in a later piece (`from !== 0`). Seeding the tagParts cursor at 0
   // would mark haystack[0, …) instead of `#home`.
   expect(lit("**urgent** #home", "urgent #home")).toBe(
     `<strong>${hit("urgent")}</strong>${hit(" ")}` +

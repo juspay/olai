@@ -1,10 +1,9 @@
-/** Wikilinks: what the scan reads as one, and which file a name finds. */
+/** Wikilinks: what the preview line's scan reads as one, and which file a
+ *  name finds. */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
-import { type Tag } from "@olai/prose/tags.ts"
 import { type Address, printAddress } from "./address.ts"
-import { tagsIn, titleParts } from "./derive.ts"
 import { wikilinksIn } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { namesIn, wikilinkAddress, wikilinkFor, wikilinkOffers, wikilinkPath } from "./wikilinks.ts"
@@ -131,22 +130,6 @@ describe("arbitrary text", () => {
       // quadratic work would be sixty-four.
       expect(large / small).toBeLessThan(30)
     }
-  })
-})
-
-describe("a heading inside a link is not a tag", () => {
-  test("the index reads no tag from a link's heading", () => {
-    expect([...tagsIn("see [[kitchen-sink#Tables]] and #real")]).toEqual(["#real" as Tag])
-    expect(tagsIn("[[a#Heading]]")).toEqual([])
-    expect(tagsIn("![[Note#Part|words #inside]]")).toEqual([])
-  })
-
-  test("a title's parts keep the link as text", () => {
-    expect(titleParts("open [[a#Heading]] #home").filter(part => part.kind === "tag")).toEqual([{ kind: "tag", sigil: "#", tag: "home" }])
-  })
-
-  test("a tag after an unclosed link is still a tag", () => {
-    expect([...tagsIn("[[a #home")]).toEqual(["#home" as Tag])
   })
 })
 

@@ -25,7 +25,7 @@
  *   - `index` — {@link vocabularyOf}, which reads `Derived.taggedBy`: the keys of a
  *     map and the length of each entry, with the trash taken off;
  *   - `walk` — the SAME ANSWER derived from the corpus instead: every node of
- *     the set, `titleParts` over its title and its note, one vote per record.
+ *     the set, `tagParts` over its title and its note, one vote per record.
  *     This is the honest A/B, because two arms that answer different lists are
  *     two numbers nobody may divide;
  *   - `titles` — the walk AS IT LITERALLY STOOD before `taggedBy`: titles
@@ -51,8 +51,8 @@
  * what a server is left holding when one file changes.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { mayHoldTag, tagText } from "@olai/prose/tags.ts"
-import { derive, type Derived, titleParts } from "./derive.ts"
+import { mayHoldTag, tagParts, tagText } from "@olai/prose/tags.ts"
+import { derive, type Derived } from "./derive.ts"
 import {
   median,
   recordsOf,
@@ -109,9 +109,9 @@ const walked = (derived: Derived): ReadonlyArray<TagUse> => {
     const voted = new Set<string>()
     for (const text of [located.node.title, located.node.desc]) {
       // The format's own cheap negative first, exactly as the walk had it:
-      // `titleParts` runs a global regex and most prose holds no sigil at all.
+      // `tagParts` runs a global regex and most prose holds no sigil at all.
       if (text === undefined || !mayHoldTag(text)) continue
-      for (const part of titleParts(text)) {
+      for (const part of tagParts(text)) {
         if (part.kind !== "tag") continue
         const key = tagText(part)
         if (voted.has(key)) continue
@@ -145,7 +145,7 @@ const titlesOnly = (derived: Derived): ReadonlyArray<TagUse> => {
       isLeftoverArchive(located.file)
     ) continue
     if (!mayHoldTag(located.node.title)) continue
-    for (const part of titleParts(located.node.title)) {
+    for (const part of tagParts(located.node.title)) {
       if (part.kind !== "tag") continue
       const key = tagText(part)
       const before = counts.get(key)

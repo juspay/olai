@@ -36,9 +36,10 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { type Address, addressOf } from "./address.ts"
 import type { Reference, Way } from "./backlinks.ts"
-import { tagsIn, type Derived } from "./derive.ts"
+import type { Derived } from "./derive.ts"
 import { type Document, type Face, faceOf, type FaceHead } from "./document.ts"
-import { linksIn, recordLinks, recordWikilinks } from "./documents.ts"
+import { readAddresses, recordLinks, recordWikilinks } from "./documents.ts"
+import { recordRead } from "./kept.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, isPutAway, isRegular, type Located } from "./node.ts"
@@ -212,24 +213,20 @@ const recordWays = (
 ): ReadonlyArray<Way> => {
   if (!isRegular(located)) return []
   const node = located.node
+  const said = recordRead(node)
+  const texts = said.desc === null ? [said.title] : [said.title, said.desc]
   const ways = new Set<Way>()
   for (const id of node.see ?? []) {
     if (asked.has(id)) ways.add("see")
   }
-  for (const address of linksIn(TEST_CLAIMS, located.file, node.title)) {
-    if (names(address)) ways.add("link")
-  }
-  if (node.desc !== undefined) {
-    for (const address of linksIn(TEST_CLAIMS, located.file, node.desc)) {
+  for (const text of texts) {
+    for (const address of readAddresses(TEST_CLAIMS, located.file, text)) {
       if (names(address)) ways.add("link")
     }
   }
   if (wikilinked.some(names)) ways.add("link")
-  for (const tag of tagsIn(node.title)) {
-    if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
-  }
-  if (node.desc !== undefined) {
-    for (const tag of tagsIn(node.desc)) {
+  for (const text of texts) {
+    for (const tag of text.tags) {
       if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
     }
   }

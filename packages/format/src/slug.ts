@@ -13,235 +13,27 @@
  * in the design (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md) and not designed
  * here.
  *
- * ## Why the rule is here and not in the renderer
+ * ## Why the rule is not in the renderer
  *
  * Two things have to agree about a slug and they run in different processes.
  * The FACE says which headings a document has ({@link ./document.ts}), so a
  * backlink onto `README.md#install` can be checked and a page can say what it
  * points at; the BROWSER puts the id on the `<h2>` it draws, so the address
- * lands somewhere. A slug spelled twice is an address the app writes and
- * cannot open, which is the whole class of bug the address grammar was
- * centralised to end — so {@link slugOf} is the one spelling, and the client's
- * markdown pipeline asks it rather than reaching for `rehype-slug`
- * (`@olai/web`'s `markdown/slugs.ts`, which is that plugin and nothing else).
- *
- * WHERE THEY STILL PART is WHICH LINES ARE HEADINGS, and it is said here
- * rather than left to be discovered. The browser has a markdown parser and
- * this package deliberately has none — it is the floor the validator stands
- * on, and putting a parser under the write gate is the trade `./derive.ts`
- * already refuses for the same reason. So {@link headingsIn} reads LINES: ATX
- * headings (`## Words`), setext headings (a line underlined with `=` or `-`),
- * and nothing inside a fenced code block, which is the one construct whose
- * contents look like headings often enough to matter (`# comment` in a shell
- * fence). A heading built out of anything subtler than that — one inside a
- * blockquote or a list item, one whose text is an image — is drawn with an id
- * and is missing from the face's list, which costs a backlink and never a
- * broken page. `@olai/web`'s `markdown/slugs.test.ts` holds the two readings
- * to each other over the fixture vault, so the gap is measured rather than
- * assumed.
+ * lands somewhere. Both ask one reading of the body (`@olai/prose`'s
+ * `read.ts`), which makes each heading's slug once with `slugOf` — so a slug
+ * is never spelled twice, and every heading the page draws is one the face
+ * lists.
  */
 
-import { claim, type Slug, slugOf } from "@olai/prose/slug.ts"
+import type { Slug } from "@olai/prose/slug.ts"
 import { proseIn } from "@olai/prose/frontmatter.ts"
 import { read } from "@olai/prose/read.ts"
-import { wikilinksShown } from "./documents.ts"
 
 /**
  * The slugs of a whole body, in document order and never repeated — the list
- * the face carries.
- *
- * DEDUPED THE WAY A RENDERER DEDUPES, because two headings with the same words
- * are two places and an address may only name one of them: the first keeps the
- * bare slug, and each one after it takes the next `-1`, `-2`. That rule is
- * `github-slugger`'s counter, and it is here rather than in the plugin for the
- * reason {@link slugOf} is — one of them is the id on the page and the other
- * is the id the face promises exists.
- *
- * A heading that slugs to nothing is LEFT OUT rather than counted: it is not
- * an address, so it is not an element this document has.
+ * the face carries, and the ids the page draws: both are `read`'s, numbered
+ * once there. A heading that slugs to nothing is not an element this document
+ * has.
  */
 export const slugsIn = (body: string): ReadonlyArray<Slug> =>
   read(proseIn(body)).headings.flatMap((heading) => heading.slug === null ? [] : [heading.slug])
-
-/**
- * The same counter the renderer runs, over slugs that are already spelled —
- * shared so the browser's plugin and the face cannot come to disagree about
- * what the SECOND `## Notes` in a document is called.
- *
- * `seen` counts how many times a slug has been HANDED OUT under its own name,
- * so the third `notes` is `notes-2`: the first took `notes`, the second took
- * `notes-1`. A generated name that is itself already taken (a document with
- * `## Notes`, `## Notes` and `## Notes 1`) keeps counting rather than
- * colliding.
- */
-const deduped = (slugs: ReadonlyArray<Slug>): ReadonlyArray<Slug> => {
-  const seen = new Map<string, number>()
-  const given: Array<Slug> = []
-  for (const slug of slugs) {
-    if (slug === "") continue
-    given.push(claim(seen, slug))
-  }
-  return given
-}
-
-/**
- * The TEXT of every heading of a body, in document order.
- *
- * Line by line, with two constructs read and everything else left alone (the
- * header says why this package reads lines rather than a tree):
- *
- *   - a FENCE (``` or ~~~) opens a region nothing in it is a heading, and it
- *     closes on a fence of the same character at least as long. That is the
- *     one construct whose contents look like headings by accident — every
- *     shell example with a `# comment` in it — and leaving it out is the
- *     difference between a face that lists a document's sections and one that
- *     lists its code samples.
- *   - an ATX heading is one to six `#` and a space; the trailing run of `#`
- *     markdown allows as a closing fence comes off, exactly as
- *     {@link ./documents.ts}'s `firstLine` takes it off the title.
- *   - a SETEXT heading is a line of ordinary prose with a rule under it, `=`
- *     for the first level and `-` for the second. It needs the line ABOVE to
- *     be text, which is what tells `---` under a paragraph (a heading) from
- *     `---` after a blank line (a thematic break) and from the `---` that
- *     closes frontmatter.
- *
- * The heading's INLINE MARKUP is left as written, which is where the browser's
- * reading and this one part company most often: `## **Install**` is `install`
- * on the page (the parser sees emphasis around a word) and `install` here too,
- * since `*` is not a character a slug is made of — but `## [Install](x.md)`
- * is `install` there and `installxmd` here. Said rather than fixed: stripping
- * markup correctly is having a parser.
- *
- * A WIKILINK is the exception, because it needs no parser: the scan the page
- * draws it by is in this package ({@link ./documents.ts}'s `wikilinksShown`),
- * so `## See [[finishes|the finishes]]` is `See the finishes` here as there.
- */
-export const headingsIn = (body: string): ReadonlyArray<string> => {
-  const found: Array<string> = []
-  let fence: string | null = null
-  let previous: string | null = null
-  // FRONTMATTER FIRST, and through {@link ./frontmatter.ts} rather than a rule
-  // of this scan's own — which is what it used to be, and the one place in
-  // this package that knew the block existed at all. Skipping it is not
-  // tidiness: its closing rule sits directly under a line of text, so a scan
-  // that did not know about it would read `title: x` as a setext heading and
-  // hand the face a section the document does not have. Asking the module that
-  // also READS the block is what keeps the two from disagreeing about where it
-  // ends — and it is what fixed the corner this scan had wrong, an unclosed
-  // `---` swallowing every heading below it where the renderer draws a
-  // thematic break.
-  //
-  // SCANNED rather than split, which is `./documents.ts`'s own refusal one
-  // door over: this runs at the decode of every `.md` in a served directory,
-  // and `split("\n")` allocates a string per line of every one of them to
-  // throw nearly all of them away.
-  const text = proseIn(body)
-  let at = 0
-  while (at <= text.length) {
-    const end = text.indexOf("\n", at)
-    const line = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
-    at = end === -1 ? text.length + 1 : end + 1
-    if (fence !== null) {
-      if (closes(line, fence)) fence = null
-      previous = null
-      continue
-    }
-    const opened = opensFence(line)
-    if (opened !== null) {
-      fence = opened
-      previous = null
-      continue
-    }
-    const atx = headingText(line)
-    if (atx !== null) {
-      found.push(wikilinksShown(atx))
-      previous = null
-      continue
-    }
-    if (previous !== null && SETEXT.test(line)) {
-      found.push(wikilinksShown(previous))
-      previous = null
-      continue
-    }
-    previous = line === "" ? null : line
-  }
-  return found
-}
-
-/**
- * The WORDS of an ATX heading line — `## Install` is `Install` — or `null`
- * for a line that is not one.
- *
- * One to six hashes and then a SPACE, which markdown itself insists on and
- * this format leans on hard: `#tag` at the start of a line is a tag somebody
- * wrote, and a directory of these is full of them. The optional closing run of
- * hashes comes off the other end, which is the same rule read backwards.
- *
- * SCANNED rather than matched, and that is not style. The regex it replaces
- * (`/^#{1,6}[ \t]+(.*)$/` with a `/\s+#+$/` after it) is quadratic on input
- * somebody else wrote — CodeQL's `js/polynomial-redos`, and it is right: an
- * unanchored `\s+` restarts at every position of a line of spaces, and this is
- * run over every line of every document in a served directory. A scan of the
- * two ends is linear and says the rule more plainly than the pattern did.
- *
- * EXPORTED because {@link ./documents.ts}'s `firstLine` asks the same
- * question about the first line of a body — what a `.md` is CALLED is its
- * opening heading's words — and two spellings of "take the marks off" is two
- * chances to take a different number of characters.
- */
-export const headingText = (line: string): string | null => {
-  let opens = 0
-  while (opens < line.length && line[opens] === "#") opens++
-  if (opens === 0 || opens > 6) return null
-  const after = line[opens]
-  if (after !== " " && after !== "\t") return null
-  // The closing run, and only where markdown puts one: hashes at the very end
-  // with a space in front of them. A heading that ENDS in a hash with no space
-  // before it (`## C#`) keeps it, which is the whole reason the space is
-  // required rather than assumed.
-  let end = line.length
-  while (end > opens && line[end - 1] === "#") end--
-  if (end < line.length) {
-    let before = end
-    while (before > opens && (line[before - 1] === " " || line[before - 1] === "\t")) before--
-    if (before < end) end = before
-    else end = line.length
-  }
-  return line.slice(opens, end).trim()
-}
-
-/** The rule under a setext heading: one character, repeated, and nothing
- *  else. */
-const SETEXT = /^(?:=+|-+)$/
-
-/** How long a run of `char` a line opens with — 0 for a line that does not. */
-const runOf = (line: string, char: string): number => {
-  let length = 0
-  while (length < line.length && line[length] === char) length++
-  return length
-}
-
-/** What a line opens a fence with, or `null` — the run of backticks or tildes,
- *  kept so the closing fence can be held to being at least as long (markdown's
- *  own rule, and what lets a fence hold a shorter fence inside it). */
-const opensFence = (line: string): string | null => {
-  for (const char of FENCES) {
-    const length = runOf(line, char)
-    if (length >= 3) return char.repeat(length)
-  }
-  return null
-}
-
-/** The two characters markdown fences code with. */
-const FENCES = ["`", "~"] as const
-
-/** Whether a line closes the fence that is open: the same character, at least
- *  as long, and nothing after it.
- *
- *  A scan rather than a `new RegExp` built per line, which is what this was:
- *  a pattern compiled once for every line inside every fenced block of every
- *  document in the directory, to ask a question two `while`s answer. */
-const closes = (line: string, fence: string): boolean => {
-  const length = runOf(line, fence[0]!)
-  return length >= fence.length && line.slice(length).trim() === ""
-}

@@ -278,18 +278,15 @@ export {
 export { bytesOf } from "./document.ts"
 export { isAsset, isPicture, servingOf } from "./serving.ts"
 export {
-  firstLine,
   /** The path in this directory a relative reference names, whatever kind of
    *  file it is — the same arithmetic and refusals as the picture rule, with
    *  no suffix allowlist at the end, for the caller that can ask the directory
    *  itself whether it serves the answer. */
   pathedOf,
   pictureOf,
-  /** Every `[[…]]` and `![[…]]` a piece of prose writes, with where it sits. */
-  wikilinksIn,
-  /** The text with each wikilink as the words it shows. */
+  /** The text with each wikilink as the words it shows — the browser's
+   *  preview line, before the parser has loaded. */
   wikilinksShown,
-  type Wikilink,
 } from "./documents.ts"
 export {
   namesIn,
@@ -566,7 +563,6 @@ export {
    *  layer refuses `outlines_doing` with THIS one, which is the same reading from
    *  the other end of the arrow. */
   standingBefore,
-  titleParts,
   unfinished,
   unfinishedWithin,
   withoutDone,

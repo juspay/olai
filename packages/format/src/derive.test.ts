@@ -22,14 +22,13 @@ import {
   type Status,
   memoryFiles,
   nearestAtOrAbove,
-  titleParts,
   tookOf,
   under,
   unfinishedWithin,
 
   withoutDone,
 } from "./derive.ts"
-import { isTagName, mayHoldTag, TAG_SIGILS, tagOpensAt, tagText, titleTagRe } from "@olai/prose/tags.ts"
+import { isTagName, mayHoldTag, TAG_SIGILS, tagOpensAt, tagParts, tagText, titleTagRe } from "@olai/prose/tags.ts"
 import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { isMirror, type Located, type RegularNode, storedMarker } from "./node.ts"
 
@@ -1530,12 +1529,12 @@ test("the reservation is keyed on the PLACE — a kept node leaves its other mir
  *  comes with them: `#alice` and `@alice` are two tags, so a list that dropped
  *  it would be a list that cannot tell them apart. */
 const tags = (title: string): ReadonlyArray<string> =>
-  titleParts(title).flatMap((part) => (part.kind === "tag" ? [tagText(part)] : []))
+  tagParts(title).flatMap((part) => (part.kind === "tag" ? [tagText(part)] : []))
 
 // Tags live inline in the title verbatim — the format stores no tag list — so
 // the split is what the view renders, and it has to keep the text intact.
 test("a title splits into text and tags, and rejoins to itself", () => {
-  const parts = titleParts("call #alice about #work/olai now")
+  const parts = tagParts("call #alice about #work/olai now")
   expect(parts).toEqual([
     { kind: "text", text: "call " },
     { kind: "tag", sigil: "#", tag: "alice" },
@@ -1553,7 +1552,7 @@ test("a title splits into text and tags, and rejoins to itself", () => {
 // list is FOR is drawing the title back, so the character that started a tag
 // travels with it rather than being assumed to be a `#`.
 test("an @tag is a tag, and the sigil comes back out with it", () => {
-  const parts = titleParts("ask @alice about #work")
+  const parts = tagParts("ask @alice about #work")
   expect(parts).toEqual([
     { kind: "text", text: "ask " },
     { kind: "tag", sigil: "@", tag: "alice" },
@@ -1585,7 +1584,7 @@ test("an @ inside a word is text, and a # inside one is still a tag", () => {
 // A bare sigil is punctuation people write ("issue #, see below"); treating it
 // as an empty tag would style the rest of the line as one.
 test("a bare sigil is text", () => {
-  expect(titleParts("issue # 42")).toEqual([{ kind: "text", text: "issue # 42" }])
+  expect(tagParts("issue # 42")).toEqual([{ kind: "text", text: "issue # 42" }])
   expect(tags("issue # 42")).toEqual([])
   expect(tags("reply @ noon")).toEqual([])
 })
@@ -1599,7 +1598,7 @@ test("tags come out in reading order, over the tag alphabet", () => {
 
 // The web client styles tags with the same alphabet; it must not re-declare it.
 // A fresh regex each call so /g state cannot leak across walks.
-test("titleTagRe is the alphabet titleParts uses, fresh each call", () => {
+test("titleTagRe is the alphabet tagParts uses, fresh each call", () => {
   const one = titleTagRe()
   const other = titleTagRe()
   expect(one).not.toBe(other)

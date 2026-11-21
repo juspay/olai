@@ -11,7 +11,7 @@
  * offer them in. It sits beside {@link ./backlinks.ts} for that reason, which
  * is the other reading over the same pair of reverse indexes.
  *
- * IT WALKED THE WHOLE CORPUS ONCE (a `titleParts` per node of the set, per
+ * IT WALKED THE WHOLE CORPUS ONCE (a tag split per node of the set, per
  * derivation), and the roadmap item that changed it — `mentions-index-one-sigil`
  * — is on the PR with its numbers. The index was already being built for the
  * `@` half; what it cost to file the other sigil too, against what this walk

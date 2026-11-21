@@ -64,7 +64,6 @@ import {
 import { type Dated, dateInto } from "./occasion.ts"
 import type { Read } from "./overlay.ts"
 import { byPath } from "./paths.ts"
-import { type Wikilink, wikilinkSpans } from "./documents.ts"
 import { recordRead } from "./kept.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
@@ -555,25 +554,10 @@ export const nameInto = (
  * to build a reverse index, and the guard is two `indexOf` per string. A mirror
  * has no prose at all and answers the same empty list.
  *
- * A NOTE IS READ AS TEXT, and that is a decision rather than an omission. The
- * note is markdown, and the browser that draws it declines to style a tag
- * inside a code span or a link (`web/src/client/markdown/tags.ts`) — but this
- * package is the floor the validator stands on and it holds no markdown
- * parser, so deciding what a reference IS out of one would put a parser under
- * the write gate. What the record SAYS is the honest answer here, and it is the
- * answer `filter.ts`'s tag facet already gives about the same text.
- *
- * WHERE THAT PARTS from the browser RUNS BOTH WAYS, and one inherited rule
- * decides every case: {@link titleTagRe} claims `@` only where a WORD STARTS.
- * A tight ```@herbs``` is a mention on neither side — an ACCIDENT of that rule
- * rather than knowledge, since a backtick does not open a word and nothing here
- * has to know what a code span is. A space inside that span, a fenced or
- * indented block (a newline opens a word), and a link's text are mentions here
- * and styled nowhere. And `*@herbs*` is the reverse: not a mention here, drawn
- * as a tag there, because the client walks into `em` and `strong`. So "the bias
- * is toward showing more" is NOT a safe thing to say, and the docs said a
- * narrower thing than the truth twice before `./backlinks.test.ts` pinned every
- * row of it (website/docs/format.md's References carries the table).
+ * A NOTE IS READ AS MARKDOWN, once, when its file is decoded (`./kept.ts`):
+ * a tag is a word of the text outside code and outside a link's words — the
+ * rule the page draws a pill by, so the record the page styles a tag on is
+ * the record the index files under it.
  */
 export const writtenTags = (node: Node): ReadonlyArray<Tag> => {
   if (isMirror(node)) return NO_TAGS
@@ -591,48 +575,6 @@ export const writtenTags = (node: Node): ReadonlyArray<Tag> => {
 
 /** The answer for prose that tags nothing: ONE list, shared. */
 const NO_TAGS: ReadonlyArray<Tag> = []
-
-/**
- * The tags of one string, as written — {@link titleParts}, kept.
- *
- * EXPORTED since PR 2, and for one caller: a markdown BODY is prose the same
- * way a note is, so a document's face is tagged by this rather than by a
- * second walk of the same alphabet (`./document.ts`). The name lost its
- * `written` because nothing else here answers "the tags of a string" — the
- * record-shaped question next door keeps it.
- *
- * THROUGH THAT WALK rather than through a second one over {@link titleTagRe},
- * which is what this was: where a tag starts and stops is one function's
- * answer, and a private loop here would be a second walk of that alphabet
- * keeping its own boundaries. The argument for the loop is that it allocates
- * neither the prose between the tags nor the written form (a match IS one).
- *
- * WHAT IT IS WORTH IS PRINTED rather than remembered, and the figure MOVED:
- * `patch.bench.ts`'s `walks` times the corpus's prose three ways, and on the
- * bench vault the loop is about 9ms against this walk's 12ms — a quarter,
- * where the same comparison read three per cent before {@link titleParts}
- * stopped asking `matchAll` for an iterator. The regex used to dominate; it no
- * longer does, so what the parts cost is visible.
- *
- * IT IS STILL NOT TAKEN HERE, and the reason is scope rather than the number:
- * a tag-only walk beside the one every renderer uses is a second shape of the
- * same question, on the hot path, and it belongs in a change that is about
- * that rather than riding along with an index re-key. The leg is what makes it
- * a decision somebody can re-take — three arms, one command — instead of a
- * sentence quoting a laptop.
- *
- * The cheap negative is {@link mayHoldTag}, which is the guard for a walk that
- * wants both sigils — and this one does, since the index behind it is the
- * whole of what prose tagged rather than one namespace of it.
- */
-export const tagsIn = (text: string): ReadonlyArray<Tag> => {
-  if (!mayHoldTag(text)) return NO_TAGS
-  let found: Array<Tag> | undefined
-  for (const part of titleParts(text)) {
-    if (part.kind === "tag") (found ??= []).push(tagText(part))
-  }
-  return found ?? NO_TAGS
-}
 
 /**
  * One record's tags, filed into `taggedBy` — the whole of how that index is
@@ -2316,53 +2258,4 @@ export const nodeNamed = (
   if (named === undefined) return undefined
   const found = follow(derived, named)
   return found.kind === "found" ? found.shows : undefined
-}
-
-// ── titles ─────────────────────────────────────────────────────────────
-
-/**
- * A title, split into what to print and what to style.
- *
- * `exec` IN A LOOP rather than `matchAll`, over the same fresh
- * {@link titleTagRe} — the same walk, the same matches, and no second reader of
- * the alphabet: what changes is only that a `/g` regex is stepped rather than
- * asked for an iterator. `matchAll` clones the regex and allocates an iterator
- * per call, and this is called once per string of prose in the directory — for
- * the tag index's fold, for the search matcher's per-record fold, and per drawn
- * row in the browser, so it is a GLOBAL change and is named as one on the PR
- * that made it (#249).
- *
- * The pair is a LEG rather than a sentence, for this package's standing reason:
- * `patch.bench.ts`'s `walks` times the corpus's prose as this function is, as
- * it was, and in the shape {@link tagsIn} declines — roughly 12ms
- * against 16ms against 9ms on the bench vault, all three checked to find the
- * same tags before any of them is timed.
- */
-export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
-  const parts: Array<TitlePart> = []
-  const tags = titleTagRe()
-  // A WIKILINK'S `#heading` IS NOT A TAG: `[[kitchen-sink#Tables]]` names a
-  // heading of another note, so a match that starts inside a link is stepped
-  // over, for the index, the search fold and the drawn title alike.
-  const links = wikilinkSpans(title)
-  let link = 0
-  let at = 0
-  let match: RegExpExecArray | null
-  while ((match = tags.exec(title)) !== null) {
-    const start = match.index
-    while (link < links.length && (links[link] as Wikilink).end <= start) link++
-    const inside = links[link]
-    if (inside !== undefined && inside.start <= start) {
-      tags.lastIndex = inside.end
-      continue
-    }
-    if (start > at) parts.push({ kind: "text", text: title.slice(at, start) })
-    // Split by {@link tagPart}, which is where this file says the sigil sits.
-    // A match IS a written tag, so the walk that finds one and the reader that
-    // takes one apart cannot come to disagree about which character it is.
-    parts.push({ kind: "tag", ...tagPart(match[0]) })
-    at = start + match[0].length
-  }
-  if (at < title.length) parts.push({ kind: "text", text: title.slice(at) })
-  return parts
 }

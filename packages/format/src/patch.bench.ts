@@ -46,7 +46,7 @@
  * ...and the fourth is about the TAG INDEX's width: the corpus-wide fold timed
  * filing `@` alone against filing both sigils ({@link folds}), which is the
  * cost half of the trade `taggedBy` makes. The saving half is a leg of its own
- * beside it (`./vocabulary.bench.ts`), and the WALK under both — `titleParts`
+ * beside it (`./vocabulary.bench.ts`), and the WALK under both — `tagParts`
  * in the three shapes it has been written in — is
  * {@link walks}, which exists because the figures for it were once quoted in a
  * comment and printed by nothing.
@@ -72,7 +72,7 @@
  * to work out whether it ever did.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { mayHoldTag, tagText, titleTagRe } from "@olai/prose/tags.ts"
+import { mayHoldTag, tagParts, tagText, titleTagRe } from "@olai/prose/tags.ts"
 import {
   byCorpus,
   derive,
@@ -80,7 +80,6 @@ import {
   type Index,
   READ,
   tagInto,
-  titleParts,
 } from "./derive.ts"
 import {
   alternating,
@@ -858,7 +857,7 @@ const mentionsFrom = (
   text: string,
 ): void => {
   if (!text.includes("@")) return
-  for (const part of titleParts(text)) {
+  for (const part of tagParts(text)) {
     if (part.kind !== "tag" || part.sigil !== "@") continue
     const held = index.get(part.tag)
     if (held === undefined) index.set(part.tag, [regular])
@@ -870,7 +869,7 @@ const mentionsFrom = (
 
 /**
  * THE TAG WALK ITSELF, timed in the three shapes it has been written in — the
- * pair of figures {@link ./derive.ts}'s `titleParts` and `writtenTagsIn` used
+ * pair of figures `@olai/prose`'s `tagParts` and `writtenTagsIn` used
  * to quote from a laptop, printed by the leg instead (both reviewers of #249
  * asked for exactly this, and they were right: a number in a comment that no
  * harness prints is the unreproducible sample this whole file exists to
@@ -878,7 +877,7 @@ const mentionsFrom = (
  *
  * Over every string of prose in the corpus, since that is what a rebuild walks:
  *
- *   - `parts` — {@link titleParts} as it is, stepping one fresh `/g` regex with
+ *   - `parts` — {@link tagParts} as it is, stepping one fresh `/g` regex with
  *     `exec`;
  *   - `matchAll` — the same function as it stood before #249, asking the regex
  *     for an iterator per call. That is the rewrite the PR made on the way past
@@ -907,11 +906,11 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
     const found: Array<string> = []
     for (const text of prose) {
       if (!mayHoldTag(text)) continue
-      for (const part of titleParts(text)) if (part.kind === "tag") found.push(tagText(part))
+      for (const part of tagParts(text)) if (part.kind === "tag") found.push(tagText(part))
     }
     return found
   }
-  /** {@link titleParts} as it was: `matchAll` per call, same parts out. */
+  /** {@link tagParts} as it was: `matchAll` per call, same parts out. */
   const viaMatchAll = (): ReadonlyArray<string> => {
     const found: Array<string> = []
     for (const text of prose) {
@@ -931,7 +930,7 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
   }
   /**
    * The private loop, which is the one this tree declines to have — stepping
-   * the regex exactly as {@link titleParts} does, so the ONLY difference is
+   * the regex exactly as {@link tagParts} does, so the ONLY difference is
    * what it declines to build: no part per segment of prose, and the written
    * form taken off the match rather than re-assembled. A loop written with
    * `matchAll` would be measuring the rewrite above a second time and calling
@@ -1019,7 +1018,7 @@ console.log(
 )
 const walked3 = walks()
 console.log(
-  `the tag walk over the same prose: ${walked3.parts.toFixed(2)}ms as \`titleParts\` is` +
+  `the tag walk over the same prose: ${walked3.parts.toFixed(2)}ms as \`tagParts\` is` +
     ` (\`exec\`), ${walked3.matchAll.toFixed(2)}ms as it was (\`matchAll\`),` +
     ` ${walked3.loop.toFixed(2)}ms for the private loop this tree declines to have`,
 )

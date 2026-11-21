@@ -7,7 +7,6 @@ import { proseIn } from "@olai/prose/frontmatter.ts"
 import { bodyKind, type Claims } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { isPicture } from "./serving.ts"
-import { headingText } from "./slug.ts"
 import { recordRead } from "./kept.ts"
 import type { Read, ReadWikilink } from "@olai/prose/read.ts"
 
@@ -23,8 +22,8 @@ import type { Read, ReadWikilink } from "@olai/prose/read.ts"
  * What stays in this module is WHERE A REFERENCE LANDS, and it is one subject
  * read at three grains: the arithmetic (where a relative `![](…)` and
  * a relative `[…](…)` resolve to), the refusals (what a page may fetch at all),
- * and the two readings built out of those — {@link linksIn}, every address a
- * piece of PROSE points at, and {@link recordLinks}, every address one RECORD
+ * and the two readings built out of those — {@link readAddresses}, every
+ * address a text's READING points at, and {@link recordLinks}, every address one RECORD
  * points at.
  *
  * THOSE TWO SIT TOGETHER on purpose, and it is the one thing this file gained
@@ -153,66 +152,12 @@ export const pathedOf = (from: string, href: string): string | null =>
 const SCHEME = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/
 
 /**
- * A document, in one line: its first line with anything on it, heading marks
- * off.
- *
- * The closest thing a `.md` has to a title, and it is a DERIVATION rather than
- * a field — a document has no record, so there is nowhere on it for a name to
- * be written. `# Finishes` is a document called Finishes, and the hashes are
- * markup rather than the name.
- *
- * PLAIN TEXT, never rendered markdown, because both callers put it in a space
- * one line high: the web draws it in a row in a document listing, and `markdown_index` puts it in a listing beside the path. A heading,
- * a list or a fenced block drawn there would be a document pretending to be a
- * row.
- *
- * IT IS THE FORMAT'S because two faces ask it now. It was `@olai/web`'s
- * `document/preview.ts` while the browser was the only thing that named a
- * document, and the rule moved here whole when the agent's listing wanted the
- * same answer — "MCP and Web ops must be consistent" is a
- * property of there being one function, not of two that were written from each
- * other.
- */
-export const firstLine = (text: string): string => {
-  // FRONTMATTER IS NOT THE FIRST LINE, and asking {@link ./frontmatter.ts} is
-  // how this knows: a `.md` that opens with a `---` block was called `---` in
-  // the sidebar, in the palette and in every document listing, because
-  // the literal first line with anything on it was the fence. The record on
-  // top of a document is not what the document is CALLED — its first real line
-  // is, exactly as it is for one with no record at all.
-  const body = proseIn(text)
-  // Scanned rather than split: a preview reads the top of a document, and
-  // `split("\n")` would allocate every line of one to throw all but the first
-  // away — on a page that draws this in every document listing, and in a
-  // listing that draws it once per served document.
-  let at = 0
-  while (at < body.length) {
-    const end = body.indexOf("\n", at)
-    const line = (end === -1 ? body.slice(at) : body.slice(at, end)).trim()
-    if (line !== "") {
-      // Only the heading marks, and only where markdown puts them — which is
-      // `./slug.ts`'s own rule, asked rather than spelled again: what a
-      // heading's WORDS are is one question, and this file and the face's
-      // element list were taking the marks off with two patterns that were
-      // free to take different numbers of characters. Everything else stays as
-      // written — stripping emphasis and links here would be a second, worse
-      // renderer.
-      const stripped = headingText(line)
-      return stripped === null || stripped === "" ? line : stripped
-    }
-    if (end === -1) break
-    at = end + 1
-  }
-  return ""
-}
-
-/**
  * BLOCK CONTEXT, LOCALLY — the lines that are a fenced or indented code block,
- * blanked to spaces so the link scans below never see inside one.
+ * blanked to spaces so the wikilink scan below never sees inside one. The
+ * scan, and so this mask, serve only the browser's preview line now.
  *
- * LENGTH-PRESERVING: every character keeps its offset, so a scan that reads
- * this mask can report where in the WRITTEN text a link sits (the wikilink
- * scan's spans are what the renderer replaces).
+ * LENGTH-PRESERVING: every character keeps its offset, so the scan that reads
+ * this mask can report where in the WRITTEN text a link sits.
  *
  * List continuation indentation belongs to prose; four further spaces
  * introduce code within that item. Blank lines retain the list context.
@@ -308,11 +253,11 @@ const BANG = 0x21
 
 /**
  * EVERY WIKILINK IN A PIECE OF PROSE, in the order it writes them — the
- * literal code removed first by the same mask {@link proseLinks} reads, so a
- * `[[…]]` in a code span or block is text here exactly as it is on the page.
+ * literal code removed first by the mask above, so a `[[…]]` in a code span or
+ * block is text here exactly as it is on the page. What remains of the scan
+ * the index used to read by: the preview line's, until the parser reaches it.
  *
- * ONE FORWARD SCAN, linear in the text, for {@link writtenLinks}' reason: this
- * reads every body and note of a served directory, which is text nobody here
+ * ONE FORWARD SCAN, linear in the text, because this reads text nobody here
  * wrote. A link opens at the last `[[` before its `]]`, stays on one line,
  * holds no lone bracket, and is not opened by an escaped `[`.
  */
@@ -320,18 +265,9 @@ export const wikilinksIn = (text: string): ReadonlyArray<Wikilink> =>
   text.includes("[[") ? wikilinkScan(text, proseMask(text)) : NO_WIKILINKS
 
 /**
- * The same scan over the text as written, code included — for the tag walk,
- * which keeps a link's `#heading` out of the tags wherever the link is, since
- * the title walk it serves has never read code apart from prose either.
- */
-export const wikilinkSpans = (text: string): ReadonlyArray<Wikilink> =>
-  text.includes("[[") ? wikilinkScan(text, text) : NO_WIKILINKS
-
-/**
  * The text with each wikilink as the words it shows — `[[kitchen-sink#Tables|the
  * table]]` is `the table` — which is what the page draws in its place. A
- * heading's slug is made from these words ({@link ./slug.ts}'s `headingsIn`),
- * and a note's preview line reads them.
+ * note's preview line reads it in the browser before the parser has loaded.
  */
 export const wikilinksShown = (text: string): string => {
   const links = wikilinksIn(text)
@@ -408,137 +344,6 @@ const escapedAt = (text: string, at: number): boolean => {
   return slashes % 2 === 1
 }
 
-/**
- * EVERY ADDRESS A PIECE OF PROSE POINTS AT, in the order it writes them and
- * never twice.
- *
- * `from` is the file the markdown was WRITTEN in — a document for its own
- * body, the defining outline for a node's note — because that is what a
- * relative link is relative to, exactly as {@link pictureOf} already is. One rule for both, which is the point: a `[…](…)` in a note and
- * a `[…](…)` in a document mean the same thing, and a face that read one of
- * them differently would be the parity hole this round exists to close.
- *
- * The three things a link here can name are the three the address grammar has:
- *
- *   - `../projects/deck.md` — any relative path: another document, an
- *     outline, a `.pdf` a page draws, a picture a page opens ({@link pathedOf}'s
- *     refusals are this function's).
- *   - `notes/README.md#install` — a heading inside one. The fragment is cut off
- *     BEFORE the path is resolved, because `#` is the grammar's punctuation and
- *     `README.md#install` is not a filename.
- *   - `#a1b2c3` — a node, wherever it lives. It is the one link with no
- *     document half, and there is no file there to resolve, so it is read
- *     straight as the address it is.
- *
- * A SCAN, NOT A PARSE, and the boundary is worth naming: this package holds no
- * markdown parser and deliberately does not gain one here (`./derive.ts` makes
- * the same refusal about tags, for the same reason — it is the floor the write
- * gate stands on). What the scan DOES know is literal code — a tight or loose
- * code span, a fenced or indented block — and it removes it BEFORE the links
- * are read, so a `[…](…)` inside one is not a link at all. That is one
- * scanner, shared by the faces, the references index and the dead-link
- * reading: a link in a fence is drawn as text by the browser, and drawing a
- * backlink or a dead link where the browser draws nothing would be the two
- * readings of one text.
- *
- * NEVER TWICE, and the container says so: a note that links the same document
- * three times points at it once. What reads this wants the EDGES.
- */
-export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArray<Address> => {
-  let found: Array<Address> | undefined
-  let seen: Set<string> | undefined
-  for (const href of proseLinks(text)) {
-    const address = linkTo(claims, from, href)
-    if (address === null) continue
-    const written = printAddress(address)
-    if ((seen ??= new Set()).has(written)) continue
-    seen.add(written)
-    ;(found ??= []).push(address)
-  }
-  return found ?? NO_LINKS
-}
-
-/**
- * The TARGET of every inline markdown link in a piece of prose, in the order
- * they are written — a bracketed label, then a parenthesised address.
- *
- * ONE FORWARD SCAN, and that is a correctness decision rather than a taste one.
- * The pattern this replaces (`/\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g`) is
- * quadratic on prose somebody else wrote — CodeQL's `js/polynomial-redos` —
- * because the label's `[^\]]*` restarts at every `[` of a line full of them
- * and scans to the end each time. This is run over every body of a served
- * directory and every note in it, which is exactly the input that is not
- * this app's to trust.
- *
- * The scan still does not parse: the label may not hold a `]`, and code
- * removal is the CALLER's — {@link proseLinks} strips literal code before it
- * asks this. What it now reads, that the
- * pattern would not, is a filename with a space in it —
- * CommonMark's angle-bracketed destination, and the space left raw, which
- * is the spelling people write. An optional title is still dropped: a
- * space that opens `"…"` / `'…'` / `(…)` is markdown's title, not part of
- * the path.
- */
-export const writtenLinks = (text: string): ReadonlyArray<string> => {
-  const found: Array<string> = []
-  eachTarget(text, (target) => {
-    found.push(destinationOf(target))
-  })
-  return found
-}
-
-/**
- * THE TARGETS OF LINKS IN RENDERED PROSE — the same scan as
- * {@link writtenLinks}, with literal code already removed. This is the
- * scanner every reading of what prose SAYS goes through: {@link linksIn}
- * resolves these to addresses, and the dead-link reading
- * (`./dead-links.ts`) asks which of them name nothing served. One scanner,
- * because a link in a fence is drawn as text by the browser and no reading
- * may treat it as a link.
- */
-export const proseLinks = (text: string): ReadonlyArray<string> =>
-  text.includes("](") ? writtenLinks(proseMask(text)) : []
-
-/** Every parenthesised target, in document order. `open` is the character
- *  after `(`, `close` is the matching `)`. */
-const eachTarget = (
-  text: string,
-  visit: (target: string, open: number, close: number) => void,
-): void => {
-  let label = -1
-  for (let at = 0; at < text.length; at++) {
-    const char = text[at]
-    if (char === "[") label = at
-    else if (char === "]") {
-      if (label !== -1 && text[at + 1] === "(") {
-        const close = text.indexOf(")", at + 2)
-        if (close !== -1) {
-          visit(text.slice(at + 2, close), at + 2, close)
-          at = close
-        }
-      }
-      label = -1
-    }
-  }
-}
-
-/**
- * The destination inside a parenthesised target: unwrap `<…>`, else take
- * the path up to markdown's optional title.
- */
-const destinationOf = (target: string): string => {
-  if (target.startsWith("<")) {
-    const end = target.indexOf(">")
-    return end === -1 ? target.slice(1) : target.slice(1, end)
-  }
-  const title = target.search(TITLE)
-  return title === -1 ? target : target.slice(0, title)
-}
-
-/** Markdown's optional title: whitespace, then a quoted or parenthesised
- *  string. A space that is not this is a character of the filename. */
-const TITLE = /\s+["'(]/
-
 /** The answer for prose that points nowhere and for a record that does — which
  *  is most of both: ONE list, shared, as `./derive.ts` shares its own. */
 const NO_LINKS: ReadonlyArray<Address> = []
@@ -566,7 +371,7 @@ const NO_LINKS: ReadonlyArray<Address> = []
  *     this record points at.
  *   - a `[…](…)` in its TITLE, and one in its NOTE — the same rule a
  *     document's body is read by, so a link means the same thing wherever it
- *     is written ({@link ./documents.ts}'s `linksIn`).
+ *     is written ({@link readAddresses}).
  *
  * `after` and `blocks` are NOT here: they are the ORDERING graph, and saying
  * an ordering edge under the word "points at" would put one fact under a name
@@ -656,8 +461,8 @@ export const recordWikilinks = (located: Located): ReadonlyArray<string> => {
  * hold is a document address, whatever suffix it carries, because the set
  * gives EVERY file a page. An outline is a document with a page and a
  * reading of its own, a `.pdf` is a body whose page draws it, and `![](…)`,
- * which {@link eachTarget} reads as a link with an empty label, names the
- * same document an `[…](…)` would. The renderer's own half of the same
+ * a picture in the reading, names the same document an `[…](…)` would. The
+ * renderer's own half of the same
  * question — what a rewritten `href` is allowed to point at — asks
  * {@link bodyKind} directly and is NOT this one. This one reads the whole
  * grammar — the path, the kind it names, and the address it is spelled as —

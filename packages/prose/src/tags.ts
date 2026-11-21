@@ -77,8 +77,8 @@ export const tagText = (part: TitleTag): Tag => Tag.make(`${part.sigil}${part.ta
  * written tags and a reader that wants the namespace and the name has to take
  * one apart. Doing that at the call site is a second, private claim about
  * where the sigil is — the thing this pair exists to keep to one place, which
- * is also why `@olai/format`'s `titleParts` splits its own matches through
- * this rather than beside it.
+ * is also why {@link tagParts} below splits its own matches through this
+ * rather than beside it.
  *
  * It TRUSTS its argument, which is why it takes no failure: the only strings
  * this is asked about are a {@link titleTagRe} match and a key that

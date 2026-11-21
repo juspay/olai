@@ -3,8 +3,8 @@
  *
  * A view-time split, like the markdown around it: the title is stored verbatim
  * and what is a tag is decided only when it is drawn. WHERE a tag starts and
- * stops is `titleParts` from `@olai/format` — the same walk the search index
- * asks for its tag facet — so the client neither re-declares the alphabet nor
+ * stops is `tagParts` from `@olai/prose` — the same splitter the index reads
+ * its tags with — so the client neither re-declares the alphabet nor
  * re-derives the boundaries. What is here is only what a tag LOOKS like.
  *
  * Two renderings of the same pill live here, and they must agree:
@@ -33,8 +33,8 @@
  * has widened, and ./plain.test.ts's sweep is what says so.
  */
 import { TESTID } from "@olai/markdown-ui/testids.ts"
-import { litBy, type Lit, titleParts } from "@olai/format"
-import { mayHoldTag, tagText } from "@olai/prose/tags.ts"
+import { litBy, type Lit } from "@olai/format"
+import { mayHoldTag, tagParts, tagText } from "@olai/prose/tags.ts"
 import type { Element, ElementContent, Root } from "hast"
 
 import { HIT_CLASS, NO_NEEDLES, runsIn } from "@olai/markdown-ui/lit.ts"
@@ -134,7 +134,7 @@ const tagsIn = (element: Element, outer: boolean): boolean =>
  * THE QUERY IS LOOKED FOR ONCE, over the concatenated `.value` of every text
  * node in document order — the title as the reader sees it, markdown syntax
  * skipped. Each node is then a WINDOW onto that one search, the same contract
- * `titleParts` already has for a phrase that spans a `#tag`. Searching each
+ * `tagParts` already has for a phrase that spans a `#tag`. Searching each
  * node on its own is what left `"check before"` dark across a code-span
  * boundary: the phrase is in neither piece.
  *
@@ -218,7 +218,7 @@ const visitText = (
  * place in it. `runsIn` slices that same string. Remapping landings into
  * piece-local offsets would be a second opinion about where a needle sat.
  *
- * The inner `titleParts` cursor starts at `from`, not 0: a tag in a later
+ * The inner `tagParts` cursor starts at `from`, not 0: a tag in a later
  * piece (`**urgent** #home`) sits at `from > 0`, and seeding at 0 would mark
  * the start of the haystack instead of the tag.
  *
@@ -248,7 +248,7 @@ const splitTags = (
 
   const out: ElementContent[] = []
   let at = from
-  for (const part of titleParts(piece)) {
+  for (const part of tagParts(piece)) {
     const written = part.kind === "tag" ? tagText(part) : part.text
     const next = at + written.length
     if (part.kind === "tag") out.push(pill(written, haystack, landed, at, next))
@@ -293,7 +293,7 @@ export const taggedHtml = (
   if (!mayHoldTag(text)) return markedHtml(text, landed, 0, text.length)
   let html = ""
   let at = 0
-  for (const part of titleParts(text)) {
+  for (const part of tagParts(text)) {
     const written = part.kind === "tag" ? tagText(part) : part.text
     const to = at + written.length
     if (part.kind !== "tag") html += markedHtml(text, landed, at, to)
@@ -301,7 +301,7 @@ export const taggedHtml = (
       // AS WRITTEN in both places: the text a reader sees, and the value the
       // delegated press filters by — ONE binding, so the attribute and the
       // words inside the pill cannot be produced by two expressions that must
-      // agree. `titleParts` restricts a tag's alphabet (`isTagName`), so the
+      // agree. `tagParts` restricts a tag's alphabet (`isTagName`), so the
       // attribute cannot carry a quote — and `escapeText` is applied anyway
       // rather than reasoned about at each call.
       html += `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${

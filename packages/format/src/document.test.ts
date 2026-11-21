@@ -13,8 +13,9 @@ import { expect, test } from "bun:test"
 import { addressOf, printAddress } from "./address.ts"
 import { referencesOf } from "./backlinks.ts"
 import { pointingOf } from "./pointing.ts"
-import { linksIn } from "./documents.ts"
-import { derive, tagsIn } from "./derive.ts"
+import { readAddresses } from "./documents.ts"
+import { derive } from "./derive.ts"
+import { read } from "@olai/prose/read.ts"
 import { matching, matchingDocuments, parseFilter, rankedTogether } from "./filter.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
 import { bodyOf } from "./document.ts"
@@ -169,10 +170,10 @@ test("a document's face is read past its frontmatter", () => {
  * THE BOUNDARY THE WHOLE STRIP TURNS ON: a `.md` is a FILE and has
  * frontmatter; a node's NOTE is a field on a record and does not.
  *
- * `tagsIn` and `linksIn` are asked of both — `bodiedDocument` hands them a
- * document's prose, `recordLinks` and `writtenTags` hand them a record's title
- * and note as written — so the skip lives at the caller and not in them. That
- * is a claim about two functions with no test on it until now, and it is the
+ * `read` is asked of both — `bodiedDocument` hands it a document's prose,
+ * decode hands it a record's title and note as written — so the skip lives
+ * at the caller and not in it. That
+ * is a claim about one function with no test on it until now, and it is the
  * load-bearing one: it is why `@olai/web`'s markdown pipeline is deliberately
  * innocent of the block (`markdown/pipeline.ts`). If a note's leading `---`
  * were skipped here, the pipeline would have to hide it there, and every note
@@ -194,8 +195,9 @@ test("a note is not a file, so a leading --- block is prose in one", () => {
 
   // AS A NOTE, the block is prose: the `#home` in it is a tag somebody wrote,
   // and the `[…](…)` is a link this note points along. Nothing skipped.
-  expect(tagsIn(text).map(String)).toEqual(["#home", "@alice"])
-  expect(linksIn(TEST_CLAIMS, "house.olai", text).map(printAddress)).toEqual(["brief.md"])
+  const said = read(text)
+  expect(said.tags.map(String)).toEqual(["#home", "@alice"])
+  expect(readAddresses(TEST_CLAIMS, "house.olai", said).map(printAddress)).toEqual(["brief.md"])
 
   // AS A DOCUMENT, the same six lines index neither — the block is the file's
   // own record, and what it holds is a PROPERTY. One text, two readings, and

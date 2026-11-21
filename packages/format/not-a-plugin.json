@@ -87,7 +87,6 @@
   },
   "search": {
     "src/address.ts": 2,
-    "src/documents.ts": 1,
     "src/filter.ts": 9,
     "src/index.ts": 6,
     "src/searching.ts": 19

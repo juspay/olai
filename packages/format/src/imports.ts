@@ -69,8 +69,8 @@ export interface Contribution {
  * WHAT ONE DOCUMENT CONTRIBUTES to the index: one {@link Contribution} per
  * written target, in the order the document writes them.
  *
- * THE FOLD IS WHERE THE PROSE IS READ INTO THE INDEX: {@link linksIn} and
- * {@link writtenTags} are the readings the faces are built by, and a record's
+ * THE FOLD IS WHERE THE PROSE IS READ INTO THE INDEX: {@link readAddresses} and
+ * {@link writtenTags} ask the readings decode kept, and a record's
  * title, its note, its `see` and its `@` tags are each read ONCE here instead
  * of once per page per revision at the read.
  *

@@ -27,7 +27,7 @@
  * for.
  *
  * **An `@id` in prose counts, exactly when the word names a node.** `@` is a
- * tag sigil in a title ({@link titleParts}: `#topic` and `@person`, two
+ * tag sigil in a title (`@olai/prose`'s `tagParts`: `#topic` and `@person`, two
  * namespaces), and `@herbs` is one whether or not a record claims `herbs`.
  * What turns a tag into a reference is the id existing, and that question is
  * asked HERE rather than in the index, so that minting a node does not have to

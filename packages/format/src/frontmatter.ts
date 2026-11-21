@@ -2,9 +2,9 @@
  * THE `---` BLOCK AT THE TOP OF A `.md`, read at last.
  *
  * It was the one construct in this format that was neither parsed nor
- * rendered nor stripped — only SKIPPED, in exactly one scanner
- * ({@link ./slug.ts}'s `headingsIn`, whose own comment said "Nothing here
- * READS frontmatter"). So a document opening with one was drawn with a
+ * rendered nor stripped — only SKIPPED, in exactly one scanner (the heading
+ * scan this package held before it read text through `@olai/prose`, whose own
+ * comment said "Nothing here READS frontmatter"). So a document opening with one was drawn with a
  * thematic break and a phantom `<h2>title: x</h2>` that gained an anchor and a
  * row in the table of contents; its sidebar title was the literal `---`; and a
  * `#`-looking YAML value was indexed as a tag somebody wrote. Three readings
@@ -80,10 +80,9 @@
  *     typo would cost a document its entire record; the reading below refuses
  *     ONE KEY at a time, which is the behaviour the design wants.
  *
- * The precedent it follows is in this package already, twice: {@link ./slug.ts}
- * reads heading LINES rather than gaining a markdown parser, and
- * {@link ./documents.ts}'s `linksIn` scans rather than parses — both because
- * this package is the floor the write gate stands on.
+ * It reads the block's keys a line at a time rather than gaining a YAML
+ * library, because this package is the floor the write gate stands on and a
+ * key per line is all a document's record needs.
  *
  * READ:
  *
@@ -335,9 +334,9 @@ const blank = (text: string, from: number, to: number): boolean => {
 /**
  * The keys of one block, read a line at a time.
  *
- * SPLIT rather than scanned, which is the opposite of what {@link
- * ./documents.ts}'s `firstLine` and `headingsIn` do and is right here for the
- * reason theirs is right there: those two run over the whole body of every
+ * SPLIT rather than scanned, which is the opposite of what a reader of a
+ * whole body does and is right here for the
+ * reason scanning is right there: a body runs to every line of every
  * document in a served directory, where an allocation per line is an
  * allocation per line of the corpus. This runs over the few lines above a
  * document's first, on the documents that have any — and it needs to look

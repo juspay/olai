@@ -6,12 +6,12 @@ import { expect, test } from "bun:test"
 
 import { printAddress } from "./address.ts"
 import { bytesOf } from "./document.ts"
+import { read } from "@olai/prose/read.ts"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import {
-  firstLine,
-  linksIn,
   pathedOf,
   pictureOf,
-  proseLinks,
+  readAddresses,
   resolveRelative,
 } from "./documents.ts"
 import { isAsset, isPicture } from "./serving.ts"
@@ -76,7 +76,7 @@ test("only a relative picture is drawn at all", () => {
 
 
 const named = (from: string, prose: string) =>
-  linksIn(TEST_CLAIMS, from, prose).map(printAddress)
+  readAddresses(TEST_CLAIMS, from, read(prose)).map(printAddress)
 
 // Markdown's portable spelling of a space in a destination is `%20`. The
 // scan has to decode it, or the address it prints encodes the percent again.
@@ -209,26 +209,26 @@ test("a page, a picture, a pdf and the parts a page draws with are assets", () =
 
 // ── the line a document is named by ────────────────────────────────────
 //
-// Moved here with the rule itself, from `@olai/web`'s `document/preview.ts`,
-// when the agent's `markdown_index` wanted the same answer the browser's
-// a document listing draws.
+// A document is called by the WORDS of its first line, as the reading has
+// them (`@olai/prose`'s `read.ts`), after the frontmatter: the name every row
+// and listing uses is what a reader sees drawn there.
+const calledBy = (text: string): string => read(proseIn(text)).firstLine
 
 test("the first line is the first line with anything on it", () => {
-  expect(firstLine("\n\n  Brushed brass.\nAnd more.\n")).toBe("Brushed brass.")
+  expect(calledBy("\n\n  Brushed brass.\nAnd more.\n")).toBe("Brushed brass.")
 })
 
 // A document nearly always opens with its title as a heading, and the hashes
 // are markup rather than part of the name.
 test("a leading heading is named without its marks", () => {
-  expect(firstLine("# Finishes\n\nDoors: matte.")).toBe("Finishes")
-  expect(firstLine("### Deep ###")).toBe("Deep")
+  expect(calledBy("# Finishes\n\nDoors: matte.")).toBe("Finishes")
+  expect(calledBy("### Deep ###")).toBe("Deep")
 })
 
-// Only the heading marks. Emphasis, links and code spans stay as written: a
-// preview that started interpreting them would be a second, worse renderer.
-test("nothing else is interpreted", () => {
-  expect(firstLine("- **walnut**, or `birch`")).toBe("- **walnut**, or `birch`")
-  expect(firstLine("#tag first")).toBe("#tag first")
+// Emphasis, links and code spans are markup too: the name is their words.
+test("a first line's markup is not part of the name", () => {
+  expect(calledBy("- **walnut**, or `birch`")).toBe("walnut, or birch")
+  expect(calledBy("#tag first")).toBe("#tag first")
 })
 
 // A `.md` that opens with a `---` block was called `---` — in the sidebar, in
@@ -236,19 +236,19 @@ test("nothing else is interpreted", () => {
 // first line with anything on it. The record on top of a document is not what
 // the document is CALLED.
 test("frontmatter is not the first line", () => {
-  expect(firstLine("---\ntitle: The kitchen plan\n---\n\n# The plan\n\nProse.\n"))
+  expect(calledBy("---\ntitle: The kitchen plan\n---\n\n# The plan\n\nProse.\n"))
     .toBe("The plan")
   // …and when the block is the whole file, the document has nothing to say,
   // which is what makes the caller fall back to the filename.
-  expect(firstLine("---\ntitle: x\n---\n")).toBe("")
-  // An unclosed `---` is a thematic break and not frontmatter, so the line
-  // under it is still the line under it (`./frontmatter.ts` says why).
-  expect(firstLine("---\nBrushed brass.\n")).toBe("---")
+  expect(calledBy("---\ntitle: x\n---\n")).toBe("")
+  // An unclosed `---` is a thematic break and not frontmatter: a rule has no
+  // words, so the document is called by the line under it.
+  expect(calledBy("---\nBrushed brass.\n")).toBe("Brushed brass.")
 })
 
 test("an empty document previews as nothing", () => {
-  expect(firstLine("")).toBe("")
-  expect(firstLine("\n \n")).toBe("")
+  expect(calledBy("")).toBe("")
+  expect(calledBy("\n \n")).toBe("")
 })
 
 // ── what a document weighs ─────────────────────────────────────────────
@@ -287,36 +287,14 @@ test("serving policy follows claim data instead of a suffix or MIME roster", () 
   expect(servingOf(table, "a.html")).toEqual({ sealed: false, inert: false })
 })
 
-// ── one scanner for prose, shared by the faces and the readings ────────
+// ── code holds no link ─────────────────────────────────────────────────
 //
-// What a piece of PROSE is, when the question is what it says: the literal
-// code is not prose, and neither a link the browser draws as code nor a
-// dead-link report may treat it as one. Moved here with the scanner itself,
-// from the module it replaced (`prose-links.ts`).
-
-test("code examples contain no prose links but adjacent text does", () => {
-  const code = ["`[x](inline.md)`", "``[x](back`tick.md)``", "```md\n[x](fenced.md)\n```", "~~~\n[x](tilde.md)\n~~~", "    [x](indented.md)", "    - [x](indented-list.md)"].join("\n")
-  expect(proseLinks(code)).toEqual([])
-  expect(proseLinks(`${code}\n[real](real.md)`)).toEqual(["real.md"])
-  expect(proseLinks("`unclosed [real](real.md)")).toHaveLength(1)
-})
-
-test("list continuation links are prose while code within the list remains literal", () => {
-  const text = "- Item\n    [continued](continued.md)\n\n      [code](code.md)\n\nOutside [link](outside.md)"
-  expect(proseLinks(text)).toEqual(["continued.md", "outside.md"])
-})
-
-test("literal lines in a list fence do not swallow links after its indented closer", () => {
-  for (const marker of ["```", "~~~"]) {
-    const text = `123. Item\n     ${marker}\n[example](ignored.md)\n- literal list marker\n     ${marker}\n\n[after](after.md)`
-    expect(proseLinks(text)).toEqual(["after.md"])
-  }
-})
-
-// The same scanner, asked at the ADDRESS grain: a link to a real document is
-// a reference from its writer, and literal code is not prose.
-test("linksIn reads the prose, never the code", () => {
+// A link inside code is drawn as text by the page, so no reading may treat it
+// as one: a backlink or a dead link where the page draws nothing would be two
+// readings of one text.
+test("a text's addresses are its prose links, never the code", () => {
   expect(named("notes/plan.md", "`[x](missed.md)` `[y](also-missed.md)`\n\n[real](real.md)"))
     .toEqual(["notes/real.md"])
   expect(named("notes/plan.md", "```md\n[x](fenced.md)\n```\n\n[seen](seen.md)")).toEqual(["notes/seen.md"])
+  expect(named("notes/plan.md", "    [x](indented.md)\n\nOutside [link](outside.md)")).toEqual(["notes/outside.md"])
 })
