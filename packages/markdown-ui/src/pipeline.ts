@@ -21,10 +21,10 @@
  *
  * The stages, and why each is where it is:
  *
- *   0. **as read** — a link destination with a space in it is closed in `<…>`
- *      before anything parses the text ({@link asRead}). One step, at the one
- *      door, so a rendering and the text a title accounts for cannot be two
- *      readings of two different strings.
+ *   0. **as written** — nothing rewrites the text before the parse. A
+ *      wikilink and an address holding a space are constructs OF the parser
+ *      (`@olai/prose`'s `obsidian.ts`), so a `[[…]]` in a code span is text by
+ *      the parser's own rule.
  *   1. **parse**, with GFM — `@olai/prose`'s `parse.ts`, the one parse this
  *      app makes. GFM is what brings footnotes (and tables, task lists and
  *      strikethrough) into the same dialect an agent and a reader already
@@ -74,9 +74,9 @@
  * pipeline rebuilt per note would pay for that on every row of every frame.
  */
 
-import { bracketSpacedLinks } from "@olai/format"
 import nix from "highlight.js/lib/languages/nix"
 import { common } from "lowlight"
+import type { Options as RemarkRehype } from "remark-rehype"
 import { toString } from "mdast-util-to-string"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
@@ -84,13 +84,14 @@ import rehypeSanitize from "rehype-sanitize"
 import rehypeStringify from "rehype-stringify"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
+import type { WikilinkNode } from "@olai/prose/obsidian.ts"
 import { parse } from "@olai/prose/parse.ts"
-import type { Root } from "hast"
+import type { Element, Root } from "hast"
 
 import { AUTOLINK } from "./anchors.ts"
 import { SANITISE } from "./sanitise.ts"
 import { rehypeSlugs } from "./slugs.ts"
-import { wikilinked } from "./wikilinks.ts"
+import { sizeOf } from "./wikilinks.ts"
 
 /**
  * The grammars a fence may name: `lowlight`'s common set, plus Nix.
@@ -108,10 +109,42 @@ import { wikilinked } from "./wikilinks.ts"
  */
 const languages = { ...common, nix }
 
+/** One `mdast-util-to-hast` handler, as `remark-rehype` takes it. */
+type Handler = NonNullable<NonNullable<RemarkRehype["handlers"]>["wikilink"]>
+
+/**
+ * A WIKILINK as the page first draws it: an `<a>` holding the words it shows,
+ * and — on the element's `data`, which no attribute can spell and the
+ * sanitiser carries through untouched — the name it looks up and, for an
+ * embed, the size it asks for. Which page it opens depends on the directory,
+ * so `./rewrite.ts` draws that after the sanitiser, from this, and
+ * `./Markdown.tsx` keeps it in step as files arrive. Only the parser's node
+ * makes one, so nothing a note writes can.
+ */
+const wikilinkElement: Handler = (state, wikilink): Element => {
+  const node = wikilink as WikilinkNode
+  const size = node.embed ? sizeOf(node.alias) : undefined
+  const element: Element = {
+    type: "element",
+    tagName: "a",
+    properties: {},
+    children: [{ type: "text", value: node.children[0].value }],
+    data: {
+      wikilink: {
+        name: [node.target, ...node.fragments].join("#"),
+        embed: node.embed,
+        ...(size === undefined ? {} : { size }),
+      },
+    },
+  }
+  state.patch(node, element)
+  return element
+}
+
 /** Everything after the parse: the tree `@olai/prose` made, turned into HTML,
  *  anchored, sanitised and highlighted. */
 const rendering = unified()
-  .use(remarkRehype, { clobberPrefix: "" })
+  .use(remarkRehype, { clobberPrefix: "", handlers: { wikilink: wikilinkElement } })
   .use(rehypeSlugs)
   .use(rehypeAutolinkHeadings, AUTOLINK)
   .use(rehypeSanitize, SANITISE)
@@ -155,29 +188,8 @@ export interface Pipeline {
   readonly htmlOf: (tree: Root) => string
 }
 
-/**
- * What the parser is actually handed, which is not quite what a person wrote:
- * a link destination holding a space is closed in `<…>` first (`@olai/format`,
- * which owns that rule because the index reads the same links). `[a](my
- * file.md)` names a file a vault really has, and markdown alone would read the
- * whole thing as words.
- *
- * HERE rather than at the callers, and that is a fix rather than a tidy:
- * ./render.ts spelled it at every door it opened — a rendering, a title's
- * tree, and now the text a title accounts for — which is one dialect decision
- * held in three places by memory. The third is the one that would have gone
- * wrong: a loss check reading a different string from the render's would call
- * every spaced destination a lost link. Every parse below goes through this,
- * so two readings of one source cannot be readings of two strings.
- *
- * A WIKILINK is the second thing it rewrites: `[[name|words]]` is handed over
- * as the markdown link `./wikilinks.ts` writes for it, so the loss check of a
- * title counts the words it shows rather than its brackets and its name.
- */
-const asRead = (source: string): string => bracketSpacedLinks(wikilinked(source))
-
 export const treeOf = (source: string): Root =>
-  rendering.runSync(parse(asRead(source))) as Root
+  rendering.runSync(parse(source)) as Root
 
 /**
  * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is
@@ -190,7 +202,7 @@ export const treeOf = (source: string): Root =>
  * and was this function line for line.
  */
 export const sourceTextOf = (source: string): string =>
-  toString(parse(asRead(source)))
+  toString(parse(source))
 
 export const htmlOf = (tree: Root): string => rendering.stringify(tree)
 
@@ -214,8 +226,8 @@ export interface MarkdownNode {
 }
 
 /**
- * The markdown tree of a source, in the dialect this app renders — GFM, and
- * the same `asRead` pass every other parse here goes through.
+ * The markdown tree of a source, in the dialect this app renders — GFM and
+ * Obsidian's additions, the one parse every other reader here asks.
  *
  * It exists for `@olai/tests`' documentation lint, which measures the blocks,
  * cells and sentences of every page under `docs/`. Those pages are read in a
@@ -224,4 +236,4 @@ export interface MarkdownNode {
  * nobody reads.
  */
 export const mdastOf = (source: string): MarkdownNode =>
-  parse(asRead(source)) as MarkdownNode
+  parse(source) as MarkdownNode

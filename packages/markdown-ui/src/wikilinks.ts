@@ -1,15 +1,9 @@
 /**
- * WIKILINKS ON THE PAGE — how a `[[name]]` gets through the parser, and what
- * it is drawn as once it has.
+ * WIKILINKS ON THE PAGE — what a `[[name]]` is drawn as.
  *
- * Markdown has no wikilink, so the pipeline is handed one it can read: each
- * link `@olai/format`'s scan finds (the very scan the references index reads,
- * so the page and the index agree on what a text holds) is written as an
- * ordinary `[words](#carrier)` before parsing ({@link wikilinked}). The words
- * are escaped, so a wikilink shows its words as text; the carrier names which
- * link of the text it was and carries a seal made from the whole text, so a
- * hand-written `[x](#olai-wikilink-0)` stays a fragment link — and a carrier
- * stands only for a wikilink the text really holds ({@link carriersOf}).
+ * The parser reads a wikilink itself (`@olai/prose`'s `obsidian.ts`), and the
+ * pipeline draws its node as an `<a>` carrying the name it looks up and the
+ * words it shows (`./pipeline.ts`).
  *
  * WHAT IT FINDS DEPENDS ON THE DIRECTORY, so the drawing is a function of the
  * membership ({@link drawnWikilink}) and is written twice from one answer: by
@@ -24,12 +18,10 @@ import {
   isPicture,
   namesIn,
   printAddress,
-  type Wikilink,
   wikilinkAddress,
   wikilinkFallback,
   wikilinkPath,
   wikilinkPicture,
-  wikilinksIn,
 } from "@olai/format"
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"
@@ -39,66 +31,19 @@ import { mediaHref } from "@olai/surface"
 export const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " +
   "font-mono text-xs text-muted"
 
-const CARRIER = "#olai-wikilink-"
-
-/** A short seal of a whole text — FNV-1a, for "this carrier came from this
- *  text". 32 bits promise no note cannot spell it; what keeps a hand-written
- *  carrier harmless is that one stands only for a wikilink the text really
- *  holds ({@link carriersOf}), so a forged one draws that link and no other. */
-const sealOf = (source: string): string => {
-  let hash = 0x811c9dc5
-  for (let at = 0; at < source.length; at++) {
-    hash ^= source.charCodeAt(at)
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return (hash >>> 0).toString(36)
-}
-
-/** Every ASCII punctuation mark, which a backslash makes literal. */
-const PUNCTUATION = /[!-/:-@[-`{-~]/g
-
-/**
- * The text with each wikilink written as a markdown link the parser will read:
- * `[[kitchen-sink#Tables|the table]]` → `[the table](#olai-wikilink-0-<seal>)`.
- * Identity when the text holds none, so a cache keyed on the text keeps its
- * key. A picture embed is written the same way; `./rewrite.ts` draws it.
- */
-export const wikilinked = (source: string): string => {
-  const links = wikilinksIn(source)
-  if (links.length === 0) return source
-  const seal = sealOf(source)
-  let out = ""
-  let last = 0
-  links.forEach((link, at) => {
-    out += source.slice(last, link.start) + `[${link.shown.replace(PUNCTUATION, "\\$&")}](${CARRIER}${at}-${seal})`
-    last = link.end
-  })
-  return out + source.slice(last)
-}
-
-/**
- * The wikilinks of a text, read once and only when a rendering of it meets a
- * carrier — and which of them a carrier `href` stands for.
- */
-export const carriersOf = (source: string): ((href: string) => Wikilink | undefined) => {
-  let links: ReadonlyArray<Wikilink> | undefined
-  let seal: string | undefined
-  return (href) => {
-    if (!href.startsWith(CARRIER)) return undefined
-    const [at, written] = href.slice(CARRIER.length).split("-")
-    seal ??= sealOf(source)
-    if (written !== seal || at === undefined || !/^\d+$/.test(at)) return undefined
-    links ??= wikilinksIn(source)
-    return links[Number(at)]
-  }
-}
-
 /** One wikilink as the page keeps it: the name it looks up, whether it was an
  *  embed, and the size an embed's `|200` or `|200x100` asks for. */
 export interface Written {
   readonly name: string
   readonly embed: boolean
   readonly size?: string
+}
+
+declare module "hast" {
+  interface ElementData {
+    /** A wikilink's `<a>`, from the pipeline's handler to `./rewrite.ts`. */
+    wikilink?: Written
+  }
 }
 
 /** The size a picture embed's alias asks for, or nothing. */

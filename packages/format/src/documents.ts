@@ -470,8 +470,7 @@ export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArr
  *
  * The scan still does not parse: the label may not hold a `]`, and code
  * removal is the CALLER's — {@link proseLinks} strips literal code before it
- * asks this, while {@link bracketSpacedLinks} reads the raw text, which is
- * exactly the split a renderer's rewrite needs. What it now reads, that the
+ * asks this. What it now reads, that the
  * pattern would not, is a filename with a space in it —
  * CommonMark's angle-bracketed destination, and the space left raw, which
  * is the spelling people write. An optional title is still dropped: a
@@ -497,36 +496,6 @@ export const writtenLinks = (text: string): ReadonlyArray<string> => {
  */
 export const proseLinks = (text: string): ReadonlyArray<string> =>
   text.includes("](") ? writtenLinks(proseMask(text)) : []
-
-/**
- * Rewrite a `[…](…)` whose destination holds a space into the angle-bracket
- * form CommonMark's parser will read.
- *
- * The scan above already names those files. The renderer goes through a
- * parser that will not: a space inside parentheses is not a destination, so
- * `[the brief](the brief.md)` never becomes an `<a>` and the page's own
- * resolver never sees the name. Wrapping the destination — and only the
- * destination, so an optional title stays a title — is the one edit that
- * makes the two readings agree, and it is this scan's inverse rather than
- * a second parser.
- *
- * Identity when nothing needs wrapping, so a cache keyed on the source
- * does not churn.
- */
-export const bracketSpacedLinks = (text: string): string => {
-  if (!text.includes("](")) return text
-  let out = ""
-  let last = 0
-  let changed = false
-  eachTarget(text, (target, open, close) => {
-    const dest = destinationOf(target)
-    if (!SPACE.test(dest) || target.startsWith("<")) return
-    out += text.slice(last, open) + `<${dest}>` + target.slice(dest.length)
-    last = close
-    changed = true
-  })
-  return changed ? out + text.slice(last) : text
-}
 
 /** Every parenthesised target, in document order. `open` is the character
  *  after `(`, `close` is the matching `)`. */
@@ -567,9 +536,6 @@ const destinationOf = (target: string): string => {
 /** Markdown's optional title: whitespace, then a quoted or parenthesised
  *  string. A space that is not this is a character of the filename. */
 const TITLE = /\s+["'(]/
-
-/** A space in a destination, as a class rather than a repetition. */
-const SPACE = /\s/
 
 /** The answer for prose that points nowhere and for a record that does — which
  *  is most of both: ONE list, shared, as `./derive.ts` shares its own. */

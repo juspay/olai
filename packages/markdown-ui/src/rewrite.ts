@@ -55,7 +55,6 @@ import {
   printAddress,
   bodyKind,
   pictureOf,
-  type Wikilink,
 } from "@olai/format"
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
@@ -63,7 +62,7 @@ import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
-import { carriersOf, drawingOf, drawnWikilink, sizeOf, UNDRAWN, type Written } from "./wikilinks.ts"
+import { drawingOf, drawnWikilink, UNDRAWN, type Written } from "./wikilinks.ts"
 
 
 export interface Rewrite {
@@ -76,9 +75,6 @@ export interface Rewrite {
   readonly members?: ReadonlySet<string>
   /** This block's id namespace. */
   readonly ids: string
-  /** The text this tree was parsed from, which is where a wikilink's carrier
-   *  is read back ({@link ./wikilinks.ts}). Without it no link is one. */
-  readonly source?: string
   /** A title: one line high, so an embed of a picture draws as a link. */
   readonly inline?: boolean
 }
@@ -87,12 +83,13 @@ export interface Rewrite {
  *  in document order, which is the order a table of contents is read in. */
 export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
   const headings: Heading[] = []
-  const carried = options.source === undefined ? NO_CARRIER : carriersOf(options.source)
-  walk(tree, options, headings, headingRoute(options.claims, options.from), { drawn: 0 }, carried)
+  walk(tree, options, headings, headingRoute(options.claims, options.from), { drawn: 0 })
   return headings
 }
 
-const NO_CARRIER = (): undefined => undefined
+/** The wikilink an `<a>` is, as `./pipeline.ts` left it on the element's
+ *  `data`, or `undefined` for every other link. */
+const wikilinkOf = (element: Element): Written | undefined => element.data?.wikilink
 
 /** The app route a heading of this block stands for, by its authored slug — or
  *  `undefined` where the slug names no heading of a document. */
@@ -120,15 +117,13 @@ const walk = (
   headings: Heading[],
   route: HeadingRoute | null,
   pictures: { drawn: number },
-  carried: (href: string) => Wikilink | undefined,
 ): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
     if (child.tagName === "img") resolvePicture(child, options.claims, options.from, pictures)
     if (child.tagName === "a") {
-      const href = child.properties?.["href"]
-      const link = typeof href === "string" ? carried(href) : undefined
-      if (link !== undefined) drawWikilink(child, link, options, pictures)
+      const written = wikilinkOf(child)
+      if (written !== undefined) drawWikilink(child, written, options, pictures)
       else {
         // Document first: a relative `.md` becomes a page address and must not then
         // be treated as something that leaves the app.
@@ -139,7 +134,7 @@ const walk = (
     // The slug as authored, before `mint` moves it into this block's namespace.
     const slug = child.properties?.["id"]
     mint(child, options.ids, route)
-    walk(child, options, headings, route, pictures, carried)
+    walk(child, options, headings, route, pictures)
     // AFTER the subtree, so what a heading reads as is what is left of it.
     const heading = headingOf(child)
     if (heading === null) continue
@@ -357,14 +352,13 @@ const openExternal = (element: Element): void => {
 const isHttp = (href: string): boolean => /^https?:\/\//i.test(href)
 
 /**
- * A wikilink, drawn from its carrier: the link to the page its name finds,
- * marked dead when the membership in hand finds nothing — or, for a picture
- * embed, the picture, or the words saying why there is none. The marks are
- * written HERE, after the sanitiser, so a note cannot carry one of its own.
+ * A wikilink, drawn from the marks the pipeline put on it: the link to the
+ * page its name finds, marked dead when the membership in hand finds nothing
+ * — or, for a picture embed, the picture, or the words saying why there is
+ * none. Drawn HERE, after the sanitiser, so a note cannot carry a mark of its
+ * own.
  */
-const drawWikilink = (element: Element, link: Wikilink, options: Rewrite, pictures: { drawn: number }): void => {
-  const size = link.embed ? sizeOf(link.alias) : undefined
-  const written: Written = { name: link.name, embed: link.embed, ...(size === undefined ? {} : { size }) }
+const drawWikilink = (element: Element, written: Written, options: Rewrite, pictures: { drawn: number }): void => {
   const drawn = drawnWikilink(options.claims, options.members, options.from, written, options.inline === true)
   const drawing = drawingOf(drawn, written, drawn.kind === "link" ? textIn(element).trim() : "")
   const { class: classes, ...attributes } = drawing.attributes

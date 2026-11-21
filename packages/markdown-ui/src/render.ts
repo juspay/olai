@@ -175,7 +175,7 @@ export const renderToTree = (
   const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, { claims, from, ids: idsFor(key), source, inline: shape === "inline", ...(members === undefined ? {} : { members }) })
+  rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(members === undefined ? {} : { members }) })
   return tree
 }
 
@@ -234,7 +234,7 @@ const render = (
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, { claims, from, ids: idsFor(key), source, inline: shape === "inline", ...(members === undefined ? {} : { members }) })
+  const headings = rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(members === undefined ? {} : { members }) })
   return { html: pipeline.htmlOf(tree), headings }
 }
 

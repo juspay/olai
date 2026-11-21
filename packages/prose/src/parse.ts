@@ -2,10 +2,10 @@
  * TEXT TO TREE — the one Markdown parse this app makes, for the page and,
  * from a later stage of this package, for every other reader of text.
  *
- * `remark-parse` with `remark-gfm`: CommonMark and GitHub's dialect, which is
+ * `remark-parse` with `remark-gfm` and Obsidian's wikilinks and spaced
+ * addresses (`./obsidian.ts`): CommonMark and GitHub's dialect, which is
  * what brings footnotes, tables, task lists and strikethrough into the same
  * dialect an agent and a reader already write. These are the options the
- * page has always rendered with, so moving the parse here changes nothing a
  * person sees; `@olai/markdown-ui`'s pipeline starts from the tree this makes
  * and draws it.
  *
@@ -21,11 +21,21 @@
 import type { Root } from "mdast"
 import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
-import { unified } from "unified"
+import { type Processor, unified } from "unified"
+
+import { obsidianFromMarkdown, obsidianSyntax } from "./obsidian.ts"
+
+/** `./obsidian.ts`'s two halves, attached the way `remark-gfm` attaches its
+ *  own: after it, so a spaced address is tried before a footnote's `]`. */
+function remarkObsidian(this: Processor): void {
+  const data = this.data()
+  ;(data.micromarkExtensions ??= []).push(obsidianSyntax)
+  ;(data.fromMarkdownExtensions ??= []).push(obsidianFromMarkdown)
+}
 
 /** Built once, when this module is evaluated: attaching the extensions is
  *  work a parse per text must not repeat. */
-const parser = unified().use(remarkParse).use(remarkGfm).freeze()
+const parser = unified().use(remarkParse).use(remarkGfm).use(remarkObsidian).freeze()
 
 /** The Markdown tree of a text, in the dialect this app reads. */
 export const parse = (text: string): Root => parser.parse(text)

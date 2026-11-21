@@ -625,13 +625,21 @@ test("a character reference is not read as lost text", () => {
   expect(html.replace(/&#x26;|&amp;/g, "&")).toBe("Tom & Jerry")
 })
 
-// Both readings of a title go through `bracketSpacedLinks` (@olai/format, in
-// pipeline.ts), so they read one string: `(my file.md)` is a destination to
-// the render and would be literal text to a parse that skipped it.
+// Both readings of a title go through the one parse, which reads an address
+// holding a space as one (`@olai/prose`'s `obsidian.ts`), so `(my file.md)` is
+// a destination to the render and to the text the title accounts for alike.
 test("a link whose destination holds a space still renders", () => {
   const html = titleHtml("see [the spec](my file.md)", NOTE)
   expect(html).toContain("the spec")
   expect(html).not.toContain("](")
+})
+
+// A CODE SPAN IS DRAWN AS WRITTEN. The address with a space used to be
+// rewritten before the parse, which could not tell code from prose, so the
+// span gained angle brackets it never held.
+test("a link with a spaced address inside a code span is drawn as written", () => {
+  const html = renderMarkdown(TEST_CLAIMS, "see `[the brief](the brief.md)`", "a.md")
+  expect(html).toContain("<code>[the brief](the brief.md)</code>")
 })
 
 // Inside a Link (breadcrumb, see-ref): no nested <a>.

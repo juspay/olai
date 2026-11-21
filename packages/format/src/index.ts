@@ -278,7 +278,6 @@ export {
 export { bytesOf } from "./document.ts"
 export { isAsset, isPicture, servingOf } from "./serving.ts"
 export {
-  bracketSpacedLinks,
   firstLine,
   /** The path in this directory a relative reference names, whatever kind of
    *  file it is — the same arithmetic and refusals as the picture rule, with

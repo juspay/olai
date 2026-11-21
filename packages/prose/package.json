@@ -10,14 +10,20 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "The bottom of the layering, below @olai/format: how a text is read — its tags, its slugs, where a file's frontmatter ends, whether a title holds any markup, and the one Markdown parse (remark-parse with remark-gfm, src/parse.ts). Nothing in the workspace, so everything above can read text the same way; no rendering — solid-js, rehype and highlight.js stay in @olai/markdown-ui.",
+  "//dependencies": "The bottom of the layering, below @olai/format: how a text is read — its tags, its slugs, where a file's frontmatter ends, whether a title holds any markup, and the one Markdown parse (remark-parse with remark-gfm, src/parse.ts) with Obsidian's wikilinks and spaced addresses read as micromark constructs (src/obsidian.ts, built from the micromark pieces listed here). Nothing in the workspace, so everything above can read text the same way; no rendering — solid-js, rehype and highlight.js stay in @olai/markdown-ui.",
   "dependencies": {
     "effect": "4.1.4",
+    "mdast-util-from-markdown": "^2.0.3",
+    "micromark-core-commonmark": "^2.0.3",
+    "micromark-factory-title": "^2.0.1",
+    "micromark-factory-whitespace": "^2.0.1",
+    "micromark-util-character": "^2.1.1",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5"
   },
   "devDependencies": {
-    "@types/mdast": "^4.0.4"
+    "@types/mdast": "^4.0.4",
+    "micromark-util-types": "^2.0.2"
   }
 }

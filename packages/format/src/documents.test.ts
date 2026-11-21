@@ -7,7 +7,6 @@ import { expect, test } from "bun:test"
 import { printAddress } from "./address.ts"
 import { bytesOf } from "./document.ts"
 import {
-  bracketSpacedLinks,
   firstLine,
   linksIn,
   pathedOf,
@@ -117,16 +116,6 @@ test("a markdown link's optional title is not part of the destination", () => {
     .toEqual(["notes/brief.md"])
   expect(named("notes/plan.md", `see [the brief](<the brief.md> "Oak counters")`))
     .toEqual(["notes/the%20brief.md"])
-})
-
-test("a raw-space destination is wrapped so a CommonMark parser will read it", () => {
-  expect(bracketSpacedLinks("see [the brief](the brief.md)"))
-    .toBe("see [the brief](<the brief.md>)")
-  expect(bracketSpacedLinks(`see [the brief](the brief.md "Oak")`))
-    .toBe(`see [the brief](<the brief.md> "Oak")`)
-  expect(bracketSpacedLinks("see [the brief](<the brief.md>)"))
-    .toBe("see [the brief](<the brief.md>)")
-  expect(bracketSpacedLinks("see [the brief](brief.md)")).toBe("see [the brief](brief.md)")
 })
 // Everything this must not reinterpret. A link with a scheme goes where it
 // says, an absolute path is not this app's to resolve, a fragment is the
