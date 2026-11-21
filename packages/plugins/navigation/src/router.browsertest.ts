@@ -26,7 +26,7 @@ test("late claims land every pane once, without reviving a spent landing on anot
       return createRouter()
     })
     expect(router.landing(0)).toBeUndefined()
-    release = holdFiles({ claims: () => claims()!, paths: () => [], standing: () => "loaded" })
+    release = holdFiles({ claims: () => claims()!, paths: () => [], standing: () => "loaded", head: () => () => undefined })
     publish(TEST_CLAIMS)
     await Promise.resolve()
     expect(router.landing(0)).toEqual({ file: "house.olai", at: "handles", spent: false })

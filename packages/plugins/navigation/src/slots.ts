@@ -74,12 +74,21 @@ export interface AppCommand {
   }
 }
 
+/**
+ * A WHOLE FILE OF THE PLUGIN'S OWN KIND, drawn by the plugin: the kind a
+ * plugin's server half claimed with `FileKinds`, which is stamped with the
+ * plugin's name. Handed the file's path and its revision, which moves when the
+ * file does — the face reads the content itself, through its own server half.
+ */
+export type FilePageFace = (props: { readonly file: string; readonly revision: number | undefined }) => JSX.Element
+
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {
     "app.route": SlotDefinition<AppPage, "nothing">
     "app.keys": SlotDefinition<AppChord, "nothing">
     "app.palette": SlotDefinition<AppPalette, "nothing">
     "app.command": SlotDefinition<AppCommand, "nothing">
+    "file.page": SlotDefinition<FilePageFace, "plugin">
   }
 }
 
@@ -92,4 +101,6 @@ export const slotContracts = {
     "A palette row `{ id, label, hint?, search, href }`, matched against what a person types and opening the address `href` when chosen."),
   "app.command": slotContract<AppCommand>("app.command","nothing",
     "A command `{ id, label, hint?, search, run, chord? }`: a palette row that calls `run` with nothing when chosen, and, with `chord` (`{ key, shift?, whileEditing }`), a key that calls it too, under `app.keys`' rule."),
+  "file.page": slotContract<FilePageFace>("file.page","plugin",
+    "A component handed `{ file, revision }`, drawn as the whole page of a file of the kind this plugin's server half claimed with `FileKinds`; `revision` changes when the file does, and the face reads the file's text through its own server half."),
 } as const

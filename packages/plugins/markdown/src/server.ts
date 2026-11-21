@@ -171,3 +171,6 @@ import { faces as standaloneFaces } from "./surface.ts"
 const siblingFaces = { browser: standaloneFaces.browser }
 export { siblingFaces as faces }
 export { surface } from "./surface.ts"
+// The seats a plugin hangs a face in on a note's page, listed by
+// `vault-plugins_inspect` beside every other row's (`./slots.ts`).
+export { slotContracts as slots } from "./slots.ts"

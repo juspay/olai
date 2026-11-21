@@ -33,7 +33,9 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { type MountedPages, NO_PAGES, routingOver } from "./routes.ts"
 
-const files = heldService<Pick<Directory, "claims" | "paths" | "standing">>()
+// `head` is which revision one file is at: what a plugin's `file.page` face is
+// handed so it reads a file again when the file moves (`./PageView.tsx`).
+const files = heldService<Pick<Directory, "claims" | "paths" | "standing" | "head">>()
 export const holdFiles = files.hold
 export const directory = files.read
 export const fileClaims = () => files.read()?.claims()

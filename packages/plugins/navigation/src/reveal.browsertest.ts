@@ -31,7 +31,7 @@ const lane = (address: string) => {
 }
 
 test("an answer, missing included, is read once per route and provider", () => {
-  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded" })
+  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded", head: () => () => undefined })
   const first = provider()
   let release = nodeTargets.hold(first.value)
   const { state, dispose } = lane("/s/%23missing/house.olai")
@@ -53,7 +53,7 @@ test("an answer, missing included, is read once per route and provider", () => {
 
 test("a home lands once the claim table names its file", () => {
   const [table, setTable] = createSignal(NO_CLAIMS)
-  const files = holdFiles({ claims: table, paths: () => [], standing: () => "loaded" })
+  const files = holdFiles({ claims: table, paths: () => [], standing: () => "loaded", head: () => () => undefined })
   const reader = provider()
   const release = nodeTargets.hold(reader.value)
   const { state, arrived, dispose } = lane("/#order")
@@ -67,7 +67,7 @@ test("a home lands once the claim table names its file", () => {
 })
 
 test("a followed link keeps its page until the node lands, then pushes", () => {
-  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded" })
+  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded", head: () => () => undefined })
   const reader = provider()
   const release = nodeTargets.hold(reader.value)
   const { state, arrived, dispose } = lane("/garden.olai")
