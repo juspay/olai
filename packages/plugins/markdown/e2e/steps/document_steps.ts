@@ -182,7 +182,7 @@ Then(
  *  saying so — and none of the structure it would have been. */
 Then("the document says it was not formatted", async function (this: OlaiWorld) {
   const rendered = await body(this);
-  await rendered.locator(`[data-testid="${TESTID.refusedText}"]`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await rendered.locator(attr("data-testid", TESTID.refusedText)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.strictEqual(await rendered.locator("blockquote").count(), 0, "the refused text was drawn as quotes")
 });
 

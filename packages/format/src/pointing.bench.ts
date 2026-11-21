@@ -56,6 +56,7 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { Result } from "effect"
 import { type Address, addressOf } from "./address.ts"
+import { bodyKind } from "./kinds.ts"
 import { referencesOf } from "./backlinks.ts"
 import { alternating, median, parseOutline, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
 import { pointingOf, repointed } from "./pointing.ts"
@@ -181,12 +182,12 @@ const leg = (label: string, wikilinks: number): void => {
       return held + (record.title ? 1 : 0) + (record.desc ? 1 : 0)
     }, 0)
   const [[file, text], texts] = [...vault]
-    .filter(([path]) => path.endsWith(".olai"))
+    .filter(([path]) => bodyKind(TEST_CLAIMS, path) === null)
     .map(([path, written]) => [[path, written], textsIn(written)] as const)
     .sort((one, other) => Math.abs(one[1] - 22) - Math.abs(other[1] - 22))[0]!
   const writes = oneWrite(file, text)
   const [hugeFile, hugeText] = [...linkyVault({ outlines: 1, bodies: 0, records: 2_000, wikilinks })]
-    .find(([path]) => path.endsWith(".olai"))!
+    .find(([path]) => bodyKind(TEST_CLAIMS, path) === null)!
   const hugeWrites = oneWrite(hugeFile, hugeText)
 
   const density = bodies
