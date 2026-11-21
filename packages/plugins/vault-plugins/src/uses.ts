@@ -66,7 +66,9 @@ const DOORS: Readonly<Record<string, string>> = {
   HttpClient: "Reaches the network",
   Commands: "Runs programs on this computer",
   Navigate: "Opens pages in the app",
-  RequestAuthority: "Writes as whoever made the call, you or an agent",
+  // What the import shows, and no more: whether the plugin hands the caller to
+  // the gate is in its code, and this list never vouches for that.
+  RequestAuthority: "Learns who made each call, you or an agent",
 }
 
 /** The import names that say nothing a person needs to read: the ones every
