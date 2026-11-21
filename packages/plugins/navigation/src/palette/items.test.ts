@@ -16,8 +16,8 @@ import type { Hung } from "@olai/plugin-api"
 import { atOnce } from "@olai/web/client/settled.ts"
 
 import { atFile, atNode } from "../routes.ts"
-import type { AppChord } from "../slots.ts"
-import { boxOf, chordsIn, prefixesIn, type PalettePrefix, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
+import type { AppChord, AppCommand } from "../slots.ts"
+import { boxOf, chordsIn, commandChords, commandRows, prefixesIn, type PalettePrefix, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
 
 /** A face hung, with the plugin's own word beside it — the shape
  *  `@olai/web`'s `client/plugins/runtime.ts` `hung` reads a list slot back as. */
@@ -236,6 +236,54 @@ test("a plugin's chord over one the app already answers is refused, and the firs
     expect(said[0]).toContain("closePane")
     expect(said[0]).toContain("tabs")
     expect(said[1]).toContain("the plugin \"tabs\"")
+  } finally {
+    console.warn = warned
+  }
+})
+
+/** A command as a plugin registers it in `app.command`, counting its runs. */
+const command = (id: string, chord?: AppCommand["chord"]) => {
+  const ran: Array<string> = []
+  const face: AppCommand = {
+    id,
+    label: `Run ${id}`,
+    search: `${id} words`,
+    run: () => { ran.push(id) },
+    ...(chord === undefined ? {} : { chord }),
+  }
+  return { face, ran }
+}
+
+test("an app.command is a palette row that runs the plugin's function, found by its words", async () => {
+  const review = command("review")
+  const rows = commandRows([hung("reader", review.face)])
+  expect(rows.map((row) => [row.id, row.label, row.search])).toEqual([["review", "Run review", "review words"]])
+  const action = rows[0]!.action
+  expect(action.kind).toBe("run")
+  if (action.kind !== "run") throw new Error("not a run row")
+  await action.run()
+  expect(review.ran).toEqual(["review"])
+})
+
+test("an app.command's chord is answered by the chord rule, and a chord the app holds is refused out loud", () => {
+  const warned = console.warn
+  const said: Array<string> = []
+  console.warn = (line: string) => { said.push(line) }
+  try {
+    const free = command("review", { key: "u", shift: true, whileEditing: false })
+    const taken = command("close", { key: "w", shift: true, whileEditing: true })
+    const bare = command("bare")
+    const chords = commandChords([hung("reader", free.face), hung("reader", taken.face), hung("reader", bare.face)])
+    // A command with no chord has none to offer.
+    expect(chords.map((one) => one.face.key)).toEqual(["u", "w"])
+    const kept = chordsIn(chords, [{ key: "w", shift: true, action: "closePane" }])
+    expect(kept.map((one) => [one.key, one.shift, one.whileEditing, one.said])).toEqual([["u", true, false, "Run review"]])
+    expect(said).toHaveLength(1)
+    expect(said[0]).toContain("the plugin \"reader\"")
+    expect(said[0]).toContain("closePane")
+    kept[0]!.press()
+    expect(free.ran).toEqual(["review"])
+    expect(taken.ran).toEqual([])
   } finally {
     console.warn = warned
   }

@@ -16,6 +16,8 @@ import { Then, When } from "@olai/tests/harness/runner.ts"
 import { TESTID } from "@olai/tests/harness/testids.ts"
 import { attr, HYDRATION_TIMEOUT, nodeSelector, POLL_TIMEOUT, SIDEBAR } from "@olai/tests/harness/world.ts"
 import { selector } from "@olai/web/testlib"
+
+import { TESTID as VAULT_PLUGINS_TESTID } from "../../src/testids.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
 /** One entry of `vault-plugins_inspect`'s slot list. */
@@ -160,4 +162,27 @@ Then("the row {string} of {string} is next due after {string}", async function (
 Then("the review is not drawn", async function (this: OlaiWorld) {
   await this.waitForFrame()
   await this.waitUntil(async () => (await review(this).count()) === 0, "the review to be gone")
+})
+
+/** The reader's own page, drawn by the plugin at `/plugins/reader/app…` and
+ *  found by the attributes its source writes. */
+const own = (world: OlaiWorld) => world.page.locator(attr("data-reader", "app"))
+
+Then("the reader's own page is drawn at {string}", async function (this: OlaiWorld, rest: string) {
+  await own(this).and(this.page.locator(attr("data-rest", rest))).first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+})
+
+Then("the reader's own page is not drawn", async function (this: OlaiWorld) {
+  await this.waitForFrame()
+  await this.waitUntil(async () => (await own(this).count()) === 0, "the reader's own page to be absent")
+})
+
+/** What the address draws where the plugin draws nothing: the plugin's stage,
+ *  in the words its approval page uses, and a way to that page. */
+Then("the own page of {string} says it is {string}", async function (this: OlaiWorld, word: string, stage: string) {
+  const absent = this.page.locator(`${selector(VAULT_PLUGINS_TESTID.ownPageAbsent)}${attr("data-plugin", word)}`).first()
+  await absent.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  await this.waitUntil(async () => (await absent.getAttribute("data-stage")) === stage, `the own page of ${word} to say ${stage}`)
+  assert.equal(await absent.locator(`a[href="/plugins/${word}"]`).count(), 1, `the own page of ${word} links to its approval page`)
 })

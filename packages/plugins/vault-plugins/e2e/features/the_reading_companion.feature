@@ -13,7 +13,7 @@ Feature: The reading companion
 
   Scenario: An agent is told every place a face can go, and what each is handed
     Given I open the app
-    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, plugins.row"
+    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, app.command, plugins.row, plugin.page"
     And every slot in the catalog says what its face is handed
 
   @scratch:reader
@@ -49,7 +49,7 @@ Feature: The reading companion
     When I go to the plugin "reader"
     Then the plugin page is "review"
     And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/sm2.ts, pairs.ts, types.ts, words.ts"
-    And the plugin page's status says "7 files, 291 lines"
+    And the plugin page's status says "7 files, 316 lines"
     When I open the plugin page's "lib/sm2.ts" tab
     Then the plugin page's code is "lib/sm2.ts"
     And the plugin page's code names "export const scheduled"
@@ -132,4 +132,55 @@ Feature: The reading companion
     When I switch the plugin "reader" off on its page
     And I open the node "vocabulary"
     Then the review is not drawn
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: Its own page is drawn at its address, and again after a reload
+    Given I open the address "/plugins/reader/app/review"
+    When I approve the plugin "reader"
+    Then the reader's own page is drawn at "review"
+    And the review offers the word "maison"
+    When I reload the page
+    Then the reader's own page is drawn at "review"
+    And the review offers the word "maison"
+
+    # The bare word is still the page a person turns it on at.
+    When I open the address "/plugins/reader"
+    Then the plugin page is "on"
+    And the reader's own page is not drawn
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: Off, or not yet turned on, its address says so and draws nothing of the plugin's
+    Given I open the address "/plugins/reader/app/review"
+    Then the own page of "reader" says it is "review"
+    And the reader's own page is not drawn
+
+    When I approve the plugin "reader"
+    Then the reader's own page is drawn at "review"
+
+    When I switch the plugin "reader" off on its page
+    And I open the address "/plugins/reader/app/review"
+    Then the own page of "reader" says it is "off"
+    And the reader's own page is not drawn
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: Start review, from the palette and from its key
+    Given I open the outline "book.olai"
+    When I approve the plugin "reader"
+    And I press the palette shortcut
+    And I type "start review" into the palette
+    And I choose "Start review" from the palette
+    Then the reader's own page is drawn at "review"
+
+    When I click sidebar file "book.olai"
+    And I press "ControlOrMeta+Shift+e"
+    Then the reader's own page is drawn at "review"
+
+    When I switch the plugin "reader" off on its page
+    And I click sidebar file "book.olai"
+    And I press the palette shortcut
+    And I type "start review" into the palette
+    Then the palette does not offer "Start review"
     And there should be no page errors
