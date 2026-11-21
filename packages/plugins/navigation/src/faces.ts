@@ -38,8 +38,8 @@
 import { heldFaces } from "@olai/plugin-api"
 import type {} from "olai-plugin-outlines/slots"
 
-/** THE RENDERER'S, and the only reader is `./browser.tsx`'s settling of
- *  `app.route` into `./pages.ts`. */
+/** THE RENDERER'S, read by `./browser.tsx`'s settling of `app.route` into
+ *  `./pages.ts` and by `./PageView.tsx`'s `file.page` pages. */
 export const { hold: holdRouteFaces, hung: routeFaces } = heldFaces()
 
 /** ...and THE PALETTE'S: the rows other rows hang in it and the chords they
