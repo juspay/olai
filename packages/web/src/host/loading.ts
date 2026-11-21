@@ -27,6 +27,32 @@ export const loadRows = async <T>(rows: ReadonlyArray<{
   return { loaded, failed, reloadRequired }
 }
 
+/**
+ * A VAULT PLUGIN'S BROWSER FILE LOADS UNDER ITS ROSTER WORD OR NOT AT ALL.
+ *
+ * The tab mounts a half under the name the half declares, and every keyed
+ * service stamps that name: `Wired` dials it, `Slots` files faces under it,
+ * `Offers` prefixes keys with it. A built-in chunk's name is fixed by the
+ * bundle; a chunk compiled from a directory is not, so a browser file that
+ * declared another plugin's word would act as that plugin in this tab. The
+ * server already holds its server file to the folder's word; this is the same
+ * rule on this side, refused through the row's own load failure so the
+ * plugins panel says why the faces are absent.
+ */
+export const heldToWord = <T>(id: string, load: () => Promise<T>): (() => Promise<T>) => async () => {
+  const half = await load()
+  const declared = typeof half === "object" && half !== null && "default" in half
+    && typeof half.default === "object" && half.default !== null && "name" in half.default
+    ? half.default.name
+    : undefined
+  if (declared === id) return half
+  throw new Error(typeof declared === "string"
+    ? `the browser file served for "${id}" declares the plugin "${declared}", so it is not mounted. `
+      + `A plugin's browser file must declare its folder's word, "${id}".`
+    : `the browser file served for "${id}" exports no plugin, so it is not mounted. `
+      + `End it with \`export default definePlugin({ name: "${id}", needs, apply })\`.`)
+}
+
 /** An entry fetch can recover under a fresh URL, but a failed static dependency
  * remains cached under its original URL. Preserve shared Effect/Solid identity:
  * retry the entry once, then explicitly require a user-initiated page reload if

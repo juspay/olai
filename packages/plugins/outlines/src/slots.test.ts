@@ -7,13 +7,14 @@ test("outlines declares node contributions at all four row and page seats", () =
   for (const name of [
     "outline.row.aside", "outline.row.fold", "outline.page.head", "outline.page.foot",
   ]) {
-    expect(catalog.filter((entry) => entry.name === name)).toEqual([
+    expect(catalog.filter((entry) => entry.name === name).map(({ name, keyedBy }) => ({ name, keyedBy }))).toEqual([
       { name, keyedBy: "nothing" },
     ])
   }
 })
 
 test("property placement is keyed by kind", () => {
-  expect(slotCatalog([{ slots: slotContracts }]).filter(entry => entry.name === "outline.row.placement"))
+  expect(slotCatalog([{ slots: slotContracts }]).filter(entry => entry.name === "outline.row.placement")
+    .map(({ name, keyedBy }) => ({ name, keyedBy })))
     .toEqual([{ name: "outline.row.placement", keyedBy: "kind" }])
 })

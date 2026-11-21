@@ -330,10 +330,12 @@ export const surface = defineSurface({
             half: Schema.Literals(["server", "browser"]),
             availability: Schema.Literals(["core", "provided", "declared"]),
           })),
-          /** Where a browser half's faces may hang, and what keys each slot. */
+          /** Where a browser half's faces may hang, what keys each slot, and
+           *  the owner's sentence saying what a face there is handed. */
           slots: Schema.Array(Schema.Struct({
             name: Schema.String,
             keyedBy: Schema.String,
+            handed: Schema.String,
           })),
           /** The folder a plugin takes, and where its consent is kept. */
           layout: Schema.Struct({

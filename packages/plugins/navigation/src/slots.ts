@@ -59,7 +59,10 @@ declare module "@olai/plugin-api/slots" {
 }
 
 export const slotContracts = {
-  "app.route": slotContract<AppPage>("app.route","nothing"),
-  "app.keys": slotContract<AppChord>("app.keys","nothing"),
-  "app.palette": slotContract<AppPalette>("app.palette","nothing"),
+  "app.route": slotContract<AppPage>("app.route","nothing",
+    "A page built with navigation's own definers (`defineAppRoute` and `defineAppPage`, or `defineSelfDrawnRoute` and `defineSelfDrawnPage`, from `olai-plugin-navigation/routes`); any other value is refused, so a plugin that cannot import them cannot use this slot."),
+  "app.keys": slotContract<AppChord>("app.keys","nothing",
+    "A `{ key, shift?, whileEditing, said, press }`: `press` is called with nothing when `Cmd` (`Ctrl` elsewhere) and `key` are pressed, and `said` is its line in the shortcut list; a chord the app or an earlier plugin holds is not listened for."),
+  "app.palette": slotContract<AppPalette>("app.palette","nothing",
+    "A palette row `{ id, label, hint?, search, href }`, matched against what a person types and opening the address `href` when chosen."),
 } as const

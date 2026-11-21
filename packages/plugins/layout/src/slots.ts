@@ -47,8 +47,12 @@ declare module "@olai/plugin-api/slots" {
 }
 
 export const slotContracts = {
-  "app.header": slotContract<BarSeat>("app.header","plugin"),
-  "app.banner": slotContract<() => JSX.Element>("app.banner","plugin"),
-  "app.viewer": slotContract<() => JSX.Element>("app.viewer","app"),
-  "app.mount": slotContract<(props: {readonly children: JSX.Element}) => JSX.Element>("app.mount","plugin"),
+  "app.header": slotContract<BarSeat>("app.header","plugin",
+    "A `{ place, body, status? }`, one per plugin: `body` is called with nothing and draws in the bar (`place: \"lead\"`) or as a row of the health popover (`place: \"cluster\"`), and `status` answers `{ tone, label, detail? }` for the health dot."),
+  "app.banner": slotContract<() => JSX.Element>("app.banner","plugin",
+    "A function called with nothing, one per plugin, drawn as a banner across the top of the app above every page."),
+  "app.viewer": slotContract<() => JSX.Element>("app.viewer","app",
+    "A function called with nothing, drawn over the whole app as its one viewer; while one plugin holds it, a second plugin's registration is refused."),
+  "app.mount": slotContract<(props: {readonly children: JSX.Element}) => JSX.Element>("app.mount","plugin",
+    "A component handed `{ children }`, the whole app, which it must draw inside whatever it wraps around it, one per plugin."),
 } as const

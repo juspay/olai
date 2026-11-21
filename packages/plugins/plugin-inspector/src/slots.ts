@@ -88,7 +88,8 @@ export const slotContracts = {
   /** The declaration the panel's tools entry offers as a child (`./browser.tsx`)
    *  — a registration into a location no active entry declared would simply
    *  wait. */
-  "plugins.row": slotContract<PluginsRowFace>("plugins.row", "plugin"),
+  "plugins.row": slotContract<PluginsRowFace>("plugins.row", "plugin",
+    "A `{ needs, body }` for the plugin's own row in the Plugins panel: `needs` is called with nothing and answers whether a person has to act, and `body` is called with nothing and draws under the row."),
 } as const
 
 /** THE SEAT ITSELF, for a reader that wants one name rather than a table —

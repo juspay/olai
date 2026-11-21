@@ -14,9 +14,12 @@ declare module "@olai/plugin-api/slots" {
 }
 
 export const slotContracts = {
-  "conversation.wake": slotContract<(context: WakeContext) => JSX.Element>("conversation.wake", "plugin"),
-  "tool.reply": slotContract<ToolReplyFace>("tool.reply", "plugin"),
-  "delivery.mark": slotContract<() => JSX.Element>("delivery.mark","plugin"),
+  "conversation.wake": slotContract<(context: WakeContext) => JSX.Element>("conversation.wake", "plugin",
+    "A component handed `{ pick, setPick, waiting, conversation }`, drawn as this plugin's control on a conversation's strip; `pick` and `setPick` read and keep the plugin's own choice for that conversation."),
+  "tool.reply": slotContract<ToolReplyFace>("tool.reply", "plugin",
+    "A `{ fileOf, story }` for replies to this plugin's own tools in a conversation: `fileOf` is handed the reply and answers the file it is about, and `story` is a component handed `{ reply }` that draws it."),
+  "delivery.mark": slotContract<() => JSX.Element>("delivery.mark","plugin",
+    "A function called with nothing that draws this plugin's mark beside a message it delivered into a conversation."),
 } as const
 
 /** The owning plugin draws its reply; chat keeps the frame; the face owns its interactions. */

@@ -9,8 +9,8 @@ test("legacy and native entries share occupancy, child withdrawal, and one diagn
   const legacy = slotFacade(store)
   const native = store.forOwner("native")
   const shell = yield* Effect.acquireRelease(Scope.make(), (scope) => Scope.close(scope, Exit.void))
-  const seat = slotContract<() => null>("app.viewer","app")
-  const marks = slotContract<() => null>("delivery.mark","plugin")
+  const seat = slotContract<() => null>("app.viewer","app","a test viewer")
+  const marks = slotContract<() => null>("delivery.mark","plugin","a test mark")
   let starts = 0
   let stops = 0
   yield* legacy.forOwner("chat").register("app.viewer", () => null, { children: [marks] })
@@ -39,8 +39,8 @@ test("legacy and native entries share occupancy, child withdrawal, and one diagn
 test("native contributions cannot bypass compatibility owner and kind key rules", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const store = yield* locations()
   const facade = slotFacade(store)
-  const header = slotContract<{place: "cluster";body: () => null}>("app.header","plugin")
-  const chips = slotContract<() => null>("outline.row.chip","kind")
+  const header = slotContract<{place: "cluster";body: () => null}>("app.header","plugin","a test readout")
+  const chips = slotContract<() => null>("outline.row.chip","kind","a test chip")
   const owner = store.forOwner("alpha")
   yield* owner.contribute(header, { plugin: "alpha", face: { place: "cluster", body: () => null } })
   expect(Exit.isFailure(yield* Effect.exit(facade.forOwner("alpha").register("app.header", { place: "cluster", body: () => null })))).toBe(true)

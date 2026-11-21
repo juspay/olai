@@ -23,7 +23,7 @@
     "src/palette/reading.ts": 2,
     "src/router.tsx": 2,
     "src/routes.ts": 6,
-    "src/slots.ts": 1,
+    "src/slots.ts": 2,
     "src/testids.ts": 3,
     "src/workspace.ts": 4
   },
