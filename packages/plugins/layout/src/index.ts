@@ -149,5 +149,3 @@ export interface Shell {
   readonly resetSidebarWidth: () => void
 }
 export const shell = serviceTag<Shell>("layout.shell")
-
-export { slotContracts as slots } from "./slots.ts"
