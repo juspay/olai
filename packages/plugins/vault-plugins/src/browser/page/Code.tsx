@@ -30,12 +30,12 @@
  * markdown pipeline the README is already rendered through.
  */
 
-import { PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
+import { codeFilesOf, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 import { diffLines, type Line } from "../diff.ts"
-import { codeFiles, type Defined } from "../state.ts"
+import type { Defined } from "../state.ts"
 
 type Source = Defined["source"]
 
@@ -51,7 +51,7 @@ interface Choice {
  *  file removed since the approval is a choice too, drawn as its lines going. */
 const choicesOf = (source: Source, diffing: boolean): ReadonlyArray<Choice> => [
   ...(source.readme === undefined ? [] : [{ file: PLUGIN_README_FILE, text: source.readme, was: undefined }]),
-  ...codeFiles(source).flatMap((one) =>
+  ...codeFilesOf(source).flatMap((one) =>
     one.text === undefined && !(diffing && one.approved !== undefined)
       ? []
       : [{ file: one.path, text: one.text ?? "", was: diffing ? one.approved : undefined }]),

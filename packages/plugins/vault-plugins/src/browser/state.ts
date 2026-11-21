@@ -63,16 +63,6 @@ export type Stage = "building" | "review" | "paused" | "on" | "off" | "broken"
  *  server half's own for the same reading (`../source.ts`'s `Defined`). */
 export type Defined = BuiltPlugin & { readonly source: NonNullable<BuiltPlugin["source"]> }
 
-/** One code file of the folder as the page draws it ({@link codeFiles}). */
-export type CodeFile = NonNullable<Defined["source"]["code"]>[number]
-
-/**
- * EVERY CODE FILE THE ROW CARRIES, in the page's order (`@olai/surface`'s
- * `codeFilesOf`). A file removed since the approval is still here, with its
- * approved text and no `text`, so the diff can show it go.
- */
-export const codeFiles = (source: Defined["source"]): ReadonlyArray<CodeFile> => codeFilesOf(source)
-
 /** Whether this row was written into the directory rather than compiled in. */
 export const defined = (plugin: BuiltPlugin): plugin is Defined => plugin.source !== undefined
 
@@ -150,7 +140,7 @@ export const metaOf = (plugin: Defined, stage: Stage): string => {
 /** The size of what somebody is being asked to read: every code file, which
  *  are the files an approval is about. */
 const halves = (source: Defined["source"]): string => {
-  const texts = codeFiles(source).flatMap((one) => (one.text === undefined ? [] : [one.text]))
+  const texts = codeFilesOf(source).flatMap((one) => (one.text === undefined ? [] : [one.text]))
   const lines = texts.reduce((sum, text) => sum + count(text), 0)
   return `${texts.length} ${texts.length === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
 }

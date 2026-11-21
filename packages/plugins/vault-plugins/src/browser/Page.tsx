@@ -44,7 +44,7 @@
  */
 
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
-import { PLUGIN_BROWSER_FILE, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
+import { codeFilesOf, PLUGIN_BROWSER_FILE, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
 import type { BrowserManagement } from "@olai/surface/management"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
@@ -64,7 +64,7 @@ import { readmeItem } from "../index.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
-import { codeFiles, faultSaid, LOOK, metaOf, pluginNamed, stageOf, TRUST_SAID, wakes, type Defined } from "./state.ts"
+import { faultSaid, LOOK, metaOf, pluginNamed, stageOf, TRUST_SAID, wakes, type Defined } from "./state.ts"
 
 export function PluginPage(props: {
   readonly word: string
@@ -452,7 +452,7 @@ function Landing(props: { readonly source: Defined["source"] }) {
     { file: PLUGIN_README_FILE, there: props.source.readme !== undefined, said: "what it does, for people" },
     { file: PLUGIN_SERVER_FILE, there: props.source.server.trim() !== "", said: "what runs on the server" },
     { file: PLUGIN_BROWSER_FILE, there: props.source.browser !== undefined, said: "what draws in the page — optional" },
-    ...codeFiles(props.source)
+    ...codeFilesOf(props.source)
       .filter((one) => one.text !== undefined && one.path !== PLUGIN_SERVER_FILE && one.path !== PLUGIN_BROWSER_FILE)
       .map((one) => ({ file: one.path, there: true, said: "code the plugin may import" })),
   ]
@@ -474,7 +474,7 @@ function Landing(props: { readonly source: Defined["source"] }) {
 /** The banner's own sentence about a paused plugin: how much moved, and in
  *  which file. Read off the same walk the block below it draws. */
 const changedSaid = (plugin: Defined): string => {
-  const halves = codeFiles(plugin.source)
+  const halves = codeFilesOf(plugin.source)
     .filter((one) => one.approved !== undefined)
     .map((one) => ({ file: one.path, was: one.approved, now: one.text ?? "" }))
   if (halves.length === 0) return "The code changed since you turned it on."
