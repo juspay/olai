@@ -183,6 +183,7 @@ A browser file draws by registering a face in a slot with `Slots.register`. `vau
 | `plugins.row` | words and buttons on the plugin's own row of the **Plugins** panel |
 | `conversation.wake`, `tool.reply`, `delivery.mark` | a conversation's controls, how its replies are drawn, and its mark |
 | `app.route` | not open to a plugin in your directory: it takes only a page built with navigation's own functions, which such a plugin cannot import; use `plugin.page` |
+| `search.box.below` | not open to any other plugin: search fills it with the row under its own box, so a second registration is refused |
 
 A slot keyed by plugin holds one face per plugin, and a slot keyed by nothing is a list, so a plugin may put several faces in it.
 
@@ -205,7 +206,7 @@ yield* slots.register("app.command", {
   id: "reader-review",
   label: "Start review",
   search: "reader review start words vocabulary",
-  run: () => open(REVIEW),
+  run: () => navigate.open(REVIEW),
   chord: { key: "e", shift: true, whileEditing: false },
 })
 ```
@@ -245,7 +246,7 @@ yield* slots.register("app.keys", {
   shift: true,
   whileEditing: false,
   said: "Open your vocabulary",
-  press: () => open(VOCABULARY),
+  press: () => navigate.open(VOCABULARY),
 })
 yield* slots.register("app.palette", {
   id: "reader-book",
@@ -256,23 +257,24 @@ yield* slots.register("app.palette", {
 ```
 
 - A link in a face is an ordinary `<a href>`. olai follows a link to one of its own addresses inside the app, with no reload.
-- A key's `press` gets nothing, so the plugin's `open` follows an address the same way a link does: it adds an `<a>` to the page, clicks it and takes it away. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
+- A key's `press` and a command's `run` get nothing, so they open an address with `Navigate`, navigation's own verb: name it in `needs` and call `(yield* Navigate).open(address)`. It opens the page a link to that address would. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
 - A palette row opens its `href` when you choose it, and is found by the words in its `search`.
 - Switch the plugin off and the section, the key and the palette row go together.
 
 ## Talk to your own server file
 
-A browser file asks its own server file for things through a surface: a list of named calls, each with what it takes and what it answers. Four steps, which the reading companion follows file by file:
+A browser file asks its own server file for things through a surface: a list of named calls, each with what it takes, what it answers and how it can fail. Four steps, which the reading companion follows file by file:
 
-1. Write the surface once, in a file both entries import, with `defineSurface` from `@olai/plugin-api`. Beside it, a `faces` map says who may make each call: `browser` for the plugin's own page, `agent` for your agents.
-2. `server.ts` names `Surfaces` in `needs` and registers `{ surface, faces, deps }`, where `deps` answers each call.
-3. `browser.tsx` exports `surface`, so the tab connects to it, names `Wired` in `needs`, and calls `clientOf(surface, wired)`. That answers the surface's own typed client, or `null` while the plugin's server file is not connected.
-4. To write, `server.ts` names `Ops` in `needs` and runs `(yield* Ops).gate.run(request, "web")`. The gate plans, checks and commits the write exactly as it does your typing.
+1. Write the surface once, in a file both entries import, with `defineSurface` from `@olai/plugin-api`. A call that writes declares `error: OpFailure`, the gate's refusal. Beside the surface, a `faces` map says who may make each call: `browser` for the plugin's own page, `agent` for your agents.
+2. `server.ts` names `Surfaces` in `needs` and registers `{ surface, faces, writes, deps }`. `deps` answers each call, typed with `ImplementSurfaceDeps<typeof surface.spec>`, so an answer the surface does not declare is a type error.
+3. `browser.tsx` exports `surface`, so the tab connects to it, names `Wired` in `needs`, and calls `clientOf(surface, wired)`. That answers the surface's own typed client, or `null` while the plugin's server file is not connected. A call the gate refused fails with its sentence, and the face shows it.
+4. To write, `server.ts` names `Ops` in `needs` and runs `(yield* Ops).gate.run(request, writer, rule)`. The gate plans, checks and commits the write exactly as it does your typing.
 
 - The calls are on the connection under the plugin's own name, and only while it is running.
-- A member the `faces` map grants to `agent` becomes something your agents can call, and the plugin's page lists each one under **What it uses**.
-- A write the server file makes runs as the writer it names, with none of the limits olai puts on an agent's own writes, even when an agent made the call. The server file cannot tell which face called it.
-- The gate's types come with `@olai/plugin-api`: `Gate`, `WriteRequest`, `Writer`, `WriteResult` and `OpFailure`.
+- `writes` lists the calls that write, as `surface/<group>/<call>`. For each of these the transport hands the handler `RequestAuthority`: the caller's writer and its session's rules, for the handler to pass to `gate.run`. Nothing checks that it does; that is in the code you read before turning it on. Any call not listed is handed `{ writer: "web" }` and no rules, whoever made it.
+- A call the `faces` map grants to `agent` must be listed in `writes`; otherwise the plugin does not start, and its page says which call and how to fix it. So such a plugin cannot grant an agent a cell or a stream. The check is made when the server file registers its surface, which is the first start after you turn it on.
+- Each call an agent may make is listed on the plugin's page under **What it uses**.
+- The gate's types come with `@olai/plugin-api`: `Gate`, `WriteRequest`, `Writer`, `WriteResult`, and `OpFailure` as a schema too.
 
 ## The morning agenda
 
@@ -569,27 +571,30 @@ export const splitPair = (value: string): Pair | null => {
 `words.ts`:
 
 ```ts
-import { defineSurface } from "@olai/plugin-api"
+import { defineSurface, OpFailure } from "@olai/plugin-api"
 import { Schema } from "effect"
 
 // What the browser file may ask the server file. Both import this one value:
-// the server file answers it, and the browser file calls it.
+// the server file answers it, and the browser file calls it. A call the gate
+// refuses fails with the gate's own `OpFailure`, sentence and all.
 export const surface = defineSurface({
   procedures: {
     words: {
-      add: { input: Schema.Struct({ word: Schema.String }), output: Schema.Struct({}) },
+      add: { input: Schema.Struct({ word: Schema.String }), output: Schema.Struct({}), error: OpFailure },
       next: {
         input: Schema.Struct({}),
         output: Schema.NullOr(Schema.Struct({ node: Schema.String, word: Schema.String })),
+        error: OpFailure,
       },
       grade: {
         input: Schema.Struct({ node: Schema.String, grade: Schema.Literals(["again", "good", "easy"]) }),
         output: Schema.Struct({ due: Schema.String }),
+        error: OpFailure,
       },
     },
     pages: {
       // A transcribed page's text, as the vault holds it now.
-      read: { input: Schema.Struct({ file: Schema.String }), output: Schema.Struct({ text: Schema.String }) },
+      read: { input: Schema.Struct({ file: Schema.String }), output: Schema.Struct({ text: Schema.String }), error: OpFailure },
     },
   },
 })
@@ -598,6 +603,10 @@ export const surface = defineSurface({
 export const faces = {
   browser: { "words.add": "tool", "words.next": "tool", "words.grade": "tool", "pages.read": "tool" },
 } as const
+
+// The calls that write. The transport hands each of these the caller's own
+// writer and session rule, and the server file passes them to the gate.
+export const writes = ["surface/words/add", "surface/words/grade"]
 ```
 
 ### 3. Write `server.ts`, which answers the calls and writes through the gate
@@ -628,30 +637,37 @@ export const scheduled = (card: Card, grade: Grade, today: string): Card => {
 `server.ts`:
 
 ```ts
-import { definePlugin, FileKinds, Kinds, Ops, Surfaces } from "@olai/plugin-api"
+import {
+  Clock,
+  definePlugin,
+  FileKinds,
+  type ImplementSurfaceDeps,
+  Kinds,
+  Ops,
+  RequestAuthority,
+  Surfaces,
+  type WriteRequest,
+} from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { scheduled } from "./lib/sm2.ts"
 import { splitPair } from "./pairs.ts"
-import type { Card, Grade } from "./types.ts"
-import { faces, surface } from "./words.ts"
+import type { Card } from "./types.ts"
+import { faces, surface, writes } from "./words.ts"
 
 const VOCABULARY = "vocabulary.olai"
 
-// Today, the way the vocabulary writes dates, by the server's clock.
-const today = (): string => new Date().toISOString().slice(0, 10)
-
 // A word's card, read off the properties of its row.
-const cardOf = (word: string, custom: Readonly<Record<string, unknown>>): Card => ({
+const cardOf = (word: string, custom: Readonly<Record<string, unknown>>, today: string): Card => ({
   word,
-  due: typeof custom["reader-due"] === "string" ? custom["reader-due"] : today(),
+  due: typeof custom["reader-due"] === "string" ? custom["reader-due"] : today,
   interval: Number(custom["reader-interval"] ?? 0),
   ease: Number(custom["reader-ease"] ?? 2.5),
 })
 
 export default definePlugin({
   name: "reader",
-  needs: [FileKinds, Kinds, Ops, Surfaces],
+  needs: [Clock, FileKinds, Kinds, Ops, Surfaces],
   apply: Effect.gen(function*() {
     const kinds = yield* Kinds
     yield* kinds.register({
@@ -673,78 +689,90 @@ export default definePlugin({
       article: "a",
     })
 
+    // Today, the way the vocabulary writes dates, by the serve's clock.
+    const clock = yield* Clock
+    const today = (): string => clock.now().slice(0, 10)
+
     // The write gate: every write below goes through it, exactly as a
-    // keystroke's does, and lands in the ledger beside it.
+    // keystroke's does, and lands in the ledger beside it. A refusal is the
+    // call's failure, and the browser file shows its sentence.
     const gate = (yield* Ops).gate
-    yield* (yield* Surfaces).register({
-      surface,
-      faces,
-      deps: {
-        procedures: {
-          words: {
-            // A clicked word becomes a row of the vocabulary, due today.
-            add: ({ input }: { readonly input: { readonly word: string } }) =>
-              gate.run({
-                op: "add",
-                parent: "vocabulary",
-                title: input.word,
-                props: { "reader-due": today(), "reader-interval": "0", "reader-ease": "2.5" },
-              }, "web").pipe(Effect.as({}), Effect.orDie),
-            // The word that has been due longest, or nothing.
-            next: () =>
-              Effect.gen(function*() {
-                const reading = yield* Effect.orDie(gate.read)
-                const due = reading.derived.nodes.flatMap((at) => {
-                  const custom: Readonly<Record<string, unknown>> = "custom" in at.node ? at.node.custom ?? {} : {}
-                  const when = custom["reader-due"]
-                  return at.file === VOCABULARY && typeof when === "string" && when <= today()
-                    ? [{ node: at.node.id, word: "title" in at.node ? at.node.title : "", when }]
-                    : []
-                })
-                const first = due.sort((a, b) => a.when.localeCompare(b.when))[0]
-                return first === undefined ? null : { node: first.node, word: first.word }
-              }),
-            // Again, Good or Easy: the next due date, written on the word's row.
-            grade: ({ input }: { readonly input: { readonly node: string; readonly grade: Grade } }) =>
-              Effect.gen(function*() {
-                const reading = yield* Effect.orDie(gate.read)
-                const at = reading.derived.byId.get(input.node)
-                const custom: Readonly<Record<string, unknown>> = at !== undefined && "custom" in at.node ? at.node.custom ?? {} : {}
-                const title = at !== undefined && "title" in at.node ? at.node.title : ""
-                const next = scheduled(cardOf(title, custom), input.grade, today())
-                const props: Readonly<Record<string, string>> = {
-                  "reader-due": next.due,
-                  "reader-interval": String(next.interval),
-                  "reader-ease": String(next.ease),
-                }
-                // The gate refuses a write that changes nothing, and one refusal
-                // stops the whole batch, so only the properties that moved go in.
-                const ops = Object.entries(props)
-                  .filter(([key, value]) => custom[key] !== value)
-                  .map(([key, value]) => ({ op: "prop" as const, id: input.node, key, value }))
-                if (ops.length > 0) yield* Effect.orDie(gate.run({ op: "apply", ops }, "web"))
-                return { due: next.due }
-              }),
-          },
-          pages: {
-            // The text of a transcribed page, as the gate last read the vault.
-            read: ({ input }: { readonly input: { readonly file: string } }) =>
-              Effect.gen(function*() {
-                const reading = yield* Effect.orDie(gate.read)
-                const document = reading.set.documents.find((one) => one.path === input.file)
-                return { text: document !== undefined && "body" in document ? document.body : "" }
-              }),
-          },
+    // ...as whoever made the call: the transport hands a member listed in
+    // `writes` its caller's writer and session rule.
+    const write = (request: WriteRequest) =>
+      Effect.gen(function*() {
+        const caller = yield* RequestAuthority
+        return yield* gate.run(request, caller.writer, caller.rule)
+      })
+
+    const deps: ImplementSurfaceDeps<typeof surface.spec> = {
+      procedures: {
+        words: {
+          // A clicked word becomes a row of the vocabulary, due today.
+          add: ({ input }) =>
+            write({
+              op: "add",
+              parent: "vocabulary",
+              title: input.word,
+              props: { "reader-due": today(), "reader-interval": "0", "reader-ease": "2.5" },
+            }).pipe(Effect.as({})),
+          // The word that has been due longest, or nothing.
+          next: () =>
+            Effect.gen(function*() {
+              const reading = yield* gate.read
+              const due = reading.derived.nodes.flatMap((at) => {
+                const custom: Readonly<Record<string, unknown>> = "custom" in at.node ? at.node.custom ?? {} : {}
+                const when = custom["reader-due"]
+                return at.file === VOCABULARY && typeof when === "string" && when <= today()
+                  ? [{ node: at.node.id, word: "title" in at.node ? at.node.title : "", when }]
+                  : []
+              })
+              const first = due.sort((a, b) => a.when.localeCompare(b.when))[0]
+              return first === undefined ? null : { node: first.node, word: first.word }
+            }),
+          // Again, Good or Easy: the next due date, written on the word's row.
+          grade: ({ input }) =>
+            Effect.gen(function*() {
+              const reading = yield* gate.read
+              const at = reading.derived.byId.get(input.node)
+              const custom: Readonly<Record<string, unknown>> = at !== undefined && "custom" in at.node ? at.node.custom ?? {} : {}
+              const title = at !== undefined && "title" in at.node ? at.node.title : ""
+              const next = scheduled(cardOf(title, custom, today()), input.grade, today())
+              const props: Readonly<Record<string, string>> = {
+                "reader-due": next.due,
+                "reader-interval": String(next.interval),
+                "reader-ease": String(next.ease),
+              }
+              // The gate refuses a write that changes nothing, and one refusal
+              // stops the whole batch, so only the properties that moved go in.
+              const ops = Object.entries(props)
+                .filter(([key, value]) => custom[key] !== value)
+                .map(([key, value]) => ({ op: "prop" as const, id: input.node, key, value }))
+              if (ops.length > 0) yield* write({ op: "apply", ops })
+              return { due: next.due }
+            }),
+        },
+        pages: {
+          // The text of a transcribed page, as the gate last read the vault.
+          read: ({ input }) =>
+            Effect.gen(function*() {
+              const reading = yield* gate.read
+              const document = reading.set.documents.find((one) => one.path === input.file)
+              return { text: document !== undefined && "body" in document ? document.body : "" }
+            }),
         },
       },
-    })
+    }
+    yield* (yield* Surfaces).register({ surface, faces, writes, deps })
   }),
 })
 ```
 
 - `gate.read` answers the vault as the gate last read it: `derived.nodes` is every row with its file, and `derived.byId` finds one row by its id.
-- `gate.run` takes the same write a keystroke makes. `"web"` is the writer the ledger records it under, the same one your own typing in a tab is recorded under.
+- `gate.run` takes the same write a keystroke makes. `write` passes it the writer and session rules of whoever made the call, which the transport hands a call listed in `writes`. Your own clicks are recorded as `web`, as your typing is.
+- A refusal is the call's failure, an `OpFailure` with the gate's sentence; the surface declares it, so the browser file gets it typed.
 - `{ op: "apply", ops }` writes several changes as one, or none of them. A change that sets a property to the value it already has is refused, so `grade` leaves out the ones that did not move.
+- The date comes from `Clock`, the serve's clock.
 
 ### 4. Write `browser.tsx`, which draws and calls
 
@@ -792,9 +820,9 @@ export const Columns = (props: { readonly pair: Pair; readonly onWord: (word: st
 `browser.tsx`:
 
 ```tsx
-import { clientOf, definePlugin, Slots, Wired } from "@olai/plugin-api"
+import { clientOf, definePlugin, Navigate, type OpFailure, Slots, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { createEffect, createSignal, For, on, onMount, Show } from "solid-js"
+import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { Columns } from "./columns.tsx"
 import { splitPair } from "./pairs.ts"
@@ -808,16 +836,6 @@ const BOOK = "/book.olai"
 const VOCABULARY = "/vocabulary.olai"
 const REVIEW = "/plugins/reader/app/review"
 
-// Opens an address the way a link on the page does: the app follows it in the
-// pane you are reading in, with no reload.
-const open = (address: string) => {
-  const link = document.createElement("a")
-  link.href = address
-  document.body.append(link)
-  link.click()
-  link.remove()
-}
-
 const Section = () => (
   <nav data-reader="section" class="flex flex-col px-3 py-2 text-body">
     <span class="text-label text-muted">Reading</span>
@@ -827,48 +845,69 @@ const Section = () => (
   </nav>
 )
 
+// What the gate said when it refused a write, where the write was asked for.
+const Refused = (props: { readonly said: string | null }) => (
+  <Show when={props.said}>{(said) => <p data-reader="refused" class="text-label text-alarm">{said()}</p>}</Show>
+)
+
 export default definePlugin({
   name: "reader",
-  needs: [Slots, Wired],
+  needs: [Navigate, Slots, Wired],
   apply: Effect.gen(function*() {
+    const navigate = yield* Navigate
     const slots = yield* Slots
     const wired = yield* Wired
     // This plugin's own server file, by the surface both files share.
-    const words = () => clientOf(surface, wired)?.procedures.words
+    const client = () => clientOf(surface, wired)?.procedures
+
+    // Runs one call: `then` gets the answer, and a refusal's sentence goes to
+    // `refused`, which a face draws beside what was pressed.
+    const ask = <A,>(
+      call: Effect.Effect<A, OpFailure> | undefined,
+      then: (answer: A) => void,
+      refused: (said: string | null) => void,
+    ) => {
+      if (call === undefined) return
+      void Effect.runPromise(Effect.match(call, {
+        onFailure: (failure) => refused(failure.message),
+        onSuccess: (answer) => { refused(null); then(answer) },
+      }))
+    }
 
     // A `reader-pair` property, drawn under its row as two columns.
     const Pair = (context: { readonly entry: { readonly value: string } }) => {
       const pair = splitPair(context.entry.value)
-      const add = (word: string) => {
-        const call = words()?.add({ word })
-        if (call !== undefined) void Effect.runPromise(call)
-      }
-      return pair === null ? null : <Columns pair={pair} onWord={add} />
+      const [refused, setRefused] = createSignal<string | null>(null)
+      const add = (word: string) => ask(client()?.words.add({ word }), () => {}, setRefused)
+      return pair === null ? null : (
+        <>
+          <Columns pair={pair} onWord={add} />
+          <Refused said={refused()} />
+        </>
+      )
     }
 
     // The word due longest, and three buttons.
     const Review = () => {
       const [card, setCard] = createSignal<{ readonly node: string; readonly word: string } | null>(null)
-      const load = () => {
-        const call = words()?.next({})
-        if (call !== undefined) void Effect.runPromise(call).then(setCard)
-      }
-      const grade = (node: string, value: Grade) => {
-        const call = words()?.grade({ node, grade: value })
-        if (call !== undefined) void Effect.runPromise(call).then(load)
-      }
+      const [refused, setRefused] = createSignal<string | null>(null)
+      const load = () => ask(client()?.words.next({}), setCard, setRefused)
+      const grade = (node: string, value: Grade) => ask(client()?.words.grade({ node, grade: value }), load, setRefused)
       onMount(load)
       return (
-        <Show when={card()}>
-          {(due) => (
-            <div data-reader="review" data-word={due().word} class="flex items-center gap-2 py-2 text-body">
-              <span class="font-medium">{due().word}</span>
-              <button type="button" data-grade="again" onClick={() => grade(due().node, "again")}>Again</button>
-              <button type="button" data-grade="good" onClick={() => grade(due().node, "good")}>Good</button>
-              <button type="button" data-grade="easy" onClick={() => grade(due().node, "easy")}>Easy</button>
-            </div>
-          )}
-        </Show>
+        <>
+          <Show when={card()}>
+            {(due) => (
+              <div data-reader="review" data-word={due().word} class="flex items-center gap-2 py-2 text-body">
+                <span class="font-medium">{due().word}</span>
+                <button type="button" data-grade="again" onClick={() => grade(due().node, "again")}>Again</button>
+                <button type="button" data-grade="good" onClick={() => grade(due().node, "good")}>Good</button>
+                <button type="button" data-grade="easy" onClick={() => grade(due().node, "easy")}>Easy</button>
+              </div>
+            )}
+          </Show>
+          <Refused said={refused()} />
+        </>
       )
     }
 
@@ -888,26 +927,46 @@ export default definePlugin({
     )
 
     // A transcribed page, drawn whole: each line's French beside its English.
-    // `revision` moves when the file does, and the text is read again.
+    // `revision` moves when the file does, and the text is read again; a read
+    // still in flight for an older revision is called off, so it cannot land
+    // after the newer one.
     const Transcribed = (props: { readonly file: string; readonly revision: number | undefined }) => {
       const [text, setText] = createSignal("")
+      const [refused, setRefused] = createSignal<string | null>(null)
       createEffect(on(() => [props.file, props.revision], () => {
-        const call = clientOf(surface, wired)?.procedures.pages.read({ file: props.file })
-        if (call !== undefined) void Effect.runPromise(call).then((read) => setText(read.text))
+        const call = client()?.pages.read({ file: props.file })
+        if (call === undefined) return
+        const controller = new AbortController()
+        onCleanup(() => controller.abort())
+        void Effect.runPromise(Effect.match(call, {
+          onFailure: (failure) => ({ refused: failure.message }),
+          onSuccess: (read) => ({ text: read.text }),
+        }), { signal: controller.signal }).then(
+          (answer) => {
+            if (controller.signal.aborted) return
+            if ("text" in answer) { setRefused(null); setText(answer.text) } else setRefused(answer.refused)
+          },
+          // Called off: a newer revision is being read.
+          () => {},
+        )
       }))
       const pairs = () => text().split("\n").flatMap((line) => {
         const pair = splitPair(line)
         return pair === null ? [] : [pair]
       })
+      const add = (word: string) => ask(client()?.words.add({ word }), () => {}, setRefused)
       return (
         <section data-reader="file" data-file={props.file} class="flex flex-col p-4">
-          <For each={pairs()}>{(pair) => <Columns pair={pair} onWord={(word) => {
-            const call = words()?.add({ word })
-            if (call !== undefined) void Effect.runPromise(call)
-          }} />}</For>
+          <For each={pairs()}>{(pair) => <Columns pair={pair} onWord={add} />}</For>
+          <Refused said={refused()} />
         </section>
       )
     }
+
+    // Above every Markdown note's text: whose face this is.
+    const NoteHead = (props: { readonly file: string }) => (
+      <p data-reader="note-head" data-file={props.file} class="text-label text-muted">Reading companion</p>
+    )
 
     // Under every Markdown note: the way back to the review.
     const Note = (props: { readonly file: string }) => (
@@ -922,7 +981,7 @@ export default definePlugin({
       shift: true,
       whileEditing: false,
       said: "Open your vocabulary",
-      press: () => open(VOCABULARY),
+      press: () => navigate.open(VOCABULARY),
     })
     yield* slots.register("app.palette", {
       id: "reader-book",
@@ -937,10 +996,11 @@ export default definePlugin({
       id: "reader-review",
       label: "Start review",
       search: "reader review start words vocabulary",
-      run: () => open(REVIEW),
+      run: () => navigate.open(REVIEW),
       chord: { key: "e", shift: true, whileEditing: false },
     })
     yield* slots.register("file.page", Transcribed)
+    yield* slots.register("document.page.head", NoteHead)
     yield* slots.register("document.page.foot", Note)
   }),
 })
@@ -959,6 +1019,7 @@ Read the files on the plugin's page and press **Turn on**. The columns appear un
 - Open the **Vocabulary** row, the top row of `vocabulary.olai`, and the foot of its page shows the word due longest. **Again** makes it due tomorrow; **Good** and **Easy** push it further out.
 - The same review is a page of its own at `/plugins/reader/app/review`, and a reload draws it again.
 - A `.reader` file, one French sentence and its English per line, is listed under **Reference** and opens as the same two columns. Change it on disk and its page is drawn again.
-- Every Markdown note has a link to the review at its foot.
+- Every Markdown note says **Reading companion** above its text and has a link to the review at its foot.
+- A word the gate will not add, because the vocabulary has no row called `vocabulary` to add it under, shows the gate's sentence under the sentence you clicked it in, and nothing is written.
 - Edit any of the seven code files and the plugin pauses until you turn the new version on. Its page's address then says it is paused and links to the page where you turn it on again.
 - Switch it off and the columns, the review, the section, the key, the palette rows, the page and the note's link go together. The `words.*` and `pages.*` calls leave the connection, and while it is off olai cannot open `.reader` files.

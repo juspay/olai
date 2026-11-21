@@ -57,6 +57,7 @@ A browser file draws by registering a face in a slot with `Slots.register`. `vau
 | `plugins.row` | words and buttons on the plugin's own row of the **Plugins** panel |
 | `conversation.wake`, `tool.reply`, `delivery.mark` | a conversation's controls, how its replies are drawn, and its mark |
 | `app.route` | not open to a plugin in your directory: it takes only a page built with navigation's own functions, which such a plugin cannot import; use `plugin.page` |
+| `search.box.below` | not open to any other plugin: search fills it with the row under its own box, so a second registration is refused |
 
 A slot keyed by plugin holds one face per plugin, and a slot keyed by nothing is a list, so a plugin may put several faces in it.
 
@@ -79,7 +80,7 @@ yield* slots.register("app.command", {
   id: "reader-review",
   label: "Start review",
   search: "reader review start words vocabulary",
-  run: () => open(REVIEW),
+  run: () => navigate.open(REVIEW),
   chord: { key: "e", shift: true, whileEditing: false },
 })
 ```
@@ -119,7 +120,7 @@ yield* slots.register("app.keys", {
   shift: true,
   whileEditing: false,
   said: "Open your vocabulary",
-  press: () => open(VOCABULARY),
+  press: () => navigate.open(VOCABULARY),
 })
 yield* slots.register("app.palette", {
   id: "reader-book",
@@ -130,23 +131,24 @@ yield* slots.register("app.palette", {
 ```
 
 - A link in a face is an ordinary `<a href>`. olai follows a link to one of its own addresses inside the app, with no reload.
-- A key's `press` gets nothing, so the plugin's `open` follows an address the same way a link does: it adds an `<a>` to the page, clicks it and takes it away. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
+- A key's `press` and a command's `run` get nothing, so they open an address with `Navigate`, navigation's own verb: name it in `needs` and call `(yield* Navigate).open(address)`. It opens the page a link to that address would. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
 - A palette row opens its `href` when you choose it, and is found by the words in its `search`.
 - Switch the plugin off and the section, the key and the palette row go together.
 
 ## Talk to your own server file
 
-A browser file asks its own server file for things through a surface: a list of named calls, each with what it takes and what it answers. Four steps, which the reading companion follows file by file:
+A browser file asks its own server file for things through a surface: a list of named calls, each with what it takes, what it answers and how it can fail. Four steps, which the reading companion follows file by file:
 
-1. Write the surface once, in a file both entries import, with `defineSurface` from `@olai/plugin-api`. Beside it, a `faces` map says who may make each call: `browser` for the plugin's own page, `agent` for your agents.
-2. `server.ts` names `Surfaces` in `needs` and registers `{ surface, faces, deps }`, where `deps` answers each call.
-3. `browser.tsx` exports `surface`, so the tab connects to it, names `Wired` in `needs`, and calls `clientOf(surface, wired)`. That answers the surface's own typed client, or `null` while the plugin's server file is not connected.
-4. To write, `server.ts` names `Ops` in `needs` and runs `(yield* Ops).gate.run(request, "web")`. The gate plans, checks and commits the write exactly as it does your typing.
+1. Write the surface once, in a file both entries import, with `defineSurface` from `@olai/plugin-api`. A call that writes declares `error: OpFailure`, the gate's refusal. Beside the surface, a `faces` map says who may make each call: `browser` for the plugin's own page, `agent` for your agents.
+2. `server.ts` names `Surfaces` in `needs` and registers `{ surface, faces, writes, deps }`. `deps` answers each call, typed with `ImplementSurfaceDeps<typeof surface.spec>`, so an answer the surface does not declare is a type error.
+3. `browser.tsx` exports `surface`, so the tab connects to it, names `Wired` in `needs`, and calls `clientOf(surface, wired)`. That answers the surface's own typed client, or `null` while the plugin's server file is not connected. A call the gate refused fails with its sentence, and the face shows it.
+4. To write, `server.ts` names `Ops` in `needs` and runs `(yield* Ops).gate.run(request, writer, rule)`. The gate plans, checks and commits the write exactly as it does your typing.
 
 - The calls are on the connection under the plugin's own name, and only while it is running.
-- A member the `faces` map grants to `agent` becomes something your agents can call, and the plugin's page lists each one under **What it uses**.
-- A write the server file makes runs as the writer it names, with none of the limits olai puts on an agent's own writes, even when an agent made the call. The server file cannot tell which face called it.
-- The gate's types come with `@olai/plugin-api`: `Gate`, `WriteRequest`, `Writer`, `WriteResult` and `OpFailure`.
+- `writes` lists the calls that write, as `surface/<group>/<call>`. For each of these the transport hands the handler `RequestAuthority`: the caller's writer and its session's rules, for the handler to pass to `gate.run`. Nothing checks that it does; that is in the code you read before turning it on. Any call not listed is handed `{ writer: "web" }` and no rules, whoever made it.
+- A call the `faces` map grants to `agent` must be listed in `writes`; otherwise the plugin does not start, and its page says which call and how to fix it. So such a plugin cannot grant an agent a cell or a stream. The check is made when the server file registers its surface, which is the first start after you turn it on.
+- Each call an agent may make is listed on the plugin's page under **What it uses**.
+- The gate's types come with `@olai/plugin-api`: `Gate`, `WriteRequest`, `Writer`, `WriteResult`, and `OpFailure` as a schema too.
 
 <!-- guide:end -->
 

@@ -73,7 +73,7 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 
 [^locations]: The nine places a plugin can add to are `app.route`, `navigation.pages`, `file.page`, `navigation.content`, `navigation.palette-adapters`, `navigation.link-previews`, `app.keys`, `app.palette` and `app.command`. The closed block below says what each takes, and how a keyboard shortcut is registered.
 
-[^services]: `navigation.state` writes a plugin's address, reads one, says which plugin is behind an address, and says whether a page takes a filter. `navigation.palette` is what another plugin may do to the box: open it, open it at a step, ask a question in it, or close it. `navigation.gestures` ignores the extra click a touch browser sends after a long press. The runtime these sit on is [../architecture/plugin-system.md](../architecture/plugin-system.md).
+[^services]: `navigation.state` writes a plugin's address, reads one, says which plugin is behind an address, and says whether a page takes a filter. `navigation.open` opens an address as a link would. `navigation.palette` is what another plugin may do to the box: open it, open it at a step, ask a question in it, or close it. `navigation.gestures` ignores the extra click a touch browser sends after a long press. The runtime these sit on is [../architecture/plugin-system.md](../architecture/plugin-system.md).
 
 <details>
 <summary>What a pane says when it cannot open a page</summary>

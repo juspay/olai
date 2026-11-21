@@ -473,7 +473,7 @@ it here, never the other way round.
 - The plugin is seven code files: the two entries, `words.ts` (the surface,
   imported by both), `columns.tsx`, `pairs.ts` (imported by both), `types.ts`,
   and `lib/sm2.ts` (imported by the server file). The status line on its page
-  reads `7 files, 373 lines`, which a scenario asserts: change a file and that
+  reads `7 files, 429 lines`, which a scenario asserts: change a file and that
   number moves.
 - The browser file adds a **Reading** section to the sidebar linking both
   files and the review, the shortcut `Cmd` + `Shift` + `Y` that opens the
@@ -483,17 +483,25 @@ it here, never the other way round.
   draws no page foot).
 - Its own page is `/plugins/reader/app`, and the review is
   `/plugins/reader/app/review`, opened by the command **Start review** in the
-  palette and by `Cmd` + `Shift` + `E`. Each face is found by a `data-reader`
-  attribute the files write themselves.
-- The server file answers `words.add`, `words.next` and `words.grade`, and
-  writes through the gate as `web`: a scenario finds the added word's file in
-  the commit panel, and the graded word's next due date on its row.
+  palette and by `Cmd` + `Shift` + `E`. The key and the command open their
+  addresses with `Navigate`, navigation's own verb. Each face is found by a
+  `data-reader` attribute the files write themselves.
+- The server file answers `words.add`, `words.next` and `words.grade`, typed
+  by `ImplementSurfaceDeps`, and lists the two that write in `writes`, passing
+  the caller's writer and session rule from `RequestAuthority` to the gate. A
+  scenario finds the added word's file in the commit panel and the graded
+  word's next due date on its row; another rewrites `vocabulary.olai` without
+  its `vocabulary` row, and the gate's refusal is drawn under the sentence
+  (`data-reader="refused"`) with nothing written.
 - `chapter-1.reader` is a transcribed page, two lines of French ` | ` English.
   The server file claims `.reader` with `FileKinds` (kept, opaque) and answers
   `pages.read` from the gate's reading; the browser file's `file.page` face
   draws it as two columns, and a scenario rewrites it on disk to one line.
-  Unclaimed — the reader off — its address says olai can't open `.reader`.
-- `notes.md` is an ordinary note, under which the reader's
+  Another holds the drawn element while a built row is switched off and on,
+  and finds the same element after. Unclaimed — the reader off — its address
+  says olai can't open `.reader`.
+- `notes.md` is an ordinary note, above which the reader's
+  `document.page.head` face says **Reading companion** and under which its
   `document.page.foot` face draws a link to the review.
 
 There is no consent here: `reader` arrives off and unapproved, and a scenario
