@@ -58,6 +58,6 @@ test("BundleModules answers a browser-only row's slots and never imports its bro
   const names = (row: string) => (answer.slots[row] ?? []).map((one) => one.name).sort()
   expect(names("layout")).toEqual(["app.banner", "app.header", "app.mount", "app.viewer"])
   expect(names("sidebar")).toEqual(["sidebar.entry", "sidebar.section"])
-  expect(names("navigation")).toEqual(["app.keys", "app.palette", "app.route"])
+  expect(names("navigation")).toEqual(["app.command", "app.keys", "app.palette", "app.route", "file.page"])
   expect(names("plugin-inspector")).toEqual(["plugins.row"])
 }, 60_000)
