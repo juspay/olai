@@ -42,3 +42,66 @@ Feature: The reading companion
     And I type "book you are reading" into the palette
     Then the palette does not offer "Open the book you are reading"
     And there should be no page errors
+
+  @scratch:reader
+  Scenario: Its code is every file in its folder, and the page shows each one before anything runs
+    Given I open the app
+    When I go to the plugin "reader"
+    Then the plugin page is "review"
+    And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/sm2.ts, pairs.ts, types.ts"
+    And the plugin page's status says "6 files, 138 lines"
+    When I open the plugin page's "lib/sm2.ts" tab
+    Then the plugin page's code is "lib/sm2.ts"
+    And the plugin page's code names "export const scheduled"
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: Turned on, a face drawn from three files appears under each sentence
+    Given I open the outline "book.olai"
+    When I approve the plugin "reader"
+    Then the row "s1" draws the French and the English side by side
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: An edit to a helper pauses it, and the page shows that file's diff
+    Given I open the outline "book.olai"
+    When I approve the plugin "reader"
+    Then the row "s1" draws the French and the English side by side
+
+    When I go to the plugin "reader"
+    And I rewrite "plugins/reader/pairs.ts" as:
+      """
+      import type { Pair } from "./types.ts"
+
+      /** A `reader-pair` value is the French sentence, ` || `, and its English. */
+      export const splitPair = (value: string): Pair | null => {
+        const cut = value.indexOf(" || ")
+        if (cut <= 0 || cut + 4 >= value.length) return null
+        return { french: value.slice(0, cut).trim(), english: value.slice(cut + 4).trim() }
+      }
+      """
+    Then the plugin page is "paused"
+    And the plugin page's code is "pairs.ts"
+    And the plugin page's diff adds "value.indexOf(\" || \")"
+    And the plugin page's diff removes "value.indexOf(\" | \")"
+    And the plugin page has disarmed its verbs
+
+    When I read the plugin "reader" again
+    And I press the plugin page verb
+    Then the plugin page is "on"
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: An agent writes a helper, and Delete takes every file
+    Given I open the app
+    When the terminal agent writes "lib/deck.ts" of the plugin "reader" as:
+      """
+      export const DECK = "vocabulary.olai"
+      """
+    Then the terminal agent was told the plugin "reader" compiles
+    When I go to the plugin "reader"
+    Then the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/deck.ts, lib/sm2.ts, pairs.ts, types.ts"
+
+    When I delete the plugin "reader" from its page
+    Then the vault holds no files for the plugin "reader"
+    And there should be no page errors

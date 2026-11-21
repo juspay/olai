@@ -7,7 +7,7 @@
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { describe, expect, test } from "bun:test"
 
-import { ALWAYS, definedIn, isApproved, isBuilding, isOn, refusalFor, toldBy, versionOf } from "./source.ts"
+import { ALWAYS, definedIn, isApproved, isBuilding, isOn, refusalFor, toldBy, versionOf as versionOfCode } from "./source.ts"
 
 /** One vault, as its files. A plugin is three of them in a folder; the settings
  *  file is an outline, a record per line, which is what the settings reader and
@@ -21,6 +21,15 @@ const NOTHING_BUILT: ReadonlyArray<string> = []
 
 const SERVER = `export default 1`
 const BROWSER = `export default 2`
+
+/** The version of a folder holding these two entries (and any other code
+ *  files), spelled the way most cases here name one. */
+const versionOf = (server: string, browser: string | null, more: Readonly<Record<string, string>> = {}): string =>
+  versionOfCode(new Map(Object.entries({
+    "server.ts": server,
+    ...(browser === null ? {} : { "browser.tsx": browser }),
+    ...more,
+  })))
 
 describe("a plugin is a folder under plugins/", () => {
   test("its word, its prose, its two halves and its version", () => {
@@ -76,15 +85,15 @@ describe("a plugin is a folder under plugins/", () => {
     expect(one?.fault).toContain("not a plugin word")
   })
 
-  test("a file loose under plugins/, and one nested deeper, define nothing", () => {
+  test("a file loose under plugins/ defines nothing, and one nested deeper is the plugin's code", () => {
     expect(definedIn(vault({ "plugins/notes.md": "# notes\n" }), NOTHING_BUILT)).toEqual([])
     const [one] = definedIn(
       vault({ "plugins/swatch/server.ts": SERVER, "plugins/swatch/lib/helper.ts": "export const x = 1" }),
       NOTHING_BUILT,
     )
-    // The helper is vault content this row passes over — the folder holds three
-    // files and everything else in it is the author's own business.
     expect(one?.server).toBe(SERVER)
+    expect([...one!.code.keys()]).toEqual(["lib/helper.ts", "server.ts"])
+    expect(one?.holds).toContain("lib/helper.ts")
   })
 
   test("TypeScript outside plugins/ is not a plugin and is not even in the set", () => {
@@ -270,6 +279,66 @@ describe("the version is about the code and nothing else", () => {
 
   test("two plugins cannot hash alike by cutting their halves at a different point", () => {
     expect(versionOf("ab", "c")).not.toBe(versionOf("a", "bc"))
+  })
+
+  /** The folder as a reading, so the version is the one the serve computes off
+   *  the files on disk rather than one this case assembled itself. */
+  const read = (files: Readonly<Record<string, string>>) =>
+    definedIn(vault(Object.fromEntries(Object.entries(files).map(([path, text]) => [`plugins/reader/${path}`, text]))), NOTHING_BUILT)[0]!
+  const BASE = {
+    "README.md": "# Reader\n\nOne.\n",
+    "server.ts": `import { scheduled } from "./lib/sm2.ts"\nexport default scheduled`,
+    "lib/sm2.ts": `export const scheduled = 1`,
+  }
+
+  test("adding, editing, renaming or removing any code file moves it", () => {
+    const was = read(BASE).version
+    expect(read({ ...BASE, "types.ts": `export const GRADES = []` }).version).not.toBe(was)
+    expect(read({ ...BASE, "lib/sm2.ts": `export const scheduled = 2` }).version).not.toBe(was)
+    const { "lib/sm2.ts": moved, ...rest } = BASE
+    expect(read({ ...rest, "lib/sm-2.ts": moved }).version).not.toBe(was)
+    expect(read(rest).version).not.toBe(was)
+  })
+
+  test("a file nothing imports moves it too, and the README still does not", () => {
+    const was = read(BASE).version
+    expect(read({ ...BASE, "unused.tsx": `export const Nothing = () => null` }).version).not.toBe(was)
+    expect(read({ ...BASE, "README.md": "# Reader\n\nTwo.\n" }).version).toBe(was)
+  })
+
+  test("a version names every file by path, so moving text between files moves it", () => {
+    expect(versionOfCode(new Map([["a.ts", "x"], ["b.ts", ""]]))).not.toBe(versionOfCode(new Map([["a.ts", ""], ["b.ts", "x"]])))
+  })
+
+  test("an approval made by the two-file formula is not an approval of any folder now", () => {
+    const OLD_SEPARATOR = "\u0000"
+    const oldFormula = new Bun.CryptoHasher("sha256").update(SERVER).update(OLD_SEPARATOR).update(BROWSER).digest("hex").slice(0, 16)
+    const [one] = definedIn(
+      vault({
+        "plugins/swatch/server.ts": SERVER,
+        "plugins/swatch/browser.tsx": BROWSER,
+        ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"approved":"${oldFormula}","on":"yes"}}`),
+      }),
+      NOTHING_BUILT,
+    )
+    expect(one?.version).not.toBe(oldFormula)
+    expect(isApproved(one!)).toBe(false)
+    expect(isOn(one!)).toBe(true)
+    const [trusting] = definedIn(
+      vault({
+        "plugins/swatch/server.ts": SERVER,
+        "plugins/swatch/browser.tsx": BROWSER,
+        ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"approved":"${ALWAYS}","on":"yes"}}`),
+      }),
+      NOTHING_BUILT,
+    )
+    expect(isApproved(trusting!)).toBe(true)
+  })
+
+  test("an approval sent after a helper moved is refused as source nobody has read", () => {
+    const drawn = read(BASE).version
+    const refusal = refusalFor(read({ ...BASE, "lib/sm2.ts": `export const scheduled = 3` }), "approve", drawn)
+    expect(refusal?.kind).toBe("moved")
   })
 })
 

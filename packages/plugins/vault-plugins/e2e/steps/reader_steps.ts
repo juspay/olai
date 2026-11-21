@@ -11,7 +11,7 @@
 import * as assert from "node:assert/strict"
 
 import { Then, When } from "@olai/tests/harness/runner.ts"
-import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR } from "@olai/tests/harness/world.ts"
+import { attr, HYDRATION_TIMEOUT, nodeSelector, POLL_TIMEOUT, SIDEBAR } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
 /** One entry of `vault-plugins_inspect`'s slot list. */
@@ -72,4 +72,26 @@ Then("pressing {string} leaves this page where it is", async function (this: Ola
   await this.waitForFrame()
   await this.waitForFrame()
   assert.equal(this.place(), was, `pressing ${chord} moved the page`)
+})
+
+/** The two columns the reader draws under a sentence, from its `columns.tsx`. */
+Then("the row {string} draws the French and the English side by side", async function (this: OlaiWorld, node: string) {
+  const columns = this.page.locator(`${nodeSelector(node)} ${attr("data-reader", "columns")}`).first()
+  await columns.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  assert.equal(await columns.locator(`p[lang="fr"]`).count(), 1)
+  assert.equal(await columns.locator(`p[lang="en"]`).count(), 1)
+})
+
+/** The agent's own write, of any code file inside the plugin's folder. */
+When("the terminal agent writes {string} of the plugin {string} as:", async function (this: OlaiWorld, file: string, word: string, text: string) {
+  // Loaded on first use, as every MCP step in this row loads it.
+  const { callTool, connectTerminalAgent } = await import("@olai/tests/harness/mcp.ts")
+  this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`)
+  this.toolAnswer = await callTool(this.terminalAgent, "vault-plugins_write", { name: word, file, text })
+})
+
+Then("the terminal agent was told the plugin {string} compiles", function (this: OlaiWorld, word: string) {
+  const answer = this.toolAnswer?.["structuredContent"] as { path?: string; compiles?: boolean; why?: string } | undefined
+  assert.ok(answer?.path?.startsWith(`plugins/${word}/`), JSON.stringify(answer))
+  assert.equal(answer?.compiles, true, answer?.why ?? JSON.stringify(answer))
 })

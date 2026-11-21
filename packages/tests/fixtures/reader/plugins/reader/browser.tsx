@@ -1,6 +1,9 @@
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 
+import { Columns } from "./columns.tsx"
+import { splitPair } from "./pairs.ts"
+
 const BOOK = "/book.olai"
 const VOCABULARY = "/vocabulary.olai"
 
@@ -17,10 +20,16 @@ const open = (address: string) => {
 const Section = () => (
   <nav data-reader="section" class="flex flex-col px-3 py-2 text-body">
     <span class="text-label text-muted">Reading</span>
-    <a href={BOOK}>Le Petit Prince</a>
+    <a href={BOOK}>The book</a>
     <a href={VOCABULARY}>Vocabulary</a>
   </nav>
 )
+
+// A `reader-pair` property, drawn under its row as two columns.
+const Pair = (context: { readonly entry: { readonly value: string } }) => {
+  const pair = splitPair(context.entry.value)
+  return pair === null ? null : <Columns pair={pair} />
+}
 
 export default definePlugin({
   name: "reader",
@@ -41,5 +50,6 @@ export default definePlugin({
       search: "reader book french read",
       href: BOOK,
     })
+    yield* slots.register("outline.row.block", "pair", Pair)
   }),
 })
