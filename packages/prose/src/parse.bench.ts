@@ -11,7 +11,10 @@
  * machine teaches nobody anything. Each arm is the best of several rounds of
  * many calls, printed in microseconds per call.
  */
-import { parse } from "./parse.ts"
+import { HOSTILE, realTexts } from "./corpus.testlib.ts"
+import { BOUNDS, parse, type Shape, shapeOf } from "./parse.ts"
+
+const SHAPES: ReadonlyArray<keyof Shape> = ["emphasis", "cells", "quotes", "lists"]
 
 const ARMS: ReadonlyArray<readonly [label: string, text: string]> = [
   ["empty string", ""],
@@ -42,4 +45,45 @@ for (const [label, text] of ARMS) {
     throw new Error(`the arm "${label}" holds ${text.length} characters`)
   }
   console.log(`  one parse, ${label.padEnd(32)} ${perCall(text).toFixed(1)} µs`)
+}
+
+// ── the guard's bounds, and what they rest on ──────────────────────────
+//
+// Over every note, row and docs page this repository holds: the largest value
+// each of the four shapes reaches. The bounds in `./parse.ts` must be at least
+// ten times these, and a text at each bound must parse in no more than 50 ms.
+
+const largest = { emphasis: 0, cells: 0, quotes: 0, lists: 0 }
+const where: Record<keyof Shape, string> = { emphasis: "", cells: "", quotes: "", lists: "" }
+const texts = realTexts()
+for (const one of texts) {
+  const shape = shapeOf(one.text)
+  for (const key of SHAPES) {
+    if (shape[key] > largest[key]) {
+      largest[key] = shape[key]
+      where[key] = one.from
+    }
+  }
+}
+
+/** A hostile text's parse, best of three, in milliseconds. */
+const timedOnce = (text: string): number => {
+  let best = Number.POSITIVE_INFINITY
+  for (let round = 0; round < 3; round++) {
+    const start = Bun.nanoseconds()
+    parse(text)
+    best = Math.min(best, (Bun.nanoseconds() - start) / 1e6)
+  }
+  return best
+}
+
+console.log("")
+console.log(`the guard, over ${texts.length} texts of this repository`)
+for (const key of SHAPES) {
+  // At the bound itself: a table's line counts a cell past each of its bars.
+  const text = HOSTILE[key](key === "cells" ? BOUNDS.cells - 2 : BOUNDS[key])
+  console.log(
+    `  ${key.padEnd(9)} largest ${String(largest[key]).padStart(3)} (${where[key]}), bound ${String(BOUNDS[key]).padStart(3)}` +
+      ` (${(BOUNDS[key] / Math.max(1, largest[key])).toFixed(0)}×), a hostile text at the bound ${timedOnce(text).toFixed(1)} ms`,
+  )
 }

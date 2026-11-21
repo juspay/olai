@@ -148,3 +148,43 @@ export const isTagName = (text: string): boolean =>
 export const tagOpensAt = (text: string, at: number): boolean =>
   at === 0 || /[\s([{]/.test(text[at - 1] as string)
 
+/**
+ * A text, split into what to print and what to style — the tags it writes,
+ * in reading order, between runs of words.
+ *
+ * Asked of text that is ALREADY text: a node of a parsed tree outside code and
+ * outside links, or a title with no markup at all. A wikilink is a node of
+ * its own by then, so nothing here steps over one.
+ *
+ * `exec` in a loop over a fresh {@link titleTagRe}: the same matches `matchAll`
+ * would make, without the iterator and the regex clone it allocates per call —
+ * this is asked once per text node of every text a directory holds.
+ */
+export const tagParts = (text: string): ReadonlyArray<TitlePart> => {
+  if (!mayHoldTag(text)) return text === "" ? NO_PARTS : [{ kind: "text", text }]
+  const parts: Array<TitlePart> = []
+  const tags = titleTagRe()
+  let at = 0
+  let match: RegExpExecArray | null
+  while ((match = tags.exec(text)) !== null) {
+    const start = match.index
+    if (start > at) parts.push({ kind: "text", text: text.slice(at, start) })
+    parts.push({ kind: "tag", ...tagPart(match[0]) })
+    at = start + match[0].length
+  }
+  if (at < text.length) parts.push({ kind: "text", text: text.slice(at) })
+  return parts
+}
+
+const NO_PARTS: ReadonlyArray<TitlePart> = []
+
+/** The tags a text writes, as written, in reading order. */
+export const tagsOf = (text: string): ReadonlyArray<Tag> => {
+  if (!mayHoldTag(text)) return NO_TAGS
+  let found: Array<Tag> | undefined
+  for (const part of tagParts(text)) if (part.kind === "tag") (found ??= []).push(tagText(part))
+  return found ?? NO_TAGS
+}
+
+const NO_TAGS: ReadonlyArray<Tag> = []
+
