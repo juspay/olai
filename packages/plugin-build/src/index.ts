@@ -1,10 +1,10 @@
 /**
  * @olai/plugin-build — source somebody wrote, as a module olai can mount.
  *
- * ONE DOOR, because there is one graph: the Solid transform is a babel preset
- * and it is on every path through this package. A consumer that only wanted the
- * three module names would still pull it, so there is nothing to split and no
- * second door to argue for.
+ * THE BUILD IS ONE DOOR, because there is one graph: the Solid transform is a
+ * babel preset and it is on every path through it. The module vocabulary — the
+ * names a plugin may import and the registry they resolve through — is the
+ * other door, `./shared`, which pulls no transform.
  *
  * What crosses is TEXT and a refusal. Nothing here knows what a vault is, what a
  * row is, who approves anything, or where a built half is evaluated — which is
@@ -13,6 +13,3 @@
  */
 
 export { asDataUrl, buildPlugin, type Half, type Linked, type Module } from "./build.ts"
-export { bind, type Made } from "./bind.ts"
-export { modulesFor, relativeIn, unresolvable } from "./imports.ts"
-export { BROWSER_MODULES, REGISTRY, SERVER_MODULES, WRITABLE_MODULES } from "./shared.ts"

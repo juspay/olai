@@ -37,11 +37,10 @@ import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/h
 
 import type { DynamicRuntime } from "./runtime.ts"
 
-/** The route, over the runtime that holds the built halves. A `null` runtime is
- *  a serve with no vault behind it, and it answers nothing rather than not
- *  binding: the path is the same on every serve, and a 404 is the honest
- *  reading of "this serve has no such plugin". */
-export const pluginChunks = (dynamic: Pick<DynamicRuntime, "chunk"> | null) =>
+/** The route, over the runtime that holds the built halves. It is bound only
+ *  while that runtime is offered (`./server.ts`'s `http` component names
+ *  `chunks`), so it always has one to ask. */
+export const pluginChunks = (dynamic: Pick<DynamicRuntime, "chunk">) =>
   HttpRouter.add(
     "GET",
     `${PLUGIN_CHUNK_PREFIX}*`,
@@ -53,7 +52,7 @@ export const pluginChunks = (dynamic: Pick<DynamicRuntime, "chunk"> | null) =>
         // runtime keeps the path itself. A path that does not decode names nothing.
         let path: string | null
         try { path = decodeURIComponent(new URL(request.url, "http://olai").pathname) } catch { path = null }
-        const text = path === null ? null : dynamic?.chunk(path) ?? null
+        const text = path === null ? null : dynamic.chunk(path)
         if (text === null) return HttpServerResponse.text("no such plugin chunk", { status: 404 })
         return HttpServerResponse.text(text, {
           status: 200,

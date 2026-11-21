@@ -5,7 +5,7 @@
 import { slotCatalog } from "@olai/plugin-api/slots"
 import { ConversationsWatch, definePlugin, FileKinds, HostLoading, Ops, Offers, Surfaces, Vault, BundleModules } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
-import { WRITABLE_MODULES } from "@olai/plugin-build"
+import { WRITABLE_MODULES } from "@olai/plugin-build/shared"
 import { Effect } from "effect"
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 /** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its

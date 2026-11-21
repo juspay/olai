@@ -43,7 +43,8 @@
  * and cannot be given one.
  */
 
-import { asDataUrl, buildPlugin, REGISTRY } from "@olai/plugin-build"
+import { asDataUrl, buildPlugin } from "@olai/plugin-build"
+import { REGISTRY } from "@olai/plugin-build/shared"
 import { itemKey, UsageFailure, type OpFailure, type WriteRequest, type Reading } from "@olai/format"
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
@@ -657,14 +658,18 @@ const builtFrom = (one: Defined) =>
     if (!server.ok) return { ok: false as const, why: server.why }
     if (one.browser === null) return { ok: true as const, server, browser: null }
     const base = chunkBaseOf(one)
-    // EACH SEGMENT ENCODED, because a file's name may hold what a URL gives a
-    // meaning to — `#`, `?`, `%` — and the address is fetched as a URL. The
-    // route decodes it back to the path stored here (`./route.ts`).
+    // The route decodes the address back to the path stored here (`./route.ts`).
     const browser = yield* Effect.promise(() =>
-      buildPlugin("browser", PLUGIN_BROWSER_FILE, one.code, (path) => `${base}/${path.split("/").map(encodeURIComponent).join("/")}.js`))
+      buildPlugin("browser", PLUGIN_BROWSER_FILE, one.code, (path) => `${base}/${encodedPath(path)}.js`))
     if (!browser.ok) return { ok: false as const, why: browser.why }
     return { ok: true as const, server, browser }
   })
+
+/** A file's path with EACH SEGMENT ENCODED, wherever this file writes one into
+ *  an address or a module's text: a file's name may hold what a URL gives a
+ *  meaning to (`#`, `?`, `%`) or a line break, and none of it may mean anything
+ *  there. */
+const encodedPath = (path: string): string => path.split("/").map(encodeURIComponent).join("/")
 
 /**
  * ONE SERVER FILE AS THE MODULE IT IS EVALUATED AS — its text, closed by a
@@ -684,7 +689,7 @@ const builtFrom = (one: Defined) =>
  * break or a control character in the first place; this does not rely on it.)
  */
 export const serverModuleText = (word: string, version: string, path: string, text: string): string =>
-  `${text}\n//# sourceURL=olai-plugin:/${encodeURIComponent(word)}@${version}/${path.split("/").map(encodeURIComponent).join("/")}\n`
+  `${text}\n//# sourceURL=olai-plugin:/${encodeURIComponent(word)}@${version}/${encodedPath(path)}\n`
 
 const serverModule = (one: Defined, path: string, text: string): string =>
   asDataUrl(serverModuleText(one.name, one.version, path, text))
