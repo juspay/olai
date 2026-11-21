@@ -742,6 +742,7 @@ bench: install
     {{ nix_shell }} bun packages/format/src/pointing.bench.ts
     {{ nix_shell }} bun packages/ops/src/walks.bench.ts
     {{ nix_shell }} bun packages/format/src/conventions.bench.ts
+    {{ nix_shell }} bun packages/prose/src/parse.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

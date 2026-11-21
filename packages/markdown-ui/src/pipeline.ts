@@ -25,9 +25,10 @@
  *      before anything parses the text ({@link asRead}). One step, at the one
  *      door, so a rendering and the text a title accounts for cannot be two
  *      readings of two different strings.
- *   1. **parse**, with GFM — which is what brings footnotes (and tables, task
- *      lists and strikethrough) into the same dialect an agent and a reader
- *      already write.
+ *   1. **parse**, with GFM — `@olai/prose`'s `parse.ts`, the one parse this
+ *      app makes. GFM is what brings footnotes (and tables, task lists and
+ *      strikethrough) into the same dialect an agent and a reader already
+ *      write.
  *
  *      **AND WITHOUT FRONTMATTER, deliberately.** A `---` block at the top of a
  *      `.md` is that FILE's own record and is kept off its page — but it is
@@ -81,10 +82,9 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize from "rehype-sanitize"
 import rehypeStringify from "rehype-stringify"
-import remarkGfm from "remark-gfm"
-import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
+import { parse } from "@olai/prose/parse.ts"
 import type { Root } from "hast"
 
 import { AUTOLINK } from "./anchors.ts"
@@ -108,9 +108,9 @@ import { wikilinked } from "./wikilinks.ts"
  */
 const languages = { ...common, nix }
 
-const pipeline = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
+/** Everything after the parse: the tree `@olai/prose` made, turned into HTML,
+ *  anchored, sanitised and highlighted. */
+const rendering = unified()
   .use(remarkRehype, { clobberPrefix: "" })
   .use(rehypeSlugs)
   .use(rehypeAutolinkHeadings, AUTOLINK)
@@ -177,7 +177,7 @@ export interface Pipeline {
 const asRead = (source: string): string => bracketSpacedLinks(wikilinked(source))
 
 export const treeOf = (source: string): Root =>
-  pipeline.runSync(pipeline.parse(asRead(source))) as Root
+  rendering.runSync(parse(asRead(source))) as Root
 
 /**
  * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is
@@ -190,9 +190,9 @@ export const treeOf = (source: string): Root =>
  * and was this function line for line.
  */
 export const sourceTextOf = (source: string): string =>
-  toString(pipeline.parse(asRead(source)))
+  toString(parse(asRead(source)))
 
-export const htmlOf = (tree: Root): string => pipeline.stringify(tree)
+export const htmlOf = (tree: Root): string => rendering.stringify(tree)
 
 /**
  * A node of the markdown tree BEFORE anything turns it into HTML — paragraphs,
@@ -224,4 +224,4 @@ export interface MarkdownNode {
  * nobody reads.
  */
 export const mdastOf = (source: string): MarkdownNode =>
-  pipeline.parse(asRead(source)) as MarkdownNode
+  parse(asRead(source)) as MarkdownNode

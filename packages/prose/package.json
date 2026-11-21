@@ -10,8 +10,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "The bottom of the layering, below @olai/format: how a text is read — its tags, its slugs, where a file's frontmatter ends, whether a title holds any markup. `effect` and nothing in the workspace, so everything above can read text the same way.",
+  "//dependencies": "The bottom of the layering, below @olai/format: how a text is read — its tags, its slugs, where a file's frontmatter ends, whether a title holds any markup, and the one Markdown parse (remark-parse with remark-gfm, src/parse.ts). Nothing in the workspace, so everything above can read text the same way; no rendering — solid-js, rehype and highlight.js stay in @olai/markdown-ui.",
   "dependencies": {
-    "effect": "4.1.4"
+    "effect": "4.1.4",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
+  },
+  "devDependencies": {
+    "@types/mdast": "^4.0.4"
   }
 }
