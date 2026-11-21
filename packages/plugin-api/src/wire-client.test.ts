@@ -77,5 +77,5 @@ test("both doors carry the schema a refused write fails with, so a plugin's surf
 
 test("the server door carries the transport's per-call authority", async () => {
   const authority = await import("./authority.ts")
-  expect(server.RequestAuthority as unknown).toBe(authority.RequestAuthority)
+  expect(server.RequestAuthority).toBe(authority.RequestAuthority)
 })

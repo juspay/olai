@@ -96,12 +96,11 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import type { AgentItem, Writer } from "@olai/format"
-import type { Ops as Gate, SessionRule } from "@olai/ops"
-import { RequestAuthority as authorityReference } from "./authority.ts"
+import type { AgentItem } from "@olai/format"
+import type { Ops as Gate } from "@olai/ops"
 import { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
 export { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
-import { Context, Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
+import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
 import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
@@ -2141,17 +2140,11 @@ export type { ImplementSurfaceDeps } from "@kolu/surface/server"
 
 /**
  * WHO MADE THIS CALL — the writer and session rule the transport hands a
- * member a registration lists in `writes` (`./authority.ts`). A member not
- * listed is handed the default, `{ writer: "web" }` with no rule, whoever
- * called it. Typed here as what a transport supplies, a {@link Writer} and a
- * {@link SessionRule}, so a handler passes both to `gate.run` as they are.
+ * member a registration lists in `writes` (`./authority.ts`), typed there as
+ * `@olai/ops`' `Caller`, so a handler passes both to `gate.run` as they are.
  */
-export const RequestAuthority = authorityReference as unknown as Context.Reference<Caller>
-/** The caller a transport hands a listed member: {@link RequestAuthority}'s value. */
-export interface Caller {
-  readonly writer: Writer
-  readonly rule?: SessionRule
-}
+export { RequestAuthority } from "./authority.ts"
+export type { Caller } from "@olai/ops"
 
 /** Rows supply policy and (for nodes) a pure parser, never the identity stamped
  * by the registry. The policy is the same inert contract format and wire readers use. */

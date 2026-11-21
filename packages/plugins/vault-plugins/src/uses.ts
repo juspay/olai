@@ -65,11 +65,28 @@ const DOORS: Readonly<Record<string, string>> = {
   Directory: "Reads the served directory",
   HttpClient: "Reaches the network",
   Commands: "Runs programs on this computer",
+  Navigate: "Opens pages in the app",
+  RequestAuthority: "Writes as whoever made the call, you or an agent",
 }
 
 /** The import names that say nothing a person needs to read: the ones every
- *  plugin has, which carry no reach of their own. */
-const PLUMBING: Readonly<Record<string, true>> = { definePlugin: true, serviceTag: true }
+ *  plugin has, and the ones that build its own wire, which carry no reach of
+ *  their own. A TYPE that is not a door is read the same way: it reaches
+ *  nothing (`readHalf`). */
+const PLUMBING: Readonly<Record<string, true>> = {
+  definePlugin: true,
+  serviceTag: true,
+  clientOf: true,
+  defineSurface: true,
+  OpFailure: true,
+}
+
+/** THE APP SLOTS whose meaning is not "draws something": what a face hung
+ *  there does, in words. Any other app slot is drawn in, and said so. */
+const SLOTS: Readonly<Record<string, string>> = {
+  "app.keys": "Adds a keyboard shortcut",
+  "app.command": "Adds a command to the palette",
+}
 
 /**
  * THE LIST, for one plugin — every code file folded into one reading, deduped
@@ -93,11 +110,17 @@ const readHalf = (source: string): ReadonlyArray<Uses> => {
   // THE DOORS, out of every `import { … } from "@olai/plugin-api"` — including
   // the subpath door a server half is typechecked against, since that is the
   // same door under the name the check wants.
-  const imports = /import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*["']@olai\/plugin-api(?:\/[a-z-]+)?["']/g
+  const imports = /import\s*(type\s*)?\{([^}]*)\}\s*from\s*["']@olai\/plugin-api(?:\/[a-z-]+)?["']/g
   for (let match: RegExpExecArray | null; (match = imports.exec(source)) !== null;) {
-    for (const raw of match[1]!.split(",")) {
+    const allTypes = match[1] !== undefined
+    for (const raw of match[2]!.split(",")) {
+      const typed = allTypes || /^\s*type\s+/.test(raw)
       const name = raw.replace(/^\s*type\s+/, "").split(/\s+as\s+/)[0]!.trim()
       if (name === "" || PLUMBING[name] === true) continue
+      // A TYPE-ONLY IMPORT is named when it is a door (`type Vault`, written
+      // where the door is handed in), and is otherwise a shape the code
+      // spells, which reaches nothing.
+      if (typed && DOORS[name] === undefined) continue
       lines.push({ said: DOORS[name] ?? `Uses olai's \`${name}\``, named: name })
     }
   }
@@ -119,7 +142,7 @@ const readHalf = (source: string): ReadonlyArray<Uses> => {
     const slot = match[1]!
     const key = match[2]
     lines.push({
-      said: key === undefined ? `Draws in the app's \`${slot}\`` : `Draws on anything wearing \`${key}\``,
+      said: key !== undefined ? `Draws on anything wearing \`${key}\`` : SLOTS[slot] ?? `Draws in the app's \`${slot}\``,
       named: key === undefined ? slot : `${slot} · ${key}`,
     })
   }

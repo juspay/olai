@@ -26,14 +26,15 @@ import { createMemo,createRoot,createRenderEffect } from "solid-js"
 import { name,navigation,content,pages,type PaletteControl } from "./index.ts"
 import { askInPalette,closePalette,dropQuestion,openPalette,openPaletteAt,paletteAsking } from "./palette/state.ts"
 import { paletteOpen } from "./palette/state.ts"
-import { PageView } from "./PageView.tsx"
+import { PageView, PluginFilePage } from "./PageView.tsx"
+import { filePagesOver } from "./file-pages.ts"
 import { SelfDrawnPage, selfDrawn } from "./SelfDrawnPage.tsx"
 import { followPaletteShortcut } from "./palette/shortcut.ts"
 import { scopePaletteState } from "./palette/open-owner.ts"
 import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
 import { PaneProvider } from "./pane/context.tsx"
 import { atFile,settleRoutePages } from "./routes.ts"
-import { holdRoutePages,holdFiles,fileClaims,routing } from "./pages.ts"
+import { holdPluginFilePages,holdRoutePages,holdFiles,fileClaims,routing } from "./pages.ts"
 import { Link,RouterProvider,useMaybeRouter } from "./routing.tsx"
 import { createNavigation } from "./state.ts"
 import { guardPageInput } from "./page-input.ts"
@@ -123,7 +124,12 @@ export const components = {
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))
-   return ()=>{dispose();stop()}
+   // ...AND THE `file.page` FACES, settled into one page per registration in
+   // this same root and held for PageView, so a plugin's file page exists
+   // exactly while this component holds the faces it is read from
+   // (`./file-pages.ts`).
+   const stopFiles=holdPluginFilePages(filePagesOver(()=>routeFaces("file.page"),(face,file)=><PluginFilePage face={face} file={file}/>))
+   return ()=>{dispose();stopFiles();stop()}
  })),stop=>Effect.sync(stop))
 })}), files:definePlugin({name:"files",needs:[fileAccess],apply:Effect.gen(function*(){
  const files=yield* fileAccess

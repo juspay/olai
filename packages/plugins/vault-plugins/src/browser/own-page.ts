@@ -10,18 +10,27 @@
  *
  * No JSX, so `./own-page.browsertest.ts` reads it with faces that answer words.
  */
-import { type Accessor, createComponent, type JSX, Show } from "solid-js"
+import { type Accessor, type Component, createComponent, type JSX, Show } from "solid-js"
 
 import type { PluginPageFace } from "../slots.ts"
+
+/** `<Show keyed>` over a face: Solid's `Show` at the one shape this file
+ *  draws, so `createComponent` is handed a single signature to read. */
+const ShowFace: Component<{
+  readonly when: PluginPageFace | undefined
+  readonly keyed: true
+  readonly fallback: JSX.Element
+  readonly children: (Face: PluginPageFace) => JSX.Element
+}> = Show
 
 export const drawOwnPage = (
   face: Accessor<PluginPageFace | undefined>,
   rest: Accessor<string>,
   fallback: () => JSX.Element,
 ): JSX.Element =>
-  Show({
+  createComponent(ShowFace, {
     get when() { return face() },
-    keyed: true as const,
+    keyed: true,
     get fallback() { return fallback() },
-    children: (Face: PluginPageFace) => createComponent(Face, { get rest() { return rest() } }),
+    children: (Face) => createComponent(Face, { get rest() { return rest() } }),
   })

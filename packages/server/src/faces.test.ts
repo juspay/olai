@@ -519,7 +519,7 @@ test("a vault plugin's member listed in `writes` is handed its caller's authorit
     `}) })`,
   ].join("\n")
   const handed = await withRows(async ({ bound }) => {
-    const handlers = writerAt(bound, null, { writer: "agent", rule: { session: "s1" } })
+    const handlers = writerAt(bound, null, { writer: "mcp", rule: { _tag: "closed" } })
     const call = (tag: string) => Effect.runPromise(handlers[tag]!({}) as Effect.Effect<unknown>)
     return { listed: await call("surface/authored/who/listed"), unlisted: await call("surface/authored/who/unlisted") }
   }, {
@@ -529,7 +529,7 @@ test("a vault plugin's member listed in `writes` is handed its caller's authorit
     },
     composes: ["authored"],
   })
-  expect(handed.listed).toEqual({ writer: "agent", ruled: true })
+  expect(handed.listed).toEqual({ writer: "mcp", ruled: true })
   expect(handed.unlisted).toEqual({ writer: "web", ruled: false })
 }, 60_000)
 

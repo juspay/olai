@@ -5,9 +5,7 @@ import { content, pages } from "./index.ts"
 import { useHere, useRouter } from "./routing.tsx"
 import { HOME_ROUTE } from "./routes.ts"
 import { readLocation } from "./locations.ts"
-import { directory } from "./pages.ts"
-import { routeFaces } from "./faces.ts"
-import { filePagesOver } from "./file-pages.ts"
+import { directory, pluginFilePages } from "./pages.ts"
 import type { FilePageFace } from "./slots.ts"
 import { forFileClaim } from "@olai/plugin-api/file-kinds"
 import { createMemo, Show, type JSX } from "solid-js"
@@ -34,13 +32,12 @@ export function PageView() {
     return path === undefined ? undefined : files?.claims().byKind.get(fileKind(files.claims(), path) ?? "")
   })
   // The location's pages, then each plugin's `file.page` face as the page for
-  // the kind that plugin claimed — one page per registration, so another
-  // plugin's face coming or going does not draw this one again
-  // (`./file-pages.ts`).
-  const pluginPages = filePagesOver(() => routeFaces("file.page"), (face, file) => <PluginFilePage face={face} file={file} />)
+  // the kind that plugin claimed: settled and held by the `renderer`
+  // component, one page per registration (`./file-pages.ts`), and read here
+  // through that tracked holder.
   const contributions = createMemo(() => [
     ...readLocation(pages).map(entry => entry.value),
-    ...pluginPages(),
+    ...pluginFilePages(),
   ])
   const page = createMemo(() => forFileClaim(claim(), contributions()))
   const handler = createMemo(() => readLocation(content).find(({ value }) => value.matches(route()))?.value)
@@ -108,7 +105,7 @@ export function PageView() {
 
 /** A plugin's face for one file, handed the file's revision so it can read the
  *  file again when it moves. */
-function PluginFilePage(props: { readonly face: FilePageFace; readonly file: string }) {
+export function PluginFilePage(props: { readonly face: FilePageFace; readonly file: string }) {
   // One head reading per held directory, not one per read of the revision.
   const head = createMemo(() => directory()?.head(() => props.file))
   const Face = props.face

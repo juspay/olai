@@ -486,9 +486,17 @@ export const PLUGIN_BROWSER_FILE = "browser.tsx"
  * are the plugin's code, the agent's write door checking its argument, the
  * page's address deciding which file a path may open at, and **Delete…**
  * naming what to remove.
+ *
+ * NO LINE BREAK AND NO CONTROL CHARACTER in a name: a file's name is shown to
+ * a person as a tab's label, and a name that could end a line has no place
+ * near text that is evaluated. Such a file is not the plugin's code, so it is
+ * never built; an import of it is refused as a file the folder does not hold,
+ * and the write door refuses to write one.
  */
 export const isPluginCode = (path: string): boolean =>
-  /\.tsx?$/.test(path) && path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..")
+  /\.tsx?$/.test(path)
+  && !/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(path)
+  && path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..")
 
 /**
  * ...AND A FOLDER'S FILES IN THE ORDER IT IS READ IN: prose, the server entry,

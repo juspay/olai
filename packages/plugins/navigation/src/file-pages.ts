@@ -14,12 +14,17 @@
  * afresh per reading would be the open file drawn again from nothing each time
  * some other plugin hung a chip.
  *
+ * SETTLED WHERE THE FACES ARE HELD: `./browser.tsx`'s `renderer` component
+ * holds the faces and, in its own root, settles them into pages held in
+ * `./pages.ts`, as it settles `app.route`. `./PageView.tsx` reads that tracked
+ * holder, so the pages exist exactly while that component stands.
+ *
  * No JSX here, so a test at the root reads it; the drawing is the caller's
  * (`draw`), which is where the file's revision is read.
  */
 import type { Address } from "@olai/format"
 import type { Hung } from "@olai/plugin-api"
-import type { JSX } from "solid-js"
+import { type Accessor, type JSX, mapArray } from "solid-js"
 
 import type { FilePage } from "./index.ts"
 import type { FilePageFace } from "./slots.ts"
@@ -40,23 +45,8 @@ export const filePagesOf = (entries: ReadonlyArray<Hung<FilePageFace>>, draw: Dr
  * ...AND OVER A READING THAT MOVES, keeping each registration's page: a
  * registration is the object the slot table holds for as long as the face is
  * hung, so the same object is the same page, and a new one is a new page.
- *
- * A PLAIN FUNCTION, called inside the caller's own memo (`./PageView.tsx`'s
- * `contributions`), so the reading is tracked by what that memo tracks — the
- * renderer's slot signal — including on the frames before the faces are held,
- * when `read` answers `[]` having read no signal at all. Its own memo would
- * track nothing on such a frame and never run again.
+ * Solid's `mapArray` keeps one mapped value per source object, which is that
+ * rule; it is made in the owner of the root that calls it.
  */
-export const filePagesOver = (read: () => ReadonlyArray<Hung<FilePageFace>>, draw: Draw): (() => ReadonlyArray<FilePage>) => {
-  let held = new Map<Hung<FilePageFace>, FilePage>()
-  return () => {
-    const next = new Map<Hung<FilePageFace>, FilePage>()
-    const pages = read().map((one) => {
-      const page = held.get(one) ?? pageOf(one, draw)
-      next.set(one, page)
-      return page
-    })
-    held = next
-    return pages
-  }
-}
+export const filePagesOver = (read: Accessor<ReadonlyArray<Hung<FilePageFace>>>, draw: Draw): Accessor<ReadonlyArray<FilePage>> =>
+  mapArray(read, (one) => pageOf(one, draw))

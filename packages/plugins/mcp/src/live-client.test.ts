@@ -84,12 +84,12 @@ test("a dispatch scoped to one row reaches that row, keeps its credential across
   const second = generation("second", ["outlines", "markdown"])
   const without = generation("without", ["markdown"])
   let live = first
-  const held = scopedTo(() => live.bound(), { writer: "node-agent" }, "outlines")
+  const held = scopedTo(() => live.bound(), { writer: "chat-agent" }, "outlines")
   try {
     // THE MEMBER LANDS ON ITS OWN ROW. `markdown` declares the identical member
     // in the same generation, so an unscoped dispatch would have two handlers to
     // choose between and this assertion could not tell them apart.
-    expect(await Effect.runPromise(held.unary(bare, undefined))).toBe("first:outlines:node-agent")
+    expect(await Effect.runPromise(held.unary(bare, undefined))).toBe("first:outlines:chat-agent")
     expect(first.called).toEqual(["first:outlines"])
 
     // ...AND THE ROW LEAVES. `outlines` is not mounted in this generation, so
@@ -105,7 +105,7 @@ test("a dispatch scoped to one row reaches that row, keeps its credential across
     // still carrying the writer it was minted with. Reading the generation per
     // call rather than closing over one is the whole of this line.
     live = second
-    expect(await Effect.runPromise(held.unary(bare, undefined))).toBe("second:outlines:node-agent")
+    expect(await Effect.runPromise(held.unary(bare, undefined))).toBe("second:outlines:chat-agent")
     expect(second.called).toEqual(["second:outlines"])
   } finally {
     await Promise.all([first.close(), second.close(), without.close()])

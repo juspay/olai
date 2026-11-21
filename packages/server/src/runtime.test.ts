@@ -153,7 +153,12 @@ const withRuntime = <A>(
         // Live status reconciliation is covered by the serve/profile tests.
         plugins: { ...mounted, changes: Stream.empty },
         onChange,
-        built: extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name),
+        // THE ROWS THIS BENCH MOUNTED FROM THE BUILD, and the doubles it was
+        // handed: a serve's `built` names every row it compiled in, and a
+        // sibling outside it has its agent grants held to its `writes`. The
+        // vault and content rows are mounted above in every case, so they are
+        // always the build's here.
+        built: ["vault", ...CONTENT_ROWS, ...(extra.plugins ?? []).map((one) => one.name)],
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
         // so `reportBundle` (which walks `BUNDLE_NAMES`) has nothing to say
@@ -161,7 +166,7 @@ const withRuntime = <A>(
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
         report: yield* Effect.map(
-          rowReport(mounted.host, extra.plugins === undefined ? ["vault", ...CONTENT_ROWS] : extra.plugins.map((one) => one.name)),
+          rowReport(mounted.host, ["vault", ...CONTENT_ROWS, ...(extra.plugins ?? []).map((one) => one.name)]),
           (read) => () => read,
         ),
         // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
@@ -1079,7 +1084,11 @@ test("a plugin that contributed an ENGINE and no sibling is running", () =>
         const get = wired.bound.handlers["surface/plugins/get"]
         if (get === undefined) throw new Error("the plugins cell has no `get`")
         const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-        const built = (yield* open.take).built
+        // THE DOUBLES' OWN ROWS: the bench's build also holds the vault and
+        // content rows it mounted (`withRuntime`'s `built`), which this case is
+        // not about.
+        const doubles = new Set(["chat", "an-engine", "a-tenant"])
+        const built = (yield* open.take).built.filter((row) => doubles.has(row.name))
         expect(built.map((row) => [row.name, row.state, row.running])).toEqual([
           // THE ROW THAT OFFERS, first — an engine names `agents`, which is a
           // door the CHAT ROW stands behind since phase 7, so a runtime with no
@@ -1190,13 +1199,14 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         expect((yield* healthy.report).state).toBe("running")
         expect(plugins.composed().map((one) => one.name)).toEqual([...composedBefore, "healthy"])
 
-        // The roster a browser reads carries the truth about both: the build has
-        // no rows here (these doubles are not the bundle's), so what it says is
-        // that nothing composed is missing and nothing refused is present.
+        // The roster a browser reads carries the truth about both: it lists
+        // the rows of this bench's build (the vault and content rows it
+        // mounted) and neither double, so nothing composed is missing and
+        // nothing refused is present.
         const get = wired.bound.handlers["surface/plugins/get"]
         if (get === undefined) throw new Error("the plugins cell has no `get`")
         const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-        expect((yield* open.take).built.map((row) => row.name)).toEqual([])
+        expect((yield* open.take).built.map((row) => row.name)).toEqual(["vault", ...CONTENT_ROWS])
         yield* Fiber.interrupt(open.reader)
       }),
     { plugins: [] },

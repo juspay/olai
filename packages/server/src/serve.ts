@@ -219,9 +219,6 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
             plugins,
             onChange,
             built,
-            // THE SAME LIST the loader was opened with as `reserved` (above):
-            // a sibling not in it came from outside the build.
-            reserved: built,
             instance: () => ({ host: options.host, port: addressPort,
               hostAuthor: options.addressAuthors?.host ?? "process", portAuthor: options.addressAuthors?.port ?? "process", policy: ownPolicy.values, ...(ownPolicy.node === undefined ? {} : { configurationNode: ownPolicy.node }),
               hostname: theMachine, hostnameAuthor: machine.author, origins: options.allowedOrigins, bearer: { set: token.length > 0 } }),

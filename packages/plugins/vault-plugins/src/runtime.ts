@@ -675,10 +675,19 @@ const builtFrom = (one: Defined) =>
  * helper would share its module-level state, and so would two versions of one
  * plugin whose helper did not change. The closing line makes the URL — so the
  * module — one plugin's at one version, as the tab's addresses already are
- * (`chunkBaseOf`). It is a comment, so it changes nothing the file does.
+ * (`chunkBaseOf`).
+ *
+ * NOTHING OF THE NAME IS EVALUATED. The path is a file's name, which a person
+ * reads as a tab's label and never as code, so each segment is
+ * percent-encoded, as the tab's address is: no character of it can end the
+ * comment's line. (`@olai/surface`'s `isPluginCode` refuses a name with a line
+ * break or a control character in the first place; this does not rely on it.)
  */
+export const serverModuleText = (word: string, version: string, path: string, text: string): string =>
+  `${text}\n//# sourceURL=olai-plugin:/${encodeURIComponent(word)}@${version}/${path.split("/").map(encodeURIComponent).join("/")}\n`
+
 const serverModule = (one: Defined, path: string, text: string): string =>
-  asDataUrl(`${text}\n//# sourceURL=olai-plugin:/${one.name}@${one.version}/${path}\n`)
+  asDataUrl(serverModuleText(one.name, one.version, path, text))
 
 /** Where a version's face is served from: the entry at `<base>.js`, and each
  *  file it imports at `<base>/<path>.js`. The version is in it, so an approved
