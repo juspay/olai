@@ -413,3 +413,6 @@ const siblingFaces = { browser: standaloneFaces.browser }
 export { siblingFaces as faces }
 export { surface } from "./surface.ts"
 export { APPROVED_KEY, ON_KEY }
+// The seat a plugin's own page hangs in, listed by `vault-plugins_inspect`
+// beside every other row's (`./slots.ts`).
+export { slotContracts as slots } from "./slots.ts"

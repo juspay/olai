@@ -36,8 +36,8 @@
 
 import { defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 
-import { isPluginCode, PLUGIN_README_FILE, WORD } from "@olai/surface"
 import { PLUGIN_PATH } from "../index.ts"
+import { parsePluginPage, type PluginPage, pluginPageCrumb, pluginPageHref } from "./address.ts"
 import { PluginGlyph } from "./glyph.tsx"
 
 /** The prefix this page claims. Trailing slash, so `/plugins` itself is not
@@ -49,10 +49,11 @@ export { PLUGIN_PATH }
 
 /**
  * One plugin's page: the folder's word, and — where the address named one of
- * the folder's files — which of them to open at.
+ * the folder's files — which of them to open at, or — under `app` — the
+ * plugin's own page and the rest of its path (`./address.ts`).
  *
- * ## A HALF'S PATH IS THIS PAGE'S ADDRESS, and that is the whole of why the
- * value has a second field
+ * ## A HALF'S PATH IS THIS PAGE'S ADDRESS, and that is why the value has a
+ * `file`
  *
  * `plugins/hex-swatch/server.ts` is a real file in the set: the Commit panel
  * lists it, the ledger records it, a link can name it. What it has no page of
@@ -65,33 +66,13 @@ export { PLUGIN_PATH }
  * read on purpose: with the README over it, what it uses beside it, and the
  * one button that decides whether it runs.
  */
-export interface PluginPage {
-  readonly word: string
-  readonly file?: string
-}
+export type { PluginPage }
 
 export const pluginPage = defineSelfDrawnRoute<PluginPage>({
   claims: [{ kind: "prefix", path: PLUGIN_PATH }],
-  parse: (pathname) => {
-    let rest: string
-    try { rest = decodeURIComponent(pathname.slice(PLUGIN_PATH.length)) } catch { return null }
-    const cut = rest.indexOf("/")
-    const word = cut === -1 ? rest : rest.slice(0, cut)
-    if (!WORD.test(word)) return null
-    if (cut === -1) return { word }
-    const file = rest.slice(cut + 1)
-    // A FILE THE FOLDER COULD HOLD — its README or any code file at any depth
-    // (`@olai/surface`'s `isPluginCode`), the rule the folder reader keeps: an
-    // address may open at such a file, and at nothing else.
-    return file === PLUGIN_README_FILE || isPluginCode(file) ? { word, file } : null
-  },
-  href: ({ word, file }) =>
-    `${PLUGIN_PATH}${encodeURIComponent(word)}${file === undefined ? "" : `/${file.split("/").map(encodeURIComponent).join("/")}`}`,
-  // The crumb is the WORD and not the title, and that is a limit worth being
-  // plain about: a breadcrumb is drawn from the address alone, and the title
-  // is the README's — a fact about the folder, which this grammar has never
-  // read. The page itself heads with the title.
-  breadcrumb: ({ word, file }) => `Plugins › ${word}${file === undefined ? "" : ` › ${file}`}`,
+  parse: parsePluginPage,
+  href: pluginPageHref,
+  breadcrumb: pluginPageCrumb,
   narrowable: false,
   // The square the column and the page head with, so a chat about this page
   // wears it wherever the chat is named.

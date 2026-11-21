@@ -179,7 +179,9 @@ Feature: The reading companion
     Then the reader's own page is drawn at "review"
 
     When I switch the plugin "reader" off on its page
-    And I click sidebar file "book.olai"
+    Then the sidebar draws no reading section
+    And pressing "ControlOrMeta+Shift+e" leaves this page where it is
+    When I click sidebar file "book.olai"
     And I press the palette shortcut
     And I type "start review" into the palette
     Then the palette does not offer "Start review"

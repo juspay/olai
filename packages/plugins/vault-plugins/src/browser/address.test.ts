@@ -42,6 +42,6 @@ test("every page under the word prints the address it was read from", () => {
   for (const address of ["/plugins/reader", "/plugins/reader/lib/sm2.ts", "/plugins/reader/app", "/plugins/reader/app/review", "/plugins/reader/app/chapter/2"]) {
     const value = parsePluginPage(address)
     expect(value).not.toBeNull()
-    expect(pluginPageHref(value!)).toBe(address)
+    expect<string>(pluginPageHref(value!)).toBe(address)
   }
 })

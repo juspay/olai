@@ -1,6 +1,6 @@
 /** Generic palette rows and prefix grammar. Feature providers own the words,
  * character, write behavior and continuation of every contributed prefix. */
-import type { AppChord } from "olai-plugin-navigation/slots"
+import type { AppChord, AppCommand } from "olai-plugin-navigation/slots"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import type {Hung } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
@@ -186,6 +186,38 @@ export const chordsIn = (
   }
   return kept
 }
+
+/**
+ * THE COMMANDS PLUGINS REGISTERED IN `app.command`, as palette rows that run
+ * them. The palette closes after the run, as it does for any `run` row that
+ * does not ask to stay open.
+ */
+export const commandRows = (entries: ReadonlyArray<Hung<AppCommand>>): ReadonlyArray<PaletteItem> =>
+  entries.map(({ face }) => ({
+    id: face.id,
+    label: face.label,
+    ...(face.hint === undefined ? {} : { hint: face.hint }),
+    action: { kind: "run" as const, run: async () => { await face.run(); return {} } },
+    taking: atOnce,
+    search: face.search,
+  }))
+
+/**
+ * ...AND THEIR CHORDS, as `app.keys` entries still carrying the plugin's word,
+ * so {@link chordsIn} answers them by the one rule and names the plugin when
+ * it refuses one. A command with no chord offers none.
+ */
+export const commandChords = (entries: ReadonlyArray<Hung<AppCommand>>): ReadonlyArray<Hung<AppChord>> =>
+  entries.flatMap(({ plugin, face }) => face.chord === undefined ? [] : [{
+    plugin,
+    face: {
+      key: face.chord.key,
+      ...(face.chord.shift === undefined ? {} : { shift: face.chord.shift }),
+      whileEditing: face.chord.whileEditing,
+      said: face.label,
+      press: () => { void face.run() },
+    },
+  }])
 
 /** The shell's own rows. `atOnce` on every one of them, and it is a fact
  *  rather than a formality: a shell row IS this table, so there is no answer

@@ -103,6 +103,8 @@ import { type Asking } from "./asking.ts"
 import {
 boxOf,
 chordsIn,
+commandChords,
+commandRows,
 prefixesIn,
 type PalettePrefix,
 filterItems,
@@ -285,8 +287,8 @@ export function Palette(props: {
     entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
   /** ...and the chords plugins registered, answered after the core table by
    *  the same rule and refused where that table already answers (`./items.ts`'s
-   *  `chordsIn`). */
-  const chords = createMemo(() => chordsIn(paletteFaces("app.keys"), CHORDS))
+   *  `chordsIn`) — those in `app.keys`, then the chords of `app.command`. */
+  const chords = createMemo(() => chordsIn([...paletteFaces("app.keys"), ...commandChords(paletteFaces("app.command"))], CHORDS))
 
   // ── LEVELS ───────────────────────────────────────────────────────────────
   //
@@ -428,6 +430,7 @@ export function Palette(props: {
         taking: atOnce,
         search: face.search,
       })),
+      ...commandRows(paletteFaces("app.command")),
     ]
     // THEN THE HITS, which is the order they can be ANSWERED in: the commands
     // are matched in this tab off a list it already holds, and a hit is a

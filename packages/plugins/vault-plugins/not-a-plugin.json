@@ -58,6 +58,7 @@
     "src/runtime.ts": 1
   },
   "vault": {
+    "src/browser/OwnPage.tsx": 1,
     "src/browser/Page.tsx": 2,
     "src/browser/new-plugin.ts": 2,
     "src/client.ts": 2,

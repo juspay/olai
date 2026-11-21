@@ -19,11 +19,11 @@
   },
   "search": {
     "src/palette/Palette.tsx": 7,
-    "src/palette/items.ts": 17,
+    "src/palette/items.ts": 19,
     "src/palette/reading.ts": 2,
     "src/router.tsx": 2,
     "src/routes.ts": 6,
-    "src/slots.ts": 2,
+    "src/slots.ts": 4,
     "src/testids.ts": 3,
     "src/workspace.ts": 4
   },
