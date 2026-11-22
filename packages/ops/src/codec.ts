@@ -35,14 +35,31 @@ import type { Codec } from "@olai/store"
 import { Result } from "effect"
 
 /**
- * WHO HEARS OF A TEXT THE PARSER THREW ON — the composition root's answer,
- * which is the server's log. A parser that throws is a bug (`@olai/prose`'s
- * `parse.ts`), and the page saying so tells the reader of that one page and
- * nobody who could fix it. A parameter and not a default for the reason
- * {@link codecFor} takes its vocabulary: a root that forgot it would lose the
- * bug silently.
+ * WHAT A DECODE TELLS WHOEVER RUNS THE SERVER — the composition root's
+ * answer, which is the server's log. A parameter and not a default for the
+ * reason {@link codecFor} takes its vocabulary: a root that forgot it would
+ * lose both of these silently.
  */
-export type Heard = (path: string, unread: Unread) => void
+export interface Heard {
+  /** A text the parser threw on. A parser that throws is a bug (`@olai/prose`'s
+   *  `parse.ts`), and the page saying so tells the reader of that one page and
+   *  nobody who could fix it. */
+  readonly unread: (path: string, unread: Unread) => void
+  /** A file whose decode took {@link Heard.slowAfter} milliseconds or more.
+   *  Decode is synchronous and the Markdown parser is not linear on every
+   *  shape of text (a quote or emphasis nested hundreds deep), so one such
+   *  file stalls the server while it is read; this is the line that says
+   *  which file. */
+  readonly slow: (path: string, ms: number) => void
+  /** From how long a decode is told as slow — the server's is
+   *  {@link SLOW_DECODE_MS}. */
+  readonly slowAfter: number
+}
+
+/** How long one file's decode may take on a serving vault before it is named
+ *  in the log. A 2,000-record outline read from nothing takes about 150 ms;
+ *  a nested shape the parser is slow on, a third of a second and up at 6 KB. */
+export const SLOW_DECODE_MS = 500
 
 /** What a file decodes to — the decode itself, before anybody is told. */
 const decodeIn = (
@@ -102,9 +119,10 @@ export const codecFor = (
     return unkept(claims, path) ? Result.succeed(bodiedDocument(claims, path, null)) : null
   },
 
-  /** A BODIED file decodes to its text, verbatim: what it says is interpreted
-   *  at view time, so there is nothing to parse here and nothing that can fail.
-   *  It is carried rather than dropped because it is content of the served
+  /** A BODIED file decodes to its text and its prose read once
+   *  (`@olai/format/read`'s `bodiedDocument`); a file of records decodes
+   *  through the format that claims it, each record's prose read once. It is
+   *  carried rather than dropped because it is content of the served
    *  directory the same way a note is (`@olai/format`'s `Document`), and this
    *  is the read path that already re-reads only what changed.
    *
@@ -116,8 +134,11 @@ export const codecFor = (
    *  as records. */
   decode: (path, contents, previous) => {
     const claims = table.current
+    const started = performance.now()
     const decoded = decodeIn(claims, path, contents, previous)
-    if (Result.isSuccess(decoded)) for (const unread of unreadIn(decoded.success)) heard(path, unread)
+    const took = performance.now() - started
+    if (took >= heard.slowAfter) heard.slow(path, took)
+    if (Result.isSuccess(decoded)) for (const unread of unreadIn(decoded.success)) heard.unread(path, unread)
     return decoded
   },
 

@@ -48,7 +48,7 @@ when the connection returns.[^cards] Other cards ask you to click
 
 ## Logging
 
-The server writes one line per event to stdout.[^lines] Set how much it
+The server writes one line per event to stdout.[^lines][^slow] Set how much it
 writes, and in which format, on the top-level `olai` node of the settings file
 `_olai/Settings.olai`:
 
@@ -135,6 +135,10 @@ olai picks both up while it runs, with no restart.[^live]
     chat: a conversation opening, a prompt sent, a turn that ended or failed,
     and the agent's own process starting and stopping. The closed block at the
     foot of this page says what one line holds.
+
+[^slow]: A note shaped to be slow, such as a quote nested hundreds of levels
+    deep, holds up the server while it is read. The log names, at the `warn`
+    level, any file that took half a second or more to read.
 
 [^live]: olai rereads both keys while it runs, so you never restart it. Until
     the directory is open, the server uses the defaults in the table above. You

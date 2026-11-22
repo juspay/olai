@@ -60,9 +60,9 @@ A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][
 
 [^body]: A relative `![](art/shot.png)` in a document is looked for in that document's own directory, where the same link in a note is looked for beside the note's outline. It is served from `/media/`, and only picture suffixes are allowed. A `..` that would climb above the served directory stops at its root. Nothing else is drawn: no remote host, no `data:` URI, no absolute path, no `.svg`. olai knows pictures by their paths and never loads their bytes.
 
-    The first picture of a block is fetched straight away, and the rest wait until you scroll near them.
+    The first picture of a block is fetched at once, and the rest wait until you scroll near them.
 
-[^links]: A relative `[the deck](../projects/deck.md)` opens that document's page in olai, as does a link to any other file that has a page. A filename with a space in it still works, written `the%20brief.md`, `<the brief.md>` or `the brief.md`. A `[shot](art/handle.png)` opens that picture's page, while `![](art/handle.png)` draws the picture itself from `/media/`. An `http:` or `https:` link opens in a new tab; everything else opens in this tab.
+[^links]: A relative `[the deck](../projects/deck.md)` opens that document's page, as does a link to any file with a page. A filename holding a space may be written `the%20brief.md`, `<the brief.md>` or `the brief.md`, and one holding a bracket too as `<…>`. A `[shot](art/handle.png)` opens that picture's page, while `![](art/handle.png)` draws the picture from `/media/`. An `http:` or `https:` link opens in a new tab; anything else in this tab.
 
 [^shelf]: The pins are the rows of the file named `Pins` directly inside `_olai/`, whatever its capitals, with any suffix that holds rows ([validation.md](validation.md)). A directory without that file has no pins, and when the configured outline plugin is off the sidebar says so. olai creates `_olai/Pins.olai` with that plugin's suffix. The top level of the file is the list of pins, in `ord` order, one row per pin; what you nest under a pin is your own business.
 

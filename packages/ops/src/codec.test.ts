@@ -12,7 +12,11 @@
  * So each test validates the same set twice, once building on the last verdict
  * and once from nothing, and asserts the two are the same reading.
  */
-import { claims, namersOf } from "@olai/format"
+import { claims, namersOf, type OutlineFormat } from "@olai/format"
+import { keepRecordRead } from "@olai/format/testlib"
+import { readOutline, type Unread } from "@olai/format/read"
+import { refusalOf } from "@olai/prose/parse.ts"
+import { read, type Read } from "@olai/prose/read.ts"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { unheard } from "./fixtures.testlib.ts"
 import type { Document, OutlineError, Reading } from "@olai/format"
@@ -240,4 +244,47 @@ test("an unchanged record's reading is the same object across a revision of its 
   expect(said(now, "shop").title.tags.map(String)).toEqual(["@herbs"])
   // Handed nothing, a decode reads every text afresh.
   expect(said(fresh, "cook")).not.toBe(said(was, "cook"))
+})
+
+/**
+ * WHAT A DECODE TELLS WHOEVER RUNS THE SERVER. No known text makes the parser
+ * throw (`@olai/prose`'s bounds), so the format here stands in for it: it
+ * decodes one record per line and keeps on each the reading a throwing parser
+ * leaves — `refusalOf` of what it threw. The codec is what is under test:
+ * every such text of a decoded file, named, to `heard.unread`, nothing for a
+ * file the parser read, and a decode that took `slowAfter` or more to
+ * `heard.slow`.
+ */
+test("the codec tells `heard` of each text the parser threw on, and of a slow decode", () => {
+  const thrown = new Error("a wikilink token holds no wikilink")
+  const failed = (text: string): Read => ({ ...read(text), refused: refusalOf(thrown) })
+  const format: OutlineFormat = {
+    parse: (file, text, table) => {
+      const nodes = text.split("\n").map((title, at) => {
+        const node = { id: `n${at}`, ord: `a${at}`, title }
+        keepRecordRead(node, { title: title.startsWith("!") ? failed(title) : read(title), desc: null })
+        return { file, line: at + 1, node }
+      })
+      return Result.succeed(readOutline(table, file, nodes))
+    },
+    serialize: () => "",
+  }
+  const table = claims([{ kind: "alternate", exts: [".tree"], holds: "nodes", kept: true, fetched: false, noun: "outline", article: "an", format }])
+  const told: Array<readonly [string, Unread]> = []
+  const slow: Array<string> = []
+  const hearing = (slowAfter: number) =>
+    codecFor(NO_KINDS, { current: table }, {
+      unread: (path, unread) => told.push([path, unread]),
+      slow: (path, ms) => slow.push(`${path} ${ms >= 0}`),
+      slowAfter,
+    })
+  const live = hearing(Number.POSITIVE_INFINITY)
+  expect(Result.isSuccess(live.decode("Work.tree", "paint the shed\n!a broken one\nweed the beds"))).toBe(true)
+  expect(told).toEqual([["Work.tree", { where: "n1 title", refusal: { kind: "failed", cause: thrown } }]])
+  told.length = 0
+  live.decode("Calm.tree", "paint the shed")
+  expect([told, slow]).toEqual([[], []])
+  // Every decode takes at least no time at all.
+  hearing(0).decode("Calm.tree", "paint the shed")
+  expect(slow).toEqual(["Calm.tree true"])
 })

@@ -37,9 +37,10 @@ export const failureOf = (text: string, file?: string) => leaf.failureOf(text, f
  *  the set builder beside it, because the pairing is that package's. */
 export { STAMP_SHAPE } from "@olai/format/testlib"
 
-/** Who hears of a text the parser threw on, in a test: nobody. A test has no
- *  server log, and one that is about that log passes its own (`./codec.test.ts`). */
-export const unheard: Heard = () => undefined
+/** Who hears what a decode tells the server's log, in a test: nobody. A test
+ *  has no server log, and one that is about that log passes its own
+ *  (`./codec.test.ts`). */
+export const unheard: Heard = { unread: () => undefined, slow: () => undefined, slowAfter: Number.POSITIVE_INFINITY }
 
 /** A planner context with no surprises in it: ids counted up from `n1`, and one
  *  fixed instant. Both of the impure things an op needs, made boring.

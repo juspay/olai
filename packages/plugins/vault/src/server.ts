@@ -38,8 +38,8 @@
  * revision after a newer one. These are registrations and lifetimes we can undo;
  * a write already accepted is an emission and must finish, not be rolled back.
  */
-import { codecFor, type Heard } from "@olai/ops"
-import { emitter, type Emit, prettyCause } from "@olai/log"
+import { codecFor } from "@olai/ops"
+import { emitter } from "@olai/log"
 import { definePlugin } from "@olai/plugin-api"
 import { Directory, Kinds, Offers, Ops, opsEvents, Vault, VaultSettings, vaultEvents } from "@olai/plugin-api/services"
 import { make as makeOps, type VaultSettings as Settings } from "@olai/ops"
@@ -48,25 +48,11 @@ import { Deferred, Effect, Stream } from "effect"
 import { opsDoor } from "./ops-door.ts"
 import { openDirectory } from "./directory.ts"
 import { Config } from "./format.ts"
+import { heardBy } from "./heard.ts"
 
 import { name } from "./index.ts"
 export { name } from "./index.ts"
 export { Config } from "./format.ts"
-
-/**
- * A TEXT THE MARKDOWN PARSER THREW ON, told to whoever runs the server. The
- * page says so to its reader; this is the line that reaches someone who can
- * fix it, since a throw there is a bug (`@olai/prose`'s `parse.ts`). Said
- * through the emitter taken in `apply`, so the line carries the plugin's
- * fiber's level and annotations although decode is not an Effect.
- */
-const toLog = (say: Emit): Heard => (path, unread) =>
-  say(Effect.annotateLogs(
-    Effect.logError(unread.refusal.kind === "depth"
-      ? "the prose parser ran out of stack reading a text; it is drawn as plain words"
-      : "the prose parser failed on a text; it is drawn as plain words"),
-    { file: path, text: unread.where, ...(unread.refusal.kind === "failed" ? { cause: prettyCause(unread.refusal.cause) } : {}) },
-  ))
 
 export default definePlugin({
   name,
@@ -77,7 +63,7 @@ export default definePlugin({
     const offers = yield* Offers
     yield* offers.own("outline-row", () => config.format)
     const say = yield* emitter
-    const directory = yield* openDirectory(settings.root, codecFor(settings.kinds, settings.claims, toLog(say)), settings.runtime)
+    const directory = yield* openDirectory(settings.root, codecFor(settings.kinds, settings.claims, heardBy(say)), settings.runtime)
     const refusals = opsEvents()
     const gate = yield* Effect.acquireRelease(
       Effect.sync(() => makeOps({
