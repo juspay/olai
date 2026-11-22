@@ -74,8 +74,9 @@
  *     three parent findings are decided by the id it names and by the record
  *     that claims that id, so the records to re-ask are the edited ones plus
  *     the children of every id whose claimant moved.
- *   - **unknown targets** — {@link Derived.namedBy}, `targetsOf` read
- *     backwards, and {@link Derived.byId}. An id dangles when something names
+ *   - **unknown targets** — the table's `rows` part, the fields read
+ *     backwards ({@link ./references/pointing.ts}'s `namersOf`), and
+ *     {@link Derived.byId}. An id dangles when something names
  *     it and nothing declares it, and both halves of that can only have changed
  *     for an id the edit named or an id whose claimant moved.
  *   - **the three cycle walks** — no index: the trigger is the SHAPE of what

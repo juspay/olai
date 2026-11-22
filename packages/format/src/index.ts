@@ -971,8 +971,8 @@ export {
 } from "./searching.ts"
 
 /** The set's own WORDS — every tag written down, counted, and which of them one
- *  prefix under one sigil means. The reading over `Derived.taggedBy` rather than
- *  the index, for `./references/referring.ts`'s reason: what a tag's COUNT means (one vote
+ *  prefix under one sigil means. The reading over the references table's `tags`
+ *  part rather than the table itself, for `./references/referring.ts`'s reason: what a tag's COUNT means (one vote
  *  per record, nothing the trash draws) is a decision, and it is made there. It
  *  ran in the browser until `vault-in-browser`'s PR 2 took the vault out of it —
  *  see `./vocabulary.ts`. ONE function, not the enumeration and the match as two

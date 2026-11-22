@@ -85,8 +85,8 @@ test("a tag is counted once per node that writes it, mirrors excluded", () => {
   expect(home?.count).toBe(2)
 })
 
-// ONE VOTE PER RECORD, whichever prose said it and however often — the index's
-// own rule (`Derived.taggedBy`), which this list inherits rather than restates.
+// ONE VOTE PER RECORD, whichever prose said it and however often — the table's
+// own rule (its `tags` part), which this list inherits rather than restates.
 test("a record writing one tag twice is one vote for it", () => {
   const twice = set(`{"id":"a","ord":"a0","title":"#home and #home","desc":"still #home"}`)
   expect(vocabularyOf(twice).find((tag) => tag.name === "home")?.count).toBe(1)

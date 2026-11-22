@@ -240,7 +240,7 @@ export interface Derived {
    *
    * A MIRROR IS NEVER IN IT and WHAT WAS PUT AWAY IS NEVER IN IT, both at the
    * fold rather than at the read, which is where this index parts company with
-   * `taggedBy` above — {@link ./occasion.ts}'s `dateInto` argues both, and the
+   * the table's `tags` part ({@link ./references/pointing.ts}) — {@link ./occasion.ts}'s `dateInto` argues both, and the
    * second is the older ruling that every date reading in this package inherits
    * rather than restates.
    */
@@ -401,7 +401,8 @@ export const parentInto = (
  * THE SIGIL IS PART OF THE ANSWER ({@link tagText}), because it is part of what
  * was written: `@herbs` and `#herbs` are two tags in every reader of this
  * format, and a fold that dropped the sigil would hand its index two meanings
- * under one key. It is what {@link Derived.taggedBy} is keyed by.
+ * under one key. It is what the table's `tags` part is keyed by
+ * ({@link ./references/pointing.ts}).
  *
  * A record tagging nothing — which is most of them — allocates nothing, for
  * {@link targetsOf}'s own reason: this is asked of every node in the directory

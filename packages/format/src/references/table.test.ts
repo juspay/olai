@@ -97,7 +97,7 @@ const walkedNamings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> =>
 
 /** The table's TAGS part, as the records that WRITE each tag — the `tag` way,
  *  which is the records' own prose; a body's `@` mention is filed there too,
- *  with the way `mention`, and `taggedBy` has never held one. */
+ *  with the way `mention`, which is no `tag` entry. */
 const tableTaggings = (at: Reading): ReadonlyMap<string, ReadonlySet<string>> => {
   const found = new Map<string, Set<string>>()
   for (const [tag, sources] of at.pointing.tags) {
@@ -294,7 +294,7 @@ test("every field a record names a row with is in the table's rows, under the ro
     "house.olai:4 mirror",
   ])
   // …and one record naming one id with two fields is ONE source with two ways,
-  // which is `namedBy`'s own rule read through the table.
+  // which is the one rule for a record's fields, read through the table.
   expect(rowsAt(at, "kitchen")).toEqual([
     "house.olai:2 after",
     "house.olai:3 blocks",
@@ -309,8 +309,8 @@ test("every field a record names a row with is in the table's rows, under the ro
 
 test("a record's tags are in the table's tags with the way `tag`, and a body's `@` is a mention", () => {
   const at = readingOf(HOUSE)
-  // BOTH SIGILS from a record, title and note alike — the whole of what
-  // `taggedBy` holds, in the table's own shape.
+  // BOTH SIGILS from a record, title and note alike — the whole of what the
+  // records' prose writes, in the table's own shape.
   expect(tagsAt(at, "#upkeep")).toEqual([
     "garden.olai:1 tag",
     "house.olai:1 tag",
@@ -321,7 +321,7 @@ test("a record's tags are in the table's tags with the way `tag`, and a body's `
     "house.olai:2 tag",
     "notes.md mention",
   ])
-  // A BODY'S `#topic` IS FILED NOWHERE, exactly as `taggedBy` holds none: the
+  // A BODY'S `#topic` IS FILED NOWHERE as a `tag`: the
   // tag list is a promise about rows, and `notes.md` writes `#upkeep` in prose.
   expect(tagsAt(at, "#upkeep").some((said) => said.startsWith("notes.md"))).toBe(false)
   expect(differences(tableTaggings(at), walkedTaggings(at))).toEqual([])

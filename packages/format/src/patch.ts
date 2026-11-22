@@ -42,14 +42,14 @@
  * property the clone was for.
  *
  * WHICH SEVEN IS DECIDED BY THE INDEX'S READERS AND NOTHING ELSE, and every one
- * of the eleven says which it is at the call ({@link ./overlay.ts}'s `Read`).
- * An index asked BY KEY — `byId.get(id)`, `status.get(id)`, the four others
+ * of the ten says which it is at the call ({@link ./overlay.ts}'s `Read`).
+ * An index asked BY KEY — `byId.get(id)`, `status.get(id)`, the five others
  * every drawn row spends — pays a layer one small lookup on the way past and
- * saves the corpus. An index read WHOLE — `namedBy` by the validator,
- * `taggedBy` by tag completion, `byDay` by the agenda and the calendar,
- * `byFile` by whoever wants the corpus flat — would pay that lookup once per
- * entry on every walk, which costs more than the clone it saved, so those four
- * stay clones. `./patch.bench.ts` prints both halves of that trade.
+ * saves the corpus. An index read WHOLE — `byDay` by the agenda and the
+ * calendar, `owedByDay` by what each day owes, `byFile` by whoever wants the
+ * corpus flat — would pay that lookup once per entry on every walk, which
+ * costs more than the clone it saved, so those three stay clones.
+ * `./patch.bench.ts` prints both halves of that trade.
  *
  * AND THE CORPUS IS NOT FLATTENED HERE AT ALL. {@link Derived.nodes} is
  * {@link Derived.byFile} read the other way — the same records, never a second

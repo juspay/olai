@@ -166,7 +166,7 @@ export interface Reading {
   readonly pointing: Pointing
   /**
    * THE DIRECTORY'S FILES BY NAME — what a wikilink is resolved against
-   * ({@link ./wikilinks.ts}). A fourth member for the third's reason: it is
+   * ({@link ./links/names.ts}). A fourth member for the third's reason: it is
    * one revision's membership, and an index of one revision's paths held
    * against another's set is a plausible answer about the wrong directory.
    * Built at the first load and handed on, the same object, by every
@@ -781,7 +781,7 @@ const viewOf = (claims: Claims, set: OutlineSet, previous: Previous | undefined)
     : repointed(previous.read.pointing, claims, said, previous.read.set.documents, set.documents)
   const first = carried?.pointing ?? pointingOf(claims, set.documents)
   // THE NAME INDEX by the same step: the previous reading's own object
-  // whenever no path arrived and none left ({@link ./wikilinks.ts}).
+  // whenever no path arrived and none left ({@link ./links/names.ts}).
   const names = previous === undefined
     ? namesOf(claims, set.documents.map((document) => document.path))
     : namesCarried(previous.read.names, claims, previous.read.set.documents, set.documents)

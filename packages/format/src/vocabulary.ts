@@ -3,13 +3,14 @@
  *
  * ## An index read, not a walk
  *
- * {@link Derived.taggedBy} files every record under each tag its title or its
- * note writes, keyed by the written form ({@link ./derive.ts}). So the question
+ * The references table's `tags` part ({@link ./references/pointing.ts}) files
+ * every source under each tag its title or its note writes, keyed by the
+ * written form. So the question
  * this file asks — which tags does the set hold, and how many records carry
- * each — is the keys of that map and the length of each entry, and this module
+ * each — is the keys of that part and the length of each entry, and this module
  * is the READING over it: which of them the trash is out of, and what order to
  * offer them in. It sits beside {@link ./references/referring.ts} for that reason, which
- * is the other reading over the same pair of reverse indexes.
+ * is the other reading over the same table.
  *
  * IT WALKED THE WHOLE CORPUS ONCE (a tag split per node of the set, per
  * derivation), and the roadmap item that changed it — `mentions-index-one-sigil`
@@ -30,7 +31,7 @@
  * The premise went, not the argument. The human's ruling (2026-08-19,
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`) is that the browser may hold at
  * most the current page's data — never the whole vault — so there is no local
- * `taggedBy` left to enumerate, and the tab that used to answer this for itself
+ * whole-set tag index left to enumerate, and the tab that used to answer this for itself
  * now asks (`@olai/web`'s `complete/asking.ts`, over the `vocabulary.tags`
  * procedure). What that file predicted for the day a second face asked is what
  * happened, one door earlier than it expected: the list became a reading, and a

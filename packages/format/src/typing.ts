@@ -130,13 +130,14 @@
  * carried by the validator. Nothing here walks the corpus, which is
  * what lets the check ride every write rather than joining the whole-set sweep.
  *
- * ONE READER ABOVE DOES WALK, and it is named here so the sentence above stays
- * true rather than nearly true: a `ref` or `node` value is a REFERENCE, so the
- * two ops that take records OUT of the set have to ask who still names what is
- * going (`@olai/ops`' `namingByProp`). No index can answer that — which keys
- * are references is a fact about what the vault DECLARES, not about the format,
- * so `namedBy` structurally cannot hold it. That walk is per REMOVAL, guarded on
- * the vault declaring such a key at all, and never on the write path.
+ * NO READER ABOVE WALKS ANY MORE, and that is worth saying here because it
+ * used to: a `ref` or `node` value is a REFERENCE, so the two ops that take
+ * records OUT of the set ask who still names what is going — and they ask the
+ * references table's property entries ({@link ./references/pointing.ts}'s
+ * `propertyNamersOf`, read by `@olai/ops`' delete and Trash refusals). The
+ * table can hold them because it is filed in two steps: the fields, the prose
+ * and the tags, then the derivation, the declarations this file reads, and
+ * the property values those declarations make references.
  */
 
 import { Result } from "effect"

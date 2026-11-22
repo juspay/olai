@@ -102,8 +102,8 @@
  * this is keyed on DOCUMENTS rather than on records, so it carries itself with
  * the fold below and `../splice.test.ts` has nothing to cover for it.
  *
- * NOTHING READS THE KEYS IN ORDER, exactly as {@link Derived.taggedBy} says of
- * its own: every reader of this table asks it by key. That is what lets the
+ * NOTHING READS THE KEYS IN ORDER, in any of the four parts: every reader of
+ * this table asks it by key. That is what lets the
  * carry add and drop keys in place rather than rebuilding a map to keep an
  * order nobody promised.
  *

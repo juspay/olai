@@ -22,13 +22,13 @@
  * SAME corpus `./patch.bench.ts` runs on, so this leg's numbers and the
  * patcher's are about one directory):
  *
- *   - `index` — {@link vocabularyOf}, which reads `Derived.taggedBy`: the keys of a
+ *   - `index` — {@link vocabularyOf}, which reads the references table's `tags` part: the keys of a
  *     map and the length of each entry, with the trash taken off;
  *   - `walk` — the SAME ANSWER derived from the corpus instead: every node of
  *     the set, `tagParts` over its title and its note, one vote per record.
  *     This is the honest A/B, because two arms that answer different lists are
  *     two numbers nobody may divide;
- *   - `titles` — the walk AS IT LITERALLY STOOD before `taggedBy`: titles
+ *   - `titles` — the walk AS IT LITERALLY STOOD before the tag index: titles
  *     only, a vote per tag PART. It is here because `walk` is not what the file
  *     said, and a ratio quoted against a reconstruction that does more work
  *     than the code it stands for is a flattering ratio. It answers a
@@ -134,7 +134,7 @@ const walked = (derived: Derived): ReadonlyArray<TagUse> => {
 }
 
 /**
- * ...and the walk as the browser ACTUALLY held it before `taggedBy`: titles only,
+ * ...and the walk as the browser ACTUALLY held it before the tag index: titles only,
  * a vote per tag part rather than per record.
  *
  * It answers a smaller list than either arm above — a tag written only in a

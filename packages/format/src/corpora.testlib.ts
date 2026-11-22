@@ -113,7 +113,7 @@ export const idFor = (random: () => number, used: Set<string>): string => {
 }
 
 /**
- * A tag for prose to write, or nothing — what `taggedBy` is keyed by.
+ * A tag for prose to write, or nothing — what the table's `tags` part is keyed by.
  *
  * Mostly an `@` on an id the corpus really uses, so a mention is usually a
  * REFERENCE the reading over this index would draw; sometimes a word nothing
@@ -215,8 +215,8 @@ export const fileOf = (random: () => number, used: Set<string>): string => {
       if (random() < 0.3) record["after"] = [pick(random, IDS)]
       if (random() < 0.3) record["blocks"] = [pick(random, IDS)]
       if (random() < 0.2) record["see"] = [pick(random, IDS)]
-      // A note, sometimes with a tag in it — the second half of what
-      // `taggedBy` files, and the reason a title alone would not do: a
+      // A note, sometimes with a tag in it — the second half of what the
+      // table's `tags` part files, and the reason a title alone would not do: a
       // record writing one tag in BOTH is one entry, so the fold's
       // once-per-record rule is only reachable from here.
       if (random() < 0.3) record["desc"] = `a note${tagged(random)}${tagged(random)}`

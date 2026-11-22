@@ -119,7 +119,7 @@ export interface Contribution {
  *
  * A RECORD'S FIELDS ARE {@link targetsOf} READ FORWARDS — the one list of what
  * a record NAMES, which the validator asks forwards and the ops layer asks
- * backwards, and which the derivation files into `namedBy` from the very same
+ * backwards, and which this fold files under the table's `rows` part from the very same
  * function. A second list of field names here is the failure that function's
  * own doc warns about: the day a fifth relation is added, a table that scanned
  * for four would silently stop seeing one.
@@ -129,13 +129,13 @@ export interface Contribution {
  * prose, no edges, no links. **Referenced by** does not count that way, so a
  * placement is filed here and left out there ({@link ./referring.ts}).
  *
- * A RECORD'S TAGS GO IN WHOLE, BOTH SIGILS, with the way `tag` — which is
- * {@link Derived.taggedBy} filed into the table's own shape. The `@` half is
+ * A RECORD'S TAGS GO IN WHOLE, BOTH SIGILS, with the way `tag` — every record
+ * under each tag it writes, in the table's `tags` part. The `@` half is
  * what the mention reading asks for; the `#` half is the vocabulary the tag
  * list reads. A BODY contributes what its face already carries — every link it
  * writes is a `link`, every `@` tag it writes a `mention` — so the fold reads a
  * body's prose exactly once, with the face, and a body's `#topic` is filed
- * nowhere, exactly as `taggedBy` holds none.
+ * nowhere, so the tags part holds none for a body.
  */
 export const contributionsOf = (
   claims: Claims,

@@ -236,6 +236,7 @@ A search reaches both kinds of thing the directory holds, rows and files, ranked
 | the `#topic` and `@person` in its prose | the same, found the same way |
 | `desc`, its note | `body`, the prose itself |
 
+- A `#topic` or `@person` inside a code span, a code block, or inside a link's words is not a tag, so typing it finds the row or document only if those words sit somewhere else in a field ([documents-and-kinds.md](documents-and-kinds.md)).
 - `prop:` selects documents on the frontmatter at the top of the file, which is the same open set of keys a row's properties are ([documents-and-kinds.md](documents-and-kinds.md)).
 - The frontmatter is not the document's prose: a word only that block holds is found by `prop:` and not by typing it.
 - An operator over a field a document does not have selects no document, so no document is `is:done` or `created:last-week`. A negated clause is satisfied: a document is not finished.

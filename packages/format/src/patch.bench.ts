@@ -564,11 +564,11 @@ const flatly = (): readonly [built: number, counted: number] => {
  * sealing rule, which is that an index read BY KEY gets a layer and an index
  * read WHOLE stays a map.
  *
- * `namedBy` is the one to time it on: the validator reads every entry of it on
- * every write ({@link ./validate.ts}'s `checkTargets`), so if a layer were free
- * to walk this index would be layered too. Both arms answer the same list of
- * pairs, checked before either is timed, and the layer is built the way a patch
- * builds one — a handful of keys re-filed over the map that stood.
+ * `byDay` is the one to time it on: the agenda and the calendar read every
+ * entry of it per published revision ({@link ./agenda.ts}), so if a layer were
+ * free to walk this index would be layered too. Both arms answer the same list
+ * of pairs, checked before either is timed, and the layer is built the way a
+ * patch builds one — a handful of keys re-filed over the map that stood.
  */
 const wholly = (): readonly [asMap: number, asLayer: number] => {
   const base = first.byDay

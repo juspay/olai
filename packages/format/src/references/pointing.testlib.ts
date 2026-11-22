@@ -64,7 +64,7 @@ import type { WikilinkName } from "@olai/prose/wikilink.ts"
  * and row arms ask only about links, which is what the index files under
  * those keys.
  *
- * WIKILINKS ARE RESOLVED HERE TOO, by the one resolver (`../wikilinks.ts`)
+ * WIKILINKS ARE RESOLVED HERE TOO, by the one rule (`../links/wikilink.ts`)
  * against the revision's membership: every name every file writes, walked.
  * A link to a ROW (`house.olai#kitchen`, either way it is written) is a
  * reference to the node in it, at the file that holds the node.

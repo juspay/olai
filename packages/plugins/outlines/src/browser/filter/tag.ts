@@ -37,8 +37,9 @@ import { TAG_ATTRIBUTE } from "@olai/markdown-ui/tag-contract.ts"
  *  shared `ReferrersSection`), where the surrounding anchor has run first —
  *  goes where the link says.
  *
- *  NAMED FOR THE PRESS, and it was `taggedBy` until `@olai/format` grew a
- *  `Derived.taggedBy` — the reverse index of which records write which tag.
+ *  NAMED FOR THE PRESS, and it was `taggedBy` until `@olai/format` grew a tag
+ *  index of its own — which records write which tag, today the references
+ *  table's `tags` part.
  *  Two unrelated answers under one word in one app is a grep that lands on the
  *  wrong file; this one is about a MouseEvent and says so. */
 export const tagPressed = (event: MouseEvent): string | null => {
