@@ -123,7 +123,6 @@ import { whyNoAgent } from "./adapter.ts"
 import { choiceOf, detecting, type Engine, here, offBecause } from "./agents/roster.ts"
 import { openLocalState } from "./local.ts"
 import { forLocalState as liveIn } from "./live.ts"
-import { forLocalState as cutIn } from "./cut.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { rosterIn, seatingIn } from "./seating.ts"
@@ -1234,7 +1233,6 @@ export default definePlugin({
         wake: (plugin) => wakes.current().get(plugin),
         overheard: yield* sessionsIn(localState),
         live: liveIn(localState),
-        cut: cutIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
         // THE PERIOD AS DECODED, from the settings this row was applied with —
         // a change re-applies the row, so the panel never holds a stale one.

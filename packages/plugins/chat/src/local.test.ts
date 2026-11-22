@@ -26,7 +26,6 @@ describe("chat's one machine-local document", () => {
       memory: { session: "sess-2" },
       models: {},
       live: {},
-      cut: {},
       wake: { scopes: [{ plugin: "kolu" }] },
       heard: { heard: [{ session: "sess-1" }] },
     })
@@ -53,7 +52,6 @@ describe("chat's one machine-local document", () => {
       memory: {},
       models: {},
       live: {},
-      cut: {},
       wake: { scopes: [{ plugin: "kolu" }] },
       heard: { heard: [{ session: "sess-1" }] },
     })
