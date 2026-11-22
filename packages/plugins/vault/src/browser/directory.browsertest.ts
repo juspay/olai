@@ -41,6 +41,7 @@ import { type Accessor, createRoot, createSignal, untrack } from "solid-js"
 
 import type { FileKindsState } from "../file-surface.ts"
 import { wikilinkPath, type BrokenFile } from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib/claims"
 import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFoldOptions } from "@kolu/surface/solid"
 import type { CollectionDelta } from "@kolu/surface/define"
@@ -628,17 +629,11 @@ test("membership snapshots react independently and never mutate older readings",
   directory.stop()
 })
 
-/** The vault's claim for a Markdown document — the one kind a bare `[[name]]`
- *  is allowed to find, so a case about names needs one published. */
-const DOCUMENTS = {
-  kind: "document",
-  exts: [".md"] as const,
-  holds: "text" as const,
-  kept: true,
-  fetched: true,
-  noun: "document",
-  article: "a" as const,
-}
+/** The test table's claim for a Markdown document — the one kind a bare
+ *  `[[name]]` is allowed to find, so a case about names needs one published.
+ *  Taken from the shared table rather than spelled here: a suffix is the
+ *  markdown row's to spell (`packages/tests/kinds.test.ts`). */
+const DOCUMENTS = [...TEST_CLAIMS.byKind.values()].find((claim) => claim.kind === "markdown")!
 
 test("the name index holds still while no path moves, and finds a file that just arrived", () => {
   const directory = live()
