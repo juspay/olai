@@ -161,11 +161,13 @@ Feature: The theme is a pick, and it is yours
     # 390×844. A line of seven 44px targets is wider than the panel there, so
     # the light line wraps, and the follow control sits above the swatches.
     # What holds is the order and the size: every light swatch above every
-    # dark one, none past the panel's edge, none shrunk under a finger.
+    # dark one, none past the panel's edge, none shrunk under a finger. The
+    # picture is for a person to see the wrap, not only measure it.
     When I open the app
     And I open the preferences
     Then every theme swatch is inside the preferences panel, and a finger's size
     And every light swatch stands above every dark one
+    And I save a picture of the theme picker as "theme-picker-phone.png"
     And there should be no page errors
 
   Scenario: The pick is there before the page has finished parsing
@@ -279,12 +281,13 @@ Feature: The theme is a pick, and it is yours
   Scenario: A picture of the page in every theme
     # Evidence for a person, not an assertion: whether a palette LOOKS right
     # on a real outline is a judgement the arithmetic in the unit tests cannot
-    # make. One picture per theme, of an outline with the panel open, saved as
-    # theme-<name>.png beside the run's other screenshots, then one of the
-    # picker on its own.
+    # make. One picture per theme, of an outline with the panel open and its
+    # typefaces loaded, saved as theme-<name>.png beside the run's other
+    # screenshots, then one of the picker on its own.
     When I open the app
     And I open the outline "house.olai"
     And I open the preferences
+    And the appearance controls have finished loading their fonts
     Then I save a picture of the page in every theme
     And I save a picture of the theme picker as "theme-picker.png"
     And there should be no page errors

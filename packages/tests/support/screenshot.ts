@@ -1,10 +1,13 @@
 /**
- * SAVING A PICTURE FOR A PERSON TO LOOK AT — evidence, never an assertion.
+ * SAVING A PICTURE FOR A PERSON TO LOOK AT. The picture asserts nothing, but
+ * taking it can fail: it waits for the page to stop fading (below), and a
+ * page still fading after `POLL_TIMEOUT` fails the step that asked for it.
  *
  * Where it lands is the e2e recipe's to say: `$OLAI_E2E_EVIDENCE/
  * $OLAI_E2E_ATTEMPT/screenshots/<name>`, or `$OLAI_SHOTS` when a driver asks
- * for its own directory. A run that names neither saves nothing, so a
- * scenario that takes pictures still runs, and still asserts, everywhere.
+ * for its own directory. A run that names neither saves nothing and waits for
+ * nothing, so a scenario that takes pictures still runs, and still asserts,
+ * everywhere.
  *
  * Here rather than in `step_definitions/app_steps.ts` because more than one
  * package's steps take pictures: the generic `I save a screenshot as` step,
