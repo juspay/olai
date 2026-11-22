@@ -119,6 +119,7 @@ yield* slots.register("document.block", Block)
 - The face is handed `{ text, file }`: the block's text exactly as written, `[[…]]` and all, and the note's path.
 - When the note changes, the face is drawn again from the new text.
 - Only a note's own page draws it. Anywhere else, the plugin's page among them, the block is code, and so it is while the plugin is off.
+- A plugin's name is its fence language, so a plugin named after a language olai highlights, such as `json`, draws every `json` block on a note's page while it runs.
 
 ### A sidebar section, a key and a palette row
 
