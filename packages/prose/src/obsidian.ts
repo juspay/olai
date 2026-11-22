@@ -33,6 +33,7 @@ import { factoryTitle } from "micromark-factory-title"
 import { factoryWhitespace } from "micromark-factory-whitespace"
 import { markdownLineEnding, markdownLineEndingOrSpace, markdownSpace } from "micromark-util-character"
 import type { Code, Construct, Effects, Extension, State, TokenizeContext } from "micromark-util-types"
+import type { Processor } from "unified"
 import { readWikilink } from "./wikilink.ts"
 
 /** A wikilink as the tree holds it. */
@@ -85,6 +86,8 @@ const wikilink: Construct = {
     let embed = false
     let slashes = 0
     let content = ""
+    // Where this wikilink's events begin.
+    const opened = self.events.length
     const start: State = (code) => {
       effects.enter("wikilink")
       effects.enter("wikilinkMarker")
@@ -130,14 +133,34 @@ const wikilink: Construct = {
       effects.consume(code)
       effects.exit("wikilinkMarker")
       effects.exit("wikilink")
+      noLinkAround(self.events, opened)
       return ok
     }
     return start
   },
 }
 
-/** Whitespace and then the opening of a title — the one thing that ends a
- *  spaced address before its `)`. Only ever asked as a check. */
+/**
+ * CommonMark's rule that A LINK HOLDS NO LINK, kept for a wikilink: once one
+ * is read, no `[` before it may open a link any more — the label around it
+ * is the characters it is, as it is around an inner `[words](address)`.
+ * The same thing CommonMark's own `]` does when it makes a link, but
+ * searching back only to the wikilink before this one, which shut every
+ * label opened before it — so no event is searched twice.
+ */
+const noLinkAround = (events: TokenizeContext["events"], from: number): void => {
+  for (let index = from - 1; index >= 0; index--) {
+    const token = events[index]?.[1]
+    if (token?.type === "wikilink") return
+    if (token?.type === "labelLink") token._inactive = true
+  }
+}
+
+/** Whitespace and then a title — the one thing that ends a spaced address
+ *  before its `)`. Only ever asked as a check. A quoted title is known by its
+ *  opening mark; a title in parentheses only by its close coming before any
+ *  other bracket on the line — CommonMark's own title runs to its `)` across
+ *  any `(` and is read again from every `](`, which this check is not. */
 const titleAhead: Construct = {
   partial: true,
   tokenize(effects: Effects, ok: State, nok: State): State {
@@ -147,7 +170,20 @@ const titleAhead: Construct = {
         return spaces
       }
       effects.exit("whitespace")
-      return code === QUOTE || code === APOSTROPHE || code === PAREN_OPEN ? ok(code) : nok(code)
+      if (code === QUOTE || code === APOSTROPHE) return ok(code)
+      if (code !== PAREN_OPEN) return nok(code)
+      effects.enter("data")
+      effects.consume(code)
+      return parenthesised
+    }
+    const parenthesised: State = (code) => {
+      if (code === PAREN_CLOSE) {
+        effects.exit("data")
+        return ok(code)
+      }
+      if (code === null || markdownLineEnding(code) || code === PAREN_OPEN || code === OPEN || code === CLOSE) return nok(code)
+      effects.consume(code)
+      return parenthesised
     }
     return (code) => {
       effects.enter("whitespace")
@@ -159,7 +195,13 @@ const titleAhead: Construct = {
 /** `(address with spaces "title")` after a link's label — the resource half
  *  of CommonMark's own, with an address that may hold a space. Asked only
  *  where CommonMark's address would stop at that space; an address holding
- *  none is left to CommonMark. */
+ *  none is left to CommonMark.
+ *
+ *  A spaced address holds NO BRACKET: it stops at the next `[` or `]` as at
+ *  the line's end. That is what keeps the parse linear — the next label
+ *  begins at a bracket, so no two attempts read the same characters, where
+ *  an address that ran to the line's end was read again by every `](` on
+ *  the line. */
 const spacedResource: Construct = {
   partial: true,
   tokenize(effects: Effects, ok: State, nok: State): State {
@@ -181,16 +223,18 @@ const spacedResource: Construct = {
       return address(code)
     }
     const address: State = (code) => {
-      if (code === null || markdownLineEnding(code)) return nok(code)
+      if (code === null || markdownLineEnding(code) || code === OPEN || code === CLOSE) return nok(code)
       if (code === PAREN_CLOSE) return addressEnd(code)
       if (markdownSpace(code)) return effects.check(titleAhead, addressEnd, space)(code)
       effects.consume(code)
       return address
     }
+    // The whole run of spaces at once: `titleAhead` has read it already.
     const space: State = (code) => {
       spaced = true
+      if (!markdownSpace(code)) return address(code)
       effects.consume(code)
-      return address
+      return space
     }
     const addressEnd: State = (code) => {
       if (!spaced) return nok(code)
@@ -229,18 +273,21 @@ const spacedLabelEnd: Construct = {
   ...(labelEnd.resolveTo === undefined ? {} : { resolveTo: labelEnd.resolveTo }),
   tokenize(this: TokenizeContext, effects: Effects, ok: State, nok: State): State {
     const self = this
-    let index = self.events.length
-    let opened = false
-    while (index--) {
-      const token = self.events[index]?.[1]
-      if (token !== undefined && (token.type === "labelImage" || token.type === "labelLink") && token._balanced !== true) {
-        opened = token._inactive !== true
-        break
+    // Searched for only once a `(` follows, so a `]` that closes no spaced
+    // address costs nothing more than CommonMark's own.
+    const opened = (): boolean => {
+      let index = self.events.length
+      while (index--) {
+        const token = self.events[index]?.[1]
+        if (token !== undefined && (token.type === "labelImage" || token.type === "labelLink") && token._balanced !== true) {
+          return token._inactive !== true
+        }
       }
+      return false
     }
-    const after: State = (code) => code === PAREN_OPEN ? effects.attempt(spacedResource, ok, nok)(code) : nok(code)
+    const after: State = (code) =>
+      code === PAREN_OPEN && opened() ? effects.attempt(spacedResource, ok, nok)(code) : nok(code)
     return (code) => {
-      if (!opened) return nok(code)
       effects.enter("labelEnd")
       effects.enter("labelMarker")
       effects.consume(code)
@@ -278,4 +325,12 @@ export const obsidianFromMarkdown: FromMarkdownExtension = {
       this.exit(token)
     },
   },
+}
+
+/** Both halves, attached the way `remark-gfm` attaches its own — after it,
+ *  so a spaced address is tried before a footnote's `]`. */
+export function remarkObsidian(this: Processor): undefined {
+  const data = this.data()
+  ;(data.micromarkExtensions ??= []).push(obsidianSyntax)
+  ;(data.fromMarkdownExtensions ??= []).push(obsidianFromMarkdown)
 }

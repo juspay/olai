@@ -106,3 +106,61 @@ test("an address holding a space is one, title and all, and code keeps its text"
   expect(linksOf(parse("see [the brief](brief.md)")).map((one) => one.url)).toEqual(["brief.md"])
   expect(linksOf(parse("see `[the brief](the brief.md)`"))).toEqual([])
 })
+
+test("a spaced address holds no bracket, and a title in parentheses closes before the next one", () => {
+  expect(linksOf(parse("see [the brief](the [old] brief.md)")).map((one) => one.url)).toEqual([])
+  expect(linksOf(parse("see [the brief](the brief.md (Oak))")).map((one) => [one.url, one.title])).toEqual([["the brief.md", "Oak"]])
+  // A `(` with no `)` before the next bracket is the address's own, and the
+  // bracket then ends it; a `(…)` with nothing after is a title with no `)`.
+  expect(linksOf(parse("see [the brief](the brief (draft [old] .md)")).map((one) => one.url)).toEqual([])
+  expect(linksOf(parse("see [the brief](the brief (draft.md)")).map((one) => one.url)).toEqual([])
+})
+
+/**
+ * A LINK HOLDS NO LINK — CommonMark's rule, which a wikilink keeps as an
+ * inner `[words](address)` does: the wikilink is read, and the label around it
+ * is the characters it is. The page draws this tree, so there is no link
+ * inside a link to draw.
+ */
+test("a wikilink inside a link's words leaves that label no link", () => {
+  const tree = parse("[see [[finishes]] here](other.md)")
+  expect(linksOf(tree)).toEqual([])
+  expect(wikilinksOf(tree).map(said)).toEqual([["finishes", [], null, false]])
+  // A picture may hold a link, and so it holds a wikilink as its words.
+  const picture = parse("![see [[finishes]]](plan.png)")
+  expect(JSON.stringify(picture.children[0], (key, value) => key === "position" ? undefined : value))
+    .toBe(JSON.stringify({ type: "paragraph", children: [{ type: "image", title: null, url: "plan.png", alt: "see finishes" }] }))
+  // A label opened after the wikilink is a label like any other.
+  expect(linksOf(parse("[[finishes]] and [the brief](brief.md)")).map((one) => one.url)).toEqual(["brief.md"])
+  expect(linksOf(parse("[a [[finishes]] b](x.md) then [c](y.md)")).map((one) => one.url)).toEqual(["y.md"])
+})
+
+/** Each shape the two constructs could be made to read twice, at four times
+ *  the length: linear work is about four times the time, and a construct that
+ *  read to the line's end from every `](` — as the spaced address once did —
+ *  about sixteen. */
+test("no text makes the constructs read the same characters again and again", () => {
+  const shapes: ReadonlyArray<(n: number) => string> = [
+    (n) => "[a](b ".repeat(n),
+    (n) => "[a](".repeat(n),
+    (n) => "[a](b c d (".repeat(n),
+    (n) => `[a](b c d "`.repeat(n),
+    (n) => "[a](b" + " ".repeat(n * 5),
+    (n) => "[[a]] ".repeat(n),
+    (n) => "[x [[a]] ".repeat(n),
+    (n) => "[a] ".repeat(n) + "(b c)",
+  ]
+  for (const shape of shapes) {
+    const time = (n: number): number => {
+      const text = shape(n)
+      const started = performance.now()
+      parse(text)
+      return performance.now() - started
+    }
+    const best = (n: number): number => Math.min(time(n), time(n), time(n))
+    time(500)
+    const small = Math.max(best(1_000), 1)
+    const large = best(4_000)
+    expect({ shape: shape(1), linear: large / small < 10 }).toEqual({ shape: shape(1), linear: true })
+  }
+})
