@@ -458,6 +458,29 @@ test("a `doc` value names the file it resolves to, from the record's own place",
   expect(referring(view, "finishes.md")).toEqual(["lane property"])
 })
 
+// A WIKILINK MERGES WITH THE OTHER WAYS, which the document arm reads from two
+// lists: the file's own entries and the names that find it. A record saying
+// the file twice is one referrer saying both ways, whichever spelling it used.
+test("a record naming a file in a property and wikilinking it says both ways", () => {
+  const declared = {
+    "_olai/Properties.olai": `{"id":"prop-brief","ord":"a","title":"brief","custom":{"type":"doc"}}`,
+  }
+  const wiki = viewOf(
+    { ...declared, "lanes.olai": `{"id":"lane","ord":"a","title":"the [[finishes]]","custom":{"brief":"finishes.md"}}` },
+    [FINISHES],
+  )
+  expect(referring(wiki, "finishes.md")).toEqual(["lane link+property"])
+  // The same record with a standard link, which is read from the one list.
+  const standard = viewOf(
+    {
+      ...declared,
+      "lanes.olai": `{"id":"lane","ord":"a","title":"the [finishes](finishes.md)","custom":{"brief":"finishes.md"}}`,
+    },
+    [FINISHES],
+  )
+  expect(referring(standard, "finishes.md")).toEqual(["lane link+property"])
+})
+
 // The rulings the other ways keep, kept here too: what is put away is on the
 // Trash and nowhere else, a record does not refer to itself, and a placement
 // carries no properties to name anything with.

@@ -392,15 +392,22 @@ const documentRefs = (
     }
     return found.length === 0 ? NOTHING_REFERS : found
   }
-  // ONE ENTRY PER SOURCE across the two lists: a record that links a file
-  // both ways is one referrer, and every way here is a link. The index's own
-  // path order holds for one key, so two lists are sorted.
+  // ONE ENTRY PER SOURCE across the two lists: a record that names a file in
+  // a property and wikilinks it too is one referrer saying both, so the ways
+  // merge in {@link WAYS} order exactly as the node arm merges its keys. The
+  // index's own path order holds for one key, so two lists are sorted.
   const found = new Map<object, Reference>()
   for (const source of [...sources, ...wiki]) {
-    const key: object = source.at ?? source.face
-    if (found.has(key)) continue
     const reference = ruled(at, address, source)
-    if (reference !== undefined) found.set(key, reference)
+    if (reference === undefined) continue
+    const key: object = source.at ?? source.face
+    const held = found.get(key)
+    if (held === undefined) {
+      found.set(key, reference)
+      continue
+    }
+    const merged = WAYS.filter((one) => held.ways.includes(one) || reference.ways.includes(one))
+    if (merged.length !== held.ways.length) found.set(key, { source: held.source, ways: merged })
   }
   return found.size === 0 ? NOTHING_REFERS : [...found.values()].sort(byReference)
 }
