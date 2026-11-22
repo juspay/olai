@@ -69,17 +69,22 @@ export const readOutline = (
   return outlineDocument(claims, file, nodes)
 }
 
+/** What a whole BODY says: its prose — the text with any frontmatter taken
+ *  off — through the parser. The one spelling of that, for the face below,
+ *  for the slugs, and for `@olai/ops` judging a body it is about to write. */
+export const readBody = (body: string): Read => read(proseIn(body))
+
 /**
- * The document a BODIED file amounts to, its prose read once — `.md` text
- * through the parser with its frontmatter taken off, and the reading kept
- * beside the face for every later reader of the body.
+ * The document a BODIED file amounts to, its prose read once
+ * ({@link readBody}) and the reading kept beside the face for every later
+ * reader of the body.
  *
  * The arms, and why the prose one is the only one that reads, are
  * `./document.ts`'s {@link bodiedFace}: this is that function told how a text
  * is read.
  */
 export const bodiedDocument = (claims: Claims, file: string, text: string | null): Markdown | Unkept =>
-  bodiedFace(claims, file, text, (body) => read(proseIn(body)))
+  bodiedFace(claims, file, text, readBody)
 
 /**
  * The slugs of a whole body, in document order and never repeated — the list a
@@ -97,7 +102,7 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
  * the face lists.
  */
 export const slugsIn = (body: string): ReadonlyArray<Slug> =>
-  read(proseIn(body)).headings.flatMap((heading) => heading.slug === null ? [] : [heading.slug])
+  readBody(body).headings.flatMap((heading) => heading.slug === null ? [] : [heading.slug])
 
 /** A text of a decoded document the parser threw on, and which text it was. */
 export interface Unread {

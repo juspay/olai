@@ -24,8 +24,8 @@
  * validator speak for everything else, in its own words, with `file:line`.
  */
 
-import { proseIn } from "@olai/prose/frontmatter.ts"
-import { read, type Read } from "@olai/prose/read.ts"
+import type { Read } from "@olai/prose/read.ts"
+import { readBody, readRecord } from "@olai/format/read"
 import {
   addressOf,
   bodyRead,
@@ -5908,16 +5908,17 @@ export const plan = (scope: Scope, request: Request): Planned => {
       // The text being written is read here, once; what stood before is the
       // reading decode kept for it.
       const was = before === undefined || isMirror(before) ? undefined : recordRead(before)
+      const now = readRecord(node)
       compare(
         file.file,
-        node.desc === undefined ? [read(node.title)] : [read(node.title), read(node.desc)],
+        now.desc === null ? [now.title] : [now.title, now.desc],
         was === undefined ? [] : was.desc === null ? [was.title] : [was.title, was.desc],
       )
     }
   }
   for (const document of next.documents ?? []) {
     const standing = markdownAt(scope.set, document.file)
-    compare(document.file, [read(proseIn(document.text))], standing === undefined ? [] : [bodyRead(standing)])
+    compare(document.file, [readBody(document.text)], standing === undefined ? [] : [bodyRead(standing)])
   }
   return nudges.length === 0 ? planned : Result.succeed({ ...next, nudge: [next.nudge, ...new Set(nudges)].filter(Boolean).join(" ") })
 }
