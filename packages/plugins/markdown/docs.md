@@ -33,7 +33,7 @@ Clicking **Edit** replaces the body with a plain-text box named `Edit <file>`, h
 
 ## Headings and links
 
-Clicking a heading, or a line of **Contents**, goes to an address like `/notes/plan.md#slug`.[^click] `Alt` and a click open the same destination in a pane on the right.[^alt] A link to a file this directory does not serve says so.[^dead] Pictures load as you reach them.[^pictures]
+Clicking a heading, or a line of **Contents**, goes to an address like `/notes/plan.md#slug`.[^click] `Alt` and a click open the same destination in a pane on the right.[^alt] `[[plan]]`, a wikilink, opens the document `plan` ([wikilinks.md](../wikilinks.md)).[^unresolved] A link to a file this directory does not serve says so.[^dead] Pictures load as you reach them.[^pictures]
 
 ## What still works without this plugin
 
@@ -45,7 +45,7 @@ Switching `markdown` off takes away document pages and the read and write proced
 
 [^contents]: The list of headings is drawn only when the document has more than one heading.
 
-[^referrers]: The referrers section is closed until you open it, and splits what it found across three rows: **Sees this**, **Mentions this** and **Links to this**. A row that links to this document from its title or its note opens that row's page; a document whose prose links here opens that file.
+[^referrers]: The referrers section is closed until you open it, and splits what it found across four rows: **Sees this**, **Mentions this**, **Links to this** and **Names this in a property**. A row that links to this document from its title or its note opens that row's page; a document whose prose links here opens that file. A row whose declared property names this document is in the fourth row ([../documents-and-kinds.md](../documents-and-kinds.md)).
 
 [^missing]: An address naming no such file says `Page not found`, with the detail `There is no document named notes/plan.md.`
 
@@ -59,9 +59,11 @@ Switching `markdown` off takes away document pages and the read and write proced
 
 [^alt]: The pane that opens on the right includes a preview card. A link to a part of the text you are already in, such as a footnote inside an outline's note, scrolls in place and leaves the address alone.
 
+[^unresolved]: A wikilink whose name finds no file is marked as a dead link is, and a screen reader hears `no file is named plan` after its words. Clicking it opens **Page not found** for that name. It is marked or cleared as files arrive and leave, without drawing the page again, so a selection you made stays.
+
 [^dead]: A link to a file this directory does not serve keeps its words, and gains a sentence saying it is dead in the name a screen reader reads out. A keyboard and a screen reader meet it that way too, not only a pointer. The sentence goes as soon as the file is served.
 
-    A title the author wrote, `[x](y "…")`, is still rendered as the document's own tooltip. Code spans, code fences and frontmatter never raise the warning, and a query or a fragment on an address is not part of the check.
+    A title the author wrote, `[x](y "…")`, is still rendered as the document's own tooltip. Code spans, code fences and frontmatter never raise the warning. A query or a fragment is taken off before the file is looked for: `[q](finishes.md?v=1)` is checked as `finishes.md`.
 
 [^pictures]: The first picture is fetched at once, and the rest as you scroll near them. The same renderer draws outline notes and chat replies, so this holds for each rendered block rather than for each page.
 

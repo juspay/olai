@@ -220,6 +220,32 @@ Feature: Documents
     And the header search result "Palette" marks "agent" as why it matched
     And there should be no page errors
 
+  # The title is the first line's WORDS: markup on it is the page's business,
+  # and the name every row uses is what a reader sees there.
+  @scratch:good
+  Scenario: A document whose first line holds markup is called by that line's words
+    Given I open the outline "house.olai"
+    When I rewrite "notes/palette.md" as:
+      """
+      **Palette** for the [kitchen](../house.olai)
+      """
+    And I search the header for "Palette"
+    Then the header search result for the document "notes/palette.md" is called "Palette for the kitchen"
+    And there should be no page errors
+
+  # A text nested past the parse's bound is still formatted: quotes nest as far
+  # as a hundred columns, and what is past that is drawn as its words, rather
+  # than the parse spending seconds on the shape or the page refusing it.
+  @scratch:good
+  Scenario: A text quoted past the bound is drawn a hundred quotes deep, and the rest as its words
+    When I rewrite "notes/deep.md" as:
+      """
+      >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> far down
+      """
+    And I open the document "notes/deep.md"
+    Then the document draws quotes 100 deep, the deepest holding the text "> far down"
+    And there should be no page errors
+
   # A property is a property and NOT a record. The block carries a `date:` and a
   # `#`-looking value on purpose: neither becomes the thing it resembles, and
   # both are still findable by the name they actually have.
@@ -469,6 +495,22 @@ Feature: Documents
     And the page has not reloaded
     And there should be no page errors
 
+  # A QUERY is where the page lands, not which file it is: a link written
+  # with one points at its file for the referrers exactly as without one.
+  @scratch:good
+  Scenario: A link with a query is a reference to its file
+    Given I open the document "finishes.md"
+    When I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      [the finishes](../finishes.md?v=1)
+      """
+    Then the document is pointed at by 2 things
+    When I open what points at the document
+    Then what points at the document is "install the cabinets, Palette"
+    And there should be no page errors
+
   # A link ONTO ONE HEADING is a reference to the whole document: what points
   # at `finishes.md#finishes` is pointing at the page a reader opens, so the
   # section names the source once instead of splitting the question per slug.
@@ -484,6 +526,34 @@ Feature: Documents
     Then the document is pointed at by 2 things
     When I open what points at the document
     Then what points at the document is "install the cabinets, Palette"
+    And there should be no page errors
+
+  # A value is a REFERENCE because the vault says its key is one: `brief`
+  # declared `doc` names a file as plainly as a link does, and until this row
+  # existed the file it named could not say so. The declaration and the value
+  # are both written here because the corpus declares nothing — which is also
+  # what makes the row's absence the default.
+  @scratch:good
+  Scenario: A document a declared `doc` property names is listed in its own row
+    Given I open the document "finishes.md"
+    And I mark the page
+    When I rewrite "_olai/Properties.olai" as:
+      """
+      {"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}
+      """
+    And I rewrite "notes.olai" as:
+      """
+      {"id":"sowing-notes","ord":"a0","title":"sowing notes","custom":{"brief":"finishes.md"}}
+      """
+    Then the document is pointed at by 2 things
+    When I open what points at the document
+    # ITS OWN ROW: the link in `install`'s note is one claim, the declared
+    # value is another, and the section keeps them apart.
+    Then what points at the document in the "Names this in a property" row is "sowing notes"
+    And what points at the document in the "Links to this" row is "install the cabinets"
+    # PATH ORDER across the whole list, as every referrer list is.
+    And what points at the document is "install the cabinets, sowing notes"
+    And the page has not reloaded
     And there should be no page errors
 
   # The section is the browser's own `<details>` answer, so it survives a

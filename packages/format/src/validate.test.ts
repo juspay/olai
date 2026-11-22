@@ -16,7 +16,9 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { rowsOf } from "./derive.ts"
-import { bodiedDocument, type Document } from "./document.ts"
+import { isNamed } from "./references/pointing.ts"
+import type { Document } from "./document.ts"
+import { bodiedDocument } from "./read.ts"
 import { blamedOn, implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
 import { blamed, type Verdict, verdictOf } from "./verdict.ts"
 import {
@@ -979,7 +981,7 @@ test("a `.md` written beside an outline moves the set and not the view's records
   // ...and the third member hears about it, which is why `following` hands
   // `repointed` the two SETS rather than the records it wrote: a document write
   // puts no upsert in the delta at all.
-  expect(after.pointing.get("#x")?.map((source) => String(source.face.path))).toEqual(["notes/one.md"])
+  expect(after.pointing.rows.get("x")?.map((source) => String(source.face.path))).toEqual(["notes/one.md"])
 })
 
 test("writing nothing leaves the reading that stood, identity and all", () => {
@@ -1169,11 +1171,12 @@ test("a mirror into a withheld file dangles, and does not break the file holding
   expect(dark).toEqual(["attic.olai"])
   expect(brokenIn(set, "plan.olai")).toBeUndefined()
 
-  const view = reading(TEST_CLAIMS, set).derived
+  const at = reading(TEST_CLAIMS, set)
+  const view = at.derived
   // The target is NAMED and not DECLARED, which is exactly what a dangling
-  // edge is — the derivation has had a word for it all along.
+  // edge is — the references table has had a word for it all along.
   expect(view.byId.has("lamps")).toBe(false)
-  expect(view.namedBy.has("lamps")).toBe(true)
+  expect(isNamed(at.pointing, "lamps")).toBe(true)
   const rows = rowsOf(view, "plan.olai")
   const mirror = rows[0]?.children[0]
   expect(mirror?.kind).toBe("dangling")

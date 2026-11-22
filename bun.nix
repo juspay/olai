@@ -1674,6 +1674,7 @@
   "@olai/plugin-api" = copyPathToStore ./packages/plugin-api;
   "@olai/plugin-build" = copyPathToStore ./packages/plugin-build;
   "@olai/plugin-kit" = copyPathToStore ./packages/plugin-kit;
+  "@olai/prose" = copyPathToStore ./packages/prose;
   "@olai/server" = copyPathToStore ./packages/server;
   "@olai/sigterm" = copyPathToStore ./packages/sigterm;
   "@olai/state" = copyPathToStore ./packages/state;

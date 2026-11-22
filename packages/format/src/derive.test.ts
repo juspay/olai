@@ -20,21 +20,15 @@ import {
   situate,
   standingBefore,
   type Status,
-  isTagName,
   memoryFiles,
-  mayHoldTag,
   nearestAtOrAbove,
-  TAG_SIGILS,
-  tagOpensAt,
-  tagText,
-  titleParts,
-  titleTagRe,
   tookOf,
   under,
   unfinishedWithin,
 
   withoutDone,
 } from "./derive.ts"
+import { isTagName, mayHoldTag, TAG_SIGILS, tagOpensAt, tagParts, tagText, titleTagRe } from "@olai/prose/tags.ts"
 import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { isMirror, type Located, type RegularNode, storedMarker } from "./node.ts"
 
@@ -62,20 +56,6 @@ const members = (
   index: ReadonlyMap<string, ReadonlySet<string>>,
   id: string,
 ): ReadonlyArray<string> => [...(index.get(id) ?? [])]
-
-/** What `namedBy` says about an id, as `record field,field` per namer — one
- *  string rather than a nested literal, so what an assertion is about is the
- *  records and their reasons rather than the shape they arrive in. */
-const namers = (derived: Derived, id: string): ReadonlyArray<string> =>
-  (derived.namedBy.get(id) ?? []).map((one) =>
-    `${one.at.node.id} ${one.fields.join(",")}`
-  )
-
-/** ...and what `taggedBy` says about a tag AS WRITTEN (`@x`, `#x`): the records
- *  that write it, which is all that index carries — where one of them wrote it
- *  is not a fact it keeps. */
-const taggers = (derived: Derived, tag: string): ReadonlyArray<string> =>
-  (derived.taggedBy.get(tag) ?? []).map((at) => at.node.id)
 
 /** The regular records of a fixture, for the functions that read a node's own
  *  stored fields rather than a whole set. */
@@ -1103,102 +1083,6 @@ test("a target named twice is one edge, read forwards and backwards", () => {
   expect(members(derived.edgesTo, "x")).toEqual(["a"])
 })
 
-// `namedBy` is the format's own `targetsOf` read backwards, and it is RAW —
-// what the records SAY, before a chain is followed or `blocks` is normalised
-// into `after`. That is the point of it being a third index rather than a
-// reading of the two above: the ops layer refuses to retire a placement
-// something still names, and the canonical maps have filed every one of those
-// edges at the node the placement shows, where a refusal about the PLACEMENT
-// could never find them.
-test("a record is filed under the id it wrote, not the node that id means", () => {
-  const derived = derive(TEST_CLAIMS, nodesOf(
-    `{"id":"x","ord":"a","title":"x"}\n` +
-      `{"id":"m","ord":"b","mirror":"x"}\n` +
-      `{"id":"a","ord":"c","title":"a","after":["m"],"see":["m"]}\n` +
-      `{"id":"b","ord":"d","title":"b","blocks":["m"]}`,
-  ))
-  // One entry per RECORD, with the fields in declaration order: a node naming
-  // the same id twice is one dependent with two reasons, not two dependents.
-  expect(namers(derived, "m")).toEqual(["a after,see", "b blocks"])
-  // `see` is in here and in nothing else — no derivation reads it, and a
-  // reverse index that left it out would let a write land that should not.
-  expect(derived.edgesTo.has("m")).toBe(false)
-  // The placement's own claim on the node it shows is an entry like any other.
-  expect(namers(derived, "x")).toEqual(["m mirror"])
-})
-
-// One field naming an id twice is still one field: a reader listing it twice
-// would be reporting the shape of the file rather than what it means.
-test("a field naming the same id twice is named once", () => {
-  const derived = derive(TEST_CLAIMS, nodesOf(
-    `{"id":"x","ord":"a","title":"x"}\n` +
-      `{"id":"a","ord":"b","title":"a","after":["x","x"],"see":["x"]}`,
-  ))
-  expect(namers(derived, "x")).toEqual(["a after,see"])
-})
-
-// `taggedBy` is the fourth reverse index, and the one keyed by a TAG rather
-// than by an id: what a title or a note writes after a sigil, filed exactly as
-// it is written. Whether an `@` tag names a node — whether the mention is a
-// REFERENCE — is asked at the read (`./backlinks.ts`), so that minting a node
-// does not have to re-walk every note in the directory.
-test("a tag is filed under the tag as written, in prose of either kind", () => {
-  const derived = derive(TEST_CLAIMS, nodesOf(
-    `{"id":"x","ord":"a","title":"x"}\n` +
-      `{"id":"a","ord":"b","title":"about @x"}\n` +
-      `{"id":"b","ord":"c","title":"b","desc":"and @x again, and @alice"}`,
-  ))
-  expect(taggers(derived, "@x")).toEqual(["a", "b"])
-  // A word nothing declares files exactly the same way: this index is about
-  // what the prose SAYS, and `@alice` is a tag until somebody is called that.
-  expect(taggers(derived, "@alice")).toEqual(["b"])
-})
-
-// The re-key this index was rebuilt for (#techdebt, filed at PR #237): the keys
-// used to be sigil-stripped, so a topic and a mention spelled the same word
-// were one entry and neither reader could tell them apart.
-test("a `#topic` and an `@person` spelled alike are two keys", () => {
-  const derived = derive(TEST_CLAIMS, nodesOf(
-    `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
-      `{"id":"a","ord":"b","title":"ask @herbs"}\n` +
-      `{"id":"b","ord":"c","title":"filed under #herbs"}`,
-  ))
-  expect(taggers(derived, "@herbs")).toEqual(["a"])
-  expect(taggers(derived, "#herbs")).toEqual(["b"])
-  // ...and the bare word is neither of them, which is what a stripped key was.
-  expect(derived.taggedBy.has("herbs")).toBe(false)
-})
-
-test("a record writing one tag twice is one entry of it", () => {
-  const derived = derive(TEST_CLAIMS, nodesOf(
-    `{"id":"x","ord":"a","title":"x"}\n` +
-      `{"id":"a","ord":"b","title":"@x and @x","desc":"still @x"}`,
-  ))
-  expect(taggers(derived, "@x")).toEqual(["a"])
-})
-
-test("a mirror tags nothing, having no prose to tag with", () => {
-  const derived = derive(TEST_CLAIMS, nodesOf(
-    `{"id":"x","ord":"a","title":"x"}\n{"id":"m","ord":"b","mirror":"x"}`,
-  ))
-  expect(derived.taggedBy.size).toBe(0)
-})
-
-test("the alphabet is the title's own, and a sigil inside a word starts nothing", () => {
-  const derived = derive(TEST_CLAIMS, nodesOf(
-    `{"id":"a","ord":"a","title":"write to sam@herbs.example"}\n` +
-      `{"id":"b","ord":"b","title":"filed under #herbs"}\n` +
-      `{"id":"c","ord":"c","title":"(@herbs) and @work/olai"}`,
-  ))
-  // The bracket opens a word, the `.` ends one, and `/` is part of a tag name
-  // — `titleTagRe`'s rules, inherited rather than restated here. The `#` in the
-  // middle record is claimed wherever it is written, which is the asymmetry
-  // that regex owns and this index inherits whole.
-  expect(taggers(derived, "@herbs")).toEqual(["c"])
-  expect(taggers(derived, "#herbs")).toEqual(["b"])
-  expect(taggers(derived, "@work/olai")).toEqual(["c"])
-})
-
 // ── the drawable tree ──────────────────────────────────────────────────
 
 // A mirror is expanded in place, because a pointer the reader has to go and
@@ -1535,12 +1419,12 @@ test("the reservation is keyed on the PLACE — a kept node leaves its other mir
  *  comes with them: `#alice` and `@alice` are two tags, so a list that dropped
  *  it would be a list that cannot tell them apart. */
 const tags = (title: string): ReadonlyArray<string> =>
-  titleParts(title).flatMap((part) => (part.kind === "tag" ? [tagText(part)] : []))
+  tagParts(title).flatMap((part) => (part.kind === "tag" ? [tagText(part)] : []))
 
 // Tags live inline in the title verbatim — the format stores no tag list — so
 // the split is what the view renders, and it has to keep the text intact.
 test("a title splits into text and tags, and rejoins to itself", () => {
-  const parts = titleParts("call #alice about #work/olai now")
+  const parts = tagParts("call #alice about #work/olai now")
   expect(parts).toEqual([
     { kind: "text", text: "call " },
     { kind: "tag", sigil: "#", tag: "alice" },
@@ -1558,7 +1442,7 @@ test("a title splits into text and tags, and rejoins to itself", () => {
 // list is FOR is drawing the title back, so the character that started a tag
 // travels with it rather than being assumed to be a `#`.
 test("an @tag is a tag, and the sigil comes back out with it", () => {
-  const parts = titleParts("ask @alice about #work")
+  const parts = tagParts("ask @alice about #work")
   expect(parts).toEqual([
     { kind: "text", text: "ask " },
     { kind: "tag", sigil: "@", tag: "alice" },
@@ -1590,7 +1474,7 @@ test("an @ inside a word is text, and a # inside one is still a tag", () => {
 // A bare sigil is punctuation people write ("issue #, see below"); treating it
 // as an empty tag would style the rest of the line as one.
 test("a bare sigil is text", () => {
-  expect(titleParts("issue # 42")).toEqual([{ kind: "text", text: "issue # 42" }])
+  expect(tagParts("issue # 42")).toEqual([{ kind: "text", text: "issue # 42" }])
   expect(tags("issue # 42")).toEqual([])
   expect(tags("reply @ noon")).toEqual([])
 })
@@ -1604,7 +1488,7 @@ test("tags come out in reading order, over the tag alphabet", () => {
 
 // The web client styles tags with the same alphabet; it must not re-declare it.
 // A fresh regex each call so /g state cannot leak across walks.
-test("titleTagRe is the alphabet titleParts uses, fresh each call", () => {
+test("titleTagRe is the alphabet tagParts uses, fresh each call", () => {
   const one = titleTagRe()
   const other = titleTagRe()
   expect(one).not.toBe(other)

@@ -12,6 +12,7 @@ export const TESTID = {
   documentSeeRefs: "document-see-refs",
   documentMentionRefs: "document-mention-refs",
   documentLinkRefs: "document-link-refs",
+  documentPropertyRefs: "document-property-refs",
   documentBody: "document-body",
   documentEdit: "document-edit",
   documentEditor: "document-editor",

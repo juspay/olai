@@ -80,7 +80,7 @@
  * touch the index.
  */
 
-import { Hung, run } from "@kolu/child"
+import { type Child, Hung, start } from "@kolu/child"
 import { Effect, Semaphore } from "effect"
 import * as fs from "node:fs"
 import { join, resolve } from "node:path"
@@ -133,27 +133,71 @@ interface Said {
  *  every outcome is an answer the caller decides what to do with. The
  *  subprocess is `@kolu/child`'s; the residue on top is git's own env
  *  (`LC_ALL=C`, `GIT_TERMINAL_PROMPT=0`) and that a hang is an answer rather
- *  than a throw — a wedged hook cannot fail a write that has already landed. */
+ *  than a throw — a wedged hook cannot fail a write that has already landed.
+ *
+ *  AN INTERRUPT STOPS THE SUBPROCESS, and waits for it to be gone, before
+ *  the fiber's finalizers run. `@kolu/child`'s one-shot `run` has no abort,
+ *  so a git it started outlived the fiber that asked: an `integrate`
+ *  interrupted mid-rebase removed its worktree while the rebase was still
+ *  writing into it, and the rebase put the directory back. The child is
+ *  `start`ed here instead, and the interrupt's cleanup is its `stop`. */
 const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
-  Effect.promise(async () => {
-    try {
-      const result = await run("git", [...argv], {
-        cwd: root,
-        timeout: BUDGET,
-        maxBuffer: 32 * 1024 * 1024,
-        // `LC_ALL=C` so git's own sentences are the ones {@link NOT_A_REPO}
-        // reads — the classification below is a string match, and a translated
-        // git would be reported as unusable rather than as no repository.
-        // `GIT_TERMINAL_PROMPT=0` so a repository that wants a credential fails
-        // instead of sitting on a prompt nobody can answer.
-        env: { ...process.env, LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" },
-      })
-      return { ok: result.ok, said: result.said, out: result.out }
-    } catch (cause) {
-      if (!(cause instanceof Hung)) throw cause
-      return { ok: false, said: cause.message, out: cause.out, hung: true }
-    }
+  Effect.callback<Said>((resume) => {
+    const child = start("git", [...argv], {
+      cwd: root,
+      // `LC_ALL=C` so git's own sentences are the ones {@link NOT_A_REPO}
+      // reads — the classification below is a string match, and a translated
+      // git would be reported as unusable rather than as no repository.
+      // `GIT_TERMINAL_PROMPT=0` so a repository that wants a credential fails
+      // instead of sitting on a prompt nobody can answer.
+      env: { ...process.env, LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" },
+      drain: { stdout: true, stderr: true },
+      maxBuffer: MAX_SAID,
+    })
+    void answerOf(child).then(
+      (said) => resume(Effect.succeed(said)),
+      (cause: unknown) => resume(Effect.die(cause)),
+    )
+    // A stop that sees the process die but not its pipes close (a hook's own
+    // child still holding them) has done all a stop can: the fiber goes on.
+    return Effect.promise(() => child.stop().then(() => undefined, () => undefined))
   })
+
+/** The most of git's output a caller is handed; past it the answer is a
+ *  refusal quoting the tail, never a truncated `ok`. */
+const MAX_SAID = 32 * 1024 * 1024
+
+/** What a finished git said — `@kolu/child`'s `run` answer, spelled over a
+ *  child this file holds so an interrupt can stop it: the exec failure, the
+ *  hang at {@link BUDGET} (stopped, and answered `hung`), an overrun, and the
+ *  exit code. */
+const answerOf = async (child: Child): Promise<Said> => {
+  const ended = await Promise.race([
+    child.wait(BUDGET, `git did not finish within ${BUDGET}ms`).then((close) => ({ close })),
+    child.unstartable.then((why) => ({ why })),
+  ]).catch(async (cause: unknown) => {
+    if (!(cause instanceof Hung)) throw cause
+    // As `run` answers: the hang, or — when even SIGKILL leaves the pipes
+    // open, because a hook's own child holds them — that.
+    try {
+      await child.stop()
+    } catch (stopped) {
+      if (!(stopped instanceof Hung)) throw stopped
+      return { hung: stopped }
+    }
+    return { hung: cause }
+  })
+  const drained = child.said().trim()
+  if ("hung" in ended) return { ok: false, said: ended.hung.message, out: ended.hung.out, hung: true }
+  if ("why" in ended) return { ok: false, said: drained || ended.why, out: child.out() }
+  const failed = child.failed()
+  if (failed !== undefined) return { ok: false, said: drained || failed, out: child.out() }
+  if (child.overrun()) {
+    return { ok: false, said: `git said more than ${MAX_SAID} bytes; tail quoted:\n${child.said()}`, out: child.out() }
+  }
+  const ok = ended.close.code === 0
+  return { ok, said: drained || (ok ? "" : `exited ${ended.close.code ?? "none"}`), out: child.out() }
+}
 
 /**
  * Where the served directory sits in a repository — two answers out of one

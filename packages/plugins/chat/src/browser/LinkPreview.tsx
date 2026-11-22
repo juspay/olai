@@ -54,7 +54,7 @@ export function ChatLinkPreview(props: { readonly route: Route; readonly roster:
         return entry ? latest && tail.of() === key ? grownText(entry, latest) : entry.text : ""
       }
       return <div class="text-sm"><span class="text-xs text-muted">{row()?.kind === "user" ? "You" : "Agent"}</span>
-        <Markdown claims={servedDirectory()?.claims()} members={servedDirectory()?.members()} from="" source={text()} class="olai-md-compact line-clamp-3" />
+        <Markdown claims={servedDirectory()?.claims()} names={servedDirectory()?.names()} from="" source={text()} class="olai-md-compact line-clamp-3" />
       </div>
     }}</For></div>
     <Show when={keys().length === 0}><p class="text-sm text-muted">No turns yet.</p></Show>

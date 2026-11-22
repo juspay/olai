@@ -147,6 +147,7 @@
       "name": "@olai/format",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/prose": "workspace:*",
         "effect": "4.1.4",
         "fastest-levenshtein": "^1.0.16",
       },
@@ -167,6 +168,7 @@
       "dependencies": {
         "@olai/appearance": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
@@ -180,15 +182,16 @@
         "rehype-highlight": "^7.0.2",
         "rehype-sanitize": "^6.0.0",
         "rehype-stringify": "^10.0.1",
-        "remark-gfm": "^4.0.1",
-        "remark-parse": "^11.0.0",
         "remark-rehype": "^11.1.1",
         "solid-js": "^1.9.0",
         "unified": "^11.0.5",
       },
       "devDependencies": {
         "@types/hast": "^3.0.5",
+        "@types/mdast": "^4.0.4",
         "remark-frontmatter": "^5.0.0",
+        "remark-gfm": "^4.0.1",
+        "remark-parse": "^11.0.0",
       },
     },
     "packages/ops": {
@@ -196,6 +199,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/store": "workspace:*",
         "effect": "4.1.4",
       },
@@ -313,6 +317,7 @@
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
@@ -425,6 +430,7 @@
         "@olai/markdown-ui": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
@@ -658,6 +664,7 @@
         "@olai/markdown-ui": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
@@ -701,6 +708,7 @@
         "@olai/edit-history": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
@@ -791,6 +799,7 @@
         "@olai/markdown-ui": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
@@ -918,6 +927,7 @@
         "@olai/markdown-ui": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
@@ -1137,6 +1147,7 @@
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-build": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
@@ -1197,6 +1208,27 @@
       "devDependencies": {
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-layout": "workspace:*",
+      },
+    },
+    "packages/prose": {
+      "name": "@olai/prose",
+      "version": "0.1.0",
+      "dependencies": {
+        "effect": "4.1.4",
+        "mdast-util-from-markdown": "^2.0.3",
+        "micromark-core-commonmark": "^2.0.3",
+        "micromark-extension-gfm-table": "^2.1.1",
+        "micromark-factory-space": "^2.0.1",
+        "micromark-factory-title": "^2.0.1",
+        "micromark-factory-whitespace": "^2.0.1",
+        "micromark-util-character": "^2.1.1",
+        "remark-gfm": "^4.0.1",
+        "remark-parse": "^11.0.0",
+        "unified": "^11.0.5",
+      },
+      "devDependencies": {
+        "@types/mdast": "^4.0.4",
+        "micromark-util-types": "^2.0.2",
       },
     },
     "packages/server": {
@@ -1273,6 +1305,7 @@
         "@olai/log": "workspace:*",
         "@olai/markdown-ui": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
@@ -1509,6 +1542,8 @@
     "@olai/plugin-build": ["@olai/plugin-build@workspace:packages/plugin-build"],
 
     "@olai/plugin-kit": ["@olai/plugin-kit@workspace:packages/plugin-kit"],
+
+    "@olai/prose": ["@olai/prose@workspace:packages/prose"],
 
     "@olai/server": ["@olai/server@workspace:packages/server"],
 

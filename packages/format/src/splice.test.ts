@@ -59,8 +59,9 @@ import { decodedOf, recordsOf, seeded } from "./fixtures.testlib.ts"
 import { fileKind } from "./kinds.ts"
 import type { Located } from "./node.ts"
 import { bySibling, patched, spliced, touchedBy } from "./patch.ts"
+import { type Pointing, pointingOf } from "./references/pointing.ts"
 import { pinnedVault, vaultAt } from "./scope.testlib.ts"
-import { assemble } from "./set.ts"
+import { assemble, type OutlineSet } from "./set.ts"
 
 // ── the two arms ───────────────────────────────────────────────────────
 
@@ -255,9 +256,9 @@ const shuffled = <T>(from: ReadonlyArray<T>, random: () => number): ReadonlyArra
   return own
 }
 
-/** Every key of ALL FOUR re-filed indexes across one edit. The projections and
+/** Every key of BOTH re-filed indexes across one edit. The projections and
  *  the orders are the ones {@link ./patch.ts} files each index with — `children`
- *  by the format's sibling order and the other three by corpus order — and
+ *  by the format's sibling order and `byDay` by corpus order — and
  *  `bySibling` is imported rather than spelled, so a tie rule that moved would
  *  move this differential with it. */
 const casesFor = (
@@ -274,8 +275,6 @@ const casesFor = (
     order: (one: Located, other: Located) => number,
   ): void => casesIn(index, of(before), of(after), touched, at, order, random, into)
   over("children", (view) => view.children, (one) => one, bySibling)
-  over("namedBy", (view) => view.namedBy, (one) => one.at, byCorpus)
-  over("taggedBy", (view) => view.taggedBy, (one) => one, byCorpus)
   over("byDay", (view) => view.byDay, (one) => one.at, byCorpus)
 }
 
@@ -346,9 +345,15 @@ const shortly = (members: ReadonlyArray<string>): string => {
  * optimisation but a requirement).
  */
 const viewOf = (corpus: Corpus): Derived =>
-  derive(TEST_CLAIMS, recordsOf(assemble(TEST_CLAIMS,
-    new Map(Object.entries(corpus).map(([file, text]) => [file, decoded(file, text)])),
-  )))
+  derive(TEST_CLAIMS, recordsOf(setOfCorpus(corpus)))
+
+/** The set a corpus is, off the cached decode. */
+const setOfCorpus = (corpus: Corpus): OutlineSet =>
+  assemble(TEST_CLAIMS, new Map(Object.entries(corpus).map(([file, text]) => [file, decoded(file, text)])))
+
+/** The references table of a corpus, off the same cached decode — what the
+ *  patcher is handed on each side of an edit. */
+const tableOfCorpus = (corpus: Corpus): Pointing => pointingOf(TEST_CLAIMS, setOfCorpus(corpus).documents)
 
 type Decoded = ReturnType<typeof decodedOf> extends Map<string, infer V> ? V : never
 
@@ -363,7 +368,11 @@ const decoded = (file: string, text: string): Decoded => {
   return parsed
 }
 
-const ROUNDS = 300
+/** Rounds of generated corpus and edit. Sized so the two indexes the splice
+ *  still re-files (`children`, `byDay`) reach every corner below more than a
+ *  hundred times each — it was 300 while `namedBy` and `taggedBy` were
+ *  harvested too. */
+const ROUNDS = 900
 
 /** Every key of every index across a generated corpus and a generated edit over
  *  it — the small, awkward sets: duplicate ids, foreign parents, records that
@@ -608,8 +617,10 @@ test("the patched view is the derived view over the real vault", () => {
   let before = REAL
   let view = viewOf(before)
   let folded = 0
+  let table = tableOfCorpus(before)
   for (const after of typing(random)) {
-    const next = patched(view, deltaOf(before, after))
+    const nextTable = tableOfCorpus(after)
+    const next = patched(view, deltaOf(before, after), { before: table, after: nextTable })
     // A run that DECLINED would be this test comparing two rebuilds, which is
     // the vacuous pass `./patch.test.ts` counts declines to stop.
     expect([folded, next !== undefined]).toEqual([folded, true])
@@ -617,23 +628,26 @@ test("the patched view is the derived view over the real vault", () => {
     folded++
     before = after
     view = next as Derived
+    table = nextTable
   }
   // The chain really compounded — every revision patched onto the one before
   // it, sixty deep.
   expect(folded).toBe(TYPED)
-})
+  // A decode reads every text through the parser now, once, and this test
+  // decodes the whole real vault and then one of its files sixty times over —
+  // seconds, not the default's five.
+}, 120_000)
 
-/** The four re-filed indexes and the readings carried beside the day index,
- *  compared the way each is READ: `byDay`'s keys and `namedBy`'s in order,
- *  because the calendar steps the one and the validator walks the other; the
- *  members of every key in order, because that is the promise the splice keeps.
+/** The two re-filed indexes and the readings carried beside the day index,
+ *  compared the way each is READ: `byDay`'s keys in order, because the
+ *  calendar steps them; the members of every key in order, because that is the
+ *  promise the splice keeps.
  */
 const same = (found: Derived, oracle: Derived): void => {
-  for (const index of ["children", "namedBy", "taggedBy", "byDay"] as const) {
+  for (const index of ["children", "byDay"] as const) {
     expect([index, entries(found[index])]).toEqual([index, entries(oracle[index])])
   }
   expect([...found.byDay.keys()]).toEqual([...oracle.byDay.keys()])
-  expect([...found.namedBy.keys()]).toEqual([...oracle.namedBy.keys()])
   expect([...found.owedByDay]).toEqual([...oracle.owedByDay])
   expect(found.days).toEqual(oracle.days as never)
 }

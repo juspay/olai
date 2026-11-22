@@ -223,7 +223,7 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * {@link isPutAway} is the pair of predicates as one question.
  *
  * IT IS EXCLUDED AT THE FOLD, which is where this index parts company with
- * `taggedBy` beside it — that one files the trash and leaves it out at each
+ * the references table's `tags` part — that one files the trash and leaves it out at each
  * read, because it is an index about what PROSE SAYS and a storage rule inside
  * it would be out of place. This one is an index about what a JOURNAL SHOWS,
  * and a journal does not show what was put away. Both halves of that are load

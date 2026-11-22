@@ -14,9 +14,9 @@
  * codec on every commit. The server composes what is already joined.
  */
 
+import { bodiedDocument, type Unread, unreadIn } from "@olai/format/read"
 import {
   assemble,
-  bodiedDocument,
   bodyKind,
   type Document,
   fileKind,
@@ -33,6 +33,50 @@ import {
 } from "@olai/format"
 import type { Codec } from "@olai/store"
 import { Result } from "effect"
+
+/**
+ * WHAT A DECODE TELLS WHOEVER RUNS THE SERVER — the composition root's
+ * answer, which is the server's log. A parameter and not a default for the
+ * reason {@link codecFor} takes its vocabulary: a root that forgot it would
+ * lose both of these silently.
+ */
+export interface Heard {
+  /** A text the parser threw on. A parser that throws is a bug (`@olai/prose`'s
+   *  `parse.ts`), and the page saying so tells the reader of that one page and
+   *  nobody who could fix it. */
+  readonly unread: (path: string, unread: Unread) => void
+  /** A file whose decode took {@link Heard.slowAfter} milliseconds or more.
+   *  Decode is synchronous and the Markdown parser is not linear on every
+   *  shape of text (a quote or emphasis nested hundreds deep), so one such
+   *  file stalls the server while it is read; this is the line that says
+   *  which file. */
+  readonly slow: (path: string, ms: number) => void
+  /** From how long a decode is told as slow — the server's is
+   *  {@link SLOW_DECODE_MS}. */
+  readonly slowAfter: number
+}
+
+/** How long one file's decode may take on a serving vault before it is named
+ *  in the log. A 2,000-record outline read from nothing takes about 150 ms;
+ *  a nested shape the parser is slow on, a third of a second and up at 6 KB. */
+export const SLOW_DECODE_MS = 500
+
+/** What a file decodes to — the decode itself, before anybody is told. */
+const decodeIn = (
+  claims: Claims,
+  path: string,
+  contents: string,
+  previous: Result.Result<Document, Verdict> | undefined,
+): Result.Result<Document, Verdict> => {
+  if (bodyKind(claims, path) !== null) return Result.succeed(bodiedDocument(claims, path, contents))
+  const format = parserFor(claims, path)
+  return format === null
+    ? Result.fail(verdictOf([{ file: path, line: 0, code: "unreadable-file", message: `No active format claims ${path}` }]))
+    : Result.mapError(
+      format.parse(path, contents, claims, previous !== undefined && Result.isSuccess(previous) ? previous.success : undefined),
+      verdictOf,
+    )
+}
 
 /**
  * THE CODEC THIS SERVE VALIDATES WITH — a function of the plugin vocabulary,
@@ -53,7 +97,11 @@ import { Result } from "effect"
  * heard of a terminal, with nothing red anywhere. There is no such value to
  * reach for now, so the root has to answer.
  */
-export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claims }): Codec<Document, Reading, Verdict> => ({
+export const codecFor = (
+  kinds: KindVocabulary,
+  table: { readonly current: Claims },
+  heard: Heard,
+): Codec<Document, Reading, Verdict> => ({
   match: (path) => fileKind(table.current, path) !== null,
 
   /** A file whose content the set does not KEEP decodes to its path and
@@ -71,9 +119,10 @@ export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claim
     return unkept(claims, path) ? Result.succeed(bodiedDocument(claims, path, null)) : null
   },
 
-  /** A BODIED file decodes to its text, verbatim: what it says is interpreted
-   *  at view time, so there is nothing to parse here and nothing that can fail.
-   *  It is carried rather than dropped because it is content of the served
+  /** A BODIED file decodes to its text and its prose read once
+   *  (`@olai/format/read`'s `bodiedDocument`); a file of records decodes
+   *  through the format that claims it, each record's prose read once. It is
+   *  carried rather than dropped because it is content of the served
    *  directory the same way a note is (`@olai/format`'s `Document`), and this
    *  is the read path that already re-reads only what changed.
    *
@@ -83,13 +132,14 @@ export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claim
    *  here would be the second answer to a question the format already
    *  settles — and the way that reads is a file parsed as records nobody wrote
    *  as records. */
-  decode: (path, contents) => {
+  decode: (path, contents, previous) => {
     const claims = table.current
-    if (bodyKind(claims, path) !== null) return Result.succeed(bodiedDocument(claims, path, contents))
-    const format = parserFor(claims, path)
-    return format === null
-      ? Result.fail(verdictOf([{ file: path, line: 0, code: "unreadable-file", message: `No active format claims ${path}` }]))
-      : Result.mapError(format.parse(path, contents, claims), verdictOf)
+    const started = performance.now()
+    const decoded = decodeIn(claims, path, contents, previous)
+    const took = performance.now() - started
+    if (took >= heard.slowAfter) heard.slow(path, took)
+    if (Result.isSuccess(decoded)) for (const unread of unreadIn(decoded.success)) heard.unread(path, unread)
+    return decoded
   },
 
   /** Failures included: what an unreadable file costs the rest of the set is a

@@ -64,7 +64,8 @@ import {
   pluginFileOrder,
   WORD,
 } from "@olai/surface"
-import { isKeptText, proseIn } from "@olai/format"
+import { isKeptText } from "@olai/format"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 
 import { usesOf, type Uses } from "./uses.ts"
 

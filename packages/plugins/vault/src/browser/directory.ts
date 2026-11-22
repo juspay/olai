@@ -134,8 +134,8 @@
  * kept.
  */
 
-import { fileKind } from "@olai/format"
-import { claims as makeClaims, type Claims, type BrokenFile } from "@olai/format"
+import { fileKind, namesOf } from "@olai/format"
+import { claims as makeClaims, type Claims, type BrokenFile, type Names } from "@olai/format"
 import type { FileKindsState } from "../file-surface.ts"
 import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
@@ -196,6 +196,28 @@ export interface Directory {
   readonly paths: Accessor<ReadonlyArray<string>>
   /** Reactive membership snapshot, replaced only when paths change. Never mutate. */
   readonly members: Accessor<ReadonlySet<string>>
+  /** THE BROWSER'S NAME INDEX — every served file by the name a `[[wikilink]]`
+   *  looks it up under (`@olai/format`'s `Names`), published beside the
+   *  membership because it is a fact of the same two things: the paths this
+   *  directory holds and the claims that say what each one is.
+   *
+   *  IT IS NOT OPTIONAL, which the drawings that take one see as
+   *  `Names | undefined` only because `servedDirectory()` itself may be absent:
+   *  the claims memo answers a `Claims` however bad the frame was, and the path
+   *  list answers an array before the first frame, so there is no state in
+   *  which the directory holds a membership and no index of it.
+   *
+   *  IT HOLDS THE MEMBERSHIP TOO (`names().served`, the same paths), so a
+   *  drawing asking whether a standard link's file is served asks the index
+   *  rather than carrying the set beside it.
+   *
+   *  SAME IDENTITY DISCIPLINE AS `members`: minted exactly when the path list
+   *  or the claims change, so a frame that moves no path hands back the very
+   *  index it handed back last time — which is what lets a page drawing a
+   *  hundred wikilinks look them all up in one. It is dropped with that
+   *  identity when a path arrives or leaves, and with this directory's owner
+   *  when the tab lets go of it. */
+  readonly names: Accessor<Names>
   /** The files that did not parse, by path — the sidebar marks them and a pane
    *  opened on one draws its errors instead of a tree.
    *
@@ -267,8 +289,8 @@ export interface HeadEntries {
  * out — so they are REBUILT rather than written into, and a frame that moves
  * neither hands back the pair it was already holding. `members` is this fold's
  * own working memory and is MUTATED in place, never exposed. The service
- * builds a membership snapshot from `paths` only when that array changes.
- * Copying the set per frame would
+ * builds a membership snapshot and the name index from `paths` only when that
+ * array changes. Copying the set per frame would
  * reintroduce the corpus-wide walk this fold exists to retire.
  *
  * THE THREE ARE ONE VALUE and not three, because they move by one rule: what a
@@ -434,14 +456,15 @@ const holdingNothing = (): Held => ({
  * able to disagree about which files there are. What it buys instead is charged
  * ONCE PER LINK FLAP — a sort, one array, and the `sameList` in `./served.tsx`
  * that absorbs it — against a walk of the vault on every frame. Two smaller
- * charges come with the same choice: the key set has four current copies
- * (the framework's `order`, the fold's `members`, the sorted `paths`, and the
- * service's membership snapshot). The fold keeps its working set
+ * charges come with the same choice: the key set has five current copies
+ * (the framework's `order`, the fold's `members`, the sorted `paths`, the
+ * service's membership snapshot, and the name index's own set of the same
+ * paths). The fold keeps its working set
  * because the `fold` socket hands over the frame and not the `added`/`removed`
  * it computed; and registering ANY fold on `heads` makes the framework rebuild
  * its full-set frame per snapshot, which it skips for a collection nobody folds.
- * The membership snapshot is rebuilt only when paths change; ordinary
- * content frames copy neither the sorted list nor that snapshot.
+ * The membership snapshot and the name index are rebuilt only when the paths
+ * (or the claims) change; ordinary content frames copy none of the three.
  *
  * NOT `./chat/order.ts`'S FOLD WITH A COMPARATOR SWAPPED IN, and the two were
  * held side by side before this was written. The transcript's order is a fact
@@ -528,6 +551,18 @@ export const createDirectory = (
     }),
     paths: heldPaths,
     members: createMemo(() => new Set(heldPaths())),
+    // THE NAME INDEX, OWNED HERE — the same two readings `members` is a
+    // function of, read together: the paths this directory holds and the
+    // claims that say which of them a name may find. A memo rather than a
+    // lookup remembered somewhere else, so its lifetime is this directory's:
+    // it is built when the path list or the claims move and dropped with the
+    // owner that `createDirectory` was called inside.
+    //
+    // It was a module-level `WeakMap` in `@olai/format`, keyed on the
+    // membership snapshot — one index per snapshot, kept by whoever still held
+    // the set, owned by nobody. The paths and the claims are this module's,
+    // and so is the index of them now.
+    names: createMemo(() => namesOf(claims(), heldPaths())),
     // SEEDED with the empty map, which the `equals` requires: a comparator is
     // asked about the FIRST value too, and `sameMap` reads a size off both
     // sides. The ERRORS are compared as well as the keys, and by IDENTITY —

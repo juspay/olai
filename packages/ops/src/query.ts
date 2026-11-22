@@ -29,7 +29,7 @@
  */
 
 import {
-  proseIn,
+  bodyRead,
   deadLinksIn,
   deadLinksOf,
   deadLinkFields,
@@ -116,8 +116,7 @@ import {
   type SubtreeRequest,
   type TagsAnswer,
   type TagsRequest,
-  tagText,
-  titleParts,
+  recordRead,
   UsageFailure,
 } from "@olai/format"
 
@@ -455,7 +454,7 @@ export const homes = (
  *
  * THE WHOLE READING is handed over, which is what that function takes: the set
  * it is about, the derivation over it, and the index that says which documents
- * point at a given address (`@olai/format`'s `pointing.ts`). Three fields of
+ * point at a given address (`@olai/format`'s `references/pointing.ts`). Three fields of
  * one value rather than three arguments, so this door cannot pair one
  * revision's set with another's view — which is the reason those three travel
  * together at all.
@@ -506,12 +505,13 @@ export const moving = (derived: Derived, request: MovingRequest): MovingAnswer =
  * opinion about.
  */
 export const tags = (
-  /** The DERIVATION alone, like {@link matches}: a tag is written in a record's
-   *  title or its note, and a document body's `#tags` reach search rather than
-   *  this list (`@olai/format`'s `derive.ts` files records). */
-  derived: Derived,
+  /** THE CLAIMS AND THE TABLE, which is what counts a tag now: a tag is
+   *  written in a record's title or its note and is filed in the references
+   *  table's tags part, and a document body's `#tags` reach search rather than
+   *  this list (`@olai/format`'s `vocabulary.ts` counts rows only). */
+  at: Pick<Reading, "claims" | "pointing">,
   request: TagsRequest,
-): TagsAnswer => ({ tags: completingTags(derived, request) })
+): TagsAnswer => ({ tags: completingTags(at, request) })
 
 // ── one node, and what is under it ─────────────────────────────────────
 
@@ -718,7 +718,7 @@ export const detail = (
   at: Reading,
   id: string,
   fields?: ReadonlyArray<string> | undefined,
-  served?: ReadonlySet<string>,
+  deadLinks = false,
 ): Result.Result<Detail | null, OpFailure> => {
   const derived = at.derived
   let wants: Wants | undefined
@@ -756,9 +756,8 @@ export const detail = (
     // MISSING TARGETS, READ OFF THE SAME PROSE — a write that names nothing
     // served is a finding a reader reports, and `outlines_read` answers it
     // exactly where `outlines_desc` and the subtree rows do (dead-links
-    // feature). The set is asked HERE rather than carried: `served` is the
-    // caller's copy of the directory, which is the reading's own.
-    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(located, served))),
+    // feature), against the reading's own membership (`Reading.names`).
+    ...(deadLinks ? deadLinkFields(deadLinksOf(at.names, located)) : {}),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
@@ -774,18 +773,16 @@ export const detail = (
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader
     // which one this node carries. It is the same spelling
-    // `@olai/format`'s tag index is keyed by (`Derived.taggedBy`), and
-    // deliberately not that index read forwards: this is a node's OWN title,
-    // which is what a caller about to edit the record is asking about, where
-    // the index also files what a NOTE says (`derive.ts`'s `writtenTags`). The
-    // two answers were one question until the browser's tag completion began
-    // reading the index, and the divergence is stated rather than harmonised —
-    // moving `tags` onto the index would put a note's words in a field that
-    // says "this node's title", and moving the completion off it would put the
-    // corpus walk back.
-    tags: titleParts(node.title).flatMap((part) =>
-      part.kind === "tag" ? [tagText(part)] : []
-    ),
+    // `@olai/format`'s references table keys its tags part by (`references/pointing.ts`),
+    // and deliberately not that table read forwards: this is a node's OWN
+    // title, which is what a caller about to edit the record is asking about,
+    // where the table also files what a NOTE says (`derive.ts`'s
+    // `writtenTags`). The two answers were one question until the browser's tag
+    // completion began reading the index, and the divergence is stated rather
+    // than harmonised — moving `tags` onto the table would put a note's words
+    // in a field that says "this node's title", and moving the completion off
+    // it would put the corpus walk back.
+    tags: recordRead(node).title.tags,
     ...(progress === undefined ? {} : { progress }),
     ...(took === undefined ? {} : { took }),
     // SHAPED, or today's rows, in the same sibling order either way: `fields`
@@ -1087,13 +1084,12 @@ export const subtree = (
     }
   }
 
-  const served = new Set(at.set.documents.map(one => one.path))
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
-      ...deadLinkFields(deadLinksOf(located, served)),
+      ...deadLinkFields(deadLinksOf(at.names, located)),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
@@ -1118,7 +1114,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
-      ...deadLinkFields(deadLinksOf(located, served)),
+      ...deadLinkFields(deadLinksOf(at.names, located)),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
@@ -1324,10 +1320,10 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
  * file, then read it.
  */
 export const document = (
-  claims: Claims,
-  set: OutlineSet,
+  at: Reading,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
+  const { claims, set } = at
   const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
@@ -1336,5 +1332,13 @@ export const document = (
   }
   const broken = brokenIn(set, file)
   if (broken !== undefined) return Result.fail(notLoaded(claims, file, broken))
-  return Result.succeed({ file, text: entry.body, ...deadLinkFields(deadLinksIn(file, proseIn(entry.body), new Set(set.documents.map(one => one.path)))) })
+  // WHO REFERS TO IT, as the document's page draws it under **Referenced by**
+  // — standard links and wikilinks alike — omitted when nothing does.
+  const referencedBy = referencesOf(at, { kind: "document", path: entry.path })
+  return Result.succeed({
+    file,
+    text: entry.body,
+    ...deadLinkFields(deadLinksIn(at.names, file, [bodyRead(entry)])),
+    ...(referencedBy.length === 0 ? {} : { referencedBy }),
+  })
 }

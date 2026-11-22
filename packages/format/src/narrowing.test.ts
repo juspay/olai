@@ -51,7 +51,8 @@ import {
   showsPutAway,
 } from "./narrowing.ts"
 import { type PageRequest, type Shown, shownOf } from "./page.ts"
-import { pointingOf } from "./pointing.ts"
+import { pointingOf } from "./references/pointing.ts"
+import { namesOf } from "./links/names.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
 
@@ -97,13 +98,14 @@ const READABLE: ReadonlyArray<BrokenFile> = []
 
 /** The {@link Reading} these cases are read through — the derivation above, the
  *  faces standing in for the served files, and the links index those faces
- *  amount to (`./pointing.ts`). The set is a stand-in and is cast as one: what
+ *  amount to (`./references/pointing.ts`). The set is a stand-in and is cast as one: what
  *  a page reads off it is the two arrays. */
 const READING: Reading = {
   claims: TEST_CLAIMS,
   set: { documents: FACES, broken: READABLE } as unknown as OutlineSet,
   derived: SET,
   pointing: pointingOf(TEST_CLAIMS, FACES as unknown as ReadonlyArray<Document>),
+  names: namesOf(TEST_CLAIMS, FACES.map((face) => face.path)),
 }
 
 const at = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null)! })

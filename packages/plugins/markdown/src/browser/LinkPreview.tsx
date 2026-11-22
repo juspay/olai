@@ -1,6 +1,6 @@
 import { createMemo, Show } from "solid-js"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
-import { proseIn } from "@olai/format"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import type { Route } from "olai-plugin-navigation/contract"
 import { markdownReady } from "@olai/markdown-ui/chunk.ts"
 import { outlineOf, landingId } from "@olai/markdown-ui/render.ts"
@@ -27,7 +27,7 @@ export function MarkdownLinkPreview(props: { readonly route: Route }) {
     <div class="text-xs text-muted">{file}</div>
     <Show when={!missing()} fallback={<><strong>Nothing at {file}{address?.kind === "heading" ? `#${address.slug}` : ""}</strong><p class="text-sm text-muted">The document or heading is missing.</p></>}>
       <strong>{section()?.title ?? file}</strong>
-      <Markdown claims={servedDirectory()?.claims()} members={servedDirectory()?.members()} from={file}
+      <Markdown claims={servedDirectory()?.claims()} names={servedDirectory()?.names()} from={file}
         source={text()} excerpt={{ after: section()?.heading, blocks: 3 }}
         class="olai-md-compact max-h-56 overflow-hidden" />
       <Show when={!entry()}><p class="text-xs text-muted">Reading…</p></Show>

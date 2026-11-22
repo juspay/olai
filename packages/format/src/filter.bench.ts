@@ -45,6 +45,7 @@ import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
 import { median, timed } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
+import { readRecord } from "./read.ts"
 
 const NODES = 20_000
 const PER_FILE = 200
@@ -61,6 +62,9 @@ const NOW = `${TODAY}T11:00:00-04:00`
 /** Somebody typing one word into the box, one character at a time. */
 const TYPED = ["k", "ki", "kit", "kitc", "kitch", "kitche", "kitchen"]
 
+/** The corpus, READ as a decode reads it (`./read.ts`): the fold asks what a
+ *  record's title says through the reading its file's decode kept, so a
+ *  hand-built corpus reads its own records or no rule can ask about them. */
 const vault = (): ReadonlyArray<Located> =>
   Array.from({ length: NODES }, (_, at) => ({
     file: `vault/${Math.floor(at / PER_FILE)}.olai`,
@@ -84,7 +88,10 @@ const vault = (): ReadonlyArray<Located> =>
         at % 10
       }:02:00-04:00`,
     },
-  })) as ReadonlyArray<Located>
+  })).map((located) => {
+    readRecord(located.node)
+    return located
+  }) as ReadonlyArray<Located>
 
 const typedOver = (set: Derived): void => {
   for (const query of TYPED) matching(set, parseFilter(query, TODAY))

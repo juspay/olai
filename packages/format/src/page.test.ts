@@ -29,14 +29,16 @@ import { Schema } from "effect"
 
 import { addressOf } from "./address.ts"
 import { agendaOf } from "./agenda.ts"
-import { referencesOf } from "./backlinks.ts"
+import { referencesOf } from "./references/referring.ts"
 import { dailyNotesOn, datedOn } from "./dates.ts"
 import { derive, type Derived, nodesOf, rowsOf } from "./derive.ts"
 import type { Document, Face } from "./document.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
-import type { Located } from "./node.ts"
+import { isMirror, type Located, type RegularNode } from "./node.ts"
+import { readRecord } from "./read.ts"
 import { DocumentPageRequest, FiledPageReading, FiledPageRequest, PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
-import { pointingOf } from "./pointing.ts"
+import { pointingOf } from "./references/pointing.ts"
+import { namesOf } from "./links/names.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
 import { zoom } from "./zoom.ts"
@@ -82,7 +84,7 @@ const READABLE: ReadonlyArray<BrokenFile> = []
 /**
  * The three-field {@link Reading} these cases are read through — a derivation,
  * the faces standing in for the served files, and the links index those faces
- * amount to (`./pointing.ts`).
+ * amount to (`./references/pointing.ts`).
  *
  * The SET is a stand-in and is cast as one: what a page reads off it is the two
  * arrays, and the fixtures above write faces rather than whole documents
@@ -101,6 +103,7 @@ const readingAt = (
   set: { documents: faces, broken } as unknown as OutlineSet,
   derived,
   pointing: pointingOf(TEST_CLAIMS, faces as unknown as ReadonlyArray<Document>),
+  names: namesOf(TEST_CLAIMS, faces.map((face) => face.path)),
 })
 
 const readAt = (
@@ -482,11 +485,15 @@ test("two readings of one set are the same reading, and a moved set is not", () 
   expect(samePageReading(before, pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))))
     .toBe(true)
   const moved = derive(TEST_CLAIMS,
-    RECORDS.map((one) =>
-      one.node.id === "kitchen"
-        ? { ...one, node: { ...one.node, title: "kitchen, redone" } }
-        : one
-    ) as ReadonlyArray<Located>,
+    RECORDS.map((one) => {
+      if (one.node.id !== "kitchen" || isMirror(one.node)) return one
+      // A NEW TEXT IS A NEW READING: the slot is not enumerable, so a spread
+      // carries none, and what the rules ask of this record is what somebody
+      // reads for it (`./kept.ts`).
+      const node: RegularNode = { ...one.node, title: "kitchen, redone" }
+      readRecord(node)
+      return { ...one, node }
+    }),
   )
   expect(samePageReading(before, pageOf(readingAt(moved, facesOf(FILES)), at("house.olai"))))
     .toBe(false)

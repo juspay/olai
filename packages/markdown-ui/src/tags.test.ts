@@ -117,7 +117,7 @@ test("a phrase spanning two rendered pieces lights both", () => {
     `${hit("see ")}<a href="https://example.com" target="_blank" ` +
       `rel="noopener noreferrer">${hit("https")}://example.com</a> first`,
   )
-  // Tag in a later piece (`from !== 0`). Seeding the titleParts cursor at 0
+  // Tag in a later piece (`from !== 0`). Seeding the tagParts cursor at 0
   // would mark haystack[0, …) instead of `#home`.
   expect(lit("**urgent** #home", "urgent #home")).toBe(
     `<strong>${hit("urgent")}</strong>${hit(" ")}` +
@@ -213,4 +213,15 @@ test("without a query these titles are written exactly as they were", () => {
     expect(lit(title, "zzzz"), title).toBe(lit(title))
     expect(lit(title), title).not.toContain("olai-hit")
   }
+})
+
+// A WIKILINK'S HEADING IS NOT A TAG: `[[kitchen-sink#Tables]]` names a heading
+// of another note, and a pill drawn on `#Tables` would also be a tag the index
+// never filed — the two readings parting company on one title.
+test("the heading half of a wikilink is never drawn as a tag", () => {
+  const html = lit("check [[kitchen-sink#Tables]] and [[kitchen-sink#Lists|#Lists]] #home")
+  expect(html.match(/data-testid="tag"/g)).toHaveLength(1)
+  expect(html).toContain('data-tag="#home"')
+  expect(html).not.toContain('data-tag="#Tables"')
+  expect(html).not.toContain('data-tag="#Lists"')
 })

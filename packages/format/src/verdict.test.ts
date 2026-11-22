@@ -30,6 +30,7 @@ import { Result } from "effect"
 import { type Document, outlineDocument } from "./document.ts"
 import { type BrokenFile, type ErrorCode, implicatedBy, type OutlineError } from "./errors.ts"
 import { findingsIn, seeded, setOf, validatedOf } from "./fixtures.testlib.ts"
+import { isNamed } from "./references/pointing.ts"
 import { brokenIn, documentAt, nodesIn, stopping } from "./set.ts"
 import { validate } from "./validate.ts"
 import {
@@ -723,7 +724,7 @@ test("a set degrades per file, over generated broken sets", () => {
       // and nothing resolves the id.
       expect([round, mixed.success.derived.byId.has("nobody-declares-this")])
         .toEqual([round, false])
-      expect([round, mixed.success.derived.namedBy.has("nobody-declares-this")])
+      expect([round, isNamed(mixed.success.pointing, "nobody-declares-this")])
         .toEqual([round, true])
     }
   }

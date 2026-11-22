@@ -22,13 +22,13 @@
  * SAME corpus `./patch.bench.ts` runs on, so this leg's numbers and the
  * patcher's are about one directory):
  *
- *   - `index` — {@link vocabularyOf}, which reads `Derived.taggedBy`: the keys of a
+ *   - `index` — {@link vocabularyOf}, which reads the references table's `tags` part: the keys of a
  *     map and the length of each entry, with the trash taken off;
  *   - `walk` — the SAME ANSWER derived from the corpus instead: every node of
- *     the set, `titleParts` over its title and its note, one vote per record.
+ *     the set, `tagParts` over its title and its note, one vote per record.
  *     This is the honest A/B, because two arms that answer different lists are
  *     two numbers nobody may divide;
- *   - `titles` — the walk AS IT LITERALLY STOOD before `taggedBy`: titles
+ *   - `titles` — the walk AS IT LITERALLY STOOD before the tag index: titles
  *     only, a vote per tag PART. It is here because `walk` is not what the file
  *     said, and a ratio quoted against a reconstruction that does more work
  *     than the code it stands for is a flattering ratio. It answers a
@@ -51,13 +51,8 @@
  * what a server is left holding when one file changes.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import {
-  derive,
-  type Derived,
-  mayHoldTag,
-  tagText,
-  titleParts,
-} from "./derive.ts"
+import { mayHoldTag, tagParts, tagText } from "@olai/prose/tags.ts"
+import { derive, type Derived } from "./derive.ts"
 import {
   median,
   recordsOf,
@@ -68,6 +63,7 @@ import {
   vaultOf,
 } from "./fixtures.testlib.ts"
 import { isLeftoverArchive, isMirror, isTrashed } from "./node.ts"
+import { type Pointing, pointingOf } from "./references/pointing.ts"
 import { type TagUse, vocabularyOf } from "./vocabulary.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -79,7 +75,12 @@ const ROUNDS = Number(process.env["OLAI_BENCH_ROUNDS"] ?? 20)
  *  here: path order is a promise of the format's own, and a bench that spells
  *  it again is a bench that can come to measure a corpus in an order no app
  *  holds. */
-const view = derive(TEST_CLAIMS, recordsOf(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS })))))
+const corpus = Object.fromEntries(vaultOf({ files: FILES, records: RECORDS }))
+const set = setOf(corpus)
+const view = derive(TEST_CLAIMS, recordsOf(set))
+/** …and the references table over the same vault, which is what the index arm
+ *  reads now (`./vocabulary.ts` counts the `tag` way of its tags part). */
+const table = pointingOf(TEST_CLAIMS, set.documents)
 
 /** One row of the vocabulary, built the way both walks below build one —
  *  they differ in what they walk, never in what they answer with. */
@@ -114,9 +115,9 @@ const walked = (derived: Derived): ReadonlyArray<TagUse> => {
     const voted = new Set<string>()
     for (const text of [located.node.title, located.node.desc]) {
       // The format's own cheap negative first, exactly as the walk had it:
-      // `titleParts` runs a global regex and most prose holds no sigil at all.
+      // `tagParts` runs a global regex and most prose holds no sigil at all.
       if (text === undefined || !mayHoldTag(text)) continue
-      for (const part of titleParts(text)) {
+      for (const part of tagParts(text)) {
         if (part.kind !== "tag") continue
         const key = tagText(part)
         if (voted.has(key)) continue
@@ -133,7 +134,7 @@ const walked = (derived: Derived): ReadonlyArray<TagUse> => {
 }
 
 /**
- * ...and the walk as the browser ACTUALLY held it before `taggedBy`: titles only,
+ * ...and the walk as the browser ACTUALLY held it before the tag index: titles only,
  * a vote per tag part rather than per record.
  *
  * It answers a smaller list than either arm above — a tag written only in a
@@ -150,7 +151,7 @@ const titlesOnly = (derived: Derived): ReadonlyArray<TagUse> => {
       isLeftoverArchive(located.file)
     ) continue
     if (!mayHoldTag(located.node.title)) continue
-    for (const part of titleParts(located.node.title)) {
+    for (const part of tagParts(located.node.title)) {
       if (part.kind !== "tag") continue
       const key = tagText(part)
       const before = counts.get(key)
@@ -163,11 +164,20 @@ const titlesOnly = (derived: Derived): ReadonlyArray<TagUse> => {
   return ranked(counts)
 }
 
-/** A view the arm under test has never been handed: the same indexes under a
- *  new identity, which is what `vocabularyOf`'s per-derivation memo keys on. */
+/** A view the walking arms have never been handed, and a TABLE the index arm
+ *  has never been handed: the same maps under a new identity, which is what
+ *  `vocabularyOf`'s per-table memo keys on and what a server is left holding
+ *  when one file changes. */
 const fresh = (): Derived => ({ ...view })
 
-const arms = { index: vocabularyOf, walk: walked, titles: titlesOnly } as const
+const freshAt = (): { readonly claims: typeof TEST_CLAIMS; readonly pointing: Pointing } =>
+  ({ claims: TEST_CLAIMS, pointing: { ...table } })
+
+const arms = {
+  index: () => vocabularyOf(freshAt()),
+  walk: () => walked(fresh()),
+  titles: () => titlesOnly(fresh()),
+} as const
 
 // THE SAME ANSWER for the two that must have one, asserted before anything is
 // timed — see the header. A benchmark whose fast arm answers a shorter list is
@@ -175,8 +185,8 @@ const arms = { index: vocabularyOf, walk: walked, titles: titlesOnly } as const
 const spelling = (tags: ReadonlyArray<TagUse>): string =>
   tags.map((tag) => `${tagText({ sigil: tag.sigil, tag: tag.name })} ${tag.count}`)
     .join("\n")
-const found = spelling(arms.index(fresh()))
-const walkFound = spelling(arms.walk(fresh()))
+const found = spelling(arms.index())
+const walkFound = spelling(arms.walk())
 if (found !== walkFound) {
   throw new Error(
     "the index and the equivalent walk disagree about the set's tags, so neither" +
@@ -184,13 +194,13 @@ if (found !== walkFound) {
       `\n  walk:  ${walkFound.split("\n").length}`,
   )
 }
-const tags = view.taggedBy.size
+const tags = table.tags.size
 if (tags < 2) throw new Error(`the vault holds ${tags} tags — this measures nothing`)
 /** What the arm outside the guard answers, which must be SMALLER — a
  *  title-only reading of a corpus whose notes hold tags cannot be the whole
  *  vocabulary, and if it ever is, this vault stopped saying what it is for
  *  (`@olai/format`'s `vault.test.ts` is the fence for that). */
-const titlesFound = arms.titles(fresh()).length
+const titlesFound = arms.titles().length
 if (titlesFound >= tags) {
   throw new Error(
     `the title-only arm found ${titlesFound} of ${tags} tags — it is supposed to` +
@@ -202,13 +212,12 @@ const run = (name: keyof typeof arms): ReadonlyArray<number> => {
   const arm = arms[name]
   // Warmed, then measured, for `patch.bench.ts`'s reason: one of three arms has
   // to go first, and going first means paying for a JIT the others find warm.
-  for (let round = 0; round < 3; round++) arm(fresh())
-  return Array.from({ length: ROUNDS }, () => {
-    const derived = fresh()
-    return timed(() => {
-      arm(derived)
+  for (let round = 0; round < 3; round++) arm()
+  return Array.from({ length: ROUNDS }, () =>
+    timed(() => {
+      arm()
     })
-  })
+  )
 }
 
 console.log(

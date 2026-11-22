@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
-import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TEST_CLAIMS } from "@olai/format/testlib/claims"
 import type { Claims } from "@olai/format"
 import { holdFiles } from "./pages.ts"
 import { createRouter } from "./router.tsx"

@@ -39,6 +39,7 @@
  * a write already accepted is an emission and must finish, not be rolled back.
  */
 import { codecFor } from "@olai/ops"
+import { emitter } from "@olai/log"
 import { definePlugin } from "@olai/plugin-api"
 import { Directory, Kinds, Offers, Ops, opsEvents, Vault, VaultSettings, vaultEvents } from "@olai/plugin-api/services"
 import { make as makeOps, type VaultSettings as Settings } from "@olai/ops"
@@ -47,6 +48,7 @@ import { Deferred, Effect, Stream } from "effect"
 import { opsDoor } from "./ops-door.ts"
 import { openDirectory } from "./directory.ts"
 import { Config } from "./format.ts"
+import { heardBy } from "./heard.ts"
 
 import { name } from "./index.ts"
 export { name } from "./index.ts"
@@ -60,7 +62,8 @@ export default definePlugin({
     const settings = (yield* VaultSettings) as Settings
     const offers = yield* Offers
     yield* offers.own("outline-row", () => config.format)
-    const directory = yield* openDirectory(settings.root, codecFor(settings.kinds, settings.claims), settings.runtime)
+    const say = yield* emitter
+    const directory = yield* openDirectory(settings.root, codecFor(settings.kinds, settings.claims, heardBy(say)), settings.runtime)
     const refusals = opsEvents()
     const gate = yield* Effect.acquireRelease(
       Effect.sync(() => makeOps({

@@ -9,10 +9,11 @@
  * document would pass a test written the other way.
  *
  * Which is also why the fragment is checked against the HEADING rather than
- * against a string: the ids are minted per rendered block (`markdown/rewrite.ts`
- * namespaces them, so two notes' `## Shape` cannot answer for each other), so
- * the only stable thing to say about `#md-1quy2sn-footnotes` is that the
- * element at it is the heading the reader clicked.
+ * against a string: the ids are minted per rendered block
+ * (`@olai/markdown-ui`'s `rewrite/ids.ts` namespaces them, so two notes'
+ * `## Shape` cannot answer for each other), so the only stable thing to say
+ * about `#md-1quy2sn-footnotes` is that the element at it is the heading the
+ * reader clicked.
  *
  * A HEADING'S OWN ANCHOR is spelled one way throughout: a link inside the
  * heading whose `href` is `#` + that heading's id. By SHAPE, because the rule

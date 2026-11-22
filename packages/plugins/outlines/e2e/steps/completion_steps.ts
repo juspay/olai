@@ -195,3 +195,14 @@ When(
  *  rows either, so this answers `[]` without a separate look. */
 const labels = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
   (await rows(world).allInnerTexts()).map((text) => oneLine(text.split("\n")[0] ?? ""));
+
+/** What a screen reader is told the open list is: a list box, by its name —
+ *  the one every list in the row editor is announced as. */
+Then(
+  "the completions are announced as a list named {string}",
+  async function (this: OlaiWorld, name: string) {
+    await panel(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await panel(this).getAttribute("role"), "listbox");
+    assert.strictEqual(await panel(this).getAttribute("aria-label"), name);
+  },
+);

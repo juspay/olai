@@ -21,13 +21,14 @@
  *
  * The stages, and why each is where it is:
  *
- *   0. **as read** — a link destination with a space in it is closed in `<…>`
- *      before anything parses the text ({@link asRead}). One step, at the one
- *      door, so a rendering and the text a title accounts for cannot be two
- *      readings of two different strings.
- *   1. **parse**, with GFM — which is what brings footnotes (and tables, task
- *      lists and strikethrough) into the same dialect an agent and a reader
- *      already write.
+ *   0. **as written** — nothing rewrites the text before the parse. A
+ *      wikilink and an address holding a space are constructs OF the parser
+ *      (`@olai/prose`'s `obsidian.ts`), so a `[[…]]` in a code span is text by
+ *      the parser's own rule.
+ *   1. **parse**, with GFM — `@olai/prose`'s `parse.ts`, the one parse this
+ *      app makes. GFM is what brings footnotes (and tables, task lists and
+ *      strikethrough) into the same dialect an agent and a reader already
+ *      write.
  *
  *      **AND WITHOUT FRONTMATTER, deliberately.** A `---` block at the top of a
  *      `.md` is that FILE's own record and is kept off its page — but it is
@@ -37,8 +38,8 @@
  *      `remark-frontmatter` in this pipeline was tried and is wrong for the
  *      reason the header above gives: this is ONE pipeline for every piece of
  *      markdown the app draws, and a plugin here changes the dialect for all
- *      four subjects. A NOTE is not a file — `@olai/format`'s `tagsIn` and
- *      `linksIn` read a leading `---` in one as the thematic break markdown
+ *      four subjects. A NOTE is not a file — `@olai/prose`'s `read` reads a
+ *      leading `---` in one as the thematic break markdown
  *      says it is — so hiding it here would have made a note's own words
  *      vanish off the screen while the index went on reading them. Two
  *      readings of one block, which is the thing that work exists to end.
@@ -73,23 +74,26 @@
  * pipeline rebuilt per note would pay for that on every row of every frame.
  */
 
-import { bracketSpacedLinks } from "@olai/format"
 import nix from "highlight.js/lib/languages/nix"
 import { common } from "lowlight"
+import type { Options as RemarkRehype } from "remark-rehype"
 import { toString } from "mdast-util-to-string"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize from "rehype-sanitize"
 import rehypeStringify from "rehype-stringify"
-import remarkGfm from "remark-gfm"
-import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
-import type { Root } from "hast"
+import type { WikilinkNode } from "@olai/prose/obsidian.ts"
+import { guarded, parse, type Refusal } from "@olai/prose/parse.ts"
+import { type Read, readTree } from "@olai/prose/read.ts"
+import type { Element, Root } from "hast"
+import type { Nodes as MdastNodes, Root as MdastRoot } from "mdast"
 
 import { AUTOLINK } from "./anchors.ts"
 import { SANITISE } from "./sanitise.ts"
-import { rehypeSlugs } from "./slugs.ts"
+import { TESTID } from "./testids.ts"
+import { sizeOf } from "./wikilinks.ts"
 
 /**
  * The grammars a fence may name: `lowlight`'s common set, plus Nix.
@@ -107,11 +111,42 @@ import { rehypeSlugs } from "./slugs.ts"
  */
 const languages = { ...common, nix }
 
-const pipeline = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkRehype, { clobberPrefix: "" })
-  .use(rehypeSlugs)
+/** One `mdast-util-to-hast` handler, as `remark-rehype` takes it. */
+type Handler = NonNullable<NonNullable<RemarkRehype["handlers"]>["wikilink"]>
+
+/**
+ * A WIKILINK as the page first draws it: an `<a>` holding the words it shows,
+ * and — on the element's `data`, which no attribute can spell and the
+ * sanitiser carries through untouched — the name it looks up and, for an
+ * embed, the size it asks for. Which page it opens depends on the directory,
+ * so `./wikilinks.ts` draws that after the sanitiser, from this, in the
+ * rewrite's walk and again in the page as files arrive. Only the parser's node
+ * makes one, so nothing a note writes can.
+ */
+const wikilinkElement: Handler = (state, wikilink): Element => {
+  const node = wikilink as WikilinkNode
+  const size = node.embed ? sizeOf(node.alias) : undefined
+  const element: Element = {
+    type: "element",
+    tagName: "a",
+    properties: {},
+    children: [{ type: "text", value: node.children[0].value }],
+    data: {
+      wikilink: {
+        link: { target: node.target, fragments: node.fragments },
+        embed: node.embed,
+        ...(size === undefined ? {} : { size }),
+      },
+    },
+  }
+  state.patch(node, element)
+  return element
+}
+
+/** Everything after the parse: the tree `@olai/prose` made, turned into HTML,
+ *  anchored, sanitised and highlighted. */
+const rendering = unified()
+  .use(remarkRehype, { clobberPrefix: "", handlers: { wikilink: wikilinkElement } })
   .use(rehypeAutolinkHeadings, AUTOLINK)
   .use(rehypeSanitize, SANITISE)
   .use(rehypeHighlight, { detect: false, languages })
@@ -155,24 +190,53 @@ export interface Pipeline {
 }
 
 /**
- * What the parser is actually handed, which is not quite what a person wrote:
- * a link destination holding a space is closed in `<…>` first (`@olai/format`,
- * which owns that rule because the index reads the same links). `[a](my
- * file.md)` names a file a vault really has, and markdown alone would read the
- * whole thing as words.
- *
- * HERE rather than at the callers, and that is a fix rather than a tidy:
- * ./render.ts spelled it at every door it opened — a rendering, a title's
- * tree, and now the text a title accounts for — which is one dialect decision
- * held in three places by memory. The third is the one that would have gone
- * wrong: a loss check reading a different string from the render's would call
- * every spaced destination a lost link. Every parse below goes through this,
- * so two readings of one source cannot be readings of two strings.
+ * The page's tree of a source: the guarded parse (`@olai/prose`'s `parse.ts`),
+ * each heading given the id `read` made for it — the one slug the face lists
+ * too, numbered once — and the rest of the pipeline run over it. A text the
+ * parser could not read is drawn as the words it is, with one sentence saying
+ * why: the index read it as plain words too.
  */
-const asRead = (source: string): string => bracketSpacedLinks(source)
+export const treeOf = (source: string): Root => {
+  const parsed = guarded(source)
+  if (parsed.refused !== undefined) return refusedTree(source, parsed.refused)
+  headingIds(parsed.tree, readTree(parsed.tree))
+  return rendering.runSync(parsed.tree) as Root
+}
 
-export const treeOf = (source: string): Root =>
-  pipeline.runSync(pipeline.parse(asRead(source))) as Root
+/** Each heading of a tree, in document order, given the slug its reading
+ *  holds — the order `read` walks, so the two lists are one list. */
+const headingIds = (tree: MdastRoot, said: Read): void => {
+  let at = 0
+  const visit = (node: MdastNodes): void => {
+    if (node.type === "heading") {
+      const slug = said.headings[at++]?.slug
+      if (slug !== null && slug !== undefined) node.data = { ...node.data, hProperties: { ...node.data?.hProperties, id: slug } }
+    }
+    if ("children" in node) for (const child of node.children) visit(child)
+  }
+  visit(tree)
+}
+
+/** A refused text as the page draws it: its words, and the sentence. */
+const refusedTree = (source: string, refusal: Refusal): Root => ({
+  type: "root",
+  children: [
+    { type: "element", tagName: "p", properties: { className: ["olai-refused"] }, children: [{ type: "text", value: source }] },
+    {
+      type: "element",
+      tagName: "p",
+      properties: { className: ["text-xs", "text-muted"], dataTestid: TESTID.refusedText },
+      children: [{ type: "text", value: refusedSaying(refusal) }],
+    },
+  ],
+})
+
+/** What the page says under a text it could not format, one sentence for
+ *  each way that happens. */
+export const refusedSaying = (refusal: Refusal): string =>
+  refusal.kind === "depth"
+    ? "olai did not format this text: it nests deeper than olai's Markdown reader can follow."
+    : `olai could not format this text: its Markdown reader failed on it (${String(refusal.cause)}).`
 
 /**
  * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is
@@ -182,12 +246,14 @@ export const treeOf = (source: string): Root =>
  * itself, so the alt would otherwise go quietly). It is remark's own utility,
  * already in the lockfile under `mdast-util-from-markdown` (which is how
  * `remark-parse` reads a document at all); the walk was written out here once
- * and was this function line for line.
+ * and was this function line for line. A refused text accounts for itself.
  */
-export const sourceTextOf = (source: string): string =>
-  toString(pipeline.parse(asRead(source)))
+export const sourceTextOf = (source: string): string => {
+  const parsed = guarded(source)
+  return parsed.refused === undefined ? toString(parsed.tree) : source
+}
 
-export const htmlOf = (tree: Root): string => pipeline.stringify(tree)
+export const htmlOf = (tree: Root): string => rendering.stringify(tree)
 
 /**
  * A node of the markdown tree BEFORE anything turns it into HTML — paragraphs,
@@ -209,8 +275,8 @@ export interface MarkdownNode {
 }
 
 /**
- * The markdown tree of a source, in the dialect this app renders — GFM, and
- * the same `asRead` pass every other parse here goes through.
+ * The markdown tree of a source, in the dialect this app renders — GFM and
+ * Obsidian's additions, the one parse every other reader here asks.
  *
  * It exists for `@olai/tests`' documentation lint, which measures the blocks,
  * cells and sentences of every page under `docs/`. Those pages are read in a
@@ -219,4 +285,4 @@ export interface MarkdownNode {
  * nobody reads.
  */
 export const mdastOf = (source: string): MarkdownNode =>
-  pipeline.parse(asRead(source)) as MarkdownNode
+  parse(source) as MarkdownNode

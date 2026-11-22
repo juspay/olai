@@ -40,7 +40,8 @@ import { expect, test, spyOn } from "bun:test"
 import { type Accessor, createRoot, createSignal, untrack } from "solid-js"
 
 import type { FileKindsState } from "../file-surface.ts"
-import type { BrokenFile } from "@olai/format"
+import { wikilinkPath, type BrokenFile } from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib/claims"
 import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFoldOptions } from "@kolu/surface/solid"
 import type { CollectionDelta } from "@kolu/surface/define"
@@ -154,6 +155,7 @@ const live = () => {
       standing: directory.standing,
       paths: directory.paths,
       members: directory.members,
+      names: directory.names,
       broken: directory.broken,
       head: directory.head,
       /** THE FULL-SET FRAME THE FRAMEWORK WOULD REBUILD — the store's own
@@ -624,5 +626,36 @@ test("membership snapshots react independently and never mutate older readings",
   directory.delta([], ["attic.olai"])
   expect(directory.members().has("attic.olai")).toBe(false)
   expect(added.has("attic.olai")).toBe(true)
+  directory.stop()
+})
+
+/** The test table's claim for a Markdown document — the one kind a bare
+ *  `[[name]]` is allowed to find, so a case about names needs one published.
+ *  Taken from the shared table rather than spelled here: a suffix is the
+ *  markdown row's to spell (`packages/tests/kinds.test.ts`). */
+const DOCUMENTS = [...TEST_CLAIMS.byKind.values()].find((claim) => claim.kind === "markdown")!
+
+test("the name index holds still while no path moves, and finds a file that just arrived", () => {
+  const directory = live()
+  directory.publishClaims({ claims: [DOCUMENTS], outlineRow: "configured" })
+  directory.snapshot([["notes/finishes.md", directory.wrote(1)]])
+  const before = directory.names()
+  expect(before.served.has("notes/finishes.md")).toBe(true)
+  // A FRAME THAT MOVES A REVISION AND NO PATH hands back the very index it
+  // handed back last time — which is what lets a page drawing a hundred
+  // wikilinks look them all up against one object.
+  directory.delta([["notes/finishes.md", directory.wrote(2)]])
+  expect(directory.names()).toBe(before)
+  // ...and a file ARRIVING is a new one, which is what re-aims a link that
+  // found nothing a moment ago.
+  directory.delta([["garden/beds.md", directory.wrote(1)]])
+  const after = directory.names()
+  expect(after).not.toBe(before)
+  expect(wikilinkPath(before, directory.claims(), "notes/finishes.md", "beds")).toBeNull()
+  expect(wikilinkPath(after, directory.claims(), "notes/finishes.md", "beds")).toBe("garden/beds.md")
+  // ...and a file LEAVING is a new one again, which kills the link.
+  directory.delta([], ["garden/beds.md"])
+  expect(directory.names()).not.toBe(after)
+  expect(wikilinkPath(directory.names(), directory.claims(), "notes/finishes.md", "beds")).toBeNull()
   directory.stop()
 })

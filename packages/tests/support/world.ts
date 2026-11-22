@@ -445,6 +445,7 @@ const REFERRING_ROWS = makeReferrerWays({
   see: KIND_OUTLINES.backlinkSeeRefs,
   mention: KIND_OUTLINES.backlinkMentionRefs,
   link: KIND_OUTLINES.backlinkLinkRefs,
+  property: KIND_OUTLINES.backlinkPropertyRefs,
 })
 export const backlinkRow = (label: string): string => {
   const drawn = REFERRING_ROWS.find((one) => one.label === label);

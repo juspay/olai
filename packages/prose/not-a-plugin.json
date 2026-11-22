@@ -1,0 +1,12 @@
+{
+  "//": "How a text is read: tags, slugs, the frontmatter edge, the plain-title test, the parse and its reading.",
+  "//markdown": "obsidian.ts and bounded.ts extend the Markdown parser: micromark's and mdast's own names for it (`markdownLineEnding`, `markdownSpace`, `FromMarkdownExtension`) and remark's (`micromarkExtensions`, `fromMarkdownExtensions`), not the markdown row.",
+  "markdown": {
+    "src/bounded.ts": 4,
+    "src/obsidian.ts": 13
+  },
+  "//image": "read.ts reads the parser's `image` and `imageReference` nodes, Markdown's own words for a picture, not the image row.",
+  "image": {
+    "src/read.ts": 2
+  }
+}

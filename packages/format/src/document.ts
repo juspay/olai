@@ -58,13 +58,14 @@
  * ## The face is DERIVED, and this is where
  *
  * Nothing in the format changed on disk. A `.md` still has no record to write
- * a title on, so its title is its first line; its links are where its `[…](…)`
- * land; its tags are the `#topic` and `@person` in its prose, read by the same
- * walk that reads a note's; its elements are the slugs of its headings. Those
- * were four helpers scattered across two packages, called by whoever
- * remembered them ({@link ./documents.ts}'s `firstLine` and the whole of the
- * browser's link rewriting were both, and the browser had a `preview.ts` of
- * its own). They are FIELDS now, which is the whole difference: a consumer
+ * a title on, so its title is the first line its reading reports
+ * (`@olai/prose`'s `read.ts`); its links are where its `[…](…)` land, read by
+ * {@link ./references/written.ts}'s `readAddresses`; its tags are the `#topic`
+ * and `@person` in its prose, read by the same walk that reads a note's; its
+ * elements are the slugs of its headings. Those were four derivations
+ * scattered across two packages, called by whoever remembered them (the whole
+ * of the browser's link rewriting was one, and the browser had a `preview.ts`
+ * of its own). They are FIELDS now, which is the whole difference: a consumer
  * cannot forget to call a field.
  *
  * **...and one field that is not derived at all.** `props` is a `.md`'s YAML
@@ -92,14 +93,24 @@
 
 import { Schema } from "effect"
 
-import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./address.ts"
+import type { Read } from "@olai/prose/read.ts"
+import { Slug } from "@olai/prose/slug.ts"
+import { Tag } from "@olai/prose/tags.ts"
+import { Address, addressOf, DocumentPath, printAddress } from "./address.ts"
 import { Custom } from "./custom.ts"
-import { tagsIn, writtenTags } from "./derive.ts"
-import { frontmatterIn, proseIn } from "./frontmatter.ts"
-import { bytesOf, firstLine, linksIn, recordLinks } from "./documents.ts"
+import { writtenTags } from "./derive.ts"
+import { frontmatterIn } from "./frontmatter.ts"
+import { readAddresses, recordLinks, wikilinkNames } from "./references/written.ts"
+import { keepBodyRead, recordRead } from "./kept.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
-import { slugsIn } from "./slug.ts"
+
+/** A wikilink as the name it looks up (`@olai/prose`'s `wikilink.ts`), on the
+ *  wire: the target and its `#` parts, never joined into one string. */
+export const WikilinkName = Schema.Struct({
+  target: Schema.String,
+  fragments: Schema.Array(Schema.String),
+})
 
 /**
  * WHAT EVERY DOCUMENT HAS, whichever kind it is — the fields a feature is
@@ -128,11 +139,17 @@ export const Face = Schema.Struct({
   /** Every address its content points at, in the order it writes them and never
    *  twice — a `see`, a link in a note, a link in a body.
    *  This is the forward half of the graph; a page that shows who points AT
-   *  something reads it backwards (`./backlinks.ts`). */
+   *  something reads it backwards (`./references/referring.ts`). */
   links: Schema.Array(Address),
   /** The tags its prose writes, as written — both sigils, `#topic` and
    *  `@person`, which are two namespaces over one alphabet (`./derive.ts`). */
   tags: Schema.Array(Tag),
+  /** The WIKILINKS its prose writes, each as the name it looks up — the
+   *  target and its `#` parts, kept apart — and never twice; absent when it
+   *  writes none. Names rather than addresses, because which file a name
+   *  finds moves with the directory (`./links/wikilink.ts`); the reading
+   *  resolves them when it reads. */
+  wikilinks: Schema.optionalKey(Schema.Array(WikilinkName)),
   /**
    * The named facts the file writes ABOUT ITSELF — a `.md`'s YAML frontmatter,
    * read by {@link ./frontmatter.ts} and answered by `prop:` in the query
@@ -168,7 +185,7 @@ export type Face = typeof Face.Type
 /**
  * A document source's HEAD — its path and its title — the only two facts
  * about a referring document that the reference reading's consumers read
- * (`./backlinks.ts`'s `Reference`). The full {@link Face} travels on the
+ * (`./references/referring.ts`'s `Reference`). The full {@link Face} travels on the
  * pointing index, which is a read-side structure; the WIRE carries this
  * projection so that a `Reference` cannot grow a consumer that reaches for a
  * body-only half of a face (`links`, `tags`, `props`) it was never sent.
@@ -197,14 +214,35 @@ export interface FaceHead {
  * A PROJECTION and not a second type: every arm below IS one of these plus its
  * content, so what crosses the wire is a value this module made and not a shape
  * somebody assembled to match it.
+ *
+ * ONE FACE PER DOCUMENT, by identity, and that is a promise rather than a
+ * cache: the references table files a file's entries in TWO passes — the
+ * links, fields and tags, and then the property values, which cannot be read
+ * until the declarations are ({@link ./references/pointing.ts}) — and an entry each pass
+ * made would otherwise carry its own copy of one file's face. The table's
+ * header says a document's every entry points at ONE face object; this is
+ * where that is true. A `WeakMap` for the reason every other table keyed by a
+ * value of this package is one: a document nobody kept takes its entry with
+ * it, and a decode that hands the same bytes back as the same object
+ * ({@link ./set.ts}) hands back the same face with them.
  */
-export const faceOf = ({ path, title, links, tags, props }: Document): Face => ({
-  path,
-  title,
-  links,
-  tags,
-  props,
-})
+const FACES = new WeakMap<Document, Face>()
+
+export const faceOf = (document: Document): Face => {
+  const held = FACES.get(document)
+  if (held !== undefined) return held
+  const { path, title, links, tags, props, wikilinks } = document
+  const face: Face = {
+    path,
+    title,
+    links,
+    tags,
+    props,
+    ...(wikilinks === undefined ? {} : { wikilinks }),
+  }
+  FACES.set(document, face)
+  return face
+}
 
 /**
  * A `.olai`: the records this app is about, and the face they add up to.
@@ -236,7 +274,7 @@ export type Outline = typeof Outline.Type
  *
  * `bytes` is what the body WEIGHS as UTF-8 — remembered here at decode so a
  * listing does not re-encode every served `.md` to report a size
- * (`markdown_index`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
+ * (`markdown_index`, `@olai/ops`' `query.ts`). {@link ./references/written.ts}'s
  * `bytesOf` is how it is measured; this is that answer given a field.
  *
  * `headings` is what makes a document ADDRESSABLE BELOW THE FILE, which is the
@@ -328,6 +366,13 @@ export type Document = typeof Document.Type
  * corpus's prose this arc adds: a decode already read every line of the file to
  * get here, and this reads what those lines SAY. The nodes are handed straight
  * through.
+ *
+ * EVERY RECORD MUST ALREADY BE READ (`./kept.ts`): this is a fold over what
+ * the texts say, not a reading of them, so it imports no parser and a browser
+ * may carry it. The door that reads a file's records and then folds them is
+ * `./read.ts`'s `readOutline`, which is what the store's decode calls; the
+ * only caller that reaches this one directly is the empty outline an
+ * unreadable file leaves behind (`./set.ts`), which has no records at all.
  */
 export const outlineDocument = (
   claims: Claims,
@@ -347,6 +392,7 @@ export const outlineDocument = (
     seen.add(key)
     links.push(address)
   }
+  const reads: Array<Read> = []
   for (const located of nodes) {
     for (const address of recordLinks(claims, located)) add(address)
     if (isMirror(located.node)) continue
@@ -355,7 +401,11 @@ export const outlineDocument = (
       written.add(tag)
       tags.push(tag)
     }
+    const said = recordRead(located.node)
+    reads.push(said.title)
+    if (said.desc !== null) reads.push(said.desc)
   }
+  const named = wikilinkNames(reads)
   return {
     kind: fileKind(claims, file) ?? (() => { throw new Error(`unclaimed outline: ${file}`) })(),
     holds: "nodes",
@@ -367,6 +417,7 @@ export const outlineDocument = (
     title: stemOf(claims, file),
     links,
     tags,
+    ...(named.length === 0 ? {} : { wikilinks: named }),
     // A FILE writes no properties of its own here: an outline's named facts
     // are on its records, where `outlines_prop` puts them, and a `.olai` has no
     // frontmatter to read. Empty because nothing wrote one, which is the same
@@ -375,6 +426,45 @@ export const outlineDocument = (
     nodes,
   }
 }
+
+/** One encoder for the process, because `bytesOf` is the definition of a
+ *  document's weight and constructing one per call is the only avoidable cost
+ *  here. Paid at decode ({@link bodiedDocument}), not per
+ *  listing. */
+const UTF8 = new TextEncoder()
+
+/**
+ * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
+ *
+ * Counted where the face's `title` is taken ({@link bodiedFace}) because it is
+ * the same kind of fact — what a listing can say about a document without
+ * handing its text over, and what a caller decides from whether to ask for the
+ * whole of it.
+ *
+ * BYTES rather than `text.length`, which is UTF-16 units and would report a
+ * different number than every other tool a person has for the same file. This
+ * was fifteen lines of code-unit arithmetic — the same count without the
+ * transient buffer — and the buffer is the better trade: a surrogate-pair
+ * branch and a lone-surrogate rule are exactly the kind of thing that is
+ * subtly wrong for years, and `TextEncoder` is the runtime's own answer.
+ * `Buffer.byteLength` is the other one-liner and is not available to this
+ * package, which runs in a browser as readily as in a server.
+ *
+ * IT MEASURES THE TEXT, not the file, and those part company for a `.md`
+ * that is not valid UTF-8: the store decodes leniently, so bytes it could not
+ * read are already replacement characters by the time this counts them, and
+ * the answer can exceed the file's size on disk. That is the RIGHT number for
+ * what this field is for — it matches the text `markdown_read` hands over and
+ * the text `markdown_write`'s `was` is compared against.
+ *
+ * PAID AT DECODE. {@link bodiedDocument} remembers the
+ * answer on the document, so a listing is O(documents) rather than O(the bytes
+ * of every served `.md`). This function stays the definition of the number —
+ * the listing's test holds the remembered field to a recompute from the body,
+ * including over multi-byte UTF-8, which is the case a UTF-16-unit count would
+ * silently get wrong.
+ */
+export const bytesOf = (text: string): number => UTF8.encode(text).length
 
 /**
  * The document a BODIED file amounts to — a `.md` with its text, or a `.html`
@@ -390,8 +480,20 @@ export const outlineDocument = (
  * `null` is what a decode that keeps no body hands over, and an unreadable
  * file arrives as an empty one ({@link ./set.ts}'s `assemble` says why): a
  * document the set holds a place for and no content.
+ *
+ * HOW THE PROSE IS READ IS THE CALLER'S, and that is what keeps this module
+ * parser-free. `prose` is asked for the reading of the one arm that has one —
+ * so a `.ts` half, whose body is code, is never read at all, and the empty
+ * place an unreadable file leaves needs no parser to make. `./read.ts`'s
+ * `bodiedDocument` is the arm that passes the real one, and it is the name
+ * every caller outside this package uses.
  */
-export const bodiedDocument = (claims: Claims, file: string, text: string | null): Markdown | Unkept => {
+export const bodiedFace = (
+  claims: Claims,
+  file: string,
+  text: string | null,
+  prose: (body: string) => Read,
+): Markdown | Unkept => {
   const path = pathOf(file)
   const kind = fileKind(claims, file)
   const claim = kind === null ? undefined : claims.byKind.get(kind)
@@ -425,26 +527,25 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
       headings: [],
     }
   }
-  // THE PROSE, ONCE — the body with any frontmatter taken off
-  // ({@link ./frontmatter.ts}). Two of the four readings below ask for it here
-  // rather than themselves, and the split is not arbitrary: `firstLine` and
-  // `slugsIn` are only ever about a document's BODY, so each asks on its own
-  // and is honest to any caller; `tagsIn` and `linksIn` are asked of a record's
-  // title and note as well, where a leading `---` is a thematic break like any
-  // other and skipping it would be this package inventing frontmatter for a
-  // bullet.
-  const prose = proseIn(body)
-  return {
+  // THE PROSE, READ ONCE — the body with any frontmatter taken off, through
+  // the one parser, and the reading kept beside the document (`./kept.ts`). Every
+  // field of the face below that comes from the prose is read off it, and so
+  // is everything a later reader asks of the body — its dead links, its
+  // references.
+  const said = prose(body)
+  const named = wikilinkNames([said])
+  return keepBodyRead({
     kind: claim.kind,
     holds: "text",
     kept: true,
     path,
-    // The first line, and the FILENAME when there is none — an empty document
-    // and one that opens with a picture both have a name on screen, and the
-    // name they have is the one the sidebar already draws.
-    title: firstLine(body) || stemOf(claims, file),
-    links: linksIn(claims, file, prose),
-    tags: tagsIn(prose),
+    // The first line's words, and the FILENAME when there are none — an empty
+    // document and one that opens with a picture both have a name on screen,
+    // and the name they have is the one the sidebar already draws.
+    title: said.firstLine || stemOf(claims, file),
+    links: readAddresses(claims, file, said),
+    tags: said.tags,
+    ...(named.length === 0 ? {} : { wikilinks: named }),
     // The record a document is allowed to write about itself, and the one
     // field of this face that is not derived from prose at all.
     props: frontmatterIn(body),
@@ -453,8 +554,8 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
     // reports, and calling it here (cached with the decode) is what makes a
     // listing O(documents) rather than O(the bytes of every served `.md`).
     bytes: bytesOf(body),
-    headings: slugsIn(body),
-  }
+    headings: said.headings.flatMap((heading) => heading.slug === null ? [] : [heading.slug]),
+  } satisfies Markdown, said)
 }
 
 /**
@@ -559,7 +660,7 @@ const pathOf = (file: string): DocumentPath => file as DocumentPath
  * holds two revisions' served files to it, so that a `.md` whose BODY changed
  * and whose face did not is not a reason to redraw every open page
  * (`./tape.ts`); and the links index carries a file's entries across a revision
- * exactly when this answers `true` (`./pointing.ts`). A second spelling would
+ * exactly when this answers `true` (`./references/pointing.ts`). A second spelling would
  * be two answers to "did this file move" inside one revision — one deciding
  * whether an answer stands and the other deciding what it would say.
  */

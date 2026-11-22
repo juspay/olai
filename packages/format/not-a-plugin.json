@@ -1,5 +1,5 @@
 {
-  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in: the set's own word, not the files row.",
+  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in, and the references table's `files` part is the part keyed by a PATH — a path, or a path and an element — beside its rows, names and tags: the set's own word, not the files row.",
   "capture": {
     "src/inbox.ts": 10,
     "src/index.ts": 3,
@@ -27,9 +27,12 @@
     "src/page.ts": 5,
     "src/patch.ts": 2,
     "src/reading.ts": 1,
+    "src/references/pointing.ts": 4,
+    "src/references/written.ts": 3,
     "src/rules.ts": 5,
     "src/searching.ts": 2,
     "src/set.ts": 8,
+    "src/tape.ts": 2,
     "src/verdict.ts": 9
   },
   "git": {
@@ -46,11 +49,12 @@
   "markdown": {
     "src/agents.ts": 2,
     "src/dates.ts": 1,
-    "src/document.ts": 8,
+    "src/document.ts": 9,
     "src/filter.ts": 2,
     "src/incremental.ts": 2,
     "src/index.ts": 3,
     "src/page.ts": 2,
+    "src/read.ts": 2,
     "src/reading.ts": 1,
     "src/rules.ts": 3,
     "src/searching.ts": 1,
@@ -87,7 +91,6 @@
   },
   "search": {
     "src/address.ts": 2,
-    "src/documents.ts": 1,
     "src/filter.ts": 9,
     "src/index.ts": 6,
     "src/searching.ts": 19
@@ -108,7 +111,7 @@
     "src/meaning.ts": 24,
     "src/page.ts": 4,
     "src/searching.ts": 1,
-    "src/typing.ts": 9,
+    "src/typing.ts": 17,
     "src/writing.ts": 1
   }
 }

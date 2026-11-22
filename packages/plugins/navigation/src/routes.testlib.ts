@@ -25,7 +25,7 @@
  * "plugins consume other plugins only through static contract doors".
  */
 import { workspaceRoutingOver, type WorkspaceRouting } from "./workspace.ts"
-import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TEST_CLAIMS } from "@olai/format/testlib/claims"
 import {
   atElement,
   atFile,

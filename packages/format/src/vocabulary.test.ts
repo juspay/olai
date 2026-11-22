@@ -13,8 +13,10 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { derive, type Derived, tagText } from "./derive.ts"
-import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
+import { tagText } from "@olai/prose/tags.ts"
+import { tableOf } from "./corpora.testlib.ts"
+import { FIXTURE_FILE } from "./fixtures.testlib.ts"
+import type { Pointing } from "./references/pointing.ts"
 import {
   completingTags,
   type TagCompletion,
@@ -23,7 +25,17 @@ import {
   vocabularyOf,
 } from "./vocabulary.ts"
 
-const set = (contents: string) => derive(TEST_CLAIMS, nodesOf(contents))
+/** What the vocabulary is counted off: the vault's claims and the references
+ *  table over a corpus ({@link vocabularyOf}). */
+interface At {
+  readonly claims: typeof TEST_CLAIMS
+  readonly pointing: Pointing
+}
+
+const over = (corpus: Record<string, string>): At =>
+  ({ claims: TEST_CLAIMS, pointing: tableOf(corpus) })
+
+const set = (contents: string): At => over({ [FIXTURE_FILE]: contents })
 
 const written = (tags: ReadonlyArray<TagUse>): ReadonlyArray<string> =>
   tags.map((tag) => tagText({ sigil: tag.sigil, tag: tag.name }))
@@ -44,10 +56,10 @@ const offered = (
 ): ReadonlyArray<string> => rows.map((row) => tagText({ sigil, tag: row.name }))
 
 const matched = (
-  derived: Derived,
+  at: At,
   sigil: TagsRequest["sigil"],
   query: string,
-) => offered(sigil, completingTags(derived, asking(sigil, query)))
+) => offered(sigil, completingTags(at, asking(sigil, query)))
 
 const HOUSE = set(`
 {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -73,8 +85,8 @@ test("a tag is counted once per node that writes it, mirrors excluded", () => {
   expect(home?.count).toBe(2)
 })
 
-// ONE VOTE PER RECORD, whichever prose said it and however often — the index's
-// own rule (`Derived.taggedBy`), which this list inherits rather than restates.
+// ONE VOTE PER RECORD, whichever prose said it and however often — the table's
+// own rule (its `tags` part), which this list inherits rather than restates.
 test("a record writing one tag twice is one vote for it", () => {
   const twice = set(`{"id":"a","ord":"a0","title":"#home and #home","desc":"still #home"}`)
   expect(vocabularyOf(twice).find((tag) => tag.name === "home")?.count).toBe(1)
@@ -111,26 +123,26 @@ test("a name written with both sigils is two tags, each counted its own way", ()
 // page that draws none of the trash — so a count that included it would promise
 // rows the reader cannot be shown.
 test("what is in the trash is not counted, and a tag only it used is not offered", () => {
-  const withArchive = derive(TEST_CLAIMS, nodesOfFiles({
+  const withArchive = over({
     "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     "_olai/Trash.olai": [
       `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
       `{"id":"gone","ord":"a1","title":"the old boiler #boiler"}`,
     ].join("\n"),
-  }))
+  })
   const tags = vocabularyOf(withArchive)
   expect(written(tags)).toEqual(["#home"])
   expect(tags.find((tag) => tag.name === "home")?.count).toBe(1)
 })
 
 test("a leftover Archive.olai is not counted in the live vocabulary either", () => {
-  const withLeftover = derive(TEST_CLAIMS, nodesOfFiles({
+  const withLeftover = over({
     "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     "Archive.olai": [
       `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
       `{"id":"gone","ord":"a1","title":"the old boiler #boiler"}`,
     ].join("\n"),
-  }))
+  })
   const tags = vocabularyOf(withLeftover)
   expect(written(tags)).toEqual(["#home"])
   expect(tags.find((tag) => tag.name === "home")?.count).toBe(1)
@@ -141,14 +153,20 @@ test("a set with no tags in it is no vocabulary rather than a throw", () => {
     .toEqual([])
 })
 
-// ONE READING PER DERIVATION — the memo is what makes asking per settled
-// keystroke cost the match and nothing else, so it is pinned by identity rather
-// than left to be believed.
-test("the vocabulary is counted once per derivation and handed back after that", () => {
+// ONE READING PER TABLE — the memo is what makes asking per settled keystroke
+// cost the match and nothing else, so it is pinned by identity rather than left
+// to be believed. It is keyed on the TABLE rather than on the derivation now
+// (`./vocabulary.ts`): a revision that moves a mark or a place hands the same
+// tags on, and this answer is about the tags.
+test("the vocabulary is counted once per table and handed back after that", () => {
   expect(vocabularyOf(HOUSE)).toBe(vocabularyOf(HOUSE))
-  // ...and a new view over the same indexes is a new question, which is what a
-  // published revision hands a reader.
-  expect(vocabularyOf({ ...HOUSE })).not.toBe(vocabularyOf(HOUSE))
+  // ...and a reading over the very same table is the same question, however it
+  // is wrapped — which is the saving the key is for.
+  expect(vocabularyOf({ ...HOUSE })).toBe(vocabularyOf(HOUSE))
+  // A TABLE THAT MOVED is a new question, which is what a revision that wrote
+  // a word hands a reader.
+  expect(vocabularyOf(over({ [FIXTURE_FILE]: `{"id":"a","ord":"a0","title":"one #home"}` })))
+    .not.toBe(vocabularyOf(HOUSE))
 })
 
 // ── which of them a prefix means ───────────────────────────────────────

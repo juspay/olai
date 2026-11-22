@@ -14,7 +14,7 @@ How the parts fit together while olai runs is in [overview.md](overview.md); the
 
 [^container]: The two paths: `packages/plugins/` is only a folder holding the plugin packages, and is not a package itself.
 
-[^downward]: What sits where: `server` and `web` sit on top, so nothing depends on them. The packages at the bottom, which name no `@olai/*` sibling at all, are `format`, `store`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`. The subprocess socket is kolu's `@kolu/child`, copied in from the kolu pin like every other `@kolu/*` package, so it is not a package here.
+[^downward]: What sits where: `server` and `web` sit on top, so nothing depends on them. The packages at the bottom, which name no `@olai/*` sibling at all, are `prose`, `store`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`. `format` sits one step above them and names `prose` alone. The subprocess socket is kolu's `@kolu/child`, copied in from the kolu pin like every other `@kolu/*` package, so it is not a package here.
 
 [^linker]: How the dependencies are checked: Bun's isolated linker (`bunfig.toml`) gives each package only the siblings its own manifest names, so importing one it did not name fails to resolve.
 
@@ -33,13 +33,14 @@ How the parts fit together while olai runs is in [overview.md](overview.md); the
 | `edit-intents` | What a key press or a menu entry meant, turned into exactly one request to `ops`, worked out from the server's own reading of the file. |
 | `effect-cordis` | Cordis, the plugin engine, written in Effect's vocabulary: activation scopes, dispatch gates, teardown order, and the import check. The only package that names Cordis. |
 | `fonts` | The catalogue of typefaces, in two entry points: the choices a page reads, and the generated stylesheet and file list a build takes. |
-| `format` | The file format: its contracts, the validator, the wording it refuses in, and the values derived from a file. Depends on nothing, so every layer can read it. |
+| `format` | The file format: its contracts, the validator, the wording it refuses in, and the values derived from a file. Depends on `prose` alone, so every layer can read it. |
 | `log` | How olai says what it is doing: the two output streams, how each line is drawn, and the lowest level that is printed. No logger of its own. |
 | `markdown-ui` | The remark and rehype pipeline, in a chunk of its own, and the components that draw a note, a document or a title. |
 | `ops` | The only code that writes to the served directory, and the only reader an agent gets: the semantic edits, how they are encoded, and the grammar a tool is built in. |
 | `plugin-api` | What a plugin is programmed against: the generic services, registering a surface within a scope, loading a plugin's own modules, and a typed wrapper for referring to a slot. |
 | `plugin-build` | The compiler behind a plugin the served directory defines. Text in, text out, with imports bound to the host's own modules. |
 | `plugin-kit` | What a plugin shows inside a conversation: its logo, how it spells a reference to a row, and the SVG transform Nix runs. |
+| `prose` | How a text is read: the one Markdown parser, the tag and wikilink grammar, heading slugs, and the reading of one text every other package asks. Depends on nothing in the workspace. |
 | `server` | The `olai` executable. Starts the host, composes what each plugin declares, binds the transports, and exposes management. |
 | `sigterm` | The Linux `SIGTERM` guard `olai web` starts with: it names the sender and refuses a signal from anybody else. On macOS it does nothing. |
 | `state` | State kept on the machine, never in the served directory: the two per-user state homes, one file per served directory, guarded reads and atomic writes. |

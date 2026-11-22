@@ -124,6 +124,25 @@ bullet as work that can never be finished. Both ends of the blocking edge carry
 a mark somebody wrote, so what the scenarios assert is the rule rather than
 anything about the nodes' children.
 
+## `wikilinks/` — notes that link to each other by name
+
+A directory written the way an Obsidian vault is: notes that name each other
+with `[[…]]` rather than with paths. `good/` holds none on purpose, because
+many scenarios list its files exactly.
+
+| what | where |
+|---|---|
+| every form a wikilink is written in, once each | `every-form.md` |
+| two notes with one name, in two folders | `rooms/Note.md`, `garden/Note.md` — `rooms/plan.md` and `garden/beds.md` each name the one beside them, and `every-form.md` names the first in path order |
+| a name written with other capitals | `Greenhouse.md`, written `[[greenhouse]]` |
+| an accented name | `Café.md` |
+| a name with a space | `paint colours.md` |
+| headings to land on | `kitchen-sink.md` — `Tables`, and `Nested` under `Lists` |
+| an outline, and a row of it | `house.olai`, `[[house.olai#kitchen]]` — and `[[house]]`, which finds nothing, since a bare name finds documents only |
+| wikilinks in a row's title and in its note | `kitchen` and `sink` in `house.olai` |
+| a picture, an SVG and a PDF named by name alone | `art/handle.png`, `art/diagram.svg`, `reports/report.pdf` |
+| a name that finds nothing | `[[nowhere]]` |
+
 ## `move-chats/` — a vault written by the phase before notes had chats
 
 One `_olai/Inbox.olai` holding the shape PR #700 left behind: a **Chats**
@@ -534,8 +553,9 @@ the real one, because the Agenda counts from the server's clock:
 `notes/cabinets.md` is the document the pictures show beside the outline:
 frontmatter, two headings, a table, a task list, links to `finishes.md` and
 `quote.html`, a link to the row `cabinets`, and `art/handle.png`, a copy of
-the one in `good/`. It holds no wikilink, math, or callout, because olai draws
-those as text today and the pictures must not show them as working.
+the one in `good/`. It holds no math or callout, because olai draws those as
+text today and the pictures must not show them as working. It holds no
+wikilink either: the pictures were taken with standard links.
 
 `notes/quote.html` is the HTML page in `html-page.png`: its own `<style>`, no
 script. `money.journal` is the ledger in `ledger.png`, a copy of

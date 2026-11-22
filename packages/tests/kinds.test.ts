@@ -29,6 +29,10 @@ const independent = new Set([
   "packages/tests/support/docs.ts",
   "packages/tests/docs_lint.test.ts",
   "website/src/markdown.ts",
+  // The guard's bench and the page-against-reading check read every `.md` and
+  // outline this repository holds as TEXT to measure and draw — files of the
+  // repository, not what a serve claims.
+  "packages/prose/src/corpus.testlib.ts",
 ])
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")

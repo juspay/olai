@@ -61,6 +61,7 @@ What olai keeps on disk, what it refuses to write, and how git records it.
 | [The outline file format](format.md) | How an outline is stored on disk: the two kinds of record, their fields, properties, and the keys that tie a chat to a row or a document. |
 | [Property types](properties.md) | Giving a property a type, such as a date or a link to a row, and how its value is read. |
 | [Documents, references and the kinds olai shows](documents-and-kinds.md) | Markdown documents, links between files, pins, and the kinds of file olai shows but does not edit. |
+| [Wikilinks: link to a note by its name](wikilinks.md) | Writing `[[name]]`, how a name finds its file, what an unresolved link does, and pictures embedded by name. |
 | [How olai checks your files, and how it writes them](validation.md) | What olai refuses to write, and what each error message says. |
 | [Properties that show what is happening now](live-properties.md) | Properties whose value updates by itself, such as a terminal's status, and the two ways olai draws them. |
 | [Git: how olai records what it writes](git.md) | Committing and pushing from olai: the Commit readout in the header, the commit panel, manual and automatic commits, and the audit view. |

@@ -4,17 +4,19 @@ Every file olai serves is an outline, a markdown document, or a kind olai only s
 
 ## References
 
-A reference points from one place to another, and olai works out what points back.[^reverse] Three things count as a reference.[^notref]
+A reference points from one place to another; olai works out what points back.[^reverse] Five things count.[^notref]
 
 | Written as | What it says |
 | --- | --- |
 | `see` | a free cross-reference between two rows |
 | `@<id>` in a title, a note or a document | a mention, if some row has that id[^sigil] |
 | a `[…](…)` link | the row or file it names[^address] |
+| `[[name]]` | the file named `name`[^wikilink] |
+| a declared property | the file or row its value names[^declared] |
 
 ## Documents
 
-A `.md` file olai serves is a document.[^loaded] Its title is its first line, and you can link to any heading inside it.[^names] Its properties are the `key: value` lines in the frontmatter at the top.[^frontmatter][^values][^chips] olai writes a document whole, never a part of it.[^gate][^was] Relative pictures and links are looked for beside the file.[^body][^links]
+A `.md` file olai serves is a document.[^loaded] Its title is its first line, and you can link to any heading inside it.[^names] Its properties are the `key: value` lines in the frontmatter at the top.[^frontmatter][^values][^chips] olai writes a document whole.[^gate][^was] Relative pictures and links are looked for beside the file.[^body][^links]
 
 ## Pins
 
@@ -28,13 +30,17 @@ Every file olai serves is claimed by a plugin; a file nothing claims is not load
 
 A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][^height] A link in it to another file with a page opens that page in olai.[^follow][^landing] A `.html` file that will not open says so.[^unopened][^fetch]
 
-[^reverse]: One index answers the question "what points at this", so the row's backlinks, the document page's list of referrers, and `referencedBy` in the answer from `outlines_read` are all one list. A source that refers twice is one referrer listed with two ways of referring, out of `see`, `mention` and `link`. A reference to a mirror counts as a reference to the row it shows, and nothing refers to itself.
+[^reverse]: One index answers the question "what points at this", so the row's backlinks, the document page's list of referrers, and `referencedBy` in the answer from `outlines_read` are all one list. A source that refers twice is one referrer listed with two ways of referring, out of `see`, `mention`, `link` and `property`. A reference to a mirror counts as a reference to the row it shows, and nothing refers to itself.
 
 [^notref]: Three things are not references. A `mirror` says "draw this row here too", and where else a row is drawn is in `mirrors` in the answer from `outlines_read`. An `after` or a `blocks` is the ordering between tasks ([dates-and-status.md](dates-and-status.md)). A row in an `_olai/Trash.olai` is drawn on the Trash page and nowhere else.
 
 [^sigil]: `@` also starts a tag, so `@herbs` is a tag whether or not anything has the id `herbs`. Whether a row has that id is asked when the reference is read, so a row created today turns every `@its-id` already written into a reference to it. A `#herbs` is never a reference.
 
-[^address]: A link points at an address: `[x](#id)` names the row with that id, and `[x](doc.md)`, `[x](doc.md#heading)` and `[x](art/handle.png)` name the file. A picture with no label, `![](…)`, is still a link, so a picture's page lists the documents that show it. A link to a heading counts as a link to the whole document.
+[^address]: A link points at an address: `[x](#id)` names the row with that id, and `[x](doc.md)`, `[x](doc.md#heading)` and `[x](art/handle.png)` name the file. A query is not part of the name: `[x](finishes.md?v=1)` links to `finishes.md`. A label-less picture, `![](…)`, is a link too, so a picture's page lists what shows it. A link to a heading counts as a link to the whole document, and a link to a row, `[x](house.olai#kitchen)`, counts for that row.
+
+[^wikilink]: `[[finishes]]` is looked up by name each time it is read, so it finds the document wherever it moves. It counts exactly as a standard link to that file does, and one that finds nothing is marked as a dead link is. How a name finds its file is in [wikilinks.md](wikilinks.md).
+
+[^declared]: A property declared `doc`, `ref` or `node` in `_olai/Properties.olai` names a file or a row ([properties.md](properties.md)). The row carrying it is listed on that page, in the **Names this in a property** row of **Referenced by**. Changing the declaration adds or drops those referrers at once.
 
 [^loaded]: For each served file olai keeps its path, its title, the addresses it points at and the tags its text holds, all worked out from the file. Notes link to documents, and properties declared `doc` name them.
 
@@ -54,9 +60,9 @@ A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][
 
 [^body]: A relative `![](art/shot.png)` in a document is looked for in that document's own directory, where the same link in a note is looked for beside the note's outline. It is served from `/media/`, and only picture suffixes are allowed. A `..` that would climb above the served directory stops at its root. Nothing else is drawn: no remote host, no `data:` URI, no absolute path, no `.svg`. olai knows pictures by their paths and never loads their bytes.
 
-    The first picture of a block is fetched straight away, and the rest wait until you scroll near them.
+    The first picture of a block is fetched at once, and the rest wait until you scroll near them.
 
-[^links]: A relative `[the deck](../projects/deck.md)` opens that document's page in olai, as does a link to any other file that has a page. A filename with a space in it still works, written `the%20brief.md`, `<the brief.md>` or `the brief.md`. A `[shot](art/handle.png)` opens that picture's page, while `![](art/handle.png)` draws the picture itself from `/media/`. An `http:` or `https:` link opens in a new tab; everything else opens in this tab.
+[^links]: A relative `[the deck](../projects/deck.md)` opens that document's page, as does a link to any file with a page. A filename holding a space may be written `the%20brief.md`, `<the brief.md>` or `the brief.md`, and one holding a bracket too as `<…>`. A `[shot](art/handle.png)` opens that picture's page, while `![](art/handle.png)` draws the picture from `/media/`. An `http:` or `https:` link opens in a new tab; anything else in this tab.
 
 [^shelf]: The pins are the rows of the file named `Pins` directly inside `_olai/`, whatever its capitals, with any suffix that holds rows ([validation.md](validation.md)). A directory without that file has no pins, and when the configured outline plugin is off the sidebar says so. olai creates `_olai/Pins.olai` with that plugin's suffix. The top level of the file is the list of pins, in `ord` order, one row per pin; what you nest under a pin is your own business.
 
@@ -97,19 +103,20 @@ A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][
 [^fetch]: A `.html` page follows the file on disk. The frame asks for the file's details and its revision, then fetches the bytes itself, so the page arrives one fetch after a document's text would, and two readers mean two reads. An agent that reads the bytes reads them again at every later revision.
 
 <details>
-<summary>When a mention is a reference but is not drawn as a tag</summary>
+<summary>What counts as a mention, a tag or a link in a note</summary>
 
-A note is read as plain text, because the part of olai that finds references has no markdown parser in it. An `@` only starts a mention where a word starts: at the start of the text, or after a space, `(`, `[` or `{`. The browser, on the other hand, styles tags in rendered markdown, so the two can disagree.
+olai reads a note as Markdown once, and every part of olai asks that reading. A tag or a mention is a word of the note's text outside code and outside a link's words. An `@` starts a mention only where a word starts.
 
 | | A reference | Drawn as a tag |
 |---|---|---|
-| `` `@herbs` `` — a code span holding only that | no | no |
-| `` `see @herbs here` `` — a space inside the span | yes | no |
-| a fenced or indented code block, `@herbs` after a newline | yes | no |
-| `[@herbs](…)` — a link's text | yes | no |
-| `*@herbs*` / `**@herbs**` — emphasis around it | no | yes |
+| `` `@herbs` `` or `` `see @herbs here` `` — inside a code span | no | no |
+| a fenced or indented code block | no | no |
+| `[@herbs](…)` — a link's text | no | no |
+| `*@herbs*` / `**@herbs**` — emphasis around it | yes | yes |
 
-So `@herbs` can be styled as a tag on one row's page while that row is missing from the list of what refers to the herb bed, because a `*` does not start a word.
+A link inside an HTML comment, `<!-- [x](finishes.md) -->` or `<!-- [[finishes]] -->`, counts for nothing, and the page draws nothing there. A reference-style link, `[the finishes][f]` with `[f]: finishes.md` on a line of its own, counts like any other.
+
+Quotes and lists stop nesting at column 100, and a run of over 100 `*` or `_`, or a table row of over 100 cells, stays plain text. A note olai fails to read, a bug the server logs, shows as its words.
 
 </details>
 

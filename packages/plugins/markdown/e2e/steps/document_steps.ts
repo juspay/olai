@@ -35,6 +35,7 @@ import {
 import {
   DOCUMENT_REFERRER,
   DOCUMENT_REFERRERS_SUMMARY,
+  documentReferrerRow,
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
@@ -175,6 +176,30 @@ Then(
       !said.includes(oneLine(text)),
       `the document draws ${JSON.stringify(text)}, which is not part of its prose`,
     );
+  },
+);
+
+/** A text nested past the parse's bound: drawn as deep as the bound lets it
+ *  go, the rest as its words — formatted, with no sentence saying it was not. */
+Then(
+  "the document draws quotes {int} deep, the deepest holding the text {string}",
+  async function (this: OlaiWorld, deep: number, text: string) {
+    const rendered = await body(this);
+    const depth = await rendered.evaluate((root) => {
+      let most = 0;
+      for (const quote of Array.from(root.querySelectorAll("blockquote"))) {
+        let at = 0;
+        for (let node: Element | null = quote; node !== null && node !== root; node = node.parentElement) {
+          if (node.tagName === "BLOCKQUOTE") at++;
+        }
+        most = Math.max(most, at);
+      }
+      return most;
+    });
+    assert.strictEqual(depth, deep, `the quotes are drawn ${depth} deep`);
+    const deepest = rendered.locator(`${"blockquote ".repeat(deep)}p`).last();
+    assert.strictEqual(oneLine(await deepest.innerText()), oneLine(text), "the deepest quote's words");
+    assert.strictEqual(await rendered.locator(attr("data-testid", TESTID.refusedText)).count(), 0, "the text was refused");
   },
 );
 
@@ -412,6 +437,23 @@ Then(
   },
 );
 
+// …and the same list read ROW BY ROW, under the label a reader sees on it:
+// the ways are not one claim (a link in prose, a value under a declared key),
+// so a scenario that cared WHICH row a referrer landed in asks here.
+Then(
+  "what points at the document in the {string} row is {string}",
+  async function (this: OlaiWorld, label: string, expected: string) {
+    const wanted = expected.split(",").map((one) => one.trim()).join(", ");
+    const row = this.frontLane().locator(`${documentReferrerRow(label)}:visible`).first();
+    await this.waitUntil(
+      async () =>
+        (await row.count()) > 0 &&
+        (await row.locator(DOCUMENT_REFERRER).allTextContents()).map(oneLine).join(", ") === wanted,
+      `what points at the document in the \`${label}\` row to read ${JSON.stringify(wanted)}`,
+    );
+  },
+);
+
 // Asked of the COUNT rather than of the rows, because that is the whole of
 // what a shut section says — and it is the number a reader sees before they
 // decide to open it.
@@ -483,7 +525,7 @@ Given(
 
 /** The pictures of the document on screen, in the order they were written —
  *  which is the order the rewrite decides priority in (`@olai/markdown-ui`'s
- *  `rewrite.ts`: the first may not be deferred, every later one is). */
+ *  `rewrite/pictures.ts`: the first may not be deferred, every later one is). */
 const pictures = async (world: OlaiWorld) => (await body(world)).locator("img");
 
 // WHAT THE READER GETS AT ONCE. Three facts about one element, because

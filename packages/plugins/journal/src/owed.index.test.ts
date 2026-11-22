@@ -48,7 +48,7 @@ import { NodeServices } from "@effect/platform-node"
 import { NO_KINDS, owedOf, type WriteRequest } from "@olai/format"
 import { firstRowsOf, walkedAgenda, walkedDays } from "@olai/format/testlib"
 import { codecFor, make, type Store } from "@olai/ops"
-import { steady } from "@olai/ops/testlib"
+import { steady, unheard } from "@olai/ops/testlib"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
@@ -58,7 +58,7 @@ import { dated, owed } from "./readings.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard)
 
 /** Work spread over days either side of the todays below, in two outlines so a
  *  count of NODES cannot be satisfied by a count of files — plus the shapes

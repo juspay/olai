@@ -46,7 +46,8 @@ mock.module("./paths.ts", () => ({
 }))
 
 const { apart, assemble, outlinePaths, withDocuments } = await import("./set.ts")
-const { bodiedDocument, outlineDocument } = await import("./document.ts")
+const { outlineDocument } = await import("./document.ts")
+const { bodiedDocument } = await import("./read.ts")
 const { parseOutline } = await import("./fixtures.testlib.ts")
 const { verdictOf } = await import("./verdict.ts")
 

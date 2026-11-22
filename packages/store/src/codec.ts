@@ -57,7 +57,11 @@ export interface Codec<F, S, E> {
   /** Which files under the root belong to the set. Paths are relative to the
    *  root and use `/`, so a codec's rules read the same on every platform. */
   readonly match: (path: string) => boolean
-  readonly decode: (path: string, contents: string) => Result.Result<F, E>
+  /** `previous`, when the caller holds one, is what this path decoded to
+   *  before — the probe's cache entry, or the published set's file on a
+   *  write. A codec may reuse what is unchanged in it; the decode cache stays
+   *  the probe's, and nothing here is kept between calls. */
+  readonly decode: (path: string, contents: string, previous?: Result.Result<F, E>) => Result.Result<F, E>
   /**
    * What a file decodes to from its NAME ALONE — or `null` for one whose bytes
    * the codec needs, which is every file when this member is absent.

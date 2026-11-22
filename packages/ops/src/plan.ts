@@ -24,11 +24,16 @@
  * validator speak for everything else, in its own words, with `file:line`.
  */
 
+import type { Read } from "@olai/prose/read.ts"
+import { readBody, readRecord } from "@olai/format/read"
 import {
-  proseIn,
   addressOf,
+  bodyRead,
+  recordRead,
   referencesOf,
   deadLinksIn,
+  type Names,
+  namesOf,
   deadLinkSaid,
   markdownAt,
   outlineCalled,
@@ -46,7 +51,6 @@ import {
   type Custom,
   type Declared,
   declarationsOf,
-  declaredFor,
   declaringOf,
   type KindVocabulary,
   derive,
@@ -57,6 +61,7 @@ import {
   drawingPath,
   fileKind,
   isMirror,
+  isNamed,
   isTrashed,
   type Located,
   type LocatedRegular,
@@ -64,6 +69,7 @@ import {
   MARKS,
   type Minted,
   type MirrorNode,
+  namersOf,
   NESTING,
   nextOccurrence,
   type Node,
@@ -75,10 +81,10 @@ import {
   ordBetween,
   pinsIn,
   propertiesIn,
+  propertyNamersOf,
   type Reading,
   type RegularNode,
   REPEAT_GRAMMAR,
-  resolvedDoc,
   type Settled,
   settles,
   shadowFor,
@@ -4035,8 +4041,8 @@ const planUntrash = (
   // The archive after the removal, with the empty scaffold above the node
   // tidied away — deepest first, stopping at the first ancestor that still
   // holds anything, carries more than a scaffold record does, or is named by
-  // something. "Named" is a lookup in `namedBy` — the format's own `targetsOf`
-  // read backwards, built with the rest of the derivation — so a relation
+  // something. "Named" is a lookup in the references table's rows — the
+  // format's own `targetsOf` read backwards ({@link isNamed}) — so a relation
   // added later still cannot slip past it, and an edge written from anywhere,
   // the returning subtree included, keeps its target. The child counts are one
   // pass, decremented as ancestors drop, so the walk never re-scans the one
@@ -4056,7 +4062,7 @@ const planUntrash = (
     if (
       (holding.get(holder.id) ?? 0) > 0 ||
       !bareScaffold(holder) ||
-      scope.derived.namedBy.has(holder.id)
+      isNamed(scope.pointing, holder.id)
     ) break
     dropped.add(holder.id)
     if (holder.parent !== undefined) {
@@ -5391,7 +5397,7 @@ const planUnmirror = (
  * A mirror is addressable like any other record, so anything may name one: a
  * second placement chained onto it, or an `after` / `blocks` / `see` written at
  * it. WHICH fields those are is the format's answer rather than a list kept
- * here — `Derived.namedBy` is `targetsOf` reversed over the whole set — and a
+ * here — the references table's rows are `targetsOf` reversed over the whole set — and a
  * list of edge fields in this file is one a fourth relation would silently fall
  * out of, with the write it should have refused landing.
  *
@@ -5547,47 +5553,39 @@ const planCreateDocument = (
 }
 
 /** Live prose links and declared document properties that hold a file.
- * The reverse index names referring documents; the format attributes outline
- * references to their records and leaves trashed records out.
+ * Both are entries in the references table: the link reading attributes an
+ * outline's link to the record that wrote it and leaves trashed records out,
+ * where a declared `doc` value is read raw — a value in the trash still names
+ * the file, and deleting it would strand that value.
  */
 const namingDocument = (
   scope: Scope,
   file: string,
 ): ReadonlyArray<{ name: string; site: string; via: string }> => {
-  // The link reading and the property fence are independent references.
   const address = addressOf(scope.claims, file, null)
-  const found: Array<{ name: string; site: string; via: string }> =
-    address === null ? [] :
-      referencesOf(scope, address).map(ref => ({
-        // A document-key source is a reference the file's index filed under
-        // the document — a RECORD that linked it, or a BODY (a `.md`) whose
-        // prose did. The record is the node that wrote the reference; the
-        // body is itself.
-        name: "file" in ref.source ? ref.source.node.id : ref.source.path,
-        site: "file" in ref.source ? `${ref.source.file}:${ref.source.line}` : ref.source.path,
-        via: "link",
-      }))
-  let keyed: Set<string> | undefined
-  for (const [key, declared] of scope.typed.declarations) {
-    if (declared.type.kind === "doc") (keyed ??= new Set()).add(key)
+  if (address === null) return []
+  const found: Array<{ name: string; site: string; via: string }> = []
+  for (const ref of referencesOf(scope, address)) {
+    // THE LINK WAY ONLY: the same reading now answers the property half too
+    // ({@link referencesOf}'s `WAYS`), and that half is taken from the table
+    // below, where the KEY is — the word this sentence names.
+    if (!ref.ways.includes("link")) continue
+    // A document-key source is a reference the file's index filed under
+    // the document — a RECORD that linked it, or a BODY (a `.md`) whose
+    // prose did. The record is the node that wrote the reference; the
+    // body is itself.
+    found.push({
+      name: "file" in ref.source ? ref.source.node.id : ref.source.path,
+      site: "file" in ref.source ? `${ref.source.file}:${ref.source.line}` : ref.source.path,
+      via: "link",
+    })
   }
-  for (const at of scope.derived.nodes) {
-    if (isMirror(at.node)) continue
-    if (keyed === undefined || at.node.custom === undefined) continue
-    const custom: Record<string, string | ReadonlyArray<string>> = at.node.custom
-    for (const [key, value] of Object.entries(custom)) {
-      const declared = declaredFor(scope.typed.declarations, key)
-      if (declared?.type.kind !== "doc") continue
-      const held = typeof value === "string" ? [value] : value
-      for (const one of held) {
-        if (resolvedDoc(declared, at.file, one) === file) {
-          // The bare KEY — "agent", not `` `agent` `` — so the refusal can
-          // decide what to spell around it, as {@link namingByProp}'s `fields`
-          // already hands its caller the same shape.
-          found.push({ name: at.node.id, site: `${at.file}:${at.line}`, via: key })
-          break
-        }
-      }
+  for (const naming of propertyNamersOf(scope.pointing, address)) {
+    // The bare KEY — "agent", not `` `agent` `` — so the refusal can
+    // decide what to spell around it, as {@link heldBy}'s `fields`
+    // already hands its caller the same shape.
+    for (const key of naming.props) {
+      found.push({ name: naming.at.node.id, site: `${naming.at.file}:${naming.at.line}`, via: key })
     }
   }
   return found
@@ -5737,10 +5735,14 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
  * sentence that names them, in the two refusals a person is most likely to
  * meet one after the other.
  *
- * `namedBy` is the format's own `targetsOf` read backwards, built with the rest
- * of the derivation — so a relation the format grows later still cannot slip
- * past this, and asking the question costs a lookup per id rather than a walk
- * of the corpus.
+ * The table's rows are the format's own `targetsOf` read backwards
+ * ({@link namersOf}) and the VAULT's own declared references beside them
+ * ({@link propertyNamersOf}) — so a relation the format grows later, or a key
+ * this vault declares tomorrow, still cannot slip past this, and asking the
+ * question costs a lookup per id rather than a walk of the corpus. A row
+ * something merely LINKS to is filed there too and is not read here: a link is
+ * not a relation, and re-pointing one is the dead-link reading's sentence
+ * rather than this refusal's.
  *
  * WHAT IS GOING IS NOT A DEPENDENT OF ITSELF, and that is why the argument is a
  * SET rather than an id with a self-check beside it. A record naming another
@@ -5761,68 +5763,34 @@ const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string>
     held.set(naming.at.node.id, entry)
   }
   for (const id of going) {
-    for (const naming of scope.derived.namedBy.get(id) ?? []) file(naming)
+    for (const naming of namersOf(scope.pointing, id)) file(naming)
   }
-  for (const naming of namingByProp(scope, going)) file(naming)
+  // …AND THE RECORDS THAT NAME ONE OF THEM THROUGH A DECLARED PROPERTY, which
+  // the field ways structurally cannot see: a `ref` or a `node` value lives
+  // inside `custom`, where the format gives no key a meaning, so which keys
+  // are references is what the VAULT declares (`@olai/format`'s `typing.ts`)
+  // and the table files those values in a second step
+  // ({@link propertyNamersOf}). Left out, `trash_empty` would delete a node a
+  // live lane's `agent` still names and answer SUCCESS, leaving the very
+  // dangling value the validator refuses on the next load — a write that lands
+  // and immediately breaks the set.
+  //
+  // THE KEY IS THE FIELD in the sentence, which is what makes the refusal
+  // actionable: `` `lane` (`agent`, orchestrator/lanes.olai:12) `` reads
+  // exactly as the `see`/`after` entries beside it, and names the word to
+  // re-point.
+  for (const id of going) {
+    const address = addressOf(scope.claims, null, id)
+    if (address === null) continue
+    for (const naming of propertyNamersOf(scope.pointing, address)) {
+      file({ at: naming.at, fields: naming.props })
+    }
+  }
   return [...held.values()].map((entry) =>
     `\`${entry.at.node.id}\` (${
       [...entry.fields].map((field) => `\`${field}\``).join(", ")
     }, ${entry.at.file}:${entry.at.line})`
   )
-}
-
-/**
- * The records naming one of these ids through a TYPED PROPERTY — the half
- * `namedBy` structurally cannot see.
- *
- * `namedBy` is `targetsOf` read backwards, and `targetsOf` is the format's list
- * of FIELDS that name a record. A `ref` or a `node` value is a reference that
- * lives inside `custom`, where the format gives no key a meaning — so which
- * keys are references is a fact about what the VAULT declares
- * (`@olai/format`'s `typing.ts`), not about the format, and no index built by
- * `derive` could hold it without the declarations.
- *
- * Left out, `trash_empty` would delete a node a live lane's `agent` still names
- * and answer SUCCESS, leaving the very dangling value the validator refuses on
- * the next load — a write that lands and immediately breaks the set. Which is
- * the exact failure this whole function exists to prevent for the other four
- * relations.
- *
- * IT WALKS, and the guard is what makes that affordable: a vault that declares
- * no `ref` and no `node` key — every vault before this feature, and most after
- * it — pays one map read and no walk at all. Where there IS one, the walk is
- * per removal (`outlines_unmirror`, `trash_empty`), never per write.
- *
- * THE KEY IS THE FIELD in the sentence, which is what makes the refusal
- * actionable: `` `lane` (`agent`, orchestrator/lanes.olai:12) `` reads exactly
- * as the `see`/`after` entries beside it, and names the word to re-point.
- */
-const namingByProp = (
-  scope: Scope,
-  going: ReadonlySet<string>,
-): ReadonlyArray<{ at: Located; fields: ReadonlyArray<string> }> => {
-  const referring = new Set<string>()
-  for (const [key, declared] of scope.typed.declarations) {
-    if (declared.type.kind === "ref" || declared.type.kind === "node") referring.add(key)
-  }
-  if (referring.size === 0) return []
-  const found: Array<{ at: Located; fields: ReadonlyArray<string> }> = []
-  for (const at of scope.derived.nodes) {
-    const custom = isMirror(at.node) ? undefined : at.node.custom
-    if (custom === undefined) continue
-    const fields: Array<string> = []
-    for (const [key, value] of Object.entries(custom)) {
-      // FOLDED, through the format's own reading, so a record writing `Agent`
-      // is found by a vault declaring `agent` — the same word to the fence, to
-      // `prop:` and to this.
-      if (declaredFor(scope.typed.declarations, key) === undefined) continue
-      if (!referring.has(key.trim().toLowerCase())) continue
-      const held = typeof value === "string" ? [value] : value
-      if (held.some((one) => going.has(one))) fields.push(key)
-    }
-    if (fields.length > 0) found.push({ at, fields })
-  }
-  return found
 }
 
 /** {@link heldBy} of one record — what `outlines_unmirror` asks about the placement
@@ -5923,19 +5891,34 @@ export const plan = (scope: Scope, request: Request): Planned => {
   if (Result.isFailure(planned) || !["title", "desc", "add", "create", "doc", "create-doc"].includes(request.op)) return planned
   const next = planned.success
   const served = new Set([...scope.set.documents.map(one => one.path), ...next.files.map(one => one.file), ...(next.documents ?? []).map(one => one.file)])
+  // The reading's own name index unless this write adds a file, which a
+  // wikilink beside it may already name.
+  let names: Names | undefined
   const nudges: string[] = []
-  const compare = (file: string, text: string | ReadonlyArray<string>, before: string | ReadonlyArray<string>) => {
-    const previous = new Set(deadLinksIn(file, before, served).map(one => one.written))
-    nudges.push(...deadLinksIn(file, text, served).filter(one => !previous.has(one.written)).map(deadLinkSaid))
+  const compare = (file: string, said: ReadonlyArray<Read>, before: ReadonlyArray<Read>) => {
+    names ??= served.size === scope.names.served.size ? scope.names : namesOf(scope.claims, served)
+    const previous = new Set(deadLinksIn(names, file, before).map(one => one.written))
+    nudges.push(...deadLinksIn(names, file, said).filter(one => !previous.has(one.written)).map(deadLinkSaid))
   }
   for (const file of next.files) {
     for (const node of file.nodes) {
       if (isMirror(node)) continue
       const before = scope.derived.byId.get(node.id)?.node
       if (before !== undefined && !isMirror(before) && before.title === node.title && before.desc === node.desc) continue
-      compare(file.file, [node.title, node.desc ?? ""], before === undefined || isMirror(before) ? "" : [before.title, before.desc ?? ""])
+      // The text being written is read here, once; what stood before is the
+      // reading decode kept for it.
+      const was = before === undefined || isMirror(before) ? undefined : recordRead(before)
+      const now = readRecord(node)
+      compare(
+        file.file,
+        now.desc === null ? [now.title] : [now.title, now.desc],
+        was === undefined ? [] : was.desc === null ? [was.title] : [was.title, was.desc],
+      )
     }
   }
-  for (const document of next.documents ?? []) compare(document.file, proseIn(document.text), proseIn(markdownAt(scope.set, document.file)?.body ?? ""))
+  for (const document of next.documents ?? []) {
+    const standing = markdownAt(scope.set, document.file)
+    compare(document.file, [readBody(document.text)], standing === undefined ? [] : [bodyRead(standing)])
+  }
   return nudges.length === 0 ? planned : Result.succeed({ ...next, nudge: [next.nudge, ...new Set(nudges)].filter(Boolean).join(" ") })
 }

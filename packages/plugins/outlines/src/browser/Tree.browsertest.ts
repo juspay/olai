@@ -10,7 +10,7 @@
  * so nothing off the wire was `===` what came before it, `keyArray` called
  * `setItem(newProxy)` for every row on every frame, and every `Branch` binding
  * that reads `props.row` — some twenty-five of them, plus `Glyph`, `NodeLine`,
- * `NodeTitle`, `Aside`, `customEntries`, `NodeBody`'s `plainLine` and
+ * `NodeTitle`, `Aside`, `customEntries`, `NodeBody`'s `previewLine` and
  * `doneUnder` — re-ran for EVERY row for a one-character change in ONE row.
  * `Tree.tsx`'s own `<Key>` comment said as much in its own words from the flip
  * until this PR, where it was rewritten to the law that replaced it.

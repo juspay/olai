@@ -134,6 +134,60 @@ Feature: Referenced by — a zoomed node says what points at it
     And the referenced-by "Mentions this" row reads "look at @herbs before Tuesday, order the new cabinets for @herbs"
     And there should be no page errors
 
+  # ── a declared property is a reference ───────────────────────────────
+  #
+  # A value under a key this vault declares `ref` or `node` names a row as
+  # plainly as a `see` does, and which keys those are is a fact about the
+  # declarations rather than about the format — so these scenarios write both
+  # the declaration and the value. The good corpus declares nothing, which is
+  # why the row is absent everywhere above.
+
+  Scenario: A row a declared property names says so, in its own row
+    When I rewrite "_olai/Properties.olai" as:
+      """
+      {"id":"prop-bed","ord":"a0","title":"bed","custom":{"type":"node"}}
+      """
+    And I rewrite "notes.olai" as:
+      """
+      {"id":"sowing-notes","ord":"a0","title":"sowing notes","custom":{"bed":"herbs"}}
+      """
+    Then the page says it is referenced by 2 things
+    When I open the referenced-by section
+    Then the referenced-by "Names this in a property" row reads "sowing notes"
+    # The `see` is untouched beside it: the ways are separate claims and the
+    # section keeps them apart.
+    And the referenced-by "Sees this" row reads "order the new cabinets"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: Changing the declaration adds the referrer, and taking it back removes it
+    When I rewrite "notes.olai" as:
+      """
+      {"id":"sowing-notes","ord":"a0","title":"sowing notes","custom":{"bed":"herbs"}}
+      """
+    # `bed` is a word until the vault declares it: the value is text, and text
+    # names nothing.
+    Then the page says it is referenced by 1 things
+    When I open the referenced-by section
+    And I rewrite "_olai/Properties.olai" as:
+      """
+      {"id":"prop-bed","ord":"a0","title":"bed","custom":{"type":"node"}}
+      """
+    # ONE RECORD IN ONE FILE moved, and every value of that key in the vault
+    # means something else than it did — which the open page is told without
+    # being asked to start again.
+    Then the page says it is referenced by 2 things
+    And the referenced-by section is still open
+    And the referenced-by "Names this in a property" row reads "sowing notes"
+    When I rewrite "_olai/Properties.olai" as:
+      """
+      {"id":"prop-bed","ord":"a0","title":"bed","custom":{"type":"text"}}
+      """
+    Then the page says it is referenced by 1 things
+    And the referenced-by section draws no "Names this in a property" row
+    And the page has not reloaded
+    And there should be no page errors
+
   # ── a body can refer ─────────────────────────────────────────────────
   #
   # A `.md`'s prose is a source like a record's note: `@id` in it is a mention
@@ -218,4 +272,69 @@ Feature: Referenced by — a zoomed node says what points at it
     And the focused pane is drawing the outline "notes.olai"
     # A record row opens the node with the outline it was written in muted
     # beside it — which is how the two kinds of referrer stay apart on screen.
+    And there should be no page errors
+
+  Scenario: A document that links the node's row is listed, whichever way it writes it
+    # `herbs` lives in garden.olai, and house.olai draws it through the
+    # placement `kitchen-herbs` — a link to the row in either file lands on it.
+    # One document writes a standard link to the placement's file, the other a
+    # wikilink to the holder's; `order`'s `see` is the third thing.
+    When I rewrite "finishes.md" as:
+      """
+      # Finishes
+
+      [the herb bed](house.olai#herbs)
+      """
+    And I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      Colours for [[garden.olai#herbs]].
+      """
+    Then the page says it is referenced by 3 things
+    When I open the referenced-by section
+    Then the referenced-by "Links to this" row reads "Finishes, Palette"
+    And the page has not reloaded
+    And there should be no page errors
+
+  # A mention is a word of the note as the page draws it: emphasis round it is
+  # still a mention, while code and a link's own words hold none.
+  Scenario: A mention counts in emphasis, and not in code or in a link's words
+    When I rewrite "finishes.md" as:
+      """
+      # Finishes
+
+      Ask *@herbs* about the oak.
+      """
+    And I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      Not `see @herbs`, and not [@herbs](https://example.invalid).
+      """
+    Then the page says it is referenced by 2 things
+    When I open the referenced-by section
+    Then the referenced-by "Mentions this" row reads "Finishes"
+    And there should be no page errors
+
+  # An HTML comment is drawn as nothing, so a link inside it refers to nothing;
+  # a reference-style link is a link like any other.
+  Scenario: A link in an HTML comment refers to nothing, and a reference-style link does
+    When I rewrite "finishes.md" as:
+      """
+      # Finishes
+
+      <!-- [the herb bed](#herbs) -->
+      """
+    And I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      See [the herb bed][bed].
+
+      [bed]: #herbs
+      """
+    Then the page says it is referenced by 2 things
+    When I open the referenced-by section
+    Then the referenced-by "Links to this" row reads "Palette"
     And there should be no page errors

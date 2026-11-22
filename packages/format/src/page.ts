@@ -89,14 +89,14 @@
  * disagree.
  */
 
-import { DeadLink, deadLinksOf } from "./dead-links.ts"
+import { DeadLink, deadLinksOf } from "./references/dead.ts"
 
 import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { Address, addressOf } from "./address.ts"
 import { Agenda, type AgendaDay, agendaOf } from "./agenda.ts"
-import { Reference, referencesOf } from "./backlinks.ts"
+import { Reference, referencesOf } from "./references/referring.ts"
 import { Custom, customOf } from "./custom.ts"
 import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
@@ -403,7 +403,7 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  * about FILES rather than about records — which paths the directory serves at
  * all, and which of them is a day's note (`Query.homes`' argument one door
  * along, and the near miss it exists to avoid) — and a third is about what
- * points at a document, which is an index of its own (`./pointing.ts`). Those
+ * points at a document, which is an index of its own (`./references/pointing.ts`). Those
  * are the three fields of a {@link Reading}, so the parameter is the reading:
  * a caller holds one, and four parameters were an invitation to hand over one
  * revision's set beside another's view, which is the very thing that value
@@ -419,7 +419,7 @@ export const pageOf = (
   request: PageRequest,
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
-  const served = new Set(at.set.documents.map(face => face.path))
+  const served = at.names.served
   const shows = shownOf(at, request)
   // THE DOORS FIRST, because the names table spends them: a value that turned
   // out to name a node is an id this page points at, and the chip drawing it
@@ -432,7 +432,7 @@ export const pageOf = (
   const warningRows = [...narrowableIn(shows)]
   if (shows.kind === "node" && shows.zoomed.kind === "node") warningRows.push(shows.zoomed.shows)
   for (const located of warningRows) {
-    const links = deadLinksOf(located, served)
+    const links = deadLinksOf(at.names, located)
     if (links.length > 0) deadLinks[located.node.id] = links
   }
   return {
@@ -619,7 +619,7 @@ export const shownOf = (at: Reading & { readonly outlineRow?: string }, request:
       kind: "document",
       file,
       // WHOLE-DOCUMENT, and deliberately: a link onto a heading or a row is a
-      // link to the document it lands in (`./backlinks.ts` rules it, and the
+      // link to the document it lands in (`./references/referring.ts` rules it, and the
       // index double-files heading and row links under the document key), so a
       // page about a document asks about the document — never about the heading
       // the URL happened to arrive at. One normalisation, here, where the

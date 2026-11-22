@@ -39,9 +39,10 @@
 // WHERE A TAG STARTS AND STOPS IS THE FORMAT'S, and none of it is re-declared
 // here: the sigils it recognises, the alphabet a name is made of, and the rule
 // about a sigil sitting inside a word are three exports rather than three
-// literals in a widget (`@olai/format`'s derive.ts says why, beside the regex
+// literals in a widget (`@olai/prose`'s tags.ts says why, beside the regex
 // they all answer for). What is left in this file is only WHERE the caret is.
-import { isTagName, TAG_SIGILS, type TagSigil, tagOpensAt } from "@olai/format"
+import { isTagName, TAG_SIGILS, type TagSigil, tagOpensAt } from "@olai/prose/tags.ts"
+import { wikilinkOpenAt, wikilinkWritten } from "@olai/prose/wikilink.ts"
 
 /** What the caret is inside, if anything. `from` is the index of the opener's
  *  FIRST character, so `[from, caret)` is the span a chosen completion
@@ -55,6 +56,8 @@ export type Trigger =
     readonly query: string
   }
   | { readonly kind: "mirror"; readonly from: number; readonly query: string }
+  /** A `[[` being typed: the files a wikilink may name. */
+  | { readonly kind: "wikilink"; readonly from: number; readonly query: string }
 
 /** Past this many characters after `!`, a line is prose with an exclamation
  *  mark in it. Long enough for every phrase `../date/natural.ts` reads. */
@@ -62,6 +65,10 @@ const DAY_CAP = 24
 
 /** The same fence for `((`, and tighter: a node search is a few words. */
 const SEARCH_CAP = 48
+
+/** ...and the same length for a name typed after `[[`: a wikilink names one
+ *  file, which is a few words at most. */
+const NAME_CAP = 48
 
 /**
  * Whether two triggers are the SAME offer — the widget, where its span starts,
@@ -96,6 +103,10 @@ export const sameTrigger = (was: Trigger | null, is: Trigger | null): boolean =>
 
 export const triggerIn = (text: string, caret: number): Trigger | null => {
   const before = text.slice(0, Math.max(0, caret))
+  // INSIDE AN OPEN `[[`, the wikilink list or none: what is typed there is a
+  // name, and a `#` in it is a heading, not a tag — so no other list opens.
+  const link = wikilinkIn(before)
+  if (link !== undefined) return link
   const brackets = bracketsIn(before)
   const sigil = sigilIn(before)
   // Rightmost wins: it is the one the caret is inside. Exactly two candidates,
@@ -103,6 +114,18 @@ export const triggerIn = (text: string, caret: number): Trigger | null => {
   if (sigil === null) return brackets
   if (brackets === null) return sigil
   return sigil.from > brackets.from ? sigil : brackets
+}
+
+/**
+ * The `[[` the caret is inside, as this file's offer — the grammar of an open
+ * link is `@olai/prose`'s ({@link wikilinkOpenAt}), and what is added here is
+ * only which widget the span arms. Its three answers are kept: `undefined` for
+ * a caret outside any link, `null` for one inside a link with nothing to
+ * offer, and the span otherwise.
+ */
+const wikilinkIn = (before: string): Trigger | null | undefined => {
+  const open = wikilinkOpenAt(before, NAME_CAP)
+  return open === undefined || open === null ? open : { kind: "wikilink", ...open }
 }
 
 /** The `((` nearest the caret, if it is still open. */
@@ -142,3 +165,19 @@ const sigilIn = (before: string): Trigger | null => {
 }
 
 export { written, type Written } from "@olai/markdown-ui/insert.ts"
+import type { Written } from "@olai/markdown-ui/insert.ts"
+
+/**
+ * The field once a wikilink is chosen: `name` written as `[[name]]` over the
+ * span from the `[[` to the caret, and the caret after the closing pair. A
+ * closing pair already typed after the caret is the link's own, so it is
+ * taken rather than doubled.
+ */
+export const linked = (text: string, found: Trigger, name: string, caret: number): Written => {
+  const after = text.slice(caret)
+  const link = wikilinkWritten({ target: name, fragments: [] })
+  return {
+    text: text.slice(0, found.from) + link + (after.startsWith("]]") ? after.slice(2) : after),
+    caret: found.from + link.length,
+  }
+}

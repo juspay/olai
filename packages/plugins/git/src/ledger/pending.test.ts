@@ -18,7 +18,7 @@
  *   - that push says what git said, whichever way it went.
  */
 import { parsers } from "./parser.testlib.ts"
-import { TEST_CLAIMS } from "@olai/ops/testlib"
+import { TEST_CLAIMS, unheard } from "@olai/ops/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -47,7 +47,7 @@ type OutlineStore = StoreModule.Store<Reading, Verdict>
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
