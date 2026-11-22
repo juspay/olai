@@ -39,8 +39,8 @@ import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } 
 import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
 import { Node } from "./node.ts"
 import { bodiedDocument, readOutline } from "./read.ts"
-/** A reading made by hand, kept on a record before anything reads it — so a
- *  test can hand a decode a record whose text the parser threw on without a
+/** A reading made by hand, kept beside a record before anything reads it — so
+ *  a test can hand a decode a record whose text the parser threw on without a
  *  text that makes it throw (there is none known: `@olai/prose`'s bounds). */
 export { keepRecordRead } from "./kept.ts"
 

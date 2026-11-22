@@ -306,7 +306,7 @@ export type PathsAnswer = typeof PathsAnswer.Type
  * omitted them while a search hit carried them would be two answers to one
  * map.
  *
- * `title` is a DERIVATION and not a field — `firstLine` (`./references/written.ts`),
+ * `title` is a DERIVATION and not a field — the prose reading's `firstLine` (`@olai/prose`'s `read.ts`),
  * the same rule the web draws on a document's page — because a document
  * has no record for a name to be written on. That is the whole of the
  * `md-second-class` asymmetry in one field, and it is answered here rather

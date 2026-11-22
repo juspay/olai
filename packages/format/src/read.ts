@@ -38,7 +38,7 @@ import type { Claims } from "./kinds.ts"
 import { isMirror, type Located, type RegularNode } from "./node.ts"
 
 /**
- * One record read — its title, and its note when it has one — and kept on it.
+ * One record read — its title, and its note when it has one — and kept beside it.
  *
  * Idempotent: a record already read is handed back what it was read as, so a
  * caller holding a record from a decode pays nothing. A fixture that builds a
@@ -71,8 +71,8 @@ export const readOutline = (
 
 /**
  * The document a BODIED file amounts to, its prose read once — `.md` text
- * through the parser with its frontmatter taken off, and the reading kept on
- * the face for every later reader of the body.
+ * through the parser with its frontmatter taken off, and the reading kept
+ * beside the face for every later reader of the body.
  *
  * The arms, and why the prose one is the only one that reads, are
  * `./document.ts`'s {@link bodiedFace}: this is that function told how a text

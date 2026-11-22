@@ -58,13 +58,14 @@
  * ## The face is DERIVED, and this is where
  *
  * Nothing in the format changed on disk. A `.md` still has no record to write
- * a title on, so its title is its first line; its links are where its `[…](…)`
- * land; its tags are the `#topic` and `@person` in its prose, read by the same
- * walk that reads a note's; its elements are the slugs of its headings. Those
- * were four helpers scattered across two packages, called by whoever
- * remembered them ({@link ./references/written.ts}'s `firstLine` and the whole of the
- * browser's link rewriting were both, and the browser had a `preview.ts` of
- * its own). They are FIELDS now, which is the whole difference: a consumer
+ * a title on, so its title is the first line its reading reports
+ * (`@olai/prose`'s `read.ts`); its links are where its `[…](…)` land, read by
+ * {@link ./references/written.ts}'s `readAddresses`; its tags are the `#topic`
+ * and `@person` in its prose, read by the same walk that reads a note's; its
+ * elements are the slugs of its headings. Those were four derivations
+ * scattered across two packages, called by whoever remembered them (the whole
+ * of the browser's link rewriting was one, and the browser had a `preview.ts`
+ * of its own). They are FIELDS now, which is the whole difference: a consumer
  * cannot forget to call a field.
  *
  * **...and one field that is not derived at all.** `props` is a `.md`'s YAML
@@ -435,9 +436,9 @@ const UTF8 = new TextEncoder()
 /**
  * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
  *
- * Beside `./references/written.ts`'s `firstLine` because it is the same kind of fact — the two things
- * that can be said about a document without walking its markdown, and the two a
- * listing carries. What a caller does with it is decide whether to ask for the
+ * Counted where the face's `title` is taken ({@link bodiedFace}) because it is
+ * the same kind of fact — what a listing can say about a document without
+ * handing its text over, and what a caller decides from whether to ask for the
  * whole of it.
  *
  * BYTES rather than `text.length`, which is UTF-16 units and would report a
@@ -527,7 +528,7 @@ export const bodiedFace = (
     }
   }
   // THE PROSE, READ ONCE — the body with any frontmatter taken off, through
-  // the one parser, and the reading kept on the document (`./kept.ts`). Every
+  // the one parser, and the reading kept beside the document (`./kept.ts`). Every
   // field of the face below that comes from the prose is read off it, and so
   // is everything a later reader asks of the body — its dead links, its
   // references.

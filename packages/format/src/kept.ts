@@ -18,12 +18,17 @@
  * costs, and `@olai/bundle`'s `fence.test.ts` holds the first-load chunk to
  * it).
  *
- * HELD ON THE OBJECT IT IS OF, under a symbol: the record's node, the
- * document. Not a field of either — both are values that travel (a record to
- * the browser on an outline's entry, a document's face on its head), and a
- * reading is the server's to keep, not the wire's: a symbol-keyed slot is not
- * enumerable, so no encoding and no spread carries it. The reading lives
- * exactly as long as its text.
+ * KEPT BESIDE THE TEXT AND NEVER ON IT — one `WeakMap` per kind of text,
+ * keyed by the record's node and by the document, which is how every other
+ * memo in this package is kept (`./filter.ts`, `./set.ts`, `./validate.ts`).
+ * Not a field of either, and not a hidden slot written onto them: both are
+ * values that travel (a record to the browser on an outline's entry, a
+ * document's face on its head), and a reading is the server's to keep, not
+ * the wire's. A table off to one side settles that by construction — an
+ * encoding, a spread and a structured clone carry nothing, because there is
+ * nothing on the value to carry — and a decoded record keeps the shape its
+ * decode gave it. The reading lives exactly as long as its text: a record or
+ * a document nobody holds takes its entry with it.
  *
  * A TEXT WITH NO READING IS A DEFECT, not a parse to make here: {@link
  * recordRead} and {@link bodyRead} THROW rather than read, because the caller
@@ -44,33 +49,28 @@ export interface RecordRead {
   readonly desc: Read | null
 }
 
-const KEPT: unique symbol = /* @__PURE__ */ Symbol("olai.read")
+/** What each record's title and note say, keyed by the record. */
+const RECORDS = new WeakMap<RegularNode, RecordRead>()
 
-const keep = <A>(holder: object, made: A): A => {
-  Object.defineProperty(holder, KEPT, { value: made, enumerable: false, writable: false, configurable: false })
-  return made
-}
-
-/** The reading kept on an object, if one was. Only {@link keep} writes the
- *  slot, and each caller reads back the type it keeps there. */
-const keptOn = <A>(holder: object): A | undefined => {
-  const held: unknown = Reflect.get(holder, KEPT)
-  return held === undefined ? undefined : held as A
-}
+/** What each document's prose says, keyed by the document. */
+const BODIES = new WeakMap<object, Read>()
 
 /** What a record's title and note say, or `undefined` when nothing read it —
  *  the one asker is `./read.ts`, which reads it then. Every other reader asks
  *  {@link recordRead}, which does not offer the second answer. */
-export const keptRecordRead = (node: RegularNode): RecordRead | undefined => keptOn<RecordRead>(node)
+export const keptRecordRead = (node: RegularNode): RecordRead | undefined => RECORDS.get(node)
 
 /** Keep what a record's title and note say. `./read.ts`'s call, and nobody
  *  else's: it is the one module that may turn a text into a reading. */
-export const keepRecordRead = (node: RegularNode, said: RecordRead): RecordRead => keep(node, said)
+export const keepRecordRead = (node: RegularNode, said: RecordRead): RecordRead => {
+  RECORDS.set(node, said)
+  return said
+}
 
 /** What a record's title and note say, as it was read when its file was
  *  decoded. A record nothing read is a defect in the caller — see the header. */
 export const recordRead = (node: RegularNode): RecordRead => {
-  const said = keptOn<RecordRead>(node)
+  const said = RECORDS.get(node)
   if (said === undefined) throw new Error(unread(`record \`${node.id}\``, node.title))
   return said
 }
@@ -92,26 +92,26 @@ export const carryRecordReads = (
   for (const located of previous) if (!isMirror(located.node)) before.set(located.node.id, located.node)
   for (const located of nodes) {
     const node = located.node
-    if (isMirror(node) || keptOn<RecordRead>(node) !== undefined) continue
+    if (isMirror(node) || RECORDS.has(node)) continue
     const was = before.get(node.id)
     if (was === undefined || was.title !== node.title || was.desc !== node.desc) continue
-    const said = keptOn<RecordRead>(was)
-    if (said !== undefined) keep(node, said)
+    const said = RECORDS.get(was)
+    if (said !== undefined) RECORDS.set(node, said)
   }
 }
 
 /** What a document's prose says, as it was read when the document was built.
  *  A document nothing read is a defect in the caller — see the header. */
 export const bodyRead = (document: { readonly body: string }): Read => {
-  const said = keptOn<Read>(document)
+  const said = BODIES.get(document)
   if (said === undefined) throw new Error(unread("document", document.body))
   return said
 }
 
-/** Keep a document's reading on it — `./read.ts`'s one call, made once the
+/** Keep a document's reading beside it — `./read.ts`'s one call, made once the
  *  document it read the prose of exists. */
 export const keepBodyRead = <D extends object>(document: D, said: Read): D => {
-  keep(document, said)
+  BODIES.set(document, said)
   return document
 }
 
