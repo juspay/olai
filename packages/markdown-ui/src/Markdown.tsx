@@ -41,7 +41,8 @@ import { intentOf } from "@olai/surface"
  * no explanation.
  */
 import type { Claims, Names } from "@olai/format"
-import { createEffect, createMemo, Show } from "solid-js"
+import { createComponent, createEffect, createMemo, createRoot, getOwner, type JSX, onCleanup, Show } from "solid-js"
+import { insert } from "solid-js/web"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
 import { renderMarkdown, renderStreaming, renderLineLanding } from "./render.ts"
@@ -49,7 +50,20 @@ import { markdownExcerpt } from "./excerpt.ts"
 import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
 import { applyLink } from "./rewrite/links.ts"
+import { BLOCK_ATTRIBUTE } from "./rewrite/blocks.ts"
 import { applyWikilink } from "./wikilinks.ts"
+
+/**
+ * A DRAWING FOR A FENCE — what a caller hands {@link Markdown} for a language,
+ * mounted into each fence in that language. It is handed the fence's text as
+ * written and the file the text is in.
+ */
+export type BlockFace = (props: { readonly text: string; readonly file: string }) => JSX.Element
+
+/** One set of languages per map of drawings, compared by what it holds, so a
+ *  map rebuilt with the same languages renders nothing again. */
+const sameLanguages = (a: ReadonlySet<string> | undefined, b: ReadonlySet<string> | undefined): boolean =>
+  a === b || (a !== undefined && b !== undefined && a.size === b.size && [...a].every((one) => b.has(one)))
 
 export function Markdown(props: {
   readonly claims: Claims | undefined
@@ -67,8 +81,21 @@ export function Markdown(props: {
   /** A clipped document/section face, using the same decoration and states. */
   readonly excerpt?: { readonly after?: string; readonly blocks: number }
   readonly landing?: { readonly line: number; readonly needles: ReadonlyArray<string> }
+  /**
+   * A drawing per fence language. A fence in one of these languages is drawn
+   * by its face rather than as code: the render makes it a placeholder holding
+   * the fence's text (`./rewrite/blocks.ts`), and each face is mounted into its
+   * placeholder and disposed whenever the HTML is replaced, the map changes, or
+   * this component goes. A page that hands no map draws every fence as code.
+   */
+  readonly blocks?: ReadonlyMap<string, BlockFace>
 }) {
   let container: HTMLDivElement | undefined
+  const claimed = createMemo(
+    () => props.blocks === undefined || props.blocks.size === 0 ? undefined : new Set(props.blocks.keys()),
+    undefined,
+    { equals: sameLanguages },
+  )
   // `markdownReady()` both answers and asks — reading it here is what starts
   // the fetch, and what re-runs this memo when the file lands.
   const rendered = createMemo(() =>
@@ -76,8 +103,8 @@ export function Markdown(props: {
       ? props.live === true
         ? renderStreaming(props.claims, props.source, props.from)
         : props.landing !== undefined
-          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles)
-          : renderMarkdown(props.claims, props.source, props.from)
+          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles, undefined, claimed())
+          : renderMarkdown(props.claims, props.source, props.from, undefined, claimed())
       : undefined
   )
   const html = createMemo(() => {
@@ -108,6 +135,43 @@ export function Markdown(props: {
     // selection and the folds around it stay where they were.
     for (const link of container?.querySelectorAll<HTMLElement>("[data-wikilink]") ?? []) {
       applyWikilink(link, claims, names, from)
+    }
+  })
+  // EACH CLAIMED FENCE'S DRAWING, mounted into its placeholder under this
+  // component's owner, so it reads the page's context and goes with it. All
+  // of them are disposed before the next set is mounted: a placeholder the new
+  // HTML replaced is gone, and one that survived is mounted afresh from the
+  // text it still holds — the fallback code block is hidden, never removed.
+  const owner = getOwner()
+  let mounted: Array<() => void> = []
+  const unmount = (): void => {
+    for (const stop of mounted) stop()
+    mounted = []
+  }
+  onCleanup(unmount)
+  createEffect(() => {
+    html()
+    const faces = props.blocks
+    const file = props.from
+    unmount()
+    if (faces === undefined) return
+    for (const placeholder of container?.querySelectorAll<HTMLElement>(`[${BLOCK_ATTRIBUTE}]`) ?? []) {
+      const Face = faces.get(placeholder.getAttribute(BLOCK_ATTRIBUTE) ?? "")
+      if (Face === undefined) continue
+      const code = placeholder.firstElementChild
+      const text = code?.textContent ?? ""
+      const host = document.createElement("div")
+      code?.setAttribute("hidden", "")
+      placeholder.append(host)
+      const dispose = createRoot((dispose) => {
+        insert(host, () => createComponent(Face, { text, file }))
+        return dispose
+      }, owner)
+      mounted.push(() => {
+        dispose()
+        host.remove()
+        code?.removeAttribute("hidden")
+      })
     }
   })
   /** Is this block still WAITING on the renderer — the arrival's own answer

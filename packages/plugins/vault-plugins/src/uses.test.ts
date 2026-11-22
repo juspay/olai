@@ -137,6 +137,8 @@ test("the reading companion's page names what it reaches for in plain words", ()
   // ...A KEY and A COMMAND, as what they are.
   expect(by.get("app.keys")).toBe("Adds a keyboard shortcut")
   expect(by.get("app.command")).toBe("Adds a command to the palette")
+  // ...AND A FENCED BLOCK, as the place it is drawn.
+  expect(by.get("document.block")).toBe("Draws its own fenced blocks in your notes")
   // ...and nothing it reaches for is left to the general sentence.
   expect(list.filter((one) => one.said.startsWith("Uses olai's"))).toEqual([])
 })

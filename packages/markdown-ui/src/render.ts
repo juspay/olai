@@ -61,7 +61,10 @@ interface Rendered {
 /**
  * Keyed by shape, the text, AND the file it is in: the file decides where a
  * relative picture points, and shape rides the key so a title that cached a
- * full document would not poison every later note of that text.
+ * full document would not poison every later note of that text. The languages
+ * a caller has a drawing for ride it too (`./rewrite/blocks.ts`), but only the
+ * CACHE's key: the block's ids are minted from {@link keyFor} alone, so a page
+ * that hands a fence to a drawing carries the same ids as one that does not.
  *
  * It earns its place at the two moments a row is rebuilt from scratch —
  * folding an ancestor and expanding it again, and every frame the live store
@@ -82,14 +85,21 @@ const keyFor = (
   source: string,
 ): string => `${shape}\n${from}\n${source}`
 
+/** The cache key's tail for the claimed languages: empty when there are none,
+ *  so a caller that claims nothing shares the rendering everyone else has. */
+const claimedKey = (blocks: ReadonlySet<string> | undefined): string =>
+  blocks === undefined || blocks.size === 0 ? "" : `\n${[...blocks].sort().join(" ")}`
+
 const renderingOf = (
   claims: Claims | undefined,
   source: string,
   from: string,
   shape: "block" | "inline",
   names?: Names,
+  blocks?: ReadonlySet<string>,
 ): Rendered => {
-  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape, names)
+  const ids = keyFor(shape, from, source)
+  if (claims === undefined) return render(claims, source, from, ids, shape, names, blocks)
   let revisions = renderings.get(claims)
   if (revisions === undefined) {
     revisions = new WeakMap()
@@ -102,18 +112,20 @@ const renderingOf = (
     rendered = new Map()
     revisions.set(namespace, rendered)
   }
-  const key = keyFor(shape, from, source)
+  const key = ids + claimedKey(blocks)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(claims, source, from, key, shape, names)
+  const result = render(claims, source, from, ids, shape, names, blocks)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
-export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, names?: Names): string =>
-  renderingOf(claims, source, from, "block", names).html
+/** `blocks` is the languages the caller has a drawing for: a fence in one is
+ *  a placeholder holding its text (`./rewrite/blocks.ts`). */
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, names?: Names, blocks?: ReadonlySet<string>): string =>
+  renderingOf(claims, source, from, "block", names, blocks).html
 
 /**
  * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
@@ -171,11 +183,12 @@ export const renderToTree = (
   from: string,
   shape: "block" | "inline",
   names?: Names,
+  blocks?: ReadonlySet<string>,
 ): Root => {
   const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(names === undefined ? {} : { names }) })
+  rewrite(tree, rewriting(claims, from, key, shape, names, blocks))
   return tree
 }
 
@@ -230,13 +243,28 @@ const render = (
   key: string,
   shape: "block" | "inline",
   names?: Names,
+  blocks?: ReadonlySet<string>,
 ): Rendered => {
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, { claims, from, ids: idsFor(key), inline: shape === "inline", ...(names === undefined ? {} : { names }) })
+  const headings = rewrite(tree, rewriting(claims, from, key, shape, names, blocks))
   return { html: pipeline.htmlOf(tree), headings }
 }
+
+/** The walk's options for one rendering — one spelling for the two runs. */
+const rewriting = (
+  claims: Claims | undefined,
+  from: string,
+  key: string,
+  shape: "block" | "inline",
+  names: Names | undefined,
+  blocks: ReadonlySet<string> | undefined,
+) => ({
+  claims, from, ids: idsFor(key), inline: shape === "inline",
+  ...(names === undefined ? {} : { names }),
+  ...(blocks === undefined ? {} : { blocks }),
+})
 
 /**
  * This block's id namespace, from the block itself.
@@ -263,8 +291,8 @@ const idsFor = (key: string): string => {
 
 /** Render a source-line landing through the existing parsed tree and highlight walk.
  * No shared cache retains a page's query or highlights. */
-export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, names?: Names): string => {
-  const tree = renderToTree(claims, source, from, "block", names)
+export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, names?: Names, claimed?: ReadonlySet<string>): string => {
+  const tree = renderToTree(claims, source, from, "block", names, claimed)
   if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
   const lines = source.split("\n")
   const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])

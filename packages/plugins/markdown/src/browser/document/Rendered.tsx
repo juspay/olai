@@ -15,6 +15,7 @@ import { useHere, useLanding, useRouter } from "olai-plugin-navigation/routing"
 import { BodyRefused } from "./BodyRefused.tsx"
 import { isServed, useDocument } from "./documents.tsx"
 import { Toc } from "./Toc.tsx"
+import { noteBlocks, sameBlocks } from "../faces.ts"
 
 export function Rendered(props: { readonly file: string }) {
   const here = useHere()
@@ -176,6 +177,12 @@ export function Rendered(props: { readonly file: string }) {
   // rendering would be a document that says nothing where one says something.
   // A REFUSAL is here: folding it into the empty rendering is how a page went
   // blank for a file that had something to say.
+  //
+  // THE FENCES OTHER PLUGINS DRAW (`document.block`), and only here: this is
+  // the note's own page, so a fence in a plugin's language is that plugin's
+  // drawing. Kept while the same drawings are hung, so a face hung elsewhere
+  // does not mount every block again.
+  const blocks = createMemo(noteBlocks, undefined, { equals: sameBlocks })
   return (
     <>
       <Show when={served()?.refused}>
@@ -189,6 +196,7 @@ export function Rendered(props: { readonly file: string }) {
           landing={lineDrawing()}
           from={props.file}
           testid={IDS_MARKDOWN.documentBody}
+          blocks={blocks()}
         />
       </Show>
     </>

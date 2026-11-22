@@ -83,11 +83,12 @@ const PLUMBING: Readonly<Record<string, true>> = {
   OpFailure: true,
 }
 
-/** THE APP SLOTS whose meaning is not "draws something": what a face hung
- *  there does, in words. Any other app slot is drawn in, and said so. */
+/** THE SLOTS whose `Draws in the app's …` would not say where: what a face
+ *  hung there does, in words. Any other slot is drawn in, and said so. */
 const SLOTS: Readonly<Record<string, string>> = {
   "app.keys": "Adds a keyboard shortcut",
   "app.command": "Adds a command to the palette",
+  "document.block": "Draws its own fenced blocks in your notes",
 }
 
 /**
