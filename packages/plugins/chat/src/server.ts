@@ -108,8 +108,7 @@ import {
   SessionStart,
   Watching,
 } from "@olai/plugin-api/services"
-import type { Engine, Registering } from "@kolu/acp/engine"
-import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
+import type { ConversationSeen, Probed, Registering, Wake } from "@olai/plugin-api/services"
 import { Deferred, Duration, Effect, Scope, Semaphore, Stream } from "effect"
 
 import type { PanelAddress } from "./wire/session.ts"
@@ -121,13 +120,13 @@ import { readings } from "./server/readings.ts"
 import type { Change } from "@kolu/acp-harness"
 import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
-import { choiceOf, detecting, here, offBecause } from "./agents/roster.ts"
+import { choiceOf, detecting, type Engine, here, offBecause } from "./agents/roster.ts"
 import { openLocalState } from "./local.ts"
 import { forLocalState as liveIn } from "./live.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { rosterIn, seatingIn } from "./seating.ts"
-import { Config, SLEEP_OFF, sleepingPolicy } from "./settings.ts"
+import { compactingPolicy, Config, SLEEP_OFF, sleepingPolicy } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
 // WHY A SESSION MAY NOT WRITE THE KEY IT IS SEATED ON — the clause the ticket
@@ -1238,6 +1237,10 @@ export default definePlugin({
         // THE PERIOD AS DECODED, from the settings this row was applied with —
         // a change re-applies the row, so the panel never holds a stale one.
         remindEvery: settings["remind-every"],
+        // ... AND WHERE ITS AGENTS COMPACT, for the same reason: a change to
+        // `auto-compact` or `compact-at` re-applies the row, and every agent
+        // brought up after it is opened with the new number.
+        compactAt: compactingPolicy(settings),
         nodeAt: (node) => nodeAgents.nodeAt(node),
         seatableAt: (node) => nodeAgents.seatableAt(node),
         nodes: () => nodeAgents.nodes(),

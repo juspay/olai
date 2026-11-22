@@ -342,6 +342,18 @@ export interface PanelOptions {
    * unless it says otherwise and a serve whose person turned it off.
    */
   readonly remindEvery?: number
+  /**
+   * WHERE THIS CHAT'S AGENTS COMPACT THEIR OWN CONVERSATION, in tokens of
+   * context (`./settings.ts`'s `auto-compact` and `compact-at`, as
+   * `compactingPolicy` decodes them) — handed in, like {@link remindEvery},
+   * by the composition root that read the settings.
+   *
+   * Read at each bring-up: an engine whose registration can be told
+   * (`Installed.compacting`) is opened with the leg and the extra `unset` it
+   * answers for this number. `null` — or absent — tells no engine anything,
+   * and an engine that cannot be told is opened as registered either way.
+   */
+  readonly compactAt?: number | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -845,6 +857,29 @@ const OURS = "olai:"
 const remembranceLost = (failure: AcpAgent.MemoryFailure): string =>
   `which conversation this directory was in could not be written down (${failure.why}) — ` +
   `a restart opens whichever one this agent has most recently`
+
+/**
+ * WHAT ONE BRING-UP OPENS THIS ROW WITH — its registered leg and adapter, or,
+ * when this chat says where to compact ({@link PanelOptions.compactAt}) and
+ * the engine can be told ({@link Installed.compacting}), the leg the engine
+ * answers for that number and the adapter with the variables it names taken
+ * away AS WELL AS its own: the engine's `unset` is extended, never replaced,
+ * so what it strips for every spawn is still stripped.
+ *
+ * Either half missing is the row as registered, so an engine that cannot be
+ * told is opened exactly as it was before the setting existed.
+ */
+const openingOf = (
+  row: Installed,
+  compactAt: number | null,
+): Pick<Installed, "leg" | "adapter"> => {
+  if (compactAt === null || row.compacting === undefined) return row
+  const compacting = row.compacting(compactAt)
+  return {
+    leg: compacting.leg,
+    adapter: { ...row.adapter, unset: [...(row.adapter.unset ?? []), ...compacting.unset] },
+  }
+}
 
 export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, never> =>
   Effect.gen(function*() {
@@ -2308,11 +2343,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
          * leaving is its scope being released, and the log line a person finds
          * should say so.
          */
+        const spawn = openingOf(row, options.compactAt ?? null)
         const made = yield* Effect.tryPromise({
           try: (signal) =>
             startHarness<ChatEntry>({
-              leg: row.leg,
-              adapter: row.adapter,
+              // THE LEG AND THE SPAWN THIS BRING-UP USES, which are the row's
+              // own unless this chat tells the engine where to compact
+              // ({@link openingOf}).
+              leg: spawn.leg,
+              adapter: spawn.adapter,
               cwd: options.cwd,
               configDir: SIGNED_IN_FROM,
               // OLAI'S OWN SERVER, as the one entry handed over, and whatever
