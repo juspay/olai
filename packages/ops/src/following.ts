@@ -89,6 +89,7 @@ import { encoded } from "./encode.ts"
 import { bodiedDocument } from "@olai/format/read"
 import {
   type Document,
+  documentAt,
   following,
   type OpFailure,
   ValidationFailure,
@@ -133,7 +134,7 @@ export const folding = (from: Scope): Folding => {
   return (made) => {
     const written: Array<Document> = []
     for (const planned of made.files) {
-      const read = encoded(at.claims, planned.file, planned.nodes)
+      const read = encoded(at.claims, planned.file, planned.nodes, documentAt(at.set, planned.file))
       if (Result.isFailure(read)) return Result.fail(read.failure)
       written.push(read.success.outline)
     }
