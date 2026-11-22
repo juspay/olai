@@ -70,7 +70,7 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 
 [^memory]: Claude Code's automatic memory is switched off. Every time olai starts the adapter it sets `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, which overrides `autoMemoryEnabled` in the adapter's `settings.json` and anything you set yourself, so the rows under the node the chat hangs from are the conversation's only memory. A `CLAUDE.md` file is instructions you wrote rather than memory, and it still loads.
 
-[^compact]: olai tells Claude Code where to compact by opening and resuming every conversation with settings that turn auto-compaction on at the `compact-at` size, plus the 33,000 tokens Claude Code keeps in reserve. A model with a smaller window compacts sooner. These settings replace any `--settings` your own `KOLU_ACP_AGENT` passes, and the models `CLAUDE_MODEL_CONFIG` names. A compaction shows as a **Compact conversation** tool call. With [chat](chat.md)'s `auto-compact` at `no`, olai sends none of this.
+[^compact]: olai opens and resumes every conversation with settings that tell Claude Code to compact once it holds about the `compact-at` size. A model whose own window is smaller compacts sooner: at the default of 200k, a model with a 200k window compacts at about 167k. These settings replace any `--settings` your own `KOLU_ACP_AGENT` passes, and the models `CLAUDE_MODEL_CONFIG` names. A compaction shows as a **Compact conversation** tool call. With [chat](chat.md)'s `auto-compact` at `no`, olai sends none of this.
 
 [^earlier]: The list of saved conversations says how many messages each one holds, and when a `/clear` ended one, it names the conversation that took its place. The **Earlier chats** list shows both.
 
@@ -86,7 +86,7 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 | `CLAUDE_CODE_DISABLE_AUTO_MEMORY` | olai sets it to `1` every time it starts the adapter, whatever you set |
 | `IS_SANDBOX` | the adapter offers its permission-free mode to a user running as root only when this is set |
 | `NO_BROWSER`, `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY`, `CLAUDE_CODE_REMOTE` | olai removes these every time it starts the adapter |
-| `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | olai removes these every time it starts the adapter, unless chat's `auto-compact` is `no` |
+| `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | olai removes these every time it starts the adapter for a conversation, unless chat's `auto-compact` is `no` |
 
 olai tells the adapter that it can run terminal commands, so the adapter offers `claude-ai-login` and `console-login` as sign-in commands for olai to run, and that is what the panel does.
 
