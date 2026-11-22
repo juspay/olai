@@ -32,7 +32,7 @@ import type { Element, Root } from "hast"
 import { type Heading, headingOf } from "./outline.ts"
 import { type HeadingRoute, headingRoute, mint } from "./rewrite/ids.ts"
 import { openExternal, resolveDocument } from "./rewrite/links.ts"
-import { type Pictures, resolvePicture } from "./rewrite/pictures.ts"
+import { isPicture, type Pictures, resolvePicture } from "./rewrite/pictures.ts"
 import { drawWikilink, wikilinkOf } from "./wikilinks.ts"
 
 
@@ -68,7 +68,7 @@ const walk = (
 ): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
-    if (child.tagName === "img") resolvePicture(child, options.claims, options.from, pictures)
+    if (isPicture(child)) resolvePicture(child, options.claims, options.from, pictures)
     if (child.tagName === "a") {
       const written = wikilinkOf(child)
       if (written !== undefined) {

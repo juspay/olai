@@ -29,6 +29,11 @@ export const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " 
  *  fetched eagerly (see below). */
 export interface Pictures { drawn: number }
 
+/** Whether an element is a picture this pass resolves — asked here, beside
+ *  where its `loading` is decided, so the walk that finds it spells no
+ *  picture of its own. */
+export const isPicture = (element: Element): boolean => element.tagName === "img"
+
 /**
  * Point an `<img>` at the media route — or, when nothing here resolves, say so
  * IN PLACE OF THE PICTURE.
