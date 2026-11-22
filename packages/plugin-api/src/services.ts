@@ -77,7 +77,7 @@
  * on {@link Vault}.
  */
 
-import type { Engine, Registering } from "@kolu/acp/engine"
+import type { Leg, Registering as ProtocolRegistering } from "@kolu/acp/engine"
 import {
   broadcast,
   contained,
@@ -836,8 +836,10 @@ export const Wakes = serviceTag<Wakes>("wakes")
  * ## What a registration is, and what it deliberately is NOT
  *
  * {@link Registering} — a name a person reads, the leg that reads this agent's
- * wire, a probe that answers `Adapter | NotHere` for this host, and the channel
- * its standing prompt rides. HOW A PERSON GETS ONE is in that answer now: the
+ * wire, a probe that answers `Adapter | NotHere` for this host, the channel
+ * its standing prompt rides, and — for an engine that can be told — how to open
+ * it so it compacts at a number of tokens the chat chooses
+ * ({@link Registering.compacting}). HOW A PERSON GETS ONE is in that answer now: the
  * `NotHere` arm is the engine's own install sentence, spelled once in its
  * `install.ts` and spent where the reading is published — the roster's row, the
  * picker's greyed entry and the log's `missing` line — where for one revision
@@ -2032,19 +2034,40 @@ export type {
 export { exposeMapsOf, kindWordOf, NO_TICKET, NOWHERE_TO_WRITE, surfacesOf } from "./contract.ts"
 
 /**
- * WHAT AN ENGINE PLUGIN HANDS {@link Agents} — the one name off
- * `@kolu/acp/engine` this door repeats, because it is the argument of a verb
- * declared here.
+ * WHAT AN ENGINE PLUGIN HANDS {@link Agents} — `@kolu/acp/engine`'s
+ * registration, and the one member olai adds to it.
  *
- * IT WAS FIVE. `Adapter`, `Engine`, `PromptChannel` and `Where` came with it, on
- * the argument that a server half should "open one door for its whole
- * registration" — and none of the four was ever imported from here by anything.
- * The door was not one either: the re-export is types-only and a probe needs
- * VALUES, so three of the four engines go to `@kolu/acp/engine` for `adapterFrom`
- * and `AGENT_ENV` regardless. A convenience nobody walked through, arguing a
- * property it did not have.
+ * It was a bare re-export of kolu's, and it was ONE name rather than five on
+ * purpose: `Adapter`, `Engine`, `PromptChannel` and `Where` came with it once,
+ * on the argument that a server half should "open one door for its whole
+ * registration", and none of the four was ever imported from here by anything.
+ * That stays true. What is declared here is the argument of a verb declared
+ * here, so when the argument grows, it grows here.
  */
-export type { Registering } from "@kolu/acp/engine"
+export interface Registering extends ProtocolRegistering {
+  /**
+   * HOW TO OPEN THIS ENGINE SO IT COMPACTS ITS OWN CONVERSATION at `tokens` of
+   * context — the leg to open with in place of {@link ProtocolRegistering.leg}, and
+   * the variables its spawn must also not see, added to the adapter's own
+   * `unset`. Absent for an engine olai cannot tell where to compact, which is
+   * then opened as registered.
+   *
+   * A PURE FUNCTION OF ITS ARGUMENT, and that is what lets it cross here: it
+   * closes over no activation's services, environment or scope, so a chat
+   * holding the registration holds no live value of the engine's
+   * (`website/docs/architecture/cordis.md`, "Importing a module is not
+   * depending on a plugin"). The number is the CALLER's — a person's setting,
+   * read by whoever opens the session — and the engine says only how to say it.
+   */
+  readonly compacting?: (tokens: number) => Compacting
+}
+
+/** {@link Registering.compacting}'s answer: one bring-up's leg and the
+ *  variables that would override it. */
+export interface Compacting {
+  readonly leg: Leg
+  readonly unset: ReadonlyArray<string>
+}
 
 /**
  * WHAT A HALF MAY NAME — the two catalogs `plugins.inspect` answers with, and
