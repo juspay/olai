@@ -2,8 +2,18 @@
  * WHERE A LINK LANDS — the one answer both kinds give: the place it found, or
  * that it found nothing and what it looked for. A standard link looks for a
  * path beside the file that wrote it (`./standard.ts`); a wikilink looks for a
- * name across the directory (`./wikilink.ts`). The dead-link reading and the
- * page ask this, so a link is dead for an agent exactly when it is drawn dead.
+ * name across the directory (`./wikilink.ts`). The dead-link reading
+ * (`../references/dead.ts`) and the page (`@olai/markdown-ui`'s
+ * `rewrite/links.ts` for a standard link, `wikilinks.ts` for a `[[name]]`) ask
+ * this, so a link is dead for an agent exactly when it is drawn dead. What the
+ * page does NOT take from here is where a live link opens: a `#part` on the
+ * page is an id minted per rendered block, not a heading of the address
+ * grammar, so the drawing spells its own href and asks this for the dead
+ * decision alone.
+ *
+ * Nothing here parses: a link arrives already read (`@olai/prose`'s `Cut` and
+ * `WikilinkName`), and the modules this reaches hold the directory's names and
+ * the address grammar, never the parser.
  */
 import type { Cut } from "@olai/prose/cut.ts"
 import type { WikilinkName } from "@olai/prose/wikilink.ts"

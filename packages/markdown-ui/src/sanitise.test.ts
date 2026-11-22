@@ -113,7 +113,7 @@ test("nothing but the attributes and one href protocol was touched", () => {
 })
 
 // THE MARKS THAT SAY "THIS IS A WIKILINK" are written after the sanitiser, as
-// `data-link-path` is, so a note cannot carry one of its own: raw HTML is
+// `data-link-written` is, so a note cannot carry one of its own: raw HTML is
 // dropped whole, and a hand-written link that spells the pipeline's own
 // carrier is a link to a fragment and nothing more.
 test("a note cannot forge a wikilink's marks", () => {

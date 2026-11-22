@@ -92,19 +92,20 @@ export function Markdown(props: {
   createEffect(() => {
     html()
     const names = props.names
+    const claims = props.claims
+    const from = props.from
     // A STANDARD LINK'S ADDRESS CANNOT MOVE: it is a path, resolved once when
     // the prose was rendered. What the index decides is whether anything is
     // served under it, so what is redrawn here is the dead mark and the name
-    // that carries its reason.
-    for (const link of container?.querySelectorAll<HTMLAnchorElement>("a[data-link-path]") ?? []) {
-      applyLink(link, names)
+    // that carries its reason — asked of the href as written, which is the
+    // mark each link carries.
+    for (const link of container?.querySelectorAll<HTMLAnchorElement>("a[data-link-written]") ?? []) {
+      applyLink(link, claims, names, from)
     }
     // A WIKILINK FINDS ITS FILE BY NAME, so a file arriving or leaving can
     // heal one, kill one or re-aim one at a nearer namesake. Each is brought
     // in step here, in place — the prose is not rendered again, so a reader's
     // selection and the folds around it stay where they were.
-    const claims = props.claims
-    const from = props.from
     for (const link of container?.querySelectorAll<HTMLElement>("[data-wikilink]") ?? []) {
       applyWikilink(link, claims, names, from)
     }

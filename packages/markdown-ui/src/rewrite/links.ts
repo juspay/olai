@@ -42,6 +42,7 @@ import {
   type Names,
   placeOf,
   printAddress,
+  standardLanding,
 } from "@olai/format"
 import { cut } from "@olai/prose/cut.ts"
 import type { Element } from "hast"
@@ -115,13 +116,26 @@ export const textIn = (node: { readonly type: string; readonly value?: unknown; 
   return children.map((child) => textIn(child as Parameters<typeof textIn>[0])).join("")
 }
 
-/** THE DEAD DECISION for a path: the sentence to name the link with, or
- *  `undefined` — nothing to say with no index in hand, which judges nothing and
- *  guesses nothing. Asked by the tree and by the page, so neither can drift. */
-const missing = (names: Names | undefined, path: string): string | undefined =>
-  names === undefined || names.served.has(path)
+/** THE DEAD DECISION for a standard link, which is the reading's own
+ *  (`@olai/format`'s `standardLanding`, asked with the href AS WRITTEN and the
+ *  file that wrote it): the sentence to name the link with when the directory
+ *  serves nothing under the path it resolves to, or `undefined` — for a link
+ *  that lands somewhere, and with no claims or no name index in hand, which
+ *  judges nothing and guesses nothing. Asked by the tree and by the page, so
+ *  neither can drift from the other, and a link is dead for an agent exactly
+ *  when it is drawn dead. */
+const deadSaid = (
+  claims: Claims | undefined,
+  names: Names | undefined,
+  from: string,
+  written: string,
+): string | undefined => {
+  if (claims === undefined || names === undefined) return undefined
+  const landing = standardLanding(claims, names.served, from, cut(written))
+  return landing === null || !("lookedFor" in landing)
     ? undefined
-    : deadLinkSaid({ kind: "path", resolved: path, suggest: [] })
+    : deadLinkSaid({ kind: "path", resolved: landing.lookedFor, suggest: [] })
+}
 
 /**
  * The one thing this decides that the path resolver does not is the FRAGMENT.
@@ -161,7 +175,7 @@ export const resolveDocument = (
   const path = place.path
   const title = element.properties["title"]
   const authored = typeof title === "string" ? title : ""
-  const dead = missing(names, path)
+  const dead = deadSaid(claims, names, from, written)
   // The authored query and fragment ride on after the file, as the link
   // carried them.
   const address = claims === undefined || bodyKind(claims, path) === null ? null : addressOf(claims, path, null)
@@ -177,7 +191,7 @@ export const resolveDocument = (
     // Only a dead link is named after its words, and reading them is a walk
     // over the subtree.
     dead === undefined ? "" : textIn(element).trim(),
-    { "data-link-path": path, "data-link-written": written, "data-link-title": authored },
+    { "data-link-written": written, "data-link-title": authored },
     authored,
   )
   // The classes markdown and the sanitiser left stay; the dead one is added to
@@ -196,15 +210,23 @@ const MANAGED = ["data-dead", "aria-label"]
 /**
  * A standard link already on the page, brought in step with the directory it
  * now has — in place, so a reader's selection and the open folds around it
- * stay. The marks {@link resolveDocument} left are what it reads: the resolved
- * path to look up, and the authored title, which the name says after the words
- * and which this must NOT restore onto `title` — markdown's own `title`
- * attribute is in the HTML already and is the document's, not ours.
+ * stay. The marks {@link resolveDocument} left are what it reads: the href as
+ * WRITTEN, which with `from` is the whole of the dead question, and the
+ * authored title, which the name says after the words and which this must NOT
+ * restore onto `title` — markdown's own `title` attribute is in the HTML
+ * already and is the document's, not ours. It takes the directory the way
+ * `../wikilinks.ts`'s `applyWikilink` does, because both ask one question of
+ * it.
  */
-export const applyLink = (element: HTMLElement, names: Names | undefined): void => {
-  const path = element.dataset["linkPath"]
-  if (path === undefined) return
-  const dead = missing(names, path)
+export const applyLink = (
+  element: HTMLElement,
+  claims: Claims | undefined,
+  names: Names | undefined,
+  from: string,
+): void => {
+  const written = element.dataset["linkWritten"]
+  if (written === undefined) return
+  const dead = deadSaid(claims, names, from, written)
   const attributes = linkDrawing(
     dead === undefined ? {} : { dead },
     dead === undefined ? "" : (element.textContent ?? "").trim(),
