@@ -33,6 +33,7 @@ import { factoryTitle } from "micromark-factory-title"
 import { factoryWhitespace } from "micromark-factory-whitespace"
 import { markdownLineEnding, markdownLineEndingOrSpace, markdownSpace } from "micromark-util-character"
 import type { Code, Construct, Effects, Extension, State, TokenizeContext } from "micromark-util-types"
+import { readWikilink } from "./wikilink.ts"
 
 /** A wikilink as the tree holds it. */
 export interface WikilinkNode extends Parent {
@@ -75,26 +76,6 @@ const PAREN_CLOSE = 41
 const ANGLE_OPEN = 60
 const QUOTE = 34
 const APOSTROPHE = 39
-
-/** What the text between `[[` and `]]` says, or `null` when it names nothing. */
-const readWikilink = (inner: string, embed: boolean): Omit<WikilinkNode, "type" | "children"> & { readonly shown: string } | null => {
-  const text = inner.replaceAll("\\|", "|")
-  const bar = text.indexOf("|")
-  const named = bar === -1 ? text : text.slice(0, bar)
-  const words = bar === -1 ? "" : text.slice(bar + 1).trim()
-  const parts = named.split("#")
-  const target = (parts[0] as string).trim()
-  const fragments = parts.slice(1).map((part) => part.trim()).filter((part) => part !== "")
-  if (target === "" && fragments.length === 0) return null
-  const alias = words === "" ? null : words
-  return {
-    target,
-    fragments,
-    alias,
-    embed,
-    shown: alias ?? (target === "" ? fragments : [target, ...fragments]).join(" > "),
-  }
-}
 
 /** `[[…]]` and `![[…]]`, on one line, holding no bracket of their own. */
 const wikilink: Construct = {

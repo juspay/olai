@@ -1,11 +1,16 @@
 /**
- * A WIKILINK AS A VALUE, how one is written, and where one is OPEN.
+ * A WIKILINK AS A VALUE: what is between its brackets, how one is written,
+ * and where one is OPEN.
  *
- * `./obsidian.ts` reads `[[…]]` inside the parser; what it reads travels as
- * {@link WikilinkName} — the target and its `#` parts, kept apart — and is
- * never joined into a string to be split again. The one place a wikilink is
- * WRITTEN is {@link wikilinkWritten}: a dead link's report, a completion's
- * insert and a suggestion all spell it here.
+ * {@link readWikilink} is the ONE reader of what stands between `[[` and
+ * `]]`. Both callers that find those brackets ask it: the parser's construct
+ * (`./obsidian.ts`) and the preview line's one-line shortcut (`./shown.ts`),
+ * so neither can disagree with the other about a link's name or its words.
+ * What a link looks up travels as {@link WikilinkName} — the target and its
+ * `#` parts, kept apart — and is never joined into a string to be split
+ * again. The one place a wikilink is WRITTEN is {@link wikilinkWritten}: a
+ * dead link's report, a completion's insert and a suggestion all spell it
+ * here.
  *
  * {@link wikilinkOpenAt} is the other half of the row editor's `[[` list, and
  * it is no reader of finished text: it is asked of text somebody is still
@@ -21,6 +26,48 @@
 export interface WikilinkName {
   readonly target: string
   readonly fragments: ReadonlyArray<string>
+}
+
+/** What the text between `[[` and `]]` says: the name, the alias, and the
+ *  words the link shows. */
+export interface WikilinkRead extends WikilinkName {
+  /** The words after the `|`, trimmed, or `null` when there are none. */
+  readonly alias: string | null
+  /** Written `![[…]]`. */
+  readonly embed: boolean
+  /** What the link draws: the alias, or the target and its fragments joined
+   *  by ` > `. */
+  readonly shown: string
+}
+
+/**
+ * WHAT IS BETWEEN THE BRACKETS, or `null` when it names nothing — the one
+ * reader of a wikilink's inside, shared by the parser's construct
+ * (`./obsidian.ts`) and the preview line's shortcut (`./shown.ts`), so the
+ * two cannot disagree about what a link is called or what it shows.
+ *
+ * `inner` is what stands between `[[` and `]]`, the brackets excluded; the
+ * caller has already decided where those are, and says whether a `!` opens it.
+ */
+export const readWikilink = (inner: string, embed: boolean): WikilinkRead | null => {
+  // `\|` is the bar a table cell needs written escaped; inside a link it is
+  // the alias bar either way.
+  const text = inner.replaceAll("\\|", "|")
+  const bar = text.indexOf("|")
+  const named = bar === -1 ? text : text.slice(0, bar)
+  const words = bar === -1 ? "" : text.slice(bar + 1).trim()
+  const parts = named.split("#")
+  const target = (parts[0] as string).trim()
+  const fragments = parts.slice(1).map((part) => part.trim()).filter((part) => part !== "")
+  if (target === "" && fragments.length === 0) return null
+  const alias = words === "" ? null : words
+  return {
+    target,
+    fragments,
+    alias,
+    embed,
+    shown: alias ?? (target === "" ? fragments : [target, ...fragments]).join(" > "),
+  }
 }
 
 /** How a wikilink is written: `[[target#part]]`, with `!` for an embed and
