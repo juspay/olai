@@ -12,7 +12,7 @@
  * Pure: the palettes in, a pairing out.
  */
 
-import { hueGap, oklchOf } from "./hues.ts"
+import { hueGap, hueOf, oklchOf } from "./hues.ts"
 import type { Palette } from "./palettes.ts"
 
 /** A paper with too little chroma to have a hue: chalk's and basalt's sit
@@ -25,27 +25,21 @@ const NEUTRAL_CHROMA = 0.01
 export const isNeutral = (hex: string): boolean => oklchOf(hex).c < NEUTRAL_CHROMA
 
 /** Each dark palette's name, to the name of the light palette it is the night
- *  of. `lights` is searched in order, so a tie goes to the earlier row; a dark
- *  with no light of its kind (a neutral dark and no neutral light) is left
- *  out. */
+ *  of. The lights of its own kind (neutral or hued) are the candidates; among
+ *  hued ones the nearest on the wheel wins, and a tie goes to the earlier
+ *  row. A dark with no light of its kind (a neutral dark and no neutral
+ *  light) is left out. */
 export const lightSiblings = (palettes: ReadonlyArray<Palette>): ReadonlyMap<string, string> => {
   const lights = palettes.filter((palette) => palette.scheme === "light")
   const pairs = new Map<string, string>()
   for (const dark of palettes.filter((palette) => palette.scheme === "dark")) {
-    const ground = oklchOf(dark.colors.paper)
-    const neutral = ground.c < NEUTRAL_CHROMA
-    let nearest: Palette | undefined
-    let gap = Number.POSITIVE_INFINITY
-    for (const light of lights) {
-      const paper = oklchOf(light.colors.paper)
-      if ((paper.c < NEUTRAL_CHROMA) !== neutral) continue
-      const distance = neutral ? 0 : hueGap(ground.h, paper.h)
-      if (distance < gap) {
-        gap = distance
-        nearest = light
-      }
-    }
-    if (nearest !== undefined) pairs.set(dark.name, nearest.name)
+    const neutral = isNeutral(dark.colors.paper)
+    const kin = lights.filter((light) => isNeutral(light.colors.paper) === neutral)
+    if (kin.length === 0) continue
+    const gap = (light: Palette): number =>
+      neutral ? 0 : hueGap(hueOf(dark.colors.paper), hueOf(light.colors.paper))
+    const nearest = kin.reduce((best, light) => (gap(light) < gap(best) ? light : best))
+    pairs.set(dark.name, nearest.name)
   }
   return pairs
 }

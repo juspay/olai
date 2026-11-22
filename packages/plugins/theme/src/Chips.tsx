@@ -48,9 +48,15 @@ const DARKS = PALETTES.filter((palette) => palette.scheme === "dark")
 const SIBLING = lightSiblings(PALETTES)
 
 /** The grid column a swatch stands in on a wider screen, 1-based as CSS
- *  counts: a light one in table order, a dark one under its light sibling. */
-const columnOf = (palette: Palette): number =>
-  LIGHTS.findIndex((light) => light.name === (SIBLING.get(palette.name) ?? palette.name)) + 1
+ *  counts. A light one stands in table order; a dark one under its light
+ *  sibling. A dark with NO sibling gets no column and takes the next free
+ *  cell of its line — `@olai/appearance/families.test.ts` keeps that case out
+ *  of today's table. */
+const columnOf = (palette: Palette): number | undefined => {
+  if (palette.scheme === "light") return LIGHTS.indexOf(palette) + 1
+  const sibling = SIBLING.get(palette.name)
+  return sibling === undefined ? undefined : LIGHTS.findIndex((light) => light.name === sibling) + 1
+}
 
 /** What the row says the page is in: the palette, and whose choice it was. */
 export const themeInForce = (state: Appearance): string =>
@@ -87,10 +93,10 @@ export function ThemeChips(props: { readonly state: Appearance }) {
   // that went out, rather than every swatch.
   const isInForce = createSelector(() => props.state.theme.current().name)
 
-  /** One swatch. `row` is its line in the wider screen's grid; its column is
-   *  handed over as `--swatch-column`, because the sheet cannot know it and a
-   *  `grid-column` written inline would hold on a phone too. */
-  const swatch = (palette: Palette, row: "md:row-start-1" | "md:row-start-2") => (
+  /** One swatch. Its line in the wider screen's grid is its scheme's; its
+   *  column is handed over as `--swatch-column`, because the sheet cannot
+   *  know it and a `grid-column` written inline would hold on a phone too. */
+  const swatch = (palette: Palette) => (
     <Tip text={paletteLabel(palette.name)}>
       <button
         type="button"
@@ -98,8 +104,8 @@ export function ThemeChips(props: { readonly state: Appearance }) {
         // swatch inside it is the drawing. The ring says which is in force,
         // and the focus ring where the caret is — the page's accent, so it
         // shows against any swatch.
-        class={`${SWATCH} ${row} md:[grid-column:var(--swatch-column)]`}
-        style={{ "--swatch-column": String(columnOf(palette)) }}
+        class={`${SWATCH} ${palette.scheme === "light" ? "md:row-start-1" : "md:row-start-2"} md:[grid-column:var(--swatch-column)]`}
+        style={{ "--swatch-column": columnOf(palette)?.toString() }}
         data-testid={TESTID.themeChip}
         data-value={palette.name}
         aria-label={paletteLabel(palette.name)}
@@ -142,7 +148,11 @@ export function ThemeChips(props: { readonly state: Appearance }) {
           />
         </button>
       </Tip>
-      <span aria-hidden="true" class="mx-1 h-5 w-px self-center bg-rule" />
+      {/* The hairline between the follow control and the palettes. Below
+          48rem the swatches wrap onto lines of their own under the follow
+          control, so the break already separates them and a hairline would
+          stand alone at the end of that control's line. */}
+      <span aria-hidden="true" class="mx-1 h-5 w-px self-center bg-rule max-md:hidden" />
       {/* The two lines. Below 48rem each is its own wrapping line, the lights
           above; from 48rem the two wrappers step aside (`contents`) and every
           swatch is a cell of one grid whose columns are the light swatches.
@@ -153,10 +163,10 @@ export function ThemeChips(props: { readonly state: Appearance }) {
         style={{ "--swatch-columns": String(LIGHTS.length) }}
       >
         <div class="flex flex-wrap gap-1 md:contents">
-          <For each={LIGHTS}>{(palette) => swatch(palette, "md:row-start-1")}</For>
+          <For each={LIGHTS}>{swatch}</For>
         </div>
         <div class="flex flex-wrap gap-1 md:contents">
-          <For each={DARKS}>{(palette) => swatch(palette, "md:row-start-2")}</For>
+          <For each={DARKS}>{swatch}</For>
         </div>
       </div>
     </>
