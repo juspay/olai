@@ -128,7 +128,7 @@ The whole stack is Effect 4: Effect Schema wherever data enters or leaves the pr
 
 SolidJS 1.9 draws the pages, and Tailwind 4 styles them, with utility classes written inline in the components and a CSS entry file holding only `@theme` tokens and rules for markup this codebase does not write itself. There is no `@apply`.
 
-- A palette is eleven tokens, tabled in `appearance/src/palettes.ts`. The build generates one `:root[data-theme="…"]` block per palette, so adding a palette is adding a row to that table.
+- A palette is eleven tokens, tabled in `appearance/src/palettes.ts`. The build generates one `:root[data-theme="…"]` block per palette, so adding a palette is adding a row to that table. Seven of the eleven palettes come from one rule in `appearance/src/recipe.ts`, which turns a hue, a tint depth and an accent hue into the eleven colours, and a unit test holds each of those rows to it.
 - A typeface is three tokens, catalogued in `packages/fonts`. The default is Literata for titles and documents, Inter for the interface, and iA Writer Mono for code.
 - Markdown is remark plus rehype, rendered at view time through one pipeline for a note, a document, an agent's words and a title. The sanitiser's allowlist is its default plus two named additions in `markdown-ui/src/sanitise.ts`.
 

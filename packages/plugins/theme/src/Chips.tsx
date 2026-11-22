@@ -10,7 +10,15 @@
  * swatch's tooltip and accessible name, and the one in force beside the row's
  * label (`./AppearanceRows.tsx`).
  *
- * Lights first, then darks, in one row — the table's own order.
+ * LIGHTS BEFORE DARKS, in the table's own order, each set on its own line.
+ * On a wider screen the two lines are a grid: a dark swatch stands under the
+ * light one of its family (`@olai/appearance/families.ts` says which), so
+ * basalt sits under chalk and abyss under reef, and a person reads each
+ * column as one colour by day and by night. Below 48rem a swatch is a 44px
+ * target and seven of them do not fit one line of the panel, so each line is
+ * free to wrap there — the lights still all before the darks — and the
+ * pairing is a promise for the wider screen only. The follow control stands
+ * ahead of both lines, and on a phone wraps above them.
  *
  * ARIA is plain toggle buttons with `aria-pressed`, inside the group the
  * settings row names. A swatch is pressed when its palette is the one IN
@@ -25,7 +33,8 @@
 import { TESTID } from "olai-plugin-theme/testids"
 import { createSelector, For } from "solid-js"
 
-import { PALETTES } from "@olai/appearance/palettes.ts"
+import { lightSiblings } from "@olai/appearance/families.ts"
+import { defaultPaletteFor, type Palette, PALETTES } from "@olai/appearance/palettes.ts"
 import type { Appearance } from "./index.ts"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
@@ -33,6 +42,21 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 
 /** A palette's name as a person reads it. */
 export const paletteLabel = (name: string): string => name.charAt(0).toUpperCase() + name.slice(1)
+
+const LIGHTS = PALETTES.filter((palette) => palette.scheme === "light")
+const DARKS = PALETTES.filter((palette) => palette.scheme === "dark")
+const SIBLING = lightSiblings(PALETTES)
+
+/** The grid column a swatch stands in on a wider screen, 1-based as CSS
+ *  counts. A light one stands in table order; a dark one under its light
+ *  sibling. A dark with NO sibling gets no column and takes the next free
+ *  cell of its line — `@olai/appearance/families.test.ts` keeps that case out
+ *  of today's table. */
+const columnOf = (palette: Palette): number | undefined => {
+  if (palette.scheme === "light") return LIGHTS.indexOf(palette) + 1
+  const sibling = SIBLING.get(palette.name)
+  return sibling === undefined ? undefined : LIGHTS.findIndex((light) => light.name === sibling) + 1
+}
 
 /** What the row says the page is in: the palette, and whose choice it was. */
 export const themeInForce = (state: Appearance): string =>
@@ -69,6 +93,37 @@ export function ThemeChips(props: { readonly state: Appearance }) {
   // that went out, rather than every swatch.
   const isInForce = createSelector(() => props.state.theme.current().name)
 
+  /** One swatch. Its line in the wider screen's grid is its scheme's; its
+   *  column is handed over as `--swatch-column`, because the sheet cannot
+   *  know it and a `grid-column` written inline would hold on a phone too. */
+  const swatch = (palette: Palette) => (
+    <Tip text={paletteLabel(palette.name)}>
+      <button
+        type="button"
+        // The button is the target (44px on a phone, `../touch.ts`); the
+        // swatch inside it is the drawing. The ring says which is in force,
+        // and the focus ring where the caret is — the page's accent, so it
+        // shows against any swatch.
+        class={`${SWATCH} ${palette.scheme === "light" ? "md:row-start-1" : "md:row-start-2"} md:[grid-column:var(--swatch-column)]`}
+        style={{ "--swatch-column": columnOf(palette)?.toString() }}
+        data-testid={TESTID.themeChip}
+        data-value={palette.name}
+        aria-label={paletteLabel(palette.name)}
+        aria-pressed={isInForce(palette.name) ? "true" : "false"}
+        onClick={() => props.state.theme.pick(palette)}
+      >
+        <span
+          aria-hidden="true"
+          class={DISC}
+          style={{
+            background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
+            "border-color": palette.colors.rule,
+          }}
+        />
+      </button>
+    </Tip>
+  )
+
   return (
     <>
       {/* Every tip here repeats the swatch's own `aria-label` — a swatch is a
@@ -88,40 +143,32 @@ export function ThemeChips(props: { readonly state: Appearance }) {
             aria-hidden="true"
             class={`${DISC} border-rule`}
             style={{
-              background: `linear-gradient(90deg, ${PALETTES[0]!.colors.paper} 0 50%, ${PALETTES.find((p) => p.scheme === "dark")!.colors.paper} 50% 100%)`,
+              background: `linear-gradient(90deg, ${defaultPaletteFor("light").colors.paper} 0 50%, ${defaultPaletteFor("dark").colors.paper} 50% 100%)`,
             }}
           />
         </button>
       </Tip>
-      <span aria-hidden="true" class="mx-1 h-5 w-px self-center bg-rule" />
-      <For each={PALETTES}>
-        {(palette) => (
-          <Tip text={paletteLabel(palette.name)}>
-            <button
-              type="button"
-              // The button is the target (44px on a phone, `../touch.ts`); the
-              // swatch inside it is the drawing. The ring says which is in force,
-              // and the focus ring where the caret is — the page's accent, so it
-              // shows against any swatch.
-              class={SWATCH}
-              data-testid={TESTID.themeChip}
-              data-value={palette.name}
-              aria-label={paletteLabel(palette.name)}
-              aria-pressed={isInForce(palette.name) ? "true" : "false"}
-              onClick={() => props.state.theme.pick(palette)}
-            >
-              <span
-                aria-hidden="true"
-                class={DISC}
-                style={{
-                  background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
-                  "border-color": palette.colors.rule,
-                }}
-              />
-            </button>
-          </Tip>
-        )}
-      </For>
+      {/* The hairline between the follow control and the palettes. Below
+          48rem the swatches wrap onto lines of their own under the follow
+          control, so the break already separates them and a hairline would
+          stand alone at the end of that control's line. */}
+      <span aria-hidden="true" class="mx-1 h-5 w-px self-center bg-rule max-md:hidden" />
+      {/* The two lines. Below 48rem each is its own wrapping line, the lights
+          above; from 48rem the two wrappers step aside (`contents`) and every
+          swatch is a cell of one grid whose columns are the light swatches.
+          DOM order is the table's either way, so Tab walks the lights and
+          then the darks. */}
+      <div
+        class="flex min-w-0 flex-col gap-1 md:grid md:[grid-template-columns:repeat(var(--swatch-columns),auto)] md:gap-1.5"
+        style={{ "--swatch-columns": String(LIGHTS.length) }}
+      >
+        <div class="flex flex-wrap gap-1 md:contents">
+          <For each={LIGHTS}>{swatch}</For>
+        </div>
+        <div class="flex flex-wrap gap-1 md:contents">
+          <For each={DARKS}>{swatch}</For>
+        </div>
+      </div>
     </>
   )
 }

@@ -4,7 +4,19 @@ The theme plugin decides what olai looks like: the colour palette, the typeface,
 
 ## Pick a colour palette
 
-The **Theme** row offers four palettes, drawn as swatches in the colours they set: `chalk` and `reef` are light, `basalt` and `abyss` are dark.[^swatch] Before them stands **Follow the system**, where a browser that has picked nothing starts.[^system] `Tab` reaches the swatches, and `Space` or `Enter` picks one.[^open] A palette also colours the mark in the browser tab, the app icon and a phone's status bar.[^paints]
+The **Theme** row offers eleven palettes, drawn as swatches in the colours they set: the seven light ones first, the four dark ones on a line below.[^swatch] On a screen wider than a phone, each dark swatch stands under the light one of the same colour.
+
+| Colour | Light | Dark |
+| --- | --- | --- |
+| neutral | `chalk` | `basalt` |
+| rose | `bloom` | |
+| amber | `manuscript` | `ember` |
+| green | `leaf` | |
+| sea-glass | `reef` | `abyss` |
+| blue | `sky` | |
+| violet | `iris` | `dusk` |
+
+Before them stands **Follow the system**, where a browser that has picked nothing starts.[^system] `Tab` reaches the swatches, and `Space` or `Enter` picks one.[^open] A palette also colours the mark in the browser tab, the app icon and a phone's status bar.[^paints]
 
 ## Pick a typeface
 

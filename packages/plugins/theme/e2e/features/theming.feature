@@ -1,13 +1,15 @@
 @corpus:good
 Feature: The theme is a pick, and it is yours
-  Named palettes, as four swatches in the Theme row of the preferences panel
+  Named palettes, as eleven swatches in the Theme row of the preferences panel
   (`preferences.feature`) — each painted in its own paper with a wedge of its
-  accent, lights first, then darks — and ahead of them one control that is not
-  a palette: FOLLOW THE SYSTEM. Pressing a swatch writes `data-theme` on
-  `<html>`, this browser remembers it, and the sheet repaints — every colour on
-  the page is a custom property, so one attribute re-answers all of them at
-  once. A swatch carries no word; its name is its tooltip and its accessible
-  name, and a keyboard reaches it with Tab and picks it with Space or Enter.
+  accent, the lights before the darks and, on a screen wider than a phone,
+  each dark under the light of its own hue — and ahead of them one control
+  that is not a palette: FOLLOW THE SYSTEM. Pressing a swatch writes
+  `data-theme` on `<html>`, this browser remembers it, and the sheet repaints
+  — every colour on the page is a custom property, so one attribute
+  re-answers all of them at once. A swatch carries no word; its name is its
+  tooltip and its accessible name, and a keyboard reaches it with Tab and
+  picks it with Space or Enter.
 
   The panel STAYS OPEN on a pick, unlike the pill-and-popover this row replaced:
   a palette is judged by looking at the page it paints, and shutting the surface
@@ -101,9 +103,10 @@ Feature: The theme is a pick, and it is yours
 
   Scenario: Every palette paints the page it names
     # The sheet is generated from the table, one block per row, and this is
-    # the round trip: pick each of the four and read the page's own paper
-    # back. A row whose block was dropped, mistyped, or given another row's
-    # values fails here, in the browser that paints it.
+    # the round trip: pick each of the eleven and read every one of the page's
+    # colours, and its color-scheme, back. A row whose block was dropped,
+    # mistyped, or given another row's values fails here, in the browser that
+    # paints it.
     When I open the app
     Then every palette paints the page it names
 
@@ -126,6 +129,45 @@ Feature: The theme is a pick, and it is yours
     And the theme row names the theme in force
     And the "abyss" swatch has the focus
     And every theme chip agrees with what it announces
+    And there should be no page errors
+
+  Scenario: The swatches stand in two lines, each dark under its own hue
+    # Seven light themes and four dark ones, on a desktop screen. Reading down
+    # a column is reading one hue by day and by night, so a person who likes a
+    # light theme finds its dark sibling without hunting for it.
+    When I open the app
+    And I open the preferences
+    Then the theme swatches stand in two lines, light above dark
+    And the "basalt" swatch stands under the "chalk" swatch
+    And the "ember" swatch stands under the "manuscript" swatch
+    And the "abyss" swatch stands under the "reef" swatch
+    And the "dusk" swatch stands under the "iris" swatch
+
+  Scenario: A keyboard reaches the last swatch
+    # The two lines are a picture, not a second stop for the caret: Tab walks
+    # the light line and then the dark one, in table order, and the last
+    # swatch of all is as reachable as the first.
+    When I open the app
+    And I open the preferences
+    And I Tab to the "dusk" swatch
+    And I press "Enter"
+    Then the page is in the theme "dusk"
+    And the lit theme chip is "dusk"
+    And the "dusk" swatch has the focus
+    And there should be no page errors
+
+  @phone
+  Scenario: On a phone every swatch fits the panel and takes a finger
+    # 390×844. A line of seven 44px targets is wider than the panel there, so
+    # the light line wraps, and the follow control sits above the swatches.
+    # What holds is the order and the size: every light swatch above every
+    # dark one, none past the panel's edge, none shrunk under a finger. The
+    # picture is for a person to see the wrap, not only measure it.
+    When I open the app
+    And I open the preferences
+    Then every theme swatch is inside the preferences panel, and a finger's size
+    And every light swatch stands above every dark one
+    And I save a picture of the theme picker as "theme-picker-phone.png"
     And there should be no page errors
 
   Scenario: The pick is there before the page has finished parsing
@@ -208,6 +250,19 @@ Feature: The theme is a pick, and it is yours
     And I pick the theme "chalk"
     Then the browser chrome matches the paper
 
+  Scenario: A new theme against the OS's lean still dresses the browser in its paper
+    # The same rule as above, on the rows that came after it: a light theme
+    # under a dark OS and a dark theme under a light one.
+    When I open the app
+    And the system prefers "dark"
+    And I pick the theme "leaf"
+    Then the page is in the theme "leaf"
+    And the browser chrome matches the paper
+    When the system prefers "light"
+    And I pick the theme "ember"
+    Then the page is in the theme "ember"
+    And the browser chrome matches the paper
+
   Scenario: The manifest opens the app in the paper an unpicked page paints
     # The manifest is the SERVER's and the palettes are the CLIENT's, and the
     # two packages do not import each other — so the only honest way to ask
@@ -222,3 +277,17 @@ Feature: The theme is a pick, and it is yours
     And I pick the theme "abyss"
     Then the page is in the theme "abyss"
     And the page asked for nothing at all
+
+  Scenario: A picture of the page in every theme
+    # Evidence for a person, not an assertion: whether a palette LOOKS right
+    # on a real outline is a judgement the arithmetic in the unit tests cannot
+    # make. One picture per theme, of an outline with the panel open and its
+    # typefaces loaded, saved as theme-<name>.png beside the run's other
+    # screenshots, then one of the picker on its own.
+    When I open the app
+    And I open the outline "house.olai"
+    And I open the preferences
+    And the appearance controls have finished loading their fonts
+    Then I save a picture of the page in every theme
+    And I save a picture of the theme picker as "theme-picker.png"
+    And there should be no page errors
