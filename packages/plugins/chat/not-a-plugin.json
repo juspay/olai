@@ -80,7 +80,7 @@
     "src/browser/chat/Sleeping.tsx": 1,
     "src/browser/chat/sleeping.ts": 4,
     "src/chat.ts": 3,
-    "src/server.ts": 5,
+    "src/server.ts": 6,
     "src/settings.ts": 1,
     "src/wire/members.ts": 2
   },

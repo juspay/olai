@@ -37,5 +37,11 @@ export const fake: Fake = {
     // env-wins test pins. A regression shows up as the fake reporting its
     // memory ON rather than as a fact about CI.
     CLAUDE_CODE_DISABLE_AUTO_MEMORY: "0",
+    // ... AND ONE OF THE VARIABLES THAT WOULD OVERRIDE WHERE CLAUDE CODE
+    // COMPACTS, set the way a host might: with chat's `auto-compact` on, this
+    // engine's `compacting` strips it from the spawn, so the fake's
+    // `compaction` answer names no override; with it off, nothing is stripped
+    // and the fake names this one.
+    DISABLE_AUTO_COMPACT: "1",
   }),
 };

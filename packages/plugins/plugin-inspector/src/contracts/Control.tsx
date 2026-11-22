@@ -12,6 +12,7 @@ import { run } from "@olai/web/client/run.ts"
 import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { TESTID } from "../testids.ts"
+import { switchText } from "@olai/plugin-api/configuration"
 import { configurationAuthored, controlOf, labelOf, knobLabel, knobUnit, knobWidth, knobAuthored, type PolicyReading } from "./knobs.ts"
 
 export function Control(props: {
@@ -21,7 +22,7 @@ export function Control(props: {
   readonly frozen?: string
   readonly label?: boolean
 }) {
-  const text = () => typeof props.value.value === "boolean" ? (props.value.value ? "yes" : "no") : String(props.value.value)
+  const text = () => typeof props.value.value === "boolean" ? switchText(props.value.value) : String(props.value.value)
   const reading = () => props.value.problem?.raw ?? text()
   const [edited, setDraft] = createSignal<string>()
   const draft = () => edited() ?? reading()
@@ -107,7 +108,7 @@ export function Control(props: {
           <Match when={!props.value.problem && metadata()?.kind === "switch"}>
             <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
               <button type="button" role="switch" aria-label={named()} aria-checked={props.value.value === true} disabled={disabled()}
-                class={`prototype-switch relative h-5 w-9 shrink-0 rounded-full ${props.value.value === true ? "bg-done" : "bg-rule"}`} onClick={() => save(props.value.value === true ? "no" : "yes")}>
+                class={`prototype-switch relative h-5 w-9 shrink-0 rounded-full ${props.value.value === true ? "bg-done" : "bg-rule"}`} onClick={() => save(switchText(props.value.value !== true))}>
                 <span class={`absolute top-0.5 size-4 rounded-full bg-panel ${props.value.value === true ? "left-[18px]" : "left-0.5"}`} />
               </button>
             </Tip>

@@ -76,6 +76,18 @@ const span = (key: SpanKey) =>
     Schema.annotate({ description: SPANS[key].says }),
   )
 
+/** {@link Config}'s `compact-at`, as the tokens each spelling means — THE ONE
+ *  PLACE the words become numbers, as {@link sleepingPolicy} is for spans. The
+ *  list a person picks from is this table's keys, so the two cannot drift. */
+const COMPACT_TOKENS = {
+  "100k": 100_000,
+  "200k": 200_000,
+  "300k": 300_000,
+  "500k": 500_000,
+} as const
+
+type CompactSize = keyof typeof COMPACT_TOKENS
+
 export const Config = Schema.Struct({
   "idle-ms": Schema.Union([Schema.Int, Schema.NumberFromString.check(Schema.isInt())]).check(Schema.isBetween({ minimum: 1, maximum: 2147483647 })).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(Duration.toMillis(DEFAULT_IDLE))),
@@ -121,7 +133,34 @@ export const Config = Schema.Struct({
       description: "Every how many messages a node agent is reminded when to write to its subtree; 0 never reminds",
     }),
   ),
+  // WHETHER OLAI TELLS AN AGENT WHERE TO COMPACT ITS OWN CONVERSATION, and at
+  // how many tokens of context. A SWITCH AND A SHORT LIST rather than a free
+  // number: the four sizes are the ones kolu offers, and a count small enough
+  // to compact every turn is not a setting anybody means. OFF SAYS NOTHING —
+  // the agent's own default and the host's variables decide, which is what
+  // every chat did before this setting existed. Only an engine that can be
+  // told (`@olai/plugin-api`'s `Registering.compacting`) is told; every other
+  // one is opened as it always was, whatever these say. The switch's file
+  // words (`yes`, `no`) are `@olai/plugin-api/configuration`'s, read where
+  // every leaf is read from text (`coerceLeaf`).
+  "auto-compact": Schema.Boolean.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(true)),
+    Schema.annotate({
+      description: "Whether olai tells an agent that can be told to compact its conversation on its own",
+    }),
+  ),
+  "compact-at": Schema.Literals(Object.keys(COMPACT_TOKENS) as ReadonlyArray<CompactSize>).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed<CompactSize>("200k")),
+    Schema.annotate({
+      description: "How many tokens of context a conversation may hold before its agent compacts it",
+    }),
+  ),
 })
+
+/** Where a chat's agents compact, off the decoded config: the token count, or
+ *  `null` when the switch is off and olai says nothing. */
+export const compactingPolicy = (config: typeof Config.Type): number | null =>
+  config["auto-compact"] ? COMPACT_TOKENS[config["compact-at"]] : null
 
 /** The spans as the durations the pass waits, off the decoded config —
  *  the one place the spellings become numbers, so a caller cannot read one of

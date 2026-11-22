@@ -86,6 +86,13 @@
 #     MERGED, so the pin is back on `master` where it belongs; the branch it
 #     rode while the PR was open (`acp-global`) is gone from here.
 #
+#   * PR #2415 — `compactingAt` and `COMPACTION_OVERRIDES` in `@kolu/acp-claude`:
+#     a leg that opens every Claude session with auto-compaction on at a token
+#     count the product chooses, and the host variables that would override it.
+#     `olai-plugin-claude`'s `compacting` is built on both, and chat's
+#     `auto-compact` / `compact-at` settings choose the number.
+#     https://github.com/juspay/kolu/pull/2415
+#
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more
 # thing to keep in step.

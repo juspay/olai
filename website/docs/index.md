@@ -98,7 +98,7 @@ Other tools olai connects to.
 
 | Page | What it covers |
 | --- | --- |
-| [Talking to an agent from a row](plugins/chat.md) | How a conversation is stored as a row, the `chat-agent-session` property, and the services chat offers other plugins. |
+| [Talking to an agent from a row](plugins/chat.md) | How a conversation is stored as a row, the `chat-agent-session` property, and chat's settings. |
 | [Watching kolu terminals from olai](plugins/kolu.md) | Terminals from kolu: a terminal's row, a live view of it, the feed of terminals waiting on you, and messages to a conversation. |
 | [Your browser, shared with your agents](plugins/browsing.md) | A Chromium browser you and your agents share: the page that shows it, shared sign-ins, who owns it, settings and safety. |
 | [odu: CI runs shown on your rows](plugins/odu.md) | CI runs from odu: a chip on the row naming the run, a grid of its jobs, and messages to a conversation about runs. |
@@ -164,6 +164,7 @@ How olai is put together, for people working on it. The writing standard these p
 | [The Cordis rules: what a plugin needs, what it owns, and how it stops](architecture/cordis.md) | The rules for how a plugin declares what it needs, who owns each resource, and how a plugin is safely removed. |
 | [The plugin system](architecture/plugin-system.md) | What a plugin is, how olai starts one, and what passes between the server and the browser. |
 | [The words a plugin declares itself with](architecture/plugin-vocabulary.md) | Each word a plugin uses to declare what it does, with one entry per word. |
+| [What chat offers other plugins](architecture/chat-services.md) | The seven services other plugins use to start, speak into or mirror a conversation, and what happens while chat is not running. |
 | [Adding a plugin](architecture/adding-a-plugin.md) | The steps and files for adding a plugin to olai. |
 | [Slots: where a plugin draws, and who owns each one](architecture/slot-ownership.md) | Which part of olai owns each place a plugin can add to the page, and how adding and removing works. |
 | [The browser tests](architecture/browser-tests.md) | What the browser tests cover, how to run them, and the gaps that remain. |

@@ -108,9 +108,18 @@
  * over by the detector the composition root builds once.
  */
 
-import { type Adapter, type Engine, type Leg, type NotHere, type PromptChannel, type Where } from "@kolu/acp/engine"
+import type { Adapter, Leg, NotHere, PromptChannel, Where } from "@kolu/acp/engine"
+import type { Registering } from "@olai/plugin-api/services"
 import type { AgentChoice, OffBecause } from "olai-plugin-chat/wire"
 import { AGENT_PATH_ENV } from "../adapter.ts"
+
+/** ONE ENGINE AS THE TABLE HOLDS IT — the registration an engine plugin handed
+ *  `Agents`, with the word its fiber was bound under stamped on it. olai's own
+ *  rather than `@kolu/acp/engine`'s `Engine` because olai's registration is
+ *  wider by {@link Registering.compacting}. */
+export interface Engine extends Registering {
+  readonly id: string
+}
 
 /** An agent that is installed: who it is, what to spawn, and how to read what
  *  comes back. The whole of what the rest of the package needs. */
@@ -129,6 +138,11 @@ export interface Installed {
   /** Which channel this engine's standing prompt rides — read by
    *  {@link ../chat.ts} when a node agent's session is taught its contract. */
   readonly prompt: PromptChannel
+  /** How to open this engine so it compacts at a number of tokens, when it can
+   *  be told — read by {@link ../chat.ts} at each bring-up against the chat's
+   *  `compact-at` setting. The registration's own pure function, carried as
+   *  is: absent, the engine is opened with {@link leg} and {@link adapter}. */
+  readonly compacting?: Registering["compacting"]
 }
 
 /**
@@ -254,7 +268,14 @@ const standingOf = (engine: Engine, at: Adapter | NotHere): Standing =>
     ? { id: engine.id, name: engine.name, standing: "not-here", missing: at }
     : {
       standing: "here",
-      installed: { id: engine.id, name: engine.name, adapter: at, leg: engine.leg, prompt: engine.prompt },
+      installed: {
+        id: engine.id,
+        name: engine.name,
+        adapter: at,
+        leg: engine.leg,
+        prompt: engine.prompt,
+        ...(engine.compacting === undefined ? {} : { compacting: engine.compacting }),
+      },
     }
 
 /**

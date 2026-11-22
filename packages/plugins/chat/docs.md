@@ -33,7 +33,7 @@ olai can shorten a node agent's memory, and does nothing until you ask. The line
 
 Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in the plugins panel ([settings](../settings.md)).[^off]
 
-[^workflow]: [Talking to an agent](../chat.md) explains how to work with an agent. This page describes the plugin itself: what it needs, what it draws, and what it stores.
+[^workflow]: [Talking to an agent](../chat.md) explains how to work with an agent. This page describes the plugin itself: what it needs, what it draws, and what it stores. The seven services it offers other plugins have [a page of their own](../architecture/chat-services.md).
 
 [^none]: With no engine available the agent menu says `No agent is set up` and offers **Open plugins**. The palette offers no **New chat** row while nothing can start.
 
@@ -165,7 +165,9 @@ One pass touches at most about a fifth of the rows and writes only under that ro
 <details>
 <summary>Settings</summary>
 
-All of these go on the `chat` node in `_olai/Settings.olai`, and each has a field in the plugins panel ([settings](../settings.md)). A duration is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`. A duration olai cannot read warns and falls back to the default.
+All of these go on the `chat` node in `_olai/Settings.olai`, and each has a field in the plugins panel ([settings](../settings.md)). A duration is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`. A value olai cannot read warns and falls back to the default.
+
+Changing a setting other than `on` restarts chat. A chat open under a row closes, an answer in progress stops, and words typed in a chat and not yet sent are lost. Opening the chat again shows the same conversation.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
@@ -179,6 +181,8 @@ All of these go on the `chat` node in `_olai/Settings.olai`, and each has a fiel
 | `sleep-question` | `20m` | How long a tidying turn may sit on a question before olai stops it. |
 | `sleep-limit` | `1h` | How long one tidying turn may run before olai stops it. |
 | `remind-every` | `20` | Every how many messages a node agent is reminded where to write. Zero never reminds. |
+| `auto-compact` | `yes` | Whether Claude Code is told where to compact a conversation. |
+| `compact-at` | `200k` | Where it compacts: `100k`, `200k`, `300k` or `500k` tokens. |
 
 </details>
 
@@ -192,32 +196,5 @@ A conversation the engine cannot load is a different refusal. It names the machi
 Chat keeps at most 32 choices an agent is waiting on, rejects any an agent tries to write itself, and cancels queued messages when a choice is cleared or replaced. It stores the choice you made and draws how many are waiting, without reading what they mean: [kolu](kolu.md) and [odu](odu.md) draw their file pickers there, and [mail](mail.md) draws its switch there.
 
 An action naming a conversation you are not looking at is refused rather than applied to another one, so a read, a send or a retry cannot land on the wrong chat.
-
-</details>
-
-<details>
-<summary>What other plugins get from chat</summary>
-
-Every plugin that can reach a conversation uses one of seven services chat provides.
-
-| Service | What it offers | Which plugins use it |
-| --- | --- | --- |
-| `agents` | Which engines this build can run. | claude, codex, opencode, pi, omp |
-| `deliveries` | A way to send a message into a conversation. | kolu, odu, mail |
-| `session-start` | What to ask this machine when a conversation opens. | kolu, odu |
-| `chat.seating` | Which rows have agents, with the engine and session of each, from one reading of the directory. | [xyne-spaces](xyne-spaces.md) |
-| `watching` | What a plugin that mirrors a conversation is told. | xyne-spaces |
-| `conversations` | Starting a chat on a node or a document, speaking into the one there, and which agents can be started. | [vault-plugins](vault-plugins.md) |
-| `chat.beside` | Opening an item's chat in the pane beside the page a press came from. | vault-plugins |
-
-The name `conversations` belongs to olai's core rather than to chat, and chat is what stands behind it while it is running. A plugin asks core for it on each call and gets either the service or nothing, so a plugin that can work without chat is never held up by it.
-
-It offers four calls, and every one of them names a node or a document. `open` starts the chat of that item, gives it an agent and sends a first message. `say` speaks into the chat of an item, `here` takes a list of items and answers which of them have a chat, and `engines` says what this machine can start.
-
-There is no call that reads a conversation: a plugin may start one and talk to it, never hold a copy of what was said.
-
-Chat's `navigation` component offers `chat.beside`, rather than the plugin itself, because opening a pane is a call on the router that component holds. A serve with no router leaves a plugin waiting for it instead of handing over something that does nothing, and the page draws no button. Its `open` takes the item and the pane the press came from, and chat decides the rest: the pane to the right, or the pane that already holds that chat.
-
-A serve with no chat plugin leaves all seven unavailable, and the plugins panel says so on each plugin's row, naming what it is waiting for. The runtime resolves that the moment chat is back.
 
 </details>
