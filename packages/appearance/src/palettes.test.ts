@@ -2,8 +2,8 @@
  *  token — that is what `Record<PaletteToken, string>` is for — so what is left
  *  here is the things a type cannot say: that no two rows answer to the same
  *  name, that the values are colours, that each default is one of them, and
- *  the SHAPE the table claims — two polarities, each a neutral and the lagoon,
- *  measured in OKLCH. */
+ *  the SHAPE the table claims — a neutral and a spread of hues in each
+ *  polarity, no two of them alike — measured in OKLCH. */
 import { describe, expect, test } from "bun:test"
 
 import { colourGap, hueGap, hueOf, oklchOf } from "./hues.ts"
@@ -18,11 +18,28 @@ import {
   THEME_ATTRIBUTE,
   THEME_NAMES,
   THEME_STORAGE_KEY,
+  type Palette,
+  type Scheme,
 } from "./palettes.ts"
 describe("the palette table", () => {
-  test("is the four, lights first", () => {
-    expect(THEME_NAMES).toEqual(["chalk", "reef", "basalt", "abyss"])
-    expect(PALETTES.map((palette) => palette.scheme)).toEqual(["light", "light", "dark", "dark"])
+  test("is the eleven, lights first", () => {
+    expect(THEME_NAMES).toEqual([
+      "chalk",
+      "bloom",
+      "manuscript",
+      "leaf",
+      "reef",
+      "sky",
+      "iris",
+      "basalt",
+      "ember",
+      "abyss",
+      "dusk",
+    ])
+    expect(PALETTES.map((palette) => palette.scheme)).toEqual([
+      ...Array<Scheme>(7).fill("light"),
+      ...Array<Scheme>(4).fill("dark"),
+    ])
   })
 
   test("no two themes share a name", () => {
@@ -55,7 +72,7 @@ describe("the palette table", () => {
   })
 
   test("every row promises AA", () => {
-    // Four rows, no excuses: `./contrast.test.ts` holds each to the promise.
+    // Every row, no excuses: `./contrast.test.ts` holds each to the promise.
     expect(PALETTES.every((palette) => palette.aa === true)).toBe(true)
   })
 
@@ -94,42 +111,97 @@ const HUE_BEARING_CHROMA = 0.01
 /** Two and a half just-noticeable differences: a JND is about 0.02. */
 const ACCENT_FLOOR = 0.05
 
+/** reef's hue, rounded: the lattice the wheel is cut on starts at the lagoon. */
+const LATTICE_ANCHOR = 177
+
 describe("the table's shape", () => {
-  test("each polarity is a neutral and the lagoon", () => {
-    const neutral = PALETTES.filter(
-      (palette) => oklchOf(palette.colors.paper).c < HUE_BEARING_CHROMA,
-    ).map((palette) => palette.name)
-    expect(neutral).toEqual(["chalk", "basalt"])
-    const hued = PALETTES.filter(
-      (palette) => oklchOf(palette.colors.paper).c >= HUE_BEARING_CHROMA,
-    ).map((palette) => palette.name)
-    expect(hued).toEqual(["reef", "abyss"])
+  const ofScheme = (scheme: Scheme) => PALETTES.filter((palette) => palette.scheme === scheme)
+  const hued = (palette: Palette) => oklchOf(palette.colors.paper).c >= HUE_BEARING_CHROMA
+  /** Every unordered pair of rows of one polarity. */
+  const pairsOf = (scheme: Scheme) => {
+    const rows = ofScheme(scheme)
+    return rows.flatMap((one, at) => rows.slice(at + 1).map((other) => [one, other] as const))
+  }
+
+  test("each polarity has one neutral, the default", () => {
+    expect(PALETTES.filter((palette) => !hued(palette)).map((palette) => palette.name)).toEqual([
+      DEFAULT_THEME,
+      DEFAULT_DARK_THEME,
+    ])
   })
 
-  test("the lagoon is one hue read twice", () => {
-    // reef's night is the abyss: a family is one hue read twice, so the two
-    // papers sit within 10° of each other on the wheel.
-    const gap = hueGap(hueOf(paletteNamed("reef")!.colors.paper), hueOf(paletteNamed("abyss")!.colors.paper))
-    expect(gap).toBeLessThanOrEqual(10)
+  test("the hues span the wheel: one light paper per 60°, one dark per 120°", () => {
+    // Sectors centred on the lagoon's lattice, so reef and abyss sit in the
+    // middle of theirs. Six hued lights in six sectors and three hued darks in
+    // three is "covers the spectrum" with no sector doubled and none empty.
+    const spread = (scheme: Scheme, width: number) => {
+      const papers = ofScheme(scheme).filter(hued).map((palette) => hueOf(palette.colors.paper))
+      return Array.from({ length: 360 / width }, (_, at) => {
+        const centre = (LATTICE_ANCHOR + at * width) % 360
+        return papers.filter((hue) => hueGap(hue, centre) < width / 2).length
+      })
+    }
+    expect(spread("light", 60)).toEqual([1, 1, 1, 1, 1, 1])
+    expect(spread("dark", 120)).toEqual([1, 1, 1])
   })
 
-  test("the two accents of one polarity are told apart", () => {
-    // The two darks carry different notes — coral on basalt, cyan on abyss —
-    // and must stay two and a half JNDs apart. The two lights SHARE the coral
-    // on purpose: it is the mark's own colour, and the neutral is where the
-    // brand reads loudest.
-    expect(colourGap(paletteNamed("basalt")!.colors.accent, paletteNamed("abyss")!.colors.accent)).toBeGreaterThanOrEqual(ACCENT_FLOOR)
+  test("a grammar row's paper sits where its recipe says", () => {
+    // The browser's gamut and the 8-bit rounding move a paper's measured hue
+    // a few degrees off the declared one; ten would be a different sector.
+    for (const { name, recipe, colors } of PALETTES) {
+      if (recipe === undefined) continue
+      expect(`${name} ${hueGap(hueOf(colors.paper), recipe.hue) <= 10}`).toBe(`${name} true`)
+    }
+  })
+
+  test("no two papers of one polarity are closer than chalk and reef", () => {
+    // The floor is the closest two papers that shipped, MEASURED here rather
+    // than rounded: the closest new pair clears it by less than a ten-
+    // thousandth, and a rounded 0.03 would call that pair a failure.
+    const floor = colourGap(paletteNamed("chalk")!.colors.paper, paletteNamed("reef")!.colors.paper)
+    for (const scheme of ["light", "dark"] as const) {
+      const under = pairsOf(scheme)
+        .filter(([one, other]) => colourGap(one.colors.paper, other.colors.paper) < floor)
+        .map(([one, other]) => `${one.name}/${other.name}`)
+      expect(under).toEqual([])
+    }
+  })
+
+  test("the accents of one polarity are told apart", () => {
+    // Every two accents of a polarity stay two and a half JNDs apart, but for
+    // one pair: chalk and reef SHARE the coral on purpose — it is the mark's
+    // own colour, and the neutral is where the brand reads loudest.
     expect(colourGap(paletteNamed("chalk")!.colors.accent, paletteNamed("reef")!.colors.accent)).toBeLessThan(ACCENT_FLOOR)
+    for (const scheme of ["light", "dark"] as const) {
+      const close = pairsOf(scheme)
+        .filter(([one, other]) => colourGap(one.colors.accent, other.colors.accent) < ACCENT_FLOOR)
+        .map(([one, other]) => `${one.name}/${other.name}`)
+      expect(close).toEqual(scheme === "light" ? ["chalk/reef"] : [])
+    }
   })
 
-  test("a light row's accent is foreign; the abyss lifts its own hue", () => {
-    // The rule the vocabulary states: "a complement, or the bright analogous
-    // of a dark ground". The lagoon by day wants a note from the other side
-    // of the wheel; the deep may take its own hue and lift it.
-    const reef = paletteNamed("reef")!
-    const abyss = paletteNamed("abyss")!
-    expect(hueGap(hueOf(reef.colors.paper), hueOf(reef.colors.accent))).toBeGreaterThanOrEqual(60)
-    expect(hueGap(hueOf(abyss.colors.paper), hueOf(abyss.colors.accent))).toBeLessThanOrEqual(45)
+  test("a light row's accent is foreign; a dark row lifts its own hue", () => {
+    // The rule the vocabulary states: a paper by day wants a note from the
+    // other side of the wheel; a ground by night may take its own hue and lift
+    // it.
+    for (const palette of PALETTES.filter(hued)) {
+      const gap = hueGap(hueOf(palette.colors.paper), hueOf(palette.colors.accent))
+      const holds = palette.scheme === "light" ? gap >= 60 : gap <= 45
+      expect(`${palette.name} ${Math.round(gap)}° ${holds}`).toBe(`${palette.name} ${Math.round(gap)}° true`)
+    }
+  })
+
+  test("a link is not a status", () => {
+    // An accent close to done, doing or alarm reads as one of them. The three
+    // hand-tuned rows that carry the coral sit nearer their alarm than this —
+    // the coral is the mark's colour and was chosen before the floor — and
+    // are the named exception; every other row clears it.
+    const close = PALETTES.flatMap((palette) =>
+      (["done", "doing", "alarm"] as const)
+        .filter((status) => colourGap(palette.colors.accent, palette.colors[status]) < ACCENT_FLOOR)
+        .map((status) => `${palette.name}/${status}`),
+    )
+    expect(close).toEqual(["chalk/alarm", "reef/alarm", "basalt/alarm"])
   })
 
   test("the surfaces step in one direction", () => {

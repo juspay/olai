@@ -8,25 +8,43 @@
  * would be the same eleven lines copied once per theme, and one place per
  * theme for a new token to be forgotten.
  *
- * FOUR PALETTES, two light and two dark, and the number is a ruling rather
- * than a shortage. The eighteen-row wheel that used to live here was written
- * for a frame of ink around a page of paper — a forest column beside a lagoon
- * sheet — and the redesign retired the inversion: the header, the directory
- * column and the page are ONE surface now, in steps of the same paper, so a
- * palette is judged on how a whole screen of it reads for a working day rather
- * than on whether its frame sets off its page. Two of each polarity is what
- * that leaves room for and what can be kept honest — a neutral, which is what
- * the day is mostly read in, and the lagoon, which is ours:
+ * ELEVEN PALETTES, seven light and four dark, and the number is a measurement
+ * rather than an appetite. The set is asked to cover the whole wheel AND to
+ * have no two rows a person could mistake for each other, and those two pull
+ * against each other: the floor is the distance between the two papers that
+ * shipped closest together (chalk and reef, about 0.030 in OKLab), and on one
+ * lightness ramp that floor leaves room for a hue every 60° by day and every
+ * 120° by night — a dark ground carries less chroma, so hues 45° apart there
+ * read as one ground twice. So each polarity is a neutral, which is what the
+ * day is mostly read in, and a lattice of hues anchored on the lagoon, which
+ * is ours:
  *
- *   chalk    warm near-white, the coral note. The default when the OS is light.
- *   reef     sea-glass paper under the palm, coral at the tips.
- *   basalt   warm near-black, the same coral lifted. The default when the OS is dark.
- *   abyss    the deep under the lagoon, a cyan note.
+ *   chalk       warm near-white, the coral note. The default when the OS is light.
+ *   bloom       a rose page, the faintest tint of the set, a teal note.
+ *   manuscript  amber paper, an indigo note.
+ *   leaf        green paper, a berry note.
+ *   reef        sea-glass paper under the palm, coral at the tips.
+ *   sky         blue paper, a rose note.
+ *   iris        violet paper, a green note.
+ *   basalt      warm near-black, the same coral lifted. The default when the OS is dark.
+ *   ember       a dark amber ground, its own hue lifted to gold.
+ *   abyss       the deep under the lagoon, a cyan note.
+ *   dusk        a dark violet ground, a pink note.
  *
- * Two rows are twins in the way reef's night was always the abyss: chalk and
- * basalt are the neutral read both ways, reef and abyss the lagoon read both
- * ways, and `./palettes.test.ts` holds each light row to a dark one within a
- * few degrees of the same hue.
+ * The four that shipped first (chalk, reef, basalt, abyss) are hand-tuned and
+ * stay digit for digit, so nobody's screen changes on upgrade. The seven after
+ * them are written by ONE GRAMMAR, `./recipe.ts`: a row's `recipe` names its
+ * hue, how deep its tint is and where its accent sits, and the grammar turns
+ * those into the eleven colours — one hue across every ground, the same
+ * lightness steps on every row of a depth, an accent dimmed until it reads on
+ * its paper, and one triple of status colours per polarity. The colours stay
+ * here as literals, because this file imports nothing (the website build
+ * copies it alone); `./recipe.test.ts` holds each literal to the grammar.
+ *
+ * A light row's accent comes from the far side of the wheel; a dark row lifts
+ * its own hue. `./palettes.test.ts` holds the spread (one light paper in each
+ * 60° sector, one dark paper in each 120° sector), the floor between papers,
+ * and the distance between accents.
  *
  * THE OS CHOOSES BETWEEN THE TWO DEFAULTS. A page that has picked nothing reads
  * in `chalk` by day and `basalt` under `prefers-color-scheme: dark` — the sheet
@@ -52,14 +70,15 @@
  * Desk, panel and pill are lightness steps of paper, not a second ramp: in a
  * light palette the desk is one step under the paper and the panel one over
  * it; in a dark one every step is a lift. Accent is the one foreign note.
- * done / doing / alarm are retuned to each ground, never copied across.
+ * done / doing / alarm are tuned per polarity: the four hand-tuned rows retune
+ * them to their own ground, the grammar's rows share one triple per polarity.
  *
  * ## Contrast
  *
  * Every row promises AA over every pair this client paints
  * (`./contrast.test.ts`), with ink on paper at least 7:1 — this is an outliner
- * a person lives in, and with four rows there is no excuse for a palette that
- * only mostly clears the line.
+ * a person lives in, and with every row measured there is no excuse for a
+ * palette that only mostly clears the line.
  */
 
 /** Every token a palette names. The order is the order they are written in a
@@ -82,6 +101,21 @@ export type PaletteToken = (typeof PALETTE_TOKENS)[number]
 
 export type Scheme = "light" | "dark"
 
+/** How deep a grammar-written row's tint runs: `pale` is reef's own ramp,
+ *  `deep` the same steps with about twice its tint. A closed set, and
+ *  narrower by night — the dark ramp is abyss's, and there is only the one
+ *  (`./recipe.ts`). */
+export type Depth = "pale" | "deep"
+
+/** What a row written by the grammar (`./recipe.ts`) declares: the hue of its
+ *  grounds and text, the depth of its tint, and the hue of its accent, all in
+ *  OKLCH degrees. The scheme is the row's own. */
+export interface Recipe {
+  readonly hue: number
+  readonly depth: Depth
+  readonly accentHue: number
+}
+
 export interface Palette {
   /** What a page names this theme by — the `data-theme` value, the chip's
    *  label, and the key this browser stores. One string, three jobs. */
@@ -102,6 +136,9 @@ export interface Palette {
    */
   readonly aa: true
   readonly colors: Readonly<Record<PaletteToken, string>>
+  /** Present on a row the grammar wrote, and absent on the four hand-tuned
+   *  ones; `./recipe.test.ts` holds `colors` equal to what it derives. */
+  readonly recipe?: Recipe
 }
 
 /** The table itself, `as const` so the names survive as literal types — which
@@ -130,6 +167,67 @@ const TABLE = [
       alarm: "#C0313F",
     },
   },
+  // A rose page, the palest tint of the set, with a teal note from across
+  // the wheel.
+  {
+    name: "bloom",
+    scheme: "light",
+    aa: true,
+    colors: {
+      paper: "#FDEEF1",
+      desk: "#F8E3E8",
+      panel: "#FEF6F8",
+      pill: "#F3D7DE",
+      ink: "#3A2228",
+      muted: "#75515A",
+      rule: "#E8C5CD",
+      accent: "#00717D",
+      done: "#1F7656",
+      doing: "#875601",
+      alarm: "#C13349",
+    },
+    recipe: { hue: 2, depth: "pale", accentHue: 205 },
+  },
+  // Amber paper, the colour of an old page, with an indigo note.
+  {
+    name: "manuscript",
+    scheme: "light",
+    aa: true,
+    colors: {
+      paper: "#FDEAD8",
+      desk: "#F7E0C9",
+      panel: "#FEF4E9",
+      pill: "#F1D6BA",
+      ink: "#35220C",
+      muted: "#6B5134",
+      rule: "#E4C4A3",
+      accent: "#475BBD",
+      done: "#1F7656",
+      doing: "#875601",
+      alarm: "#C13349",
+    },
+    recipe: { hue: 68, depth: "deep", accentHue: 271 },
+  },
+  // Green paper, with a berry note.
+  {
+    name: "leaf",
+    scheme: "light",
+    aa: true,
+    colors: {
+      paper: "#EAF2DA",
+      desk: "#E0E9CC",
+      panel: "#F3F8EB",
+      pill: "#D5E0BE",
+      ink: "#232A0F",
+      muted: "#515C39",
+      rule: "#C4D1A7",
+      accent: "#94439A",
+      done: "#1F7656",
+      doing: "#875601",
+      alarm: "#C13349",
+    },
+    recipe: { hue: 122, depth: "deep", accentHue: 325 },
+  },
   // The lagoon under the palm: sea-glass paper, coral accent. Lighter than it
   // was, because it is the whole screen now rather than a sheet in a frame.
   {
@@ -149,6 +247,48 @@ const TABLE = [
       doing: "#875600",
       alarm: "#C13349",
     },
+  },
+  // Blue paper, with a rose note. The grammar's own turn would have put the
+  // accent on an amber that sat beside `doing`; rose stands clear of all three
+  // status colours.
+  {
+    name: "sky",
+    scheme: "light",
+    aa: true,
+    colors: {
+      paper: "#DEF0FF",
+      desk: "#D0E8FF",
+      panel: "#EDF7FF",
+      pill: "#C3DEFA",
+      ink: "#13283B",
+      muted: "#3E5974",
+      rule: "#ADCFEF",
+      accent: "#A73B76",
+      done: "#1F7656",
+      doing: "#875601",
+      alarm: "#C13349",
+    },
+    recipe: { hue: 248, depth: "deep", accentHue: 350 },
+  },
+  // Violet paper, with a green note.
+  {
+    name: "iris",
+    scheme: "light",
+    aa: true,
+    colors: {
+      paper: "#F2E9FF",
+      desk: "#EADFFB",
+      panel: "#F8F3FF",
+      pill: "#E1D4F5",
+      ink: "#2B2138",
+      muted: "#5D4F70",
+      rule: "#D2C2EA",
+      accent: "#00731F",
+      done: "#1F7656",
+      doing: "#875601",
+      alarm: "#C13349",
+    },
+    recipe: { hue: 304, depth: "deep", accentHue: 147 },
   },
   // Warm near-black, every surface a lift of the one under it, the coral
   // brightened to carry on it. The dark default.
@@ -170,6 +310,26 @@ const TABLE = [
       alarm: "#F27E8B",
     },
   },
+  // A dark amber ground, its own hue lifted to gold for the accent.
+  {
+    name: "ember",
+    scheme: "dark",
+    aa: true,
+    colors: {
+      paper: "#27160B",
+      desk: "#311E11",
+      panel: "#3E2717",
+      pill: "#4C321F",
+      ink: "#F2DED0",
+      muted: "#BF9E89",
+      rule: "#543826",
+      accent: "#E0BA61",
+      done: "#51B37F",
+      doing: "#CDA62B",
+      alarm: "#EB7B90",
+    },
+    recipe: { hue: 55, depth: "deep", accentHue: 87 },
+  },
   // The deep under the lagoon: near-black water, a bright cyan note.
   {
     name: "abyss",
@@ -188,6 +348,26 @@ const TABLE = [
       doing: "#CDA62A",
       alarm: "#EB7B90",
     },
+  },
+  // A dark violet ground, a pink note turned a little from its own hue.
+  {
+    name: "dusk",
+    scheme: "dark",
+    aa: true,
+    colors: {
+      paper: "#1D1728",
+      desk: "#261F32",
+      panel: "#30283F",
+      pill: "#3D334E",
+      ink: "#E5DEF3",
+      muted: "#AA9FC0",
+      rule: "#433A56",
+      accent: "#ECA3E1",
+      done: "#51B37F",
+      doing: "#CDA62B",
+      alarm: "#EB7B90",
+    },
+    recipe: { hue: 300, depth: "deep", accentHue: 332 },
   },
 ] as const satisfies ReadonlyArray<Palette>
 

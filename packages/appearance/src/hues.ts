@@ -2,14 +2,15 @@
  * A colour's HUE, as arithmetic — sRGB → OKLCH, and how far apart two hues
  * and two colours are.
  *
- * The table makes a claim about how it LOOKS (`./palettes.ts`): eight cells
- * 45° apart, every 60° sector carrying a colour in both polarities, accents
- * that never repeat a note. A claim about looking cannot be checked in HSL —
- * the wheel is not there: yellows crowd into a few degrees and cyans stretch
- * over thirty — so it is checked in OKLCH, the perceptual space this app
- * already renders its tag ink through. `./tagInk.ts` maps the other way (an
- * `oklch()` to the sRGB a browser paints); these are the same Ottosson
- * matrices read backwards, and `./palettes.test.ts` is the only caller.
+ * The table makes a claim about how it LOOKS (`./palettes.ts`): one light
+ * paper in every 60° sector and one dark in every 120°, no two papers of a
+ * polarity alike, accents that never repeat a note. A claim about looking
+ * cannot be checked in HSL — the wheel is not there: yellows crowd into a few
+ * degrees and cyans stretch over thirty — so it is checked in OKLCH, the
+ * perceptual space this app already renders its tag ink through.
+ * `./tagInk.ts` maps the other way (an `oklch()` to the sRGB a browser
+ * paints); these are the same Ottosson matrices read backwards, and
+ * `./palettes.test.ts` is the only caller.
  *
  * Pure: no observer, no DOM, no theme. A colour in, a number out.
  */

@@ -57,12 +57,11 @@
  * three have to move together, so they live in one place.
  *
  * How the numbers were found is worth keeping with them, because they are a
- * cliff and not a hill: contrast against WHITE-ish paper fails the warm hues
- * first at high L (yellow washes out into it), and against yellow-white panel
- * (`manuscript`) at low chroma in dark schemes the pink tail goes first —
- * 0.42/0.12 and 0.74/0.15 are the shoulders of those two cliffs, measurably
- * (worst pair in the table is 5.4:1, so a future palette has 0.9 of headroom
- * before anything here has to move).
+ * cliff and not a hill: 0.42/0.12 by day and 0.74/0.15 by night are the
+ * shoulders where some hue first drops under AA on some ground. Measured over
+ * the table as it stands, the worst light pair is hue 162 on `iris`'s paper
+ * (6.5:1) and the worst of all is hue 344 on `abyss`'s panel (5.4:1), so a
+ * future palette has 0.9 of headroom before anything here has to move.
  */
 export const TAG_INK = {
   light: { l: 0.42, c: 0.12 },
@@ -184,9 +183,9 @@ const JND = 0.02
  * The rendered colour of an `oklch(l c h)` the sheet could write, including
  * the browser's own gamut mapping (css-color-4 §13.2's LOCAL MINDE): if it is
  * out of gamut, clip when that is within a JND of exact, else walk the chroma
- * down to the wall keeping L and H. `tagInkHex` is the only caller, and the
- * only reason it exists is so the AA claim is computed over what is PAINTED
- * rather than over the declared colour.
+ * down to the wall keeping L and H. `paintedHex` below is the only caller,
+ * and the only reason it exists is so a claim about contrast is computed over
+ * what is PAINTED rather than over the declared colour.
  */
 export const oklchPaintedInSrgb = (
   l: number,
@@ -224,20 +223,27 @@ const gamma = (channel: number): number =>
   channel <= 0.0031308 ? 12.92 * channel : 1.055 * channel ** (1 / 2.4) - 0.055
 
 /**
+ * An `oklch(l c h)` as it lands on screen, as lower-case `#rrggbb` for
+ * `contrast.ts`'s arithmetic: gamut-mapped as above, each channel through the
+ * sRGB transfer function and rounded to 8 bits. The tag ink below is one
+ * caller; the grammar that writes palette rows (`./recipe.ts`) is the other.
+ */
+export const paintedHex = (l: number, c: number, h: number): string =>
+  "#" +
+  oklchPaintedInSrgb(l, c, h)
+    .map((channel) => Math.round(gamma(channel) * 255).toString(16).padStart(2, "0"))
+    .join("")
+
+/**
  * One tag's ink as it lands on screen, for `./tagInk.test.ts`'s bound — what
- * `var(--tag-l) var(--tag-c) <hue>` paints, as `#RRGGBB` for `contrast.ts`'s
- * arithmetic. Both schemes are exported through the one table above: the test
- * grades each palette against the pair ITS scheme uses.
+ * `var(--tag-l) var(--tag-c) <hue>` paints. Both schemes are exported through
+ * the one table above: the test grades each palette against the pair ITS
+ * scheme uses.
  */
 export const tagInkHex = (
   scheme: "light" | "dark",
   hue: number,
 ): string => {
   const ink = TAG_INK[scheme]
-  return (
-    "#" +
-    oklchPaintedInSrgb(ink.l, ink.c, hue)
-      .map((channel) => Math.round(gamma(channel) * 255).toString(16).padStart(2, "0"))
-      .join("")
-  )
+  return paintedHex(ink.l, ink.c, hue)
 }
