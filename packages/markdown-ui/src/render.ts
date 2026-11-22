@@ -85,10 +85,10 @@ const keyFor = (
   source: string,
 ): string => `${shape}\n${from}\n${source}`
 
-/** The cache key's tail for the claimed languages: empty when there are none,
- *  so a caller that claims nothing shares the rendering everyone else has. */
-const claimedKey = (blocks: ReadonlySet<string> | undefined): string =>
-  blocks === undefined || blocks.size === 0 ? "" : `\n${[...blocks].sort().join(" ")}`
+/** The cache key's tail for the fence languages: empty when there are none,
+ *  so a caller that hands no fences shares the rendering everyone else has. */
+const fencesKey = (fences: ReadonlySet<string> | undefined): string =>
+  fences === undefined || fences.size === 0 ? "" : `\n${[...fences].sort().join(" ")}`
 
 const renderingOf = (
   claims: Claims | undefined,
@@ -96,10 +96,10 @@ const renderingOf = (
   from: string,
   shape: "block" | "inline",
   names?: Names,
-  blocks?: ReadonlySet<string>,
+  fences?: ReadonlySet<string>,
 ): Rendered => {
   const ids = keyFor(shape, from, source)
-  if (claims === undefined) return render(claims, source, from, ids, shape, names, blocks)
+  if (claims === undefined) return render(claims, source, from, ids, shape, names, fences)
   let revisions = renderings.get(claims)
   if (revisions === undefined) {
     revisions = new WeakMap()
@@ -112,20 +112,20 @@ const renderingOf = (
     rendered = new Map()
     revisions.set(namespace, rendered)
   }
-  const key = ids + claimedKey(blocks)
+  const key = ids + fencesKey(fences)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(claims, source, from, ids, shape, names, blocks)
+  const result = render(claims, source, from, ids, shape, names, fences)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
-/** `blocks` is the languages the caller has a drawing for: a fence in one is
+/** `fences` is the languages the caller has a drawing for: a fence in one is
  *  a placeholder holding its text (`./rewrite/blocks.ts`). */
-export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, names?: Names, blocks?: ReadonlySet<string>): string =>
-  renderingOf(claims, source, from, "block", names, blocks).html
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, names?: Names, fences?: ReadonlySet<string>): string =>
+  renderingOf(claims, source, from, "block", names, fences).html
 
 /**
  * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
@@ -183,12 +183,12 @@ export const renderToTree = (
   from: string,
   shape: "block" | "inline",
   names?: Names,
-  blocks?: ReadonlySet<string>,
+  fences?: ReadonlySet<string>,
 ): Root => {
   const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, rewriting(claims, from, key, shape, names, blocks))
+  rewrite(tree, rewriting(claims, from, key, shape, names, fences))
   return tree
 }
 
@@ -243,12 +243,12 @@ const render = (
   key: string,
   shape: "block" | "inline",
   names?: Names,
-  blocks?: ReadonlySet<string>,
+  fences?: ReadonlySet<string>,
 ): Rendered => {
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, rewriting(claims, from, key, shape, names, blocks))
+  const headings = rewrite(tree, rewriting(claims, from, key, shape, names, fences))
   return { html: pipeline.htmlOf(tree), headings }
 }
 
@@ -259,11 +259,11 @@ const rewriting = (
   key: string,
   shape: "block" | "inline",
   names: Names | undefined,
-  blocks: ReadonlySet<string> | undefined,
+  fences: ReadonlySet<string> | undefined,
 ) => ({
   claims, from, ids: idsFor(key), inline: shape === "inline",
   ...(names === undefined ? {} : { names }),
-  ...(blocks === undefined ? {} : { blocks }),
+  ...(fences === undefined ? {} : { fences }),
 })
 
 /**
@@ -291,8 +291,8 @@ const idsFor = (key: string): string => {
 
 /** Render a source-line landing through the existing parsed tree and highlight walk.
  * No shared cache retains a page's query or highlights. */
-export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, names?: Names, claimed?: ReadonlySet<string>): string => {
-  const tree = renderToTree(claims, source, from, "block", names, claimed)
+export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, names?: Names, fences?: ReadonlySet<string>): string => {
+  const tree = renderToTree(claims, source, from, "block", names, fences)
   if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
   const lines = source.split("\n")
   const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])

@@ -55,7 +55,7 @@ export interface Rewrite {
   readonly inline?: boolean
   /** The languages a caller has a drawing for: a fence in one is a
    *  placeholder (`./rewrite/blocks.ts`). */
-  readonly blocks?: ReadonlySet<string>
+  readonly fences?: ReadonlySet<string>
 }
 
 /** Rewrite the tree in place, and say what headings it turned out to have —
@@ -75,7 +75,7 @@ const walk = (
 ): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
-    const claimed = options.blocks === undefined ? undefined : claimedLanguage(child, options.blocks)
+    const claimed = options.fences === undefined ? undefined : claimedLanguage(child, options.fences)
     if (claimed !== undefined) {
       // Nothing under it is walked: it is text, and it is the drawing's.
       toPlaceholder(child, claimed)

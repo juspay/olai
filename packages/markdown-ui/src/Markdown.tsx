@@ -58,7 +58,7 @@ import { applyWikilink } from "./wikilinks.ts"
  * mounted into each fence in that language. It is handed the fence's text as
  * written and the file the text is in.
  */
-export type BlockFace = (props: { readonly text: string; readonly file: string }) => JSX.Element
+export type FenceFace = (props: { readonly text: string; readonly file: string }) => JSX.Element
 
 /** One set of languages per map of drawings, compared by what it holds, so a
  *  map rebuilt with the same languages renders nothing again. */
@@ -88,11 +88,11 @@ export function Markdown(props: {
    * placeholder and disposed whenever the HTML is replaced, the map changes, or
    * this component goes. A page that hands no map draws every fence as code.
    */
-  readonly blocks?: ReadonlyMap<string, BlockFace>
+  readonly fences?: ReadonlyMap<string, FenceFace>
 }) {
   let container: HTMLDivElement | undefined
-  const claimed = createMemo(
-    () => props.blocks === undefined || props.blocks.size === 0 ? undefined : new Set(props.blocks.keys()),
+  const fenceLanguages = createMemo(
+    () => props.fences === undefined || props.fences.size === 0 ? undefined : new Set(props.fences.keys()),
     undefined,
     { equals: sameLanguages },
   )
@@ -103,8 +103,8 @@ export function Markdown(props: {
       ? props.live === true
         ? renderStreaming(props.claims, props.source, props.from)
         : props.landing !== undefined
-          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles, undefined, claimed())
-          : renderMarkdown(props.claims, props.source, props.from, undefined, claimed())
+          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles, undefined, fenceLanguages())
+          : renderMarkdown(props.claims, props.source, props.from, undefined, fenceLanguages())
       : undefined
   )
   const html = createMemo(() => {
@@ -151,7 +151,7 @@ export function Markdown(props: {
   onCleanup(unmount)
   createEffect(() => {
     html()
-    const faces = props.blocks
+    const faces = props.fences
     const file = props.from
     unmount()
     if (faces === undefined) return

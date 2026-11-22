@@ -15,7 +15,7 @@ import { useHere, useLanding, useRouter } from "olai-plugin-navigation/routing"
 import { BodyRefused } from "./BodyRefused.tsx"
 import { isServed, useDocument } from "./documents.tsx"
 import { Toc } from "./Toc.tsx"
-import { noteBlocks, sameBlocks } from "../faces.ts"
+import { noteFences, sameFences } from "../faces.ts"
 
 export function Rendered(props: { readonly file: string }) {
   const here = useHere()
@@ -182,7 +182,7 @@ export function Rendered(props: { readonly file: string }) {
   // the note's own page, so a fence in a plugin's language is that plugin's
   // drawing. Kept while the same drawings are hung, so a face hung elsewhere
   // does not mount every block again.
-  const blocks = createMemo(noteBlocks, undefined, { equals: sameBlocks })
+  const fences = createMemo(noteFences, undefined, { equals: sameFences })
   return (
     <>
       <Show when={served()?.refused}>
@@ -196,7 +196,7 @@ export function Rendered(props: { readonly file: string }) {
           landing={lineDrawing()}
           from={props.file}
           testid={IDS_MARKDOWN.documentBody}
-          blocks={blocks()}
+          fences={fences()}
         />
       </Show>
     </>

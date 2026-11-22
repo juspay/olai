@@ -2,7 +2,7 @@
  * A FENCE SOMEBODY CLAIMED IS A PLACE THE PAGE MOUNTS THEIR DRAWING.
  *
  * A caller hands the render the languages it has a drawing for (`../
- * Markdown.tsx`'s `blocks`, which only the document page fills). A fence in one
+ * Markdown.tsx`'s `fences`, which only the document page fills). A fence in one
  * of those languages becomes a placeholder, `<div data-olai-block="<language>">`,
  * holding the fence's text as a plain code block: what a reader sees until the
  * drawing is mounted into it, and what the drawing is handed.
@@ -23,7 +23,7 @@ export const BLOCK_ATTRIBUTE = "data-olai-block"
 
 /** The language of a `<pre><code class="language-…">` fence, if one of these
  *  claims it. */
-export const claimedLanguage = (element: Element, blocks: ReadonlySet<string>): string | undefined => {
+export const claimedLanguage = (element: Element, fences: ReadonlySet<string>): string | undefined => {
   if (element.tagName !== "pre") return undefined
   const code = element.children.find((child): child is Element => child.type === "element" && child.tagName === "code")
   const classes = code?.properties["className"]
@@ -31,7 +31,7 @@ export const claimedLanguage = (element: Element, blocks: ReadonlySet<string>): 
   for (const one of classes) {
     if (typeof one !== "string" || !one.startsWith("language-")) continue
     const language = one.slice("language-".length)
-    if (blocks.has(language)) return language
+    if (fences.has(language)) return language
   }
   return undefined
 }

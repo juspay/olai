@@ -8,7 +8,7 @@
  * by `../browser.tsx`'s `content` component, which contributes the page and
  * declares the seats, and is released when it stops.
  */
-import type { DocumentBlockFace } from "../slots.ts"
+import type { DocumentFenceFace } from "../slots.ts"
 import { heldFaces } from "@olai/plugin-api"
 
 const faces = heldFaces()
@@ -18,11 +18,11 @@ export const noteHeads = () => faces.hung("document.page.head")
 export const noteFeet = () => faces.hung("document.page.foot")
 
 /** Each plugin's fence drawing, by the language it claims: its own name. */
-export const noteBlocks = (): ReadonlyMap<string, DocumentBlockFace> =>
+export const noteFences = (): ReadonlyMap<string, DocumentFenceFace> =>
   new Map(faces.hung("document.block").map((one) => [one.plugin, one.face]))
 
-/** Whether two readings of {@link noteBlocks} hand the same drawing to every
+/** Whether two readings of {@link noteFences} hand the same drawing to every
  *  language — the table moves whenever any face in the tab arrives or leaves,
  *  and a fence's drawing is mounted again only when its own does. */
-export const sameBlocks = (a: ReadonlyMap<string, DocumentBlockFace>, b: ReadonlyMap<string, DocumentBlockFace>): boolean =>
+export const sameFences = (a: ReadonlyMap<string, DocumentFenceFace>, b: ReadonlyMap<string, DocumentFenceFace>): boolean =>
   a.size === b.size && [...a].every(([language, face]) => b.get(language) === face)
