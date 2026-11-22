@@ -34,14 +34,6 @@ export interface Names {
    *  out once here so a read is one lookup. A path it does not hold has no
    *  entry, and no wikilink finds it. */
   readonly keys: ReadonlyMap<string, string>
-  /**
-   * WHERE EACH NAME LANDS, as it is asked (`./wikilink.ts`'s `wikilinkAddress`) — by the
-   * writer's folder and the name, since nothing else of the writer moves the
-   * answer. Held here because the answer is a fact of this membership: it is
-   * dropped with the object when a path arrives or leaves, and every revision
-   * between hands it on, so a page asking again does lookups.
-   */
-  readonly found: Map<string, Address | null>
 }
 
 /** Capitals and the stored form of an accented letter set aside. ASCII has
@@ -66,7 +58,7 @@ export const namesOf = (claims: Claims, paths: Iterable<string>): Names => {
     if (prose) filed(documents, stem, path)
     keys.set(path, `[[${prose ? stem : whole}`)
   }
-  return { claims, served, documents, everything, stems, keys, found: new Map() }
+  return { claims, served, documents, everything, stems, keys }
 }
 
 /**

@@ -137,12 +137,27 @@ export const wikilinkAddress = (names: Names, claims: Claims, from: string, link
   // ({@link wikilinkPath}), except a link to the writer's own heading, which
   // is about the writer itself. The key is the memo's own, never read apart.
   const key = [link.target === "" ? from : folderOf(from), link.target, ...link.fragments].join("\0")
-  const held = names.found.get(key)
+  let memo = LANDINGS.get(names)
+  if (memo === undefined) {
+    memo = new Map()
+    LANDINGS.set(names, memo)
+  }
+  const held = memo.get(key)
   if (held !== undefined) return held
   const found = landing(names, claims, from, link)
-  names.found.set(key, found)
+  memo.set(key, found)
   return found
 }
+
+/**
+ * WHERE EACH NAME LANDS, as it is asked — by the name index it was asked of,
+ * then by the writer's folder and the name, since nothing else of the writer
+ * moves the answer. An answer is a fact of one membership, so it is keyed by
+ * that membership's {@link Names}: every revision that hands the same object
+ * on asks again in lookups, and one that brings a path in or takes one away
+ * builds a fresh index, which the entry goes with.
+ */
+const LANDINGS = new WeakMap<Names, Map<string, Address | null>>()
 
 const landing = (names: Names, claims: Claims, from: string, link: WikilinkName): Address | null => {
   const path = link.target === ""
