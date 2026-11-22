@@ -93,8 +93,6 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | the palette | Every agent, the **New chat** row and **Chat about this page**, while an engine can start. |
 | a phone's bottom bar | The **Chats** button, with a count of how many conversations need an answer. |
 
-Where a pane already holds a conversation, the fold under its row and that row's page take you to it.
-
 On a phone the chat page fills the screen. The line with the item's name and its door stays pinned under the app's bar for the whole scroll; the rest of the head scrolls. With the document as a second tab, that strip is pinned too, and each tab keeps its place. **Open <name> beside ›** reads **Open <name> ›** there, and puts the row or document in the next tab along.
 
 An agent that is working or starting shows a dot that pulses, with a ring around it, so a computer set to reduce motion still shows what the agent is doing. On a screen that forces its own colours, these marks are drawn in your colours rather than olai's ([theme](theme.md)). The words beside them say the same thing either way.
@@ -112,7 +110,7 @@ A start the agent refuses keeps your words in the box you typed them in, with th
 
 With a chat about the document, the line says how that chat stands: the agent's mark and its standing word. It reads nothing, so opening the document wakes no agent.
 
-Pressing the line, or **Open beside ›** at its end, opens the conversation in the pane to the right. While a pane holds it, both read **Shown beside** and take you to that pane instead.
+Pressing the line, or **Open beside ›** at its end, opens the conversation in the pane to the right.
 
 | Where a document's chat is named | What you read |
 | --- | --- |
@@ -165,7 +163,7 @@ One pass touches at most about a fifth of the rows and writes only under that ro
 <details>
 <summary>Settings</summary>
 
-All of these go on the `chat` node in `_olai/Settings.olai`, and each has a field in the plugins panel ([settings](../settings.md)). A duration is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`. A duration olai cannot read warns and falls back to the default.
+All of these go on the `chat` node in `_olai/Settings.olai`, each has a field in the plugins panel, and changing one other than `on` restarts chat ([settings](../settings.md)). A duration is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`. A value olai cannot read warns and falls back to the default.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
@@ -179,6 +177,8 @@ All of these go on the `chat` node in `_olai/Settings.olai`, and each has a fiel
 | `sleep-question` | `20m` | How long a tidying turn may sit on a question before olai stops it. |
 | `sleep-limit` | `1h` | How long one tidying turn may run before olai stops it. |
 | `remind-every` | `20` | Every how many messages a node agent is reminded where to write. Zero never reminds. |
+| `auto-compact` | `yes` | Whether Claude Code is told where to compact a conversation. |
+| `compact-at` | `200k` | Where it compacts: `100k`, `200k`, `300k` or `500k` tokens. |
 
 </details>
 
