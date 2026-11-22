@@ -71,7 +71,7 @@ export const createAgentReadings = (agents: Roster) => {
     return entry.value
   }
   const emptyUI = (value: ReturnType<typeof createConversationUI>) =>
-    ![...value.messages.values()].some(([read]) => read().text !== "") &&
+    ![...value.messages.bins.values()].some(([read]) => read().text !== "") &&
     ![...value.holding.values()].some(bin => bin.pending().length > 0 || bin.sending() > 0) &&
     value.drafts.empty() && value.pendingSends[0]() === 0 && value.starting[0]() === 0 &&
     value.folds.empty() && value.armed.armedNodes().length === 0 &&
