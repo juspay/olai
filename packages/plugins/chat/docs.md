@@ -33,7 +33,7 @@ olai can shorten a node agent's memory, and does nothing until you ask. The line
 
 Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in the plugins panel ([settings](../settings.md)).[^off]
 
-[^workflow]: [Talking to an agent](../chat.md) explains how to work with an agent. This page describes the plugin itself: what it needs, what it draws, and what it stores.
+[^workflow]: [Talking to an agent](../chat.md) explains how to work with an agent. This page describes the plugin itself: what it needs, what it draws, and what it stores. The seven services it offers other plugins have [a page of their own](../architecture/chat-services.md).
 
 [^none]: With no engine available the agent menu says `No agent is set up` and offers **Open plugins**. The palette offers no **New chat** row while nothing can start.
 
@@ -93,6 +93,8 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | the palette | Every agent, the **New chat** row and **Chat about this page**, while an engine can start. |
 | a phone's bottom bar | The **Chats** button, with a count of how many conversations need an answer. |
 
+Where a pane already holds a conversation, the fold under its row and that row's page take you to it.
+
 On a phone the chat page fills the screen. The line with the item's name and its door stays pinned under the app's bar for the whole scroll; the rest of the head scrolls. With the document as a second tab, that strip is pinned too, and each tab keeps its place. **Open <name> beside ›** reads **Open <name> ›** there, and puts the row or document in the next tab along.
 
 An agent that is working or starting shows a dot that pulses, with a ring around it, so a computer set to reduce motion still shows what the agent is doing. On a screen that forces its own colours, these marks are drawn in your colours rather than olai's ([theme](theme.md)). The words beside them say the same thing either way.
@@ -110,7 +112,7 @@ A start the agent refuses keeps your words in the box you typed them in, with th
 
 With a chat about the document, the line says how that chat stands: the agent's mark and its standing word. It reads nothing, so opening the document wakes no agent.
 
-Pressing the line, or **Open beside ›** at its end, opens the conversation in the pane to the right.
+Pressing the line, or **Open beside ›** at its end, opens the conversation in the pane to the right. While a pane holds it, both read **Shown beside** and take you to that pane instead.
 
 | Where a document's chat is named | What you read |
 | --- | --- |
@@ -192,32 +194,5 @@ A conversation the engine cannot load is a different refusal. It names the machi
 Chat keeps at most 32 choices an agent is waiting on, rejects any an agent tries to write itself, and cancels queued messages when a choice is cleared or replaced. It stores the choice you made and draws how many are waiting, without reading what they mean: [kolu](kolu.md) and [odu](odu.md) draw their file pickers there, and [mail](mail.md) draws its switch there.
 
 An action naming a conversation you are not looking at is refused rather than applied to another one, so a read, a send or a retry cannot land on the wrong chat.
-
-</details>
-
-<details>
-<summary>What other plugins get from chat</summary>
-
-Every plugin that can reach a conversation uses one of seven services chat provides.
-
-| Service | What it offers | Which plugins use it |
-| --- | --- | --- |
-| `agents` | Which engines this build can run. | claude, codex, opencode, pi, omp |
-| `deliveries` | A way to send a message into a conversation. | kolu, odu, mail |
-| `session-start` | What to ask this machine when a conversation opens. | kolu, odu |
-| `chat.seating` | Which rows have agents, with the engine and session of each, from one reading of the directory. | [xyne-spaces](xyne-spaces.md) |
-| `watching` | What a plugin that mirrors a conversation is told. | xyne-spaces |
-| `conversations` | Starting a chat on a node or a document, speaking into the one there, and which agents can be started. | [vault-plugins](vault-plugins.md) |
-| `chat.beside` | Opening an item's chat in the pane beside the page a press came from. | vault-plugins |
-
-The name `conversations` belongs to olai's core rather than to chat, and chat is what stands behind it while it is running. A plugin asks core for it on each call and gets either the service or nothing, so a plugin that can work without chat is never held up by it.
-
-It offers four calls, and every one of them names a node or a document. `open` starts the chat of that item, gives it an agent and sends a first message. `say` speaks into the chat of an item, `here` takes a list of items and answers which of them have a chat, and `engines` says what this machine can start.
-
-There is no call that reads a conversation: a plugin may start one and talk to it, never hold a copy of what was said.
-
-Chat's `navigation` component offers `chat.beside`, rather than the plugin itself, because opening a pane is a call on the router that component holds. A serve with no router leaves a plugin waiting for it instead of handing over something that does nothing, and the page draws no button. Its `open` takes the item and the pane the press came from, and chat decides the rest: the pane to the right, or the pane that already holds that chat.
-
-A serve with no chat plugin leaves all seven unavailable, and the plugins panel says so on each plugin's row, naming what it is waiting for. The runtime resolves that the moment chat is back.
 
 </details>
