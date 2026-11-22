@@ -140,22 +140,10 @@ export const Config = Schema.Struct({
   // the agent's own default and the host's variables decide, which is what
   // every chat did before this setting existed. Only an engine that can be
   // told (`@olai/plugin-api`'s `Registering.compacting`) is told; every other
-  // one is opened as it always was, whatever these say.
-  //
-  // THE SWITCH TAKES ITS FILE SPELLING TOO, `remind-every`'s reason: a value
-  // in the vault arrives as text, and a switch's text is `yes` or `no`.
-  "auto-compact": Schema.Union([
-    Schema.Boolean,
-    Schema.Literals(["yes", "no"]).pipe(
-      Schema.decodeTo(
-        Schema.Boolean,
-        SchemaTransformation.transform({
-          decode: (word: "yes" | "no") => word === "yes",
-          encode: (on: boolean) => (on ? "yes" as const : "no" as const),
-        }),
-      ),
-    ),
-  ]).pipe(
+  // one is opened as it always was, whatever these say. The switch's file
+  // words (`yes`, `no`) are `@olai/plugin-api/configuration`'s, read where
+  // every leaf is read from text (`coerceLeaf`).
+  "auto-compact": Schema.Boolean.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(true)),
     Schema.annotate({
       description: "Whether olai tells an agent that can be told to compact its conversation on its own",

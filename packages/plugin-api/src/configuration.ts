@@ -71,11 +71,17 @@ export const policyControl = (ast: SchemaAST.AST): Control => {
   return { kind: "text", ...(expected === "" ? {} : { expected }) }
 }
 
+/** A SWITCH AS THE FILE WRITES IT — the one spelling of its two words.
+ *  {@link coerceLeaf} reads a declared switch back with it, the settings
+ *  reader reads a plugin's own `on` with it, and the panel, the serve's
+ *  enable write and the settings audit spell one with it. */
+export const switchText = (on: boolean): "yes" | "no" => (on ? "yes" : "no")
+
 /** Both file reading and panel writes use the leaf's own decoder. */
 export const coerceLeaf = (schema: Schema.ConstraintDecoder<unknown, never>, raw: string): unknown => {
   const control = policyControl(schema.ast)
   const input = control.kind === "number" ? (raw.trim() === "" ? NaN : Number(raw))
-    : control.kind === "switch" ? (raw === "yes" ? true : raw === "no" ? false : raw) : raw
+    : control.kind === "switch" ? (raw === switchText(true) ? true : raw === switchText(false) ? false : raw) : raw
   const decode = Schema.decodeUnknownSync(schema)
   if (input === raw) return decode(raw)
   // Some declarations already own a string-to-value codec. Give that encoding

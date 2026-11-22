@@ -5,7 +5,7 @@ import ts from "typescript"
 import { PACKAGES, sourcesUnder } from "./tree.testlib.ts"
 import { expect, test } from "bun:test"
 import { Effect, Schema, SchemaAST } from "effect"
-import { decodePolicy, policyControl } from "@olai/plugin-api/configuration"
+import { coerceLeaf, decodePolicy, policyControl, switchText } from "@olai/plugin-api/configuration"
 import type { Plugin } from "@olai/plugin-api"
 import { ROWS } from "./rows.ts"
 import { declaredKinds } from "./bundle.ts"
@@ -23,13 +23,12 @@ const audit = (schema: Schema.ConstraintDecoder<unknown, never>, path: string): 
     // The enclosing schema requires no services; its fields inherit that contract.
     const one = Schema.make(field.type) as Schema.ConstraintDecoder<unknown, never>
     if (field.type._tag === "Objects") count += audit(one, `${path}.${key}`)
-    else {
-      // THE VAULT'S SPELLING of the default: a switch is written `yes` or `no`
-      // (`@olai/plugin-api/configuration`'s `coerceLeaf`), everything else as text.
-      const value = defaults[key]
-      const spelled = typeof value === "boolean" ? (value ? "yes" : "no") : String(value)
-      expect(Schema.decodeUnknownSync(one)(spelled), `${path}.${key} must decode a vault property`).toEqual(value)
-    }
+    else if (policyControl(field.type).kind === "switch") {
+      // A SWITCH IS READ THE WAY THE FILE READER READS ONE: its two words go
+      // through `coerceLeaf`, which is what turns them into a value.
+      const value = defaults[key] as boolean
+      expect(coerceLeaf(one, switchText(value)), `${path}.${key} must decode a vault property`).toEqual(value)
+    } else expect(Schema.decodeUnknownSync(one)(String(defaults[key])), `${path}.${key} must decode a vault property`).toEqual(defaults[key])
     count++
   }
   return count
@@ -58,14 +57,10 @@ test("the audit refuses an optional field without a default and missing prose", 
   ) }), "fixture")).toThrow()
 })
 
-test("the audit refuses numeric, switch and nullable fields without a string spelling", () => {
+test("the audit refuses numeric and nullable fields without a string spelling", () => {
   for (const field of [Schema.Int.pipe(Schema.withDecodingDefaultKey(Effect.succeed(1))), Schema.NullOr(Schema.String).pipe(Schema.withDecodingDefaultKey(Effect.succeed(null)))]) {
     expect(() => audit(Schema.Struct({ value: field.pipe(Schema.annotate({ description: "fixture" })) }), "fixture")).toThrow()
   }
-  expect(() => audit(Schema.Struct({ value: Schema.Boolean.pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed(true)),
-    Schema.annotate({ description: "fixture" }),
-  ) }), "fixture")).toThrow()
 })
 
 /**

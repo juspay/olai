@@ -1,6 +1,6 @@
 /** The only settings reader: one vault revision, all row namespaces. */
 import { customText, type Reading } from "@olai/format"
-import { configurationNodes, configurationNode, decodePolicy, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
+import { configurationNodes, configurationNode, decodePolicy, switchText, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
 import type { Schema } from "effect"
 
 export type Declarations = ReadonlyMap<string, Schema.ConstraintDecoder<unknown, never> | undefined>
@@ -15,7 +15,7 @@ export const readConfiguration = (reading: Pick<Reading, "set" | "derived">, dec
       (key, value, why) => warn(`${file}: ${name}.${key}: ${JSON.stringify(value)} uses its default — ${why}`)) }
     catch (error) { warn(`${file ?? "built declaration"}: ${name}: invalid Config — ${(error instanceof Error ? error.message : String(error))}`); parsed = { config: {}, values: [] } }
     const raw = node === undefined ? undefined : customText(node.node, "on")
-    const on = raw === "yes" ? true : raw === "no" ? false : undefined
+    const on = raw === switchText(true) ? true : raw === switchText(false) ? false : undefined
     if (raw !== undefined && on === undefined) warn(`${file}: ${name}.on: ${JSON.stringify(raw)} uses its default — expected yes or no`)
     rows.set(name, { ...parsed, ...(on === undefined ? {} : { on }), ...(node === undefined ? {} : { node: { file: node.file, id: node.node.id } }) })
   }
