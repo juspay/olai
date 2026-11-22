@@ -119,8 +119,8 @@ type Handler = NonNullable<NonNullable<RemarkRehype["handlers"]>["wikilink"]>
  * and — on the element's `data`, which no attribute can spell and the
  * sanitiser carries through untouched — the name it looks up and, for an
  * embed, the size it asks for. Which page it opens depends on the directory,
- * so `./rewrite.ts` draws that after the sanitiser, from this, and
- * `./Markdown.tsx` keeps it in step as files arrive. Only the parser's node
+ * so `./wikilinks.ts` draws that after the sanitiser, from this, in the
+ * rewrite's walk and again in the page as files arrive. Only the parser's node
  * makes one, so nothing a note writes can.
  */
 const wikilinkElement: Handler = (state, wikilink): Element => {

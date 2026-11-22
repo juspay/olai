@@ -509,7 +509,7 @@ Given(
 
 /** The pictures of the document on screen, in the order they were written —
  *  which is the order the rewrite decides priority in (`@olai/markdown-ui`'s
- *  `rewrite.ts`: the first may not be deferred, every later one is). */
+ *  `rewrite/pictures.ts`: the first may not be deferred, every later one is). */
 const pictures = async (world: OlaiWorld) => (await body(world)).locator("img");
 
 // WHAT THE READER GETS AT ONCE. Three facts about one element, because

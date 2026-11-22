@@ -12,10 +12,17 @@
  * only when a path arrives or leaves. Nothing here builds one or remembers
  * one: it is handed in, and it carries the membership with it.
  *
- * The drawing is written twice from one answer: by `./rewrite.ts` after the
- * sanitiser, when a rendering has the index in hand, and by `./Markdown.tsx`
- * in the page, every time the index moves, without re-rendering the prose
- * ({@link applyWikilink}).
+ * The drawing is written twice from one answer: into the tree after the
+ * sanitiser, when a rendering has the index in hand ({@link drawWikilink},
+ * which `./rewrite.ts`'s walk calls), and into the page every time the index
+ * moves, without re-rendering the prose ({@link applyWikilink}).
+ *
+ * A `[[name]]` IS A LINK, so where it opens and the mark it wears when it
+ * finds nothing are the ones every link carries (`./rewrite/links.ts`'s
+ * {@link linkDrawing}); a picture embed is a picture, and meets the allowlist
+ * and the eager-or-lazy rule a `![](…)` does (`./rewrite/pictures.ts`). What
+ * is this file's own is the lookup by NAME, and the marks that let the page do
+ * it again.
  */
 import {
   addressOf,
@@ -32,11 +39,10 @@ import {
 import type { WikilinkName } from "@olai/prose/wikilink.ts"
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"
+import type { Element } from "hast"
 
-/** What an undrawn picture looks like: a quiet inline box, in the same family
- *  as the app's other readouts. */
-export const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " +
-  "font-mono text-xs text-muted"
+import { type Aim, DEAD_LINK, linkDrawing, textIn } from "./rewrite/links.ts"
+import { type Pictures, UNDRAWN, waits } from "./rewrite/pictures.ts"
 
 /** One wikilink as the page keeps it: the name it looks up, whether it was an
  *  embed, and the size an embed's `|200` or `|200x100` asks for. */
@@ -48,7 +54,7 @@ export interface Written {
 
 declare module "hast" {
   interface ElementData {
-    /** A wikilink's `<a>`, from the pipeline's handler to `./rewrite.ts`. */
+    /** A wikilink's `<a>`, from the pipeline's handler to {@link drawWikilink}. */
     wikilink?: Written
   }
 }
@@ -59,9 +65,10 @@ export const sizeOf = (alias: string | null): string | undefined =>
 
 /** What a wikilink is drawn as, for one membership. */
 export type Drawn =
-  /** A link: its page, or nothing to open (`href` absent); `dead` is the
-   *  sentence a link that finds nothing is named with. */
-  | { readonly kind: "link"; readonly href?: string; readonly dead?: string }
+  /** A link, aimed and marked as any link is (`./rewrite/links.ts`): its page,
+   *  or nothing to open, and the sentence it is named with when it finds
+   *  nothing. */
+  | ({ readonly kind: "link" } & Aim)
   /** A picture embed whose name finds a picture this page may draw. */
   | { readonly kind: "picture"; readonly src: string }
   /** A picture embed that finds nothing it may draw, in words. */
@@ -110,9 +117,9 @@ export const drawnWikilink = (
 }
 
 /** The element a drawing is, as a tag, its attributes and its text — one
- *  shape for the tree `./rewrite.ts` writes and the DOM `./Markdown.tsx`
- *  keeps in step. `words` is what a link shows, which opens a dead link's
- *  name. */
+ *  shape for the tree {@link drawWikilink} writes and the DOM
+ *  {@link applyWikilink} keeps in step. `words` is what a link shows, which
+ *  opens a dead link's name. */
 export interface Drawing {
   readonly tag: "a" | "img" | "span"
   readonly attributes: Readonly<Record<string, string>>
@@ -130,20 +137,10 @@ const marksOf = (link: WikilinkName): Record<string, string> => ({
 
 export const drawingOf = (drawn: Drawn, written: Written, words: string): Drawing => {
   const marks = marksOf(written.link)
-  if (drawn.kind === "link") {
-    return {
-      tag: "a",
-      attributes: {
-        ...(drawn.href === undefined ? {} : { href: drawn.href }),
-        ...marks,
-        ...(drawn.dead === undefined ? {} : {
-          "data-dead": "true",
-          "aria-label": words === "" ? drawn.dead : `${words} — ${drawn.dead}`,
-          class: "olai-dead-link",
-        }),
-      },
-    }
-  }
+  // A LINK IS A LINK: its href and its dead mark are the ones `./rewrite/
+  // links.ts` writes for a `[x](y.md)` too, with the wikilink's own marks
+  // between them. A wikilink has no authored title to carry.
+  if (drawn.kind === "link") return { tag: "a", attributes: linkDrawing(drawn, words, marks) }
   const picture = { ...marks, "data-wikilink-picture": "", ...(written.size === undefined ? {} : { "data-wikilink-size": written.size }) }
   if (drawn.kind === "picture") {
     const [width, height] = (written.size ?? "").split("x")
@@ -167,6 +164,41 @@ export const drawingOf = (drawn: Drawn, written: Written, words: string): Drawin
     }
   }
   return { tag: "span", attributes: picture, text: "" }
+}
+
+/** The wikilink an `<a>` is, as `./pipeline.ts` left it on the element's
+ *  `data`, or `undefined` for every other link. */
+export const wikilinkOf = (element: Element): Written | undefined => element.data?.wikilink
+
+/**
+ * A wikilink in the TREE, drawn from the marks the pipeline put on it: the
+ * link to the page its name finds, marked dead when the name index in hand
+ * finds nothing — or, for a picture embed, the picture, or the words saying
+ * why there is none. Drawn after the sanitiser (`./rewrite.ts`'s walk), so a
+ * note cannot carry a mark of its own.
+ */
+export const drawWikilink = (
+  element: Element,
+  written: Written,
+  claims: Claims | undefined,
+  names: Names | undefined,
+  from: string,
+  inline: boolean,
+  pictures: Pictures,
+): void => {
+  const drawn = drawnWikilink(claims, names, from, written, inline)
+  const drawing = drawingOf(drawn, written, drawn.kind === "link" ? textIn(element).trim() : "")
+  const { class: classes, ...attributes } = drawing.attributes
+  element.tagName = drawing.tag
+  element.properties = { ...attributes, ...(classes === undefined ? {} : { className: classes.split(" ") }) }
+  if (drawing.tag === "img") {
+    // The same rule a `![](…)` keeps: the first picture of a block is not
+    // deferred, every one after it is.
+    element.properties["loading"] = waits(pictures) ? "lazy" : "eager"
+    element.children = []
+  } else if (drawing.text !== undefined) {
+    element.children = drawing.text === "" ? [] : [{ type: "text", value: drawing.text }]
+  }
 }
 
 /** The attributes {@link drawingOf} may write, so a drawing that no longer
@@ -208,7 +240,7 @@ export const applyWikilink = (
     if (key === "class") continue
     if (element.getAttribute(key) !== value) element.setAttribute(key, value)
   }
-  if (drawing.tag === "a") element.classList.toggle("olai-dead-link", "class" in drawing.attributes)
+  if (drawing.tag === "a") element.classList.toggle(DEAD_LINK, "class" in drawing.attributes)
   else if (drawing.attributes["class"] !== undefined) element.setAttribute("class", drawing.attributes["class"])
   if (drawing.text !== undefined && element.textContent !== drawing.text) element.textContent = drawing.text
 }

@@ -107,7 +107,7 @@ test("`href` may name a message, and no other attribute may", () => {
 test("nothing but the attributes and one href protocol was touched", () => {
   expect(SANITISE.tagNames).toEqual(defaultSchema.tagNames)
   expect(SANITISE.clobber).toEqual(defaultSchema.clobber)
-  // Off, as it has been since footnotes: ./rewrite.ts mints every id on the
+  // Off, as it has been since footnotes: ./rewrite/ids.ts mints every id on the
   // page against the block it is in, which is the stronger rule.
   expect(SANITISE.clobberPrefix).toBe("")
 })

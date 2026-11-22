@@ -176,8 +176,9 @@ Then(
 
 /** A door out of the app opens a tab of its own, and under the pair that keeps
  *  the far end from reaching back — the rule a link written into a note already
- *  follows (`client/markdown/rewrite.ts`). Asserted rather than clicked: a step
- *  that followed it would be a scenario waiting on somebody else's server. */
+ *  follows (`@olai/markdown-ui`'s `rewrite/links.ts`). Asserted rather than
+ *  clicked: a step that followed it would be a scenario waiting on somebody
+ *  else's server. */
 Then(
   "the property {string} on {string} opens in a tab of its own",
   async function (this: OlaiWorld, key: string, id: string) {
