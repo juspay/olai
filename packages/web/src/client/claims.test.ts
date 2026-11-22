@@ -671,10 +671,11 @@ test("transcript grips belong to chat", () => {
 // browser graph that decided neither is named here before a reader finds it.
 //
 // The markdown rewrite passes without spelling `<img>` as markup: it is the
-// pass that turns a `![](shot.png)` into one (`markdown-ui/rewrite.ts`), and
-// it writes the same two attributes onto the element it keeps — the first
-// picture of a block eager, every later one lazy, which is why the patterns
-// read through a ternary rather than demanding a literal.
+// pass that turns a `![](shot.png)` into one
+// (`markdown-ui/rewrite/pictures.ts`), and it writes the same two attributes
+// onto the element it keeps — the first picture of a block eager, every later
+// one lazy, which is why the patterns read through a ternary rather than
+// demanding a literal.
 //
 // `claims.test.ts` cannot see the whole app: `website/` is not this graph, and
 // the hypertext preview draws pictures that are a FILE's markup rather than

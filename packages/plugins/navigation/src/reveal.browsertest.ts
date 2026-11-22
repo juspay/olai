@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
-import { NO_CLAIMS, TEST_CLAIMS } from "@olai/format/testlib"
+import { NO_CLAIMS, TEST_CLAIMS } from "@olai/format/testlib/claims"
 import type { Home } from "olai-plugin-outlines/references"
 import { createPaneState } from "./pane/state.ts"
 import { createReveal } from "./reveal.ts"

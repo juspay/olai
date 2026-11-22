@@ -1,11 +1,11 @@
 /**
  * THE TWO READINGS OF A HEADING, held to each other.
  *
- * A heading's id is spelled in one place (`@olai/format`'s `slugOf`) and the
+ * A heading's id is spelled in one place (`@olai/prose`'s `slugOf`) and the
  * counter behind a repeat is too (`claim`), so those cannot drift. What CAN is
- * the other half: which lines are headings, and what their text is. The format
- * reads LINES — it holds no markdown parser, deliberately, being the floor the
- * write gate stands on — and the browser reads a parsed tree.
+ * the other half: which lines are headings, and what their text is. The face
+ * reads a body once, when the file is decoded (`@olai/format/read`'s
+ * `slugsIn`), and the browser reads the tree it draws from.
  *
  * This is the seam where both exist, so this is where the gap is measured. The
  * face's promise is `README.md#install` names something; the page's job is to
@@ -13,7 +13,8 @@
  * app writes and cannot open.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { proseIn, slugsIn } from "@olai/format"
+import { slugsIn } from "@olai/format/read"
+import { proseIn } from "@olai/prose/frontmatter.ts"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"
@@ -144,20 +145,17 @@ test("a setext heading is one to both readings", () => {
   expect(drawn(body)).toEqual(["the-plan", "next"])
 })
 
-/**
- * WHERE THEY PART, pinned rather than left to be discovered: the browser reads
- * a heading's TEXT out of a parsed tree, so inline markup is gone by the time
- * it is slugged; the face reads the line as written. `## **Install**` agrees by
- * accident (a `*` is not a character a slug is made of); a heading whose text
- * is a link does not.
- *
- * The cost is a face that does not list one address, which is a backlink
- * nobody gets — never a page that will not render. Fixing it correctly is
- * having a parser in the format, which is the trade `./derive.ts` already
- * refuses about tags.
- */
-test("a heading whose text is a link is where the two readings part", () => {
+/** A heading whose text is a link is named by the link's words: the face and
+ *  the page read one parse, so `## [Install](setup.md)` is `install` to both. */
+test("a heading whose text is a link is named by its words, by both", () => {
   const body = "## [Install](setup.md)"
   expect(drawn(body)).toEqual(["install"])
-  expect(slugsIn(body).map(String)).toEqual(["installsetupmd"])
+  expect(slugsIn(body).map(String)).toEqual(["install"])
+})
+
+/** …and a heading holding a wikilink by the words it shows. */
+test("a heading that holds a wikilink is read as the words it shows, by both", () => {
+  const body = ["## See [[finishes|the finishes]]", "", "## About [[finishes#Doors]]"].join("\n")
+  expect(drawn(body)).toEqual(slugsIn(body).map(String))
+  expect(drawn(body)).toEqual(["see-the-finishes", "about-finishes--doors"])
 })

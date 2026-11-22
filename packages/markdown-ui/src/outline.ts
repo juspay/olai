@@ -8,10 +8,10 @@
  *
  * Which is why it is read out of the FINISHED TREE rather than out of the
  * markdown source. The ids are ./anchors.ts's, minted from each heading's own
- * text; ./rewrite.ts then moves them into the block's own namespace, and only
- * after that are they the strings a `href="#…"` has to say. Parsing the source
- * a second time would produce a plausible contents pointing at ids that do not
- * exist.
+ * text; ./rewrite/ids.ts then moves them into the block's own namespace, and
+ * only after that are they the strings a `href="#…"` has to say. Parsing the
+ * source a second time would produce a plausible contents pointing at ids that
+ * do not exist.
  *
  * A heading with no id contributes nothing — it cannot be jumped to, so a line
  * naming it would be a dead entry rather than a survey.

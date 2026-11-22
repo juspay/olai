@@ -23,6 +23,7 @@ import {
   declaringOf,
   isDigitRun,
   isPathShaped,
+  isReference,
   type KindVocabulary,
   NO_KINDS,
   NO_TYPING,
@@ -30,6 +31,7 @@ import {
   PATH_BASES,
   PROP_KINDS,
   type PropType,
+  referenceKeys,
   sameTyping,
   storedValue,
   type Typed,
@@ -166,6 +168,49 @@ test("two readings of one vault DECLARE the same thing, and a moved declaration 
       .replace(`"type":"date"`, `"type":"int"`),
   }))
   expect(sameTyping(typed.declarations, declarationsOf(moved, NO_KINDS))).toBe(false)
+})
+
+// WHICH KEYS THE REFERENCES TABLE READS — the vault's own declarations,
+// narrowed to the three kinds that name something. It is a reading of its own
+// because the table is built where no vocabulary is in hand, and because what
+// it answers decides when the property entries are re-filed.
+test("the reference keys are the `doc`, `ref` and `node` ones, and nothing else", () => {
+  expect([...referenceKeys(derived).keys()]).toEqual(["merge", "brief", "agent", "item"])
+  // …and every one of them is the declaration the vault made, where it made it.
+  expect(referenceKeys(derived).get("agent")).toEqual({
+    type: { kind: "ref", under: "agents-roster" },
+    at: "prop-agent",
+  })
+  expect(isReference(typed.declarations.get("pr"))).toBe(false)
+  expect(isReference(typed.declarations.get("worktree"))).toBe(false)
+  expect(isReference(undefined)).toBe(false)
+})
+
+test("a vault with no declarations file declares no reference key", () => {
+  const bare = derive(TEST_CLAIMS, nodesOfFiles({ "a.olai": `{"id":"one","ord":"a0","title":"one"}` }))
+  expect(referenceKeys(bare)).toEqual(NO_TYPING)
+})
+
+// THE VOCABULARY CANNOT MOVE IT, which is what lets the table be filed with
+// no kinds in hand: a plugin's claim declares its own contributed kind and
+// nothing else, so it can neither add a reference key nor take one away.
+test("a plugin's claimed key is no reference key, whatever it claims", () => {
+  const claiming: ContributedKind = {
+    kind: "widget-claiming",
+    takes: "`widget-claiming`",
+    admits: () => true,
+    claims: "lane",
+  }
+  const kinds: KindVocabulary = {
+    built: new Map([[claiming.kind, claiming]]),
+    enabled: new Map([[claiming.kind, claiming]]),
+  }
+  expect(declarationsOf(derived, kinds).get("lane")?.type)
+    .toEqual({ kind: "contributed", word: "widget-claiming" })
+  expect([...referenceKeys(derived).keys()]).toEqual(["merge", "brief", "agent", "item"])
+  // …and the fold is still the fold: asking for the claims back does not
+  // disturb what the table read.
+  expect(declarationsOf(derived, NO_KINDS).has("lane")).toBe(false)
 })
 
 // ── the seven kinds ────────────────────────────────────────────────────

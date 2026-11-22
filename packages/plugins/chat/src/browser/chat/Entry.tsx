@@ -406,6 +406,7 @@ export function Entry(props: {
           <div ref={said}>
             <Markdown
             claims={servedDirectory()?.claims()}
+              names={servedDirectory()?.names()}
               source={shown()}
               from={AGENT_WROTE_IT}
               live={agent().streaming === true}

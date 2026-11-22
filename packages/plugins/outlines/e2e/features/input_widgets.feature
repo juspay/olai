@@ -128,7 +128,7 @@ Feature: The three input widgets
     Then no completions are open
 
   Scenario: A tag written in a NOTE is vocabulary too
-    # The list is read off the derivation's own tag index (`Derived.taggedBy`),
+    # The list is read off the references table's own `tags` part,
     # which files a record under every tag its title OR its note writes — so a
     # word somebody has only ever used in prose under a row is offered back to
     # them. It used to be invisible here, by accident of a walk that looked at

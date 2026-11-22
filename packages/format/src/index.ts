@@ -143,12 +143,16 @@ export {
   byPath,
 } from "./paths.ts"
 /** THE SUM the set serves, and the whole world of it: the three arms, their
- *  shared face, the constructors a decode calls and the narrowings a reader
- *  asks for. `Document` is what a served file IS
+ *  shared face, and the narrowings a reader asks for. `Document` is what a
+ *  served file IS
  *  (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md, PR 2); the nodes are the
- *  substructure of one arm rather than a collection beside it. */
+ *  substructure of one arm rather than a collection beside it.
+ *
+ *  WHAT A DECODE CALLS IS NOT HERE: the two constructors read the text they
+ *  are given, so they live behind `@olai/format/read` (`./read.ts`) with
+ *  everything else that imports the Markdown parser, and this door stays one
+ *  a browser may hold. */
 export {
-  bodiedDocument,
   bodyOf,
   Document,
   Face,
@@ -159,23 +163,10 @@ export {
   isOutline,
   Markdown,
   Outline,
-  outlineDocument,
   Unkept,
 } from "./document.ts"
-/** A heading's derived id, and the headings of a body — the element half of
- *  the address grammar. Exported because the BROWSER assigns the same ids as
- *  it renders (`/web`'s `markdown/slugs.ts`), and a slug spelled twice is
- *  an address this app writes and cannot open. */
-export { claim, slugOf, slugsIn } from "./slug.ts"
-/** A document body with its `---` block taken off — the ONE place the app
- *  decides where frontmatter ends. Exported because the BROWSER spends it too:
- *  a document is drawn from its prose, so the block is off the page, off the
- *  contents and off the heading ids, and the page and the face cannot come to
- *  disagree about which lines a document has. A NOTE is not a file and does not
- *  spend it — a leading `---` in one is the thematic break markdown says it is
- *  (`./document.ts` argues both halves). */
-export { proseIn, proseLineOffset } from "./frontmatter.ts"
-/** ...and the block itself, read and written. A `.md`'s front matter is where
+/** A `.md`'s `---` block, read and written (where it ends is `@olai/prose`'s
+ *  `frontmatter.ts`). A `.md`'s front matter is where
  *  a NOTE keeps its properties — including the two a chat is made of — so the
  *  reading is public for the ops layer's write fence (which refuses an agent
  *  the keys it may not move, in a document exactly as on a row) and the writer
@@ -257,12 +248,11 @@ export {
    *  the chat's one-time move on the server. */
   addressAt,
   DocumentPath,
-  /** The address a TITLE carries, and the two halves of the one link it may be
-   *  written as — the shape a NAMED pin takes, read by the shelf reading down
-   *  here and by the browser drawing the same title (website/docs/format.md's Pins).
-   *  One spelling, because two readers cut it. */
+  /** The address a TITLE carries — the shape a NAMED pin takes, read by the
+   *  shelf reading down here and by the browser drawing the same title
+   *  (website/docs/format.md's Pins). The two halves of that link are
+   *  `@olai/prose`'s `linkedTitle`, which both sides read it through. */
   addressWritten,
-  linkedTitle,
   /** ...and the other direction: the title a pin carries for a name somebody
    *  typed, refused rather than mangled when the words cannot go in a link.
    *  Two writers cut this too — the server resolving a `pin`, the browser
@@ -277,29 +267,35 @@ export {
    *  (`olai-plugin-chat`'s `/chat/<note path>`). */
   readPath,
   spellPath,
-  Slug,
   /** Path, query and fragment of an address, cut the way this app writes one —
    *  the URL's own punctuation, read on both sides of the wire. What the halves
    *  MEAN stays the browser's. */
   splitAddress,
-  Tag,
   writtenAddress,
   titleAddress,
 } from "./address.ts"
+export { bytesOf } from "./document.ts"
+export { isAsset, isPicture, servingOf } from "./serving.ts"
 export {
-  bracketSpacedLinks,
-  bytesOf,
-  firstLine,
-  isAsset,
-  isPicture,
-  servingOf,
   /** The path in this directory a relative reference names, whatever kind of
    *  file it is — the same arithmetic and refusals as the picture rule, with
    *  no suffix allowlist at the end, for the caller that can ask the directory
    *  itself whether it serves the answer. */
   pathedOf,
-  pictureOf,
-} from "./documents.ts"
+} from "./links/paths.ts"
+export { addressOfPlace, pictureOf, type Place, placeOf } from "./links/standard.ts"
+export { type Landing, standardLanding, wikilinkLanding } from "./links/landing.ts"
+export { namesOf, type Names } from "./links/names.ts"
+export {
+  wikilinkAddress,
+  wikilinkFallback,
+  wikilinkFor,
+  wikilinkOffers,
+  type WikilinkOffer,
+  wikilinkPath,
+  wikilinkPicture,
+  wikilinkSuggestions,
+} from "./links/wikilink.ts"
 export {
   INBOX,
   inboxIn,
@@ -562,14 +558,6 @@ export {
    *  layer refuses `outlines_doing` with THIS one, which is the same reading from
    *  the other end of the arrow. */
   standingBefore,
-  isTagName,
-  mayHoldTag,
-  TAG_SIGILS,
-  tagOpensAt,
-  tagPart,
-  tagText,
-  titleParts,
-  titleTagRe,
   unfinished,
   unfinishedWithin,
   withoutDone,
@@ -578,32 +566,40 @@ export { Progress } from "./derive.ts"
 export type {
   Derived,
   InTheWay,
-  Naming,
   Row,
   Situated,
-  TagSigil,
-  TitlePart,
-  TitleTag,
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 /** THE ONE READING that answers "who refers to here" — {@link referencesOf},
- *  out of the pointing index the fold keeps ({@link ./pointing.ts}) and asked
+ *  out of the one table the fold keeps ({@link ./references/pointing.ts}) and asked
  *  with one address from the node page, the document page and the ops layer
- *  alike. `Way` is the SCHEMA the answer vocabulary (`Reference`) carries; the
- *  list it spells is {@link WAYS}, the closed list of how one place can refer
- *  to another, re-exported from the module that OWNS it ({@link ./imports.ts})
- *  because the fold files under the same words. */
-export { referencesOf, Way } from "./backlinks.ts"
-export { WAYS } from "./imports.ts"
-export type { Reference } from "./backlinks.ts"
-/** WHICH DOCUMENTS POINT WHERE — the set's own forward links, filed backwards
- *  and kept that way (`perf-doc-backlinks-index`). It rides on the {@link Reading}
- *  and it is what `referencesOf` reads; the type is exported because that
- *  function takes one, and the fold and the patch are not — a caller holding a
- *  reading holds the index, and a caller building one goes through `validate`
- *  or `reading`, which is where the two are kept in step. */
-export type { Pointing } from "./pointing.ts"
+ *  alike. `Way` is the SCHEMA the answer vocabulary (`Reference`) carries, and
+ *  {@link WAYS} is the list it spells: the ways THIS reading counts, closed by
+ *  the rulings beside it. The table files more of them than that — the fields,
+ *  the placements, the tags — and each reader of it names its own
+ *  ({@link ./references/written.ts}'s `FILED_WAYS`). */
+export { referencesOf, Way, WAYS } from "./references/referring.ts"
+export type { Reference } from "./references/referring.ts"
+/** WHO POINTS AT WHAT — the set's own forward references, filed backwards and
+ *  kept that way (`perf-doc-backlinks-index`), in four parts by what is
+ *  pointed at. It rides on the {@link Reading} and it is what `referencesOf`
+ *  reads; the type is exported because that function takes one, and the fold
+ *  and the carry are not — a caller holding a reading holds the table, and a
+ *  caller building one goes through `validate` or `reading`, which is where the
+ *  two are kept in step.
+ *
+ *  THE RELATIONS HALF of it is read by name: {@link namersOf} is `targetsOf`
+ *  read backwards — the records that name a row with `mirror`, `after`,
+ *  `blocks` or `see`, each with its fields — {@link propertyNamersOf} is the
+ *  same reading for the way a VAULT declares (a `doc`, `ref` or `node` value
+ *  naming a file or a row, with the keys it was written under), and
+ *  {@link isNamed} is both questions asked for a yes or a no. All three are
+ *  what the ops layer's refusals ask before a record is taken away, and all
+ *  three leave the LINKS filed under the same row out: a row something merely
+ *  links to is not a row something declares about. */
+export type { Keyed, Naming, Pointing } from "./references/pointing.ts"
+export { isNamed, namersOf, propertyNamersOf } from "./references/pointing.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of
@@ -975,8 +971,8 @@ export {
 } from "./searching.ts"
 
 /** The set's own WORDS — every tag written down, counted, and which of them one
- *  prefix under one sigil means. The reading over `Derived.taggedBy` rather than
- *  the index, for `./backlinks.ts`'s reason: what a tag's COUNT means (one vote
+ *  prefix under one sigil means. The reading over the references table's `tags`
+ *  part rather than the table itself, for `./references/referring.ts`'s reason: what a tag's COUNT means (one vote
  *  per record, nothing the trash draws) is a decision, and it is made there. It
  *  ran in the browser until `vault-in-browser`'s PR 2 took the vault out of it —
  *  see `./vocabulary.ts`. ONE function, not the enumeration and the match as two
@@ -1316,7 +1312,7 @@ export type { OutlineFormat } from "./format.ts"
 
 export { mintExt, parserFor } from "./kinds.ts"
 export { claimedOf, outlineAt } from "./address.ts"
-export { ID_SHAPE, MENTION_ALPHABET } from "./node.ts"
+export { ID_SHAPE } from "./node.ts"
 export { isMarkdown } from "./document.ts"
 
 export { ClaimData, FileKind } from "./kinds.ts"
@@ -1325,4 +1321,8 @@ export { outlineCalled } from "./node.ts"
 
 export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
 
-export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields, deadLinkTarget } from "./dead-links.ts"
+export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields } from "./references/dead.ts"
+/** What decode read out of each text, kept beside it: a record's title and
+ *  note, a document's prose (`./kept.ts`). ASKING is here and parser-free;
+ *  READING is `@olai/format/read`, which is the only door that imports one. */
+export { bodyRead, type RecordRead, recordRead } from "./kept.ts"

@@ -7,10 +7,13 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
+import { read } from "@olai/prose/read.ts"
+
 import { printAddress } from "./address.ts"
-import { bodiedDocument, type Document } from "./document.ts"
-import { bytesOf } from "./documents.ts"
+import { bytesOf, type Document } from "./document.ts"
+import { bodiedDocument } from "./read.ts"
 import type { OutlineError } from "./errors.ts"
+import { bodyRead } from "./kept.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { failureOf, outlineOf, recordsOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
@@ -92,13 +95,10 @@ test("a markdown document carries a face", () => {
 
   const plan = markdownIn(set).find((one) => one.path === "notes/plan.md")!
   expect(plan.title).toBe("The plan")
-  // `#scope` is in there because a body is READ AS TEXT by the tag walk, the
-  // same way a note is (`./derive.ts` makes that refusal and says why: this
-  // package holds no markdown parser, and putting one under the write gate is
-  // the trade it declines). A link's fragment looks exactly like a tag, and it
-  // is left as it falls rather than special-cased by a scan pretending to know
-  // what a link is.
-  expect(spelled(plan.tags)).toEqual(["@alice", "#kitchen", "#scope"])
+  // `#scope` is NOT in there: it is the fragment of a link's address, and a
+  // body is read as Markdown, so a tag is a word of its text outside code and
+  // outside links — the rule the page draws a pill by.
+  expect(spelled(plan.tags)).toEqual(["@alice", "#kitchen"])
   expect(spelled(plan.headings)).toEqual(["the-plan", "next-steps"])
   // WRITTEN, because a canonical spelling is what an address promises and it is
   // what a reader of this test wants to see.
@@ -111,7 +111,7 @@ test("a markdown document carries a face", () => {
 // An OUTLINE has one too, and its face is read off the records: what its nodes
 // attach, what they cross-reference, what their prose links and tags. That is
 // what makes "who points at this document" a question with one answer for both
-// kinds (`./backlinks.ts`).
+// kinds (`./references/referring.ts`).
 test("an outline carries a face read off its records", () => {
   const set = assemble(TEST_CLAIMS, decoded({
     "home.olai": outline(
@@ -263,6 +263,11 @@ test("an unreadable document holds its place with an empty body", () => {
   // The FILENAME, since an empty body has no first line to be called by.
   expect(lost.title).toBe("lost")
   expect(spelled(lost.headings)).toEqual([])
+  // ...and what it was READ as, which this module makes with no parser (the
+  // reading a browser-safe `assemble` cannot ask `@olai/prose` for): the same
+  // answer `read` gives an empty text, so a reader asking what the place says
+  // is answered rather than thrown at.
+  expect(bodyRead(lost)).toEqual(read(""))
   expect(set.broken.map((file) => file.file)).toEqual(["notes/lost.md"])
 })
 

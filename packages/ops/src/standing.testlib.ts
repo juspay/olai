@@ -68,7 +68,9 @@
  * `bun test` collects only `*.test.ts`.
  */
 import { TEST_CLAIMS } from "./claims.testlib.ts"
-import { addressOf, bodiedDocument, bodyKind, type BrokenFile, type Document, type KindVocabulary, type MovingRequest, type NarrowingRequest, NO_KINDS, type OutlineError, type PageRequest, type Reading, stillHolds, taping, type Verdict, verdictOf } from "@olai/format"
+import { unheard } from "./fixtures.testlib.ts"
+import { addressOf, bodyKind, type BrokenFile, type Document, type KindVocabulary, type MovingRequest, type NarrowingRequest, NO_KINDS, type OutlineError, type PageRequest, type Reading, stillHolds, taping, type Verdict, verdictOf } from "@olai/format"
+import { bodiedDocument } from "@olai/format/read"
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import { seeded } from "@olai/format/testlib"
 import { Result } from "effect"
@@ -520,7 +522,7 @@ const published = (
   changed: ReadonlyArray<string>,
   removed: ReadonlyArray<string>,
 ): Result.Result<Reading, Verdict> =>
-  codecFor(NO_KINDS, { current: TEST_CLAIMS }).validate(
+  codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard).validate(
     decoded,
     previous === undefined ? undefined : { value: previous, changed, removed },
   )

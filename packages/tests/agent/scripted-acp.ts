@@ -26,7 +26,8 @@ import { nativeActivity } from "./native-activity.ts"
  *   done <id>    call `outlines_done` on that node, then say so
  *   add <title>  call `outlines_add` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
- *                outline if the name ends `.olai`, an over-budget rewrite for
+ *                outline if the name ends `.olai` (`yard.olai`'s gains a
+ *                wikilink in a title), an over-budget rewrite for
  *                `huge.md`, unbroken tokens (add, remove, and a same-line
  *                context row) for `long.md`, an ordinary
  *                markdown edit otherwise
@@ -1046,6 +1047,24 @@ const EDITED_OUTLINE = {
   after: [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","desc":"oak, twelve of them"}`,
+    "",
+  ].join("\n"),
+}
+
+/** …and the yard's, whose `gate` gains a WIKILINK in its title: `cabinets`
+ *  is a note in `notes/`, so the change row drawing it has to look the name up
+ *  rather than guess `/cabinets.md`. */
+const EDITED_YARD = {
+  before: [
+    `{"id":"yard","ord":"a0","title":"the yard"}`,
+    `{"id":"fence","parent":"yard","ord":"a0","title":"stain the fence"}`,
+    `{"id":"gate","parent":"yard","ord":"a1","title":"oil the gate hinge"}`,
+    "",
+  ].join("\n"),
+  after: [
+    `{"id":"yard","ord":"a0","title":"the yard"}`,
+    `{"id":"fence","parent":"yard","ord":"a0","title":"stain the fence"}`,
+    `{"id":"gate","parent":"yard","ord":"a1","title":"oil the gate hinge, as in [[cabinets]]"}`,
     "",
   ].join("\n"),
 }
@@ -2660,7 +2679,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // third party, and an agent on the far end of a pipe has no access to
     // olai's constants — deriving the fixture from the implementation under
     // test would make the scenario agree with the client by construction.
-    const texts = file.endsWith(".olai")
+    const texts = file === "yard.olai"
+      ? EDITED_YARD
+      : file.endsWith(".olai")
       ? EDITED_OUTLINE
       : file === "huge.md"
       ? REWRITTEN
@@ -3282,6 +3303,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       "the note is [the cabinets note](notes/cabinets.md) " +
         "and the row is [the order row](/#order).\n",
     )
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // …and the same answer written the way an Obsidian user's agent writes it:
+  // by NAME, which the page looks up across the directory rather than beside
+  // a file the answer was never written in.
+  if (verb === "wikilinks") {
+    say("the note is [[cabinets|the cabinets by name]] and nothing is [[nowhere]].\n")
     reply(id, { stopReason: "end_turn" })
     return
   }

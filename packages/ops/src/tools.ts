@@ -264,7 +264,7 @@ export const asking = (
   node: (request) =>
     Effect.map(
       Effect.flatMap(read, (at) =>
-        Effect.fromResult(Query.detail(at, request.id, request.fields, new Set(at.set.documents.map(one => one.path))))),
+        Effect.fromResult(Query.detail(at, request.id, request.fields, true))),
       (found) => found ?? { missing: request.id },
     ),
   // ONE OF THE TWO READS THAT CAN REFUSE FROM THE WALK ITSELF — see the note
@@ -297,7 +297,7 @@ export const asking = (
   // between this package's pure half and its effectful one is a library call
   // rather than a spelling of one.
   document: (request) =>
-    Effect.flatMap(read, (at) => Effect.fromResult(Query.document(at.claims, at.set, request.file))),
+    Effect.flatMap(read, (at) => Effect.fromResult(Query.document(at, request.file))),
 })
 
 /**

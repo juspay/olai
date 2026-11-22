@@ -40,7 +40,7 @@ import { intentOf } from "@olai/surface"
  * document whose renderer never came would otherwise be a page of source with
  * no explanation.
  */
-import { deadLinkSaid, type Claims } from "@olai/format"
+import type { Claims, Names } from "@olai/format"
 import { createEffect, createMemo, Show } from "solid-js"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
@@ -48,12 +48,15 @@ import { renderMarkdown, renderStreaming, renderLineLanding } from "./render.ts"
 import { markdownExcerpt } from "./excerpt.ts"
 import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
+import { applyLink } from "./rewrite/links.ts"
+import { applyWikilink } from "./wikilinks.ts"
 
 export function Markdown(props: {
   readonly claims: Claims | undefined
   readonly source: string
-  /** Immutable directory membership: identity changes only with its contents. */
-  readonly members?: ReadonlySet<string>
+  /** The directory's name index, which holds its membership too: identity
+   *  changes only when a path arrives or leaves. */
+  readonly names?: Names
   readonly from: string
   readonly class?: string
   readonly testid?: string
@@ -81,40 +84,30 @@ export function Markdown(props: {
     const value = rendered()
     return value !== undefined && props.excerpt ? markdownExcerpt(value, props.excerpt) : value
   })
-  // File membership changes link decoration, never the rendered prose or its
-  // selection/details state. The rewrite pass records authored link metadata.
+  // The directory's name index changes link decoration, never the rendered
+  // selection/details state. Both loops write what the rewrite pass wrote into
+  // the tree, from the same answer it drew it from (./rewrite/links.ts,
+  // ./wikilinks.ts) — the marks it left behind are what each link is found and
+  // redrawn by.
   createEffect(() => {
     html()
-    const members = props.members
-    for (const link of container?.querySelectorAll<HTMLAnchorElement>("a[data-link-path]") ?? []) {
-      const path = link.dataset["linkPath"]!
-      const dead = members !== undefined && !members.has(path)
-      link.classList.toggle("olai-dead-link", dead)
-      if (dead) link.setAttribute("data-dead", "true")
-      else link.removeAttribute("data-dead")
-      // THE AUTHOR'S OWN TOOLTIP, and the only `title` this app still writes.
-      // `[x](y "…")` is a title the DOCUMENT carries — content, the same way
-      // an `<iframe>`'s is — so it is rendered the way every markdown reader
-      // renders it rather than restyled into this app's chrome.
-      const authored = link.dataset["linkTitle"] ?? ""
-      if (authored) link.title = authored
-      else link.removeAttribute("title")
-      // THE APP'S OWN SENTENCE IS NOT A TITLE. A dead link's reason rode that
-      // same attribute until now, where it answered a pointer and nobody
-      // else. `<Tip>` cannot take it over: a tip renders the control it
-      // explains and measures its own first element child, and these anchors
-      // are the sanitised HTML of somebody's document, written by
-      // `innerHTML` and replaced wholesale on every render — wrapping each
-      // one would mean a Solid root per link, minted and disposed inside this
-      // effect, which is a second ownership tree for a tooltip. So the reason
-      // goes where every reader gets it in every mode: the link's NAME, after
-      // the words it keeps (WCAG 2.5.3 — the visible label stays in the
-      // name), and off again the moment the file it points at is served.
-      if (dead) {
-        const warning = deadLinkSaid({ written: link.dataset["linkWritten"]!, resolved: path, suggest: [] })
-        const words = (link.textContent ?? "").trim()
-        link.setAttribute("aria-label", words === "" ? warning : `${words} — ${warning}`)
-      } else link.removeAttribute("aria-label")
+    const names = props.names
+    const claims = props.claims
+    const from = props.from
+    // A STANDARD LINK'S ADDRESS CANNOT MOVE: it is a path, resolved once when
+    // the prose was rendered. What the index decides is whether anything is
+    // served under it, so what is redrawn here is the dead mark and the name
+    // that carries its reason — asked of the href as written, which is the
+    // mark each link carries.
+    for (const link of container?.querySelectorAll<HTMLAnchorElement>("a[data-link-written]") ?? []) {
+      applyLink(link, claims, names, from)
+    }
+    // A WIKILINK FINDS ITS FILE BY NAME, so a file arriving or leaving can
+    // heal one, kill one or re-aim one at a nearer namesake. Each is brought
+    // in step here, in place — the prose is not rendered again, so a reader's
+    // selection and the folds around it stay where they were.
+    for (const link of container?.querySelectorAll<HTMLElement>("[data-wikilink]") ?? []) {
+      applyWikilink(link, claims, names, from)
     }
   })
   /** Is this block still WAITING on the renderer — the arrival's own answer

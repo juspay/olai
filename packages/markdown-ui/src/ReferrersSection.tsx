@@ -42,11 +42,13 @@
  *
  * A ROW PER WAY, out of the format's own list ({@link WAYS}), because the ways
  * are not the same claim: a `see` is an edge somebody wrote with a verb, a
- * mention is a word in a sentence, and a link written in a body or a note is
- * a third. Each row is drawn under the label {@link makeReferrerWays} gives its
+ * mention is a word in a sentence, a link written in a body or a note is a
+ * third, and a value under a key this vault declares to name something is a
+ * fourth. Each row is drawn under the label {@link makeReferrerWays} gives its
  * way — the shared vocabulary "sees this", "mentions this", "links this",
- * once, not chased into a per-plugin table — and a source that refers several
- * ways appears in several rows, which is what it is doing.
+ * "names this in a property", once, not chased into a per-plugin table — and a
+ * source that refers several ways appears in several rows, which is what it is
+ * doing.
  *
  * KEYED ON THE PLACE, which is the caller's. A page reused from one node to
  * another would otherwise carry the reader's answer about the first onto the
@@ -166,6 +168,7 @@ const REFERRER_LABELS: Record<Way, string> = {
   see: "Sees this",
   mention: "Mentions this",
   link: "Links to this",
+  property: "Names this in a property",
 }
 export type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 

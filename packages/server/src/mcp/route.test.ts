@@ -18,6 +18,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { unheard } from "@olai/ops/testlib"
 import { capabilitiesOver } from "../capabilities.testlib.ts"
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy"
 import {
@@ -66,7 +67,7 @@ import {
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard)
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 

@@ -81,6 +81,8 @@
 
 import { Schema } from "effect"
 
+import { linkedTitle } from "@olai/prose/linked.ts"
+import { Slug } from "@olai/prose/slug.ts"
 import { type Claims, fileKind, holdsBody } from "./kinds.ts"
 
 /** A structurally valid root-relative file path. This schema carries no
@@ -99,26 +101,6 @@ export type DocumentPath = typeof DocumentPath.Type
  *  working the day somebody wrote `#kitchen`. */
 export const NodeId = Schema.String.pipe(Schema.brand("NodeId"))
 export type NodeId = typeof NodeId.Type
-
-/** What a heading in a body is called: the id it is drawn with — `rehype-slug`'s
- *  derivation of the words in it for a `.md`, and whatever its author wrote for
- *  a `.html`. Derived rather than stored, which is exactly why rewording a
- *  heading breaks the address that names it. */
-export const Slug = Schema.String.pipe(Schema.brand("Slug"))
-export type Slug = typeof Slug.Type
-
-/**
- * A tag AS IT IS WRITTEN — the sigil and the name, `#topic` or `@person`.
- *
- * It is a primitive of this vocabulary rather than of the walk that finds one
- * because a tag is a NAME in the same sense the three above are: `./derive.ts`
- * decides where one starts and stops in a title, and what it hands back is one
- * of these. Two namespaces, never two spellings of one — `#alice` and `@alice`
- * are different tags — which is why the sigil is part of the value and not
- * something a reader adds back.
- */
-export const Tag = Schema.String.pipe(Schema.brand("Tag"))
-export type Tag = typeof Tag.Type
 
 /** A whole document: `Tasks.olai`, `notes/README.md`. */
 export const AtDocument = Schema.Struct({
@@ -297,7 +279,7 @@ export const parseAddress = (claims: Claims, text: string): Address | null => {
  * to a written one is how a `#` inside somebody's heading becomes a second cut.
  *
  * IT IS HERE rather than in the browser that mints these URLs, and the move is
- * the one {@link linkedTitle} below is: three readers cut this — the URL parser,
+ * the one `@olai/prose`'s `linkedTitle` made: three readers cut this — the URL parser,
  * the workspace that embeds pages in one, and the SHELF reading over on the
  * server (`./shelf.ts`, finding the node a pin addresses) — and the third one
  * put a fourth spelling of it on the other side of a wire. What is NOT here,
@@ -359,10 +341,10 @@ const ZOOM = "zoom/"
  * THE ADDRESS A TITLE CARRIES: the title itself, or the target of the one link
  * it is written as.
  *
- * The other half of {@link linkedTitle}'s reason for being here — both sides of
- * the pin convention ask this exact question of a title, one to draw the page it
- * names and one to resolve the node it names (`./shelf.ts`), and one expression
- * spelled twice is a rule that eventually disagrees with itself.
+ * The other half of the reading `@olai/prose`'s `linked.ts` holds — both sides
+ * of the pin convention ask this exact question of a title, one to draw the
+ * page it names and one to resolve the node it names (`./shelf.ts`), and one
+ * expression spelled twice is a rule that eventually disagrees with itself.
  */
 export const addressWritten = (title: string): string =>
   linkedTitle(title)?.at ?? title.trim()
@@ -386,43 +368,13 @@ export const titleAddress = (title: string): string | undefined => {
 }
 
 /**
- * A title written as ONE MARKDOWN LINK around an address, cut into its two
- * halves — `undefined` for every other title.
+ * A PIN'S TITLE, for a name somebody typed — the inverse of `@olai/prose`'s
+ * `linkedTitle`, and the one place a named pin is spelled.
  *
- * Here because two readers cut it, on opposite sides of a wire, and a regex
- * spelled twice is a rule that eventually disagrees with itself. The SHELF's
- * reading takes the target of it (`./shelf.ts`, resolving what a pin's node is
- * called), and the BROWSER takes both halves — the target to read as a page,
- * and the label as the name somebody chose (`@olai/web`'s `address/address.ts`,
- * website/docs/format.md's Pins). Neither of them is the other's caller, and both are
- * about one sentence of that convention.
- *
- * DELIBERATELY NARROW: exactly one link and nothing around it. A title with
- * prose either side of a link is a sentence somebody wrote, not a place with a
- * name on it — and reading it as one would make a door out of a note. What this
- * must NOT become is a markdown parser: titles are inline markdown in this
- * format, and what one LOOKS like is decided where it is drawn.
- *
- * The halves come back AS WRITTEN. What an empty label means, and what the
- * target names, are the readers' own questions — this one is only where the
- * brackets are.
- */
-export const linkedTitle = (
-  title: string,
-): { readonly label: string; readonly at: string } | undefined => {
-  const linked = LINKED.exec(title.trim())
-  return linked === null ? undefined : { label: linked[1] ?? "", at: linked[2] ?? "" }
-}
-
-/** One markdown link and nothing else: `[label](target)`, with no whitespace or
- *  parenthesis in the target — the shape {@link linkedTitle} reads. */
-const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
-
-/**
- * A PIN'S TITLE, for a name somebody typed — the inverse of
- * {@link linkedTitle}, and the one place a named pin is spelled.
- *
- * It is here because the reader is, and for the same argument: two writers cut
+ * It is the WRITER, which is why it stayed here when the reading moved down to
+ * `prose`: it escapes an address into a link's grammar, and the escaping is
+ * this package's own. It is one function for the same argument the reader is:
+ * two writers cut
  * this, on opposite sides of a wire — the SERVER, resolving the `pin` a
  * browser sent into the row it adds to `Pins.olai`
  * (`@olai/server`'s `edit.ts`), and the BROWSER, renaming a pin that is
@@ -438,7 +390,7 @@ const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
  * to hold the rule about which of the two that is.
  *
  * `undefined` IS A REFUSAL AND NOT A FALLBACK ({@link PIN_NAME_UNWRITABLE} is
- * the sentence for it): the label reader above is deliberately narrow, so a
+ * the sentence for it): the reader in `prose` is deliberately narrow, so a
  * `]` in the words would close the link early and leave a title that is no
  * longer an address at all. Writing it anyway would take the row off the shelf
  * without saying so — the silent failure this codebase is written against — and
@@ -468,10 +420,11 @@ export const PIN_NAME_UNWRITABLE =
   "a pin's name is written as a link's label, so it cannot hold a “]” or a line break"
 
 /** The two things a label cannot hold: the bracket that would end it, and a
- *  break — a title is one line, and {@link LINKED} is anchored to one. */
+ *  break — a title is one line, and the reader's shape is anchored to one
+ *  (`@olai/prose`'s `linked.ts`). */
 const UNWRITABLE = /[\]\r\n]/
 
-/** The three characters {@link LINKED}'s target cannot carry, written the way
+/** The three characters that reader's target cannot carry, written the way
  *  every reader of an address here already reads them. */
 const escaped = (address: string): string =>
   address.replace(

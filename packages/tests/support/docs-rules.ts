@@ -28,7 +28,7 @@
  * tap away, and the page-length rule still counts it.
  */
 
-import { claim, slugOf } from "@olai/format"
+import { read as readText } from "@olai/prose/read.ts"
 import { type MarkdownNode, mdastOf } from "@olai/markdown-ui/pipeline.ts"
 
 /** One rule broken, in one place, with enough of the text to find it. */
@@ -440,33 +440,10 @@ export const findingsIn = (source: string, budgeted = true): ReadonlyArray<Findi
 }
 
 /**
- * The anchors a page offers, spelled as olai spells them: the format's own
- * `slugOf` over the heading's TEXT, and `claim` for a second heading of the
- * same words. That is what puts the id on the heading a reader lands at
- * (`@olai/markdown-ui`'s `slugs.ts`), so a link check with a spelling of its
- * own would pass addresses the app cannot open.
- *
- * Here rather than in the test because the heading's text is the parsed one —
- * code spans, emphasis and links already taken off by {@link read} — which is
- * the reading the renderer gives it too.
+ * The anchors a page offers: the slugs `@olai/prose`'s `read` gives its
+ * headings, which are the ids the renderer puts on them and the ones a
+ * document's face lists — so a link check reading them passes exactly the
+ * addresses the app can open.
  */
-export const anchorsIn = (source: string): ReadonlySet<string> => {
-  const seen = new Map<string, number>()
-  const taken = new Set<string>()
-  for (const node of walk(mdastOf(source))) {
-    if (node.type !== "heading") continue
-    taken.add(claim(seen, slugOf(plain(node).trim())))
-  }
-  return taken
-}
-
-/** A node's words as the renderer reads them, with a code span's own
- *  characters kept — which is what a heading's id is made of. {@link read}
- *  cannot be used for this: it stands a placeholder in for code, so a heading
- *  that is a command would get the placeholder's slug. */
-const plain = (node: MarkdownNode): string => {
-  if (node.type === "text" || node.type === "inlineCode") return node.value ?? ""
-  return children(node)
-    .map(plain)
-    .join("")
-}
+export const anchorsIn = (source: string): ReadonlySet<string> =>
+  new Set(readText(source).headings.flatMap((heading) => heading.slug === null ? [] : [String(heading.slug)]))

@@ -751,7 +751,7 @@ export const make = <F, S, E>(
           // `git rm` under an open page has always produced.
           for (const path of removals) candidate.delete(path)
           for (const change of writes) {
-            const promise = probe.decode(change.path, change.contents)
+            const promise = probe.decode(change.path, change.contents, candidate.get(change.path))
             // A WRITE MUST PRODUCE FILES THIS CODEC CAN READ, and this is the
             // one place that can say so.
             //

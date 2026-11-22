@@ -7,11 +7,10 @@ export const UPCOMING: ReadonlyArray<UpcomingGroup> = [
     heading: "For Markdown documents",
     entries: [
       {
-        words: "Wikilinks",
-        after: ". Today olai shows <code>[[page]]</code> as text. A standard link, <code>[page](page.md)</code>, works.",
-        issue: 710,
+        words: "A note drawn inside another note",
+        after: ", such as <code>![[page]]</code>. Today olai draws it as a link to the note.",
+        issue: 711,
       },
-      { words: "Embeds", after: ", such as <code>![[page]]</code>.", issue: 711 },
       {
         words: "Documents beside outlines in the sidebar and on the home page",
         after: ". Today the sidebar lists documents in a section named <strong>Reference</strong>.",

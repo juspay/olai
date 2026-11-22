@@ -1051,7 +1051,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     // browser's alone, and also nothing decided here — what counts as a tag,
     // and what the trash does to a count, is `@olai/format`'s `vocabulary.ts`.
     tags: (request) =>
-      Effect.map(read, (at) => Query.tags(at.derived, request)),
+      Effect.map(read, (at) => Query.tags(at, request)),
     commit: (request, writer) => Effect.suspend(() => closed
       ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason, lock: null })
       : ledger.record(request, writer)),

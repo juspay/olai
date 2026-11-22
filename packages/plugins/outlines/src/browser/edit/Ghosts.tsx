@@ -18,6 +18,9 @@ import { keyHandler } from "./RowEditor.tsx"
 export function Ghosts(props: {
   readonly parked: ReadonlyArray<Pending>
   readonly live: Ghost | undefined
+  /** The outline the new lines land in — what a wikilink typed in one is
+   *  looked up from. */
+  readonly from?: string
 }) {
   // One keyed list preserves the input when its slot changes from parked to
   // active. Removing from one list and adding to another loses browser focus.
@@ -34,7 +37,7 @@ export function Ghosts(props: {
   })
   return (
     <Key each={drafts()} by="slot">
-      {(line) => <GhostRow line={line()} active={props.live?.slot === line().slot} />}
+      {(line) => <GhostRow line={line()} active={props.live?.slot === line().slot} from={props.from} />}
     </Key>
   )
 }
@@ -45,6 +48,7 @@ export function Ghosts(props: {
 function GhostRow(props: {
   readonly line: Ghost
   readonly active?: boolean
+  readonly from?: string | undefined
 }) {
   const editor = useEditor()
   const slot = props.line.slot
@@ -52,6 +56,7 @@ function GhostRow(props: {
     <NewRow
       line={props.line}
       active={props.active}
+      from={props.from}
       onActivate={props.active === false ? () => editor.resume(slot) : undefined}
       onParkedInput={(text) => editor.typeParked(slot, text)}
       onInput={editor.type}

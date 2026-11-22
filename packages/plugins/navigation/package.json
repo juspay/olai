@@ -33,6 +33,7 @@
     "olai-plugin-ui-renderer": "workspace:*",
     "@olai/web": "workspace:*",
     "@olai/format": "workspace:*",
+    "@olai/prose": "workspace:*",
     "@olai/surface": "workspace:*",
     "olai-plugin-outlines": "workspace:*",
     "@solid-primitives/keyed": "^1.5.2",

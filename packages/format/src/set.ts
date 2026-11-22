@@ -26,11 +26,14 @@
  * and the client renders those verbatim and derives everything else with the
  * same functions the validator used ({@link ./derive.ts}).
  */
-import { claimedOf } from "./address.ts"
 import { Result, Schema } from "effect"
 
+import type { Read } from "@olai/prose/read.ts"
+
+import { claimedOf } from "./address.ts"
+
 import {
-  bodiedDocument,
+  bodiedFace,
   Document,
   isBodied,
   isKeptText,
@@ -684,6 +687,20 @@ export const withDocuments = (
  * one thing {@link assemble} still reads off a path rather than off an arm,
  * and it is the one thing it must: the whole point of the entry is that there
  * was nothing to decode.
+ *
+ * NOTHING WAS READ, so nothing reads: the bodied arm is handed {@link
+ * SAYS_NOTHING} rather than the parser, which is what lets this module — and
+ * so `./index.ts`, and so a browser — hold the assembly without holding the
+ * Markdown parser (`./kept.ts`). The face it makes is the face an empty body
+ * has, and the reading kept on it is the one an empty body gives, so a reader
+ * that later asks what it says is answered rather than thrown at.
  */
 const emptyDocument = (claims: Claims, file: string): Document =>
-  bodyKind(claims, file) === null ? outlineDocument(claims, file, []) : bodiedDocument(claims, file, "")
+  bodyKind(claims, file) === null
+    ? outlineDocument(claims, file, [])
+    : bodiedFace(claims, file, "", () => SAYS_NOTHING)
+
+/** What a text that says nothing was read as — no links, no tags, no
+ *  headings, no words. The one reading this package can make with no parser,
+ *  and `@olai/prose`'s `read("")` is equal to it (`./set.test.ts`). */
+const SAYS_NOTHING: Read = { links: [], wikilinks: [], headings: [], tags: [], firstLine: "", words: "" }

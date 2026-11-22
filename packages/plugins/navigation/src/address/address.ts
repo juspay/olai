@@ -23,7 +23,8 @@
  * at the bottom of this file is the reader for.
  */
 
-import { basenameOf, linkedTitle, titleAddress } from "@olai/format"
+import { basenameOf, titleAddress } from "@olai/format"
+import { linkedTitle } from "@olai/prose/linked.ts"
 
 import { panesOf, type Workspace, type WorkspaceRouting } from "../workspace.ts"
 import type { Names } from "olai-plugin-outlines/names"

@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@olai/format": "workspace:*",
+    "@olai/prose": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "@olai/store": "workspace:*",

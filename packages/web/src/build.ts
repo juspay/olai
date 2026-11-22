@@ -111,7 +111,10 @@ const preloadAssets = async (distDir: string, assets: readonly { readonly file: 
   await Bun.write(shell, (await Bun.file(shell).text()).replace("</head>", `${links.join("\n")}</head>`))
 }
 
-const buildClient = async (distDir: string): Promise<void> => {
+/** The one browser build. Exported so `./build.test.ts` can run it into a
+ *  temporary dist and read what it emitted: what the first load carries is a
+ *  property of the BUNDLE, and only a real build can be asked. */
+export const buildClient = async (distDir: string): Promise<void> => {
   const resolver = createRequire(import.meta.resolve("@olai/bundle"))
   const entries = new Map(BROWSER_ROWS.map((row) => [resolver.resolve(row.specifier), row.id]))
   const browserModules: Record<string, string> = {}

@@ -1,6 +1,7 @@
 /** File hits retain their address; only body line hits add a line fragment. */
 import { expect, test } from "bun:test"
-import { DocumentPath, Slug, type SearchHit } from "@olai/format"
+import { DocumentPath, type SearchHit } from "@olai/format"
+import { Slug } from "@olai/prose/slug.ts"
 import { hitRow } from "./row.ts"
 
 test("an outline filename hit opens the file without document-only properties", () => {

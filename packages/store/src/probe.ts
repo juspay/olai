@@ -236,7 +236,7 @@ export interface Probe<F, E> {
    * content is "these bytes decode to this value", and a caller pairing the two
    * by hand could pair them wrongly.
    */
-  readonly decode: (path: string, contents: string) => Promised<F, E>
+  readonly decode: (path: string, contents: string, previous?: Result.Result<F, E>) => Promised<F, E>
   /** Forget these files' stamps, so the next {@link run} re-reads them
    *  whatever the file system says about mtime and size.
    *
@@ -398,9 +398,9 @@ export const make = <F, S, E>(
           return kept
         }),
 
-      decode: (path: string, contents: string) => ({
+      decode: (path: string, contents: string, previous?: Result.Result<F, E>) => ({
         contents,
-        decoded: codec.decode(path, contents),
+        decoded: codec.decode(path, contents, previous),
       }),
 
       run: (promised) =>
@@ -477,7 +477,7 @@ export const make = <F, S, E>(
             fresh.set(path, {
               decoded: promise?.contents === contents
                 ? promise.decoded
-                : codec.decode(path, contents),
+                : codec.decode(path, contents, previous?.get(path)?.decoded),
               fingerprint: fingerprintOf(contents),
             })
           }

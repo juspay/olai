@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120" width="240" height="120">
+  <!-- A fixture with teeth, the way report.html is one. An SVG is a document
+       that can script, so this one tries to: drawn in an <img> (a picture's
+       page) or fetched from the media route (which answers it sandboxed),
+       neither of these may ever run. The scenario reads the absence. -->
+  <script type="application/ecmascript">
+    try { top.document.title = "an svg wrote here" } catch (e) {}
+    try { top.__olai_svg_ran = true } catch (e) {}
+  </script>
+  <rect x="4" y="4" width="232" height="112" rx="8" fill="#B5DDD2" stroke="#14352F" stroke-width="2"/>
+  <circle cx="60" cy="60" r="28" fill="#B34219"/>
+  <path d="M110 88 L150 32 L190 88 Z" fill="#1E7656"/>
+</svg>

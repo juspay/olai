@@ -45,6 +45,7 @@ import { folding } from "./following.ts"
 import { scoping } from "./plan.ts"
 import {
   detail,
+  document,
   documents,
   homes,
   named,
@@ -382,9 +383,8 @@ test("a node read reports the dead links its note names, against the served set"
       `{"id":"link-test","ord":"a0","title":"Links","desc":"[x](nix-flakes.md)"}`,
     ].join("\n"),
   }, ["notes/nix-flakes.md"])
-  const served = new Set(set.documents.map((one) => one.path))
   const answered = succeeded(
-    detail(derivedOf(set), "link-test", undefined, served),
+    detail(derivedOf(set), "link-test", undefined, true),
     "`outlines_read` to answer",
   )
   expect(answered?.deadLinks?.map((one) => one.resolved)).toEqual(["projects/nix-flakes.md"])
@@ -1595,7 +1595,7 @@ describe("which tags the set already uses", () => {
   // this shape — a field dropped between the reading and the answer would fail
   // nothing over there.
   test("the answer is the shortlist, ranked, in the envelope the wire carries", () => {
-    expect(tags(derivedOf(HOUSE()).derived, { sigil: "#", query: "ho", limit: 8 }))
+    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "ho", limit: 8 }))
       .toEqual({
         tags: [
           { name: "home", count: 2 },
@@ -1606,7 +1606,7 @@ describe("which tags the set already uses", () => {
   })
 
   test("the sigil asked with is the only namespace answered", () => {
-    expect(tags(derivedOf(HOUSE()).derived, { sigil: "@", query: "", limit: 8 }))
+    expect(tags(derivedOf(HOUSE()), { sigil: "@", query: "", limit: 8 }))
       .toEqual({ tags: [{ name: "alice", count: 1 }] })
   })
 
@@ -1614,4 +1614,39 @@ describe("which tags the set already uses", () => {
   // about what a tag count means, pinned where the rule lives
   // (`@olai/format`'s `vocabulary.test.ts`). The fixture keeps its trashed
   // record so the two above are asked of a directory that has one.
+})
+
+describe("wikilinks in what an agent reads", () => {
+  const WIKI = (): OutlineSet => setOf({
+    "house.olai": [
+      `{"id":"kitchen","ord":"a0","title":"kitchen, see [[finishes]]"}`,
+      `{"id":"sink","ord":"a1","title":"fit the sink","desc":"against [[nowhere]] and [[house]]"}`,
+    ].join("\n"),
+  }, [
+    ["finishes.md", "# Finishes\n\n## Doors\n"],
+    ["plan.md", "# Plan\n\n[[finishes#Doors]], [[house.olai#sink]] and [[finsihes]]\n"],
+  ])
+  const said = (references: ReadonlyArray<{ source: { path?: string; node?: { id: string } }; ways: ReadonlyArray<string> }> | undefined) =>
+    references?.map((one) => `${one.source.path ?? one.source.node?.id} ${one.ways.join("+")}`)
+
+  test("`markdown_read` says who wikilinks to a document, rows and documents alike", () => {
+    const answered = succeeded(document(derivedOf(WIKI()), "finishes.md"), "`markdown_read` to answer")
+    expect(said(answered.referencedBy)).toEqual(["kitchen link", "plan.md link"])
+  })
+
+  test("`markdown_read` reports a document's unresolved wikilinks with the nearest name", () => {
+    const answered = succeeded(document(derivedOf(WIKI()), "plan.md"), "`markdown_read` to answer")
+    expect(answered.deadLinks).toEqual([{ kind: "name", written: "[[finsihes]]", resolved: "finsihes", suggest: ["[[finishes]]"] }])
+    expect(answered).not.toHaveProperty("referencedBy")
+  })
+
+  test("`outlines_read` says who wikilinks to a row, and reports the row's own dead wikilinks", () => {
+    const at = derivedOf(WIKI())
+    const answered = succeeded(detail(at, "sink", undefined, true), "`outlines_read` to answer")
+    expect(said(answered?.referencedBy)).toEqual(["plan.md link"])
+    expect(answered?.deadLinks).toEqual([
+      { kind: "name", written: "[[nowhere]]", resolved: "nowhere", suggest: [] },
+      { kind: "name", written: "[[house]]", resolved: "house", suggest: ["[[house.olai]]"] },
+    ])
+  })
 })

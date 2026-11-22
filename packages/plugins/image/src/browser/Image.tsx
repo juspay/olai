@@ -70,7 +70,7 @@ export function Image(props: { readonly file: string }) {
          DOM, and only one of them tells the next person not to make this lazy
          "for consistency" with the pictures inside a document, which ARE lazy
          and for a reason that does not hold here (`@olai/markdown-ui`'s
-         `rewrite.ts` argues that side).
+         `rewrite/pictures.ts` argues that side).
 
          `decoding="async"` even so: the fetch is what must be early, the
          decode is main-thread work, and a four-thousand-pixel screenshot

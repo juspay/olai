@@ -24,9 +24,9 @@ A mark on a row is **To do**, **Doing**, **Done** or **Cancelled**.
 
 The row's menu has the same marks.[^markmenu] Cancelling a row stops other rows waiting for it.[^cancel] olai refuses some marks.[^refused]
 
-## Insert a date, a tag or a mirror of another row
+## Insert a date, a tag, a mirror or a link to a file
 
-In a title, three characters open a short list under the line. `!` offers a day written in words, `#` or `@` a tag this directory already uses, and `((` another row to draw here as a mirror, a copy that changes whenever the original does.[^trigger][^tag][^mirror]
+In a title, four openers bring up a list under the line. `!` offers a day written in words, and `#` or `@` a tag this directory already uses. `((` offers another row to draw here as a mirror, a copy that changes whenever the original does, and `[[` a file to link to by name.[^trigger][^tag][^mirror][^wikilink]
 
 ## Undo an edit
 
@@ -58,11 +58,13 @@ In a title, three characters open a short list under the line. `!` offers a day 
 
 [^refused]: Stepping the mark off a row that is done or cancelled asks you to press `Cmd` + `Enter` or `Alt` + `Enter` first, to clear that mark. Marking a row **Doing** while it waits for unfinished rows asks you to finish the rows it names, or to start a row that is ready. `Cmd` + `Enter` on a row with unfinished rows under it asks you to finish those rows, or to cancel them with `Alt` + `Enter`.
 
-[^trigger]: Each of the three characters opens its own list, and `↑` and `↓` walk it, `Enter` chooses, `Escape` closes it. The day list takes `tomorrow`, `next fri`, `aug 20`, `in 3 weeks` or `2026-09-01`, shows which day each phrase means before you choose, and writes the row's `date`. The tag list puts the tags you use most first.
+[^trigger]: Each of the four opens its own list, and `↑` and `↓` walk it, `Enter` chooses, `Escape` closes it. The day list takes `tomorrow`, `next fri`, `aug 20`, `in 3 weeks` or `2026-09-01`, shows which day each phrase means before you choose, and writes the row's `date`. The tag list puts the tags you use most first.
 
 [^tag]: A tag is written into the line itself and saved with it, with nothing added after it, so `#alice` and `@alice` are two separate tags. `#` and `@` only start a tag at the start of a word, which leaves `srid@srid.ca` an email address. Deleting the `#`, `@` or `((` closes the list, and a list with no matches is not drawn.
 
 [^mirror]: A mirror goes on the line you are on, or on the next one. A line you had only just started becomes the mirror itself; a line with words in it keeps them, and the mirror goes on the row below. To remove a mirror, open that row's menu and choose **More** › **Remove from here**. `Cmd` + `Z` does not undo that; typing `((` again is how you put the mirror back.
+
+[^wikilink]: The `[[` list offers the documents whose name holds what you typed, then every other file with its suffix, each with its path beside it. Choosing one writes the shortest link that opens that file from this row, such as `[[finishes]]` or `[[rooms/Note]]`, closes the brackets and leaves the caret after them. While you are inside `[[`, no other list opens. How the link is drawn is in [wikilinks.md](wikilinks.md).
 
 [^undo]: An undo is a fresh write, checked against the outline as it stands, so one that does not fit is refused in the same words as any other write. It covers your own edits, in this browser session, in this tab; opening another outline starts a new undo history. While you type in a row, `Cmd` + `Z` is the text box's own undo, and the outline's undo starts once the line is saved.
 

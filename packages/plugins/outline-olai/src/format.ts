@@ -23,7 +23,8 @@ import type { OutlineFormat } from "@olai/format"
 import { isIsoInstant, type Claims } from "@olai/format"
 import { Result, Schema } from "effect"
 import * as SchemaIssue from "effect/SchemaIssue"
-import { type Outline, outlineDocument } from "@olai/format"
+import type { Document, Outline } from "@olai/format"
+import { readOutline } from "@olai/format/read"
 import type { OutlineError } from "@olai/format"
 import {
   ID_SHAPE,
@@ -73,6 +74,7 @@ export const parseOutline = (
   file: string,
   contents: string,
   claims: Claims,
+  previous?: Document,
 ): Result.Result<Outline, ReadonlyArray<OutlineError>> => {
   const nodes: Array<Located> = []
   const errors: Array<OutlineError> = []
@@ -95,10 +97,13 @@ export const parseOutline = (
   // where PR 2 put that walk: a decode is what the store caches per file per
   // change, so what a file SAYS — its title, the addresses it points at, the
   // tags it writes — is read once when its bytes are, and never again for a
-  // keystroke in some other file (`./document.ts`).
+  // keystroke in some other file (`@olai/format`'s `document.ts`). Reading
+  // each record's prose is the same walk and is this decode's too, which is
+  // why the door is `@olai/format/read` and not the face builder alone: a
+  // record nothing read is a record no rule can ask about (`kept.ts`).
   return errors.length > 0
     ? Result.fail(errors)
-    : Result.succeed(outlineDocument(claims, file, nodes))
+    : Result.succeed(readOutline(claims, file, nodes, previous))
 }
 
 /** JSON, then shape. */

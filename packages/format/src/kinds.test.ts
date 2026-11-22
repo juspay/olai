@@ -163,7 +163,7 @@ test("a file whose body is TEXT is the bodied ones something here can read", () 
 })
 
 // WHICH FILES A BROWSER FETCHES ITSELF — the column the media route's allowlist
-// is made of (`./documents.ts`'s `isAsset`). Spelled as the answers for the
+// is made of (`./references/written.ts`'s `isAsset`). Spelled as the answers for the
 // reason every other sweep here is: a loop over `fetched` would re-run the one
 // line this pins.
 //
@@ -211,7 +211,7 @@ test("the minting constants are the suffixes the walk claims", () => {
   expect(fileKind(TEST_CLAIMS, `a${DOCUMENT_EXT}`)).toBe("markdown")
   // The third spelled constant is the one a SECOND rule has to name and not
   // one anything mints: markdown may point at a picture and deliberately not
-  // at this one (`./documents.ts`’s `isPicture`).
+  // at this one (`./references/written.ts`’s `isPicture`).
   expect(fileKind(TEST_CLAIMS, `a${SVG_EXT}`)).toBe("image")
 })
 

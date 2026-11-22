@@ -23,6 +23,11 @@
  *     the before/after printed rather than quoted ({@link patching} states what
  *     it puts back and what it cannot).
  *
+ * …AND THE ONE TABLE BESIDE THEM ({@link tabling}): what a write costs the
+ * value that is not in the derivation — `table carry` against `table rebuild`,
+ * over the same vault and the same edits, because a write pays for both and
+ * two numbers about two corpora are two numbers nobody may add up.
+ *
  * AND FOUR MEASUREMENTS UNDER THEM, because a claim this file did not print
  * would be the unreproducible laptop sample the paragraph above says it
  * retired. Two are about the layer rather than the patch:
@@ -38,17 +43,15 @@
  *
  * ...the third is what a TOUCHED KEY costs — the re-filing of one key timed as
  * a rebuild against a splice ({@link resorting}), on the biggest key each of
- * the four re-filed indexes has. It is the line `perf-key-resort` changed, and
+ * the two re-filed indexes has. It is the line `perf-key-resort` changed, and
  * it is on its own here for {@link lever}'s reason: the `patch` arm above pays
  * it on every edit, so what that arm's number does across the branch point is
  * the end-to-end figure and this is where it comes from.
  *
- * ...and the fourth is about the TAG INDEX's width: the corpus-wide fold timed
- * filing `@` alone against filing both sigils ({@link folds}), which is the
- * cost half of the trade `taggedBy` makes. The saving half is a leg of its own
- * beside it (`./vocabulary.bench.ts`), and the WALK under both — `titleParts`
- * in the three shapes it has been written in — is
- * {@link walks}, which exists because the figures for it were once quoted in a
+ * ...and the fourth is the WALK under every tag fold — `tagParts` in the three
+ * shapes it has been written in — which is
+ * {@link walks}, and which exists because the figures for it were once quoted
+ * in a
  * comment and printed by nothing.
  *
  * THE PATCHED ARM CARRIES ITS VIEW FORWARD, edit after edit, because that is
@@ -72,17 +75,13 @@
  * to work out whether it ever did.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
+import { mayHoldTag, tagParts, tagText, titleTagRe } from "@olai/prose/tags.ts"
 import {
   byCorpus,
   derive,
   type Derived,
   type Index,
-  mayHoldTag,
   READ,
-  tagInto,
-  tagText,
-  titleParts,
-  titleTagRe,
 } from "./derive.ts"
 import {
   alternating,
@@ -96,11 +95,19 @@ import {
   vaultOf,
 } from "./fixtures.testlib.ts"
 import { heapStats } from "bun:jsc"
+import { Result } from "effect"
 
+import { type Document } from "./document.ts"
+import { PARTS } from "./references/written.ts"
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
 import { overlay, type Read } from "./overlay.ts"
-import { bySibling, patched, type SetDelta, spliced } from "./patch.ts"
+import { bySibling, patched, type SetDelta, spliced, type Tables } from "./patch.ts"
 import { byPath } from "./paths.ts"
+import { type Pointing, pointingOf, repointed } from "./references/pointing.ts"
+import { decodedVault } from "./scope.testlib.ts"
+import { assemble } from "./set.ts"
+import { NO_TYPING } from "./typing.ts"
+import { type Verdict } from "./verdict.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
@@ -147,6 +154,31 @@ const editOf = (which: number): {
 }
 
 const edits = Array.from({ length: EDITS }, (_, which) => editOf(which))
+
+/**
+ * THE REFERENCES TABLE ON EITHER SIDE OF EVERY EDIT, folded once, outside every
+ * timed window — the value the patcher is handed ({@link ./patch.ts}'s
+ * `Tables`).
+ *
+ * The edited file is decoded again the way a probe decodes one and every other
+ * document is the very object the last revision held, which is the identity the
+ * carry steps over ({@link ./references/pointing.ts}'s `moved`). Folded here rather than
+ * inside an arm because three arms spend these and a decode inside a window
+ * would be timing the parser.
+ */
+const tables: ReadonlyArray<Tables> = (() => {
+  const decoded = decodedVault(corpus)
+  let table = pointingOf(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded).documents)
+  const found: Array<Tables> = []
+  for (const [which, { file }] of edits.entries()) {
+    const written = decodedVault(new Map([[file, retitled(corpus.get(file) as string, which)]]))
+    decoded.set(file, written.get(file) as Result.Result<Document, Verdict>)
+    const next = pointingOf(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded).documents)
+    found.push({ before: table, after: next })
+    table = next
+  }
+  return found
+})()
 
 // ── the run ────────────────────────────────────────────────────────────
 
@@ -259,7 +291,7 @@ const patching = (name: string, alsoResidue: boolean): ReadonlyArray<number> => 
     const changes = own.map((at) => [at.node.id, at] as const)
     let next: Derived | undefined
     times.push(timed(() => {
-      next = patched(carrying, delta)
+      next = patched(carrying, delta, tables[which] as Tables)
       if (next !== undefined && alsoResidue) {
         next = { ...next, byId: cloned(carrying.byId, changes) }
       }
@@ -532,14 +564,14 @@ const flatly = (): readonly [built: number, counted: number] => {
  * sealing rule, which is that an index read BY KEY gets a layer and an index
  * read WHOLE stays a map.
  *
- * `namedBy` is the one to time it on: the validator reads every entry of it on
- * every write ({@link ./validate.ts}'s `checkTargets`), so if a layer were free
- * to walk this index would be layered too. Both arms answer the same list of
- * pairs, checked before either is timed, and the layer is built the way a patch
- * builds one — a handful of keys re-filed over the map that stood.
+ * `byDay` is the one to time it on: the agenda and the calendar read every
+ * entry of it per published revision ({@link ./agenda.ts}), so if a layer were
+ * free to walk this index would be layered too. Both arms answer the same list
+ * of pairs, checked before either is timed, and the layer is built the way a
+ * patch builds one — a handful of keys re-filed over the map that stood.
  */
 const wholly = (): readonly [asMap: number, asLayer: number] => {
-  const base = first.namedBy
+  const base = first.byDay
   const keys = [...base.keys()].slice(0, 20)
   const held = overlay(base, "by key")
   for (const key of keys) held.set(key, base.get(key) as NonNullable<ReturnType<typeof base.get>>)
@@ -674,7 +706,7 @@ const untouched = (): void => {
   const never = new Map<Index, number>()
   let view = first
   for (const [which, { delta }] of edits.entries()) {
-    const next = patched(view, delta)
+    const next = patched(view, delta, tables[which] as Tables)
     if (next === undefined) throw new Error(`the patcher declined edit ${which}`)
     for (const index of LAYERED) {
       const was = view[index] as ReadonlyMap<string, unknown>
@@ -780,99 +812,11 @@ const biggest = <T>(
   return found
 }
 
-// ── what the tag index's WIDTH costs ───────────────────────────────────
-
-/**
- * THE FOLD, TIMED BOTH WAYS: the tag index filed under one sigil against under
- * both — the corpus-wide half of the trade the `taggedBy` branch was asked to
- * measure (`mentions-index-one-sigil`, deferred at #237 precisely because
- * nobody had).
- *
- * The narrow arm is a RECONSTRUCTION of the fold as it was, kept here for the
- * reason {@link cloned} is kept: a before/after this harness cannot print is
- * the unreproducible laptop sample this file exists to retire. What it costs a
- * READER to have the wider index is `./vocabulary.bench.ts`, which prints the
- * other half of the same trade.
- *
- * IT IS THE FOLD AND NOT THE WHOLE DERIVE, on purpose: the rest of `derive` is
- * byte-identical across the change, so a rebuild-vs-rebuild figure would put
- * this difference inside forty milliseconds of unrelated work and two noisy
- * machines apart. What is timed is every record of the vault filed, which is
- * exactly what a rebuild pays and forty times what one patched edit does.
- */
-const folds = (): readonly [narrow: number, wide: number] => {
-  const arms = [
-    () => {
-      const index = new Map<string, Array<LocatedRegular>>()
-      for (const at of first.nodes) mentionOnlyInto(index, at)
-      return index
-    },
-    () => {
-      const index = new Map<string, Array<LocatedRegular>>()
-      for (const at of first.nodes) tagInto(index, at)
-      return index
-    },
-  ] as const
-  // The wide arm files every key the narrow one does, and more; an arm that
-  // had quietly stopped filing anything would report a magnificent number.
-  const narrow = arms[0]()
-  const wide = arms[1]()
-  if (narrow.size === 0) {
-    throw new Error("the vault holds no `@` prose — the narrow arm measures nothing")
-  }
-  if (wide.size <= narrow.size) {
-    throw new Error("the wide arm files no more keys than the narrow one — check the vault")
-  }
-  return alternating(arms)
-}
-
-/**
- * The `@`-only fold, as {@link ./derive.ts} spelled it before `taggedBy` — the
- * expression the arm above is the before of.
- *
- * A private copy, and it may not be shared with the module it stands for: that
- * module now has one fold and this is the one it replaced.
- *
- * HELD TO THE SHAPE OF THE ONE IT STANDS FOR, down to what it allocates, so
- * that the two arms differ in exactly one thing — how many sigils the walk
- * claims. That is not a tidiness rule here, it is the measurement: the first
- * spelling of this looped over `[title, desc ?? ""]`, which is an array per
- * record that {@link tagInto} does not build and an empty string walked for
- * every record with no note. It made the BEFORE arm slower and so made the
- * second sigil look cheaper than it is. Two statements now, as next door, and
- * a note is not read when there is none.
- */
-const mentionOnlyInto = (
-  index: Map<string, Array<LocatedRegular>>,
-  located: Located,
-): void => {
-  if (!isRegular(located)) return
-  mentionsFrom(index, located, located.node.title)
-  if (located.node.desc !== undefined) mentionsFrom(index, located, located.node.desc)
-}
-
-/** One string of one record's prose, filed under every `@word` it holds —
- *  {@link mentionOnlyInto}'s inner half, which is one function here because the
- *  fold it stands for asks it of a title and of a note. */
-const mentionsFrom = (
-  index: Map<string, Array<LocatedRegular>>,
-  regular: LocatedRegular,
-  text: string,
-): void => {
-  if (!text.includes("@")) return
-  for (const part of titleParts(text)) {
-    if (part.kind !== "tag" || part.sigil !== "@") continue
-    const held = index.get(part.tag)
-    if (held === undefined) index.set(part.tag, [regular])
-    else if (held[held.length - 1] !== regular) held.push(regular)
-  }
-}
-
 // ── ...and what the WALK under it costs, three ways ────────────────────
 
 /**
  * THE TAG WALK ITSELF, timed in the three shapes it has been written in — the
- * pair of figures {@link ./derive.ts}'s `titleParts` and `writtenTagsIn` used
+ * pair of figures `@olai/prose`'s `tagParts` and `writtenTagsIn` used
  * to quote from a laptop, printed by the leg instead (both reviewers of #249
  * asked for exactly this, and they were right: a number in a comment that no
  * harness prints is the unreproducible sample this whole file exists to
@@ -880,7 +824,7 @@ const mentionsFrom = (
  *
  * Over every string of prose in the corpus, since that is what a rebuild walks:
  *
- *   - `parts` — {@link titleParts} as it is, stepping one fresh `/g` regex with
+ *   - `parts` — {@link tagParts} as it is, stepping one fresh `/g` regex with
  *     `exec`;
  *   - `matchAll` — the same function as it stood before #249, asking the regex
  *     for an iterator per call. That is the rewrite the PR made on the way past
@@ -909,11 +853,11 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
     const found: Array<string> = []
     for (const text of prose) {
       if (!mayHoldTag(text)) continue
-      for (const part of titleParts(text)) if (part.kind === "tag") found.push(tagText(part))
+      for (const part of tagParts(text)) if (part.kind === "tag") found.push(tagText(part))
     }
     return found
   }
-  /** {@link titleParts} as it was: `matchAll` per call, same parts out. */
+  /** {@link tagParts} as it was: `matchAll` per call, same parts out. */
   const viaMatchAll = (): ReadonlyArray<string> => {
     const found: Array<string> = []
     for (const text of prose) {
@@ -933,7 +877,7 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
   }
   /**
    * The private loop, which is the one this tree declines to have — stepping
-   * the regex exactly as {@link titleParts} does, so the ONLY difference is
+   * the regex exactly as {@link tagParts} does, so the ONLY difference is
    * what it declines to build: no part per segment of prose, and the written
    * form taken off the match rather than re-assembled. A loop written with
    * `matchAll` would be measuring the rewrite above a second time and calling
@@ -963,6 +907,74 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
   return { parts: median([parts, again]), matchAll, loop }
 }
 
+// ── the table's carry ──────────────────────────────────────────────────
+
+/**
+ * WHAT THE ONE TABLE COSTS PER EDIT, beside what the derivation costs — the
+ * same vault, the same forty edits, carried and rebuilt.
+ *
+ * It is here rather than in `./references/pointing.bench.ts` because this is where the
+ * comparison is: a write pays for the derivation AND for the table, so the two
+ * numbers belong on one page about one directory. That leg prices the table
+ * over a corpus with BODIES in it and prices what a page's read saves; this
+ * one prices the carry over the corpus the patcher is measured on — outlines
+ * only, every edit one record's title in one file, which is what typing is.
+ *
+ * THE DOCUMENTS ARE DECODED OUTSIDE THE TIMED WINDOW, and the edited file is
+ * decoded again the way a probe decodes one: every other document is the very
+ * object the last revision held, which is the identity the carry steps over
+ * ({@link ./references/pointing.ts}'s `moved`). A decode inside the window would be
+ * timing the parser.
+ *
+ * BOTH ARMS, and the carried table is held to the rebuilt one at the end — a
+ * fast arm answering wrongly is worse than no arm, and the property test for
+ * this value is `./references/pointing.test.ts`'s differential rather than a fence here.
+ */
+const tabling = (): {
+  readonly carries: ReadonlyArray<number>
+  readonly rebuilds: ReadonlyArray<number>
+  readonly keys: number
+} => {
+  const decoded = decodedVault(corpus)
+  let was = assemble(TEST_CLAIMS, decoded).documents
+  let table = pointingOf(TEST_CLAIMS, was)
+  const carries: Array<number> = []
+  const rebuilds: Array<number> = []
+  for (const [which, { file }] of edits.entries()) {
+    const written = decodedVault(new Map([[file, retitled(corpus.get(file) as string, which)]]))
+    decoded.set(file, written.get(file) as Result.Result<Document, Verdict>)
+    const now = assemble(TEST_CLAIMS, decoded).documents
+    let next: Pointing | undefined
+    carries.push(timed(() => {
+      // NO DECLARATIONS: this corpus has no `_olai/Properties.olai`, so the
+      // table's second step files nothing and the carry is the first step
+      // alone — which is what this arm is timing.
+      next = repointed(table, TEST_CLAIMS, NO_TYPING, was, now).pointing
+    }))
+    rebuilds.push(timed(() => {
+      pointingOf(TEST_CLAIMS, now)
+    }))
+    table = next as Pointing
+    was = now
+  }
+  const said = (held: Pointing): string =>
+    PARTS.flatMap((part) =>
+      [...held[part]].map(([key, sources]) =>
+        `${part} ${key}: ${
+          sources.map((source) =>
+            `${source.at === undefined ? source.face.path : `${source.at.file}:${source.at.line}`}${source.ways.join("+")}`
+          ).join(",")
+        }`
+      ).sort()
+    ).join("\n")
+  if (said(table) !== said(pointingOf(TEST_CLAIMS, was))) {
+    throw new Error(
+      `${EDITS} carries deep, the carried table and a fresh fold disagree about the corpus`,
+    )
+  }
+  return { carries, rebuilds, keys: PARTS.reduce((held, part) => held + table[part].size, 0) }
+}
+
 const say = (name: string, times: ReadonlyArray<number>): void => {
   console.log(timesSaid(name, times, 14))
 }
@@ -981,6 +993,12 @@ console.log(
       (median(patchedResidueMs) / median(patchedMs)).toFixed(1)
     }× the same patch paying the corpus-sized residue it used to owe`,
 )
+const tabled = tabling()
+console.log(
+  `\nthe one table over the same edits (${tabled.keys} keys in four parts):\n` +
+    `${timesSaid("table carry", tabled.carries, 14)}\n` +
+    `${timesSaid("table rebuild", tabled.rebuilds, 14)}`,
+)
 const [asMap, asLayer] = walked([oracle, carried])
 console.log(
   `byId read, one lookup per record: ${(asMap as number).toFixed(2)}ms rebuilt,` +
@@ -993,10 +1011,8 @@ console.log(`\nthe index handed on and NOT written, per index per edit:`)
 unwritten()
 untouched()
 console.log(`\nthe biggest key of each re-filed index, across one file's edit:`)
-resorting("taggedBy", first.taggedBy, (one) => one, byCorpus)
 resorting("byDay", first.byDay, (one) => one.at, byCorpus)
 resorting("children", first.children, (one) => one, bySibling)
-resorting("namedBy", first.namedBy, (one) => one.at, byCorpus)
 const [wasLayered, stayCloned] = beside()
 console.log(
   `\nthe indexes, cloned on their own: ${wasLayered.toFixed(3)}ms for the ${LAYERED.length}` +
@@ -1010,18 +1026,12 @@ console.log(
 )
 const [wholeMap, wholeLayer] = wholly()
 console.log(
-  `namedBy walked whole: ${wholeMap.toFixed(3)}ms as a map, ${wholeLayer.toFixed(3)}ms` +
-    ` through a layer — which is why the four read whole are not layered`,
-)
-const [narrowFold, wideFold] = folds()
-console.log(
-  `\nthe tag fold over the whole corpus: ${narrowFold.toFixed(2)}ms filing \`@\` alone,` +
-    ` ${wideFold.toFixed(2)}ms filing both sigils` +
-    ` — the width this index pays per REBUILD (${first.taggedBy.size} keys)`,
+  `byDay walked whole: ${wholeMap.toFixed(3)}ms as a map, ${wholeLayer.toFixed(3)}ms` +
+    ` through a layer — which is why the ones read whole are not layered`,
 )
 const walked3 = walks()
 console.log(
-  `the tag walk over the same prose: ${walked3.parts.toFixed(2)}ms as \`titleParts\` is` +
+  `the tag walk over the same prose: ${walked3.parts.toFixed(2)}ms as \`tagParts\` is` +
     ` (\`exec\`), ${walked3.matchAll.toFixed(2)}ms as it was (\`matchAll\`),` +
     ` ${walked3.loop.toFixed(2)}ms for the private loop this tree declines to have`,
 )

@@ -6,7 +6,8 @@
  * reader gets is the node-level story in the vocabulary the Commit panel
  * already uses.
  */
-import { claims, outlineDocument, type Claims, type OutlineFormat } from "@olai/format"
+import { claims, type Claims, type OutlineFormat } from "@olai/format"
+import { readOutline } from "@olai/format/read"
 import { Result } from "effect"
 import { describe, expect, test } from "bun:test"
 
@@ -88,7 +89,7 @@ test("the vault uses the claiming format for both sides and passes one snapshot"
   const format: OutlineFormat = {
     parse: (file, text, table) => {
       seen.push(table)
-      return Result.succeed(outlineDocument(table, file, text === "" ? [] : [{
+      return Result.succeed(readOutline(table, file, text === "" ? [] : [{
         file, line: 1, node: { id: "root", ord: "a0", title: text },
       }]))
     },

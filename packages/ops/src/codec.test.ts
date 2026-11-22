@@ -12,13 +12,20 @@
  * So each test validates the same set twice, once building on the last verdict
  * and once from nothing, and asserts the two are the same reading.
  */
-import { claims } from "@olai/format"
+import { claims, namersOf, type OutlineFormat } from "@olai/format"
+import { keepRecordRead } from "@olai/format/testlib"
+import { readOutline, type Unread } from "@olai/format/read"
+import { refusalOf } from "@olai/prose/parse.ts"
+import { read, type Read } from "@olai/prose/read.ts"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { unheard } from "./fixtures.testlib.ts"
 import type { Document, OutlineError, Reading } from "@olai/format"
 import {
+  isRegular,
   markdownIn,
   NO_KINDS,
   outlinePaths,
+  recordRead,
   type Verdict,
 } from "@olai/format"
 import { expect, test } from "bun:test"
@@ -29,7 +36,7 @@ import { codecFor } from "./codec.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard)
 
 type Files = Record<string, string>
 
@@ -68,7 +75,7 @@ const readable = (reading: Reading): unknown => ({
   nodes: reading.derived.nodes,
   byId: [...reading.derived.byId],
   byFile: [...reading.derived.byFile],
-  namedBy: [...reading.derived.namedBy],
+  rows: [...reading.pointing.rows],
   children: [...reading.derived.children],
   status: [...reading.derived.status],
   after: [...reading.derived.after],
@@ -149,7 +156,7 @@ test("an outline that goes away takes its records out of the indexes", () => {
   expect(reading.derived.mirrorsOf.has("cook")).toBe(false)
   // What still names it is what is left naming it: the `see` and the placement
   // went with the file, and the edge in the file that stayed did not.
-  expect((reading.derived.namedBy.get("cook") ?? []).map((naming) => naming.at.node.id))
+  expect(namersOf(reading.pointing, "cook").map((naming) => naming.at.node.id))
     .toEqual(["shop"])
 })
 
@@ -180,7 +187,7 @@ test("a file deleted and written back in one breath is what the upsert says", ()
 
 test("a departed claim is absent on the next probe and cannot survive in-flight validation", () => {
   const table = { current: TEST_CLAIMS }
-  const live = codecFor(NO_KINDS, table)
+  const live = codecFor(NO_KINDS, table, unheard)
   const path = "Work.olai"
   const contents = `{"id":"work","ord":"a0","title":"Work"}`
   expect(live.match(path)).toBe(true)
@@ -201,7 +208,7 @@ test("a departed claim is absent on the next probe and cannot survive in-flight 
 
 test("withdrawing a referenced body's kind reports the missing document and reinstating it repairs the reading", () => {
   const table = { current: TEST_CLAIMS }
-  const live = codecFor(NO_KINDS, table)
+  const live = codecFor(NO_KINDS, table, unheard)
   const files = new Map([
     ["Work.olai", live.decode("Work.olai", '{"id":"work","ord":"a0","title":"Work","desc":"[document](notes.md)"}')],
     ["notes.md", live.decode("notes.md", "# Notes")],
@@ -212,4 +219,72 @@ test("withdrawing a referenced body's kind reports the missing document and rein
   expect(withdrawn.set.broken).toEqual([])
   table.current = TEST_CLAIMS
   expect(accepted(live.validate(files)).set.broken).toEqual([])
+})
+
+// ONE TITLE CHANGED reads one text: decode is handed the file's previous
+// document, and a record whose title and note are the same strings keeps the
+// reading it had — the same object — while the changed one is read again.
+test("an unchanged record's reading is the same object across a revision of its file", () => {
+  const before = `{"id":"cook","ord":"a","title":"cook dinner #kitchen","desc":"see [the plan](plan.md)"}\n` +
+    `{"id":"shop","ord":"b","title":"shop for @herbs"}`
+  const after = `{"id":"cook","ord":"a","title":"cook dinner #kitchen","desc":"see [the plan](plan.md)"}\n` +
+    `{"id":"shop","ord":"b","title":"shop for @herbs and bread"}`
+  const was = codec.decode("kitchen.olai", before)
+  const now = codec.decode("kitchen.olai", after, was)
+  const fresh = codec.decode("kitchen.olai", after)
+  const said = (decoded: Result.Result<Document, Verdict>, id: string) => {
+    const document = Result.getOrThrow(decoded)
+    if (document.holds !== "nodes") throw new Error("kitchen.olai decoded to no outline")
+    const located = document.nodes.find((one) => one.node.id === id)
+    if (located === undefined || !isRegular(located)) throw new Error(`no record ${id}`)
+    return recordRead(located.node)
+  }
+  expect(said(now, "cook")).toBe(said(was, "cook"))
+  expect(said(now, "shop")).not.toBe(said(was, "shop"))
+  expect(said(now, "shop").title.tags.map(String)).toEqual(["@herbs"])
+  // Handed nothing, a decode reads every text afresh.
+  expect(said(fresh, "cook")).not.toBe(said(was, "cook"))
+})
+
+/**
+ * WHAT A DECODE TELLS WHOEVER RUNS THE SERVER. No known text makes the parser
+ * throw (`@olai/prose`'s bounds), so the format here stands in for it: it
+ * decodes one record per line and keeps on each the reading a throwing parser
+ * leaves — `refusalOf` of what it threw. The codec is what is under test:
+ * every such text of a decoded file, named, to `heard.unread`, nothing for a
+ * file the parser read, and a decode that took `slowAfter` or more to
+ * `heard.slow`.
+ */
+test("the codec tells `heard` of each text the parser threw on, and of a slow decode", () => {
+  const thrown = new Error("a wikilink token holds no wikilink")
+  const failed = (text: string): Read => ({ ...read(text), refused: refusalOf(thrown) })
+  const format: OutlineFormat = {
+    parse: (file, text, table) => {
+      const nodes = text.split("\n").map((title, at) => {
+        const node = { id: `n${at}`, ord: `a${at}`, title }
+        keepRecordRead(node, { title: title.startsWith("!") ? failed(title) : read(title), desc: null })
+        return { file, line: at + 1, node }
+      })
+      return Result.succeed(readOutline(table, file, nodes))
+    },
+    serialize: () => "",
+  }
+  const table = claims([{ kind: "alternate", exts: [".tree"], holds: "nodes", kept: true, fetched: false, noun: "outline", article: "an", format }])
+  const told: Array<readonly [string, Unread]> = []
+  const slow: Array<string> = []
+  const hearing = (slowAfter: number) =>
+    codecFor(NO_KINDS, { current: table }, {
+      unread: (path, unread) => told.push([path, unread]),
+      slow: (path, ms) => slow.push(`${path} ${ms >= 0}`),
+      slowAfter,
+    })
+  const live = hearing(Number.POSITIVE_INFINITY)
+  expect(Result.isSuccess(live.decode("Work.tree", "paint the shed\n!a broken one\nweed the beds"))).toBe(true)
+  expect(told).toEqual([["Work.tree", { where: "n1 title", refusal: { kind: "failed", cause: thrown } }]])
+  told.length = 0
+  live.decode("Calm.tree", "paint the shed")
+  expect([told, slow]).toEqual([[], []])
+  // Every decode takes at least no time at all.
+  hearing(0).decode("Calm.tree", "paint the shed")
+  expect(slow).toEqual(["Calm.tree true"])
 })

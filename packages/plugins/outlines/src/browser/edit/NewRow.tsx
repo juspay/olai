@@ -52,6 +52,7 @@ export function NewRow(props: {
   /** Clicking a parked ghost puts the caret in it. */
   readonly onActivate?: () => void
   readonly onParkedInput?: (text: string) => void
+  readonly from?: string | undefined
 }) {
   return (
     <div class="my-0">
@@ -146,6 +147,7 @@ export function NewRow(props: {
           active={props.active}
           onActivate={props.onActivate}
           onParkedInput={props.onParkedInput}
+          from={props.from}
           placeholder="New line"
           // A ghost IS a line: the box is the rest of it, which is what a
           // person aims at and what the placeholder has to be readable in.

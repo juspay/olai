@@ -59,7 +59,7 @@
  * consulted — the class stripped, the feature half-working, the styling
  * silently gone, and nothing to say so.
  *
- * And clobbering is OFF. Every id on the page is minted by ./rewrite.ts
+ * And clobbering is OFF. Every id on the page is minted by ./rewrite/ids.ts
  * against the block it is in, which is a stronger rule than a shared prefix:
  * it separates two notes on one page from each other, where a prefix only
  * separates all of them from the app.

@@ -42,7 +42,8 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter, type Scope } from "./filter.ts"
 import { median, timed } from "./fixtures.testlib.ts"
-import type { Located } from "./node.ts"
+import { isMirror, type Located } from "./node.ts"
+import { readRecord } from "./read.ts"
 import { walkedMatching } from "./scope.testlib.ts"
 
 const FILES = 200
@@ -95,6 +96,10 @@ const vault = (): ReadonlyArray<Located> => {
       } as Located)
     }
   }
+  // READ as a decode reads them (`./read.ts`): every rule below asks what a
+  // record says through the reading its file's decode kept, so a hand-built
+  // corpus reads its own records.
+  for (const located of records) if (!isMirror(located.node)) readRecord(located.node)
   return records
 }
 

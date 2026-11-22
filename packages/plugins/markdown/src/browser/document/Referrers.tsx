@@ -114,6 +114,7 @@ function Section(props: {
         see: TESTID.documentSeeRefs,
         mention: TESTID.documentMentionRefs,
         link: TESTID.documentLinkRefs,
+        property: TESTID.documentPropertyRefs,
       })}
       row={(one) => referrerRowOf(one, { file: (path) => props.href(atFile(path)), node: (id) => props.href(atNode(id)) })}
       stillShown={stillShown}

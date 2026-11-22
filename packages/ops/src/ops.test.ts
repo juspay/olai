@@ -31,13 +31,13 @@ import { Deferred, Effect, Fiber, Result, SubscriptionRef } from "effect"
 import { codecFor } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
 import type { SessionRule } from "./door.ts"
-import { STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
+import { STAMP, STAMP_SHAPE, steady, unheard } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -91,7 +91,7 @@ const withOps = <A>(
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
   return Effect.gen(function*() {
-    const store = yield* Store.make({ root, codec: options.claims === undefined ? codec : codecFor(NO_KINDS, options.claims), watch: false, settle: "10 millis" })
+    const store = yield* Store.make({ root, codec: options.claims === undefined ? codec : codecFor(NO_KINDS, options.claims, unheard), watch: false, settle: "10 millis" })
     const refusals: Array<string> = []
     const ops = Ops.make({claims: options.claims ?? { current: TEST_CLAIMS }, format: "outline-olai",
       store,

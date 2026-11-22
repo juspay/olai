@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@olai/format": "workspace:*",
+    "@olai/prose": "workspace:*",
     "@solid-primitives/keyed": "^1.5.3",
     "@solid-primitives/scheduled": "^1.5.3",
     "effect": "4.1.4",
@@ -21,8 +22,6 @@
     "rehype-highlight": "^7.0.2",
     "rehype-sanitize": "^6.0.0",
     "rehype-stringify": "^10.0.1",
-    "remark-gfm": "^4.0.1",
-    "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.1",
     "solid-js": "^1.9.0",
     "unified": "^11.0.5",
@@ -31,8 +30,12 @@
     "@olai/surface": "workspace:*",
     "@olai/ui-primitives": "workspace:*"
   },
+  "//devDependencies": "remark-parse and remark-gfm are TEST-ONLY here: src/frontmatter.test.ts draws the ecosystem's frontmatter reading beside ours. The parse the app ships is @olai/prose's.",
   "devDependencies": {
     "@types/hast": "^3.0.5",
-    "remark-frontmatter": "^5.0.0"
+    "@types/mdast": "^4.0.4",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0"
   }
 }

@@ -10,7 +10,7 @@
 
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
-import { admits, blockersOf, datedOn, derive, type Node, markdownIn, nodesOf, type OpFailure, type OutlineSet, type RegularNode, NO_KINDS, outlinePaths, pinTargetIn, shelfOf, standingBefore, validate, AddRequest, type WriteRequest as Request } from "@olai/format"
+import { admits, blockersOf, datedOn, derive, type Node, markdownIn, namersOf as namedBy, nodesOf, type OpFailure, type OutlineSet, type RegularNode, NO_KINDS, outlinePaths, pinTargetIn, shelfOf, standingBefore, validate, AddRequest, type WriteRequest as Request } from "@olai/format"
 import { serializeOutline } from "olai-plugin-outline-olai/format"
 import { findingsIn, recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
@@ -2822,12 +2822,12 @@ const crossing = (): OutlineSet =>
     ].join("\n"),
   })
 
-/** Who NAMES this id, and with which field — `@olai/format`'s own reverse
- *  index, which is "does anything still point at this record" asked the way the
+/** Who NAMES this id, and with which field — the references table's rows,
+ *  which are "does anything still point at this record" asked the way the
  *  ops layer asks it. Flattened to strings so two readings of two sets compare
  *  by value rather than by identity. */
 const namersOf = (set: OutlineSet, id: string): ReadonlyArray<string> =>
-  (derive(TEST_CLAIMS, recordsOf(set)).namedBy.get(id) ?? [])
+  namedBy(readingOf(set).pointing, id)
     .flatMap((naming) => naming.fields.map((field) => `${naming.at.node.id}.${field}`))
     .slice()
     .sort()
@@ -6234,6 +6234,19 @@ describe("dead-link nudges", () => {
     const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"A","desc":"[x](missing.md)"}' })
     expect(planned(existing, { op: "desc", id: "a", desc: "[x](missing.md) again" }).nudge).toBeUndefined()
   })
+  test("a new unresolved wikilink is nudged once, with the nearest name", () => {
+    const nudge = planned(set(), { op: "desc", id: "a", desc: "see [[nix-flaks]] and [[nix-flaks|again]]" }).nudge
+    expect(nudge).toContain("no file is named nix-flaks — did you mean `[[nix-flakes]]`?")
+    expect(nudge?.split("no file is named nix-flaks")).toHaveLength(2)
+  })
+  test("a resolved wikilink, or one already written, is not nudged", () => {
+    expect(planned(set(), { op: "doc", file: "projects/readme.md", text: "see [[nix-flakes]] and [[readme#Part]]" }).nudge).toBeUndefined()
+    const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"A","desc":"[[missing]]"}' })
+    expect(planned(existing, { op: "desc", id: "a", desc: "[[missing]] again" }).nudge).toBeUndefined()
+  })
+  test("a wikilink to a file the same batch writes is not nudged", () => {
+    expect(planned(set(), { op: "create-doc", file: "projects/shed.md", text: "[[shed]] is this file" }).nudge).toBeUndefined()
+  })
 })
 
 describe("files held by prose links", () => {
@@ -6249,6 +6262,17 @@ describe("files held by prose links", () => {
   test("trashed records and a document's self-link do not hold it", () => {
     const set = setOf({ "_olai/Trash.olai": '{"id":"old","ord":"a0","title":"[target](../target.md)"}' }, [["target.md", "[self](target.md)"]])
     expect(planned(set, { op: "delete", file: "target.md" }).removed).toEqual(["target.md"])
+  })
+  test("a wikilink holds the file it finds, from a row and from a document", () => {
+    const fromRow = setOf({ "projects/a.olai": '{"id":"a","ord":"a0","title":"see [[target#Scope]]"}' }, ["target.md"])
+    expect(refused(fromRow, { op: "delete", file: "target.md" }).message).toContain("`a` (`link`, projects/a.olai:1)")
+    const fromDocument = setOf({}, [["notes/source.md", "![[target]]"], "target.md"])
+    expect(refused(fromDocument, { op: "delete", file: "target.md" }).message).toContain("`notes/source.md` (`link`)")
+  })
+  test("a wikilink holds only the file its name finds, not a namesake elsewhere", () => {
+    const set = setOf({}, [["rooms/plan.md", "[[Note]]"], "rooms/Note.md", "garden/Note.md"])
+    expect(planned(set, { op: "delete", file: "garden/Note.md" }).removed).toEqual(["garden/Note.md"])
+    expect(refused(set, { op: "delete", file: "rooms/Note.md" }).message).toContain("`rooms/plan.md` (`link`)")
   })
   test("declared document properties keep their fence in trash", () => {
     const set = setOf({

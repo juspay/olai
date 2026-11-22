@@ -50,7 +50,7 @@
  * is the "show what you wrote" fallback, and marking it up is exactly what it
  * is refusing to do.
  */
-import type { Claims } from "@olai/format"
+import type { Claims, Names } from "@olai/format"
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
 import { NO_NEEDLES } from "@olai/markdown-ui/lit.ts"
@@ -58,6 +58,7 @@ import { markdownReady, markdownWaiting } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree, sourceText } from "./render.ts"
 import { escapeHtml, styleTags } from "./tags.ts"
+import { mayHoldWikilink } from "@olai/prose/wikilink.ts"
 
 export interface TitleRender {
   /** When false, markdown links are unwrapped to their children so the title
@@ -72,6 +73,11 @@ export interface TitleRender {
    * is also why a highlighted title is not remembered below.
    */
   readonly needles?: ReadonlyArray<string>
+  /**
+   * The directory's name index — what a wikilink in the title is looked up
+   * in. Absent, a wikilink is drawn and not judged.
+   */
+  readonly names?: Names
 }
 
 /**
@@ -103,7 +109,7 @@ export interface TitleRender {
  * on every keystroke is the cost this cache exists to refuse.
  */
 const plainTitles = new Map<string, TitleDrawing>()
-const renderings = new WeakMap<Claims, Map<string, TitleDrawing>>()
+const renderings = new WeakMap<Claims, WeakMap<object, Map<string, TitleDrawing>>>()
 const CACHE_LIMIT = 1024
 
 /**
@@ -182,10 +188,21 @@ export const renderTitle = (
       : finished(plain)
   }
 
-  let rendered = claims === undefined ? undefined : renderings.get(claims)
+  // A WIKILINK'S PAGE IS A QUESTION ABOUT THE DIRECTORY, so a title holding
+  // one is remembered per NAME INDEX — the identity the directory replaces
+  // whenever a file arrives or leaves — and every other title per claims
+  // alone, as before.
+  const names = options.names !== undefined && mayHoldWikilink(title) ? options.names : undefined
+  let byNames = claims === undefined ? undefined : renderings.get(claims)
+  if (byNames === undefined) {
+    byNames = new WeakMap()
+    if (claims !== undefined) renderings.set(claims, byNames)
+  }
+  const namespace: object = names ?? byNames
+  let rendered = byNames.get(namespace)
   if (rendered === undefined) {
     rendered = new Map()
-    if (claims !== undefined) renderings.set(claims, rendered)
+    if (claims !== undefined) byNames.set(namespace, rendered)
   }
   const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
   const hit = rendered.get(key)
@@ -204,7 +221,7 @@ export const renderTitle = (
     return { html: escapeHtml(title), waiting: markdownWaiting() }
   }
 
-  return remember(rendered, key, build(claims, title, from, links, needles))
+  return remember(rendered, key, build(claims, title, from, links, needles, names))
 }
 
 const remember = (
@@ -224,8 +241,9 @@ const build = (
   from: string,
   links: boolean,
   needles: ReadonlyArray<string>,
+  names: Names | undefined,
 ): string => {
-  const tree = renderToTree(claims, title, from, "inline")
+  const tree = renderToTree(claims, title, from, "inline", names)
   styleTags(tree, needles)
   if (!links) unwrapAnchors(tree)
 

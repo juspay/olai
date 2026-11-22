@@ -22,8 +22,9 @@ import { client } from "../../client.ts"
  *  have the same value: that one is how many NODES a search door shows, and it
  *  is exported because the composer budgets its file rows against it. Two doors
  *  agreeing on a number are not one number, and importing it here would make a
- *  change to the palette's shortlist silently a change to this popup. */
-const LIMIT = 8
+ *  change to the palette's shortlist silently a change to this popup. The
+ *  WIKILINK list is this popup too, and shows as many (`./completing.tsx`). */
+export const LIMIT = 8
 
 /**
  * What one asking is about: which namespace, and what has been typed after the

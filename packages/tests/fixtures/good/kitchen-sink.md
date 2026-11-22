@@ -119,7 +119,7 @@ overflow its column:
 
 | what | where |
 |---|---|
-| a rule that only exists so the view and the validator cannot disagree about what a relative picture resolves against, spelled once as `pathedOf` | `packages/format/src/documents.ts` |
+| a rule that only exists so the view and the validator cannot disagree about what a relative picture resolves against, spelled once as `pathedOf` | `packages/format/src/links/paths.ts` |
 | short | `here.ts` |
 
 ## Lists

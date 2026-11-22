@@ -36,7 +36,7 @@
  * is being called over a wire.
  */
 
-export { codecFor } from "./codec.ts"
+export { codecFor, type Heard, SLOW_DECODE_MS } from "./codec.ts"
 export type { Directory, Store, VaultSettings, RuntimePaths } from "./deps.ts"
 export { type Caller, type Confinement, type SessionRule, type Barred, doorRefusal } from "./door.ts"
 export {

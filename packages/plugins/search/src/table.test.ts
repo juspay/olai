@@ -27,7 +27,8 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-import { assemble, type Bodied, bodiedDocument, bodiedIn, bodyKind, type Document, isMirror, type Located, matching, matchingDocuments, nodesIn, parseFilter, reading, type Reading, type Scope, type Verdict, verdictOf } from "@olai/format"
+import { assemble, type Bodied, bodiedIn, bodyKind, type Document, isMirror, type Located, matching, matchingDocuments, nodesIn, parseFilter, reading, type Reading, type Scope, type Verdict, verdictOf } from "@olai/format"
+import { bodiedDocument } from "@olai/format/read"
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import { seeded, vaultOf } from "@olai/format/testlib"
 import { Result } from "effect"

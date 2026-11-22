@@ -43,7 +43,8 @@
  * OLAI_BENCH_FILES / OLAI_BENCH_RECORDS / OLAI_BENCH_DOCS.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { assemble, bodiedDocument, bodiedIn, type Document, documentHayOf, hayOf, isMirror, matching, matchingDocuments, narrowableBy, nodesIn, parseFilter, reading, type Reading, type RegularNode, type Verdict, verdictOf } from "@olai/format"
+import { assemble, bodiedIn, type Document, documentHayOf, hayOf, isMirror, matching, matchingDocuments, narrowableBy, nodesIn, parseFilter, reading, type Reading, type RegularNode, type Verdict, verdictOf } from "@olai/format"
+import { bodiedDocument } from "@olai/format/read"
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import {
   alternating,

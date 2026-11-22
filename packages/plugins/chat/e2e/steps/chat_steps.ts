@@ -2026,6 +2026,19 @@ Then(
   },
 );
 
+/** The page a wikilink in one node's change row opens — its `href`, which is
+ *  what the click follows. */
+Then(
+  "the outline change to {string} links to {string}",
+  async function (this: OlaiWorld, id: string, href: string) {
+    const link = this.chat(`${CHAT_OUTLINE_CHANGE}${attr("data-node-id", id)} a[data-wikilink]`).first();
+    await this.waitUntil(
+      async () => (await link.count()) > 0 && (await link.getAttribute("href")) === href,
+      `the wikilink in the change to "${id}" to open ${href}`,
+    );
+  },
+);
+
 Then("the diff says it was rewritten whole", async function (this: OlaiWorld) {
   // The half of a bound that matters on screen: a reader who is not told is
   // reading the top of the old file as though it were a hunk.

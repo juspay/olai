@@ -754,10 +754,11 @@ function Value(props: {
           >
             {(href) => (
               // A link out of the app opens a tab of its own, under the pair a
-              // note's own external links take (`../markdown/rewrite.ts`'s
-              // `openExternal`): `noopener` so the new tab cannot reach back at
-              // this one, `noreferrer` because where somebody's vault points is
-              // not this page's to announce to the far end.
+              // note's own external links take (`@olai/markdown-ui`'s
+              // `rewrite/links.ts`'s `openExternal`): `noopener` so the new tab
+              // cannot reach back at this one, `noreferrer` because where
+              // somebody's vault points is not this page's to announce to the
+              // far end.
               <Tip text={door().says}>
                 <a
                   class={LINKED}

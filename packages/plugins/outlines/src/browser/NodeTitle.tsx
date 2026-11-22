@@ -55,6 +55,7 @@ import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { useNames } from "./reading.tsx"
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
+import { mayHoldWikilink } from "@olai/prose/wikilink.ts"
 
 export function NodeTitle(props: {
   readonly title: string
@@ -82,11 +83,16 @@ export function NodeTitle(props: {
    *  changed must not push a new value through to the element — which is what
    *  a memo over an object does by default (`===`). */
   const drawing = createMemo(
-    () =>
-      renderTitle(servedDirectory()?.claims(), props.title, props.from, {
+    () => {
+      // Only a title with a wikilink asks the directory what it holds, so a
+      // file arriving re-draws the rows that name one and no others.
+      const names = mayHoldWikilink(props.title) ? servedDirectory()?.names() : undefined
+      return renderTitle(servedDirectory()?.claims(), props.title, props.from, {
         links: props.links,
         needles: props.needles,
-      }),
+        ...(names === undefined ? {} : { names }),
+      })
+    },
     undefined,
     { equals: sameDrawing },
   )

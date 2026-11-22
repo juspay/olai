@@ -25,7 +25,9 @@ import { expect, test } from "bun:test"
 
 import { agendaOf, owedIn } from "./agenda.ts"
 import { datedDays, datedOn } from "./dates.ts"
-import { derive, tagPart, type TagSigil, tagText, type TitleTag } from "./derive.ts"
+import { tagPart, type TagSigil, tagText, type TitleTag } from "@olai/prose/tags.ts"
+import { derive } from "./derive.ts"
+import { pointingOf, taggersOf } from "./references/pointing.ts"
 import { recordsOf, setOf, vaultOf } from "./fixtures.testlib.ts"
 import { isRegular } from "./node.ts"
 import { datesOf, monthOf } from "./occasion.ts"
@@ -33,7 +35,11 @@ import { datesOf, monthOf } from "./occasion.ts"
 /** The benches' own defaults (`patch.bench.ts`'s `OLAI_BENCH_FILES` /
  *  `OLAI_BENCH_RECORDS`), which is the only size a claim about "the 1,000-file
  *  vault" can be checked at. */
-const view = derive(TEST_CLAIMS, recordsOf(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))))
+const set = setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))
+const view = derive(TEST_CLAIMS, recordsOf(set))
+/** …and the references table over the same vault, which is where the tags and
+ *  the namings the benches print numbers about live now (`./references/pointing.ts`). */
+const table = pointingOf(TEST_CLAIMS, set.documents)
 
 test("the vault is the directory the published numbers name", () => {
   expect(view.byFile.size).toBe(981)
@@ -78,7 +84,7 @@ test("both settling marks are in it, dated and bare", () => {
 
 test("every index a bench prints a number about has something in it", () => {
   // The one that was empty, and the reason this file exists.
-  expect(view.taggedBy.size).toBeGreaterThan(0)
+  expect(table.tags.size).toBeGreaterThan(0)
   expect(view.byDay.size).toBeGreaterThan(0)
   // ...and the rest of the shapes `vaultOf`'s header promises, so this fence
   // covers the next one to go quiet rather than only the one that did.
@@ -87,7 +93,7 @@ test("every index a bench prints a number about has something in it", () => {
   expect(view.blocked.size).toBeGreaterThan(0)
   expect(view.mirrorsOf.size).toBeGreaterThan(0)
   expect(view.edgesTo.size).toBeGreaterThan(0)
-  expect(view.namedBy.size).toBeGreaterThan(0)
+  expect(table.rows.size).toBeGreaterThan(0)
   expect(view.children.size).toBeGreaterThan(0)
 })
 
@@ -111,7 +117,7 @@ test("the prose is really there, and really names records", () => {
  *  apart ({@link tagPart}) — a fence that split a written key by hand would be
  *  the one file that cannot notice the encoding moving. */
 const written = (sigil: TagSigil): ReadonlyArray<TitleTag> =>
-  [...view.taggedBy.keys()].map(tagPart).filter((tag) => tag.sigil === sigil)
+  [...table.tags.keys()].map(tagPart).filter((tag) => tag.sigil === sigil)
 
 // BOTH SIGILS, because the index files both and a vault that wrote only the
 // rarer one would print the fold's cheap negative as the cost of its walk —
@@ -122,7 +128,7 @@ test("the titles really carry `#tags`, and the notes carry some too", () => {
   // More records write a `#` than an `@`: the shape a real directory has, and
   // the one the completion's ordering is measured against.
   const entries = (sigil: TagSigil): number =>
-    written(sigil).reduce((total, tag) => total + (view.taggedBy.get(tagText(tag))?.length ?? 0), 0)
+    written(sigil).reduce((total, tag) => total + taggersOf(table, tagText(tag)).length, 0)
   expect(entries("#")).toBeGreaterThan(entries("@"))
   // ...and a tag written in a NOTE is filed, which is the half of the fold a
   // title-only vault would leave unmeasured.
