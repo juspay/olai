@@ -3,7 +3,8 @@
  *
  * Core gives this row one {@link LocalState} door, already keyed by the row's
  * name and served directory. Chat keeps model choices, wake picks, heard
- * records and the set of conversations that were live a moment ago in it. Chat
+ * records, the set of conversations that were live a moment ago and the turns
+ * a stop cut short in it. Chat
  * does not read the legacy conversation-selection note. A writer replaces one
  * section under one permit and carries the others, so a model choice cannot
  * erase a doorbell pick or an overheard line.
@@ -13,7 +14,7 @@ import type { LocalState, Refusal } from "@olai/plugin-api/services"
 import { MemoryFailure } from "@kolu/acp-client"
 import { Effect, Semaphore } from "effect"
 
-export type LocalSection = "memory" | "models" | "wake" | "heard" | "live"
+export type LocalSection = "memory" | "models" | "wake" | "heard" | "live" | "cut"
 
 export interface ChatLocalState {
   /** One section, or `null` when this machine has never written it. */
@@ -54,6 +55,7 @@ export const openLocalState = (door: LocalState): Effect.Effect<ChatLocalState> 
       wake: object(loaded["wake"]),
       heard: object(loaded["heard"]),
       live: object(loaded["live"]),
+      cut: object(loaded["cut"]),
     }
     const writing = yield* Semaphore.make(1)
 
@@ -83,6 +85,7 @@ export const ephemeralLocalState = (): ChatLocalState => {
     wake: {},
     heard: {},
     live: {},
+    cut: {},
   }
   return {
     load: (section) => {

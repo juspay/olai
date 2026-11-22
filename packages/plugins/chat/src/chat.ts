@@ -122,6 +122,7 @@ import {
   type TurnEnded,
 } from "@kolu/acp-harness"
 import type { Conversing, Overheard, Sessions } from "./sessions.ts"
+import type { CutRecord } from "./cut.ts"
 import { choiceOf, here, offBecause, type Installed, type Roster } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
@@ -312,6 +313,13 @@ export interface PanelOptions {
    * it says otherwise.
    */
   readonly overheard?: Sessions | null
+  /**
+   * THE TURNS A STOP CUT SHORT ({@link ./cut.ts}) — written when this panel
+   * stops with an answer in flight, and read when a conversation opens, so
+   * the panel that reopens it says the answer was stopped. Handed in like
+   * {@link overheard}; `null` — or absent — keeps none and says nothing.
+   */
+  readonly cut?: CutRecord | null
   /**
    * WHICH NODE AGENT A CONVERSATION BELONGS TO — the vault's OWN reading of one
    * (`@olai/format`'s {@link NodeAgent}), never a shape this package declares —
@@ -857,6 +865,24 @@ const OURS = "olai:"
 const remembranceLost = (failure: AcpAgent.MemoryFailure): string =>
   `which conversation this directory was in could not be written down (${failure.why}) — ` +
   `a restart opens whichever one this agent has most recently`
+
+/** WHAT A PERSON IS TOLD WHEN A CONVERSATION REOPENS AFTER A STOP CUT ITS
+ *  TURN SHORT ({@link ./cut.ts}). Every stop that cuts a turn is chat's own
+ *  activation ending — a setting changed, chat switched off and on, olai
+ *  restarting — so the sentence names chat restarting rather than guessing
+ *  which. */
+const stoppedAnswer = (agent: string): string =>
+  `Chat restarted while ${agent} was answering, so that answer stopped where it was. ` +
+  `Send your message again to have it answered.`
+
+/** ... and what the two writes behind it cost when they are lost. */
+const cutLost = (failure: AcpAgent.MemoryFailure): string =>
+  `a turn a stop cut short could not be written down (${failure.why}) — ` +
+  `its conversation reopens without saying the answer was stopped`
+
+const cutForgetLost = (failure: AcpAgent.MemoryFailure): string =>
+  `a stopped turn that was reported could not be crossed off (${failure.why}) — ` +
+  `the next open of that conversation says so again`
 
 /**
  * WHAT ONE BRING-UP OPENS THIS ROW WITH — its registered leg and adapter, or,
@@ -2066,6 +2092,21 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         session: now.sessionId,
         model: now.model?.id ?? null,
       })
+    }
+
+    /** A TURN A STOP CUT SHORT IN THE CONVERSATION JUST OPENED ({@link ./cut.ts}),
+     *  said once as a notice under what the conversation replayed, and crossed
+     *  off. Asked where an open lands: after a boot's, and after every other
+     *  open {@link changeSession} brackets. */
+    const reportingCut = (): Effect.Effect<void> => {
+      const at = talking
+      const now = conversation
+      const record = options.cut
+      if (at === null || now === null || now.sessionId === null || record == null) return Effect.void
+      const turn = { agent: at.row.id, session: now.sessionId }
+      if (!record.cutShort(turn)) return Effect.void
+      ours({ kind: "notice", text: stoppedAnswer(at.row.name) })
+      return noting(record.forget(turn), cutForgetLost)
     }
 
     /**
@@ -3587,6 +3628,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           }
           if (completed !== undefined) yield* completed
           settled()
+          yield* reportingCut()
           // ... AND WHATEVER A DOORBELL HELD FOR THE CONVERSATION JUST OPENED
           // GOES IN, as its first message.
           //
@@ -3676,9 +3718,20 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // carried through the conversation rather than said beside it, so there
       // is one account of one exit.
       const at = talking
+      // A TURN THIS STOP CUTS SHORT, read before the conversation is let go:
+      // a shutdown with an answer in flight is chat's activation ending, and
+      // the panel that reopens the conversation is a new one that cannot know
+      // ({@link ./cut.ts}). Every other reason is said by the panel that
+      // stays, or stops no running turn.
+      const cut = reason === "shutdown" && at !== null && state.status === "thinking"
+        ? conversation?.sessionId ?? null
+        : null
       talking = null
       conversation = null
       if (at !== null) yield* Effect.promise(() => at.harness.stop(reason))
+      if (at !== null && cut !== null) {
+        yield* noting(options.cut?.note({ agent: at.row.id, session: cut }), cutLost)
+      }
       // ...AND EVERY OTHER FIBER THIS PANEL STARTED, which is what
       // {@link aside} exists to make possible. They used to be
       // `Effect.forkDetach` — the GLOBAL scope, so a stopped panel's
@@ -3993,6 +4046,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             return
           }
           settled()
+          yield* reportingCut()
           // ... and the other place a conversation is opened flushes for the
           // same reason and at the same point: after the permit, never from
           // inside the event ({@link changeSession}). A BOOT is how a doorbell
