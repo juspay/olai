@@ -57,23 +57,23 @@ The suite shares names with `@olai/web` rather than retyping them — a constant
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario. `@share-scratch` at the top of a feature is that opt-in: one copy and one server per worker, and After restores the fixture under the still-running server so overlapping writers can share too. `@own-scratch` on a scenario inside it keeps a private copy, for the things restore cannot make true (a server restart, conversation state, git). A restore that does not put the tree back fails naming the scenario and the files.
 
-This suite is 312 features and 2448 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as about 2604 scenarios: 63 of the entries are outlines, and their examples expand to 219. It is 141 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 294 of the 312 and 130 of the 141, with 18 features and 11 step files left here as the app's own:
+This suite is 315 features and 2495 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as about 2663 scenarios: 64 of the entries are outlines, and their examples expand to 232. It is 142 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 297 of the 315 and 131 of the 142, with 18 features and 11 step files left here as the app's own:
 
 | row | features | entries | | row | features | entries |
 |---|---:|---:|---|---|---:|---:|
-| `chat` | 69 | 642 | | `plugin-inspector` | 4 | 33 |
-| `outlines` | 63 | 558 | | `vault` | 5 | 31 |
+| `chat` | 69 | 644 | | `plugin-inspector` | 4 | 33 |
+| `outlines` | 65 | 578 | | `vault` | 5 | 31 |
 | `navigation` | 15 | 145 | | `codex` | 4 | 26 |
-| `markdown` | 12 | 109 | | `layout` | 6 | 24 |
-| `journal` | 9 | 93 | | `kolu` | 3 | 23 |
-| *the app itself* | 18 | 77 | | `trash` | 3 | 21 |
-| `vault-plugins` | 11 | 77 | | `claude` | 3 | 19 |
+| `markdown` | 13 | 130 | | `layout` | 6 | 24 |
+| `journal` | 9 | 94 | | `kolu` | 3 | 23 |
+| `vault-plugins` | 11 | 79 | | `trash` | 3 | 21 |
+| *the app itself* | 18 | 77 | | `claude` | 3 | 19 |
 | `tabs` | 13 | 76 | | `settings` | 4 | 18 |
 | `files` | 8 | 64 | | `theme` | 4 | 18 |
 | `hypertext` | 1 | 50 | | `browsing` | 2 | 16 |
 | `pins` | 8 | 50 | | `capture` | 3 | 11 |
-| `preferences` | 5 | 41 | | `odu` | 1 | 11 |
-| `git` | 9 | 40 | | `sidebar` | 2 | 10 |
+| `git` | 9 | 41 | | `odu` | 1 | 11 |
+| `preferences` | 5 | 41 | | `sidebar` | 2 | 10 |
 | `mail` | 3 | 40 | | `identity` | 2 | 9 |
 | `hledger` | 7 | 38 | | `omp` | 1 | 3 |
 | `search` | 8 | 36 | | `csv`, `image`, `opencode`, `test-layout` | 1 each | 1 each |

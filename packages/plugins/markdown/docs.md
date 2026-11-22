@@ -12,11 +12,11 @@ Top to bottom:
 | **Edit** and **Delete…** | drawn together, only for a file in the directory olai serves |
 | the line at the top | a chat about this document[^line][^keys] |
 | the properties | one chip per key in the file's frontmatter, the keys at its top[^props] |
-| plugins' faces | hung in `document.page.head` |
+| plugins | `document.page.head` |
 | **Contents** | the document's headings, open by default[^contents] |
-| the body | the document, rendered |
+| the body | the document[^blocks] |
 | **Referenced by `N` things** | what points at this document[^referrers] |
-| plugins' faces | hung in `document.page.foot` |
+| plugins | `document.page.foot` |
 
 A page says `Loading…` until olai has read the file.[^missing]
 
@@ -44,6 +44,8 @@ Switching `markdown` off takes away document pages and the read and write proced
 [^props]: A property's value is drawn as a link when it names a web address, or a file, a row or a day that this olai can open.
 
 [^contents]: The list of headings is drawn only when the document has more than one heading.
+
+[^blocks]: A fenced block whose language is a plugin's name is drawn by that plugin, through `document.block`, in place of the code ([../dynamic-plugins-faces.md](../dynamic-plugins-faces.md)). Only a document's own page does this; anywhere else the block is code.
 
 [^referrers]: The referrers section is closed until you open it, and splits what it found across four rows: **Sees this**, **Mentions this**, **Links to this** and **Names this in a property**. A row that links to this document from its title or its note opens that row's page; a document whose prose links here opens that file. A row whose declared property names this document is in the fourth row ([../documents-and-kinds.md](../documents-and-kinds.md)).
 

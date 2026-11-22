@@ -274,7 +274,7 @@ plugins/reader/
   browser.tsx    everything it draws
   words.ts       the calls the browser file may make, imported by both entries
   columns.tsx    the two columns, imported by browser.tsx
-  pairs.ts       reading a reader-pair value, imported by both entries
+  pairs.ts       reading reader-pair values, imported by both entries
   types.ts       the shapes both entries agree on
   lib/sm2.ts     when a word is next due, imported by server.ts
 ```
@@ -317,6 +317,13 @@ export const splitPair = (value: string): Pair | null => {
   if (cut <= 0 || cut + 3 >= value.length) return null
   return { french: value.slice(0, cut).trim(), english: value.slice(cut + 3).trim() }
 }
+
+/** A text of such lines, a page or a block in a note: the lines that are pairs. */
+export const pairsIn = (text: string): ReadonlyArray<Pair> =>
+  text.split("\n").flatMap((line) => {
+    const pair = splitPair(line)
+    return pair === null ? [] : [pair]
+  })
 ```
 
 `words.ts` is the surface: the three calls the browser file may make, what each takes and what it answers, and who may make them.
@@ -578,7 +585,7 @@ import { Effect } from "effect"
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { Columns } from "./columns.tsx"
-import { splitPair } from "./pairs.ts"
+import { pairsIn, splitPair } from "./pairs.ts"
 import type { Grade } from "./types.ts"
 import { surface } from "./words.ts"
 
@@ -703,14 +710,23 @@ export default definePlugin({
           () => {},
         )
       }))
-      const pairs = () => text().split("\n").flatMap((line) => {
-        const pair = splitPair(line)
-        return pair === null ? [] : [pair]
-      })
       const add = (word: string) => ask(client()?.words.add({ word }), () => {}, setRefused)
       return (
         <section data-reader="file" data-file={props.file} class="flex flex-col p-4">
-          <For each={pairs()}>{(pair) => <Columns pair={pair} onWord={add} />}</For>
+          <For each={pairsIn(text())}>{(pair) => <Columns pair={pair} onWord={add} />}</For>
+          <Refused said={refused()} />
+        </section>
+      )
+    }
+
+    // A block in any Markdown note whose fence names `reader`: its lines, drawn
+    // the same way. The block is handed its text exactly as written in the note.
+    const Block = (props: { readonly text: string; readonly file: string }) => {
+      const [refused, setRefused] = createSignal<string | null>(null)
+      const add = (word: string) => ask(client()?.words.add({ word }), () => {}, setRefused)
+      return (
+        <section data-reader="block" data-file={props.file} class="flex flex-col py-2">
+          <For each={pairsIn(props.text)}>{(pair) => <Columns pair={pair} onWord={add} />}</For>
           <Refused said={refused()} />
         </section>
       )
@@ -755,6 +771,7 @@ export default definePlugin({
     yield* slots.register("file.page", Transcribed)
     yield* slots.register("document.page.head", NoteHead)
     yield* slots.register("document.page.foot", Note)
+    yield* slots.register("document.block", Block)
   }),
 })
 ```
@@ -763,6 +780,7 @@ export default definePlugin({
 - `pairs.ts`, `types.ts` and `words.ts` are imported by both entries. Each entry builds its own copy, so in each it reaches the services of the entry that imported it.
 - `outline.page.foot` is drawn at the foot of every row's own page, the page you open by zooming into a row, and not on a whole file's page. So `Foot` checks `props.node` and draws the review only on the page of the row whose id is `vocabulary`.
 - `Own` is the plugin's own page, drawn at `/plugins/reader/app` and handed what follows it, so `/plugins/reader/app/review` is the review. **Start review** in the palette, `Cmd` + `Shift` + `E` and the sidebar's **Review** link all open it.
+- `Block` is drawn in place of each fenced block in a Markdown note whose language is `reader`, handed the block's text as written. On the plugin's own page, and anywhere else that is not the note's page, such a block is code.
 
 ### 5. Turn it on, and click a word
 
@@ -773,9 +791,10 @@ Read the files on the plugin's page and press **Turn on**. The columns appear un
 - The same review is a page of its own at `/plugins/reader/app/review`, and a reload draws it again.
 - A `.reader` file, one French sentence and its English per line, is listed under **Reference** and opens as the same two columns. Change it on disk and its page is drawn again.
 - Every Markdown note says **Reading companion** above its text and has a link to the review at its foot.
+- In a Markdown note, a fenced block whose language is `reader`, one sentence and its English per line, is drawn as the same two columns. Change the note on disk and the block is drawn again.
 - A word the gate will not add, because the vocabulary has no row called `vocabulary` to add it under, shows the gate's sentence under the sentence you clicked it in, and nothing is written.
 - Edit any of the seven code files and the plugin pauses until you turn the new version on. Its page's address then says it is paused and links to the page where you turn it on again.
-- Switch it off and the columns, the review, the section, the key, the palette rows, the page and the note's link go together. The `words.*` and `pages.*` calls leave the connection, and while it is off olai cannot open `.reader` files.
+- Switch it off and the columns, the review, the section, the key, the palette rows, the page and the note's link go together, and a `reader` block in a note is code again. The `words.*` and `pages.*` calls leave the connection, and while it is off olai cannot open `.reader` files.
 <!-- guide:end -->
 
 </details>

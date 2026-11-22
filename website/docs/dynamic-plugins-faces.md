@@ -52,6 +52,7 @@ A browser file draws by registering a face in a slot with `Slots.register`. `vau
 | `plugin.page` | the plugin's own page at `/plugins/<word>/app`, handed the rest of the address |
 | `file.page` | the whole page of a file of the kind the plugin's server file claimed, handed the file's path and its revision |
 | `document.page.head`, `document.page.foot` | a component handed a Markdown note's path, drawn above its text or under it |
+| `document.block` | a component handed the text of a fenced block whose language is the plugin's own name, drawn in its place on a Markdown note's page |
 | `app.header`, `app.banner` | a readout in the header or the health popover, or a banner across the top |
 | `app.viewer`, `app.mount` | the app's one viewer, or a wrapper around the whole app |
 | `plugins.row` | words and buttons on the plugin's own row of the **Plugins** panel |
@@ -85,7 +86,7 @@ yield* slots.register("app.command", {
 })
 ```
 
-### A file of its own kind, and a note's head and foot
+### A file of its own kind, and a note's head, foot and blocks
 
 A server file claims a suffix with `FileKinds`, and the browser file's `file.page` face draws every file of that kind:
 
@@ -108,6 +109,16 @@ yield* (yield* FileKinds).register({
 - Switched off, the plugin's claim goes with it, and the file's address says olai cannot open that suffix.
 
 `document.page.head` and `document.page.foot` are lists on a Markdown note's page, above its text and under the list of what links to it. Each face is handed `{ file }`.
+
+`document.block` draws a fenced block in a Markdown note. A block whose language is the plugin's name, `reader` for the reading companion, is drawn by its face in place of the code:
+
+```tsx
+yield* slots.register("document.block", Block)
+```
+
+- The face is handed `{ text, file }`: the block's text exactly as written, `[[…]]` and all, and the note's path.
+- When the note changes, the face is drawn again from the new text.
+- Only a note's own page draws it. Anywhere else, the plugin's page among them, the block is code, and so it is while the plugin is off.
 
 ### A sidebar section, a key and a palette row
 

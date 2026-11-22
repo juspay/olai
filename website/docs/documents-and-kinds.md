@@ -157,7 +157,6 @@ A pins file that spells a row's own page as `/#<id>` has it rewritten to `/zoom/
 | Image | nine picture suffixes, `.svg` among them | [the picture](#a-picture) |
 | PDF | `.pdf` | [the browser's own viewer](#a-pdf) |
 | Vault plugins | `.ts` and `.tsx`, under `plugins/` only | the plugin's own page ([dynamic-plugins.md](dynamic-plugins.md)) |
-| A kind a plugin in your directory claims | the suffixes it names | the page that plugin draws ([dynamic-plugins-faces.md](dynamic-plugins-faces.md)) |
 
 ### A `.csv`
 

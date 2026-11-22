@@ -492,7 +492,7 @@ it here, never the other way round.
 - The plugin is seven code files: the two entries, `words.ts` (the surface,
   imported by both), `columns.tsx`, `pairs.ts` (imported by both), `types.ts`,
   and `lib/sm2.ts` (imported by the server file). The status line on its page
-  reads `7 files, 429 lines`, which a scenario asserts: change a file and that
+  reads `7 files, 446 lines`, which a scenario asserts: change a file and that
   number moves.
 - The browser file adds a **Reading** section to the sidebar linking both
   files and the review, the shortcut `Cmd` + `Shift` + `Y` that opens the
@@ -521,7 +521,13 @@ it here, never the other way round.
   says olai can't open `.reader`.
 - `notes.md` is an ordinary note, above which the reader's
   `document.page.head` face says **Reading companion** and under which its
-  `document.page.foot` face draws a link to the review.
+  `document.page.foot` face draws a link to the review. It holds one fenced
+  block whose language is `reader`, a sentence whose French names
+  `[[maison]]`: with the reader on, its `document.block` face draws the block
+  as columns and is handed the `[[maison]]` as written; with it off, the block
+  is code. A scenario rewrites the note on disk to a two-line block.
+- The plugin's `README.md` ends with a `reader` block too, which its approval
+  page draws as code.
 
 There is no consent here: `reader` arrives off and unapproved, and a scenario
 turns it on at its page. It is an ordinary plugin and nothing in it is about
