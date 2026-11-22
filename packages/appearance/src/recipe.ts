@@ -21,7 +21,7 @@
  */
 
 import { contrastRatio } from "./contrast.ts"
-import type { Depth, PaletteToken, Scheme } from "./palettes.ts"
+import type { DepthOf, PaletteToken, Recipe, Scheme } from "./palettes.ts"
 import { paintedHex } from "./tagInk.ts"
 
 /** The tokens a ramp decides — every one but the accent and the statuses. */
@@ -31,10 +31,11 @@ type GroundToken = "paper" | "desk" | "panel" | "pill" | "ink" | "muted" | "rule
  *  row's one hue. */
 type Ramp = Readonly<Record<GroundToken, readonly [l: number, c: number]>>
 
-/** The ramps, per polarity and depth. A closed set: by day a row is `pale` or
- *  `deep`, by night only `deep` — the dark ramp is abyss's, the one dark ramp
- *  measured off a shipped row, and no second one has been drawn. */
-export const RAMP: Readonly<Record<Scheme, Readonly<Partial<Record<Depth, Ramp>>>>> = {
+/** The ramps, per polarity and depth. A closed set, and the type says which:
+ *  by day a row is `pale` or `deep`, by night only `deep` — the dark ramp is
+ *  abyss's, the one dark ramp measured off a shipped row, and no second one
+ *  has been drawn. */
+export const RAMP: { readonly [S in Scheme]: Readonly<Record<DepthOf<S>, Ramp>> } = {
   light: {
     pale: {
       paper: [0.962, 0.016],
@@ -96,19 +97,13 @@ const ACCENT_STEP = 0.002
 export const ACCENT_ON_PAPER = 5.1
 
 /**
- * A row's eleven colours, from its hue, polarity, depth and accent hue. Hues
- * are OKLCH degrees, taken mod 360. Throws for a depth its polarity has no
- * ramp for (`pale` by night): a row that asked for one would otherwise be
- * written from a ramp nobody measured.
+ * A row's eleven colours, from its polarity and its recipe. Hues are OKLCH
+ * degrees, taken mod 360. The recipe's depth is one its polarity has a ramp
+ * for, because `Recipe<S>` offers no other.
  */
-export const derive = (
-  hue: number,
-  scheme: Scheme,
-  depth: Depth,
-  accentHue: number,
-): Record<PaletteToken, string> => {
-  const ramp = RAMP[scheme][depth]
-  if (ramp === undefined) throw new Error(`no ${depth} ramp for a ${scheme} row`)
+export const derive = <S extends Scheme>(scheme: S, recipe: Recipe<S>): Record<PaletteToken, string> => {
+  const { hue, accentHue } = recipe
+  const ramp: Ramp = RAMP[scheme][recipe.depth]
   const paint = (l: number, c: number, h: number): string =>
     paintedHex(l, c, ((h % 360) + 360) % 360).toUpperCase()
   const grounds = Object.fromEntries(

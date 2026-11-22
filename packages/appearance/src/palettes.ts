@@ -102,22 +102,26 @@ export type PaletteToken = (typeof PALETTE_TOKENS)[number]
 
 export type Scheme = "light" | "dark"
 
-/** How deep a grammar-written row's tint runs: `pale` is reef's own ramp,
- *  `deep` the same steps with about twice its tint. A closed set, and
- *  narrower by night — the dark ramp is abyss's, and there is only the one
- *  (`./recipe.ts`). */
-export type Depth = "pale" | "deep"
+/** How deep a grammar-written row's tint may run, by polarity: `pale` is
+ *  reef's own ramp, `deep` the same steps with about twice its tint. By night
+ *  there is only `deep` — the dark ramp is abyss's, the one dark ramp measured
+ *  off a shipped row (`./recipe.ts`) — so a dark row asking for `pale` is a
+ *  compile error rather than a ramp nobody drew. */
+export type DepthOf<S extends Scheme> = S extends "light" ? "pale" | "deep" : "deep"
 
 /** What a row written by the grammar (`./recipe.ts`) declares: the hue of its
  *  grounds and text, the depth of its tint, and the hue of its accent, all in
- *  OKLCH degrees. The scheme is the row's own. */
-export interface Recipe {
+ *  OKLCH degrees. The scheme is the row's own, and it is what decides which
+ *  depths the row may name. */
+export interface Recipe<S extends Scheme = Scheme> {
   readonly hue: number
-  readonly depth: Depth
+  readonly depth: DepthOf<S>
   readonly accentHue: number
 }
 
-export interface Palette {
+/** One row, in one polarity — the shape `Palette` is the union of, so that a
+ *  row's `recipe` is read against its own `scheme`. */
+interface PaletteOf<S extends Scheme> {
   /** What a page names this theme by — the `data-theme` value, the chip's
    *  label, and the key this browser stores. One string, three jobs. */
   readonly name: string
@@ -128,7 +132,7 @@ export interface Palette {
    * table because it is a fact about the palette — a theme that changed its
    * mind about being dark and forgot this would keep the OS's scrollbars.
    */
-  readonly scheme: Scheme
+  readonly scheme: S
   /**
    * A PROMISE every row makes: every foreground this one paints on a
    * background clears WCAG AA (4.5:1). Said per row so something can hold the
@@ -139,8 +143,10 @@ export interface Palette {
   readonly colors: Readonly<Record<PaletteToken, string>>
   /** Present on a row the grammar wrote, and absent on the four hand-tuned
    *  ones; `./recipe.test.ts` holds `colors` equal to what it derives. */
-  readonly recipe?: Recipe
+  readonly recipe?: Recipe<S>
 }
+
+export type Palette = PaletteOf<"light"> | PaletteOf<"dark">
 
 /** The table itself, `as const` so the names survive as literal types — which
  *  is what makes `ThemeName` a real type and `DEFAULT_THEME` a compile error

@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test"
 
 import { contrastRatio } from "./contrast.ts"
 import { PALETTES } from "./palettes.ts"
-import { ACCENT_ON_PAPER, derive, RAMP } from "./recipe.ts"
+import { ACCENT_ON_PAPER, derive } from "./recipe.ts"
 
 const written = PALETTES.filter((palette) => palette.recipe !== undefined)
 
@@ -36,20 +36,9 @@ describe("the grammar", () => {
       if (recipe === undefined) continue
       expect({ name, colors: { ...colors } }).toEqual({
         name,
-        colors: derive(recipe.hue, scheme, recipe.depth, recipe.accentHue),
+        colors: derive(scheme, recipe),
       })
     }
-  })
-
-  test("a depth is one of the closed set its polarity offers", () => {
-    expect(Object.keys(RAMP.light)).toEqual(["pale", "deep"])
-    expect(Object.keys(RAMP.dark)).toEqual(["deep"])
-    const outside = written
-      .filter(({ scheme, recipe }) => recipe === undefined || !(recipe.depth in RAMP[scheme]))
-      .map((palette) => palette.name)
-    expect(outside).toEqual([])
-    // …and asking for one that is not there is refused, not guessed.
-    expect(() => derive(300, "dark", "pale", 332)).toThrow("no pale ramp for a dark row")
   })
 
   test("every accent it wrote reads on its own paper", () => {
@@ -62,6 +51,8 @@ describe("the grammar", () => {
   })
 
   test("a hue is read mod 360", () => {
-    expect(derive(-58, "light", "deep", 467)).toEqual(derive(302, "light", "deep", 107))
+    expect(derive("light", { hue: -58, depth: "deep", accentHue: 467 })).toEqual(
+      derive("light", { hue: 302, depth: "deep", accentHue: 107 }),
+    )
   })
 })
