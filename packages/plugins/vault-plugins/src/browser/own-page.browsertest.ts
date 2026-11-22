@@ -6,8 +6,8 @@
  * new one. A `<Show>` that is not keyed runs its child once per truthy stretch,
  * so a face replaced with no empty reading in between would leave the old one
  * on screen; the host batches roster changes, so nothing promises that empty
- * reading. The drawing is `./OwnPage.tsx`'s `drawOwnPage`, asked here with
- * faces that answer words instead of elements.
+ * reading. The drawing is `./own-page.ts`'s, which has no JSX, so it is asked
+ * here with faces that answer words instead of elements.
  *
  * Under the browser condition because `<Show>` is a memo.
  */
@@ -15,7 +15,7 @@ import { expect, test } from "bun:test"
 import { createRoot, createSignal, type JSX } from "solid-js"
 
 import type { PluginPageFace } from "../slots.ts"
-import { drawOwnPage } from "./OwnPage.tsx"
+import { drawOwnPage } from "./own-page.ts"
 
 /** A face that draws a word naming itself and the path it was handed. */
 const saying = (who: string): PluginPageFace => (props) => `${who}:${props.rest}` as unknown as JSX.Element

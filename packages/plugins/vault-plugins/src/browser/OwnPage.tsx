@@ -12,12 +12,12 @@
  * at the approval page's own address (`./address.ts`).
  */
 import type { BrowserManagement } from "@olai/surface/management"
-import { type Accessor, createMemo, type JSX, Show } from "solid-js"
+import { createMemo } from "solid-js"
 
-import type { PluginPageFace } from "../slots.ts"
 import { TESTID } from "../testids.ts"
 import { pluginPageHref } from "./address.ts"
 import { ownPageOf } from "./faces.ts"
+import { drawOwnPage } from "./own-page.ts"
 import { LOOK, pluginNamed, type Stage, stageOf } from "./state.ts"
 
 export function OwnPage(props: {
@@ -29,31 +29,12 @@ export function OwnPage(props: {
   const roster = props.management.roster()
   const plugin = createMemo(() => pluginNamed(roster(), props.word))
   const face = createMemo(() => ownPageOf(props.word))
+  // KEYED on the face (`./own-page.ts`): a face replaced by another is the
+  // new one drawn.
   return drawOwnPage(face, () => props.rest, () => (
     <Absent word={props.word} stage={plugin() === undefined ? "missing" : stageOf(plugin()!)} />
   ))
 }
-
-/**
- * THE FACE THE PLUGIN HUNG, keyed on that face, or the fallback where there is
- * none.
- *
- * KEYED, because a face can be replaced by another with no empty reading in
- * between: a new version of the plugin mounted while the page is open, with
- * the host batching the roster change. A `<Show>` that is not keyed runs its
- * child once per truthy stretch, and would go on drawing the old face. Keyed,
- * the child runs again for each face, so the page is always the face hung now
- * (`./own-page.browsertest.ts`).
- */
-export const drawOwnPage = (
-  face: Accessor<PluginPageFace | undefined>,
-  rest: Accessor<string>,
-  fallback: () => JSX.Element,
-): JSX.Element => (
-  <Show when={face()} keyed fallback={fallback()}>
-    {(Face) => <Face rest={rest()} />}
-  </Show>
-)
 
 function Absent(props: { readonly word: string; readonly stage: Stage | "missing" }) {
   const said = () =>
