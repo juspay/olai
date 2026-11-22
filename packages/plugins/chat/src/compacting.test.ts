@@ -46,7 +46,7 @@ const restore = (name: string, value: string | undefined): void => {
 
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "olai-compacting-"))
-  report = join(cwd, "opened.jsonl")
+  report = join(cwd, "opened.log")
   process.env["XDG_STATE_HOME"] = cwd
   process.env[OVERRIDE] = "1"
   process.env[OWN] = "1"
