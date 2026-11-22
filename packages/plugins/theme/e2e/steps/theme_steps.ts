@@ -28,13 +28,21 @@ import {
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
 } from "@olai/web/testlib";
-import { DEFAULT_DARK_THEME, PALETTES, SYSTEM_SCHEME, THEME_NAMES } from "@olai/appearance/palettes.ts";
+import {
+  DEFAULT_DARK_THEME,
+  PALETTE_TOKENS,
+  PALETTES,
+  SYSTEM_SCHEME,
+  THEME_NAMES,
+} from "@olai/appearance/palettes.ts";
 import { focusedOn } from "@olai/tests/harness/caret.ts";
 import { manifestOf } from "@olai/tests/harness/manifest.ts";
 import { showPreferences } from "@olai/tests/harness/preferences.ts";
+import { saveScreenshot } from "@olai/tests/harness/screenshot.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
 import { TESTID } from "@olai/tests/harness/testids.ts";
-import { attr, POLL_TIMEOUT, PREFS_ROW, THEME_CHIP } from "@olai/tests/harness/world.ts";
+import { attr, POLL_TIMEOUT, PREFS_PANEL, PREFS_ROW, THEME_CHIP } from "@olai/tests/harness/world.ts";
+import type { Box } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** What the parse probe leaves on `window`. Named once: an init script and two
@@ -230,9 +238,11 @@ const themeRow = (world: OlaiWorld) =>
  * Every row of the table, picked and read back off the page it paints.
  *
  * The sheet is GENERATED from the table (`appearance/src/css.ts`), one block
- * per row, so the honest check of the whole eighteen is the round trip rather
- * than a spot check of the two or three scenarios name. It is written against
- * the table and not against a hex, which is this file's rule — a retune is a
+ * per row, so the honest check of every row is the round trip rather than a
+ * spot check of the two or three scenarios name — and of EVERY token in the
+ * block and its `color-scheme`, because a block that dropped its alarm or its
+ * scheme paints the right paper and is still wrong. It is written against the
+ * table and not against a hex, which is this file's rule — a retune is a
  * retune in one place — and a row whose block was dropped, mistyped, or given
  * another row's values fails here, in the browser that paints it.
  */
@@ -240,21 +250,122 @@ Then("every palette paints the page it names", async function (this: OlaiWorld) 
   const wrong: Array<string> = [];
   for (const palette of PALETTES) {
     await pick(this, palette.name);
-    const painted = await this.page.evaluate(
-      (property) =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue(property)
-          .trim(),
-      PAPER,
-    );
-    if (painted.toLowerCase() !== palette.colors.paper.toLowerCase()) {
-      wrong.push(
-        `${palette.name}: the page paints ${painted || "(nothing)"}, ` +
-          `the table says ${palette.colors.paper}`,
-      );
+    const painted = await this.page.evaluate((properties) => {
+      const style = getComputedStyle(document.documentElement);
+      return {
+        scheme: style.colorScheme,
+        colours: properties.map((property) => style.getPropertyValue(property).trim()),
+      };
+    }, PALETTE_TOKENS.map(customProperty));
+    PALETTE_TOKENS.forEach((token, at) => {
+      const said = painted.colours[at] ?? "";
+      if (said.toLowerCase() !== palette.colors[token].toLowerCase()) {
+        wrong.push(`${palette.name}.${token}: the page paints ${said || "(nothing)"}, the table says ${palette.colors[token]}`);
+      }
+    });
+    if (painted.scheme !== palette.scheme) {
+      wrong.push(`${palette.name}: the page's color-scheme is "${painted.scheme}", the table says "${palette.scheme}"`);
     }
   }
   assert.deepStrictEqual(wrong, [], "a palette does not paint the page it names");
+});
+
+// ── the picker's two lines ─────────────────────────────────────────────
+
+/** Every swatch's box, by the theme it offers — one read of the page's own
+ *  layout, so the lines are compared at one instant. */
+const swatchBoxes = async (world: OlaiWorld): Promise<ReadonlyMap<string, Box>> => {
+  await showChips(world);
+  const measured = await world.page.locator(THEME_CHIP).evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        value: (element as HTMLElement).dataset.value ?? "",
+        box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      };
+    }),
+  );
+  return new Map(measured.map(({ value, box }) => [value, box]));
+};
+
+Then("the theme swatches stand in two lines, light above dark", async function (this: OlaiWorld) {
+  // Which swatch is light and which dark is the TABLE's word, so a row that
+  // changed polarity moves line without this step learning its name.
+  const boxes = await swatchBoxes(this);
+  const line = (scheme: string): Array<Box> =>
+    PALETTES.filter((palette) => palette.scheme === scheme).map((palette) => {
+      const box = boxes.get(palette.name);
+      assert.ok(box, `no swatch offers ${palette.name}`);
+      return box;
+    });
+  const light = line("light");
+  const dark = line("dark");
+  const tops = (boxes: Array<Box>): Set<number> => new Set(boxes.map((box) => Math.round(box.y)));
+  assert.equal(tops(light).size, 1, `the light swatches stand at ${[...tops(light)].join(", ")}px, not on one line`);
+  assert.equal(tops(dark).size, 1, `the dark swatches stand at ${[...tops(dark)].join(", ")}px, not on one line`);
+  const lightFoot = Math.max(...light.map((box) => box.y + box.height));
+  const darkTop = Math.min(...dark.map((box) => box.y));
+  assert.ok(darkTop >= lightFoot - 1, `the dark line starts at ${Math.round(darkTop)}px, above the light line's foot at ${Math.round(lightFoot)}px`);
+});
+
+Then(
+  "the {string} swatch stands under the {string} swatch",
+  async function (this: OlaiWorld, under: string, over: string) {
+    const boxes = await swatchBoxes(this);
+    const below = boxes.get(under);
+    const above = boxes.get(over);
+    assert.ok(below && above, `no swatch offers ${below ? over : under}`);
+    const centre = (box: Box): number => box.x + box.width / 2;
+    assert.ok(
+      Math.abs(centre(below) - centre(above)) <= 1,
+      `the ${under} swatch is centred at x=${Math.round(centre(below))}, the ${over} swatch at x=${Math.round(centre(above))}`,
+    );
+    assert.ok(
+      below.y >= above.y + above.height - 1,
+      `the ${under} swatch (y=${Math.round(below.y)}) is not below the ${over} swatch (foot at ${Math.round(above.y + above.height)})`,
+    );
+  },
+);
+
+Then("every theme swatch is inside the preferences panel, and a finger's size", async function (this: OlaiWorld) {
+  // 44px is the target both mobile platforms print in their guidelines; the
+  // swatch's disc is smaller, and the button around it is the target.
+  const boxes = await swatchBoxes(this);
+  const panel = await this.box(this.page.locator(PREFS_PANEL), "the preferences panel");
+  const wrong: Array<string> = [];
+  for (const name of THEME_NAMES) {
+    const box = boxes.get(name);
+    if (box === undefined) {
+      wrong.push(`${name}: no swatch`);
+      continue;
+    }
+    if (box.x < panel.x - 1 || box.x + box.width > panel.x + panel.width + 1) {
+      wrong.push(`${name}: x=${Math.round(box.x)}..${Math.round(box.x + box.width)}, the panel is ${Math.round(panel.x)}..${Math.round(panel.x + panel.width)}`);
+    }
+    if (box.width < 44 || box.height < 44) {
+      wrong.push(`${name}: ${Math.round(box.width)}×${Math.round(box.height)}px, under a finger's 44`);
+    }
+  }
+  assert.deepStrictEqual(wrong, [], "a theme swatch is outside the panel or too small to hit");
+});
+
+// ── pictures, for a person to judge ────────────────────────────────────
+
+/** One picture per row of the table, named `theme-<name>.png`, each taken with
+ *  the panel still open on the page that row paints. Evidence and not an
+ *  assertion: whether a palette LOOKS right is a person's call, and these are
+ *  what they look at. The pick itself is still waited on, so a picture is
+ *  never of the theme before. */
+Then("I save a picture of the page in every theme", async function (this: OlaiWorld) {
+  for (const palette of PALETTES) {
+    await pick(this, palette.name);
+    await saveScreenshot(this, `theme-${palette.name}.png`);
+  }
+});
+
+Then("I save a picture of the theme picker as {string}", async function (this: OlaiWorld, name: string) {
+  await showChips(this);
+  await saveScreenshot(this, name, themeRow(this));
 });
 
 // ── the keyboard ───────────────────────────────────────────────────────

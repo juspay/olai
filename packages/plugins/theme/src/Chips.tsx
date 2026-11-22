@@ -10,7 +10,14 @@
  * swatch's tooltip and accessible name, and the one in force beside the row's
  * label (`./AppearanceRows.tsx`).
  *
- * Lights first, then darks, in one row — the table's own order.
+ * TWO LINES, light above dark, in the table's own order. A dark swatch stands
+ * under the light one of its family — the light whose paper is nearest it in
+ * hue, and the neutral under the neutral — so basalt sits under chalk and
+ * abyss under reef, and a person reads each column as one colour by day and
+ * by night. The columns are measured off the table rather than listed here,
+ * so a new row finds its own place. The follow control stands ahead of both
+ * lines; on a phone, where the two would not fit one line, it wraps above
+ * them.
  *
  * ARIA is plain toggle buttons with `aria-pressed`, inside the group the
  * settings row names. A swatch is pressed when its palette is the one IN
@@ -25,7 +32,8 @@
 import { TESTID } from "olai-plugin-theme/testids"
 import { createSelector, For } from "solid-js"
 
-import { PALETTES } from "@olai/appearance/palettes.ts"
+import { hueGap, oklchOf } from "@olai/appearance/hues.ts"
+import { defaultPaletteFor, type Palette, PALETTES } from "@olai/appearance/palettes.ts"
 import type { Appearance } from "./index.ts"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
@@ -33,6 +41,38 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 
 /** A palette's name as a person reads it. */
 export const paletteLabel = (name: string): string => name.charAt(0).toUpperCase() + name.slice(1)
+
+/** A paper with too little chroma to have a hue — chalk's and basalt's. The
+ *  same line `@olai/appearance/palettes.test.ts` tells the neutrals by. */
+const NEUTRAL_CHROMA = 0.01
+
+const LIGHTS = PALETTES.filter((palette) => palette.scheme === "light")
+const DARKS = PALETTES.filter((palette) => palette.scheme === "dark")
+
+/** The column a dark swatch stands in: under the light swatch of its family.
+ *  A neutral goes under the neutral; a hued paper under the hued light whose
+ *  paper is nearest it on the wheel. */
+const columnUnder = (dark: Palette): number => {
+  const ground = oklchOf(dark.colors.paper)
+  const neutral = ground.c < NEUTRAL_CHROMA
+  const distance = (light: Palette): number => {
+    const paper = oklchOf(light.colors.paper)
+    if ((paper.c < NEUTRAL_CHROMA) !== neutral) return Number.POSITIVE_INFINITY
+    return neutral ? 0 : hueGap(ground.h, paper.h)
+  }
+  return LIGHTS.reduce((best, light, at) => (distance(light) < distance(LIGHTS[best]!) ? at : best), 0)
+}
+
+/** Where a swatch sits in the two-line grid, 1-based as CSS counts. */
+interface Place {
+  readonly row: number
+  readonly column: number
+}
+
+const PLACE: ReadonlyMap<string, Place> = new Map<string, Place>([
+  ...LIGHTS.map((light, at) => [light.name, { row: 1, column: at + 1 }] as const),
+  ...DARKS.map((dark) => [dark.name, { row: 2, column: columnUnder(dark) + 1 }] as const),
+])
 
 /** What the row says the page is in: the palette, and whose choice it was. */
 export const themeInForce = (state: Appearance): string =>
@@ -88,40 +128,52 @@ export function ThemeChips(props: { readonly state: Appearance }) {
             aria-hidden="true"
             class={`${DISC} border-rule`}
             style={{
-              background: `linear-gradient(90deg, ${PALETTES[0]!.colors.paper} 0 50%, ${PALETTES.find((p) => p.scheme === "dark")!.colors.paper} 50% 100%)`,
+              background: `linear-gradient(90deg, ${defaultPaletteFor("light").colors.paper} 0 50%, ${defaultPaletteFor("dark").colors.paper} 50% 100%)`,
             }}
           />
         </button>
       </Tip>
       <span aria-hidden="true" class="mx-1 h-5 w-px self-center bg-rule" />
-      <For each={PALETTES}>
-        {(palette) => (
-          <Tip text={paletteLabel(palette.name)}>
-            <button
-              type="button"
-              // The button is the target (44px on a phone, `../touch.ts`); the
-              // swatch inside it is the drawing. The ring says which is in force,
-              // and the focus ring where the caret is — the page's accent, so it
-              // shows against any swatch.
-              class={SWATCH}
-              data-testid={TESTID.themeChip}
-              data-value={palette.name}
-              aria-label={paletteLabel(palette.name)}
-              aria-pressed={isInForce(palette.name) ? "true" : "false"}
-              onClick={() => props.state.theme.pick(palette)}
-            >
-              <span
-                aria-hidden="true"
-                class={DISC}
+      {/* The two lines: a grid whose columns are the light swatches, with
+          each dark one placed under its family. DOM order is still the
+          table's, so Tab walks the light line and then the dark one. */}
+      <div
+        class="grid gap-1 md:gap-1.5"
+        style={{ "grid-template-columns": `repeat(${LIGHTS.length}, auto)` }}
+      >
+        <For each={PALETTES}>
+          {(palette) => (
+            <Tip text={paletteLabel(palette.name)}>
+              <button
+                type="button"
+                // The button is the target (44px on a phone, `../touch.ts`); the
+                // swatch inside it is the drawing. The ring says which is in force,
+                // and the focus ring where the caret is — the page's accent, so it
+                // shows against any swatch.
+                class={SWATCH}
                 style={{
-                  background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
-                  "border-color": palette.colors.rule,
+                  "grid-row": String(PLACE.get(palette.name)!.row),
+                  "grid-column": String(PLACE.get(palette.name)!.column),
                 }}
-              />
-            </button>
-          </Tip>
-        )}
-      </For>
+                data-testid={TESTID.themeChip}
+                data-value={palette.name}
+                aria-label={paletteLabel(palette.name)}
+                aria-pressed={isInForce(palette.name) ? "true" : "false"}
+                onClick={() => props.state.theme.pick(palette)}
+              >
+                <span
+                  aria-hidden="true"
+                  class={DISC}
+                  style={{
+                    background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
+                    "border-color": palette.colors.rule,
+                  }}
+                />
+              </button>
+            </Tip>
+          )}
+        </For>
+      </div>
     </>
   )
 }

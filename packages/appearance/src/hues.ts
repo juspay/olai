@@ -9,8 +9,9 @@
  * degrees and cyans stretch over thirty — so it is checked in OKLCH, the
  * perceptual space this app already renders its tag ink through.
  * `./tagInk.ts` maps the other way (an `oklch()` to the sRGB a browser
- * paints); these are the same Ottosson matrices read backwards, and
- * `./palettes.test.ts` is the only caller.
+ * paints); these are the same Ottosson matrices read backwards.
+ * `./palettes.test.ts` holds the table's claims with them, and the theme
+ * row's picker reads them to stand each dark swatch under its own hue.
  *
  * Pure: no observer, no DOM, no theme. A colour in, a number out.
  */
