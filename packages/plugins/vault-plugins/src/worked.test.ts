@@ -1,6 +1,6 @@
 /**
  * THE DOC'S WORKED EXAMPLES, COMPILED — every half in
- * `website/docs/dynamic-plugins-examples.md` read out of the file and put through the
+ * `website/docs/dynamic-plugins-examples.md` and `dynamic-plugins-faces.md` read out of the files and put through the
  * same call the serve makes.
  *
  * ## Why the doc is the fixture rather than a copy of it
@@ -27,16 +27,17 @@
  * wrong.
  */
 
-import { buildHalf } from "@olai/plugin-build"
+import { asDataUrl, buildPlugin, type Half } from "@olai/plugin-build"
 import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-/** The page the worked examples are on, from the tree rather than from a copy.
- *  The authoring guide is `website/docs/dynamic-plugins.md` and the two examples are
- *  the page beside it, which is where every half a reader may paste lives. */
-const DOC = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "website", "docs", "dynamic-plugins-examples.md")
+/** The pages the worked examples are on, from the tree rather than from a copy.
+ *  The authoring guide is `website/docs/dynamic-plugins.md`; the examples are
+ *  the two pages beside it, which is where every half a reader may paste lives. */
+const DOCS = ["dynamic-plugins-examples.md", "dynamic-plugins-faces.md"].map((doc) =>
+  join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "website", "docs", doc))
 
 /**
  * EVERY HALF ON THE PAGE, by the label the page puts over it.
@@ -59,7 +60,7 @@ const halvesIn = (page: string, label: string): ReadonlyArray<string> => {
     new RegExp("`" + label + "`:\\n+```[a-z]*\\n([\\s\\S]*?)```", "g"),
   )].flatMap((hit) => (hit[1] === undefined ? [] : [hit[1]]))
   if (found.length === 0) {
-    throw new Error(`website/docs/dynamic-plugins-examples.md has no fenced block under \`${label}\`:`)
+    throw new Error(`the worked-example pages have no fenced block under \`${label}\`:`)
   }
   return found
 }
@@ -82,35 +83,53 @@ const halfNaming = (label: string, marker: string): string => {
   const found = halvesIn(page, label).filter((one) => one.includes(marker))
   if (found.length !== 1) {
     throw new Error(
-      `website/docs/dynamic-plugins-examples.md has ${found.length} \`${label}\` blocks mentioning `
+      `the worked-example pages have ${found.length} \`${label}\` blocks mentioning `
         + `${JSON.stringify(marker)}; this claim is about the one that does.`,
     )
   }
   return found[0] as string
 }
 
-const page = readFileSync(DOC, "utf8")
+const pages = DOCS.map((doc) => readFileSync(doc, "utf8"))
+const page = pages.join("\n\n")
+
+/**
+ * ONE ENTRY AS A PLUGIN FOLDER: the entry, and every other code file the same
+ * page prints under its own path, because an example split over several files
+ * builds only with the files beside it.
+ */
+const built = (half: Half, text: string, source: string) => {
+  const entry = half === "server" ? "server.ts" : "browser.tsx"
+  const helpers = [...text.matchAll(/`([^`\n]+\.tsx?)`:\n+```[a-z]*\n([\s\S]*?)```/g)]
+    .flatMap((hit) => (hit[1] === undefined || hit[2] === undefined || hit[1] === "server.ts" || hit[1] === "browser.tsx" ? [] : [[hit[1], hit[2]] as const]))
+  return buildPlugin(half, entry, new Map([[entry, source], ...helpers]), (_path, module) => asDataUrl(module))
+}
 
 test("every server half on the page builds", async () => {
-  const halves = halvesIn(page, "server.ts")
   // A FLOOR, so a page that lost its examples to a rewrite cannot pass by
   // having none. A count and not an order: which example is which is asked by
   // {@link halfNaming}, and the page is free to rearrange itself.
-  expect(halves.length).toBeGreaterThanOrEqual(2)
-  for (const source of halves) {
-    const built = await buildHalf("server", source)
-    if (!built.ok) throw new Error(built.why)
-    expect(built.ok).toBe(true)
+  expect(halvesIn(page, "server.ts").length).toBeGreaterThanOrEqual(2)
+  for (const text of pages) {
+    if (!text.includes("`server.ts`:")) continue
+    for (const source of halvesIn(text, "server.ts")) {
+      const made = await built("server", text, source)
+      if (!made.ok) throw new Error(made.why)
+      expect(made.ok).toBe(true)
+    }
   }
 })
 
 test("every browser half on the page builds", async () => {
-  for (const source of halvesIn(page, "browser.tsx")) {
-    const built = await buildHalf("browser", source)
-    if (!built.ok) throw new Error(built.why)
-    // ...and comes out bound, which is what a tab is handed.
-    expect(built.text).toContain("__olai_plugin_modules")
-    expect(built.text).not.toMatch(/^\s*import\s/m)
+  for (const text of pages) {
+    if (!text.includes("`browser.tsx`:")) continue
+    for (const source of halvesIn(text, "browser.tsx")) {
+      const made = await built("browser", text, source)
+      if (!made.ok) throw new Error(made.why)
+      // ...and comes out bound, which is what a tab is handed.
+      expect(made.text).toContain("__olai_plugin_modules")
+      expect(made.text).not.toMatch(/^\s*import\s/m)
+    }
   }
 })
 
@@ -152,4 +171,19 @@ test("...and the swatch's face reads the chip's context rather than a bare value
   const face = halfNaming("browser.tsx", "outline.row.chip")
   expect(face).toContain("context.entry.value")
   expect(face).not.toContain("props.value")
+})
+
+/**
+ * THE READING COMPANION'S BROWSER FILE EXPORTS THE SURFACE IT CALLS.
+ *
+ * A build cannot see this either: a browser file that calls `clientOf(surface,
+ * wired)` without `export { surface }` compiles and mounts, and the tab never
+ * connects to the plugin's server file, so every call is skipped and a click
+ * writes nothing. The server file is the one that answers through the gate.
+ */
+test("...and the reading companion's browser file exports the surface its server file answers", () => {
+  const browser = halfNaming("browser.tsx", "clientOf(")
+  expect(browser).toContain("export { surface }")
+  const server = halfNaming("server.ts", "Surfaces")
+  expect(server).toContain("gate.run(")
 })

@@ -10,7 +10,7 @@ import { protectComposition } from "@olai/web/client/composition.ts"
 import { followKeys, KEYS_SETTLING, quiescence } from "@olai/web/client/quiescence.ts"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { atElement } from "./routes.ts"
-import type { FileLink } from "@olai/plugin-api"
+import type { FileLink, Navigate } from "@olai/plugin-api"
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdPaletteFaces, holdRouteFaces, routeFaces } from "./faces.ts"
 import { readings } from "olai-plugin-search/reading"
@@ -26,14 +26,15 @@ import { createMemo,createRoot,createRenderEffect } from "solid-js"
 import { name,navigation,content,pages,type PaletteControl } from "./index.ts"
 import { askInPalette,closePalette,dropQuestion,openPalette,openPaletteAt,paletteAsking } from "./palette/state.ts"
 import { paletteOpen } from "./palette/state.ts"
-import { PageView } from "./PageView.tsx"
+import { PageView, PluginFilePage } from "./PageView.tsx"
+import { filePagesOver } from "./file-pages.ts"
 import { SelfDrawnPage, selfDrawn } from "./SelfDrawnPage.tsx"
 import { followPaletteShortcut } from "./palette/shortcut.ts"
 import { scopePaletteState } from "./palette/open-owner.ts"
 import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
 import { PaneProvider } from "./pane/context.tsx"
 import { atFile,settleRoutePages } from "./routes.ts"
-import { holdRoutePages,holdFiles,fileClaims,routing } from "./pages.ts"
+import { holdPluginFilePages,holdRoutePages,holdFiles,fileClaims,routing } from "./pages.ts"
 import { Link,RouterProvider,useMaybeRouter } from "./routing.tsx"
 import { createNavigation } from "./state.ts"
 import { guardPageInput } from "./page-input.ts"
@@ -78,6 +79,10 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   }}))
   yield* offers.own("links", () => ({ File }))
   yield* offers.own("gestures", () => ({ swallowGhost: ghosts.swallow }))
+  // OPEN AN ADDRESS, as a link to it opens and as the palette opens an
+  // `app.palette` row: the router's own grammar reads it (`@olai/plugin-api`'s
+  // `Navigate`), so a key or a command moves the pane with no link of its own.
+  yield* offers.own("open", (): Navigate => ({ open: (address) => state.value.go(routing.routeOf(address)) }))
 }) })
 /**
  * WHAT THIS ROW READS OF THE RENDERER — a COMPONENT, because the row is not
@@ -119,7 +124,12 @@ export const components = {
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))
-   return ()=>{dispose();stop()}
+   // ...AND THE `file.page` FACES, settled into one page per registration in
+   // this same root and held for PageView, so a plugin's file page exists
+   // exactly while this component holds the faces it is read from
+   // (`./file-pages.ts`). A memo, as the claim table above is.
+   const stopFiles=holdPluginFilePages(createMemo(filePagesOver(()=>routeFaces("file.page"),(face,file)=><PluginFilePage face={face} file={file}/>)))
+   return ()=>{dispose();stopFiles();stop()}
  })),stop=>Effect.sync(stop))
 })}), files:definePlugin({name:"files",needs:[fileAccess],apply:Effect.gen(function*(){
  const files=yield* fileAccess

@@ -43,12 +43,13 @@
  * and cannot be given one.
  */
 
-import { buildHalf, REGISTRY } from "@olai/plugin-build"
+import { asDataUrl, buildPlugin } from "@olai/plugin-build"
+import { REGISTRY } from "@olai/plugin-build/shared"
 import { itemKey, UsageFailure, type OpFailure, type WriteRequest, type Reading } from "@olai/format"
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
-import { PLUGIN_CHUNK_PREFIX, PLUGIN_FILES, type PluginState } from "@olai/surface"
+import { PLUGIN_BROWSER_FILE, PLUGIN_CHUNK_PREFIX, PLUGIN_SERVER_FILE, pluginFileOrder, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
 import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
@@ -107,9 +108,9 @@ export interface DynamicRuntime {
    *  answers nothing: the caller republishes either way, because a revision
    *  that moved no plugin still moved the file it landed in. */
   readonly follow: (reading: Reading | null) => Effect.Effect<void>
-  /** The text of a built browser half, by the path the roster published it
-   *  under. `null` for anything else, which is a stale tab asking for a version
-   *  that has been replaced. */
+  /** The text of a built browser file, by the path the roster published it
+   *  under or the path its entry imports it by. `null` for anything else,
+   *  which is a stale tab asking for a version that has been replaced. */
   readonly chunk: (path: string) => string | null
   /**
    * Turn one vault plugin off or on — the panel's switch, the page's, and the
@@ -186,12 +187,14 @@ export interface DynamicRuntime {
 }
 
 /** ONE PLUGIN THAT IS UP — what was mounted, with the chunk its face is served
- *  from. NOTHING ABOUT ITS STATE: that is the registry's and is read afresh
- *  (see {@link DynamicRuntime.rows}). */
+ *  from and every other browser file that face imports, by the path each is
+ *  served at. NOTHING ABOUT ITS STATE: that is the registry's and is read
+ *  afresh (see {@link DynamicRuntime.rows}). */
 interface Live {
   readonly mounted: Mounted
   readonly chunk: string | null
   readonly path: string | null
+  readonly modules: ReadonlyMap<string, string>
 }
 
 /**
@@ -258,11 +261,12 @@ export const openDynamic = (
 ): DynamicRuntime => {
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
-  /** THE LAST FACE EACH WORD SERVED, kept after it stops. A tab imports a
-   *  chunk named by the roster it is holding, and a row that leaves — switched
-   *  off, edited, or its folder deleted — would otherwise 404 that import.
-   *  One entry per plugin, replaced when it starts again. */
-  const retired = new Map<string, { readonly path: string; readonly chunk: string }>()
+  /** THE LAST FACE EACH WORD SERVED, kept after it stops — its entry and every
+   *  file the entry imports. A tab imports a chunk named by the roster it is
+   *  holding, and a row that leaves — switched off, edited, or its folder
+   *  deleted — would otherwise 404 that import. One set per plugin, replaced
+   *  when it starts again. */
+  const retired = new Map<string, { readonly path: string; readonly chunk: string; readonly modules: ReadonlyMap<string, string> }>()
   const warnings: string[] = []
   const warned = new Set<string>()
   const warn = (line: string) => { if (!warned.has(line)) { warned.add(line); warnings.push(line) } }
@@ -285,7 +289,7 @@ export const openDynamic = (
    * of what the hash named — so the page shows the code it has rather than a
    * diff, and asks for the same decision either way.
    */
-  const approvedSource = new Map<string, { readonly server: string; readonly browser: string | null }>()
+  const approvedSource = new Map<string, ReadonlyMap<string, string>>()
   /**
    * WHETHER A VERSION NOBODY HAS APPROVED WOULD EVEN COMPILE — kept per word,
    * at the version it was asked about, exactly as {@link Started} is.
@@ -300,7 +304,7 @@ export const openDynamic = (
    * code. The mockup's *Mend* screen is exactly this state, and it is reachable
    * only if the fault is known before the decision.
    *
-   * `buildHalf` is a TRANSFORM — esbuild over text, no evaluation of any kind —
+   * `buildPlugin` is a TRANSFORM — esbuild over text, no evaluation of any kind —
    * which is what makes this safe to do to source nobody has said yes to. The
    * module is still never imported until {@link start}, and {@link start} is
    * still only reached through an approval.
@@ -355,7 +359,7 @@ export const openDynamic = (
       // it, so a folder that was deleted and written again is not diffed
       // against a predecessor nobody approved.
       for (const one of defined) {
-        if (isApproved(one)) approvedSource.set(one.name, { server: one.server, browser: one.browser })
+        if (isApproved(one)) approvedSource.set(one.name, one.code)
       }
       forget(approvedSource)
       // ...AND THE COMPILE OF WHAT NOBODY HAS APPROVED, for the same reason
@@ -415,7 +419,7 @@ export const openDynamic = (
         // 404 that fetch turns an ordinary withdrawal into an error in
         // somebody's console. One path per plugin, replaced the next time it
         // starts, so the memory is the roster's own size.
-        if (one.up && one.path !== null && one.chunk !== null) retired.set(name, { path: one.path, chunk: one.chunk })
+        if (one.up && one.path !== null && one.chunk !== null) retired.set(name, { path: one.path, chunk: one.chunk, modules: one.modules })
         started.delete(name)
         if (!one.up) continue
         yield* one.mounted.dispose
@@ -487,11 +491,22 @@ export const openDynamic = (
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),
     chunk: (path) => {
-      for (const one of started.values()) if (one.up && one.path === path) return one.chunk
+      for (const one of started.values()) {
+        if (!one.up) continue
+        if (one.path === path) return one.chunk
+        // A FILE THE FACE IMPORTS is served at a path under the entry's own,
+        // and found by the same equality: there is still no path to traverse.
+        const module = one.modules.get(path)
+        if (module !== undefined) return module
+      }
       // ...and a face that has just left is still served for whoever is
       // already fetching it (the `retired` note above). The version is in the
       // path, so this can only answer with the bytes that path named.
-      for (const one of retired.values()) if (one.path === path) return one.chunk
+      for (const one of retired.values()) {
+        if (one.path === path) return one.chunk
+        const module = one.modules.get(path)
+        if (module !== undefined) return module
+      }
       return null
     },
 
@@ -528,11 +543,9 @@ export const openDynamic = (
       const one = seen.find((one) => one.name === name)
       if (one === undefined) return false
       // THE FOLDER'S OWN ORDER rather than the set's, so the writes a ledger
-      // records read the way the page lists the files: prose, server, face.
-      for (const file of PLUGIN_FILES) {
-        if (!one.holds.includes(file)) continue
-        yield* write({ op: "delete", file: `${one.folder}${file}` })
-      }
+      // records read the way the page lists the files: prose, server, face,
+      // then every other code file by path.
+      for (const file of one.holds) yield* write({ op: "delete", file: `${one.folder}${file}` })
       const node = one.consent.node
       if (node !== undefined) yield* write({ op: "trash", id: node.node.id })
       return true
@@ -630,23 +643,75 @@ const optionsKey = (one: Defined): string => {
 }
 
 /**
+ * BOTH ENTRIES OF ONE DEFINITION, BUILT with every file each imports — or the
+ * builder's sentence for the first that will not build.
+ *
+ * The server's files are linked as `data:` modules, because that is how the
+ * serve evaluates them; the browser's at paths under the entry's own chunk,
+ * which is where the tab fetches them ({@link DynamicRuntime.chunk}). What is
+ * built is `one.code`, the files of the reading whose hash is `one.version`.
+ */
+const builtFrom = (one: Defined) =>
+  Effect.gen(function*() {
+    const server = yield* Effect.promise(() =>
+      buildPlugin("server", PLUGIN_SERVER_FILE, one.code, (path, text) => serverModule(one, path, text)))
+    if (!server.ok) return { ok: false as const, why: server.why }
+    if (one.browser === null) return { ok: true as const, server, browser: null }
+    const base = chunkBaseOf(one)
+    // The route decodes the address back to the path stored here (`./route.ts`).
+    const browser = yield* Effect.promise(() =>
+      buildPlugin("browser", PLUGIN_BROWSER_FILE, one.code, (path) => `${base}/${encodedPath(path)}.js`))
+    if (!browser.ok) return { ok: false as const, why: browser.why }
+    return { ok: true as const, server, browser }
+  })
+
+/** A file's path with EACH SEGMENT ENCODED, wherever this file writes one into
+ *  an address or a module's text: a file's name may hold what a URL gives a
+ *  meaning to (`#`, `?`, `%`) or a line break, and none of it may mean anything
+ *  there. */
+const encodedPath = (path: string): string => path.split("/").map(encodeURIComponent).join("/")
+
+/**
+ * ONE SERVER FILE AS THE MODULE IT IS EVALUATED AS — its text, closed by a
+ * line naming the plugin, the version and the path.
+ *
+ * A `data:` module is evaluated once per URL and shared by every importer of
+ * that URL, and the URL is the text. Two plugins holding the same bytes in a
+ * helper would share its module-level state, and so would two versions of one
+ * plugin whose helper did not change. The closing line makes the URL — so the
+ * module — one plugin's at one version, as the tab's addresses already are
+ * (`chunkBaseOf`).
+ *
+ * NOTHING OF THE NAME IS EVALUATED. The path is a file's name, which a person
+ * reads as a tab's label and never as code, so each segment is
+ * percent-encoded, as the tab's address is: no character of it can end the
+ * comment's line. (`@olai/surface`'s `isPluginCode` refuses a name with a line
+ * break or a control character in the first place; this does not rely on it.)
+ */
+export const serverModuleText = (word: string, version: string, path: string, text: string): string =>
+  `${text}\n//# sourceURL=olai-plugin:/${encodeURIComponent(word)}@${version}/${encodedPath(path)}\n`
+
+const serverModule = (one: Defined, path: string, text: string): string =>
+  asDataUrl(serverModuleText(one.name, one.version, path, text))
+
+/** Where a version's face is served from: the entry at `<base>.js`, and each
+ *  file it imports at `<base>/<path>.js`. The version is in it, so an approved
+ *  edit is a different address and no cache can hand back older code. */
+const chunkBaseOf = (one: Defined): string => `${PLUGIN_CHUNK_PREFIX}${one.name}-${one.version}`
+
+/**
  * WOULD THIS SOURCE BUILD — asked of a version nobody has approved, answered
  * with the builder's own sentence or `null`.
  *
- * `buildHalf` is the same transform {@link start} runs and `vault-plugins_write`
- * answers with; what is NOT here is {@link loaded}, which is the import. A
- * plugin nobody has said yes to is never evaluated, and this is the line that
- * says so in code: a syntax error, a forbidden import and a half that names a
- * module olai does not bind are all decided by esbuild over text.
+ * {@link builtFrom} is the same transform {@link start} runs and
+ * `vault-plugins_write` answers with; what is NOT here is {@link loaded},
+ * which is the import. A plugin nobody has said yes to is never evaluated, and
+ * this is the line that says so in code: a syntax error, a forbidden import, an
+ * import of a file the folder does not hold and a file that names a module olai
+ * does not bind are all decided over text.
  */
-const compiles = (one: Defined): Effect.Effect<string | null> =>
-  Effect.gen(function*() {
-    const server = yield* Effect.promise(() => buildHalf("server", one.server))
-    if (!server.ok) return server.why
-    if (one.browser === null) return null
-    const browser = yield* Effect.promise(() => buildHalf("browser", one.browser ?? ""))
-    return browser.ok ? null : browser.why
-  })
+export const compiles = (one: Defined): Effect.Effect<string | null> =>
+  Effect.map(builtFrom(one), (built) => (built.ok ? null : built.why))
 
 /**
  * BUILD AND MOUNT ONE DEFINITION — and the answer is what came of it, either
@@ -677,13 +742,10 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
   Effect.gen(function*() {
     const options = optionsKey(one)
     const faulted = (why: string): Started => ({ up: false, version: one.version, options, why })
-    const server = yield* Effect.promise(() => buildHalf("server", one.server))
-    if (!server.ok) return faulted(server.why)
-    const browser = one.browser === null
-      ? null
-      : yield* Effect.promise(() => buildHalf("browser", one.browser ?? ""))
-    if (browser !== null && !browser.ok) return faulted(browser.why)
-    const plugin = yield* Effect.promise(() => loaded(server.text))
+    const built = yield* builtFrom(one)
+    if (!built.ok) return faulted(built.why)
+    const { server, browser } = built
+    const plugin = yield* Effect.promise(() => loaded(serverModule(one, PLUGIN_SERVER_FILE, server.text)))
     if (typeof plugin === "string") return faulted(plugin)
     // THE WORD IS THE VAULT'S, and a half that named itself something else would
     // be a fiber bound under a word no row draws — its kinds prefixed wrongly,
@@ -711,7 +773,8 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
       version: one.version,
       mounted,
       chunk: browser === null ? null : browser.text,
-      path: browser === null ? null : `${PLUGIN_CHUNK_PREFIX}${one.name}-${one.version}.js`,
+      path: browser === null ? null : `${chunkBaseOf(one)}.js`,
+      modules: new Map(browser === null ? [] : browser.modules.map((module) => [`${chunkBaseOf(one)}/${module.path}.js`, module.text] as const)),
     }
   })
 
@@ -729,8 +792,7 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
  * evaluation: the module cache is keyed by the URL, and the URL carries the
  * bytes.
  */
-const loaded = async (text: string): Promise<Plugin | string> => {
-  const url = `data:text/javascript;base64,${Buffer.from(text, "utf8").toString("base64")}`
+const loaded = async (url: string): Promise<Plugin | string> => {
   let module: { readonly default?: unknown }
   try {
     module = await import(url) as { readonly default?: unknown }
@@ -761,7 +823,7 @@ const rowOf = (
   one: Defined,
   started: Started | undefined,
   report: RowReport | undefined,
-  approvedSource: { readonly server: string; readonly browser: string | null } | undefined,
+  approvedSource: ReadonlyMap<string, string> | undefined,
   /** What the transform made of a version nobody has approved, where there is
    *  one to report ({@link checkedBuilds}). */
   pending: { readonly version: string; readonly why: string | null } | undefined,
@@ -772,9 +834,9 @@ const rowOf = (
   asking: boolean,
 ): BuiltPlugin => {
   const up = started?.up === true ? started : null
-  // THE APPROVED HALVES ONLY WHERE THEY DIFFER, which is exactly the paused
-  // row and exactly where a diff is drawn. A row whose code nobody has touched
-  // would otherwise carry its own source twice on every roster.
+  // THE APPROVED FILES ONLY WHERE THEY DIFFER, which is exactly the paused
+  // row and exactly where a diff is drawn ({@link codeOnRow}). A row whose code
+  // nobody has touched would otherwise carry its own source twice on every roster.
   const was = approvedSource === undefined || isApproved(one) ? undefined : approvedSource
   const source = {
     folder: one.folder,
@@ -796,8 +858,7 @@ const rowOf = (
     on: isOn(one),
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
-    ...(was === undefined || was.server === one.server ? {} : { approvedServer: was.server }),
-    ...(was === undefined || was.browser === one.browser || was.browser === null ? {} : { approvedBrowser: was.browser }),
+    code: codeOnRow(one.code, was),
     ...(one.uses.length === 0 ? {} : { uses: one.uses }),
     ...(chat ? { chat: true } : {}),
     ...(asking ? { asking: true } : {}),
@@ -835,3 +896,22 @@ const rowOf = (
     ...(report.state === "waiting" && report.missing !== undefined ? { missing: report.missing } : {}),
   })
 }
+
+/**
+ * EVERY CODE FILE AS THE ROW CARRIES IT, in the page's order — and, on a
+ * paused row, the approved text of each file that differs: `""` for a file
+ * added since the approval, and no `text` for one removed since.
+ */
+const codeOnRow = (
+  code: ReadonlyMap<string, string>,
+  was: ReadonlyMap<string, string> | undefined,
+): ReadonlyArray<{ readonly path: string; readonly text?: string; readonly approved?: string }> =>
+  pluginFileOrder([...code.keys(), ...(was?.keys() ?? [])]).map((path) => {
+    const text = code.get(path)
+    const approved = was === undefined ? text : was.get(path) ?? ""
+    return {
+      path,
+      ...(text === undefined ? {} : { text }),
+      ...(approved === text ? {} : { approved }),
+    }
+  })

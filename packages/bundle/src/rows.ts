@@ -129,6 +129,10 @@ export interface BrowserRow {
 export interface BundleRow {
   /** Selected by the host; executed only in a browser. Derived from package exports. */
   readonly browserOnly?: boolean
+  /** A browser-only row's inert `./slots` door, as a specifier: the static
+   *  contracts its browser entry declares, which the serve reads in place of
+   *  that entry. Derived from package exports, like `browserOnly`. */
+  readonly slots?: string
   readonly id: string
   readonly name: string
   readonly disabled?: boolean

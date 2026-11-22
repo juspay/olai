@@ -367,6 +367,16 @@ Then("the plugin page's README does not say {string}", async function (this: Ola
     `the README on the page says ${JSON.stringify(said)}, and it may not`)
 })
 
+/** ...AND A FENCE IN IT IS CODE, whatever plugin claims its language: the
+ *  approval page reads a plugin's words before anything of it runs, so it
+ *  hands no fence to a face. Found as the code block Markdown draws for an
+ *  unclaimed fence, and the plugin's own drawing is nowhere in the README. */
+Then("the plugin page's README draws its {word} block as code", async function (this: OlaiWorld, language: string) {
+  const readme = this.page.locator(`${PAGE} ${PAGE_README}`).first()
+  await readme.locator(`pre code.language-${language}`).first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  assert.equal(await readme.locator("[data-olai-block]").count(), 0, `the README hands a ${language} fence to a face`)
+})
+
 /** *What it uses*, read off the code's own imports rather than off anything
  *  the author wrote in prose — the kinds it teaches, the slots it draws into,
  *  the services it names. */

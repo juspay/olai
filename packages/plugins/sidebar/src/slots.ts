@@ -35,6 +35,8 @@ declare module "@olai/plugin-api/slots" {
 }
 
 export const slotContracts = {
-  "sidebar.entry": slotContract<SidebarEntry>("sidebar.entry","nothing"),
-  "sidebar.section": slotContract<SidebarSection>("sidebar.section","nothing"),
+  "sidebar.entry": slotContract<SidebarEntry>("sidebar.entry","nothing",
+    "A `{ place, body, rail? }`: `place` is `top`, `bottom` or `foot`, `body` is called with nothing and draws the entry in the sidebar's column, and `rail` is called with nothing and draws its icon on the collapsed rail."),
+  "sidebar.section": slotContract<SidebarSection>("sidebar.section","nothing",
+    "A `{ said, body }`: `said` is the section's name in the plugin's own words, and `body` is called with nothing and draws the whole section under the app's own."),
 } as const

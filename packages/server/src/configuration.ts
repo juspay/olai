@@ -7,7 +7,6 @@ import { BUNDLE_NAMES, configsOf, offered, patchBundleRow, patchBundleRows, prof
 import { BundleModules, ConfigurationSource, FileKinds, Env, Ops as WriteDoor } from "@olai/plugin-api/services"
 import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, configurationNode, policyEdit, decodePolicy, environmentReadings, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
 import { UsageFailure, type OpFailure, type WriteRequest } from "@olai/format"
-import type { Ops } from "@olai/ops"
 import type { Plugin } from "@olai/plugin-api"
 import { Deferred, Effect, Fiber, Queue, Semaphore, Stream, SubscriptionRef } from "effect"
 
@@ -115,7 +114,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
       ? { op: "prop", id: row.node.id, key: "on", value: seed.props.on }
       : at.file === undefined ? { op: "create", file: CONFIGURATION_FILE, seed }
       : { op: "add", file: at.file, ...seed }
-    const written = yield* (door.gate as Ops).run(request, "web")
+    const written = yield* door.gate.run(request, "web")
     yield* awaitRevision(source, written.rev)
     return true
   }))
@@ -129,7 +128,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     if (request === undefined) { yield* awaitRevision(source, at.revision); return true }
     const door = offered(host, WriteDoor)
     if (door === undefined) return yield* Effect.fail(new UsageFailure({ reason: "The directory's write door is unavailable." }))
-    const written = yield* (door.gate as Ops).run(request, "web")
+    const written = yield* door.gate.run(request, "web")
     yield* awaitRevision(source, written.rev)
     return true
   }))

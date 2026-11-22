@@ -83,14 +83,17 @@ export { App, appName } from "./app.ts"
  *  disagree with the serve about which of five mornings a row is having. */
 export {
   BuiltPlugin,
+  codeFilesOf,
+  type PluginCodeFile,
   NO_ROSTER,
   PLUGIN_BROWSER_FILE,
   PLUGIN_CHUNK_PREFIX,
-  PLUGIN_FILES,
+  isPluginCode,
   PLUGIN_FOLDER,
   PLUGIN_README_FILE,
   PLUGIN_SERVER_FILE,
   type PluginState,
+  pluginFileOrder,
   pluginState,
   PluginRoster,
   watchable,

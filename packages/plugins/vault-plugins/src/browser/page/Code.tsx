@@ -1,5 +1,5 @@
 /**
- * **The code** — the three files, read-only, under the folder they live in.
+ * **The code** — every file of the folder, read-only, under the folder they live in.
  *
  * ## Why the source is on the page at all
  *
@@ -30,7 +30,7 @@
  * markdown pipeline the README is already rendered through.
  */
 
-import { PLUGIN_BROWSER_FILE, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
+import { codeFilesOf, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
@@ -47,15 +47,19 @@ interface Choice {
   readonly was: string | undefined
 }
 
+/** The README, then every code file in the page's order. On a paused plugin a
+ *  file removed since the approval is a choice too, drawn as its lines going. */
 const choicesOf = (source: Source, diffing: boolean): ReadonlyArray<Choice> => [
   ...(source.readme === undefined ? [] : [{ file: PLUGIN_README_FILE, text: source.readme, was: undefined }]),
-  { file: PLUGIN_SERVER_FILE, text: source.server, was: diffing ? source.approvedServer : undefined },
-  ...(source.browser === undefined ? [] : [{ file: PLUGIN_BROWSER_FILE, text: source.browser, was: diffing ? source.approvedBrowser : undefined }]),
+  ...codeFilesOf(source).flatMap((one) =>
+    one.text === undefined && !(diffing && one.approved !== undefined)
+      ? []
+      : [{ file: one.path, text: one.text ?? "", was: diffing ? one.approved : undefined }]),
 ]
 
-/** Which file opens first. On a paused plugin it is the half that MOVED — the
- *  only reason this block is being looked at — and otherwise the server half,
- *  which every plugin has. */
+/** Which file opens first. On a paused plugin it is the first file that
+ *  MOVED — the only reason this block is being looked at — and otherwise the
+ *  server entry, which every plugin has. */
 const firstOf = (choices: ReadonlyArray<Choice>): string =>
   choices.find((one) => one.was !== undefined)?.file
     ?? choices.find((one) => one.file === PLUGIN_SERVER_FILE)?.file
@@ -80,7 +84,7 @@ export function Code(props: {
       ?? choices()[0])
   return (
     <div class="overflow-hidden rounded-control border border-line/60" data-testid={TESTID.pageCode} data-file={shown()?.file}>
-      <div class="flex items-center gap-1 border-b border-line/60 bg-desk px-2 py-1" role="tablist" aria-label="Which file to read">
+      <div class="flex flex-wrap items-center gap-1 border-b border-line/60 bg-desk px-2 py-1" role="tablist" aria-label="Which file to read">
         <For each={choices()}>
           {(one) => (
             <button

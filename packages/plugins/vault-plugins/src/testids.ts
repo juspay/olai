@@ -29,6 +29,10 @@ export const TESTID = {
   page: "plugin-page",
   /** ...and the page for a word no plugin in this vault has. */
   pageMissing: "plugin-page-missing",
+  /** `/plugins/<word>/app…` where the plugin draws nothing there — it is not
+   *  running, or registered no page — keyed by `data-plugin` and the stage in
+   *  `data-stage`. Where it does draw, the face is the plugin's own. */
+  ownPageAbsent: "plugin-own-page-absent",
   /** The state line under the title: dot, word, meta. */
   pageState: "plugin-page-state",
   /** The one primary verb, whatever this state's verb is. */

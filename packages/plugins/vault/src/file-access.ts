@@ -2,7 +2,6 @@
  * subscriptions are acquired on this provider's scope; UI and layout are not dependencies of this half. */
 
 import { bodyKind, samePageReading, type FiledPageReading } from "@olai/format"
-import type { Ops as Gate } from "@olai/ops"
 import type { VaultSettings as Settings } from "@olai/ops"
 import { definePlugin, Directory, Ops, FileKinds, VaultSettings, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Store } from "@olai/ops"
@@ -27,7 +26,7 @@ export default definePlugin({
   apply: Effect.gen(function*() {
     const store = (yield* Directory).store as Store
     const vault = yield* Vault
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     const revisions = inMemoryChannel<void>()
     const kinds = yield* FileKinds
     const settings = (yield* VaultSettings) as Settings

@@ -48,7 +48,7 @@ import { resolveExpose } from "@kolu/surface-mcp"
 import { AGENT_SIBLINGS } from "@olai/bundle/agent-face"
 import { findSaid } from "@olai/log/testlib"
 import { hostFaces, hostSurface } from "@olai/surface/host"
-import { openLoading, openPlugins } from "@olai/plugin-api/services"
+import { openLoading, openPlugins, rowReport, type RowReport } from "@olai/plugin-api/services"
 import { mountBundle, provide, settled } from "@olai/bundle/bundle"
 import { VaultBoot } from "olai-plugin-vault/boot"
 import { expect, test } from "bun:test"
@@ -61,7 +61,7 @@ import { WebSocket as WsClient } from "ws"
 import { CONTENT_ROWS, runtimeFor } from "./capabilities.testlib.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
-import { bind } from "./runtime.ts"
+import { bind, type Bound, writerAt } from "./runtime.ts"
 import { runtimePaths } from "./runtime-paths.ts"
 import { served, SERVER_LAYERS, withServe } from "./serve.testlib.ts"
 
@@ -97,6 +97,11 @@ interface Composed {
   /** Every tag the composed generation serves — so "granted" can be checked
    *  against "bound", which are two different tables. */
   readonly served: ReadonlyArray<string>
+  /** The bound generation's handlers and its attribution table — what a
+   *  transport hands `writerAt` with its caller (`./serve.ts`). */
+  readonly bound: Pick<Bound, "handlers" | "writes">
+  /** What the registry says of these plugins now: each one's state and fault. */
+  readonly reports: (names: ReadonlyArray<string>) => Promise<ReadonlyMap<string, RowReport>>
   /**
    * A client group over these rows, for a browser dial — the framework's own
    * per-sibling walk, and nothing fused onto it.
@@ -126,11 +131,27 @@ interface Composed {
  * reach), and what is under test here is the CONTENT of the grant. What a
  * socket can see is asserted over a socket, further down.
  */
-const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
+const withRows = <A>(
+  use: (composed: Composed) => Promise<A>,
+  /** Files written into the served directory once the serve is bound, as a
+   *  person adds a folder to a running serve, and the composed rows to wait
+   *  for — a plugin the vault defines mounts only once the vault has read it,
+   *  and its registration then recomposes the bound generation. */
+  vault: {
+    readonly files: Readonly<Record<string, string>>
+    readonly composes: ReadonlyArray<string>
+    /** ...and the plugins the case expects to be refused, waited for until
+     *  their fibers report `failed`. */
+    readonly fails?: ReadonlyArray<string>
+  } = { files: {}, composes: [] },
+): Promise<A> => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-faces-"))
   fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
   return Effect.gen(function*() {
-    const plugins = yield* openPlugins({ vars: {}, now: () => "" })
+    // A REGISTRATION RINGS THE BOUND GENERATION, as in a serve: `bind` puts
+    // its recompose behind `onChange` (`./runtime.ts`).
+    const onChange = { run: () => {} }
+    const plugins = yield* openPlugins({ vars: {}, now: () => "", changed: () => onChange.run() })
     // The definitions row reads its plugins out of the vault through the
     // loader, so a serve that composes it opens one; without this the row
     // waits forever and its three verbs are absent for a reason that has
@@ -145,7 +166,10 @@ const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
     const wired = yield* bind({
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      plugins: yield* runtimeFor(plugins, [...ROWS]),
+      // ONE LIST, the rows the loader was opened with, as in a serve: a plugin
+      // the vault defines is not one of them, and its agent grants are held
+      // to its `writes` by that list alone.
+      plugins: yield* runtimeFor(plugins, [...ROWS], onChange),
     })
     // The runtime's `done` REJECTS when it is closed, so something has to hold
     // that catch or the teardown is an unhandled rejection the runner charges
@@ -153,6 +177,19 @@ const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
+    for (const [file, text] of Object.entries(vault.files)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+      fs.writeFileSync(path.join(root, file), text)
+    }
+    // ...and waits for each plugin the case names to be composed, or refused.
+    const failed = function*() {
+      const reports = yield* rowReport(plugins.host, vault.fails ?? [])
+      return (vault.fails ?? []).every((name) => reports.get(name)?.state === "failed")
+    }
+    for (let tries = 0; vault.composes.some((name) => !wired.bound.rows.some((row) => row.name === name)) || !(yield* failed()); tries += 1) {
+      if (tries > 200) throw new Error(`${vault.composes.join(", ")} never composed, or ${(vault.fails ?? []).join(", ")} never refused: ${wired.bound.rows.map((row) => row.name).join(", ")}`)
+      yield* Effect.sleep("50 millis")
+    }
     const rows = wired.bound.rows.map((row) => ({
       name: row.name,
       surface: row.surface as Surface<SurfaceSpec>,
@@ -163,6 +200,8 @@ const withRows = <A>(use: (composed: Composed) => Promise<A>): Promise<A> => {
         rows,
         gates: wired.faces,
         served: Object.keys(wired.bound.handlers),
+        bound: wired.bound,
+        reports: (names) => Effect.runPromise(rowReport(plugins.host, names)),
         group: composeSurfaceContracts(
           Object.fromEntries(rows.map((row) => [row.name, row.surface])),
         ).group,
@@ -354,6 +393,145 @@ test("the plugin switch and the approval are a person's, and the three author ve
     }
   })
 })
+
+/**
+ * A PLUGIN THE VAULT DEFINES GRANTS ITS OWN FACES, and nothing else does: its
+ * members reach the agent face exactly when the approved source says so, under
+ * its folder's word, and never because some other row's grant was copied.
+ */
+test("a vault plugin's members are on the agent face only where its own faces grant them", async () => {
+  const wired = (word: string, agent: boolean) => [
+    `import { defineSurface, definePlugin, Surfaces } from "@olai/plugin-api"`,
+    `import { Effect, Schema } from "effect"`,
+    `const surface = defineSurface({ procedures: { words: { count: { input: Schema.Struct({}), output: Schema.Number } } } })`,
+    `export default definePlugin({ name: "${word}", needs: [Surfaces], apply: Effect.gen(function*() {`,
+    `  yield* (yield* Surfaces).register({`,
+    `    surface,`,
+    // A grant to the agent face stands, for a plugin from outside the build,
+    // only for a member listed in `writes` (`./composition.ts`'s `mount`).
+    agent ? `    writes: ["surface/words/count"],` : ``,
+    `    faces: { browser: { "words.count": "tool" }${agent ? `, agent: { "words.count": "tool" }` : ""} },`,
+    `    deps: { procedures: { words: { count: () => Effect.succeed(1) } } },`,
+    `  })`,
+    `}) })`,
+  ].join("\n")
+  const consent = (id: string, word: string, ord: string) =>
+    `{"id":"${id}","ord":"${ord}","title":"${word}","custom":{"approved":"always","on":"yes"}}`
+  await withRows(async ({ gates }) => {
+    expect(gates.agent.tags.has("surface/granted/words/count")).toBe(true)
+    expect(gates.agent.tags.has("surface/withheld/words/count")).toBe(false)
+    expect(gates.browser.tags.has("surface/granted/words/count")).toBe(true)
+    expect(gates.browser.tags.has("surface/withheld/words/count")).toBe(true)
+  }, {
+    files: {
+      "plugins/granted/server.ts": wired("granted", true),
+      "plugins/withheld/server.ts": wired("withheld", false),
+      "_olai/Settings.olai": `${consent("c1", "granted", "a0")}\n${consent("c2", "withheld", "a1")}\n`,
+    },
+    composes: ["granted", "withheld"],
+  })
+}, 60_000)
+
+/** A plugin from outside the build that grants its agents `words.mark`,
+ *  listing it in `writes` or not. */
+const granting = (word: string, listed: boolean) => [
+  `import { defineSurface, definePlugin, Surfaces } from "@olai/plugin-api"`,
+  `import { Effect, Schema } from "effect"`,
+  `const surface = defineSurface({ procedures: { words: { mark: { input: Schema.Struct({}), output: Schema.Number } } } })`,
+  `export default definePlugin({ name: "${word}", needs: [Surfaces], apply: Effect.gen(function*() {`,
+  `  yield* (yield* Surfaces).register({`,
+  `    surface,`,
+  listed ? `    writes: ["surface/words/mark"],` : ``,
+  `    faces: { browser: { "words.mark": "tool" }, agent: { "words.mark": "tool" } },`,
+  `    deps: { procedures: { words: { mark: () => Effect.succeed(1) } } },`,
+  `  })`,
+  `}) })`,
+].join("\n")
+const consented = (...words: ReadonlyArray<string>) => words
+  .map((word, at) => `{"id":"c${at}","ord":"a${at}","title":"${word}","custom":{"approved":"always","on":"yes"}}`)
+  .join("\n")
+
+test("a plugin from outside the build that grants an agent a member it does not list in `writes` is refused, and the next composes", async () => {
+  const said = await withRows(async ({ rows, reports }) => {
+    return { names: rows.map((row) => row.name), report: (await reports(["unlisted"])).get("unlisted") }
+  }, {
+    files: {
+      "plugins/unlisted/server.ts": granting("unlisted", false),
+      "plugins/later/server.ts": granting("later", true),
+      "_olai/Settings.olai": consented("unlisted", "later"),
+    },
+    composes: ["later"],
+    fails: ["unlisted"],
+  })
+  expect(said.names).not.toContain("unlisted")
+  expect(said.names).toContain("later")
+  const fault = said.report?.state === "failed" ? said.report.fault : undefined
+  expect(said.report?.state).toBe("failed")
+  expect(fault).toContain("unlisted")
+  expect(fault).toContain("words.mark")
+  expect(fault).toContain("writes")
+}, 60_000)
+
+test("...one that lists the member is composed, with the tag on the agent face and among the composed `writes`", async () => {
+  await withRows(async ({ rows, gates, bound }) => {
+    expect(rows.map((row) => row.name)).toContain("listed")
+    expect(gates.agent.tags.has("surface/listed/words/mark")).toBe(true)
+    expect(bound.writes).toContain("surface/listed/words/mark")
+  }, {
+    files: {
+      "plugins/listed/server.ts": granting("listed", true),
+      "_olai/Settings.olai": consented("listed"),
+    },
+    composes: ["listed"],
+  })
+}, 60_000)
+
+test("a row of this build that grants an agent a member outside `writes` still mounts", async () => {
+  // `vault-plugins` grants its agents five members and registers no `writes`.
+  await withRows(async ({ rows, gates, bound }) => {
+    expect(rows.map((row) => row.name)).toContain("vault-plugins")
+    expect(gates.agent.tags.has("surface/vault-plugins/plugins/guide")).toBe(true)
+    expect(bound.writes.filter((tag) => tag.startsWith("surface/vault-plugins/"))).toEqual([])
+  })
+})
+
+test("a vault plugin's member listed in `writes` is handed its caller's authority, and one not listed the default", async () => {
+  // The handler answers WHAT IT WAS HANDED, which is the whole of the case:
+  // what a write made with that authority may do is the gate's business.
+  const authored = [
+    `import { defineSurface, definePlugin, RequestAuthority, Surfaces } from "@olai/plugin-api"`,
+    `import { Effect, Schema } from "effect"`,
+    `const handed = Schema.Struct({ writer: Schema.String, ruled: Schema.Boolean })`,
+    `const surface = defineSurface({ procedures: { who: {`,
+    `  listed: { input: Schema.Struct({}), output: handed },`,
+    `  unlisted: { input: Schema.Struct({}), output: handed },`,
+    `} } })`,
+    `const seen = Effect.gen(function*() { const one = yield* RequestAuthority; return { writer: one.writer, ruled: one.rule !== undefined } })`,
+    `export default definePlugin({ name: "authored", needs: [Surfaces], apply: Effect.gen(function*() {`,
+    `  yield* (yield* Surfaces).register({`,
+    `    surface,`,
+    `    writes: ["surface/who/listed"],`,
+    // The agent may be granted only what `writes` lists; the other member is
+    // the browser's, and its handler is asked directly below.
+    `    faces: { agent: { "who.listed": "tool" }, browser: { "who.unlisted": "tool" } },`,
+    `    deps: { procedures: { who: { listed: () => seen, unlisted: () => seen } } },`,
+    `  })`,
+    `}) })`,
+  ].join("\n")
+  const handed = await withRows(async ({ bound }) => {
+    const handlers = writerAt(bound, null, { writer: "mcp", rule: { _tag: "closed" } })
+    const call = (tag: string) => Effect.runPromise(handlers[tag]!({}) as Effect.Effect<unknown>)
+    return { listed: await call("surface/authored/who/listed"), unlisted: await call("surface/authored/who/unlisted") }
+  }, {
+    files: {
+      "plugins/authored/server.ts": authored,
+      "_olai/Settings.olai": `{"id":"c1","ord":"a0","title":"authored","custom":{"approved":"always","on":"yes"}}\n`,
+    },
+    composes: ["authored"],
+  })
+  expect(handed.listed).toEqual({ writer: "mcp", ruled: true })
+  expect(handed.unlisted).toEqual({ writer: "web", ruled: false })
+}, 60_000)
 
 test("the keyboard's door is nobody's but the browser's, on every row that has one", async () => {
   await withRows(async ({ rows, gates }) => {

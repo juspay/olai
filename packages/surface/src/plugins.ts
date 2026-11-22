@@ -317,7 +317,7 @@ export const BuiltPlugin = Schema.Struct({
     /** The README verbatim, for the page's *What it does* — rendered as the
      *  markdown it is. Absent for a folder that has none. */
     readme: Schema.optionalKey(Schema.String),
-    /** The content hash of both halves — what an approval names. README edits
+    /** The content hash of every code file, by path — what an approval names. README edits
      *  do not move it, which is why a person can fix a typo in the prose
      *  without being asked about code again. */
     version: Schema.String,
@@ -372,21 +372,27 @@ export const BuiltPlugin = Schema.Struct({
      *  version is approved: a plugin can be on and PAUSED by an edit, which is
      *  two facts and not one. */
     on: Schema.Boolean,
-    /** The two halves, verbatim. `browser` is absent for a plugin with no
-     *  face. */
+    /** The two entries, verbatim. `browser` is absent for a plugin with no
+     *  face. Kept beside {@link files} for a tab that reads only these two. */
     server: Schema.String,
     browser: Schema.optionalKey(Schema.String),
     /**
-     * ...AND THE HALVES AS THE APPROVED VERSION HAD THEM, present only when
-     * they DIFFER from the two above — which is exactly the paused row, and
-     * exactly when the page draws a diff.
+     * EVERY CODE FILE OF THE FOLDER, by path, in the order the page lists
+     * them: the two entries, then the rest by path. This is the whole of what
+     * the version is a hash of, and the page draws each one.
      *
-     * Absent otherwise, rather than a copy: a row whose code nobody has touched
-     * would be carrying its own source twice, on every roster, for a diff
-     * nothing draws.
+     * `approved` is the text the APPROVED version had, present only where it
+     * DIFFERS — which is exactly the paused row, and exactly where a diff is
+     * drawn. It is `""` for a file added since, and `text` is absent for a file
+     * removed since. Absent otherwise, rather than a copy: a row whose code
+     * nobody has touched would carry its source twice, on every roster, for a
+     * diff nothing draws.
      */
-    approvedServer: Schema.optionalKey(Schema.String),
-    approvedBrowser: Schema.optionalKey(Schema.String),
+    code: Schema.optionalKey(Schema.Array(Schema.Struct({
+      path: Schema.String,
+      text: Schema.optionalKey(Schema.String),
+      approved: Schema.optionalKey(Schema.String),
+    }))),
     /**
      * WHAT THE CODE REACHES FOR, said in plain words with the technical name
      * beside it — read statically off each half's imports and its service and
@@ -449,19 +455,23 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
 export const PLUGIN_CHUNK_PREFIX = "/_olai/plugins/"
 
 /**
- * A PLUGIN THE VAULT DEFINES IS A FOLDER, and these are its three names.
+ * A PLUGIN THE VAULT DEFINES IS A FOLDER, and these are the names in it that
+ * mean something.
  *
  * Here for `PLUGIN_CHUNK_PREFIX`'s reason exactly: several ends spell them and
- * none may invent one. The SERVE reads the folder to find the halves
- * (`olai-plugin-vault-plugins`' `source.ts`), the PAGE draws the file names
- * over the code it shows, the agent's `vault-plugins_write` takes one of them
- * as its argument, and the file claim that puts `.ts` in the set at all is
- * scoped to {@link PLUGIN_FOLDER}.
+ * none may invent one. The SERVE reads the folder (`olai-plugin-vault-plugins`'
+ * `source.ts`), the PAGE draws the file names over the code it shows, the
+ * agent's `vault-plugins_write` takes a path in the folder as its argument,
+ * and the file claim that puts `.ts` in the set at all is scoped to
+ * {@link PLUGIN_FOLDER}.
  *
  * `README.md` is MARKDOWN'S file, not this row's: it is a document a person
  * reads, it is claimed by the markdown row like any other, and the only thing
- * this package says about it is where it sits. The two halves are this row's,
+ * this package says about it is where it sits. The code files are this row's,
  * because nothing else in a vault would want `.ts` in its revision.
+ * `server.ts` and `browser.tsx` are the two ENTRIES: what the serve starts and
+ * what the tab loads, each with whatever other code file of the folder it
+ * imports.
  */
 export const PLUGIN_FOLDER = "plugins/"
 export const PLUGIN_README_FILE = "README.md"
@@ -469,18 +479,63 @@ export const PLUGIN_SERVER_FILE = "server.ts"
 export const PLUGIN_BROWSER_FILE = "browser.tsx"
 
 /**
- * ...AND THE THREE OF THEM IN THE ORDER A FOLDER IS READ IN: prose, server,
- * face.
+ * WHETHER `path`, written relative to a plugin's folder, is one of its CODE
+ * files — a `.ts` or `.tsx` file at any depth, named by plain segments.
  *
- * One list, because four ends were spelling the same membership out of the
- * three names above and each of them had to be found again when a fourth file
- * arrives: the agent's write door checking its argument, the page's address
- * deciding which half a path may open at, the serve's reading deciding which
- * files in a folder are the plugin's, and **Delete…** naming what to remove.
- * The ORDER is the delete's, which is the one reader that has an opinion about
- * it — a ledger should read the way the page lists the files.
+ * One rule, because four ends ask it: the serve's reading deciding which files
+ * are the plugin's code, the agent's write door checking its argument, the
+ * page's address deciding which file a path may open at, and **Delete…**
+ * naming what to remove.
+ *
+ * NO LINE BREAK AND NO CONTROL CHARACTER in a name: a file's name is shown to
+ * a person as a tab's label, and a name that could end a line has no place
+ * near text that is evaluated. Such a file is not the plugin's code, so it is
+ * never built; an import of it is refused as a file the folder does not hold,
+ * and the write door refuses to write one.
  */
-export const PLUGIN_FILES = [PLUGIN_README_FILE, PLUGIN_SERVER_FILE, PLUGIN_BROWSER_FILE] as const
+export const isPluginCode = (path: string): boolean =>
+  /\.tsx?$/.test(path)
+  && !/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(path)
+  && path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..")
+
+/**
+ * ...AND A FOLDER'S FILES IN THE ORDER IT IS READ IN: prose, the server entry,
+ * the browser entry, then every other code file by path.
+ *
+ * The order is the page's and the delete's, which are the two readers with an
+ * opinion about it: a ledger should read the way the page lists the files.
+ */
+export const pluginFileOrder = (paths: Iterable<string>): ReadonlyArray<string> => {
+  const first = [PLUGIN_README_FILE, PLUGIN_SERVER_FILE, PLUGIN_BROWSER_FILE]
+  const held = new Set(paths)
+  return [
+    ...first.filter((one) => held.has(one)),
+    ...[...held].filter((one) => !first.includes(one)).sort(),
+  ]
+}
+
+/** One code file as a row carries it — `BuiltPlugin.source.code`'s element. */
+export interface PluginCodeFile {
+  readonly path: string
+  readonly text?: string
+  readonly approved?: string
+}
+
+/**
+ * ...AND EVERY CODE FILE A ROW CARRIES, in the page's order — or, from a serve
+ * that sends only the two entries, those two. Beside the schema because both
+ * pages that print a plugin's code read it, and the fallback is a fact about
+ * this wire's two shapes rather than about either page.
+ */
+export const codeFilesOf = (source: {
+  readonly code?: ReadonlyArray<PluginCodeFile>
+  readonly server: string
+  readonly browser?: string
+}): ReadonlyArray<PluginCodeFile> =>
+  source.code ?? [
+    { path: PLUGIN_SERVER_FILE, text: source.server },
+    ...(source.browser === undefined ? [] : [{ path: PLUGIN_BROWSER_FILE, text: source.browser }]),
+  ]
 
 /**
  * THE WORD — a plugin's folder name, and the same shape a bundle row's `id`

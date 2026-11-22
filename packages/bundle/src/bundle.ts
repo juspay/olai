@@ -293,8 +293,17 @@ export const mountBundle = (
   profile: string = "web",
   prepare = false,
 ): Effect.Effect<void, never, Scope.Scope> => Effect.gen(function*() {
+  // A BROWSER-ONLY ROW is answered by its selection stub and the contracts on
+  // its inert `./slots` door, never by its browser entry. The door is a row's
+  // specifier, imported by name the way `importByName` imports a server row,
+  // so the host's own graph carries no plugin's extension locations.
   yield* provide(host, BundleModules, () => ({
-    read: Effect.promise(() => Promise.all(ROWS.map(async (row) => ({ name: row.id, exports: await importByName(row.name) })))),
+    read: Effect.promise(() => Promise.all(ROWS.map(async (row) => {
+      const exports = await importByName(row.name)
+      if (row.slots === undefined) return { name: row.id, exports }
+      const door = await import(row.slots) as { readonly slotContracts?: unknown }
+      return { name: row.id, exports: { ...exports as object, slots: door.slotContracts } }
+    }))),
   }))
   // The schema supplies policy defaults to the current roster too. This is a
   // static declaration read at composition, not a second source of settings.

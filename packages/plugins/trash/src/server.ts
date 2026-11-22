@@ -2,7 +2,7 @@
  * remains the write authority. All readings and subscriptions are acquired on
  * this provider's scope; UI and layout are not dependencies of this half. */
 import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
-import type { Ops as Gate, Store } from "@olai/ops"
+import type { Store } from "@olai/ops"
 import { Effect, Stream, SubscriptionRef } from "effect"
 import { inMemoryStore, inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
 import type { Reading } from "@olai/format"
@@ -22,7 +22,7 @@ export default definePlugin({
   name, needs: [Directory, Ops, Vault, Surfaces],
   apply: Effect.gen(function*() {
     const store = (yield* Directory).store as Store
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     const vault = yield* Vault
     let ctx: SurfaceRuntime<typeof surface.spec>["ctx"] | undefined
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {

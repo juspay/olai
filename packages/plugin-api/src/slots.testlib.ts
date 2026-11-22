@@ -1,20 +1,21 @@
 /** Compatibility tests explicitly declare their own fixture catalog. */
 import { slotContract, type SlotDefinition } from "./slots.ts"
+const FIXTURE = "a test fixture's face"
 export const TEST_SLOTS = [
-  slotContract<unknown>("outline.row.chip","kind"),
-  slotContract<unknown>("outline.row.pane","kind"),
-  slotContract<unknown>("outline.row.block","kind"),
-  slotContract<unknown>("outline.row.action","nothing"),
-  slotContract<unknown>("app.route","nothing"),
-  slotContract<unknown>("sidebar.entry","nothing"),
-  slotContract<unknown>("sidebar.section","nothing"),
-  slotContract<unknown>("app.header","plugin"),
-  slotContract<unknown>("app.banner","plugin"),
-  slotContract<unknown>("app.viewer","app"),
-  slotContract<unknown>("app.keys","nothing"),
-  slotContract<unknown>("app.palette","nothing"),
-  slotContract<unknown>("app.mount","plugin"),
-  slotContract<unknown>("delivery.mark","plugin"),
+  slotContract<unknown>("outline.row.chip","kind",FIXTURE),
+  slotContract<unknown>("outline.row.pane","kind",FIXTURE),
+  slotContract<unknown>("outline.row.block","kind",FIXTURE),
+  slotContract<unknown>("outline.row.action","nothing",FIXTURE),
+  slotContract<unknown>("app.route","nothing",FIXTURE),
+  slotContract<unknown>("sidebar.entry","nothing",FIXTURE),
+  slotContract<unknown>("sidebar.section","nothing",FIXTURE),
+  slotContract<unknown>("app.header","plugin",FIXTURE),
+  slotContract<unknown>("app.banner","plugin",FIXTURE),
+  slotContract<unknown>("app.viewer","app",FIXTURE),
+  slotContract<unknown>("app.keys","nothing",FIXTURE),
+  slotContract<unknown>("app.palette","nothing",FIXTURE),
+  slotContract<unknown>("app.mount","plugin",FIXTURE),
+  slotContract<unknown>("delivery.mark","plugin",FIXTURE),
 ]
 
 declare module "./slots.ts" {

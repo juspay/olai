@@ -150,6 +150,13 @@ export function composeCapabilities<const S extends SurfaceSpec>(
     mount<const T extends SurfaceSpec>(name: string, surface: Surface<T>, deps: ImplementSurfaceDeps<T>, options: {
       readonly writes?: ReadonlyArray<string>
       readonly faces?: Readonly<Record<string, ExposeMap<T>>>
+      /**
+       * The sibling is not a row of this build: a plugin somebody's directory
+       * defines. Its `agent` grants are held to its `writes` below. A row of
+       * this build keeps the rule it has, because its grants are reviewed with
+       * its code in this repository.
+       */
+      readonly outsideBuild?: boolean
     } = {}) {
       for (const tag of options.writes ?? []) {
         if (!surface.group.requests.has(tag) || isReservedSurfaceTag(tag)) {
@@ -158,6 +165,27 @@ export function composeCapabilities<const S extends SurfaceSpec>(
       }
       // Validate exposure before mount: an invalid grant must acquire nothing.
       for (const map of Object.values(options.faces ?? {})) exposeFace(surface, map)
+      // AN AGENT'S CALL CARRIES THE AGENT, for a plugin from outside the build.
+      // A tag listed in `writes` hands its handler the caller's writer and
+      // session rule; any other runs as `{ writer: "web" }` with no rule (see
+      // `writes` above). So every tag the `agent` face resolves to must be
+      // listed, which also means such a plugin cannot grant an agent a cell or
+      // a stream: `writes` holds procedures only (the check above). Refused
+      // here, before anything is acquired, like the two checks before it.
+      const agent = options.faces?.agent
+      if (options.outsideBuild === true && agent !== undefined) {
+        const listed = new Set(options.writes ?? [])
+        const unlisted = [...exposeFace(surface, agent).tags].filter((tag) => !listed.has(tag))
+        if (unlisted.length > 0) {
+          const tag = unlisted[0]!
+          const member = tag.replace(/^surface\//, "").split("/").join(".")
+          throw new Error(
+            `the plugin "${name}" grants its agents \`${member}\`, which it does not list in \`writes\`. `
+              + `List "${tag}" in its registration's \`writes\`, so an agent's call carries the agent and its `
+              + `session's rules, or take \`${member}\` off its \`agent\` face.`,
+          )
+        }
+      }
       const mounted = runtime.mount(name, surface, deps)
       mounts.set(name, { surface, writes: options.writes ?? [], faces: options.faces ?? {} } as {
         surface: Surface<SurfaceSpec>, writes: ReadonlyArray<string>, faces: Readonly<Record<string, ExposeMap<SurfaceSpec>>>

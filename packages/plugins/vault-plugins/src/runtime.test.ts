@@ -28,8 +28,17 @@ import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 import { Effect, Option, Stream } from "effect"
 
-import { type DynamicRuntime, openDynamic } from "./runtime.ts"
-import { ALWAYS, versionOf } from "./source.ts"
+import { type DynamicRuntime, openDynamic, serverModuleText } from "./runtime.ts"
+import { ALWAYS, versionOf as versionOfCode } from "./source.ts"
+
+/** The version of a folder holding these two entries and any other code
+ *  files, which is how most cases here name one. */
+const versionOf = (server: string, browser: string | null, more: Readonly<Record<string, string>> = {}): string =>
+  versionOfCode(new Map(Object.entries({
+    "server.ts": server,
+    ...(browser === null ? {} : { "browser.tsx": browser }),
+    ...more,
+  })))
 
 /** A plugin that mounts and registers nothing — the smallest whole server half,
  *  and the shape `vault-plugins_guide` tells an agent to write. */
@@ -68,11 +77,14 @@ const vault = (options: {
   readonly on?: boolean
   readonly props?: Record<string, string>
   readonly word?: string
+  /** Code files beside the two entries, by their path in the folder. */
+  readonly files?: Readonly<Record<string, string>>
 }) => {
   const word = options.word ?? "swatch"
   const files = new Map<string, string>([[`plugins/${word}/server.ts`, options.server ?? SERVER]])
   if (options.browser != null) files.set(`plugins/${word}/browser.tsx`, options.browser)
   if (options.readme !== undefined) files.set(`plugins/${word}/README.md`, options.readme)
+  for (const [path, text] of Object.entries(options.files ?? {})) files.set(`plugins/${word}/${path}`, text)
   // THE SETTINGS ROW EXISTS even when it says nothing, because that is the
   // ordinary state of a vault somebody has opened the settings file in: the
   // node is there and the words a person has not said yet are absent from it.
@@ -121,6 +133,9 @@ const bench = <A, E>(
     host: Host,
     written: ReadonlyArray<WriteRequest>,
     chats: { readonly here: Set<string>; readonly asked: ReadonlyArray<string> },
+    /** The siblings on the wire right now, by name — what a plugin's
+     *  `Surfaces.register` composed and what its unloading withdrew. */
+    composed: () => ReadonlyArray<string>,
   ) => Effect.Effect<A, E>,
   door = true,
 ): Promise<A> =>
@@ -178,6 +193,7 @@ const bench = <A, E>(
         plugins.host,
         written,
         chats,
+        () => plugins.composed().map((one) => one.name),
       ))
     })),
   )
@@ -222,6 +238,21 @@ describe("a plugin waits for a person", () => {
     expect(rows[0]?.source?.on).toBe(false)
     // ...and no chunk, because nothing was built.
     expect(rows[0]?.source?.chunk).toBeUndefined()
+  })
+
+  test("...and a helper of a pending plugin is never imported either", async () => {
+    const flag = "__olai_pending_helper_ran"
+    const rows = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        yield* dynamic.follow(vault({
+          server: [`import { ran } from "./lib/mark.ts"`, SERVER].join("\n"),
+          files: { "lib/mark.ts": `;(globalThis as Record<string, unknown>)["${flag}"] = true\nexport const ran = 1` },
+        }))
+        return yield* now()
+      })
+    )
+    expect(rows[0]?.state).toBe("pending")
+    expect((globalThis as Record<string, unknown>)[flag]).toBeUndefined()
   })
 
   test("approved at this version and on: it mounts, and it is a row like any other", async () => {
@@ -271,7 +302,7 @@ describe("a plugin waits for a person", () => {
         return yield* now()
       })
     )
-    expect(rows[0]?.source?.approvedServer).toBe(SERVER)
+    expect(rows[0]?.source?.code?.find((one) => one.path === "server.ts")?.approved).toBe(SERVER)
     expect(rows[0]?.source?.server).toContain("// and more")
   })
 
@@ -282,8 +313,8 @@ describe("a plugin waits for a person", () => {
         return yield* now()
       })
     )
-    expect(rows[0]?.source?.approvedServer).toBeUndefined()
-    expect(rows[0]?.source?.approvedBrowser).toBeUndefined()
+    expect(rows[0]?.source?.code?.every((one) => one.approved === undefined)).toBe(true)
+    expect(rows[0]?.source?.code?.map((one) => one.path)).toEqual(["server.ts"])
   })
 
   test("a README edit is not a fresh decision", async () => {
@@ -386,7 +417,97 @@ describe("a browser half is compiled and served", () => {
     )
     expect(said).toBeNull()
   })
+
+  /** A face split over two files: the entry imports its columns. */
+  const SPLIT = [`import { Columns } from "./columns.tsx"`, `export const Page = () => <Columns />`].join("\n")
+  const COLUMNS = { "columns.tsx": `export const Columns = () => <div class="reader-columns" />` }
+
+  test("a helper is served at its own path under the mounted version, and nothing else is", async () => {
+    const said = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        yield* dynamic.follow(vault({ browser: SPLIT, files: COLUMNS, approved: ALWAYS }))
+        const rows = yield* now()
+        const at = `/_olai/plugins/swatch-${versionOf(SERVER, SPLIT, COLUMNS)}`
+        const running = {
+          entry: dynamic.chunk(rows[0]?.source?.chunk ?? ""),
+          helper: dynamic.chunk(`${at}/columns.tsx.js`),
+          other: dynamic.chunk(`${at}/other.tsx.js`),
+          stale: dynamic.chunk(`/_olai/plugins/swatch-deadbeef/columns.tsx.js`),
+          at,
+        }
+        // SWITCHED OFF, the set it was serving stays servable for whoever is
+        // already fetching it, exactly as the entry does.
+        yield* dynamic.follow(vault({ browser: SPLIT, files: COLUMNS, approved: ALWAYS, on: false }))
+        return { ...running, retired: dynamic.chunk(`${at}/columns.tsx.js`) }
+      })
+    )
+    expect(said.entry).toContain(`"${said.at}/columns.tsx.js"`)
+    expect(said.helper).toContain("reader-columns")
+    expect(said.helper).not.toMatch(/^\s*import\s/m)
+    expect(said.other).toBeNull()
+    expect(said.stale).toBeNull()
+    expect(said.retired).toBe(said.helper)
+  })
+
+  test("an edit to a helper unmounts the plugin, and the approved helper rides for the diff", async () => {
+    const SAYING = [
+      `import { definePlugin } from "@olai/plugin-api"`,
+      `import { Effect } from "effect"`,
+      `import { said } from "./lib/said.ts"`,
+      `export default definePlugin({ name: "swatch", needs: [], apply: Effect.logDebug(said) })`,
+    ].join("\n")
+    const ONE = { "lib/said.ts": `export const said = "one"` }
+    const said = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        const approved = versionOf(SAYING, null, ONE)
+        yield* dynamic.follow(vault({ server: SAYING, files: ONE, approved }))
+        const before = (yield* now())[0]
+        yield* dynamic.follow(vault({ server: SAYING, files: { "lib/said.ts": `export const said = "two"` }, approved }))
+        return { before, after: (yield* now())[0] }
+      })
+    )
+    expect(said.before?.state).toBe("running")
+    expect(said.after?.state).toBe("pending")
+    expect(said.after?.running).toBe(false)
+    expect(said.after?.source?.code?.find((one) => one.path === "lib/said.ts")).toEqual({
+      path: "lib/said.ts",
+      text: `export const said = "two"`,
+      approved: `export const said = "one"`,
+    })
+    // ...and a file nobody touched carries no second copy.
+    expect(said.after?.source?.code?.find((one) => one.path === "server.ts")?.approved).toBeUndefined()
+  })
 })
+
+/**
+ * A SURFACE OF ITS OWN — what a server file registers through `Surfaces`, under
+ * its folder's word, for exactly as long as the plugin is mounted.
+ */
+test("a server file's surface is composed under its folder's word, and leaves when the plugin stops", () =>
+  bench((dynamic, now, _host, _written, _chats, composed) => Effect.gen(function*() {
+    const WIRED = [
+      `import { defineSurface, definePlugin, Surfaces } from "@olai/plugin-api"`,
+      `import { Effect, Schema } from "effect"`,
+      `const surface = defineSurface({ procedures: { words: { count: { input: Schema.Struct({}), output: Schema.Number } } } })`,
+      `export default definePlugin({`,
+      `  name: "swatch",`,
+      `  needs: [Surfaces],`,
+      `  apply: Effect.gen(function*() {`,
+      `    yield* (yield* Surfaces).register({`,
+      `      surface,`,
+      `      faces: { browser: { "words.count": "tool" } },`,
+      `      deps: { procedures: { words: { count: () => Effect.succeed(1) } } },`,
+      `    })`,
+      `  }),`,
+      `})`,
+    ].join("\n")
+    const before = composed()
+    yield* dynamic.follow(vault({ server: WIRED, approved: ALWAYS }))
+    expect((yield* now())[0]?.state).toBe("running")
+    expect(composed()).toEqual([...before, "swatch"])
+    yield* dynamic.follow(vault({ server: WIRED, approved: ALWAYS, on: false }))
+    expect(composed()).toEqual(before)
+  })))
 
 /**
  * WHAT A REVISION DOES TO THE ROWS, which is the whole of what `follow` is for.
@@ -641,7 +762,7 @@ describe("a folder that goes away takes its fiber with it", () => {
     expect(rows[0]?.source?.on).toBe(false)
     // ...and no diff against a predecessor nobody approved: the copy left with
     // the folder.
-    expect(rows[0]?.source?.approvedServer).toBeUndefined()
+    expect(rows[0]?.source?.code?.every((one) => one.approved === undefined)).toBe(true)
   })
 })
 
@@ -802,6 +923,17 @@ test("...and one that compiles is still only pending", () => bench((dynamic, now
   expect(rows[0]?.fault).toBeUndefined()
 })))
 
+test("a pending helper that will not compile faults the row before anybody approves it", () => bench((dynamic, now) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({
+    server: [`import { x } from "./lib/broken.ts"`, SERVER].join("\n"),
+    files: { "lib/broken.ts": `export const x = (` },
+  }))
+  const rows = yield* now()
+  expect(rows[0]?.state).toBe("failed")
+  expect(rows[0]?.fault ?? "").not.toBe("")
+  expect(rows[0]?.source?.approved).toBe(false)
+})))
+
 /**
  * REMOVING A PLUGIN takes the folder's files and the decision about them.
  *
@@ -821,6 +953,17 @@ test("deleting a plugin removes its files and its consent", () => bench((dynamic
     { op: "delete", file: "plugins/swatch/server.ts" },
     { op: "delete", file: "plugins/swatch/browser.tsx" },
     { op: "trash", id: "c" },
+  ])
+})))
+
+test("...every file of it, at any depth", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ approved: ALWAYS, readme: "# Swatch\n", files: { "lib/sm2.ts": "export const x = 1", "types.ts": "export {}" } }))
+  expect(yield* dynamic.remove("swatch")).toBe(true)
+  expect(written.filter((one) => one.op === "delete").map((one) => "file" in one ? one.file : "")).toEqual([
+    "plugins/swatch/README.md",
+    "plugins/swatch/server.ts",
+    "plugins/swatch/lib/sm2.ts",
+    "plugins/swatch/types.ts",
   ])
 })))
 
@@ -935,3 +1078,96 @@ test("a stale builder property is a property nobody reads", () => bench((dynamic
   expect(yield* dynamic.set("swatch", false)).toBe(true)
   expect(written).toEqual([{ op: "prop", id: "c", key: "on", value: "no" }])
 })))
+
+describe("a server module belongs to one plugin at one version", () => {
+  /** A helper that counts in a module-level variable — the state the case is
+   *  about. Both plugins hold these exact bytes. */
+  const COUNTER = `let n = 0\nexport const bump = (): number => { n += 1; return n }`
+  /** A server half that records, on mount, which count its helper answered. */
+  const counting = (word: string, salt = "") => [
+    `import { definePlugin } from "@olai/plugin-api"`,
+    `import { Effect } from "effect"`,
+    `import { bump } from "./lib/count.ts"`,
+    `export default definePlugin({`,
+    `  name: "${word}",`,
+    `  needs: [],`,
+    `  apply: Effect.sync(() => {`,
+    `    const seen = globalThis as unknown as { __olaiCounted?: Array<string> }`,
+    `    ;(seen.__olaiCounted ??= []).push("${word}:" + bump())`,
+    `  }),`,
+    `})${salt}`,
+  ].join("\n")
+  /** Two plugins, both approved for every version and on. */
+  const two = (alpha: string) => readingOfVault(new Map([
+    ["plugins/alpha/server.ts", alpha],
+    ["plugins/alpha/lib/count.ts", COUNTER],
+    ["plugins/beta/server.ts", counting("beta")],
+    ["plugins/beta/lib/count.ts", COUNTER],
+    ["_olai/Settings.olai", [
+      `{"id":"c","ord":"a0","title":"alpha","custom":{"approved":"${ALWAYS}","on":"yes"}}`,
+      `{"id":"d","ord":"a1","title":"beta","custom":{"approved":"${ALWAYS}","on":"yes"}}`,
+    ].join("\n")],
+  ]))
+  const counted = (): ReadonlyArray<string> => ((globalThis as { __olaiCounted?: Array<string> }).__olaiCounted ?? [])
+
+  test("two plugins holding the same helper bytes do not share its state, and a new version starts it afresh", async () => {
+    (globalThis as { __olaiCounted?: Array<string> }).__olaiCounted = []
+    const said = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        yield* dynamic.follow(two(counting("alpha")))
+        const first = (yield* now()).map((one) => [one.name, one.running] as const)
+        const mounted = [...counted()].sort()
+        // ALPHA AT A NEW VERSION, its helper's bytes unchanged.
+        yield* dynamic.follow(two(counting("alpha", "\n// the second version")))
+        yield* now()
+        return { first, mounted, after: counted().slice(2) }
+      })
+    )
+    expect(said.first).toEqual([["alpha", true], ["beta", true]])
+    expect(said.mounted).toEqual(["alpha:1", "beta:1"])
+    expect(said.after).toEqual(["alpha:1"])
+  })
+})
+
+describe("nothing of a file's name is evaluated", () => {
+  // ON TEXT ONLY: what the serve would evaluate for a file, given a name that
+  // holds a line break. The name never ends the closing comment's line.
+  for (const [label, path] of [["a line feed", "lib/a\nexport const x = 1;//.ts"], ["U+2028", "lib/a\u2028export const x = 1;//.ts"]] as const) {
+    test(`a path holding ${label} leaves the built file followed by exactly one comment line`, () => {
+      const built = `export const said = "one"`
+      const text = serverModuleText("reader", "0123456789abcdef", path, built)
+      expect(text.startsWith(`${built}\n`)).toBe(true)
+      const after = text.slice(built.length + 1).replace(/\n$/, "")
+      expect(after.startsWith("//")).toBe(true)
+      expect(after).not.toMatch(/[\n\r\u2028\u2029]/)
+    })
+  }
+})
+
+describe("a helper's address is the address its file is found at", () => {
+  /** An entry that imports one helper by the name under test. */
+  const importing = (file: string) => [`import { Face } from "./${file}"`, `export const Page = () => <Face />`].join("\n")
+  const helper = `export const Face = () => <div class="odd-name" />`
+
+  for (const file of ["a#b.tsx", "a?b.tsx", "50%41.tsx"]) {
+    test(`a helper named ${JSON.stringify(file)} is served at the address its entry imports`, async () => {
+      const said = await bench((dynamic, now) =>
+        Effect.gen(function*() {
+          yield* dynamic.follow(vault({ browser: importing(file), files: { [file]: helper }, approved: ALWAYS }))
+          const rows = yield* now()
+          const entry = dynamic.chunk(rows[0]?.source?.chunk ?? "") ?? ""
+          const base = `/_olai/plugins/swatch-${versionOf(SERVER, importing(file), { [file]: helper })}/`
+          const address = /"(\/_olai\/plugins\/[^"]+)"/.exec(entry)?.[1] ?? ""
+          // WHAT THE TAB AND THE ROUTE DO with that address: the browser
+          // fetches it as a URL, and the route decodes the URL's path
+          // (`./route.ts`) before it asks the runtime.
+          const fetched = decodeURIComponent(new URL(address, "http://olai").pathname)
+          return { address, base, fetched, helper: dynamic.chunk(fetched) }
+        })
+      )
+      expect(said.address.startsWith(said.base)).toBe(true)
+      expect(said.fetched).toBe(`${said.base}${file}.js`)
+      expect(said.helper).toContain("odd-name")
+    })
+  }
+})

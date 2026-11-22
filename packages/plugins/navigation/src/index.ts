@@ -120,8 +120,6 @@ export interface Gestures {
 }
 export const gestures = serviceTag<Gestures>("navigation.gestures")
 
-export { slotContracts as slots } from "./slots.ts"
-
 
 import type { Address } from "@olai/format"
 import type { FileKindKey } from "@olai/plugin-api/file-kinds"

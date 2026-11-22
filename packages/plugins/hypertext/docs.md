@@ -8,6 +8,27 @@ The page is drawn with its own markup, stylesheets, pictures and scripts. olai s
 
 A file that is there but will not open says `This file couldn't be opened, so there's nothing to show.`
 
+<details>
+<summary>What a web page in your directory may load, and the policy it carries</summary>
+
+The file is served at `/media/<its path>`, so a relative address inside it means the file next to it on disk.
+
+| In the file | Loads |
+| --- | --- |
+| `<img src="art/shot.png">` in `notes/report.html` | `notes/art/shot.png` |
+| `<a href="other.html">` | the page of the file next door |
+| a remote host, a `data:` URI, a path above the directory | nothing |
+
+The route answers with the page, its pictures, its stylesheet, its script and its font, and nothing else, behind the same check against climbing out of the directory that markdown's pictures go through. A `.md`, an `.olai`, a `.json` and a `.csv` are not on that list, because they have pages of their own.
+
+The response carries a content policy: `sandbox allow-scripts; default-src <host>/media/; script-src <host>/media/ 'unsafe-inline' 'unsafe-eval'; style-src <host>/media/ 'unsafe-inline'; frame-src 'none'; form-action 'none'; base-uri 'none'`. Every directive that allows a fetch names this directory on the host you asked for, and `base-uri 'none'` refuses the file's own `<base href>`.
+
+> A script can navigate its own frame, and no directive covers that, so a page can tell somebody else's server what it is by leaving, once. Nothing it fetches leaves this directory, and a nested frame or a form post is refused.
+
+The sandbox survives a navigation and the policy does not, so olai brings the frame back. A navigation to a file of this directory is kept; anything else is replaced by the file again, a limited number of times, and after that by an empty frame.
+
+</details>
+
 ## Links inside the page
 
 A link to another file in your directory opens that file's page in olai, the way clicking the file in the sidebar does.[^click] Two other things can happen:
@@ -19,7 +40,7 @@ A link to another file in your directory opens that file's page in olai, the way
 
 No tool writes an `.html` file.[^tools]
 
-[^policy]: olai claims `.html` files and serves each one out of your directory. What a saved page is allowed to load, and the answer it gets when it asks for anything else, is [documents and kinds](../documents-and-kinds.md).
+[^policy]: olai claims `.html` files and serves each one out of your directory. What a saved page is allowed to load, and the answer it gets when it asks for anything else, is in the block under **What you see**; how olai claims the kinds it shows is [documents and kinds](../documents-and-kinds.md).
 
 [^tall]: The frame is never shorter than a single heading and never taller than two screens.
 

@@ -1,0 +1,3 @@
+{"id":"book","ord":"a0","title":"Le Tour du monde en quatre-vingts jours"}
+{"id":"page-1","parent":"book","ord":"a0","title":"Page 1"}
+{"id":"s1","parent":"page-1","ord":"a0","title":"Phileas Fogg","custom":{"reader-pair":"En l'année 1872, la maison portant le numéro 7 de Saville-row était habitée par Phileas Fogg. | In the year 1872, the house No. 7, Saville Row, was occupied by Phileas Fogg."}}

@@ -32,8 +32,11 @@ import type { Claims } from "@olai/format"
 import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { type MountedPages, NO_PAGES, routingOver } from "./routes.ts"
+import type { FilePage } from "./index.ts"
 
-const files = heldService<Pick<Directory, "claims" | "paths" | "standing">>()
+// `head` is which revision one file is at: what a plugin's `file.page` face is
+// handed so it reads a file again when the file moves (`./PageView.tsx`).
+const files = heldService<Pick<Directory, "claims" | "paths" | "standing" | "head">>()
 export const holdFiles = files.hold
 export const directory = files.read
 export const fileClaims = () => files.read()?.claims()
@@ -44,6 +47,18 @@ export const holdRoutePages = table.hold
 
 /** The claim table as it stands — empty while no renderer is contributing. */
 export const routePages = (): MountedPages => table.read()?.() ?? NO_PAGES
+
+const pluginFiles = heldService<() => ReadonlyArray<FilePage>>()
+const NO_FILE_PAGES: ReadonlyArray<FilePage> = []
+
+/** The `file.page` faces, settled into pages — told by `./browser.tsx`'s
+ *  `renderer` component, which holds the faces they are read from, so the
+ *  pages exist exactly while that component stands (`./file-pages.ts`). */
+export const holdPluginFilePages = pluginFiles.hold
+
+/** ...and read by `./PageView.tsx`: empty while no renderer holds them. A
+ *  tracked holder, so a reader learns when they are held and released. */
+export const pluginFilePages = (): ReadonlyArray<FilePage> => pluginFiles.read()?.() ?? NO_FILE_PAGES
 
 /**
  * ...and the grammar bound over it — the value `navigation.state` carries and

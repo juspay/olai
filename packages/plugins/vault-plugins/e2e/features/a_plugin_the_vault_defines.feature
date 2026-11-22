@@ -293,11 +293,11 @@ Feature: A plugin the vault defines
     And there should be no page errors
 
   @scratch:plugins
-  Scenario: Only a folder directly under plugins/ is a plugin
-    # `plugins/notes.md` is somebody's note about their plugins and
-    # `plugins/swatch/src/helper.ts` is a file an agent left in a folder. The
-    # folder IS the plugin, so neither is one — and neither is swept into the
-    # one that is.
+  Scenario: A file loose under plugins/ is not a plugin, and one nested in a folder is that plugin's code
+    # `plugins/notes.md` is somebody's note about their plugins: the folder IS
+    # the plugin, so a file beside the folders is none. A `.ts` file nested in
+    # `plugins/swatch/` is code the plugin could import, so it is shown on the
+    # page with the rest — a person approves every line that could run.
     Given I open the app
     Then the Plugins section lists "greeting, swatch"
 
@@ -313,7 +313,7 @@ Feature: A plugin the vault defines
       """
     Then the Plugins section lists "greeting, swatch"
     When I go to the plugin "swatch"
-    Then the plugin page's code tabs are "README.md, server.ts, browser.tsx"
+    Then the plugin page's code tabs are "README.md, server.ts, browser.tsx, src/helper.ts"
     And there should be no page errors
 
   @scratch:plugins

@@ -475,6 +475,66 @@ replace it, so the consumer's kind starts admitting a different set of colours.
 Consent is absent here too, so each plugin is turned on at its page in the order
 a scenario means to prove something about.
 
+## `reader/` — the reading companion, a vault plugin that draws outside outlines
+
+`plugins/reader/` is a companion for reading a book in French, and the worked
+material of `website/docs/dynamic-plugins-examples.md`: every code file that
+page prints is held equal to it by `../reader.test.ts`. Change the page and copy
+it here, never the other way round.
+
+- `book.olai` is the book: a page row, and under it a sentence row `s1` whose
+  `reader-pair` property holds the French, ` | `, and the English. The text is
+  the opening of Jules Verne's *Le Tour du monde en quatre-vingts jours*, which
+  is in the public domain.
+- `vocabulary.olai` is where the words being learnt go: a root row whose id is
+  `vocabulary`, which the server file adds each new word under, and one word,
+  `maison`, due `2026-01-01`, so the review always has a word to offer.
+- The plugin is seven code files: the two entries, `words.ts` (the surface,
+  imported by both), `columns.tsx`, `pairs.ts` (imported by both), `types.ts`,
+  and `lib/sm2.ts` (imported by the server file). The status line on its page
+  reads `7 files, 446 lines`, which a scenario asserts: change a file and that
+  number moves.
+- The browser file adds a **Reading** section to the sidebar linking both
+  files and the review, the shortcut `Cmd` + `Shift` + `Y` that opens the
+  vocabulary, a palette row that opens the book, the two columns under every
+  sentence with each French word a button, and the review at the foot of the
+  page of the vocabulary's top row (`/zoom/#vocabulary`; a whole file's page
+  draws no page foot).
+- Its own page is `/plugins/reader/app`, and the review is
+  `/plugins/reader/app/review`, opened by the command **Start review** in the
+  palette and by `Cmd` + `Shift` + `E`. The key and the command open their
+  addresses with `Navigate`, navigation's own verb. Each face is found by a
+  `data-reader` attribute the files write themselves.
+- The server file answers `words.add`, `words.next` and `words.grade`, typed
+  by `ImplementSurfaceDeps`, and lists the two that write in `writes`, passing
+  the caller's writer and session rule from `RequestAuthority` to the gate. A
+  scenario finds the added word's file in the commit panel and the graded
+  word's next due date on its row; another rewrites `vocabulary.olai` without
+  its `vocabulary` row, and the gate's refusal is drawn under the sentence
+  (`data-reader="refused"`) with nothing written.
+- `chapter-1.reader` is a transcribed page, two lines of French ` | ` English.
+  The server file claims `.reader` with `FileKinds` (kept, opaque) and answers
+  `pages.read` from the gate's reading; the browser file's `file.page` face
+  draws it as two columns, and a scenario rewrites it on disk to one line.
+  Another holds the drawn element while a built row is switched off and on,
+  and finds the same element after. Unclaimed — the reader off — its address
+  says olai can't open `.reader`.
+- `notes.md` is an ordinary note, above which the reader's
+  `document.page.head` face says **Reading companion** and under which its
+  `document.page.foot` face draws a link to the review. It holds one fenced
+  block whose language is `reader`, a sentence whose French names
+  `[[maison]]`: with the reader on, its `document.block` face draws the block
+  as columns and is handed the `[[maison]]` as written; with it off, the block
+  is code. A scenario rewrites the note on disk to a two-line block.
+- The plugin's `README.md` ends with a `reader` block too, which its approval
+  page draws as code.
+
+There is no consent here: `reader` arrives off and unapproved, and a scenario
+turns it on at its page. It is an ordinary plugin and nothing in it is about
+getting past that page.
+`packages/plugins/vault-plugins/e2e/features/the_reading_companion.feature` is
+what it is for.
+
 ## `tour/` — the directory the website's pictures are taken in
 
 No scenario names this corpus. `../tour.sh` copies it to a scratch directory

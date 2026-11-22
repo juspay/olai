@@ -15,4 +15,5 @@ export interface BoxBelow {
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions { "search.box.below": SlotDefinition<BoxBelow, "app"> }
 }
-export const boxBelow = slotContract<BoxBelow>("search.box.below", "app")
+export const boxBelow = slotContract<BoxBelow>("search.box.below", "app",
+  "A `{ pick, cycle, body }` drawn under the search box, where `body` is handed `{ search }`; search fills it itself, so a second registration is refused.")

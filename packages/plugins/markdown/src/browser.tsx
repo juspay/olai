@@ -15,7 +15,9 @@ import { holdEdits, writeEdit } from "./browser/writes.ts"
 import type {} from "olai-plugin-layout/slots"
 import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import {Clocks} from "@olai/plugin-api"
-import { definePlugin, Offers, Slots } from "@olai/plugin-api"
+import { definePlugin, Faces, Offers, Slots } from "@olai/plugin-api"
+import { holdNoteFaces } from "./browser/faces.ts"
+import { slotContracts } from "./slots.ts"
 import { Effect } from "effect"
 import { createRoot, createMemo, createEffect, on, onCleanup } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -139,8 +141,11 @@ export const components = {
     const served = yield* fileAccess
     yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.kindOf(meaning.file) !== null && served.claims().byKind.get(served.kindOf(meaning.file)!)?.holds !== "nodes" ? atFile(meaning.file) : undefined)
   }) }),
-  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks], apply: Effect.gen(function*() {
+  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, Faces], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
+    // What other plugins hang above and below a note (`./browser/faces.ts`),
+    // held for as long as this component contributes the page they hang on.
+    yield* holdNoteFaces(yield* Faces)
     const clocks = yield* Clocks
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clocks)), stop => Effect.sync(stop))
     // The walks a document's property run makes over other rows' locations,
@@ -154,7 +159,7 @@ export const components = {
     // (`./browser/routing.ts`).
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
-    yield* slots.contribute(pages, { by: { kind: "markdown" }, edits: true, page: () => <MarkdownPageView /> }, {key:fileKindKey({kind:"markdown"}),children:[documentBodies, properties, noteLine]})
+    yield* slots.contribute(pages, { by: { kind: "markdown" }, edits: true, page: () => <MarkdownPageView /> }, {key:fileKindKey({kind:"markdown"}),children:[documentBodies, properties, noteLine, ...Object.values(slotContracts)]})
     yield* slots.contribute(linkPreviews, {
       priority: 0,
       matches: route => route.kind === "at" && route.address !== null && route.address.kind !== "node" && served.kindOf(route.address.path) === "markdown",

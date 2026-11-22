@@ -4,7 +4,6 @@
  *  row still advertised them; declaring them here is what makes switching the
  *  row off take its tools along. */
 import { Ops, Vault, Surfaces, VaultViews } from "@olai/plugin-api/services"
-import type { Ops as Gate } from "@olai/ops"
 import { inMemoryChannel, type ImplementSurfaceDeps } from "@kolu/surface/server"
 import { surface, faces } from "./surface.ts"
 import { tools } from "./tools.ts"
@@ -108,7 +107,7 @@ export default definePlugin({
 export const components = { wire: definePlugin({
   name: "wire", needs: [Search, Ops, Vault, Surfaces, VaultViews],
   apply: Effect.gen(function*() {
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     /**
      * WHAT A QUERY IS ANSWERED BY, TOLD TO THE STORE THAT ASKS.
      *
@@ -150,3 +149,8 @@ import { faces as standaloneFaces } from "./surface.ts"
 const siblingFaces = { browser: standaloneFaces.browser }
 export { siblingFaces as faces }
 export { surface } from "./surface.ts"
+import { boxBelow } from "./contracts/box.ts"
+// The seat under the search box, listed by `vault-plugins_inspect` with every
+// other slot. Search fills it itself, so a registration by anybody else is
+// refused; it is listed so an author is told that, not left to find it.
+export const slots = { "search.box.below": boxBelow }

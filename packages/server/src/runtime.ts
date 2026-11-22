@@ -15,6 +15,7 @@ import { emitter } from "@olai/log"
 import { hostSurface, hostFaces } from "@olai/surface/host"
 import { composeCapabilities } from "./composition.ts"
 import { authorityAt } from "@olai/plugin-api/authority"
+import type { Caller } from "@olai/ops"
 import { CurrentWho } from "./who.ts"
 export type Bound = Omit<SurfaceRuntime<typeof hostSurface.spec>, "ctx"> & { readonly writes: ReadonlyArray<string>; readonly rows: ReadonlyArray<Registered>; readonly rosterMoved: (run: () => void) => () => void }
 import type { Configuration, PolicyRow, EnvironmentReading } from "@olai/plugin-api/configuration"
@@ -22,6 +23,13 @@ import type { Configuration, PolicyRow, EnvironmentReading } from "@olai/plugin-
 export interface PluginRuntime {
   readonly plugins: Plugins
   readonly onChange: { run: () => void }
+  /**
+   * THE ROWS THIS BUILD COMPILED IN — the list the serve also hands the loader
+   * as `reserved`, which an owned loader cannot mount a name from
+   * (`@olai/plugin-api`'s `loading.ts`). The roster is drawn over it, and a
+   * sibling whose name is not in it was mounted from outside the build: its
+   * agent grants are held to its `writes` (`./composition.ts`'s `mount`).
+   */
   readonly built: ReadonlyArray<string>
   readonly instance?: () => NonNullable<PluginRoster["instance"]>
   readonly browserOnly?: ReadonlyArray<string>
@@ -149,7 +157,7 @@ const stateOf = (
 const impl =
   <I, A, E>(answer: (input: I) => Effect.Effect<A, E>) =>
   ({ input }: { input: I }): Effect.Effect<A, E> => answer(input)
-export const writerAt = (bound: Pick<Bound, "handlers" | "writes">, _ops: unknown, caller: { readonly writer: string; readonly rule?: unknown }): SurfaceHandlers => authorityAt(bound, caller)
+export const writerAt = (bound: Pick<Bound, "handlers" | "writes">, _ops: unknown, caller: Caller): SurfaceHandlers => authorityAt(bound, caller)
 export const bind = (wiring: Wiring) => Effect.gen(function*() {
     const runtimeScope = yield* Effect.scope
     const say = yield* emitter
@@ -330,11 +338,15 @@ app: {
           })
           continue
         }
+        // A sibling whose name is not one of the build's rows is from outside
+        // the build, and its agent grants are held to its `writes`
+        // ({@link PluginRuntime.built}). A sibling is registered under its
+        // owning row's name, so the key is that name.
         const mount = runtime.mount(
           key,
           one.surface as never,
           one.deps as never,
-          { writes: one.writes, faces: one.faces as never },
+          { writes: one.writes, faces: one.faces as never, outsideBuild: offered !== null && !offered.built.includes(key) },
         )
         mounted.set(key, mount)
         // A throw is not a mount, so the count moves after `runtime.mount`

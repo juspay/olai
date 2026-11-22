@@ -9,7 +9,7 @@
 import { describe, expect, test } from "bun:test"
 
 import { bind } from "./bind.ts"
-import { buildHalf } from "./build.ts"
+import { asDataUrl, buildPlugin, type Half } from "./build.ts"
 import { unresolvable } from "./imports.ts"
 import { BROWSER_MODULES, REGISTRY, SERVER_MODULES } from "./shared.ts"
 
@@ -30,6 +30,10 @@ const evaluated = async (
   }
 }
 
+/** A plugin of one file: the half's own entry and nothing beside it. */
+const buildHalf = (half: Half, source: string) =>
+  buildPlugin(half, half === "server" ? "server.ts" : "browser.tsx", new Map([[half === "server" ? "server.ts" : "browser.tsx", source]]), (_path, text) => asDataUrl(text))
+
 describe("what a plugin's source may name", () => {
   test("the three, and nothing else", () => {
     expect(unresolvable(`import { Effect } from "effect"`)).toBeNull()
@@ -44,8 +48,8 @@ describe("what a plugin's source may name", () => {
     expect(unresolvable(`import { Schema } from "effect/Schema"`)).toContain(`"effect/Schema"`)
   })
 
-  test("a relative import names a file that is not there", () => {
-    expect(unresolvable(`import { helper } from "./util.ts"`)).toContain("nothing else")
+  test("a relative import is left to the folder's own resolution rather than refused here", () => {
+    expect(unresolvable(`import { helper } from "./util.ts"`)).toBeNull()
   })
 
   test("a computed module is refused whatever it names", () => {
@@ -223,5 +227,119 @@ describe("a built half is a module that runs", () => {
     expect(built.ok).toBe(false)
     if (built.ok) return
     expect(built.why).toContain(`"left-pad"`)
+  })
+})
+
+/**
+ * A PLUGIN OF SEVERAL FILES — every `.ts` and `.tsx` in its folder, an import
+ * naming one by a relative path with its suffix, resolved by arithmetic over
+ * the files handed in and never against a disk.
+ */
+describe("a plugin of several files", () => {
+  const folder = (files: Readonly<Record<string, string>>): ReadonlyMap<string, string> =>
+    new Map(Object.entries(files))
+  /** The serve's linking: each file a `data:` module of its own text. */
+  const server = (files: Readonly<Record<string, string>>, entry = "server.ts") =>
+    buildPlugin("server", entry, folder(files), (_path, text) => asDataUrl(text))
+  const refused = async (files: Readonly<Record<string, string>>, entry = "server.ts"): Promise<string> => {
+    const built = await server(files, entry)
+    if (built.ok) throw new Error("this folder built, and the case is that it must not")
+    return built.why
+  }
+
+  test("a relative import of a file in the folder builds, and the module runs", async () => {
+    const built = await server({
+      "server.ts": `import { Effect } from "effect"\nimport { twice } from "./lib/sm2.ts"\nexport default Effect.succeed(twice(21))`,
+      "lib/sm2.ts": `import { half } from "../half.ts"\nexport const twice = (n: number): number => half(n) * 4`,
+      "half.ts": `export const half = (n: number): number => n / 2`,
+    })
+    if (!built.ok) throw new Error(built.why)
+    expect(built.text).not.toMatch(/^\s*import\s/m)
+    const module = await evaluated(built.text, { effect: { Effect: { succeed: (value: unknown) => ({ value }) } } })
+    expect(module.default).toEqual({ value: 42 })
+    expect(built.modules.map((one) => one.path).sort()).toEqual(["half.ts", "lib/sm2.ts"])
+  })
+
+  test("a path that leaves the folder is refused, naming it", async () => {
+    expect(await refused({ "server.ts": `import { x } from "../other/server.ts"\nexport default x` })).toContain(`"../other/server.ts"`)
+    expect(await refused({ "server.ts": `import { x } from "/etc/x.ts"\nexport default x` })).toContain(`"/etc/x.ts"`)
+  })
+
+  test("a file the folder does not hold is refused, naming it", async () => {
+    const why = await refused({ "server.ts": `import { x } from "./missing.ts"\nexport default x` })
+    expect(why).toContain(`"./missing.ts"`)
+  })
+
+  test("a suffix that is not .ts or .tsx is refused, naming it", async () => {
+    expect(await refused({ "server.ts": `import { x } from "./sm2"\nexport default x`, "sm2.ts": `export const x = 1` })).toContain(`"./sm2"`)
+    expect(await refused({ "server.ts": `import x from "./data.json"\nexport default x` })).toContain(`"./data.json"`)
+  })
+
+  test("a cycle is refused, naming the import that closes it", async () => {
+    const why = await refused({
+      "server.ts": `import { a } from "./a.ts"\nexport default a`,
+      "a.ts": `import { b } from "./b.ts"\nexport const a = () => b`,
+      "b.ts": `import { a } from "./a.ts"\nexport const b = () => a`,
+    })
+    expect(why).toContain(`"./a.ts"`)
+    expect(why).toContain("cycle")
+  })
+
+  test("a .tsx reached from server.ts is refused, naming it", async () => {
+    const why = await refused({
+      "server.ts": `import { Face } from "./face.tsx"\nexport default Face`,
+      "face.tsx": `export const Face = () => <span />`,
+    })
+    expect(why).toContain(`"./face.tsx"`)
+  })
+
+  test("a computed import and a fourth bare module are refused in any file, as before", async () => {
+    expect(await refused({ "server.ts": `import { x } from "./lib.ts"\nexport default x`, "lib.ts": `export const x = await import("effect")` }))
+      .toContain("may not compute a module")
+    expect(await refused({ "server.ts": `import { x } from "./lib.ts"\nexport default x`, "lib.ts": `import pad from "left-pad"\nexport const x = pad` }))
+      .toContain(`"left-pad"`)
+  })
+
+  test("a re-export of a file in the folder stays refused", async () => {
+    const why = await refused({ "server.ts": `export { x } from "./lib.ts"`, "lib.ts": `export const x = 1` })
+    expect(why).toContain("could not bind")
+  })
+
+  test("a file both halves import is bound to each half's own door", async () => {
+    const files = folder({
+      "server.ts": `import { door } from "./shared.ts"\nexport default door`,
+      "browser.tsx": `import { door } from "./shared.ts"\nexport default door`,
+      "shared.ts": `import { which } from "@olai/plugin-api"\nexport const door = which`,
+    })
+    // The tab serves a module at an address of its own; a marked `data:` URL
+    // stands in for it, so the two halves' copies are two modules here too.
+    const each = await Promise.all((["server", "browser"] as const).map((half) =>
+      buildPlugin(half, half === "server" ? "server.ts" : "browser.tsx", files, (_path, text) => asDataUrl(`// ${half}\n${text}`))))
+    const [onServer, inTab] = each
+    if (!onServer?.ok || !inTab?.ok) throw new Error("a half did not build")
+    expect((await evaluated(onServer.text, { "@olai/plugin-api": { which: "services" } })).default).toBe("services")
+    expect((await evaluated(inTab.text, { "@olai/plugin-api": { which: "root" } })).default).toBe("root")
+  })
+
+  test("a chain twelve files deep loads", async () => {
+    const files: Record<string, string> = { "link-12.ts": `export const n = 0 // ${"x".repeat(20_000)}` }
+    for (let depth = 11; depth >= 1; depth -= 1) {
+      files[`link-${depth}.ts`] = `import { n as below } from "./link-${depth + 1}.ts"\nexport const n = below + 1`
+    }
+    files["server.ts"] = `import { n } from "./link-1.ts"\nexport default n + 1`
+    const built = await server(files)
+    if (!built.ok) throw new Error(built.why)
+    expect((await evaluated(built.text, {})).default).toBe(12)
+  })
+
+  test("the browser half links a helper by the address its linker names", async () => {
+    const built = await buildPlugin("browser", "browser.tsx", folder({
+      "browser.tsx": `import { Columns } from "./columns.tsx"\nexport const Page = () => <Columns />`,
+      "columns.tsx": `export const Columns = () => <div class="columns" />`,
+    }), (path) => `/_olai/plugins/reader-v1/${path}.js`)
+    if (!built.ok) throw new Error(built.why)
+    expect(built.text).toContain(`"/_olai/plugins/reader-v1/columns.tsx.js"`)
+    expect(built.modules.map((one) => one.path)).toEqual(["columns.tsx"])
+    expect(built.modules[0]?.text).toContain(`["solid-js/web"]`)
   })
 })

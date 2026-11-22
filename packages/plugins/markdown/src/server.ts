@@ -46,7 +46,7 @@
  */
 import { claim } from "./claim.ts"
 import { definePlugin, Directory, FileKinds, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
-import type { Ops as Gate, Store } from "@olai/ops"
+import type { Store } from "@olai/ops"
 import { Effect } from "effect"
 import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
 import { type Reading, samePageReading } from "@olai/format"
@@ -71,7 +71,7 @@ export default definePlugin({
   apply: Effect.gen(function*() {
     yield* (yield* FileKinds).register(claim)
     const store = (yield* Directory).store as Store
-    const gate = (yield* Ops).gate as Gate
+    const gate = (yield* Ops).gate
     const vault = yield* Vault
     let ctx: SurfaceRuntime<typeof surface.spec>["ctx"] | undefined
     let held: Projection<DocumentEntry> | undefined
@@ -171,3 +171,6 @@ import { faces as standaloneFaces } from "./surface.ts"
 const siblingFaces = { browser: standaloneFaces.browser }
 export { siblingFaces as faces }
 export { surface } from "./surface.ts"
+// The seats a plugin hangs a face in on a note's page, listed by
+// `vault-plugins_inspect` beside every other row's (`./slots.ts`).
+export { slotContracts as slots } from "./slots.ts"

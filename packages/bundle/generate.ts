@@ -200,7 +200,7 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   // a specifier does.
   const server = rows
     .map((row) =>
-      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : ", browserOnly: true"}${
+      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${hasDoor(row, "./server") ? "" : `, browserOnly: true${hasDoor(row, "./slots") ? `, slots: ${quoted(`${packageOf(row)}/slots`)}` : ""}`}${
         row.disabled === true ? ", disabled: true" : ""
       }${row.profiles === undefined ? "" : `, profiles: [${row.profiles.map(quoted).join(", ")}]`}${row.switchHint === undefined ? "" : `, switchHint: ${prose(row.switchHint)}`}, section: ${prose(row.section)}${row.label === undefined ? "" : `, label: ${prose(row.label)}`}${row.quiet === true ? ", quiet: true" : ""} },`
     )

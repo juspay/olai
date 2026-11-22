@@ -6,7 +6,7 @@ import { useDocumentReading } from "../reading.tsx"
 import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
 import { bodyKind, type Custom } from "@olai/format"
-import { createMemo, createSignal, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { DeleteFile } from "../files.tsx"
 import { Properties } from "../Properties.tsx"
@@ -18,6 +18,7 @@ import { isServed, useDocument, useDocumentEditor } from "./documents.tsx"
 import { Rendered } from "./Rendered.tsx"
 import { consumeMinted } from "./minted.ts"
 import { referrersMemory } from "../memory.ts"
+import { noteFeet, noteHeads } from "../faces.ts"
 
 import { useRouter } from "olai-plugin-navigation/routing"
 
@@ -119,6 +120,9 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           <Properties custom={props.custom} from={props.file} />
         </Show>
       </header>
+      {/* WHAT OTHER PLUGINS HANG ABOVE THE TEXT — `document.page.head`, each
+          face handed this note's path (../faces.ts). */}
+      <For each={noteHeads()}>{(one) => { const Face = one.face; return <Face file={props.file} /> }}</For>
       {/* The face is drawn the moment the route resolves — the heading and the
           file's own rendering are one mount — and what it draws from is its own
           to ask for (./faces.tsx). A path the directory does not have never
@@ -149,6 +153,8 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           wire. */}
       <Show when={nudge()}>{text => <div data-testid={TESTID.documentNudge} class="text-label text-alarm">{text()}</div>}</Show>
       <Referrers file={props.file} reading={reading} claims={servedDirectory()?.claims()} href={router.routes.href} memory={referrersMemory.read()!} />
+      {/* ...and under the text and its referrers — `document.page.foot`. */}
+      <For each={noteFeet()}>{(one) => { const Face = one.face; return <Face file={props.file} /> }}</For>
     </section>
   )
 }

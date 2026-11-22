@@ -65,24 +65,45 @@ const DOORS: Readonly<Record<string, string>> = {
   Directory: "Reads the served directory",
   HttpClient: "Reaches the network",
   Commands: "Runs programs on this computer",
+  Navigate: "Opens pages in the app",
+  // What the import shows, and no more: whether the plugin hands the caller to
+  // the gate is in its code, and this list never vouches for that.
+  RequestAuthority: "Learns who made each call, you or an agent",
 }
 
 /** The import names that say nothing a person needs to read: the ones every
- *  plugin has, which carry no reach of their own. */
-const PLUMBING: Readonly<Record<string, true>> = { definePlugin: true, serviceTag: true }
+ *  plugin has, and the ones that build its own wire, which carry no reach of
+ *  their own. A TYPE that is not a door is read the same way: it reaches
+ *  nothing (`readHalf`). */
+const PLUMBING: Readonly<Record<string, true>> = {
+  definePlugin: true,
+  serviceTag: true,
+  clientOf: true,
+  defineSurface: true,
+  OpFailure: true,
+}
+
+/** THE SLOTS whose `Draws in the app's …` would not say where: what a face
+ *  hung there does, in words. Any other slot is drawn in, and said so. */
+const SLOTS: Readonly<Record<string, string>> = {
+  "app.keys": "Adds a keyboard shortcut",
+  "app.command": "Adds a command to the palette",
+  "document.block": "Draws its own fenced blocks in your notes",
+}
 
 /**
- * THE LIST, for one plugin — both halves folded into one reading, deduped by
- * the technical name, in the order the code names them.
+ * THE LIST, for one plugin — every code file folded into one reading, deduped
+ * by the technical name, in the order the code names them.
  *
- * Both halves together because a person is deciding about a PLUGIN. The two
- * files are an implementation fact; "draws a chip on outline rows" is true of
- * the plugin whichever half does it.
+ * Every file together because a person is deciding about a PLUGIN. Which file
+ * a call sits in is an implementation fact; "draws a chip on outline rows" is
+ * true of the plugin whichever file does it, and a helper reaches as far as an
+ * entry does.
  */
-export const usesOf = (server: string, browser: string | null = null): ReadonlyArray<Uses> => {
+export const usesOf = (...sources: ReadonlyArray<string | null>): ReadonlyArray<Uses> => {
   const found = new Map<string, Uses>()
-  for (const half of [server, browser ?? ""]) {
-    for (const one of readHalf(half)) if (!found.has(one.named)) found.set(one.named, one)
+  for (const source of sources) {
+    for (const one of readHalf(source ?? "")) if (!found.has(one.named)) found.set(one.named, one)
   }
   return [...found.values()]
 }
@@ -92,11 +113,17 @@ const readHalf = (source: string): ReadonlyArray<Uses> => {
   // THE DOORS, out of every `import { … } from "@olai/plugin-api"` — including
   // the subpath door a server half is typechecked against, since that is the
   // same door under the name the check wants.
-  const imports = /import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*["']@olai\/plugin-api(?:\/[a-z-]+)?["']/g
+  const imports = /import\s*(type\s*)?\{([^}]*)\}\s*from\s*["']@olai\/plugin-api(?:\/[a-z-]+)?["']/g
   for (let match: RegExpExecArray | null; (match = imports.exec(source)) !== null;) {
-    for (const raw of match[1]!.split(",")) {
+    const allTypes = match[1] !== undefined
+    for (const raw of match[2]!.split(",")) {
+      const typed = allTypes || /^\s*type\s+/.test(raw)
       const name = raw.replace(/^\s*type\s+/, "").split(/\s+as\s+/)[0]!.trim()
       if (name === "" || PLUMBING[name] === true) continue
+      // A TYPE-ONLY IMPORT is named when it is a door (`type Vault`, written
+      // where the door is handed in), and is otherwise a shape the code
+      // spells, which reaches nothing.
+      if (typed && DOORS[name] === undefined) continue
       lines.push({ said: DOORS[name] ?? `Uses olai's \`${name}\``, named: name })
     }
   }
@@ -118,7 +145,7 @@ const readHalf = (source: string): ReadonlyArray<Uses> => {
     const slot = match[1]!
     const key = match[2]
     lines.push({
-      said: key === undefined ? `Draws in the app's \`${slot}\`` : `Draws on anything wearing \`${key}\``,
+      said: key !== undefined ? `Draws on anything wearing \`${key}\`` : SLOTS[slot] ?? `Draws in the app's \`${slot}\``,
       named: key === undefined ? slot : `${slot} · ${key}`,
     })
   }
@@ -127,6 +154,16 @@ const readHalf = (source: string): ReadonlyArray<Uses> => {
   const kinds = /register\s*\(\s*\{[^}]*\bkind\s*:\s*["']([a-z][a-z0-9-]*)["']/g
   for (let match: RegExpExecArray | null; (match = kinds.exec(source)) !== null;) {
     lines.push({ said: `Adds a property kind to this vault: ${match[1]!}`, named: `kind · ${match[1]!}` })
+  }
+  // ...AND EVERY MEMBER IT GRANTS TO THE AGENT FACE, which an agent may then
+  // call: an `agent: { "<member>": … }` map, read as written. A grant the code
+  // computes at runtime is not seen here, like any other line of this list.
+  const agent = /\bagent\s*:\s*\{([^}]*)\}/g
+  for (let match: RegExpExecArray | null; (match = agent.exec(source)) !== null;) {
+    const members = /["']([A-Za-z][\w.-]*)["']\s*:/g
+    for (let member: RegExpExecArray | null; (member = members.exec(match[1]!)) !== null;) {
+      lines.push({ said: `Lets your agents call \`${member[1]!}\``, named: `agent · ${member[1]!}` })
+    }
   }
   return lines
 }

@@ -1,9 +1,8 @@
 /** A tiny shell receives only a renderer mount and this capability's wire.
  * Requests and presentation are cancelled with the root contribution. */
-import { definePlugin, Wired } from "@olai/plugin-api"
+import { clientOf, definePlugin, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createSignal, onCleanup, onMount } from "solid-js"
-import type { SurfaceClient } from "@kolu/surface/solid"
 import { rendererSlots, root } from "olai-plugin-ui-renderer/contract"
 import { name, surface } from "./wire.ts"
 export { name, surface } from "./wire.ts"
@@ -23,7 +22,13 @@ export default definePlugin({ name, needs: [Wired, rendererSlots], apply: Effect
       const controller = new AbortController()
       tasks.add(controller)
       setPending(true)
-      const client = wired.client() as SurfaceClient<typeof surface.spec>
+      const client = clientOf(surface, wired)
+      if (client === null) {
+        tasks.delete(controller)
+        setPending(false)
+        setFailure("The counter is not on this tab's wire.")
+        return
+      }
       void Effect.runPromise(client.procedures.counter[kind]({}), { signal: controller.signal }).then(
         value => { if (active) { setCount(value); setFailure(undefined) } },
         error => { if (active) setFailure(String(error)) },

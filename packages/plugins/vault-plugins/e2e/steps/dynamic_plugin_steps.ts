@@ -480,11 +480,12 @@ Then("the outline {string} is refused for {string}", async function (this: OlaiW
 Then("the vault holds no files for the plugin {string}", async function (this: OlaiWorld, word: string) {
   const folder = path.join(this.scratch(), "plugins", word)
   await this.waitUntil(
-    // THE FILES, not the directory entry: the vault is a set of FILES, every
+    // THE FILES, not the directory entries: the vault is a set of FILES, every
     // write verb names one, and nothing in olai creates or removes a folder as
-    // such. What a delete leaves is an empty directory, which is what any
-    // other way of deleting every file in one leaves too.
-    () => Promise.resolve(!fs.existsSync(folder) || fs.readdirSync(folder).length === 0),
+    // such. What a delete leaves is empty directories, at any depth, which is
+    // what any other way of deleting every file in one leaves too.
+    () => Promise.resolve(!fs.existsSync(folder)
+      || fs.readdirSync(folder, { recursive: true, withFileTypes: true }).every((entry) => !entry.isFile())),
     `the files of "${word}" to be gone from the vault`,
   )
 })

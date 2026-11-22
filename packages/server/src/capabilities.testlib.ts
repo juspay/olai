@@ -62,5 +62,10 @@ export const capabilitiesOver = (store: Store, gate: Gate, root: string, options
   yield* mountPlugin(plugins.host,fileAccess)
   yield* mountBundle(plugins.host,selectFixtureRows(rows),"surface")
   yield* settled(plugins.host,rows)
-  return yield* runtimeFor(plugins,rows,onChange)
+  // THE BENCH'S BUILD: the rows it mounted, and `file-access`, which it mounts
+  // as a plugin of its own above. In a serve that is a component of the vault
+  // row, so it is the build's; a sibling whose name is not in this list is
+  // taken to be from outside the build, and its agent grants are held to its
+  // `writes` (`./composition.ts`'s `mount`), which would refuse it here.
+  return yield* runtimeFor(plugins,[...rows, fileAccess.name],onChange)
 })

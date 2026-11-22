@@ -74,21 +74,22 @@ declare module "@olai/plugin-api/slots" {
 
 /**
  * THE SEAT A PLUGIN HANGS ITS ROW'S OWN DRAWING IN, as the table every other
- * slot owner in this tree publishes (`layout`, `chat`, `outlines`, `sidebar`
- * and `navigation` all export `slotContracts` and re-export it as `slots`).
+ * slot owner in this tree publishes as `slotContracts`.
  *
- * The table rather than a lone export is not tidiness: `plugin-inspector`'s row
- * in `olai.yml` names this package's ROOT module, and the root's `slots` is
- * what `@olai/vault-plugins` reads to tell a plugin author which seats exist
- * (`slotCatalog`). A lone `pluginsRow` export left this seat out of that
- * answer — the one convention the fence could not check, because the fence
- * asserts the door is declared, not what the door is called.
+ * The table rather than a lone export is not tidiness: this row is browser-only,
+ * so the serve reads its seats off this `./slots` door by the name
+ * `slotContracts` (`@olai/bundle`'s `mountBundle`), and that is what
+ * `vault-plugins_inspect` tells a plugin author exists (`slotCatalog`). A lone
+ * `pluginsRow` export would leave this seat out of that answer — the one
+ * convention the fence cannot check, because the fence asserts the door is
+ * declared, not what the door is called.
  */
 export const slotContracts = {
   /** The declaration the panel's tools entry offers as a child (`./browser.tsx`)
    *  — a registration into a location no active entry declared would simply
    *  wait. */
-  "plugins.row": slotContract<PluginsRowFace>("plugins.row", "plugin"),
+  "plugins.row": slotContract<PluginsRowFace>("plugins.row", "plugin",
+    "A `{ needs, body }` for the plugin's own row in the Plugins panel: `needs` is called with nothing and answers whether a person has to act, and `body` is called with nothing and draws under the row."),
 } as const
 
 /** THE SEAT ITSELF, for a reader that wants one name rather than a table —

@@ -45,7 +45,7 @@
  * is created inside an activation and released with it.
  */
 
-import { definePlugin, Offers, Slots, Wired } from "@olai/plugin-api"
+import { definePlugin, Faces, Offers, Slots, Wired } from "@olai/plugin-api"
 import { browserManagement } from "@olai/surface/management"
 import { defineSelfDrawnPage } from "olai-plugin-navigation/routes"
 import { alertsChannel as noticeChannel } from "olai-plugin-alerts/contract"
@@ -54,16 +54,19 @@ import { chatBeside as besideDoor } from "olai-plugin-chat/beside"
 import { navigation as appRouter, paletteAdapters, paletteControl } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Effect } from "effect"
-import { createRoot } from "solid-js"
+import { createRoot, Show } from "solid-js"
 
 import { type Approvals, name, type NewPlugin } from "./index.ts"
 import { client, holdClient, type Client } from "./client.ts"
 import { createPluginAlerts } from "./browser/alerts.ts"
 import { holdBeside, holdEngines, holdPalette, holdRouter } from "./browser/doors.ts"
 import { NEW_PLUGIN_ROW, newPluginRow } from "./browser/new-plugin.ts"
+import { holdOwnPages } from "./browser/faces.ts"
+import { OwnPage } from "./browser/OwnPage.tsx"
 import { PluginPage } from "./browser/Page.tsx"
 import { pluginPage } from "./browser/route.ts"
 import { Section } from "./browser/Section.tsx"
+import { slotContracts } from "./slots.ts"
 
 /** The slots this row hangs faces in are declared by their owners; naming the
  *  contracts here is what types the registrations against them. */
@@ -98,14 +101,28 @@ export const components = {
     yield* (yield* Slots).register("sidebar.section", { said: SECTION, body: () => <Section management={management} /> })
   }) }),
 
-  /** THE PLUGIN'S OWN PAGE, as a self-drawn route. Navigation mounts the face
+  /** THE PLUGIN'S PAGE, as a self-drawn route. Navigation mounts the face
    *  over the route's own value; nothing here names a document kind, a page
-   *  reading or an outline, because a plugin's page needs none of them. */
-  page: definePlugin({ name: "page", needs: [browserManagement, Slots], apply: Effect.gen(function*() {
+   *  reading or an outline, because a plugin's page needs none of them.
+   *
+   *  The same address space holds the plugin's OWN page, under `app`
+   *  (`./browser/address.ts`), so this component declares the seat that page
+   *  hangs in as a child of the route and holds the faces hung there: the
+   *  seat lives exactly as long as the address that draws it. */
+  page: definePlugin({ name: "page", needs: [browserManagement, Slots, Faces], apply: Effect.gen(function*() {
     const management = yield* browserManagement
+    yield* holdOwnPages(yield* Faces)
     yield* (yield* Slots).register(
       "app.route",
-      defineSelfDrawnPage(pluginPage, (props) => <PluginPage word={props.value.word} file={props.value.file} management={management} />),
+      defineSelfDrawnPage(pluginPage, (props) => (
+        <Show
+          when={props.value.app !== undefined}
+          fallback={<PluginPage word={props.value.word} file={props.value.file} management={management} />}
+        >
+          <OwnPage word={props.value.word} rest={props.value.app ?? ""} management={management} />
+        </Show>
+      )),
+      { children: [slotContracts["plugin.page"]] },
     )
   }) }),
 

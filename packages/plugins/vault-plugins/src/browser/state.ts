@@ -49,7 +49,7 @@
  * it is the plugin they approved, changed, which is *Paused* with a diff.
  */
 
-import { type BuiltPlugin, pluginState } from "@olai/surface"
+import { type BuiltPlugin, codeFilesOf, pluginState } from "@olai/surface"
 
 /**
  * THE SIX WORDS A PLUGIN'S PAGE CAN BE HEADED WITH — the mockup's six screens,
@@ -137,12 +137,12 @@ export const metaOf = (plugin: Defined, stage: Stage): string => {
   return ""
 }
 
-/** The size of what somebody is being asked to read: the two halves, which are
- *  the only files an approval is about. */
+/** The size of what somebody is being asked to read: every code file, which
+ *  are the files an approval is about. */
 const halves = (source: Defined["source"]): string => {
-  const written = source.browser === undefined ? 1 : 2
-  const lines = count(source.server) + (source.browser === undefined ? 0 : count(source.browser))
-  return `${written} ${written === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
+  const texts = codeFilesOf(source).flatMap((one) => (one.text === undefined ? [] : [one.text]))
+  const lines = texts.reduce((sum, text) => sum + count(text), 0)
+  return `${texts.length} ${texts.length === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
 }
 
 const count = (text: string): number => (text.trim() === "" ? 0 : text.replace(/\n$/, "").split("\n").length)

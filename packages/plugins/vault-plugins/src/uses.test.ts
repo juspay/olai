@@ -8,6 +8,8 @@
  * listed rather than swallowed.
  */
 import { expect, test } from "bun:test"
+import { readdirSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 
 import { usesOf } from "./uses.ts"
 
@@ -96,4 +98,51 @@ test("a key whose shape is spelled out over a dozen lines is still a key it name
   expect(usesOf(half)).toEqual([
     { said: "Uses what the `journal` plugin offers", named: "journal.agenda" },
   ])
+})
+
+test("a member the source grants to the agent face is named, each one", () => {
+  // THE GRANT AS A PERSON MUST READ IT: an agent may call these, and what they
+  // do is whatever the approved code says. Read off the text like every other
+  // line of the list, so a grant computed at runtime is not seen.
+  const shared = [
+    `export const faces = {`,
+    `  browser: { "words.mark": "tool", "words.grade": "tool" },`,
+    `  agent: { "words.mark": "tool" },`,
+    `} as const`,
+  ].join("\n")
+  expect(usesOf(shared)).toEqual([
+    { said: "Lets your agents call `words.mark`", named: "agent · words.mark" },
+  ])
+  expect(usesOf(`export const faces = { browser: { "words.mark": "tool" } }`)).toEqual([])
+})
+
+test("the reading companion's page names what it reaches for in plain words", () => {
+  // THE ACCEPTANCE PLUGIN'S OWN FILES, every code file of its folder, read the
+  // way the serve reads them for its page.
+  const folder = join(import.meta.dir, "..", "..", "..", "tests", "fixtures", "reader", "plugins", "reader")
+  const files = readdirSync(folder, { recursive: true, encoding: "utf8" })
+    .filter((path) => /\.tsx?$/.test(path))
+    .map((path) => readFileSync(join(folder, path), "utf8"))
+  const list = usesOf(...files)
+  const by = new Map(list.map((one) => [one.named, one.said]))
+  // THE DOORS THIS PR ADDED that reach something, each with its sentence.
+  expect(by.get("Navigate")).toBe("Opens pages in the app")
+  // WHAT THE IMPORT SHOWS, and no more: the plugin learns who called. Whether
+  // it hands that to the gate is in the code, which this list never vouches for.
+  expect(by.get("RequestAuthority")).toBe("Learns who made each call, you or an agent")
+  // ...THE PLUMBING, and the TYPES, which reach nothing.
+  for (const quiet of ["clientOf", "defineSurface", "OpFailure", "ImplementSurfaceDeps", "WriteRequest"]) {
+    expect(by.has(quiet)).toBe(false)
+  }
+  // ...A KEY and A COMMAND, as what they are.
+  expect(by.get("app.keys")).toBe("Adds a keyboard shortcut")
+  expect(by.get("app.command")).toBe("Adds a command to the palette")
+  // ...AND A FENCED BLOCK, as the place it is drawn.
+  expect(by.get("document.block")).toBe("Draws its own fenced blocks in your notes")
+  // ...and nothing it reaches for is left to the general sentence.
+  expect(list.filter((one) => one.said.startsWith("Uses olai's"))).toEqual([])
+})
+
+test("a type-only import that is not a door is not listed", () => {
+  expect(usesOf(`import { definePlugin, type WriteRequest, type ImplementSurfaceDeps } from "@olai/plugin-api"`)).toEqual([])
 })

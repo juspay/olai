@@ -1,6 +1,7 @@
 /**
  * `GET /_olai/plugins/<name>-<version>.js` — where a plugin the VAULT defines
- * serves its browser half.
+ * serves its browser half — and `GET /_olai/plugins/<name>-<version>/<path>.js`,
+ * where it serves each file of its folder that half imports.
  *
  * ## Why there is a route at all
  *
@@ -22,12 +23,12 @@
  *
  * ## What it will NOT answer
  *
- * Anything but the exact path of a browser half that is MOUNTED right now. A
- * version that has been replaced, a plugin that was switched off, a definition
- * nobody approved: all 404. The lookup is an equality against the paths the
- * roster published, so there is no path to traverse and nothing on a disk this
- * route can reach — which is the whole of its security argument and is why it is
- * three lines rather than an allowlist.
+ * Anything but the exact path of a browser file that is MOUNTED right now (or
+ * the last set one plugin served). A version that has been replaced, a plugin
+ * that was switched off, a definition nobody approved: all 404. The lookup is
+ * an equality against the paths the runtime built, so there is no path to
+ * traverse and nothing on a disk this route can reach — which is the whole of
+ * its security argument and is why the pattern may match any path at all.
  */
 
 import { PLUGIN_CHUNK_PREFIX } from "@olai/surface"
@@ -36,17 +37,22 @@ import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/h
 
 import type { DynamicRuntime } from "./runtime.ts"
 
-/** The route, over the runtime that holds the built halves. A `null` runtime is
- *  a serve with no vault behind it, and it answers nothing rather than not
- *  binding: the path is the same on every serve, and a 404 is the honest
- *  reading of "this serve has no such plugin". */
-export const pluginChunks = (dynamic: Pick<DynamicRuntime, "chunk"> | null) =>
+/** The route, over the runtime that holds the built halves. It is bound only
+ *  while that runtime is offered (`./server.ts`'s `http` component names
+ *  `chunks`), so it always has one to ask. */
+export const pluginChunks = (dynamic: Pick<DynamicRuntime, "chunk">) =>
   HttpRouter.add(
     "GET",
-    `${PLUGIN_CHUNK_PREFIX}:file`,
+    `${PLUGIN_CHUNK_PREFIX}*`,
     (request: HttpServerRequest.HttpServerRequest) =>
       Effect.sync(() => {
-        const text = dynamic?.chunk(new URL(request.url, "http://olai").pathname) ?? null
+        // DECODED, because the runtime encodes each segment of a helper's path
+        // where it makes the address (`./runtime.ts`'s `builtFrom`) — a name
+        // may hold `#`, `?` or `%`, which a URL gives a meaning to — and the
+        // runtime keeps the path itself. A path that does not decode names nothing.
+        let path: string | null
+        try { path = decodeURIComponent(new URL(request.url, "http://olai").pathname) } catch { path = null }
+        const text = path === null ? null : dynamic.chunk(path)
         if (text === null) return HttpServerResponse.text("no such plugin chunk", { status: 404 })
         return HttpServerResponse.text(text, {
           status: 200,

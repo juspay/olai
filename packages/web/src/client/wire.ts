@@ -9,7 +9,7 @@ import { supplyManagement } from "../host/management.ts"
 import { connectSocket } from "./connection/socket.ts"
 import { restartRows, signatureOf, type Named } from "./connection/signature.ts"
 import { bootstrapSelected } from "../host/bootstrap.ts"
-import { loadRows, retryableModule } from "../host/loading.ts"
+import { heldToWord, loadRows, retryableModule } from "../host/loading.ts"
 import type { bootStatus } from "../host/boot-status.ts"
 import { BROWSER_BOOT_PATH, BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
@@ -197,11 +197,12 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     const { loaded: halves, failed, reloadRequired } = await loadRows(
       want.flatMap((one) => {
         // A PLUGIN THE VAULT DEFINES is fetched from the serve that compiled
-        // it; everything else is a chunk of this bundle, and a name with
+        // it, and held to the word the roster names it by (`heldToWord`);
+        // everything else is a chunk of this bundle, and a name with
         // neither is skipped rather than thrown on — a serve running a plugin
         // this build does not have is a tab talking to a newer server, and the
         // honest answer is that its faces are absent.
-        if (one.chunk !== null) return [{ id: one.id, load: () => chunkAt(one.chunk!) }]
+        if (one.chunk !== null) return [{ id: one.id, load: heldToWord(one.id, () => chunkAt(one.chunk!)) }]
         const row = rows.find((each) => each.id === one.id)
         return row === undefined ? [] : [row]
       }),

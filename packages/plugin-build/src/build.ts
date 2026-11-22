@@ -18,19 +18,22 @@
  *
  * ## NOTHING IS BUNDLED, in either half
  *
- * There is nothing to bundle: a plugin is two files, relative imports are
- * refused (`./imports.ts`), and the only specifiers left are the ones the host
- * binds (`./bind.ts`). So neither half touches a filesystem, resolves a package
- * or reads a `node_modules` — which is what lets this run in a serve whose own
- * tree is a read-only store path, and what makes the whole step a pure function
- * of the text.
+ * A plugin is every `.ts` and `.tsx` file in its folder, and the caller hands
+ * them all in, as text. An import of another of those files is resolved by
+ * path arithmetic against that set ({@link resolvedFrom}); the only other
+ * specifiers left are the ones the host binds (`./bind.ts`). So neither half
+ * touches a filesystem, resolves a package or reads a `node_modules` — which is
+ * what lets this run in a serve whose own tree is a read-only store path, and
+ * what makes the whole step a pure function of the text. What is built is the
+ * text the caller hashed into a version, and nothing else.
  *
- * ## What a caller gets, and what it does not
+ * ## Each file alone, and linked by the caller
  *
- * TEXT. Not a module, not a URL, not a file: where a half is EVALUATED is the
- * caller's question and the two answers are different — a `data:` URL in the
- * serve, an HTTP chunk under the tab's own origin — and neither belongs to the
- * compiler.
+ * Every file is transformed on its own, exactly as one file always was, and a
+ * relative specifier in its emit is rewritten to the address its target was
+ * linked at. WHERE a built file lives is the caller's question — a `data:` URL
+ * in the serve, a path under the plugin's own chunk in the tab — so the caller
+ * passes `link`, and this package learns neither.
  */
 
 import { transformAsync } from "@babel/core"
@@ -39,39 +42,143 @@ import babelTypeScript from "@babel/preset-typescript"
 // @ts-expect-error — the babel presets ship loose types
 import babelSolid from "babel-preset-solid"
 
-import { bind, type Made } from "./bind.ts"
-import { type Half, modulesFor, unresolvable } from "./imports.ts"
+import { bind } from "./bind.ts"
+import { type Half, modulesFor, relativeIn, unresolvable } from "./imports.ts"
 
 export type { Half } from "./imports.ts"
 
-/** A built half is `./bind.ts`'s one answer shape, re-exported: what comes back
- *  from a COMPILE and what comes back from a BIND are the same two things, and
- *  they were two identical declarations until somebody read them side by side. */
-export type { Made } from "./bind.ts"
+/** A file of the folder, built: its path in the folder and its module text. */
+export interface Module {
+  readonly path: string
+  readonly text: string
+}
+
+/** An entry built with every file it reaches, or the sentence that says why
+ *  not. `modules` is every OTHER file it reached, each built once, in the order
+ *  they finished — a dependency before what imports it. */
+export type Linked =
+  | { readonly ok: true; readonly text: string; readonly modules: ReadonlyArray<Module> }
+  | { readonly ok: false; readonly why: string }
+
+/** A module's text as a URL `import()` can load with no file behind it — what
+ *  the serve links its built files by. */
+export const asDataUrl = (text: string): string =>
+  `data:text/javascript;base64,${Buffer.from(text, "utf8").toString("base64")}`
 
 /**
- * COMPILE ONE HALF.
+ * COMPILE ONE HALF of a plugin: its entry, and every file of the folder the
+ * entry reaches.
  *
- * The gate runs FIRST, on the author's own text, so the sentence a refusal
- * carries names what THEY wrote rather than what a compiler made of it. Then the
- * transform, then the bind, and a failure at any of the three is one shape.
+ * The gate runs FIRST on each file, on the author's own text, so the sentence a
+ * refusal carries names what THEY wrote rather than what a compiler made of it.
+ * Then the file's own imports are resolved and built, then the file itself is
+ * transformed and bound, and a failure at any step is one shape.
  *
- * A COMPILER ERROR IS THE AUTHOR'S SENTENCE and is passed through with nothing
- * composed around it, which is the same rule the roster keeps for a plugin's own
- * failure prose: a syntax error names a line and a column, and core has nothing
- * to add to that but noise.
+ * A COMPILER ERROR IS THE AUTHOR'S SENTENCE and is passed through with only the
+ * file's path in front of it: a syntax error names a line and a column, and core
+ * has nothing to add to that but noise.
+ *
+ * `link` answers the address a built file is imported by, given its path and
+ * text. It is called once per file, after that file is built.
  */
-export const buildHalf = async (half: Half, source: string): Promise<Made> => {
-  const refused = unresolvable(source)
-  if (refused !== null) return { ok: false, why: refused }
-  let text: string
-  try {
-    text = half === "server" ? transpiled(source) : await drawn(source)
-  } catch (thrown) {
-    return { ok: false, why: said(thrown) }
+export const buildPlugin = async (
+  half: Half,
+  entry: string,
+  folder: ReadonlyMap<string, string>,
+  link: (path: string, text: string) => string,
+): Promise<Linked> => {
+  const built = new Map<string, { readonly text: string; readonly url: string }>()
+  const modules: Array<Module> = []
+  /** Build `path` and everything it reaches; `chain` is the files above it,
+   *  so an import of one of them is a cycle. */
+  const visit = async (path: string, chain: ReadonlyArray<string>): Promise<string | null> => {
+    const source = folder.get(path)
+    if (source === undefined) return `this plugin has no \`${path}\` to build.`
+    const refused = unresolvable(source)
+    if (refused !== null) return path === entry ? refused : `\`${path}\`: ${refused}`
+    const local = new Map<string, string>()
+    for (const spec of relativeIn(source)) {
+      const target = resolvedFrom(half, path, spec, folder)
+      if (!target.ok) return target.why
+      if (target.path === path || chain.includes(target.path)) {
+        return `\`${path}\` imports "${spec}", which imports \`${path}\` back: a cycle. `
+          + `No file of a plugin may import itself back, directly or through others; `
+          + `move what both need into a third file.`
+      }
+      if (!built.has(target.path)) {
+        const why = await visit(target.path, [...chain, path])
+        if (why !== null) return why
+      }
+      local.set(spec, built.get(target.path)!.url)
+    }
+    let text: string
+    try {
+      text = half === "server" ? transpiled(source) : await drawn(source, path)
+    } catch (thrown) {
+      return path === entry ? said(thrown) : `\`${path}\`: ${said(thrown)}`
+    }
+    const bound = bind(text, modulesFor(half), local)
+    if (!bound.ok) return path === entry ? bound.why : `\`${path}\`: ${bound.why}`
+    built.set(path, { text: bound.text, url: link(path, bound.text) })
+    if (path !== entry) modules.push({ path, text: bound.text })
+    return null
   }
-  const bound = bind(text, modulesFor(half))
-  return bound.ok ? { ok: true, text: bound.text } : { ok: false, why: bound.why }
+  const why = await visit(entry, [])
+  if (why !== null) return { ok: false, why }
+  return { ok: true, text: built.get(entry)!.text, modules }
+}
+
+/** The two suffixes a plugin's code is written in. */
+const CODE = /\.tsx?$/
+
+/**
+ * WHICH FILE OF THE FOLDER `spec`, written in `from`, names — by path
+ * arithmetic over the folder's own files and nothing else.
+ *
+ * Each refusal names the specifier as written and the file that wrote it,
+ * because the author fixes the import, not the path olai worked out.
+ */
+const resolvedFrom = (
+  half: Half,
+  from: string,
+  spec: string,
+  folder: ReadonlyMap<string, string>,
+): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly why: string } => {
+  const leaves = {
+    ok: false as const,
+    why: `\`${from}\` imports "${spec}", which is outside this plugin's folder. A plugin may `
+      + `import only what is in its own folder, by a path relative to the file importing it.`,
+  }
+  if (spec.startsWith("/")) return leaves
+  const parts = from.split("/").slice(0, -1)
+  for (const step of spec.split("/")) {
+    if (step === "" || step === ".") continue
+    if (step === "..") {
+      if (parts.length === 0) return leaves
+      parts.pop()
+      continue
+    }
+    parts.push(step)
+  }
+  const path = parts.join("/")
+  if (!CODE.test(path)) {
+    return {
+      ok: false,
+      why: `\`${from}\` imports "${spec}", which is not a .ts or .tsx file. Name a code file of `
+        + `this folder with its suffix, as in "./sm2.ts".`,
+    }
+  }
+  if (!folder.has(path)) {
+    return { ok: false, why: `\`${from}\` imports "${spec}", but this plugin's folder holds no \`${path}\`.` }
+  }
+  if (half === "server" && path.endsWith(".tsx")) {
+    return {
+      ok: false,
+      why: `\`${from}\` imports "${spec}", a .tsx file, into the server half. A .tsx file is drawn `
+        + `in the page and the server half cannot import one; put what the server needs in a .ts file.`,
+    }
+  }
+  return { ok: true, path }
 }
 
 /** The server half: TypeScript, erased. */
@@ -87,12 +194,12 @@ const transpiled = (source: string): string =>
  * into a page that is already drawn, which is the only way a dynamic plugin ever
  * arrives.
  */
-const drawn = async (source: string): Promise<string> => {
+const drawn = async (source: string, path: string): Promise<string> => {
   const result = await transformAsync(source, {
-    // A NAME THE COMPILER CAN QUOTE. There is no file — the source is a note on
-    // a node — so this is what a syntax error names, and it is the name the
-    // author gave the node they wrote it in.
-    filename: "browser.tsx",
+    // A NAME THE COMPILER CAN QUOTE, and the one that decides whether JSX is
+    // allowed: the file's own path in the plugin's folder, so a `.ts` helper is
+    // TypeScript and a `.tsx` file is TypeScript with JSX, as anywhere else.
+    filename: path,
     babelrc: false,
     configFile: false,
     /**

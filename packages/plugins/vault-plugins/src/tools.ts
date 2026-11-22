@@ -57,8 +57,9 @@ const Written = Schema.Struct({
       + `not there yet.`,
   }),
   file: Schema.String.annotate({
-    description: `Which of the three: \`${PLUGIN_README_FILE}\`, \`${PLUGIN_SERVER_FILE}\` or `
-      + `\`${PLUGIN_BROWSER_FILE}\`. Nothing else is part of a plugin.`,
+    description: `Which file, by its path in the folder: \`${PLUGIN_README_FILE}\`, or any \`.ts\` `
+      + `or \`.tsx\` file at any depth — \`${PLUGIN_SERVER_FILE}\`, \`${PLUGIN_BROWSER_FILE}\`, `
+      + "`lib/sm2.ts`. Every code file in the folder is part of the plugin, imported or not.",
   }),
   text: Schema.String.annotate({
     description: "The file's whole text, verbatim. It replaces what is there.",
@@ -95,10 +96,11 @@ export const tools: ReadonlyArray<Tool> = [
   calls(
     "write",
     "Write one file of one plugin",
-    "Writes one of a plugin's three files through this vault's ordinary write door — the same "
+    "Writes one file of a plugin through this vault's ordinary write door — the same "
       + "planner, the same validation and the same commit as any other change — creating the "
-      + "folder if it is not there. It answers whether that half COMPILES in the same reply, with "
-      + "the error where it does not, so you do not have to write and then guess. Write "
+      + "folder if it is not there. It answers whether the plugin COMPILES with that file in it, "
+      + "in the same reply, with the error where it does not, so you do not have to write and "
+      + "then guess. Write "
       + `\`${PLUGIN_README_FILE}\` first and write it for a PERSON: a \`# Title\` line, a blank `
       + "line, then one sentence saying what the plugin does, then as much prose as it deserves. "
       + "That heading and that sentence are what somebody reads on the plugin's page while they "
@@ -115,7 +117,7 @@ export const tools: ReadonlyArray<Tool> = [
       + "`pending`, and that is the boundary rather than a failure — a person turns it on from "
       + "its own page, with what you wrote in front of them, because the code runs with this "
       + "server's own authority. `state` is one of the plugin states (`pending`, `running`, "
-      + "`failed`, `waiting`, `switched`, `off`), `version` is the content hash of both halves, "
+      + "`failed`, `waiting`, `switched`, `off`), `version` is the content hash of its code files, "
       + "and `fault` is a whole sentence where there is one — a half that would not compile, a "
       + "module olai does not bind, a half that calls itself another word. Call this when you are "
       + "finished writing, and fix anything it names.",

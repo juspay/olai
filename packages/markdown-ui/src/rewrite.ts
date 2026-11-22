@@ -9,11 +9,14 @@
  *   - **a link to a `.md` is a link to that document's page** — `./rewrite/
  *     links.ts`, which also holds the one answer both kinds of link are drawn
  *     from, the other writer of it being `./wikilinks.ts`;
- *   - **ids belong to the page, not to the parser** — `./rewrite/ids.ts`.
+ *   - **ids belong to the page, not to the parser** — `./rewrite/ids.ts`;
+ *   - **a fence somebody claimed is a place for their drawing** — `./rewrite/
+ *     blocks.ts`, which turns it into a placeholder and leaves every other
+ *     fence alone.
  *
- * None of the three is about markdown: each is about the rendered block's
+ * None of the four is about markdown: each is about the rendered block's
  * relationship to the page around it, which is why they are one walk over the
- * finished tree rather than three plugins inside the pipeline.
+ * finished tree rather than four plugins inside the pipeline.
  *
  * It runs LAST, after the sanitiser, and that order is what makes it safe to
  * write attributes here: what the sanitiser passed is a URL we then narrow, and
@@ -32,6 +35,7 @@ import type { Element, Root } from "hast"
 import { type Heading, headingOf } from "./outline.ts"
 import { type HeadingRoute, headingRoute, mint } from "./rewrite/ids.ts"
 import { openExternal, resolveDocument } from "./rewrite/links.ts"
+import { claimedLanguage, toPlaceholder } from "./rewrite/blocks.ts"
 import { isPicture, type Pictures, resolvePicture } from "./rewrite/pictures.ts"
 import { drawWikilink, wikilinkOf } from "./wikilinks.ts"
 
@@ -49,6 +53,9 @@ export interface Rewrite {
   readonly ids: string
   /** A title: one line high, so an embed of a picture draws as a link. */
   readonly inline?: boolean
+  /** The languages a caller has a drawing for: a fence in one is a
+   *  placeholder (`./rewrite/blocks.ts`). */
+  readonly fences?: ReadonlySet<string>
 }
 
 /** Rewrite the tree in place, and say what headings it turned out to have —
@@ -68,6 +75,12 @@ const walk = (
 ): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
+    const claimed = options.fences === undefined ? undefined : claimedLanguage(child, options.fences)
+    if (claimed !== undefined) {
+      // Nothing under it is walked: it is text, and it is the drawing's.
+      toPlaceholder(child, claimed)
+      continue
+    }
     if (isPicture(child)) resolvePicture(child, options.claims, options.from, pictures)
     if (child.tagName === "a") {
       const written = wikilinkOf(child)

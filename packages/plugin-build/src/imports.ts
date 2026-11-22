@@ -20,14 +20,19 @@
  * The regex this replaced could get any of those wrong, and every one of its
  * mistakes was a refusal of somebody's working plugin.
  *
- * ## The two kinds refused as KINDS rather than as names
+ * ## The kind refused as a KIND rather than as a name
  *
  * A DYNAMIC import is refused whatever it names, because what it names is not
  * knowable here — the string is an expression, and a plugin that could compute
  * a specifier could reach whatever the process can reach, one `import()` past
- * the gate a person approved. A RELATIVE import is refused because a dynamic
- * plugin is two files and there is nothing beside them: `./util.ts` names a
- * path in somebody's vault that olai never read.
+ * the gate a person approved.
+ *
+ * ## A file of the folder is resolved, not refused
+ *
+ * A RELATIVE import names another file of the plugin's own folder, and is
+ * passed on to `./build.ts`, which resolves it by arithmetic against the files
+ * of the reading that was hashed — every one of them shown on the plugin's page
+ * — and refuses a path that leaves the folder or names a file it does not hold.
  *
  * ## And the subpaths
  *
@@ -77,11 +82,8 @@ export const unresolvable = (source: string): string | null => {
         + `every module a plugin uses has to be visible in it — write the import at the top.`
     }
     if (named.kind !== "import-statement") continue
-    if (named.path.startsWith(".") || named.path.startsWith("/")) {
-      return `a dynamic plugin is a server half and a browser half and nothing else, so `
-        + `there is nothing for "${named.path}" to name. Put what it holds in the same file, `
-        + `or in the other half.`
-    }
+    // A FILE OF THE FOLDER is the resolver's to judge ({@link relativeIn}).
+    if (named.path.startsWith(".") || named.path.startsWith("/")) continue
     if (!WRITABLE_MODULES.includes(named.path)) {
       return `olai resolves ${and(WRITABLE_MODULES)} for a plugin it mounts from a vault, `
         + `and nothing else — so "${named.path}" names nothing this serve can hand over. `
@@ -111,3 +113,11 @@ const said = (thrown: unknown): string => {
  *  that invents any. */
 const scan = (source: string): ReadonlyArray<{ readonly kind: string; readonly path: string }> =>
   new Bun.Transpiler({ loader: "tsx" }).scan(source).imports
+
+/** The specifiers of the files a source imports from its own folder — every
+ *  import statement whose path is relative or absolute, in the order written.
+ *  A type-only import is erased and so is not one. */
+export const relativeIn = (source: string): ReadonlyArray<string> =>
+  scan(source)
+    .filter((named) => named.kind === "import-statement" && (named.path.startsWith(".") || named.path.startsWith("/")))
+    .map((named) => named.path)

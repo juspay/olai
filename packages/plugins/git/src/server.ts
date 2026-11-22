@@ -38,7 +38,6 @@ import {
 import { type Configuration, preference } from "@olai/plugin-api/configuration"
 import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
-import type { Ops as Gate } from "@olai/ops"
 import { type Committing, make } from "./ledger/pending.ts"
 import { faces, name, surface } from "./wire.ts"
 /** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
@@ -86,7 +85,7 @@ export default definePlugin({
     const offers = yield* Offers
     const surfaces = yield* Surfaces
     const vault = yield* Vault
-    const ops = (yield* Ops).gate as Gate
+    const ops = (yield* Ops).gate
     const detach = yield* detached
     const watch = yield* ConfigurationWatch
 
