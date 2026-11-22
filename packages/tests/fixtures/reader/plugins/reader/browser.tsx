@@ -3,7 +3,7 @@ import { Effect } from "effect"
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { Columns } from "./columns.tsx"
-import { splitPair } from "./pairs.ts"
+import { pairsIn, splitPair } from "./pairs.ts"
 import type { Grade } from "./types.ts"
 import { surface } from "./words.ts"
 
@@ -128,14 +128,23 @@ export default definePlugin({
           () => {},
         )
       }))
-      const pairs = () => text().split("\n").flatMap((line) => {
-        const pair = splitPair(line)
-        return pair === null ? [] : [pair]
-      })
       const add = (word: string) => ask(client()?.words.add({ word }), () => {}, setRefused)
       return (
         <section data-reader="file" data-file={props.file} class="flex flex-col p-4">
-          <For each={pairs()}>{(pair) => <Columns pair={pair} onWord={add} />}</For>
+          <For each={pairsIn(text())}>{(pair) => <Columns pair={pair} onWord={add} />}</For>
+          <Refused said={refused()} />
+        </section>
+      )
+    }
+
+    // A block in any Markdown note whose fence names `reader`: its lines, drawn
+    // the same way. The block is handed its text exactly as written in the note.
+    const Block = (props: { readonly text: string; readonly file: string }) => {
+      const [refused, setRefused] = createSignal<string | null>(null)
+      const add = (word: string) => ask(client()?.words.add({ word }), () => {}, setRefused)
+      return (
+        <section data-reader="block" data-file={props.file} class="flex flex-col py-2">
+          <For each={pairsIn(props.text)}>{(pair) => <Columns pair={pair} onWord={add} />}</For>
           <Refused said={refused()} />
         </section>
       )
@@ -180,5 +189,6 @@ export default definePlugin({
     yield* slots.register("file.page", Transcribed)
     yield* slots.register("document.page.head", NoteHead)
     yield* slots.register("document.page.foot", Note)
+    yield* slots.register("document.block", Block)
   }),
 })

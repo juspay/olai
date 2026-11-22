@@ -247,3 +247,53 @@ Then("the reader's drawing of {string} is the one I held", async function (this:
   assert.equal(await transcribed(this, file).count(), 1, `${file} is not drawn once`)
   assert.equal(await transcribed(this, file).getAttribute("data-held"), "yes", `${file} was drawn again rather than kept`)
 })
+
+/** A `reader` fence drawn as Markdown draws any fence it does not hand over:
+ *  a code block whose class names the language. The placeholder a claimed
+ *  fence becomes carries no such class, so this finds only an unclaimed one. */
+const CODE_BLOCK = "pre code.language-reader"
+
+/** The reader's drawing of a block in a note: inside the note's own body. */
+const block = (world: OlaiWorld, file: string) =>
+  world.documentBody().locator(`${attr("data-reader", "block")}${attr("data-file", file)}`)
+
+Then("the note {string} draws its reader block as code", async function (this: OlaiWorld, file: string) {
+  await this.waitUntil(async () => (await this.documentBody().getAttribute("data-markdown")) !== "waiting", `${file} to be drawn`)
+  await this.documentBody().locator(CODE_BLOCK).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+})
+
+Then("the note {string} draws no reader block as code", async function (this: OlaiWorld, file: string) {
+  await this.waitForFrame()
+  await this.waitUntil(async () => (await this.documentBody().locator(CODE_BLOCK).count()) === 0, `${file} to draw no reader block as code`)
+})
+
+Then("the reader draws the block in {string} as {int} sentence(s) beside their/its English", async function (this: OlaiWorld, file: string, count: number) {
+  await block(this, file).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  await this.waitUntil(
+    async () => (await block(this, file).count()) === 1 && (await block(this, file).locator(attr("data-reader", "columns")).count()) === count,
+    `the block in ${file} to be drawn once, as ${count} sentence(s)`,
+  )
+})
+
+Then("the reader draws no block in {string}", async function (this: OlaiWorld, file: string) {
+  await this.waitForFrame()
+  await this.waitUntil(async () => (await block(this, file).count()) === 0, `the reader's block in ${file} to be gone`)
+})
+
+Then("the reader's block in {string} reads {string}", async function (this: OlaiWorld, file: string, said: string) {
+  const text = (await block(this, file).first().innerText()).replace(/\s+/g, " ")
+  assert.ok(text.includes(said), `the block in ${file} reads ${JSON.stringify(text)}, not ${JSON.stringify(said)}`)
+})
+
+/** HOLDING the block is marking it, as for a transcribed page: the HTML a
+ *  changed note is drawn from replaces the old block, and a face mounted again
+ *  draws a fresh element, which carries no mark. */
+When("I hold the reader's block in {string}", async function (this: OlaiWorld, file: string) {
+  await block(this, file).first().evaluate((element) => { element.setAttribute("data-held", "yes") })
+})
+
+Then("the reader's block in {string} is drawn afresh", async function (this: OlaiWorld, file: string) {
+  await this.waitForFrame()
+  assert.equal(await block(this, file).count(), 1, `the block in ${file} is not drawn once`)
+  assert.equal(await block(this, file).getAttribute("data-held"), null, `the block in ${file} is the one drawn before the note changed`)
+})

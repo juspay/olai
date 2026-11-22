@@ -13,7 +13,7 @@ Feature: The reading companion
 
   Scenario: An agent is told every place a face can go, and what each is handed
     Given I open the app
-    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, app.command, file.page, plugins.row, plugin.page, document.page.head, document.page.foot, search.box.below"
+    Then the slot catalog lists "app.header, app.banner, app.viewer, app.mount, sidebar.entry, sidebar.section, app.route, app.keys, app.palette, app.command, file.page, plugins.row, plugin.page, document.page.head, document.page.foot, document.block, search.box.below"
     And every slot in the catalog says what its face is handed
 
   @scratch:reader
@@ -49,7 +49,7 @@ Feature: The reading companion
     When I go to the plugin "reader"
     Then the plugin page is "review"
     And the plugin page's code tabs are "README.md, server.ts, browser.tsx, columns.tsx, lib/sm2.ts, pairs.ts, types.ts, words.ts"
-    And the plugin page's status says "7 files, 429 lines"
+    And the plugin page's status says "7 files, 446 lines"
     When I open the plugin page's "lib/sm2.ts" tab
     Then the plugin page's code is "lib/sm2.ts"
     And the plugin page's code names "export const scheduled"
@@ -217,6 +217,44 @@ Feature: The reading companion
     When I switch the plugin "reader" off on its page
     And I open the address "/notes.md"
     Then the reader's note faces are not drawn
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: A reader block in a note is drawn by the plugin, again when the note changes, and is code without it
+    Given I open the address "/notes.md"
+    Then the note "notes.md" draws its reader block as code
+    When I approve the plugin "reader"
+    Then the reader draws the block in "notes.md" as 1 sentence beside its English
+    # The fence is code, so `[[maison]]` in it is the text the face is handed.
+    And the reader's block in "notes.md" reads "habitait sa [[maison]] de Saville-row."
+    And the note "notes.md" draws no reader block as code
+
+    When I hold the reader's block in "notes.md"
+    And the served file "notes.md" becomes:
+      """
+      # Notes on the book
+
+      ```reader
+      Phileas Fogg vivait seul. | Phileas Fogg lived alone.
+      Il dînait au club. | He dined at the club.
+      ```
+      """
+    Then the reader draws the block in "notes.md" as 2 sentences beside their English
+    And the reader's block in "notes.md" is drawn afresh
+
+    When I switch the plugin "reader" off on its page
+    And I open the address "/notes.md"
+    Then the note "notes.md" draws its reader block as code
+    And the reader draws no block in "notes.md"
+    And there should be no page errors
+
+  @scratch:reader
+  Scenario: A reader block in the plugin's own README is code on its approval page
+    Given I open the app
+    When I approve the plugin "reader"
+    And I open the plugin page for "reader"
+    Then the plugin page's README says "Phileas Fogg vivait seul."
+    And the plugin page's README draws its reader block as code
     And there should be no page errors
 
   @scratch:reader
