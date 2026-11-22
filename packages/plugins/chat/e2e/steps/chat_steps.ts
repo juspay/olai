@@ -665,29 +665,6 @@ Then(
   },
 );
 
-/** WHAT BECAME OF A MESSAGE SENT THE MOMENT CHAT RESTARTED, whichever moment
- *  it landed in: answered by the conversation that reopened, back in the box
- *  with the button offering to send it again, or the answer it started said
- *  to have been stopped. The one outcome refused is the message gone with no
- *  word about it — which is what a remount of chat's browser half did to it. */
-Then(
-  "my message {string} is answered or kept to send again",
-  async function (this: OlaiWorld, text: string) {
-    await this.waitUntil(
-      async () => {
-        const said = await transcriptText(this);
-        if (said.includes(`you said: ${text}`) || said.includes("so that answer stopped where it was")) return true;
-        const box = this.chat(CHAT_INPUT).first();
-        const send = this.chat(CHAT_SEND).first();
-        return (await box.count()) > 0 && (await box.inputValue()) === text
-          && (await send.count()) > 0 && (await send.innerText()).trim() === "Send again";
-      },
-      `the message "${text}" to be answered, or kept to send again`,
-      HYDRATION_TIMEOUT,
-    );
-  },
-);
-
 /** ...AND THE TRASH, WHILE THE SERVER IS DOWN. A person trashing a row in
  *  another tab and then restarting is the shape; a scenario cannot keep the
  *  page alive across `the server stops`, so the file is edited the way the
