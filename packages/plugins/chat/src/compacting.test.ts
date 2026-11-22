@@ -86,12 +86,12 @@ const engine = (capable: boolean): Installed => ({
 })
 
 interface Opened {
-  readonly method: string
   readonly meta: unknown
   readonly seen: ReadonlyArray<string>
 }
 
-/** One bring-up and the first session it opens, as the agent reported it. */
+/** One bring-up — the boot's, since one engine is not a choice — and the
+ *  session it opens, as the agent reported it. */
 const openedWith = async (row: Installed, compactAt: number | null): Promise<Opened> => {
   const panel = await run(makePanel({
     roster: () => [seated(row)],
@@ -104,7 +104,6 @@ const openedWith = async (row: Installed, compactAt: number | null): Promise<Ope
   }))
   try {
     await run(panel.start)
-    await run(panel.newSession(row.id))
     const deadline = Date.now() + 8_000
     while (!existsSync(report) && Date.now() < deadline) await run(Effect.sleep("20 millis"))
     const line = existsSync(report) ? readFileSync(report, "utf8").split("\n")[0] : undefined
@@ -117,7 +116,6 @@ const openedWith = async (row: Installed, compactAt: number | null): Promise<Ope
 
 test("an engine that can be told, with the policy on, is opened at the number without the overriding variable", async () => {
   const opened = await openedWith(engine(true), 300_000)
-  expect(opened.method).toBe("session/new")
   expect(opened.meta).toEqual({ compactAt: 300_000 })
   // THE ENGINE'S OWN STRIP STILL HOLDS: the capability's variables are added
   // to the adapter's `unset`, not put in its place.
