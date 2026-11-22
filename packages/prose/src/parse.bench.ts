@@ -11,10 +11,9 @@
  * machine teaches nobody anything. Each arm is the best of several rounds of
  * many calls, printed in microseconds per call.
  */
-import { HOSTILE, realTexts } from "./corpus.testlib.ts"
-import { BOUNDS, parse, type Shape, shapeOf } from "./parse.ts"
-
-const SHAPES: ReadonlyArray<keyof Shape> = ["emphasis", "cells", "quotes", "lists"]
+import { LIMITS } from "./bounded.ts"
+import { HOSTILE } from "./corpus.testlib.ts"
+import { parse } from "./parse.ts"
 
 const ARMS: ReadonlyArray<readonly [label: string, text: string]> = [
   ["empty string", ""],
@@ -47,24 +46,13 @@ for (const [label, text] of ARMS) {
   console.log(`  one parse, ${label.padEnd(32)} ${perCall(text).toFixed(1)} µs`)
 }
 
-// ── the guard's bounds, and what they rest on ──────────────────────────
+// ── the bounds the parse keeps ─────────────────────────────────────────
 //
-// Over every note, row and docs page this repository holds: the largest value
-// each of the four shapes reaches. The bounds in `./parse.ts` must be at least
-// ten times these, and a text at each bound must parse in no more than 50 ms.
-
-const largest = { emphasis: 0, cells: 0, quotes: 0, lists: 0 }
-const where: Record<keyof Shape, string> = { emphasis: "", cells: "", quotes: "", lists: "" }
-const texts = realTexts()
-for (const one of texts) {
-  const shape = shapeOf(one.text)
-  for (const key of SHAPES) {
-    if (shape[key] > largest[key]) {
-      largest[key] = shape[key]
-      where[key] = one.from
-    }
-  }
-}
+// Each hostile shape at its limit and well past it: the time per thousand
+// characters should stay about the same, which is what the bounds are for
+// (`./bounded.ts`). Lists are the one shape whose text grows with the square
+// of its depth — each line is indented further — so theirs is the cost of
+// the text, not of the shape.
 
 /** A hostile text's parse, best of three, in milliseconds. */
 const timedOnce = (text: string): number => {
@@ -77,13 +65,20 @@ const timedOnce = (text: string): number => {
   return best
 }
 
+const SHAPES: ReadonlyArray<readonly [key: keyof typeof HOSTILE, limit: number]> = [
+  ["emphasis", LIMITS.run],
+  ["cells", LIMITS.cells],
+  ["quotes", LIMITS.column],
+  ["lists", LIMITS.column / 2],
+]
+
 console.log("")
-console.log(`the guard, over ${texts.length} texts of this repository`)
-for (const key of SHAPES) {
-  // At the bound itself: a table's line counts a cell past each of its bars.
-  const text = HOSTILE[key](key === "cells" ? BOUNDS.cells - 2 : BOUNDS[key])
-  console.log(
-    `  ${key.padEnd(9)} largest ${String(largest[key]).padStart(3)} (${where[key]}), bound ${String(BOUNDS[key]).padStart(3)}` +
-      ` (${(BOUNDS[key] / Math.max(1, largest[key])).toFixed(0)}×), a hostile text at the bound ${timedOnce(text).toFixed(1)} ms`,
-  )
+console.log("the bounds, each shape at its limit and ten times past it")
+for (const [key, limit] of SHAPES) {
+  const said = [limit, limit * 10].map((n) => {
+    const text = HOSTILE[key](n)
+    const ms = timedOnce(text)
+    return `${String(n).padStart(4)} deep ${ms.toFixed(1).padStart(7)} ms (${(ms / (text.length / 1_000)).toFixed(2)} ms/kB)`
+  })
+  console.log(`  ${key.padEnd(9)} ${said.join("   ")}`)
 }

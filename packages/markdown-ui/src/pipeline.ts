@@ -85,7 +85,7 @@ import rehypeStringify from "rehype-stringify"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import type { WikilinkNode } from "@olai/prose/obsidian.ts"
-import { guarded, parse } from "@olai/prose/parse.ts"
+import { guarded, parse, type Refusal } from "@olai/prose/parse.ts"
 import { type Read, readTree } from "@olai/prose/read.ts"
 import type { Element, Root } from "hast"
 import type { Nodes as MdastNodes, Root as MdastRoot } from "mdast"
@@ -193,12 +193,12 @@ export interface Pipeline {
  * The page's tree of a source: the guarded parse (`@olai/prose`'s `parse.ts`),
  * each heading given the id `read` made for it — the one slug the face lists
  * too, numbered once — and the rest of the pipeline run over it. A text the
- * guard refused is drawn as the words it is, with one sentence saying it was
- * not formatted: the index read it as plain words too.
+ * parser could not read is drawn as the words it is, with one sentence saying
+ * why: the index read it as plain words too.
  */
 export const treeOf = (source: string): Root => {
   const parsed = guarded(source)
-  if (parsed.refused !== undefined) return refusedTree(source)
+  if (parsed.refused !== undefined) return refusedTree(source, parsed.refused)
   headingIds(parsed.tree, readTree(parsed.tree))
   return rendering.runSync(parsed.tree) as Root
 }
@@ -218,7 +218,7 @@ const headingIds = (tree: MdastRoot, said: Read): void => {
 }
 
 /** A refused text as the page draws it: its words, and the sentence. */
-const refusedTree = (source: string): Root => ({
+const refusedTree = (source: string, refusal: Refusal): Root => ({
   type: "root",
   children: [
     { type: "element", tagName: "p", properties: { className: ["olai-refused"] }, children: [{ type: "text", value: source }] },
@@ -226,13 +226,17 @@ const refusedTree = (source: string): Root => ({
       type: "element",
       tagName: "p",
       properties: { className: ["text-xs", "text-muted"], dataTestid: TESTID.refusedText },
-      children: [{ type: "text", value: REFUSED }],
+      children: [{ type: "text", value: refusedSaying(refusal) }],
     },
   ],
 })
 
-/** What the page says under a text it would not format. */
-export const REFUSED = "olai did not format this text: it is shaped in a way that would take too long to read."
+/** What the page says under a text it could not format, one sentence for
+ *  each way that happens. */
+export const refusedSaying = (refusal: Refusal): string =>
+  refusal.kind === "depth"
+    ? "olai did not format this text: it nests deeper than olai's Markdown reader can follow."
+    : `olai could not format this text: its Markdown reader failed on it (${String(refusal.cause)}).`
 
 /**
  * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is

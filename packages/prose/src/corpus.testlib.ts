@@ -51,8 +51,8 @@ const recordOf = (line: string): Readonly<Record<string, unknown>> | undefined =
   }
 }
 
-/** Each of the guard's four hostile shapes (`./parse.ts`), `n` deep — the
- *  text the guard is measured and tested against. */
+/** Each shape the parser is not linear on without its bounds (`./bounded.ts`),
+ *  `n` deep — the texts the bounds are measured and tested against. */
 export const HOSTILE = {
   emphasis: (n: number): string => "_".repeat(n) + "word" + "_".repeat(n),
   cells: (n: number): string => "| a ".repeat(n) + "|\n" + "| --- ".repeat(n) + "|\n" + "| b ".repeat(n) + "|",

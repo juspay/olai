@@ -179,13 +179,29 @@ Then(
   },
 );
 
-/** A text the parse guard refused: drawn as its words, with the one sentence
- *  saying so — and none of the structure it would have been. */
-Then("the document says it was not formatted", async function (this: OlaiWorld) {
-  const rendered = await body(this);
-  await rendered.locator(attr("data-testid", TESTID.refusedText)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  assert.strictEqual(await rendered.locator("blockquote").count(), 0, "the refused text was drawn as quotes")
-});
+/** A text nested past the parse's bound: drawn as deep as the bound lets it
+ *  go, the rest as its words — formatted, with no sentence saying it was not. */
+Then(
+  "the document draws quotes {int} deep, the deepest holding the text {string}",
+  async function (this: OlaiWorld, deep: number, text: string) {
+    const rendered = await body(this);
+    const depth = await rendered.evaluate((root) => {
+      let most = 0;
+      for (const quote of Array.from(root.querySelectorAll("blockquote"))) {
+        let at = 0;
+        for (let node: Element | null = quote; node !== null && node !== root; node = node.parentElement) {
+          if (node.tagName === "BLOCKQUOTE") at++;
+        }
+        most = Math.max(most, at);
+      }
+      return most;
+    });
+    assert.strictEqual(depth, deep, `the quotes are drawn ${depth} deep`);
+    const deepest = rendered.locator(`${"blockquote ".repeat(deep)}p`).last();
+    assert.strictEqual(oneLine(await deepest.innerText()), oneLine(text), "the deepest quote's words");
+    assert.strictEqual(await rendered.locator(attr("data-testid", TESTID.refusedText)).count(), 0, "the text was refused");
+  },
+);
 
 /** No thematic break at all — the other half of what a `---` block used to
  *  leave behind, and the half no text assertion can see. */

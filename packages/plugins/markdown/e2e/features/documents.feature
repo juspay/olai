@@ -233,16 +233,17 @@ Feature: Documents
     Then the header search result for the document "notes/palette.md" is called "Palette for the kitchen"
     And there should be no page errors
 
-  # A text shaped past the parse guard's bounds is not formatted: the page
-  # draws its words and says so, rather than spending seconds on its shape.
+  # A text nested past the parse's bound is still formatted: quotes nest as far
+  # as a hundred columns, and what is past that is drawn as its words, rather
+  # than the parse spending seconds on the shape or the page refusing it.
   @scratch:good
-  Scenario: A text too deeply quoted to format is drawn as its words, with a sentence saying so
+  Scenario: A text quoted past the bound is drawn a hundred quotes deep, and the rest as its words
     When I rewrite "notes/deep.md" as:
       """
       >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> far down
       """
     And I open the document "notes/deep.md"
-    Then the document says it was not formatted
+    Then the document draws quotes 100 deep, the deepest holding the text "> far down"
     And there should be no page errors
 
   # A property is a property and NOT a record. The block carries a `date:` and a

@@ -1,12 +1,12 @@
 /**
  * WHAT A TEXT SAYS, read once: every wikilink form the plan lists, the code
- * rule, the tags, the headings, the cut of an address, the plain shortcut and
- * the guard.
+ * rule, the tags, the headings, the cut of an address and the plain shortcut.
+ * The bounds the parse keeps are `./bounded.test.ts`'s.
  */
 import { expect, test } from "bun:test"
 
-import { fixtureRows, HOSTILE, realTexts } from "./corpus.testlib.ts"
-import { BOUNDS, guarded, parse } from "./parse.ts"
+import { fixtureRows } from "./corpus.testlib.ts"
+import { parse } from "./parse.ts"
 import { isPlain } from "./plain.ts"
 import { read, readTree, type ReadWikilink } from "./read.ts"
 
@@ -149,25 +149,8 @@ test("a title with no markup reads as its own parse — over every title in the 
   for (const row of titles) expect([row.from, read(row.text)]).toEqual([row.from, readTree(parse(row.text))])
 })
 
-// ── the guard ──────────────────────────────────────────────────────────
-
-for (const shape of ["emphasis", "cells", "quotes", "lists"] as const) {
-  test(`a text past the ${shape} bound is refused and read as plain words; one at it is parsed`, () => {
-    const past = HOSTILE[shape](BOUNDS[shape] + 1)
-    expect(guarded(past).refused).toBe(shape)
-    const said = read(past)
-    expect(said.refused).toBe(shape)
-    expect([said.links, said.wikilinks, said.headings]).toEqual([[], [], []])
-    expect(said.words).toBe(past)
-    // At the bound itself — a table's line counts a cell past each bar, so
-    // its outer edges make two more than the cells it draws.
-    const at = HOSTILE[shape](shape === "cells" ? BOUNDS.cells - 2 : BOUNDS[shape])
-    expect(guarded(at).refused).toBeUndefined()
-  })
-}
-
-test("no note, row or docs page in this repository is refused", () => {
-  const texts = realTexts()
-  expect(texts.length).toBeGreaterThan(200)
-  expect(texts.filter((one) => guarded(one.text).refused !== undefined).map((one) => one.from)).toEqual([])
+test("a wikilink inside a link's words is the one link the text holds", () => {
+  const said = read("[see [[finishes]] here](other.md)")
+  expect([said.links, said.wikilinks]).toEqual([[], [wikilink("finishes")]])
+  expect(said.words).toBe("[see finishes here](other.md)")
 })

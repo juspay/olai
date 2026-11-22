@@ -116,7 +116,7 @@ olai reads a note as Markdown once, and every part of olai asks that reading. A 
 
 A link inside an HTML comment, `<!-- [x](finishes.md) -->` or `<!-- [[finishes]] -->`, counts for nothing, and the page draws nothing there. A reference-style link, `[the finishes][f]` with `[f]: finishes.md` on a line of its own, counts like any other.
 
-A note nested past what olai will format, such as a quote a hundred deep, is shown as its words with a sentence saying it was not formatted. Its tags and mentions still count; its links do not.
+Quotes and lists stop nesting at column 100, and a run of over 100 `*` or `_`, or a table row of over 100 cells, stays plain text. A note olai fails to read, a bug the server logs, shows as its words.
 
 </details>
 

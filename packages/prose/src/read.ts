@@ -63,20 +63,24 @@ export interface Read {
   readonly firstLine: string
   /** Every word the text draws, its blocks one line each. */
   readonly words: string
-  /** Why the text was read as plain words, when it was. */
+  /** Why the text was read as plain words, when the parser could not read
+   *  it. */
   readonly refused?: Refusal
 }
 
 const NONE: ReadonlyArray<never> = []
 
-/** A text read as plain words: a title with no markup, or a refused text. */
+/** A text read as plain words: a title with no markup, whose tags are its
+ *  own, or a text the parser could not read, which says why and holds no
+ *  tags — what is code in it is not known, and a tag is never read out of
+ *  code. */
 const plainly = (text: string, refused?: Refusal): Read => {
   const first = firstLineOf(text)
   return {
     links: NONE,
     wikilinks: NONE,
     headings: NONE,
-    tags: tagsOf(text),
+    tags: refused === undefined ? tagsOf(text) : NONE,
     firstLine: first,
     words: text,
     ...(refused === undefined ? {} : { refused }),
