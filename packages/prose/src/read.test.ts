@@ -6,7 +6,7 @@
 import { expect, test } from "bun:test"
 
 import { fixtureRows } from "./corpus.testlib.ts"
-import { parse } from "./parse.ts"
+import { parse, refusalOf } from "./parse.ts"
 import { isPlain } from "./plain.ts"
 import { read, readTree, type ReadWikilink } from "./read.ts"
 
@@ -153,4 +153,18 @@ test("a wikilink inside a link's words is the one link the text holds", () => {
   const said = read("[see [[finishes]] here](other.md)")
   expect([said.links, said.wikilinks]).toEqual([[], [wikilink("finishes")]])
   expect(said.words).toBe("[see finishes here](other.md)")
+})
+
+test("a parser that runs out of stack and one that fails otherwise are told apart", () => {
+  const deep = (): number => deep() + 1
+  let overflow: unknown
+  try {
+    deep()
+  } catch (cause) {
+    overflow = cause
+  }
+  expect(refusalOf(overflow)).toEqual({ kind: "depth" })
+  const bug = new TypeError("a wikilink token holds no wikilink")
+  expect(refusalOf(bug)).toEqual({ kind: "failed", cause: bug })
+  expect(refusalOf(new RangeError("Invalid array length"))).toEqual({ kind: "failed", cause: new RangeError("Invalid array length") })
 })

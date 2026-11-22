@@ -158,10 +158,6 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it to 0
   // before it starts and moves it as it goes.
   "packages/plugin-build/src/bind.ts": "a sticky regex's cursor, reset at the top of every scan",
-  // A PARSER BUILT ON FIRST USE: the same frozen processor every parse asks,
-  // built at the first parse rather than at import so a bundle that never
-  // parses carries none. It holds no reading and no activation's value.
-  "packages/prose/src/parse.ts": "the one frozen Markdown processor, built on the first parse",
 }
 
 /** This tree's two holder factories, by the door each comes from. */

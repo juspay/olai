@@ -1,11 +1,11 @@
 /**
  * THE TWO READINGS OF A HEADING, held to each other.
  *
- * A heading's id is spelled in one place (`@olai/format`'s `slugOf`) and the
+ * A heading's id is spelled in one place (`@olai/prose`'s `slugOf`) and the
  * counter behind a repeat is too (`claim`), so those cannot drift. What CAN is
- * the other half: which lines are headings, and what their text is. The format
- * reads LINES — it holds no markdown parser, deliberately, being the floor the
- * write gate stands on — and the browser reads a parsed tree.
+ * the other half: which lines are headings, and what their text is. The face
+ * reads a body once, when the file is decoded (`@olai/format/read`'s
+ * `slugsIn`), and the browser reads the tree it draws from.
  *
  * This is the seam where both exist, so this is where the gap is measured. The
  * face's promise is `README.md#install` names something; the page's job is to
@@ -13,7 +13,7 @@
  * app writes and cannot open.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { slugsIn } from "@olai/format"
+import { slugsIn } from "@olai/format/read"
 import { proseIn } from "@olai/prose/frontmatter.ts"
 import { expect, test } from "bun:test"
 

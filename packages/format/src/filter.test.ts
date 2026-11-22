@@ -33,6 +33,7 @@ import {
 import { nodesOfFiles, seeded } from "./fixtures.testlib.ts"
 import { declarationsOf, NO_KINDS } from "./typing.ts"
 import { isMirror, isPutAway } from "./node.ts"
+import { readRecord } from "./read.ts"
 const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
@@ -204,11 +205,13 @@ test("a field holding nothing is a field the record does not carry", () => {
  * a bad merge, and a half-written line are all how one arrives.
  */
 test("a hollow stamp is a stamp the record does not carry", () => {
-  const at = (id: string, created: string, line: number) => ({
-    file: "a.olai",
-    line,
-    node: { id, ord: `a${line}`, title: id, created },
-  })
+  // Built by hand, so READ by hand: the fold asks what a title says through
+  // the reading a decode kept (`./kept.ts`), and nothing decoded these.
+  const at = (id: string, created: string, line: number) => {
+    const node = { id, ord: `a${line}`, title: id, created }
+    readRecord(node)
+    return { file: "a.olai", line, node }
+  }
   const condemned = derive(TEST_CLAIMS, [
     at("blank", "", 1),
     at("real", "2026-08-01T09:00:00-04:00", 2),

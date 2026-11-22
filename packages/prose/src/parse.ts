@@ -16,46 +16,33 @@
  * `proseIn`). A note under a row is not a file, and a leading `---` in one is
  * the thematic break Markdown says it is.
  *
- * Its own module, and nothing first-paint imports it: the parser is ~150 KB
- * of the client, and the tag grammar (`./tags.ts`) and the plain-title test
- * (`./plain.ts`) are needed before it has loaded.
+ * Its own module, and imported only where a text becomes a reading:
+ * `@olai/format/read` (decode) and `@olai/markdown-ui`'s pipeline chunk. The
+ * parser is ~150 KB of the client and its browser build of the entity decoder
+ * reaches for `document` as it loads, so a module that asks what a text SAYS
+ * reads the reading decode kept and never imports this; `@olai/bundle`'s
+ * `fence.test.ts` holds the client's first-load chunk to that.
  */
 import type { Root } from "mdast"
-import type remarkGfmPlugin from "remark-gfm"
-import type remarkParsePlugin from "remark-parse"
-import type * as Unified from "unified"
-import type { Processor } from "unified"
+import remarkGfm from "remark-gfm"
+import remarkParse from "remark-parse"
+import { unified } from "unified"
 
-import type * as Bounded from "./bounded.ts"
-import type * as Obsidian from "./obsidian.ts"
-
-/** Built once, on the first parse, and LOADED then too: the parser's modules
- *  are required here rather than imported at the top, so importing this file
- *  — which every reader of `@olai/format` does — runs none of them. A bundle
- *  that never parses carries no parser, and a runtime without a DOM can import
- *  the reading even though the parser's browser build of the entity decoder
- *  (`decode-named-character-reference`) reaches for `document` when it loads. */
-let parser: Processor<Root> | undefined
+import { remarkBounded } from "./bounded.ts"
+import { remarkObsidian } from "./obsidian.ts"
 
 /** GitHub's dialect, then Obsidian's additions, then the bounds, which
  *  replace three of the constructs the two before them brought. */
-const dialect = (): Processor<Root> => {
-  const { unified } = require("unified") as typeof Unified
-  const remarkParse = (require("remark-parse") as { readonly default: typeof remarkParsePlugin }).default
-  const remarkGfm = (require("remark-gfm") as { readonly default: typeof remarkGfmPlugin }).default
-  const { remarkObsidian } = require("./obsidian.ts") as typeof Obsidian
-  const { remarkBounded } = require("./bounded.ts") as typeof Bounded
-  return unified().use(remarkParse).use(remarkGfm).use(remarkObsidian).use(remarkBounded).freeze() as unknown as Processor<Root>
-}
+const dialect = unified().use(remarkParse).use(remarkGfm).use(remarkObsidian).use(remarkBounded).freeze()
 
 /** The Markdown tree of a text, in the dialect this app reads. */
-export const parse = (text: string): Root => (parser ??= dialect()).parse(text) as Root
+export const parse = (text: string): Root => dialect.parse(text)
 
 /**
  * Why a text has no tree: the parser threw, which no text should make it do.
- * The bounds (`./bounded.ts`) keep every shape the parser is not linear on to
- * milliseconds and its nesting far from the stack's end, so each of these is
- * a bug to find — told apart, because they are different bugs:
+ * The bounds (`./bounded.ts`) keep the nesting they hold far from the stack's
+ * end, so each of these is a bug to find — told apart, because they are
+ * different bugs:
  *
  *   - `depth`: the parser ran out of stack, on some nesting the bounds do not
  *     hold;
@@ -80,9 +67,11 @@ export const guarded = (text: string): Guarded => {
   try {
     return { tree: parse(text) }
   } catch (cause) {
-    return { refused: isStackOverflow(cause) ? { kind: "depth" } : { kind: "failed", cause } }
+    return { refused: refusalOf(cause) }
   }
 }
 
-/** JavaScriptCore and V8 both throw a `RangeError` that says so. */
-const isStackOverflow = (cause: unknown): boolean => cause instanceof RangeError && /call stack/i.test(cause.message)
+/** Which of the two a throw is. JavaScriptCore and V8 both run out of stack
+ *  with a `RangeError` that says so. */
+export const refusalOf = (cause: unknown): Refusal =>
+  cause instanceof RangeError && /call stack/i.test(cause.message) ? { kind: "depth" } : { kind: "failed", cause }

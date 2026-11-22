@@ -8,17 +8,33 @@
  * search — asks this, so the directory's prose is parsed once per text rather
  * than once per reader. The tree is not kept; the reading is.
  *
+ * NO PARSER IS IMPORTED HERE, and that is the whole point of the file. This is
+ * the SLOT — who may read it and who may fill it — and every rule module that
+ * asks what a text says reaches the parser through nothing but this. The
+ * reading is MADE in `./read.ts`, which is this package's one door onto
+ * `@olai/prose`'s `read` and is not re-exported from `./index.ts`: so a
+ * browser, or a test with no DOM, imports the rules without importing
+ * ~150 KB of Markdown parser (`@olai/prose`'s `parse.ts` says what that
+ * costs, and `@olai/bundle`'s `fence.test.ts` holds the first-load chunk to
+ * it).
+ *
  * HELD ON THE OBJECT IT IS OF, under a symbol: the record's node, the
  * document. Not a field of either — both are values that travel (a record to
  * the browser on an outline's entry, a document's face on its head), and a
  * reading is the server's to keep, not the wire's: a symbol-keyed slot is not
- * enumerable, so no encoding and no spread carries it, and an edited record —
- * a new node — is a new text with no reading until it is asked. Decode fills
- * the slot ({@link ./document.ts}); a record built anywhere else is read the
- * first time it is asked. The reading lives exactly as long as its text.
+ * enumerable, so no encoding and no spread carries it. The reading lives
+ * exactly as long as its text.
+ *
+ * A TEXT WITH NO READING IS A DEFECT, not a parse to make here: {@link
+ * recordRead} and {@link bodyRead} THROW rather than read, because the caller
+ * that holds such a record is the one that skipped the decode, and a quiet
+ * parse on demand is what put the parser in every rule module in the first
+ * place. Everything that mints a record or a document goes through
+ * `./read.ts` — the store's decode of an outline, the document face, `@olai/ops`
+ * reading the record it is planning — and a fixture that builds one by hand
+ * reads it the same way.
  */
-import { proseIn } from "@olai/prose/frontmatter.ts"
-import { read, type Read } from "@olai/prose/read.ts"
+import type { Read } from "@olai/prose/read.ts"
 
 import { isMirror, type Located, type RegularNode } from "./node.ts"
 
@@ -42,12 +58,22 @@ const keptOn = <A>(holder: object): A | undefined => {
   return held === undefined ? undefined : held as A
 }
 
-/** What a record's title and note say. */
-export const recordRead = (node: RegularNode): RecordRead =>
-  keptOn<RecordRead>(node) ?? keep(node, {
-    title: read(node.title),
-    desc: node.desc === undefined ? null : read(node.desc),
-  })
+/** What a record's title and note say, or `undefined` when nothing read it —
+ *  the one asker is `./read.ts`, which reads it then. Every other reader asks
+ *  {@link recordRead}, which does not offer the second answer. */
+export const keptRecordRead = (node: RegularNode): RecordRead | undefined => keptOn<RecordRead>(node)
+
+/** Keep what a record's title and note say. `./read.ts`'s call, and nobody
+ *  else's: it is the one module that may turn a text into a reading. */
+export const keepRecordRead = (node: RegularNode, said: RecordRead): RecordRead => keep(node, said)
+
+/** What a record's title and note say, as it was read when its file was
+ *  decoded. A record nothing read is a defect in the caller — see the header. */
+export const recordRead = (node: RegularNode): RecordRead => {
+  const said = keptOn<RecordRead>(node)
+  if (said === undefined) throw new Error(unread(`record \`${node.id}\``, node.title))
+  return said
+}
 
 /**
  * A FILE DECODED AGAIN keeps what it already read: each record of `nodes`
@@ -55,7 +81,7 @@ export const recordRead = (node: RegularNode): RecordRead =>
  * `previous` — the file's records at the revision before — takes that
  * record's reading, the same object, and is not read again. One title changed
  * in a file of two thousand records reads one text. A record with no match,
- * or a changed one, is read when it is first asked.
+ * or a changed one, is read by `./read.ts` right after this.
  */
 export const carryRecordReads = (
   nodes: ReadonlyArray<Located>,
@@ -74,14 +100,28 @@ export const carryRecordReads = (
   }
 }
 
-/** What a document's prose says: the reading decode kept on it, or — for a
- *  document built anywhere else — its body read now, frontmatter off. */
-export const bodyRead = (document: { readonly body: string }): Read =>
-  keptOn<Read>(document) ?? keep(document, read(proseIn(document.body)))
+/** What a document's prose says, as it was read when the document was built.
+ *  A document nothing read is a defect in the caller — see the header. */
+export const bodyRead = (document: { readonly body: string }): Read => {
+  const said = keptOn<Read>(document)
+  if (said === undefined) throw new Error(unread("document", document.body))
+  return said
+}
 
-/** Keep a document's reading on it — decode's one call, made once the
+/** Keep a document's reading on it — `./read.ts`'s one call, made once the
  *  document it read the prose of exists. */
 export const keepBodyRead = <D extends object>(document: D, said: Read): D => {
   keep(document, said)
   return document
+}
+
+/** What a reader is told when it holds a text nothing read. It names the text
+ *  — the first line of it, which is what a person recognises a record by — and
+ *  the door that would have read it, because the fix is always at the place
+ *  the value was MADE and never here. */
+const unread = (what: string, text: string): string => {
+  const first = text.split("\n", 1)[0] ?? ""
+  const shown = first.length > 60 ? `${first.slice(0, 60)}…` : first
+  return `no reading was kept for this ${what} (\`${shown}\`), so what it says cannot be asked here. ` +
+    "Whatever made it must read it: `@olai/format/read`'s `readOutline`, `bodiedDocument` or `readRecord`."
 }

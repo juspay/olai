@@ -42,7 +42,7 @@ import {
 } from "@olai/format"
 import * as StoreModule from "@olai/store"
 import { codecFor, make as makeOps, type Ops, Query, type Store } from "@olai/ops"
-import { STAMP, steady } from "@olai/ops/testlib"
+import { STAMP, steady, unheard } from "@olai/ops/testlib"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
 
@@ -52,7 +52,7 @@ import { open } from "./table.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel #home"}`,

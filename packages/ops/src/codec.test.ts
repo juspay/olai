@@ -14,6 +14,7 @@
  */
 import { claims, namersOf } from "@olai/format"
 import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { unheard } from "./fixtures.testlib.ts"
 import type { Document, OutlineError, Reading } from "@olai/format"
 import {
   isRegular,
@@ -31,7 +32,7 @@ import { codecFor } from "./codec.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS }, unheard)
 
 type Files = Record<string, string>
 
@@ -182,7 +183,7 @@ test("a file deleted and written back in one breath is what the upsert says", ()
 
 test("a departed claim is absent on the next probe and cannot survive in-flight validation", () => {
   const table = { current: TEST_CLAIMS }
-  const live = codecFor(NO_KINDS, table)
+  const live = codecFor(NO_KINDS, table, unheard)
   const path = "Work.olai"
   const contents = `{"id":"work","ord":"a0","title":"Work"}`
   expect(live.match(path)).toBe(true)
@@ -203,7 +204,7 @@ test("a departed claim is absent on the next probe and cannot survive in-flight 
 
 test("withdrawing a referenced body's kind reports the missing document and reinstating it repairs the reading", () => {
   const table = { current: TEST_CLAIMS }
-  const live = codecFor(NO_KINDS, table)
+  const live = codecFor(NO_KINDS, table, unheard)
   const files = new Map([
     ["Work.olai", live.decode("Work.olai", '{"id":"work","ord":"a0","title":"Work","desc":"[document](notes.md)"}')],
     ["notes.md", live.decode("notes.md", "# Notes")],

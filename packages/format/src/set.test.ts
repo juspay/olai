@@ -7,9 +7,13 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
+import { read } from "@olai/prose/read.ts"
+
 import { printAddress } from "./address.ts"
-import { bodiedDocument, bytesOf, type Document } from "./document.ts"
+import { bytesOf, type Document } from "./document.ts"
+import { bodiedDocument } from "./read.ts"
 import type { OutlineError } from "./errors.ts"
+import { bodyRead } from "./kept.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { failureOf, outlineOf, recordsOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
@@ -259,6 +263,11 @@ test("an unreadable document holds its place with an empty body", () => {
   // The FILENAME, since an empty body has no first line to be called by.
   expect(lost.title).toBe("lost")
   expect(spelled(lost.headings)).toEqual([])
+  // ...and what it was READ as, which this module makes with no parser (the
+  // reading a browser-safe `assemble` cannot ask `@olai/prose` for): the same
+  // answer `read` gives an empty text, so a reader asking what the place says
+  // is answered rather than thrown at.
+  expect(bodyRead(lost)).toEqual(read(""))
   expect(set.broken.map((file) => file.file)).toEqual(["notes/lost.md"])
 })
 

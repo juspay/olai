@@ -14,9 +14,9 @@
  * codec on every commit. The server composes what is already joined.
  */
 
+import { bodiedDocument, type Unread, unreadIn } from "@olai/format/read"
 import {
   assemble,
-  bodiedDocument,
   bodyKind,
   type Document,
   fileKind,
@@ -33,6 +33,33 @@ import {
 } from "@olai/format"
 import type { Codec } from "@olai/store"
 import { Result } from "effect"
+
+/**
+ * WHO HEARS OF A TEXT THE PARSER THREW ON — the composition root's answer,
+ * which is the server's log. A parser that throws is a bug (`@olai/prose`'s
+ * `parse.ts`), and the page saying so tells the reader of that one page and
+ * nobody who could fix it. A parameter and not a default for the reason
+ * {@link codecFor} takes its vocabulary: a root that forgot it would lose the
+ * bug silently.
+ */
+export type Heard = (path: string, unread: Unread) => void
+
+/** What a file decodes to — the decode itself, before anybody is told. */
+const decodeIn = (
+  claims: Claims,
+  path: string,
+  contents: string,
+  previous: Result.Result<Document, Verdict> | undefined,
+): Result.Result<Document, Verdict> => {
+  if (bodyKind(claims, path) !== null) return Result.succeed(bodiedDocument(claims, path, contents))
+  const format = parserFor(claims, path)
+  return format === null
+    ? Result.fail(verdictOf([{ file: path, line: 0, code: "unreadable-file", message: `No active format claims ${path}` }]))
+    : Result.mapError(
+      format.parse(path, contents, claims, previous !== undefined && Result.isSuccess(previous) ? previous.success : undefined),
+      verdictOf,
+    )
+}
 
 /**
  * THE CODEC THIS SERVE VALIDATES WITH — a function of the plugin vocabulary,
@@ -53,7 +80,11 @@ import { Result } from "effect"
  * heard of a terminal, with nothing red anywhere. There is no such value to
  * reach for now, so the root has to answer.
  */
-export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claims }): Codec<Document, Reading, Verdict> => ({
+export const codecFor = (
+  kinds: KindVocabulary,
+  table: { readonly current: Claims },
+  heard: Heard,
+): Codec<Document, Reading, Verdict> => ({
   match: (path) => fileKind(table.current, path) !== null,
 
   /** A file whose content the set does not KEEP decodes to its path and
@@ -85,14 +116,9 @@ export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claim
    *  as records. */
   decode: (path, contents, previous) => {
     const claims = table.current
-    if (bodyKind(claims, path) !== null) return Result.succeed(bodiedDocument(claims, path, contents))
-    const format = parserFor(claims, path)
-    return format === null
-      ? Result.fail(verdictOf([{ file: path, line: 0, code: "unreadable-file", message: `No active format claims ${path}` }]))
-      : Result.mapError(
-        format.parse(path, contents, claims, previous !== undefined && Result.isSuccess(previous) ? previous.success : undefined),
-        verdictOf,
-      )
+    const decoded = decodeIn(claims, path, contents, previous)
+    if (Result.isSuccess(decoded)) for (const unread of unreadIn(decoded.success)) heard(path, unread)
+    return decoded
   },
 
   /** Failures included: what an unreadable file costs the rest of the set is a

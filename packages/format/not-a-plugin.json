@@ -54,6 +54,7 @@
     "src/incremental.ts": 2,
     "src/index.ts": 3,
     "src/page.ts": 2,
+    "src/read.ts": 2,
     "src/reading.ts": 1,
     "src/rules.ts": 3,
     "src/searching.ts": 1,

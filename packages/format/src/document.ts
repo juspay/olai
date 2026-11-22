@@ -92,8 +92,7 @@
 
 import { Schema } from "effect"
 
-import { proseIn } from "@olai/prose/frontmatter.ts"
-import { read, type Read } from "@olai/prose/read.ts"
+import type { Read } from "@olai/prose/read.ts"
 import { Slug } from "@olai/prose/slug.ts"
 import { Tag } from "@olai/prose/tags.ts"
 import { Address, addressOf, DocumentPath, printAddress } from "./address.ts"
@@ -101,7 +100,7 @@ import { Custom } from "./custom.ts"
 import { writtenTags } from "./derive.ts"
 import { frontmatterIn } from "./frontmatter.ts"
 import { readAddresses, recordLinks, wikilinkNames } from "./references/written.ts"
-import { carryRecordReads, keepBodyRead, recordRead } from "./kept.ts"
+import { keepBodyRead, recordRead } from "./kept.ts"
 import { fileKind, type Claims, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 
@@ -367,18 +366,18 @@ export type Document = typeof Document.Type
  * get here, and this reads what those lines SAY. The nodes are handed straight
  * through.
  *
- * `previous` is the document this file decoded to at the revision before, when
- * the caller holds one: a record whose title and note did not change keeps the
- * reading it had (`./kept.ts`'s `carryRecordReads`), so a write reads the texts
- * it changed and no others.
+ * EVERY RECORD MUST ALREADY BE READ (`./kept.ts`): this is a fold over what
+ * the texts say, not a reading of them, so it imports no parser and a browser
+ * may carry it. The door that reads a file's records and then folds them is
+ * `./read.ts`'s `readOutline`, which is what the store's decode calls; the
+ * only caller that reaches this one directly is the empty outline an
+ * unreadable file leaves behind (`./set.ts`), which has no records at all.
  */
 export const outlineDocument = (
   claims: Claims,
   file: string,
   nodes: ReadonlyArray<Located>,
-  previous?: Document,
 ): Outline => {
-  if (previous !== undefined && previous.holds === "nodes") carryRecordReads(nodes, previous.nodes)
   const links: Array<Address> = []
   const tags: Array<Tag> = []
   const seen = new Set<string>()
@@ -480,8 +479,20 @@ export const bytesOf = (text: string): number => UTF8.encode(text).length
  * `null` is what a decode that keeps no body hands over, and an unreadable
  * file arrives as an empty one ({@link ./set.ts}'s `assemble` says why): a
  * document the set holds a place for and no content.
+ *
+ * HOW THE PROSE IS READ IS THE CALLER'S, and that is what keeps this module
+ * parser-free. `prose` is asked for the reading of the one arm that has one —
+ * so a `.ts` half, whose body is code, is never read at all, and the empty
+ * place an unreadable file leaves needs no parser to make. `./read.ts`'s
+ * `bodiedDocument` is the arm that passes the real one, and it is the name
+ * every caller outside this package uses.
  */
-export const bodiedDocument = (claims: Claims, file: string, text: string | null): Markdown | Unkept => {
+export const bodiedFace = (
+  claims: Claims,
+  file: string,
+  text: string | null,
+  prose: (body: string) => Read,
+): Markdown | Unkept => {
   const path = pathOf(file)
   const kind = fileKind(claims, file)
   const claim = kind === null ? undefined : claims.byKind.get(kind)
@@ -515,12 +526,12 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
       headings: [],
     }
   }
-  // THE PROSE, READ ONCE — the body with any frontmatter taken off
-  // (`@olai/prose`'s `frontmatter.ts`), through the one parser, and the
-  // reading kept on the document (`./kept.ts`). Every field of the face below
-  // that comes from the prose is read off it, and so is everything a later
-  // reader asks of the body — its dead links, its references.
-  const said = read(proseIn(body))
+  // THE PROSE, READ ONCE — the body with any frontmatter taken off, through
+  // the one parser, and the reading kept on the document (`./kept.ts`). Every
+  // field of the face below that comes from the prose is read off it, and so
+  // is everything a later reader asks of the body — its dead links, its
+  // references.
+  const said = prose(body)
   const named = wikilinkNames([said])
   return keepBodyRead({
     kind: claim.kind,

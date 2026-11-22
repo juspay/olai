@@ -17,7 +17,8 @@ import { Result } from "effect"
 
 import { rowsOf } from "./derive.ts"
 import { isNamed } from "./references/pointing.ts"
-import { bodiedDocument, type Document } from "./document.ts"
+import type { Document } from "./document.ts"
+import { bodiedDocument } from "./read.ts"
 import { blamedOn, implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
 import { blamed, type Verdict, verdictOf } from "./verdict.ts"
 import {

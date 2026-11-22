@@ -86,13 +86,11 @@
  * illegible report about a file nobody wrote.
  */
 import { encoded } from "./encode.ts"
+import { bodiedDocument } from "@olai/format/read"
 import {
-  bodiedDocument,
   type Document,
   following,
   type OpFailure,
-
-
   ValidationFailure,
   verdictOf,
 } from "@olai/format"

@@ -42,6 +42,7 @@ import {
   PACKAGES,
   REPO,
   ROOT_DECLARED,
+  sourcesUnder,
   specifiersOf,
   TREE,
   transpilers,
@@ -1130,6 +1131,47 @@ test("permanent host entry closures contain no Olai feature implementation", () 
       .map((file) => `${entry}: ${file}`)
   })
   expect(violations).toEqual([])
+})
+
+/**
+ * NOTHING THAT DRAWS WITHOUT A PARSER IMPORTS ONE.
+ *
+ * `@olai/prose`'s `parse.ts` is ~150 KB of `micromark`, `unified` and
+ * `remark-*`, and its browser build reaches for `document` as it LOADS — so a
+ * module that imports it is a module that cannot be loaded without a DOM,
+ * whatever it then does. Two graphs must stay clear of it, for the two
+ * different reasons:
+ *
+ *   - `@olai/format`'s index, because every reader of the format pulls it and
+ *     the browser's first paint is one of them. What a rule asks of a text is
+ *     the reading its decode kept (`kept.ts`); what MAKES a reading is behind
+ *     `@olai/format/read`, which this door may not reach.
+ *   - every `*.browsertest.ts`, because those run under `--conditions
+ *     browser` with no DOM, and 25 of them once failed on `document is not
+ *     defined` having asked for nothing of the sort.
+ *
+ * It is the SOURCE half of the claim; `@olai/web`'s `build.test.ts` holds the
+ * other, over the built first-load chunks, which is where splitting can put a
+ * parser that no import here would show.
+ */
+test("the format's door and every browser-condition test stay clear of the Markdown parser", () => {
+  const PARSER = /^prose\/src\/(?:parse|obsidian|read)\.ts$/
+  const LIBRARY = /^(?:micromark|unified$|unified\/|remark-|mdast-util-from-markdown)/
+  const clearOf = (entry: string): ReadonlyArray<string> => {
+    const graph = graphFrom(path.join(PACKAGES, entry))
+    expect(graph.unresolved, entry).toEqual([])
+    return [
+      ...graph.files.filter((file) => PARSER.test(file)),
+      ...graph.reached.filter((edge) => !edge.dynamic && LIBRARY.test(edge.spec)).map((edge) => `${edge.file} → ${edge.spec}`),
+    ].map((what) => `${entry}: ${what}`)
+  }
+  const browserTests = sourcesUnder(PACKAGES)
+    .filter((file) => file.endsWith(".browsertest.ts"))
+    .map((file) => path.relative(PACKAGES, file))
+  // The corpus is walked rather than listed, so a new one is swept — and an
+  // empty corpus would be this claim passing by asking nothing.
+  expect(browserTests.length).toBeGreaterThan(20)
+  expect(["format/src/index.ts", ...browserTests].flatMap(clearOf)).toEqual([])
 })
 
 test("bundle static asset and policy catalogs match declared row exports", () => {

@@ -46,7 +46,8 @@ import {
   type PathsMoved,
 } from "./conventions.ts"
 import type { Derived } from "./derive.ts"
-import { bodiedDocument, type Document } from "./document.ts"
+import type { Document } from "./document.ts"
+import { bodiedDocument } from "./read.ts"
 import { bodyKind } from "./kinds.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { nodesOf, outlineOf, seeded } from "./fixtures.testlib.ts"

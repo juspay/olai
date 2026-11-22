@@ -36,7 +36,8 @@ import * as path from "node:path"
 import { Result } from "effect"
 
 import { ancestorsOf, byCorpus, type Derived } from "./derive.ts"
-import { bodiedDocument, type Document } from "./document.ts"
+import type { Document } from "./document.ts"
+import { bodiedDocument } from "./read.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import {
   type Filter,

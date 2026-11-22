@@ -143,12 +143,16 @@ export {
   byPath,
 } from "./paths.ts"
 /** THE SUM the set serves, and the whole world of it: the three arms, their
- *  shared face, the constructors a decode calls and the narrowings a reader
- *  asks for. `Document` is what a served file IS
+ *  shared face, and the narrowings a reader asks for. `Document` is what a
+ *  served file IS
  *  (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md, PR 2); the nodes are the
- *  substructure of one arm rather than a collection beside it. */
+ *  substructure of one arm rather than a collection beside it.
+ *
+ *  WHAT A DECODE CALLS IS NOT HERE: the two constructors read the text they
+ *  are given, so they live behind `@olai/format/read` (`./read.ts`) with
+ *  everything else that imports the Markdown parser, and this door stays one
+ *  a browser may hold. */
 export {
-  bodiedDocument,
   bodyOf,
   Document,
   Face,
@@ -159,12 +163,8 @@ export {
   isOutline,
   Markdown,
   Outline,
-  outlineDocument,
   Unkept,
 } from "./document.ts"
-/** The headings of a body, as the face lists them. A heading's slug and the
- *  counter behind a repeated one are `@olai/prose`'s `slug.ts`. */
-export { slugsIn } from "./slug.ts"
 /** A `.md`'s `---` block, read and written (where it ends is `@olai/prose`'s
  *  `frontmatter.ts`). A `.md`'s front matter is where
  *  a NOTE keeps its properties — including the two a chat is made of — so the
@@ -1323,5 +1323,6 @@ export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
 
 export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields } from "./references/dead.ts"
 /** What decode read out of each text, kept beside it: a record's title and
- *  note, a document's prose (`./kept.ts`). */
+ *  note, a document's prose (`./kept.ts`). ASKING is here and parser-free;
+ *  READING is `@olai/format/read`, which is the only door that imports one. */
 export { bodyRead, type RecordRead, recordRead } from "./kept.ts"

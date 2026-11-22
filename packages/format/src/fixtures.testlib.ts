@@ -38,14 +38,14 @@ import { type Claims, unkept } from "./kinds.ts"
 import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
 import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
 import { Node } from "./node.ts"
-import { outlineDocument } from "./document.ts"
+import { bodiedDocument, readOutline } from "./read.ts"
 
 import { TEST_CLAIMS } from "./claims.testlib.ts"
 export { TEST_CLAIMS, NO_CLAIMS } from "./claims.testlib.ts"
 import { pointingOf, propertied } from "./references/pointing.ts"
 import { referenceKeys } from "./typing.ts"
 import { namesOf } from "./links/names.ts"
-import { bodiedDocument, type Document, type Outline } from "./document.ts"
+import type { Document, Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
 import { type Reading, validate } from "./validate.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
@@ -62,7 +62,7 @@ export const parseOutline = (file: string, text: string, claims: Claims, previou
     if (Result.isFailure(decoded)) return Result.fail([{ file, line: i + 1, code: "bad-record", message: "fixture line is not a record" }])
     nodes.push({ file, line: i + 1, node: decoded.success })
   }
-  return Result.succeed(outlineDocument(claims, file, nodes, previous))
+  return Result.succeed(readOutline(claims, file, nodes, previous))
 }
 
 /** The default fixture file name. Named once so a test that cares about paths
