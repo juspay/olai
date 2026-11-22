@@ -6,6 +6,7 @@
  *  polarity, no two of them alike — measured in OKLCH. */
 import { describe, expect, test } from "bun:test"
 
+import { isNeutral } from "./families.ts"
 import { colourGap, hueGap, hueOf, oklchOf } from "./hues.ts"
 import {
   DEFAULT_DARK_PALETTE,
@@ -79,7 +80,8 @@ describe("the palette table", () => {
   test("a name no row offers resolves to nothing, rather than to something", () => {
     // What a value stored by an older olai looks like after a rename — the
     // client forgets it, and can only do that if this answers honestly. The
-    // fourteen rows that left the wheel are that case now.
+    // names of the old wheel that are not rows again, `pitch` and `aurora`
+    // among them, are that case now.
     expect(paletteNamed("no-such-theme")).toBeUndefined()
     expect(paletteNamed("pitch")).toBeUndefined()
     expect(paletteNamed("aurora")).toBeUndefined()
@@ -103,11 +105,6 @@ describe("the palette table", () => {
   })
 })
 
-/** A paper with enough chroma to read as a colour at all. The neutrals sit
- *  under it on purpose: chalk and basalt are the day read in no particular
- *  hue. */
-const HUE_BEARING_CHROMA = 0.01
-
 /** Two and a half just-noticeable differences: a JND is about 0.02. */
 const ACCENT_FLOOR = 0.05
 
@@ -116,7 +113,7 @@ const LATTICE_ANCHOR = 177
 
 describe("the table's shape", () => {
   const ofScheme = (scheme: Scheme) => PALETTES.filter((palette) => palette.scheme === scheme)
-  const hued = (palette: Palette) => oklchOf(palette.colors.paper).c >= HUE_BEARING_CHROMA
+  const hued = (palette: Palette) => !isNeutral(palette.colors.paper)
   /** Every unordered pair of rows of one polarity. */
   const pairsOf = (scheme: Scheme) => {
     const rows = ofScheme(scheme)
@@ -147,7 +144,8 @@ describe("the table's shape", () => {
 
   test("a grammar row's paper sits where its recipe says", () => {
     // The browser's gamut and the 8-bit rounding move a paper's measured hue
-    // a few degrees off the declared one; ten would be a different sector.
+    // off the declared one (4.9° on sky, the most of the seven); past ten, a
+    // row would no longer be the hue it declares.
     for (const { name, recipe, colors } of PALETTES) {
       if (recipe === undefined) continue
       expect(`${name} ${hueGap(hueOf(colors.paper), recipe.hue) <= 10}`).toBe(`${name} true`)

@@ -4,7 +4,7 @@ The theme plugin decides what olai looks like: the colour palette, the typeface,
 
 ## Pick a colour palette
 
-The **Theme** row offers eleven palettes, drawn as swatches in the colours they set: seven light ones on the top line, four dark ones below.[^swatch] Each dark swatch stands under the light one of the same colour.
+The **Theme** row offers eleven palettes, drawn as swatches in the colours they set: the seven light ones first, the four dark ones on a line below.[^swatch] On a screen wider than a phone, each dark swatch stands under the light one of the same colour.
 
 | Colour | Light | Dark |
 | --- | --- | --- |

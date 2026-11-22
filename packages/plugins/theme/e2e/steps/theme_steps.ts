@@ -288,24 +288,40 @@ const swatchBoxes = async (world: OlaiWorld): Promise<ReadonlyMap<string, Box>> 
   return new Map(measured.map(({ value, box }) => [value, box]));
 };
 
-Then("the theme swatches stand in two lines, light above dark", async function (this: OlaiWorld) {
-  // Which swatch is light and which dark is the TABLE's word, so a row that
-  // changed polarity moves line without this step learning its name.
-  const boxes = await swatchBoxes(this);
+/** The light swatches' boxes and the dark ones', in table order. Which is
+ *  which is the TABLE's word, so a row that changed polarity moves line
+ *  without these steps learning its name. */
+const linesOf = async (world: OlaiWorld): Promise<{ light: Array<Box>; dark: Array<Box> }> => {
+  const boxes = await swatchBoxes(world);
   const line = (scheme: string): Array<Box> =>
     PALETTES.filter((palette) => palette.scheme === scheme).map((palette) => {
       const box = boxes.get(palette.name);
       assert.ok(box, `no swatch offers ${palette.name}`);
       return box;
     });
-  const light = line("light");
-  const dark = line("dark");
+  return { light: line("light"), dark: line("dark") };
+};
+
+/** Every dark swatch starts below the foot of every light one. */
+const assertLightsAboveDarks = (light: Array<Box>, dark: Array<Box>): void => {
+  const lightFoot = Math.max(...light.map((box) => box.y + box.height));
+  const darkTop = Math.min(...dark.map((box) => box.y));
+  assert.ok(darkTop >= lightFoot - 1, `the darks start at ${Math.round(darkTop)}px, above the lights' foot at ${Math.round(lightFoot)}px`);
+};
+
+Then("the theme swatches stand in two lines, light above dark", async function (this: OlaiWorld) {
+  const { light, dark } = await linesOf(this);
   const tops = (boxes: Array<Box>): Set<number> => new Set(boxes.map((box) => Math.round(box.y)));
   assert.equal(tops(light).size, 1, `the light swatches stand at ${[...tops(light)].join(", ")}px, not on one line`);
   assert.equal(tops(dark).size, 1, `the dark swatches stand at ${[...tops(dark)].join(", ")}px, not on one line`);
-  const lightFoot = Math.max(...light.map((box) => box.y + box.height));
-  const darkTop = Math.min(...dark.map((box) => box.y));
-  assert.ok(darkTop >= lightFoot - 1, `the dark line starts at ${Math.round(darkTop)}px, above the light line's foot at ${Math.round(lightFoot)}px`);
+  assertLightsAboveDarks(light, dark);
+});
+
+Then("every light swatch stands above every dark one", async function (this: OlaiWorld) {
+  // On a phone a line of seven 44px targets is wider than the panel, so the
+  // lights may wrap onto a second line; what holds there is the order.
+  const { light, dark } = await linesOf(this);
+  assertLightsAboveDarks(light, dark);
 });
 
 Then(

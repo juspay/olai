@@ -2,13 +2,14 @@
 Feature: The theme is a pick, and it is yours
   Named palettes, as eleven swatches in the Theme row of the preferences panel
   (`preferences.feature`) — each painted in its own paper with a wedge of its
-  accent, in two lines, the lights above and each dark under the light of its
-  own hue — and ahead of them one control that is not a palette: FOLLOW THE
-  SYSTEM. Pressing a swatch writes `data-theme` on
-  `<html>`, this browser remembers it, and the sheet repaints — every colour on
-  the page is a custom property, so one attribute re-answers all of them at
-  once. A swatch carries no word; its name is its tooltip and its accessible
-  name, and a keyboard reaches it with Tab and picks it with Space or Enter.
+  accent, the lights before the darks and, on a screen wider than a phone,
+  each dark under the light of its own hue — and ahead of them one control
+  that is not a palette: FOLLOW THE SYSTEM. Pressing a swatch writes
+  `data-theme` on `<html>`, this browser remembers it, and the sheet repaints
+  — every colour on the page is a custom property, so one attribute
+  re-answers all of them at once. A swatch carries no word; its name is its
+  tooltip and its accessible name, and a keyboard reaches it with Tab and
+  picks it with Space or Enter.
 
   The panel STAYS OPEN on a pick, unlike the pill-and-popover this row replaced:
   a palette is judged by looking at the page it paints, and shutting the surface
@@ -131,9 +132,9 @@ Feature: The theme is a pick, and it is yours
     And there should be no page errors
 
   Scenario: The swatches stand in two lines, each dark under its own hue
-    # Seven light themes and four dark ones. Reading down a column is reading
-    # one hue by day and by night, so a person who likes a light theme finds
-    # its dark sibling without hunting for it.
+    # Seven light themes and four dark ones, on a desktop screen. Reading down
+    # a column is reading one hue by day and by night, so a person who likes a
+    # light theme finds its dark sibling without hunting for it.
     When I open the app
     And I open the preferences
     Then the theme swatches stand in two lines, light above dark
@@ -157,14 +158,14 @@ Feature: The theme is a pick, and it is yours
 
   @phone
   Scenario: On a phone every swatch fits the panel and takes a finger
-    # 390×844. Where the follow control and a line of seven 44px targets do
-    # not fit side by side, the follow control wraps above the two lines; no
-    # swatch may end up past the panel's edge or shrink under a finger's size
-    # to make room.
+    # 390×844. A line of seven 44px targets is wider than the panel there, so
+    # the light line wraps, and the follow control sits above the swatches.
+    # What holds is the order and the size: every light swatch above every
+    # dark one, none past the panel's edge, none shrunk under a finger.
     When I open the app
     And I open the preferences
     Then every theme swatch is inside the preferences panel, and a finger's size
-    And the theme swatches stand in two lines, light above dark
+    And every light swatch stands above every dark one
     And there should be no page errors
 
   Scenario: The pick is there before the page has finished parsing
