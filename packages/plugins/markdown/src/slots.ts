@@ -17,16 +17,17 @@
  * Exported as `slots` from the server door (`./server.ts`), which is what
  * `vault-plugins_inspect` reads to tell an author the seats exist.
  */
+import type { FenceFace } from "@olai/markdown-ui/Markdown.tsx"
 import type { JSX } from "solid-js"
 import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
 
 /** A face about one note, handed its path. */
 export type DocumentFace = (props: { readonly file: string }) => JSX.Element
 
-/** A plugin's drawing of a fence in its own language, handed the fence's text
- *  as written and the note's path — `@olai/markdown-ui`'s `FenceFace`, which
- *  is what the note's page hands it to. */
-export type DocumentFenceFace = (props: { readonly text: string; readonly file: string }) => JSX.Element
+/** A plugin's drawing of a fence in its own language: `@olai/markdown-ui`'s
+ *  `FenceFace`, the shape the note's page hands it, named here as the slot's
+ *  own. A type, so the door loads nothing. */
+export type DocumentFenceFace = FenceFace
 
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {

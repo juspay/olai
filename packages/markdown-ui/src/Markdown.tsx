@@ -60,11 +60,6 @@ import { applyWikilink } from "./wikilinks.ts"
  */
 export type FenceFace = (props: { readonly text: string; readonly file: string }) => JSX.Element
 
-/** One set of languages per map of drawings, compared by what it holds, so a
- *  map rebuilt with the same languages renders nothing again. */
-const sameLanguages = (a: ReadonlySet<string> | undefined, b: ReadonlySet<string> | undefined): boolean =>
-  a === b || (a !== undefined && b !== undefined && a.size === b.size && [...a].every((one) => b.has(one)))
-
 export function Markdown(props: {
   readonly claims: Claims | undefined
   readonly source: string
@@ -91,11 +86,12 @@ export function Markdown(props: {
   readonly fences?: ReadonlyMap<string, FenceFace>
 }) {
   let container: HTMLDivElement | undefined
-  const fenceLanguages = createMemo(
-    () => props.fences === undefined || props.fences.size === 0 ? undefined : new Set(props.fences.keys()),
-    undefined,
-    { equals: sameLanguages },
-  )
+  /** The languages the page has a drawing for, which the render makes into
+   *  placeholders. The caller keeps its map while the same faces are hung, so
+   *  this is read again only when they change, and a rendering with the same
+   *  languages is the one the render's cache already holds. */
+  const fenceLanguages = (): ReadonlySet<string> | undefined =>
+    props.fences === undefined || props.fences.size === 0 ? undefined : new Set(props.fences.keys())
   // `markdownReady()` both answers and asks — reading it here is what starts
   // the fetch, and what re-runs this memo when the file lands.
   const rendered = createMemo(() =>
@@ -145,7 +141,7 @@ export function Markdown(props: {
   const owner = getOwner()
   let mounted: Array<() => void> = []
   const unmount = (): void => {
-    for (const stop of mounted) stop()
+    for (const dispose of mounted) dispose()
     mounted = []
   }
   onCleanup(unmount)
@@ -160,18 +156,19 @@ export function Markdown(props: {
       if (Face === undefined) continue
       const code = placeholder.firstElementChild
       const text = code?.textContent ?? ""
-      const host = document.createElement("div")
-      code?.setAttribute("hidden", "")
-      placeholder.append(host)
-      const dispose = createRoot((dispose) => {
+      mounted.push(createRoot((dispose) => {
+        // The face's own host, and the code block hidden under it, both put
+        // back by this root's disposal.
+        const host = document.createElement("div")
+        code?.setAttribute("hidden", "")
+        placeholder.append(host)
+        onCleanup(() => {
+          host.remove()
+          code?.removeAttribute("hidden")
+        })
         insert(host, () => createComponent(Face, { text, file }))
         return dispose
-      }, owner)
-      mounted.push(() => {
-        dispose()
-        host.remove()
-        code?.removeAttribute("hidden")
-      })
+      }, owner))
     }
   })
   /** Is this block still WAITING on the renderer — the arrival's own answer
