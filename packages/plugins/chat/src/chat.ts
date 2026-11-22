@@ -873,7 +873,7 @@ const openingOf = (
   row: Installed,
   compactAt: number | null,
 ): Pick<Installed, "leg" | "adapter"> => {
-  if (compactAt === null || row.compacting === undefined) return row
+  if (compactAt === null || row.compacting === undefined) return { leg: row.leg, adapter: row.adapter }
   const compacting = row.compacting(compactAt)
   return {
     leg: compacting.leg,
@@ -2343,15 +2343,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
          * leaving is its scope being released, and the log line a person finds
          * should say so.
          */
-        const spawn = openingOf(row, options.compactAt ?? null)
         const made = yield* Effect.tryPromise({
           try: (signal) =>
             startHarness<ChatEntry>({
-              // THE LEG AND THE SPAWN THIS BRING-UP USES, which are the row's
-              // own unless this chat tells the engine where to compact
-              // ({@link openingOf}).
-              leg: spawn.leg,
-              adapter: spawn.adapter,
+              // THE LEG AND THE ADAPTER THIS BRING-UP OPENS WITH, which are the
+              // row's own unless this chat tells the engine where to compact.
+              ...openingOf(row, options.compactAt ?? null),
               cwd: options.cwd,
               configDir: SIGNED_IN_FROM,
               // OLAI'S OWN SERVER, as the one entry handed over, and whatever

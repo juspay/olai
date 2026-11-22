@@ -109,7 +109,7 @@
  */
 
 import type { Adapter, Leg, NotHere, PromptChannel, Where } from "@kolu/acp/engine"
-import type { Compacting, Registering } from "@olai/plugin-api/services"
+import type { Registering } from "@olai/plugin-api/services"
 import type { AgentChoice, OffBecause } from "olai-plugin-chat/wire"
 import { AGENT_PATH_ENV } from "../adapter.ts"
 
@@ -142,7 +142,7 @@ export interface Installed {
    *  be told — read by {@link ../chat.ts} at each bring-up against the chat's
    *  `compact-at` setting. The registration's own pure function, carried as
    *  is: absent, the engine is opened with {@link leg} and {@link adapter}. */
-  readonly compacting?: (tokens: number) => Compacting
+  readonly compacting?: Registering["compacting"]
 }
 
 /**
