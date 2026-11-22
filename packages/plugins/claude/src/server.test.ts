@@ -17,7 +17,7 @@
 import { AGENT_ENV } from "@kolu/acp/engine"
 import { describe, expect, test } from "bun:test"
 
-import { REMOTE_SIGNALS } from "@kolu/acp-claude"
+import { CLAUDE, REMOTE_SIGNALS } from "@kolu/acp-claude"
 import { DISABLE_AUTO_MEMORY_ENV, ENGINE } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
@@ -114,4 +114,48 @@ describe("finding the Claude Code adapter on a host", () => {
     expect(ENGINE.at({ env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere })).toBe(INSTALL)
   })
 
+})
+
+describe("telling Claude Code where to compact", () => {
+  const compacting = ENGINE.compacting
+  if (compacting === undefined) throw new Error("the Claude engine must say how it is told where to compact")
+
+  test("the session open turns auto-compaction on at the number, beside the raw-message subscription", () => {
+    const { leg } = compacting(200_000)
+    // THE WINDOW IS THE NUMBER PLUS kolu's 33k RESERVE, measured on the pinned
+    // pair: Claude Code fires that far below the window it is given.
+    expect(leg.rawMessages?.openMeta).toEqual({
+      claudeCode: {
+        ...(CLAUDE.rawMessages?.openMeta["claudeCode"] as object),
+        options: { settings: { autoCompactEnabled: true, autoCompactWindow: 233_000 } },
+      },
+    })
+    expect(compacting(500_000).leg.rawMessages?.openMeta).toMatchObject({
+      claudeCode: { options: { settings: { autoCompactWindow: 533_000 } } },
+    })
+    // ... AND EVERYTHING ELSE IS THE REGISTERED LEG'S, so the panel reads this
+    // agent's wire exactly as it did: the same forwarded-message channel and
+    // the same readers off it.
+    expect(leg.rawMessages?.method).toBe(CLAUDE.rawMessages?.method)
+    expect(leg.rawMessages?.modelIn).toBe(CLAUDE.rawMessages?.modelIn)
+    expect(leg.rawMessages?.serversIn).toBe(CLAUDE.rawMessages?.serversIn)
+    expect(leg.models).toBe(CLAUDE.models)
+    expect(ENGINE.leg).toBe(CLAUDE)
+  })
+
+  test("compaction reports are not asked for, so a compaction stays the tool row the panel draws", () => {
+    // Asked for, the adapter sends `compaction_update` frames instead of its
+    // "Compact conversation" tool call, and the chat passes nothing that draws
+    // them: a compaction would vanish from the transcript.
+    expect(compacting(200_000).leg.compaction).toBeFalsy()
+  })
+
+  test("the variables that would override the number are taken from the spawn", () => {
+    expect([...compacting(200_000).unset].sort()).toEqual([
+      "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE",
+      "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+      "DISABLE_AUTO_COMPACT",
+      "DISABLE_COMPACT",
+    ])
+  })
 })

@@ -5,7 +5,7 @@ import ts from "typescript"
 import { PACKAGES, sourcesUnder } from "./tree.testlib.ts"
 import { expect, test } from "bun:test"
 import { Effect, Schema, SchemaAST } from "effect"
-import { decodePolicy, policyControl } from "@olai/plugin-api/configuration"
+import { coerceLeaf, decodePolicy, policyControl, switchText } from "@olai/plugin-api/configuration"
 import type { Plugin } from "@olai/plugin-api"
 import { ROWS } from "./rows.ts"
 import { declaredKinds } from "./bundle.ts"
@@ -23,7 +23,12 @@ const audit = (schema: Schema.ConstraintDecoder<unknown, never>, path: string): 
     // The enclosing schema requires no services; its fields inherit that contract.
     const one = Schema.make(field.type) as Schema.ConstraintDecoder<unknown, never>
     if (field.type._tag === "Objects") count += audit(one, `${path}.${key}`)
-    else expect(Schema.decodeUnknownSync(one)(String(defaults[key])), `${path}.${key} must decode a vault property`).toEqual(defaults[key])
+    else if (policyControl(field.type).kind === "switch") {
+      // A SWITCH IS READ THE WAY THE FILE READER READS ONE: its two words go
+      // through `coerceLeaf`, which is what turns them into a value.
+      const value = defaults[key] as boolean
+      expect(coerceLeaf(one, switchText(value)), `${path}.${key} must decode a vault property`).toEqual(value)
+    } else expect(Schema.decodeUnknownSync(one)(String(defaults[key])), `${path}.${key} must decode a vault property`).toEqual(defaults[key])
     count++
   }
   return count
@@ -110,7 +115,7 @@ test("every shipped declaration supplies a control for each leaf in schema order
     for (const value of values) expect(value.control.kind).toBeDefined()
   }
   expect(count).toBeGreaterThan(10)
-  expect([...kinds].sort()).toEqual(["choice", "number", "text"])
+  expect([...kinds].sort()).toEqual(["choice", "number", "switch", "text"])
 })
 
 /** This value-level fence lives with the schema audit: fence.test.ts must run

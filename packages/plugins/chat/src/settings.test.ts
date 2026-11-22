@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
+import { coerceLeaf, policyControl } from "@olai/plugin-api/configuration"
 import { Duration, Schema } from "effect"
-import { Config, sleepingPolicy, spanMillis } from "./settings.ts"
+import { compactingPolicy, Config, sleepingPolicy, spanMillis } from "./settings.ts"
 
 test("idle-ms decodes property strings within the Node timer range", () => {
   const decode = Schema.decodeUnknownSync(Config)
@@ -70,5 +71,38 @@ test("a node agent is reminded every twenty messages, and zero is the switch tha
   expect(decode({ "remind-every": "0" })["remind-every"]).toBe(0)
   for (const value of ["-1", "1.5", "often", ""]) {
     expect(() => decode({ "remind-every": value })).toThrow()
+  }
+})
+
+test("agents compact at 200k unless a person says otherwise, and off says nothing", () => {
+  const decode = Schema.decodeUnknownSync(Config)
+  const config = decode({})
+  expect(config["auto-compact"]).toBe(true)
+  expect(config["compact-at"]).toBe("200k")
+  expect(compactingPolicy(config)).toBe(200_000)
+  // EACH WORD ON THE LIST IS THE NUMBER IT SAYS, read off one table.
+  for (const [word, tokens] of [["100k", 100_000], ["300k", 300_000], ["500k", 500_000]] as const) {
+    expect(compactingPolicy(decode({ "compact-at": word }))).toBe(tokens)
+  }
+  // OFF IS `null`, whichever size is set: the agent is told nothing, rather
+  // than told never to compact.
+  expect(compactingPolicy(decode({ "auto-compact": false, "compact-at": "500k" }))).toBeNull()
+})
+
+test("the size is one of the four on the list, and the switch is written yes or no", () => {
+  const decode = Schema.decodeUnknownSync(Config)
+  for (const value of ["42", "150k", "200K", "200000", 200_000, ""]) {
+    expect(() => decode({ "compact-at": value })).toThrow()
+  }
+  // DRAWN AS A CHOICE AND A SWITCH, and read from the file the way the panel
+  // writes them: the switch's words are `yes` and `no`, and nothing else is.
+  const size = Config.fields["compact-at"]
+  const toggle = Config.fields["auto-compact"]
+  expect(policyControl(size.ast)).toEqual({ kind: "choice", options: ["100k", "200k", "300k", "500k"] })
+  expect(policyControl(toggle.ast)).toEqual({ kind: "switch" })
+  expect(coerceLeaf(toggle, "no")).toBe(false)
+  expect(coerceLeaf(toggle, "yes")).toBe(true)
+  for (const value of ["on", "true", "1", ""]) {
+    expect(() => coerceLeaf(toggle, value)).toThrow()
   }
 })

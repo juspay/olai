@@ -20,7 +20,7 @@ A message you send while the agent is working waits until it finishes, then runs
 
 ## What you see while it answers
 
-Shell output appears under the line for that command, ending with the exit code.[^terminal] A command left running in the background is tracked in the strip above the conversation.[^background] The line above the box you type in names the model running and the account signed in,[^models][^identity] and a model switch can be refused.[^refused] Memory from one conversation to the next is off.[^memory] **Earlier chats** lists saved conversations.[^earlier]
+Shell output appears under the line for that command, ending with the exit code.[^terminal] A command left running in the background is tracked in the strip above the conversation.[^background] The line above the box you type in names the model running and the account signed in,[^models][^identity] and a model switch can be refused.[^refused] Memory between conversations is off.[^memory] A long conversation compacts itself.[^compact] **Earlier chats** lists saved conversations.[^earlier]
 
 ## When Claude Code does not appear
 
@@ -70,6 +70,8 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 
 [^memory]: Claude Code's automatic memory is switched off. Every time olai starts the adapter it sets `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, which overrides `autoMemoryEnabled` in the adapter's `settings.json` and anything you set yourself, so the rows under the node the chat hangs from are the conversation's only memory. A `CLAUDE.md` file is instructions you wrote rather than memory, and it still loads.
 
+[^compact]: olai opens and resumes every conversation with settings that tell Claude Code to compact once it holds about the `compact-at` size. A model whose own window is smaller compacts sooner: at the default of 200k, a model with a 200k window compacts at about 167k. These settings replace any `--settings` your own `KOLU_ACP_AGENT` passes, and the models `CLAUDE_MODEL_CONFIG` names. A compaction shows as a **Compact conversation** tool call. With [chat](chat.md)'s `auto-compact` at `no`, olai sends none of this.
+
 [^earlier]: The list of saved conversations says how many messages each one holds, and when a `/clear` ended one, it names the conversation that took its place. The **Earlier chats** list shows both.
 
 [^missing]: An agent that cannot be started is not offered anywhere a chat begins, and the **Plugins** panel moves it to **Needs you**, saying *not found — olai was started without the wrapper that carries the pinned adapter*. To remove a conversation with it, switch that chat off.
@@ -84,6 +86,7 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 | `CLAUDE_CODE_DISABLE_AUTO_MEMORY` | olai sets it to `1` every time it starts the adapter, whatever you set |
 | `IS_SANDBOX` | the adapter offers its permission-free mode to a user running as root only when this is set |
 | `NO_BROWSER`, `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY`, `CLAUDE_CODE_REMOTE` | olai removes these every time it starts the adapter |
+| `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | olai removes these every time it starts the adapter for a conversation, unless chat's `auto-compact` is `no` |
 
 olai tells the adapter that it can run terminal commands, so the adapter offers `claude-ai-login` and `console-login` as sign-in commands for olai to run, and that is what the panel does.
 

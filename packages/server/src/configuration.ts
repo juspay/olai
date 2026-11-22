@@ -5,7 +5,7 @@ import { Config as ProcessConfig } from "./process-policy.ts"
 import { ROWS } from "@olai/bundle"
 import { BUNDLE_NAMES, configsOf, offered, patchBundleRow, patchBundleRows, profilePatch, serviceChanges } from "@olai/bundle/bundle"
 import { BundleModules, ConfigurationSource, FileKinds, Env, Ops as WriteDoor } from "@olai/plugin-api/services"
-import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, configurationNode, policyEdit, decodePolicy, environmentReadings, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
+import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, configurationNode, policyEdit, decodePolicy, environmentReadings, switchText, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
 import { UsageFailure, type OpFailure, type WriteRequest } from "@olai/format"
 import type { Plugin } from "@olai/plugin-api"
 import { Deferred, Effect, Fiber, Queue, Semaphore, Stream, SubscriptionRef } from "effect"
@@ -109,7 +109,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     if (row?.on === enabled) { yield* awaitRevision(source, at.revision); return true }
     const door = offered(host, WriteDoor)
     if (door === undefined) return yield* Effect.fail(new UsageFailure({ reason: "The directory's write door is unavailable." }))
-    const seed = { title: id, props: { on: enabled ? "yes" : "no" } }
+    const seed = { title: id, props: { on: switchText(enabled) } }
     const request: WriteRequest = row?.node !== undefined
       ? { op: "prop", id: row.node.id, key: "on", value: seed.props.on }
       : at.file === undefined ? { op: "create", file: CONFIGURATION_FILE, seed }

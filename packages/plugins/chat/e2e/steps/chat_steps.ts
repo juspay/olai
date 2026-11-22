@@ -647,6 +647,24 @@ Then(
   },
 );
 
+/** ...AND ASKED AGAIN WHILE A BROWSER IS OPEN — what a chat row restarted
+ *  under an open conversation does (a chat setting changed): the reopen is the
+ *  new row's, so a message sent after this step reaches the agent the new
+ *  settings opened rather than the one being stopped. Pair it with `the agent
+ *  notes every conversation it loads` before the change, so what is waited for
+ *  is the restart's own ask. */
+Then(
+  "the agent has reopened the conversation on node {string} in {string}",
+  async function (this: OlaiWorld, node: string, file: string) {
+    const session = boundSession(this, node, file);
+    await this.waitUntil(
+      async () => loadedSessions(this.scratch()).includes(session),
+      `the agent to be asked for session ${session} again`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
 /** ...AND THE TRASH, WHILE THE SERVER IS DOWN. A person trashing a row in
  *  another tab and then restarting is the shape; a scenario cannot keep the
  *  page alive across `the server stops`, so the file is edited the way the
@@ -668,11 +686,11 @@ When(
   },
 );
 
-/** ONE PLUGIN'S SWITCH, WRITTEN WHERE THE SERVER READS IT — for a scenario that
- *  changes the engine table while no server is running. `on` is the word the
- *  settings row carries, and a `.olai` row is a record like any other. */
-When("I set the plugin {string} {word} on disk", function (this: OlaiWorld, plugin: string, state: string) {
-  const file = path.join(this.scratch(), "_olai/Settings.olai");
+/** ONE PLUGIN'S SETTING, WRITTEN WHERE THE SERVER READS IT — the plugin's own
+ *  row in `_olai/Settings.olai`, made if it is not there, with every other
+ *  property it carries kept. A `.olai` row is a record like any other. */
+const writeSetting = (world: OlaiWorld, plugin: string, key: string, value: string): void => {
+  const file = path.join(world.scratch(), "_olai/Settings.olai");
   const rows: Array<Record<string, unknown>> = fs.existsSync(file)
     ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean)
       .map((line) => JSON.parse(line) as Record<string, unknown>)
@@ -682,9 +700,25 @@ When("I set the plugin {string} {word} on disk", function (this: OlaiWorld, plug
     row = { id: `settings-${plugin}`, ord: "a9999", title: plugin };
     rows.push(row);
   }
-  row.custom = { ...(row.custom as Record<string, unknown> | undefined), on: state === "on" ? "yes" : "no" };
-  this.writeServed("_olai/Settings.olai", rows.map((one) => JSON.stringify(one)).join("\n"));
+  row.custom = { ...(row.custom as Record<string, unknown> | undefined), [key]: value };
+  world.writeServed("_olai/Settings.olai", rows.map((one) => JSON.stringify(one)).join("\n"));
+};
+
+/** The plugin's switch — for a scenario that changes the engine table while no
+ *  server is running. `on` is the word the settings row carries. */
+When("I set the plugin {string} {word} on disk", function (this: OlaiWorld, plugin: string, state: string) {
+  writeSetting(this, plugin, "on", state === "on" ? "yes" : "no");
 });
+
+/** Any other setting, spelled as a person would type it into the file — which
+ *  is how a value the panel would never write (one off a choice's list) gets
+ *  there. */
+When(
+  "I write {string} for the {string} setting {string} on disk",
+  function (this: OlaiWorld, value: string, plugin: string, key: string) {
+    writeSetting(this, plugin, key, value);
+  },
+);
 
 
 Then("the list-asks have not grown", function (this: OlaiWorld) {

@@ -36,6 +36,9 @@ import { nativeActivity } from "./native-activity.ts"
  *                adapter builds out of `structuredPatch`: one `diff` block per
  *                hunk, every one of them under the same path
  *   servers      name the MCP servers this session was handed
+ *   compaction <label>  say where the last session open was told to compact
+ *                (`_meta.claudeCode.options.settings`), which call opened it,
+ *                and which compaction-overriding variables this spawn sees
  *   attach <name> <status>  say what the wrapped CLI reports about its
  *                connection to that server from the NEXT turn on — the
  *                `mcp_servers` status of the adapter's `init`, which is one
@@ -290,6 +293,48 @@ const memoryReport = (): string => {
     // Not JSON: the CODEX_CONFIG overlay is absent or unreadable.
   }
   return "harness memory: on"
+}
+
+/**
+ * WHAT THIS AGENT'S LAST SESSION OPEN SAID ABOUT COMPACTION, and which call
+ * said it — `_meta.claudeCode.options.settings` off `session/new` or
+ * `session/load`, where the real adapter reads the settings it hands the CLI
+ * as the session's own. Recorded by {@link openSession}; `null` before any open.
+ */
+let opened: { readonly method: string; readonly settings: unknown } | null = null
+
+/**
+ * The variables that would override where Claude Code compacts, spelled here
+ * by their literal names for the reason the memory switch is: what the e2e
+ * proves is that the engine's strip reached the spawn, and a spelling imported
+ * from the engine would tie the proof to the thing it checks.
+ */
+const COMPACTION_VARIABLES = [
+  "DISABLE_AUTO_COMPACT",
+  "DISABLE_COMPACT",
+  "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+  "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE",
+]
+
+/**
+ * The input for the `compaction <label>` verb: what the session open set and
+ * what the spawn saw, read where a real adapter would read them. One line, the
+ * scenario's own label first, so an answer can be told from the same report
+ * an earlier turn — or a replayed transcript — already put on screen:
+ *
+ *   compaction <label>: on at window <n>; overrides seen: none; opened by session/new
+ *   compaction <label>: not set; overrides seen: DISABLE_AUTO_COMPACT; opened by session/load
+ */
+const compactionReport = (label: string): string => {
+  const settings = opened?.settings as
+    | { readonly autoCompactEnabled?: unknown; readonly autoCompactWindow?: unknown }
+    | undefined
+  const told = settings === undefined
+    ? "not set"
+    : `${settings.autoCompactEnabled === true ? "on" : "off"} at window ${String(settings.autoCompactWindow)}`
+  const seen = COMPACTION_VARIABLES.filter((name) => process.env[name] !== undefined)
+  return `compaction ${label}: ${told}; overrides seen: ${seen.length === 0 ? "none" : seen.join(", ")}; ` +
+    `opened by ${opened?.method ?? "nothing"}`
 }
 let isCodex = false
 
@@ -1881,6 +1926,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  // WHERE THIS SESSION WAS TOLD TO COMPACT, and which overriding variables the
+  // spawn kept ({@link compactionReport}) — the `memory` verb's shape, for the
+  // settings that ride the open rather than the environment.
+  if (verb === "compaction") {
+    say(compactionReport(argument))
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "native") {
     const air = (capabilities._meta as { jetbrains?: { air?: { version?: number; capabilities?: string[] } } } | undefined)?.jetbrains?.air
     if (air?.version !== 1 || !air.capabilities?.includes("nativeSubagentSessions") || !air.capabilities.includes("asyncTasks")) {
@@ -3419,7 +3473,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
 // ── the protocol ───────────────────────────────────────────────────────
 
-const openSession = (params: Record<string, unknown>): void => {
+const openSession = (params: Record<string, unknown>, method: "session/new" | "session/load"): void => {
   // Our e2e scenarios mint this cwd and hand it to the double — controlled
   // input, not protocol. The counted trim lives in acp/diffs.ts.
   if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
@@ -3434,6 +3488,13 @@ const openSession = (params: Record<string, unknown>): void => {
     ((params["_meta"] as { claudeCode?: { emitRawSDKMessages?: unknown } } | undefined)
       ?.claudeCode?.emitRawSDKMessages),
   )
+  // ... AND WHAT IT SAID ABOUT COMPACTION, off the same `_meta`: the settings
+  // the real adapter hands the CLI as the session's own (`compaction` verb).
+  opened = {
+    method,
+    settings: (params["_meta"] as { claudeCode?: { options?: { settings?: unknown } } } | undefined)
+      ?.claudeCode?.options?.settings,
+  }
   const given = (params["mcpServers"] ?? []) as ReadonlyArray<{
     type?: string
     name?: string
@@ -3829,7 +3890,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         refuse(id, -32603, "this agent will not start a conversation in this directory")
         return
       }
-      openSession(params)
+      openSession(params, "session/new")
       sessionId = sessionStore(cwd).enabled ? sessionStore(cwd).newId() : "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking, and
       // what it is picking is the pin.
@@ -3903,7 +3964,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           return
         }
       }
-      openSession(params)
+      openSession(params, "session/load")
       sessionId = String(params["sessionId"] ?? sessionId)
       if (sessionStore(cwd).enabled) {
         for (const update of sessionStore(cwd).read(sessionId)?.updates ?? []) {
