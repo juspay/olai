@@ -94,6 +94,11 @@ test("tags and mentions are read outside code and outside links, emphasis or not
   expect(read("kitchen #home and *@alice*, not [#this](a.md) or `#that`").tags.map(String)).toEqual(["#home", "@alice"])
 })
 
+test("the end of a piece of markup starts a word: `**sam**@pat` mentions pat, `sam@pat` mentions nobody", () => {
+  expect(read("ask **sam**@pat today").tags.map(String)).toEqual(["@pat"])
+  expect(read("ask sam@pat today").tags.map(String)).toEqual([])
+})
+
 test("an HTML comment holds nothing", () => {
   const said = read("<!-- [x](a.md) [[Note]] #home -->")
   expect([said.links, said.wikilinks, said.tags]).toEqual([[], [], []])

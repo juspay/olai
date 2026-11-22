@@ -11,13 +11,18 @@
  * mention or heading, and neither does an HTML comment. Tags and mentions are
  * read from the tree's text outside code and outside links — the page's rule,
  * the one place a `#` was already drawn as a tag — with the splitter in
- * `./tags.ts`.
+ * `./tags.ts`, ONE TEXT NODE AT A TIME. So the end of a piece of markup
+ * starts a word as a space does: `**sam**@pat` writes the mention `@pat`,
+ * where `sam@pat` is an address and writes none. That is the rule meant —
+ * markup is a word's edge, as it is where GitHub reads a mention — and the
+ * page draws the same, since it splits the same text nodes.
  *
  * TWO SHORTCUTS, both answers the parse would give. A one-line text that
  * `./plain.ts` says holds no markup is its own parse, so it is read without
  * the parser; `./read.test.ts` holds the two equal over every title in the
- * fixture outlines. A text the guard refuses (`./parse.ts`) is read as plain
- * words with no links, and says it was refused, so a page can say so.
+ * fixture outlines. A text the parser throws on (`./parse.ts`'s `guarded`) is
+ * read as plain words with no links and no tags, and says why, so a page can
+ * say so.
  */
 import type { Nodes, Root } from "mdast"
 
