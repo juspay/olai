@@ -57,7 +57,7 @@ The suite shares names with `@olai/web` rather than retyping them — a constant
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario. `@share-scratch` at the top of a feature is that opt-in: one copy and one server per worker, and After restores the fixture under the still-running server so overlapping writers can share too. `@own-scratch` on a scenario inside it keeps a private copy, for the things restore cannot make true (a server restart, conversation state, git). A restore that does not put the tree back fails naming the scenario and the files.
 
-This suite is 315 features and 2495 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as about 2663 scenarios: 64 of the entries are outlines, and their examples expand to 232. It is 142 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 297 of the 315 and 131 of the 142, with 18 features and 11 step files left here as the app's own:
+This suite is 315 features and 2500 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as about 2668 scenarios: 64 of the entries are outlines, and their examples expand to 232. It is 142 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 297 of the 315 and 131 of the 142, with 18 features and 11 step files left here as the app's own:
 
 | row | features | entries | | row | features | entries |
 |---|---:|---:|---|---|---:|---:|
@@ -66,10 +66,10 @@ This suite is 315 features and 2495 Gherkin `Scenario`/`Scenario Outline` entrie
 | `navigation` | 15 | 145 | | `codex` | 4 | 26 |
 | `markdown` | 13 | 130 | | `layout` | 6 | 24 |
 | `journal` | 9 | 94 | | `kolu` | 3 | 23 |
-| `vault-plugins` | 11 | 79 | | `trash` | 3 | 21 |
-| *the app itself* | 18 | 77 | | `claude` | 3 | 19 |
-| `tabs` | 13 | 76 | | `settings` | 4 | 18 |
-| `files` | 8 | 64 | | `theme` | 4 | 18 |
+| `vault-plugins` | 11 | 79 | | `theme` | 4 | 23 |
+| *the app itself* | 18 | 77 | | `trash` | 3 | 21 |
+| `tabs` | 13 | 76 | | `claude` | 3 | 19 |
+| `files` | 8 | 64 | | `settings` | 4 | 18 |
 | `hypertext` | 1 | 50 | | `browsing` | 2 | 16 |
 | `pins` | 8 | 50 | | `capture` | 3 | 11 |
 | `git` | 9 | 41 | | `odu` | 1 | 11 |
@@ -458,6 +458,8 @@ Two more of that shape were found by review, and both are pinned here now. A pre
 `packages/plugins/theme/e2e/features/theming.feature` is about the named palettes, and not one of its steps names a colour. The paper is compared against ITSELF (before a pick, after a pick), against the browser chrome — the status-bar colour and the tab's own mark, both from the same table — and against what the manifest says — never against a hex, which would make the suite the place a design decision has to be changed. The default theme, the attribute, the storage key and the custom-property name are IMPORTED from the client that owns them — the same argument as `TESTID`, one level up: renaming any of them is a type error rather than a timeout, and markup added so a test can read a constant back is markup every reader ships. The only strings the feature spells are the two or three themes a scenario asks for by name, which is the scenario saying what it wants.
 
 Two of its scenarios are about what does NOT happen. One records every request the page makes (`world.watchRequests`) and asserts a pick made none: "it works" and "it works without asking anybody" look identical on screen. The other installs a `MutationObserver` before any page script and reads `document.readyState` at the moment `data-theme` appears — `loading` is the parser still going, and it is the only evidence that a stored theme beat the first paint rather than flashing the default at everybody on every load.
+
+Its round trip picks every row of the imported table and reads all eleven colours and the `color-scheme` back off the page, against the table and never against a hex. The picker's two lines are measured rather than pictured: every light swatch on one line, every dark one on a line below it, and the four darks a scenario names centred under their light siblings; on a phone, every swatch inside the panel and at least 44px. One scenario saves a picture of an outline in each theme (`theme-<name>.png`) and one of the picker (`theme-picker.png`) through `support/screenshot.ts`, the same code as `I save a screenshot as`: evidence for a person to judge, asserting nothing about colour.
 
 Its last scenario opens a SECOND page in the same context, which is what makes it a second tab of the same browser rather than a second browser: one origin, one `localStorage`, and a `storage` event fired in every document of it except the one that wrote. The second tab is left open on purpose — a preference that only crossed once the other tab was gone would pass a scenario that closed it.
 
