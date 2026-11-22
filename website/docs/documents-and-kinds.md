@@ -28,7 +28,7 @@ Every file olai serves is claimed by a plugin; a file nothing claims is not load
 
 ## Web pages in your directory
 
-A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][^height] A link in it to another file with a page opens that page in olai.[^follow][^landing] A `.html` file that will not open says so.[^unopened][^fetch]
+A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][^height][^loads] A link in it to another file with a page opens that page in olai.[^follow][^landing] A `.html` file that will not open says so.[^unopened][^fetch]
 
 [^reverse]: One index answers the question "what points at this", so the row's backlinks, the document page's list of referrers, and `referencedBy` in the answer from `outlines_read` are all one list. A source that refers twice is one referrer listed with two ways of referring, out of `see`, `mention`, `link` and `property`. A reference to a mirror counts as a reference to the row it shows, and nothing refers to itself.
 
@@ -91,6 +91,8 @@ A `.html` file is a web page, and olai draws it on a page at `/<path>`.[^frame][
 [^frame]: The sidebar lists a `.html` file under the folder it lives in, with a mark of its own. The page runs the file's own JavaScript in a frame sandboxed without `allow-same-origin`, so the page belongs to no site: no `document.cookie`, no `localStorage`, no reading the page around it and no reach into olai. An inline script and an old-style `<script src>` run; a module script and `fetch` do not, because both are requests from a page that belongs to no site.
 
 [^height]: The frame is as tall as the page inside it, between `6rem` and two screens, and `70dvh` tall when the page reports no height. The height the page reports comes from a page olai does not trust, so olai holds it to those limits rather than believing it ([plugins/hypertext.md](plugins/hypertext.md)).
+
+[^loads]: What a web page in your directory may load, and the content policy olai serves it with, are on the page of the plugin that draws it ([plugins/hypertext.md](plugins/hypertext.md)).
 
 [^follow]: A plain left click follows a link out of the frame when the link lands inside this directory's `/media/` space and names a file olai has a page for. A `#` part naming another file is carried along, so `other.html#beds` lands on that section: on the frame's own URL for a `.html` file, and on the heading's slug for a `.md` file. A `#` part naming nothing leaves you at the top of the page.
 
@@ -157,6 +159,7 @@ A pins file that spells a row's own page as `/#<id>` has it rewritten to `/zoom/
 | Image | nine picture suffixes, `.svg` among them | [the picture](#a-picture) |
 | PDF | `.pdf` | [the browser's own viewer](#a-pdf) |
 | Vault plugins | `.ts` and `.tsx`, under `plugins/` only | the plugin's own page ([dynamic-plugins.md](dynamic-plugins.md)) |
+| A kind a plugin in your directory claims | the suffixes it names | the page that plugin draws ([dynamic-plugins-faces.md](dynamic-plugins-faces.md)) |
 
 ### A `.csv`
 
@@ -171,26 +174,5 @@ An `<img>` pointed at `/media/<its path>`, drawn at its own size, up to the widt
 ### A `.pdf`
 
 The browser's own viewer, embedded as an `<object>` pointed at `/media/<its path>`. A browser that will not draw a PDF gets a sentence and the file itself, and the browser's own separate viewer process is what keeps it apart from olai.
-
-</details>
-
-<details>
-<summary>What a web page in your directory may load, and the policy it carries</summary>
-
-The file is served at `/media/<its path>`, so a relative address inside it means the file next to it on disk.
-
-| In the file | Loads |
-| --- | --- |
-| `<img src="art/shot.png">` in `notes/report.html` | `notes/art/shot.png` |
-| `<a href="other.html">` | the page of the file next door |
-| a remote host, a `data:` URI, a path above the directory | nothing |
-
-The route answers with the page, its pictures, its stylesheet, its script and its font, and nothing else, behind the same check against climbing out of the directory that markdown's pictures go through. A `.md`, an `.olai`, a `.json` and a `.csv` are not on that list, because they have pages of their own.
-
-The response carries a content policy: `sandbox allow-scripts; default-src <host>/media/; script-src <host>/media/ 'unsafe-inline' 'unsafe-eval'; style-src <host>/media/ 'unsafe-inline'; frame-src 'none'; form-action 'none'; base-uri 'none'`. Every directive that allows a fetch names this directory on the host you asked for, and `base-uri 'none'` refuses the file's own `<base href>`.
-
-> A script can navigate its own frame, and no directive covers that, so a page can tell somebody else's server what it is by leaving, once. Nothing it fetches leaves this directory, and a nested frame or a form post is refused.
-
-The sandbox survives a navigation and the policy does not, so olai brings the frame back. A navigation to a file of this directory is kept; anything else is replaced by the file again, a limited number of times, and after that by an empty frame.
 
 </details>

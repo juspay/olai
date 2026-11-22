@@ -2,9 +2,7 @@
 
 olai calls a `.md` file a document. The `markdown` plugin draws the page you read a document on, and is the editor you type one in.[^what]
 
-## The page of a document
-
-Top to bottom:
+## The page of a document, top to bottom
 
 | Part | What it is |
 | --- | --- |
@@ -12,28 +10,28 @@ Top to bottom:
 | **Edit** and **Delete…** | drawn together, only for a file in the directory olai serves |
 | the line at the top | a chat about this document[^line][^keys] |
 | the properties | one chip per key in the file's frontmatter, the keys at its top[^props] |
-| plugins | `document.page.head` |
+| plugins' additions | what plugins you turned on draw above the text[^head] |
 | **Contents** | the document's headings, open by default[^contents] |
-| the body | the document[^blocks] |
+| the body | the document, rendered[^blocks][^pictures] |
 | **Referenced by `N` things** | what points at this document[^referrers] |
-| plugins | `document.page.foot` |
+| plugins' additions | what plugins you turned on draw under the text[^foot] |
 
 A page says `Loading…` until olai has read the file.[^missing]
 
 ## Edit a document
 
-Clicking **Edit** replaces the body with a plain-text box named `Edit <file>`, holding the file as it is on disk, frontmatter included.
+Clicking **Edit** replaces the body with a plain-text box named `Edit <file>`, holding the file as it is on disk, frontmatter included.[^new]
 
-| Control | Key | What happens |
+| Control | Key[^cmd] | What happens |
 | --- | --- | --- |
 | **Save** | `Cmd` + `Enter` | writes the file and leaves the editor |
 | **Cancel** | `Escape` | throws the text away and leaves the editor |
 
-`Cmd` is the modifier on a Mac and `Ctrl` elsewhere.[^new] If the file changes on disk, olai refuses the save.[^conflict] olai keeps text you have not saved for that pane and that file.[^draft]
+If the file changes on disk, olai refuses the save.[^conflict] olai keeps text you have not saved for that pane and that file.[^draft]
 
 ## Headings and links
 
-Clicking a heading, or a line of **Contents**, goes to an address like `/notes/plan.md#slug`.[^click] `Alt` and a click open the same destination in a pane on the right.[^alt] `[[plan]]`, a wikilink, opens the document `plan` ([wikilinks.md](../wikilinks.md)).[^unresolved] A link to a file this directory does not serve says so.[^dead] Pictures load as you reach them.[^pictures]
+Clicking a heading, or a line of **Contents**, goes to an address like `/notes/plan.md#slug`.[^click] `Alt` and a click open the same destination in a pane on the right.[^alt] `[[plan]]`, a wikilink, opens the document `plan` ([wikilinks.md](../wikilinks.md)).[^unresolved] A link to a file this directory does not serve says so.[^dead]
 
 ## What still works without this plugin
 
@@ -43,15 +41,23 @@ Switching `markdown` off takes away document pages and the read and write proced
 
 [^props]: A property's value is drawn as a link when it names a web address, or a file, a row or a day that this olai can open.
 
+[^head]: What plugins draw above a document's text is hung in the slot `document.page.head` ([../dynamic-plugins-faces.md](../dynamic-plugins-faces.md)).
+
 [^contents]: The list of headings is drawn only when the document has more than one heading.
 
 [^blocks]: A fenced block whose language is a plugin's name is drawn by that plugin, through `document.block`, in place of the code ([../dynamic-plugins-faces.md](../dynamic-plugins-faces.md)). Only a document's own page does this; anywhere else the block is code.
 
+[^pictures]: Pictures in a document load as you reach them: the first is fetched at once, and the rest as you scroll near them. The same renderer draws outline notes and chat replies, so this holds for each rendered block rather than for each page.
+
 [^referrers]: The referrers section is closed until you open it, and splits what it found across four rows: **Sees this**, **Mentions this**, **Links to this** and **Names this in a property**. A row that links to this document from its title or its note opens that row's page; a document whose prose links here opens that file. A row whose declared property names this document is in the fourth row ([../documents-and-kinds.md](../documents-and-kinds.md)).
+
+[^foot]: What plugins draw under a document's text and its referrers is hung in the slot `document.page.foot` ([../dynamic-plugins-faces.md](../dynamic-plugins-faces.md)).
 
 [^missing]: An address naming no such file says `Page not found`, with the detail `There is no document named notes/plan.md.`
 
 [^new]: To make a document, use **New document** in the sidebar's `+` menu ([files.md](files.md)). A document you have just made opens with its editor already open.
+
+[^cmd]: `Cmd` is the modifier on a Mac and `Ctrl` elsewhere.
 
 [^conflict]: The editor says `This file changed while you were editing. Your text is safe here, and Save won't overwrite the change.` **Save** is refused, and an **Overwrite anyway** button appears beside it once you have read the refusal.
 
@@ -66,8 +72,6 @@ Switching `markdown` off takes away document pages and the read and write proced
 [^dead]: A link to a file this directory does not serve keeps its words, and gains a sentence saying it is dead in the name a screen reader reads out. A keyboard and a screen reader meet it that way too, not only a pointer. The sentence goes as soon as the file is served.
 
     A title the author wrote, `[x](y "…")`, is still rendered as the document's own tooltip. Code spans, code fences and frontmatter never raise the warning. A query or a fragment is taken off before the file is looked for: `[q](finishes.md?v=1)` is checked as `finishes.md`.
-
-[^pictures]: The first picture is fetched at once, and the rest as you scroll near them. The same renderer draws outline notes and chat replies, so this holds for each rendered block rather than for each page.
 
 [^off]: Outline editing, the sidebar and open outline pages are untouched, and outline notes and chat messages keep rendering markdown text, which a renderer that is always loaded draws, not this plugin. Switching it back on reads the files as they are now, with its editor state reset, and an address you kept can draw its page again.
 
