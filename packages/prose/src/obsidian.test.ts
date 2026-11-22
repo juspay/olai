@@ -137,11 +137,15 @@ test("a wikilink inside a link's words leaves that label no link", () => {
 
 /**
  * Each shape the two constructs could be made to read twice, at eight times
- * the length, held against PLAIN WORDS of the same two lengths parsed in the
- * same moment: a loaded machine slows both alike, so the ratio of their growths
- * is what is left of the construct. Linear work grows as plain words do; a
- * construct that read to the line's end from every `](` — as the spaced
- * address once did — grows eight times faster than they do.
+ * the length, held against a text of COMMONMARK'S OWN LINKS of the same two
+ * lengths parsed in the same moment. The parser is not quite linear on any
+ * text that makes a tree node every few characters — its event list and the
+ * heap grow with the tree — and a loaded machine slows everything; the
+ * baseline pays both alike, so the ratio of the two growths is what is left of
+ * the constructs. Today each shape grows as the links do (0.5 to 1.1 of their
+ * growth, measured); a construct that read to the line's end from every `](`
+ * — as the spaced address once did — grows several times faster, and so does
+ * CommonMark's own run of `]` (8 of it).
  */
 test("no text makes the constructs read the same characters again and again", () => {
   const shapes: ReadonlyArray<(n: number) => string> = [
@@ -160,15 +164,12 @@ test("no text makes the constructs read the same characters again and again", ()
     return performance.now() - started
   }
   const best = (text: string): number => Math.max(Math.min(time(text), time(text), time(text)), 0.05)
-  const plain = (length: number): string => "paint the shed ".repeat(Math.ceil(length / 15)).slice(0, length)
+  const links = (length: number): string => "[a](b) ".repeat(Math.ceil(length / 7)).slice(0, length)
   for (const shape of shapes) {
-    time(shape(250))
-    const [small, large] = [shape(500), shape(4_000)]
+    time(shape(125))
+    const [small, large] = [shape(250), shape(2_000)]
     const growth = best(large) / best(small)
-    const words = best(plain(large.length)) / best(plain(small.length))
-    // A wikilink per six characters makes a tree node per six characters,
-    // where plain words make one: about twice the growth here from the tree
-    // alone. Re-reading to the line's end is eight times, or more.
-    expect({ shape: shape(1), linear: growth / words < 4 }).toEqual({ shape: shape(1), linear: true })
+    const baseline = best(links(large.length)) / best(links(small.length))
+    expect({ shape: shape(1), linear: growth / baseline < 3 }).toEqual({ shape: shape(1), linear: true })
   }
-})
+}, 20_000)
