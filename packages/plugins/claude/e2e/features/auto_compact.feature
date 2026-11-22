@@ -11,9 +11,12 @@ Feature: A Claude chat is told where to compact its conversation
   crossed to the agent. The harness arms one such variable on the server
   (`DISABLE_AUTO_COMPACT`, the descriptor's `env`), the way a host might.
 
-  A change to either setting restarts the chat row, so every change below
-  waits for the agent to be asked to reopen the conversation before the next
-  message: that message must reach the agent the new value opened.
+  A change to either setting restarts the chat row. The scenarios about the
+  value the agent was opened with wait for the agent to be asked to reopen
+  the conversation before the next message, so that message reaches the agent
+  the new value opened. The last three are about the restart itself, as a
+  person meets it: a message sent at once, an answer running, words typed and
+  not yet sent.
 
   Background:
     Given I open the app
@@ -139,4 +142,51 @@ Feature: A Claude chat is told where to compact its conversation
     Then the agent is idle
     And the agent's answer mentions "compaction smaller: on at window 133000"
     And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A message sent the moment a setting changes is answered, or kept to send again
+    Given I mark the page
+    When I ask the agent "before the change"
+    Then the agent is idle
+    When I open the plugins panel
+    And I pick "300k" for "chat" setting "compact-at"
+    And I close the plugins panel
+    And I ask the agent "sent at once"
+    Then my message "sent at once" is answered or kept to send again
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: An answer running when a setting changes is said to have stopped, and the next message is answered
+    Given I mark the page
+    When I ask the agent "before the held answer"
+    Then the agent is idle
+    When I remember this conversation as "held"
+    And I ask the agent "hold"
+    Then the chat shows a running tool call
+    When the agent notes every conversation it loads
+    And I open the plugins panel
+    And I pick "300k" for "chat" setting "compact-at"
+    And I close the plugins panel
+    Then the agent has reopened the conversation on node "kitchen" in "house.olai"
+    And the node agent's fold is ready
+    And the panel is in the remembered conversation "held"
+    And the chat eventually shows "Chat restarted while Claude Code was answering, so that answer stopped where it was."
+    When I ask the agent "after the stopped answer"
+    Then the agent's answer mentions "you said: after the stopped answer"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: Words typed and not sent are still in the box after a setting changes
+    When I ask the agent "before the draft"
+    Then the agent is idle
+    When I type "half a thought" into the chat
+    And the agent notes every conversation it loads
+    And I open the plugins panel
+    And I pick "300k" for "chat" setting "compact-at"
+    And I close the plugins panel
+    Then the agent has reopened the conversation on node "kitchen" in "house.olai"
+    And the node agent's fold is ready
+    And the chat input reads "half a thought"
+    When I send the chat message
+    Then the agent's answer mentions "you said: half a thought"
     And there should be no page errors
