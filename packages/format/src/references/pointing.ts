@@ -159,7 +159,7 @@ import { type Document, type Face, faceOf, sameFace, isOutline } from "../docume
 import { type Editable, overlay } from "../overlay.ts"
 import { byPath } from "../paths.ts"
 import { type Located, TARGET_FIELDS, type TargetField } from "../node.ts"
-import { contributionsOf, type Part, PARTS, propertiesOf, type Way } from "./written.ts"
+import { type Contribution, contributionsOf, type Part, PARTS, propertiesOf, type Way } from "./written.ts"
 import { byCorpus } from "../derive.ts"
 import { type Claims } from "../kinds.ts"
 import { type PropDeclarations, sameTyping } from "../typing.ts"
@@ -177,8 +177,19 @@ import type { WikilinkName } from "@olai/prose/wikilink.ts"
  * The {@link Face} is the file's own, shared: a document's every entry under
  * every key points at one object, so the row a reader draws needs no fetch and
  * the table holds nothing a serving document does not already.
+ *
+ * A SUM, BY WHAT MAKES THE ENTRY COUNT UNDER ITS KEY, for
+ * {@link ../address.ts}'s reason: an entry is filed OUTRIGHT, or it is a link
+ * whose landing the reading has to find — and each arm carries what that
+ * reading needs and carries nothing else, so no reader learns which arm it
+ * holds by finding a field missing. The three are kept apart under one key as
+ * well as in the type, so a stale link cannot lend its way to the rest
+ * ({@link fileAt}).
  */
-export interface Source {
+export type Source = Outright | RowLink | Wikilink
+
+/** What every source says: who points, and how it says the target. */
+interface Referrer {
   /** The record, for an outline; `undefined` for a body. */
   readonly at: Located | undefined
   /** The document the source lives in — its name, its path, and where it
@@ -186,26 +197,49 @@ export interface Source {
   readonly face: Face
   /** The ways it says the target, in the order the fold filed them. */
   readonly ways: ReadonlyArray<Way>
-  /** In the NAMES part, the names this source writes under that key, which the
-   *  reading resolves; in the ROWS part, the names of the wikilinks to a ROW
-   *  of that id — counted only where the name finds a file that draws that row
-   *  ({@link ./referring.ts}). */
-  readonly written?: ReadonlyArray<WikilinkName>
-  /** In the ROWS part, the files a standard link to a ROW of that id names —
-   *  `[x](house.olai#kitchen)` is filed under `kitchen` with `house.olai` —
-   *  counted only where the file draws that row. */
-  readonly rows?: ReadonlyArray<string>
-  /** In the ROWS and FILES parts, the declared property KEYS this record
-   *  writes the target under, as it spelled them — the `property` way's other
-   *  half, and what a refusal in `@olai/ops` names when it says which word to
-   *  re-point ({@link ./written.ts}'s `propertiesOf`). */
-  readonly props?: ReadonlyArray<string>
 }
 
-/** Whether a source counts only when the reading finds its link lands — a
- *  row link under a row's key — rather than by being filed there at all. */
-export const conditional = (source: Source): boolean =>
-  source.rows !== undefined || source.written !== undefined
+/** AN ENTRY THAT COUNTS BY BEING FILED HERE — a field, a tag, a mention, a
+ *  link under the key it lands on, a declared value. A source that said
+ *  several of those is ONE of these, carrying each way it said. */
+export interface Outright extends Referrer {
+  readonly counts: "outright"
+  /** The declared property KEYS this record writes the target under, as it
+   *  spelled them — the `property` way's other half, and what a refusal in
+   *  `@olai/ops` names when it says which word to re-point
+   *  ({@link ./written.ts}'s `propertiesOf`). */
+  readonly props: ReadonlyArray<string>
+}
+
+/** A STANDARD LINK ONTO A ROW, filed under the row's own id with the PATHS
+ *  those links name — `[x](house.olai#kitchen)` is filed under `kitchen` with
+ *  `house.olai`. It counts where the path it names is one that draws the row
+ *  ({@link ./referring.ts}). */
+export interface RowLink extends Referrer {
+  readonly counts: "row link"
+  readonly paths: ReadonlyArray<string>
+}
+
+/** A WIKILINK, with the names this source writes under the key: in the NAMES
+ *  part, which the reading resolves against the revision's own membership; in
+ *  the ROWS part, the names of the wikilinks to a ROW of that id. It counts
+ *  where the name finds a file that draws what the key names
+ *  ({@link ./referring.ts}). */
+export interface Wikilink extends Referrer {
+  readonly counts: "wikilink"
+  readonly written: ReadonlyArray<WikilinkName>
+}
+
+/** The declared keys of a source that wrote the target under none, which is
+ *  nearly every entry: ONE list, shared. */
+const NO_PROPS: ReadonlyArray<string> = []
+
+/** Whether an entry holds the declared property KEYS a source wrote its
+ *  target under — the half {@link propertyNamersOf} answers with and
+ *  {@link unpropertied} takes out, asked in one place because `property` is
+ *  the one way a source can lose while staying a referrer. */
+const declaring = (source: Source): source is Outright =>
+  source.counts === "outright" && source.props.length !== 0
 
 /**
  * THE TABLE: four maps, by what is pointed at, each from a key to the sources
@@ -306,7 +340,7 @@ export const namesWith = (
  */
 export const isNamed = (pointing: Pointing, id: string): boolean => {
   for (const source of rowsAt(pointing, id)) {
-    if (source.at !== undefined && source.props !== undefined) return true
+    if (source.at !== undefined && declaring(source)) return true
     for (const field of TARGET_FIELDS) if (namesWith(source, field)) return true
   }
   return false
@@ -335,8 +369,9 @@ export const propertyNamersOf = (
 ): ReadonlyArray<Keyed> => {
   let found: Array<Keyed> | undefined
   for (const source of pointingAt(pointing, address)) {
-    if (source.at === undefined || source.props === undefined) continue
-    ;(found ??= []).push({ at: source.at, props: source.props })
+    const at = source.at
+    if (at === undefined || !declaring(source)) continue
+    ;(found ??= []).push({ at, props: source.props })
   }
   return found ?? NOTHING_KEYED
 }
@@ -368,10 +403,15 @@ const NOTHING_KEYED: ReadonlyArray<Keyed> = []
 export const namersOf = (pointing: Pointing, id: string): ReadonlyArray<Naming> => {
   let found: Array<Naming> | undefined
   for (const source of rowsAt(pointing, id)) {
+    // A BODY NAMES NOTHING WITH A FIELD, asked once here rather than per field
+    // ({@link namesWith} is the same rule, spelled for the readers that hold
+    // one source and one field).
+    const at = source.at
+    if (at === undefined) continue
     let fields: Array<TargetField> | undefined
-    for (const field of TARGET_FIELDS) if (namesWith(source, field)) (fields ??= []).push(field)
+    for (const field of TARGET_FIELDS) if (source.ways.includes(field)) (fields ??= []).push(field)
     if (fields === undefined) continue
-    ;(found ??= []).push({ at: source.at as Located, fields })
+    ;(found ??= []).push({ at, fields })
   }
   return found ?? NOTHING_NAMES
 }
@@ -401,18 +441,35 @@ const NOTHING_RECORDS: ReadonlyArray<Located> = []
  * rebuild and the carry are one module here, where there the patcher is a
  * module of its own.
  */
-const pointInto = (
-  into: Filling,
-  claims: Claims,
-  document: Document,
-): void => {
+const pointInto = (into: Filling, claims: Claims, document: Document): void => {
   const face = faceOf(document)
   const records = document.holds === "nodes" ? document.nodes : undefined
-  for (const contribution of contributionsOf(claims, face, records)) {
-    const source: Source = contribution.wikilink === undefined
-      ? { at: contribution.at, face, ways: [contribution.way] }
-      : { at: contribution.at, face, ways: [contribution.way], written: [contribution.wikilink] }
+  fileEach(into, face, contributionsOf(claims, face, records))
+}
+
+/**
+ * WHAT ONE FOLD SAID, FILED — one entry per contribution, under the key its
+ * own part holds it by, plus the one extra key the heading rule asks for.
+ *
+ * ONE SPELLING OF THE FILING, asked of both folds: the fields, the prose and
+ * the links ({@link pointInto}), and the declared values
+ * ({@link propertyInto}) — which differ in what they read a document for and
+ * in nothing about where the answer lands.
+ */
+const fileEach = (into: Filling, face: Face, contributions: ReadonlyArray<Contribution>): void => {
+  for (const contribution of contributions) {
+    const { at, way } = contribution
+    const source: Source = contribution.writes === "name"
+      ? { counts: "wikilink", at, face, ways: [way], written: [contribution.wikilink] }
+      : {
+        counts: "outright",
+        at,
+        face,
+        ways: [way],
+        props: contribution.writes === "property" ? [contribution.prop] : NO_PROPS,
+      }
     fileAt(into[contribution.part], contribution.key, source)
+    if (contribution.writes !== "link") continue
     // A LINK ONTO A HEADING OR A ROW POINTS AT THE DOCUMENT AS WELL — one
     // extra key per heading link, the shape decision the module header
     // argues. The reverse is false: asking about a document does not make a
@@ -420,13 +477,13 @@ const pointInto = (
     // row alone — it is a reference to the id, not to the file the link was
     // written in.
     const address = contribution.address
-    if (address !== undefined && address.kind !== "node" && address.kind !== "document") {
+    if (address.kind !== "node" && address.kind !== "document") {
       fileAt(into.files, printAddress({ kind: "document", path: address.path }), source)
     }
     // ...and a link onto a ROW points at the row in it: filed under the row's
     // own id with the file it names, which the row arm checks draws it.
-    if (address?.kind === "row") {
-      fileAt(into.rows, address.id, { at: contribution.at, face, ways: [contribution.way], rows: [address.path] })
+    if (address.kind === "row") {
+      fileAt(into.rows, address.id, { counts: "row link", at, face, ways: [way], paths: [address.path] })
     }
   }
 }
@@ -644,21 +701,20 @@ const unpropertied = (before: Pointing): Pointing => {
     const held = before[part]
     let map: Editable<string, ReadonlyArray<Source>> | undefined
     for (const [key, entries] of held) {
-      if (!entries.some((source) => source.props !== undefined)) continue
+      if (!entries.some(declaring)) continue
       changed = true
       const own: Array<Source> = []
       for (const source of entries) {
-        if (source.props === undefined) {
+        if (!declaring(source)) {
           own.push(source)
           continue
         }
         const ways = source.ways.filter((way) => way !== "property")
         if (ways.length === 0) continue
-        // THE KEY GOES WITH THE WAY, and the entry is written out rather than
-        // spread: an entry carrying `props` carries neither of the other two
-        // halves ({@link merged} files it as its own class), so what is left
-        // of it is exactly a record and the ways it still says.
-        own.push({ at: source.at, face: source.face, ways })
+        // THE KEYS GO WITH THE WAY, and the entry is written out rather than
+        // spread: what is left of a source that named the target no other way
+        // is exactly a record and the ways it still says.
+        own.push({ counts: "outright", at: source.at, face: source.face, ways, props: NO_PROPS })
       }
       map ??= overlay(held, "by key")
       if (own.length === 0) map.delete(key)
@@ -670,10 +726,11 @@ const unpropertied = (before: Pointing): Pointing => {
 }
 
 /** ONE DOCUMENT'S PROPERTY ENTRIES, filed — {@link pointInto}'s sibling for
- *  the second step, and the same arrangement: one spelling of the fold, asked
- *  of the rebuild, of both sides of a carry, and of a revision that moved a
- *  declaration. A BODY CONTRIBUTES NONE ({@link propertiesOf} says why), so a
- *  directory of documents never reaches the fold at all. */
+ *  the second step: the other fold, filed by {@link fileEach} exactly as the
+ *  first one is, so the rebuild, both sides of a carry and a revision that
+ *  moved a declaration all file what they read the same way. A BODY
+ *  CONTRIBUTES NONE ({@link propertiesOf} says why), so a directory of
+ *  documents never reaches the fold at all. */
 const propertyInto = (
   into: Filling,
   claims: Claims,
@@ -681,33 +738,34 @@ const propertyInto = (
   document: Document,
 ): void => {
   if (!isOutline(document)) return
-  const face = faceOf(document)
-  for (const contribution of propertiesOf(claims, declared, document.nodes)) {
-    fileAt(into[contribution.part], contribution.key, {
-      at: contribution.at,
-      face,
-      ways: [contribution.way],
-      props: [contribution.prop as string],
-    })
-  }
+  fileEach(into, faceOf(document), propertiesOf(claims, declared, document.nodes))
 }
 
 /** One property entry into a key's entries, as they already stand — the merge
  *  {@link fileAt} makes while a part is being BUILT, made where the table is
  *  already a table and the source's other entry can be anywhere in the list.
- *  Same rule: one entry per source per class, the ways and the keys joined. */
+ *  Same rule: one entry per source per arm, the ways and the keys joined.
+ *
+ *  IT JOINS THE OUTRIGHT ENTRY, because that is the arm a declared value is
+ *  filed in ({@link ./written.ts}'s `propertiesOf` writes no link and no
+ *  name): a record that linked the target and named it in a declared value is
+ *  ONE referrer saying both. */
 const merged = (own: Array<Source>, entry: Source): void => {
-  for (let at = 0; at < own.length; at++) {
-    const held = own[at] as Source
-    if (held.at !== entry.at || held.face !== entry.face || classOf(held) !== classOf(entry)) continue
-    const props = joined(held.props, entry.props, samePath)
-    if (held.ways.includes("property") && props === held.props) return
-    own[at] = {
-      ...held,
-      ways: held.ways.includes("property") ? held.ways : [...held.ways, "property"],
-      props,
+  if (entry.counts === "outright") {
+    for (let at = 0; at < own.length; at++) {
+      const held = own[at] as Source
+      if (held.counts !== "outright" || held.at !== entry.at || held.face !== entry.face) continue
+      const props = joined(held.props, entry.props, samePath)
+      if (held.ways.includes("property") && props === held.props) return
+      own[at] = {
+        counts: "outright",
+        at: held.at,
+        face: held.face,
+        ways: withWay(held.ways, "property"),
+        props,
+      }
+      return
     }
-    return
   }
   own.push(entry)
 }
@@ -736,58 +794,79 @@ const fileAt = (into: Map<string, Array<Source>>, key: string, entry: Source): v
   }
   // THE SAME SOURCE — the same record, by identity, or the same body file,
   // which is the ONE source a body's file can contribute per key: every
-  // contribution of one document comes from one `pointInto` call, so two
+  // contribution of one document comes from one `fileEach` call, so two
   // entries with the same record object (or two body entries, which always
   // carry the same `undefined` record) are the same source. A different
   // record of the same file is a different object and files separately.
   //
-  // ONE ENTRY PER SOURCE PER CLASS: a node's key holds what counts by being
+  // ONE ENTRY PER SOURCE PER ARM: a node's key holds what counts by being
   // there, and — apart, so a stale one cannot lend its way to the rest — the
   // standard row links and the row wikilinks the reading checks
-  // ({@link conditional}). A source's entries sit together at the end.
+  // ({@link Source}). A source's entries sit together at the end.
   for (let at = held.length - 1; at >= 0; at--) {
     const last = held[at] as Source
     if (last.at !== entry.at || last.face !== entry.face) break
-    if (classOf(last) !== classOf(entry)) continue
-    // The ways arrive one at a time from the fold; a second way for a source
-    // already filed is merged in, keeping {@link Way} order. A second thing
-    // written under one key (`[[Note]]` and `[[Note#Part]]`, two rows' files,
-    // or two declared property keys naming one target) joins the first, so the
-    // reading checks each and a refusal can name all of them.
-    const way = entry.ways[0] as Way
-    const written = joined(last.written, entry.written, sameName)
-    const rows = joined(last.rows, entry.rows, samePath)
-    const props = joined(last.props, entry.props, samePath)
-    if (
-      last.ways.includes(way) && written === last.written && rows === last.rows &&
-      props === last.props
-    ) return
-    held[at] = {
-      at: last.at,
-      face: last.face,
-      ways: last.ways.includes(way) ? last.ways : [...last.ways, way],
-      ...(written === undefined ? {} : { written }),
-      ...(rows === undefined ? {} : { rows }),
-      ...(props === undefined ? {} : { props }),
-    }
+    const grown = grownBy(last, entry)
+    // ANOTHER ARM of the same source: its own entry, further back.
+    if (grown === undefined) continue
+    if (grown !== last) held[at] = grown
     return
   }
   held.push(entry)
 }
 
-/** Which of a row key's three kinds of entry a source is — see {@link fileAt}. */
-const classOf = (source: Source): 0 | 1 | 2 =>
-  source.rows !== undefined ? 1 : source.written !== undefined ? 2 : 0
+/**
+ * The entry as it stands, GROWN BY what an arriving one adds — the very same
+ * object when it adds nothing, and `undefined` when the two are different arms
+ * and do not join at all.
+ *
+ * The ways arrive one at a time from the fold; a second way for a source
+ * already filed is merged in, keeping {@link Way} order. A second thing
+ * written under one key (`[[Note]]` and `[[Note#Part]]`, two rows' files, or
+ * two declared property keys naming one target) joins the first, so the
+ * reading checks each and a refusal can name all of them.
+ */
+const grownBy = (held: Source, entry: Source): Source | undefined => {
+  const way = entry.ways[0] as Way
+  if (held.counts === "outright" && entry.counts === "outright") {
+    const ways = withWay(held.ways, way)
+    const props = joined(held.props, entry.props, samePath)
+    return ways === held.ways && props === held.props
+      ? held
+      : { counts: "outright", at: held.at, face: held.face, ways, props }
+  }
+  if (held.counts === "row link" && entry.counts === "row link") {
+    const ways = withWay(held.ways, way)
+    const paths = joined(held.paths, entry.paths, samePath)
+    return ways === held.ways && paths === held.paths
+      ? held
+      : { counts: "row link", at: held.at, face: held.face, ways, paths }
+  }
+  if (held.counts === "wikilink" && entry.counts === "wikilink") {
+    const ways = withWay(held.ways, way)
+    const written = joined(held.written, entry.written, sameName)
+    return ways === held.ways && written === held.written
+      ? held
+      : { counts: "wikilink", at: held.at, face: held.face, ways, written }
+  }
+  return undefined
+}
+
+/** The ways a source says its target, plus one more — the list itself when it
+ *  already says that way, which is how an entry that gained nothing is told
+ *  from one that did. */
+const withWay = (ways: ReadonlyArray<Way>, way: Way): ReadonlyArray<Way> =>
+  ways.includes(way) ? ways : [...ways, way]
 
 /** Two lists of things written, as one, keeping the first when the second
  *  adds nothing. `same` says when two of them are one. */
 const joined = <T>(
-  held: ReadonlyArray<T> | undefined,
-  more: ReadonlyArray<T> | undefined,
+  held: ReadonlyArray<T>,
+  more: ReadonlyArray<T>,
   same: (one: T, other: T) => boolean,
-): ReadonlyArray<T> | undefined => {
-  const added = more?.filter((one) => !(held ?? []).some((other) => same(one, other))) ?? []
-  return added.length === 0 ? held : [...(held ?? []), ...added]
+): ReadonlyArray<T> => {
+  const added = more.filter((one) => !held.some((other) => same(one, other)))
+  return added.length === 0 ? held : [...held, ...added]
 }
 
 /** Two wikilinks name one thing when their targets and their `#` parts do. */

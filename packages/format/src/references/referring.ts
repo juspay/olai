@@ -101,7 +101,7 @@ import { byCorpus, type Derived } from "../derive.ts"
 import { Face, type FaceHead } from "../document.ts"
 import { isPutAway, isRegular, LocatedRegular } from "../node.ts"
 import { byPath } from "../paths.ts"
-import { conditional, type Pointing, pointingAt, type Source } from "./pointing.ts"
+import { type Pointing, pointingAt, type RowLink, type Source, type Wikilink } from "./pointing.ts"
 import type { Way as Filed } from "./written.ts"
 import type { Reading } from "../validate.ts"
 import { wikilinkAddress } from "../links/wikilink.ts"
@@ -324,7 +324,7 @@ const nodeRefs = (
     if (node === null) continue
     let drawers: ReadonlyArray<string> | undefined
     for (const source of pointingAt(pointing, node)) {
-      if (!conditional(source)) {
+      if (source.counts === "outright") {
         file(source)
         continue
       }
@@ -345,16 +345,16 @@ const nodeRefs = (
     .sort(byReference)
 }
 
-/** Whether a row link filed under a node's key lands on a row of it — see
+/** Whether a link filed under a node's key lands on a row of it — see
  *  {@link nodeRefs}. */
 const lands = (
   at: Pick<Reading, "claims" | "names">,
-  source: Source,
+  source: RowLink | Wikilink,
   named: string,
   drawers: ReadonlyArray<string>,
 ): boolean => {
-  if (source.rows?.some((path) => drawers.includes(path)) === true) return true
-  for (const name of source.written ?? []) {
+  if (source.counts === "row link") return source.paths.some((path) => drawers.includes(path))
+  for (const name of source.written) {
     const found = wikilinkAddress(at.names, at.claims, source.face.path, name)
     if (found?.kind === "row" && found.id === named && drawers.includes(found.path)) return true
   }
@@ -450,7 +450,10 @@ const wikiSourcesAt = (
   let found: Array<Source> | undefined
   let wanted: string | undefined
   for (const source of filed) {
-    for (const name of source.written ?? []) {
+    // A NAME KEY IS WRITTEN BY A NAME: the fold files nothing else under this
+    // part ({@link ./pointing.ts}), and the question below is about the names.
+    if (source.counts !== "wikilink") continue
+    for (const name of source.written) {
       const target = wikilinkAddress(at.names, at.claims, source.face.path, name)
       if (target === null || target.kind === "node" || target.path !== address.path) continue
       if (address.kind !== "document" && printAddress(target) !== (wanted ??= printAddress(address))) continue

@@ -36,7 +36,7 @@ import { derive, writtenTags } from "../derive.ts"
 import { type Document } from "../document.ts"
 import { FIXTURE_FILE, nodesOf, seeded, settled, vaultOf } from "../fixtures.testlib.ts"
 import { targetsOf } from "../node.ts"
-import { namersOf, type Pointing, pointingOf, propertied, taggersOf } from "./pointing.ts"
+import { namersOf, type Pointing, pointingOf, propertied, type Source, taggersOf } from "./pointing.ts"
 import { PARTS } from "./written.ts"
 import { referenceKeys } from "../typing.ts"
 import { linkyRevisions, linkyVault, type Revision } from "./pointing.testlib.ts"
@@ -560,6 +560,19 @@ const DECLARING: Revision = new Map([
   ["brief.md", "# The brief\n\nnothing points anywhere.\n"],
 ])
 
+/** The declared property keys one entry was filed with, or `undefined` where
+ *  the entry is not one a declared value wrote — which is what the table's
+ *  arms say and these readings tell apart. */
+const propsOf = (source: Source | undefined): ReadonlyArray<string> | undefined =>
+  source?.counts === "outright" ? source.props : undefined
+
+/** Those keys as both printers below say them: nothing at all for a source
+ *  that named its target another way. */
+const keysOf = (source: Source): string => {
+  const props = propsOf(source)
+  return props === undefined || props.length === 0 ? "" : ` [${props.join(",")}]`
+}
+
 /** The whole table, written down — every entry of every part, so a carry that
  *  differs from a rebuild anywhere says where. */
 const wholeOf = (table: Pointing): ReadonlyArray<string> =>
@@ -568,7 +581,7 @@ const wholeOf = (table: Pointing): ReadonlyArray<string> =>
       `${part} ${key}: ${
         sources.map((source) =>
           `${source.at === undefined ? source.face.path : `${source.at.file}:${source.at.line}`}` +
-          ` ${source.ways.join("+")}${source.props === undefined ? "" : ` [${source.props.join(",")}]`}`
+          ` ${source.ways.join("+")}${keysOf(source)}`
         ).join(", ")
       }`
     ).sort()
@@ -580,13 +593,13 @@ const filesAt = (at: Reading, path: string): ReadonlyArray<string> =>
   (at.pointing.files.get(path) ?? []).map((source) =>
     `${source.at === undefined ? source.face.path : `${source.at.file}:${source.at.line}`} ${
       source.ways.join("+")
-    }${source.props === undefined ? "" : ` [${source.props.join(",")}]`}`
+    }${keysOf(source)}`
   )
 
 test("a declared `node` value is filed under the row it names, with the way `property`", () => {
   const at = readingOf(DECLARING)
   expect(rowsAt(at, "herbs")).toEqual(["notes.olai:1 property"])
-  expect(at.pointing.rows.get("herbs")?.[0]?.props).toEqual(["bed"])
+  expect(propsOf(at.pointing.rows.get("herbs")?.[0])).toEqual(["bed"])
   // …and **Referenced by** counts it, which is the behaviour this stage adds.
   expect(referrersOf(at, "herbs")).toEqual(["notes.olai#sowing property"])
 })
@@ -625,7 +638,7 @@ test("one record naming one target under two keys is one source carrying both", 
     ),
   )
   expect(rowsAt(at, "herbs")).toEqual(["notes.olai:1 property"])
-  expect(at.pointing.rows.get("herbs")?.[0]?.props).toEqual(["bed", "next"])
+  expect(propsOf(at.pointing.rows.get("herbs")?.[0])).toEqual(["bed", "next"])
   // …and one referrer, saying it one way.
   expect(referrersOf(at, "herbs")).toEqual(["notes.olai#sowing property"])
 })

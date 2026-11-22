@@ -82,30 +82,67 @@ export type Way = (typeof FILED_WAYS)[number]
  * it files under there, the way it was named, and the record that did the
  * naming when there is one. A body's targets carry no record: a `.md` has no
  * finer grain than itself.
+ *
+ * A SUM, BY WHAT WAS WRITTEN, for {@link ../address.ts}'s reason: each arm
+ * carries what that kind of target is known by and carries nothing else, so no
+ * reader has to learn which arm it holds by finding a field missing. A link
+ * travels with its ADDRESS, because a link onto a heading or a row is a
+ * reference to the document as well ({@link ./pointing.ts}); a wikilink with
+ * the NAME it writes, because which file that finds is the reading's question;
+ * a declared value with the KEY it was written under, because a refusal names
+ * that word. A field or a tag is known by its key and nothing further.
  */
-export interface Contribution {
+export type Contribution = Written | Declared
+
+/** WHAT A DOCUMENT'S OWN TEXT WRITES — the three arms the first fold makes
+ *  ({@link contributionsOf}). The fourth is the second fold's, and is the one
+ *  the format alone could not have found ({@link propertiesOf}). */
+export type Written = Plain | Linked | Named
+
+/** What every contribution says: where it is filed, and who wrote it. */
+interface Points {
   /** Which of the table's four maps this entry belongs in. */
   readonly part: Part
   /** The key to file under, in that part's own spelling — a row's bare id, a
    *  file's printed address, a wikilink's folded key, a tag as written. */
   readonly key: string
-  readonly way: Way
   /** The record, for an outline. Undefined for a body, whose every
    *  contribution carries no record — a `.md` is its own source. */
   readonly at: Located | undefined
-  /** The target ADDRESS for the LINK way — what the table's heading rule
-   *  decides by (a link onto a heading or a row points at the document as
-   *  well). Absent for the field and prose ways, which file under one key
-   *  only. */
-  readonly address?: Address
-  /** The WIKILINK as written, for the wikilink entries — the name the reading
-   *  resolves against the name index when it reads. */
-  readonly wikilink?: WikilinkName
-  /** The property KEY a `property` entry's value was written under, AS THE
-   *  RECORD WROTE IT ({@link propertiesOf}) — the word a refusal names when it
-   *  says what to re-point. The declaration it was matched against is folded
-   *  ({@link declaredFor}); this is the spelling in the file. */
-  readonly prop?: string
+}
+
+/** A FIELD, A TAG OR A MENTION: one key, and nothing further to decide. The
+ *  two ways left out are the other three arms' — a link is written one way and
+ *  a declared value the other. */
+export interface Plain extends Points {
+  readonly writes: "plain"
+  readonly way: Exclude<Way, "link" | "property">
+}
+
+/** A STANDARD LINK, with the address it lands on — what the table's heading
+ *  rule decides by ({@link ./pointing.ts}). */
+export interface Linked extends Points {
+  readonly writes: "link"
+  readonly way: "link"
+  readonly address: Address
+}
+
+/** A WIKILINK, with the name as written — what the reading resolves against
+ *  the name index when it reads. */
+export interface Named extends Points {
+  readonly writes: "name"
+  readonly way: "link"
+  readonly wikilink: WikilinkName
+}
+
+/** A DECLARED PROPERTY VALUE, with the property KEY it was written under, AS
+ *  THE RECORD WROTE IT ({@link propertiesOf}) — the word a refusal names when
+ *  it says what to re-point. The declaration it was matched against is folded
+ *  ({@link declaredFor}); this is the spelling in the file. */
+export interface Declared extends Points {
+  readonly writes: "property"
+  readonly way: "property"
+  readonly prop: string
 }
 
 /**
@@ -141,13 +178,13 @@ export const contributionsOf = (
   claims: Claims,
   face: Face,
   records: ReadonlyArray<Located> | undefined,
-): ReadonlyArray<Contribution> => {
-  const found: Array<Contribution> = []
+): ReadonlyArray<Written> => {
+  const found: Array<Written> = []
   if (records === undefined) {
     for (const link of face.links) linkInto(found, link, undefined)
     for (const tag of face.tags) {
       if (tag.charAt(0) !== "@") continue
-      found.push({ part: "tags", key: tag, way: "mention", at: undefined })
+      found.push({ writes: "plain", part: "tags", key: tag, way: "mention", at: undefined })
     }
     for (const link of face.wikilinks ?? []) wikiInto(found, claims, link, undefined)
     return found
@@ -159,7 +196,7 @@ export const contributionsOf = (
     // THE FIELDS, under the ROWS they name — the mirror a placement points
     // with and the three edge fields a record writes, in declaration order.
     for (const [field, id] of targetsOf(located.node)) {
-      found.push({ part: "rows", key: id, way: field, at: located })
+      found.push({ writes: "plain", part: "rows", key: id, way: field, at: located })
     }
     // …and nothing else comes off a placement: it has no title, no note and no
     // links of its own, which is what the type says one line down.
@@ -174,7 +211,7 @@ export const contributionsOf = (
       linkInto(found, written.address, located)
     }
     for (const tag of writtenTags(located.node)) {
-      found.push({ part: "tags", key: tag, way: "tag", at: located })
+      found.push({ writes: "plain", part: "tags", key: tag, way: "tag", at: located })
     }
     if (linking) for (const link of recordWikilinks(located)) wikiInto(found, claims, link, located)
   }
@@ -187,11 +224,11 @@ export const contributionsOf = (
  *  `pointingAt`). The address travels with the entry, because a link onto a
  *  heading or a row is a reference to the document as well and the table files
  *  that second key where the two parts are both in hand. */
-const linkInto = (found: Array<Contribution>, address: Address, at: Located | undefined): void => {
+const linkInto = (found: Array<Written>, address: Address, at: Located | undefined): void => {
   found.push(
     address.kind === "node"
-      ? { part: "rows", key: address.id, way: "link", at, address }
-      : { part: "files", key: printAddress(address), way: "link", at, address },
+      ? { writes: "link", part: "rows", key: address.id, way: "link", at, address }
+      : { writes: "link", part: "files", key: printAddress(address), way: "link", at, address },
   )
 }
 
@@ -202,11 +239,13 @@ const linkInto = (found: Array<Contribution>, address: Address, at: Located | un
  *  file. A link to the writer's own heading refers to nothing else, and is not
  *  filed. A link to a ROW is filed a second time, under the row's own id,
  *  which is where the node arm of the reading asks. */
-const wikiInto = (found: Array<Contribution>, claims: Claims, link: WikilinkName, at: Located | undefined): void => {
+const wikiInto = (found: Array<Written>, claims: Claims, link: WikilinkName, at: Located | undefined): void => {
   const key = wikilinkKey(claims, link.target)
-  if (key !== null) found.push({ part: "names", key, way: "link", at, wikilink: link })
+  if (key !== null) found.push({ writes: "name", part: "names", key, way: "link", at, wikilink: link })
   const node = wikilinkRowNode(claims, link)
-  if (node?.kind === "node") found.push({ part: "rows", key: node.id, way: "link", at, wikilink: link })
+  if (node?.kind === "node") {
+    found.push({ writes: "name", part: "rows", key: node.id, way: "link", at, wikilink: link })
+  }
 }
 
 /**
@@ -243,9 +282,9 @@ export const propertiesOf = (
   claims: Claims,
   declarations: PropDeclarations,
   records: ReadonlyArray<Located>,
-): ReadonlyArray<Contribution> => {
+): ReadonlyArray<Declared> => {
   if (declarations.size === 0) return NO_PROPERTIES
-  const found: Array<Contribution> = []
+  const found: Array<Declared> = []
   for (const located of records) {
     if (!isRegular(located)) continue
     const custom = located.node.custom
@@ -259,13 +298,22 @@ export const propertiesOf = (
       const doc = declared?.type.kind === "doc"
       for (const one of typeof value === "string" ? [value] : value) {
         if (!doc) {
-          if (one !== "") found.push({ part: "rows", key: one, way: "property", at: located, prop: key })
+          if (one !== "") {
+            found.push({ writes: "property", part: "rows", key: one, way: "property", at: located, prop: key })
+          }
           continue
         }
         const resolved = resolvedDoc(declared, located.file, one)
         const address = resolved === undefined ? null : addressOf(claims, resolved, null)
         if (address === null) continue
-        found.push({ part: "files", key: printAddress(address), way: "property", at: located, prop: key, address })
+        found.push({
+          writes: "property",
+          part: "files",
+          key: printAddress(address),
+          way: "property",
+          at: located,
+          prop: key,
+        })
       }
     }
   }
@@ -275,7 +323,7 @@ export const propertiesOf = (
 /** The answer for a vault that declares no reference key, which is most of
  *  them: ONE list, shared — and the whole of what "such a directory pays no
  *  walk" means ({@link referenceKeys}). */
-const NO_PROPERTIES: ReadonlyArray<Contribution> = []
+const NO_PROPERTIES: ReadonlyArray<Declared> = []
 
 // ── what a record or a body points at ──────────────────────────────────
 
