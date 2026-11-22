@@ -165,9 +165,7 @@ One pass touches at most about a fifth of the rows and writes only under that ro
 <details>
 <summary>Settings</summary>
 
-All of these go on the `chat` node in `_olai/Settings.olai`, and each has a field in the plugins panel ([settings](../settings.md)). A duration is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`. A value olai cannot read warns and falls back to the default.
-
-Changing a setting other than `on` restarts chat. An answer in progress stops, and its conversation reopens with a line saying so. Words typed and not sent stay in the box, and a message sent while chat restarts is answered or comes back to send again.
+All of these go on the `chat` node in `_olai/Settings.olai`, each has a field in the plugins panel, and changing one other than `on` restarts chat ([settings](../settings.md)). A duration is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`. A value olai cannot read warns and falls back to the default.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
