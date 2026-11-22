@@ -1,39 +1,40 @@
 import { expect, test } from "bun:test"
 
-import { measuredAt, plainLine } from "./preview.ts"
+import { previewLine } from "@olai/prose/preview.ts"
+import { measuredAt } from "./preview.ts"
 
 test("the first line is the first line with anything on it", () => {
-  expect(plainLine("\n\n  Two ways to go:\n\n- more\n")).toBe("Two ways to go:")
+  expect(previewLine("\n\n  Two ways to go:\n\n- more\n")).toBe("Two ways to go:")
 })
 
 test("emphasis and code marks are words, not source", () => {
-  expect(plainLine("Call the utility line **before** digging.")).toBe(
+  expect(previewLine("Call the utility line **before** digging.")).toBe(
     "Call the utility line before digging.",
   )
-  expect(plainLine("Pick `walnut` or *birch*.")).toBe("Pick walnut or birch.")
+  expect(previewLine("Pick `walnut` or *birch*.")).toBe("Pick walnut or birch.")
 })
 
 test("a link keeps its label", () => {
-  expect(plainLine("See [the plan](./plan.md) first.")).toBe("See the plan first.")
+  expect(previewLine("See [the plan](./plan.md) first.")).toBe("See the plan first.")
 })
 
 test("a list item is the item without its mark", () => {
-  expect(plainLine("- **walnut** — six week lead time")).toBe(
+  expect(previewLine("- **walnut** — six week lead time")).toBe(
     "walnut — six week lead time",
   )
-  expect(plainLine("1. first thing")).toBe("first thing")
+  expect(previewLine("1. first thing")).toBe("first thing")
 })
 
 test("a leading heading is named without its marks", () => {
-  expect(plainLine("# Notes\n\nbody")).toBe("Notes")
+  expect(previewLine("# Notes\n\nbody")).toBe("Notes")
 })
 
 // The closing run markdown allows, and the one place it must NOT come off: a
 // heading that ends in a hash with no space before it is a heading about C#.
 test("the closing hashes come off, and a hash that is a word does not", () => {
-  expect(plainLine("## Install ##")).toBe("Install")
-  expect(plainLine("## C#")).toBe("C#")
-  expect(plainLine("# Notes ##\n\nbody")).toBe("Notes")
+  expect(previewLine("## Install ##")).toBe("Install")
+  expect(previewLine("## C#")).toBe("C#")
+  expect(previewLine("# Notes ##\n\nbody")).toBe("Notes")
 })
 
 test("a non-breaking space is not the gap a closing run needs", () => {
@@ -41,7 +42,7 @@ test("a non-breaking space is not the gap a closing run needs", () => {
   // the closing hashes, and headingText already spelled those two. The regex
   // this replaces treated NBSP (and the rest of `\s`) as that gap, so this
   // line used to preview as `Foo`.
-  expect(plainLine("# Foo\u00a0##")).toBe("Foo\u00a0##")
+  expect(previewLine("# Foo\u00a0##")).toBe("Foo\u00a0##")
 })
 
 test("a long run of spaces that does not close a heading is answered at once", () => {
@@ -51,13 +52,13 @@ test("a long run of spaces that does not close a heading is answered at once", (
   // would be a finding.
   const started = performance.now()
   const line = `x${" ".repeat(50_000)}y`
-  expect(plainLine(line)).toBe(line)
+  expect(previewLine(line)).toBe(line)
   expect(performance.now() - started).toBeLessThan(100)
 }, 500)
 
 test("an empty note previews as nothing", () => {
-  expect(plainLine("")).toBe("")
-  expect(plainLine("\n \n")).toBe("")
+  expect(previewLine("")).toBe("")
+  expect(previewLine("\n \n")).toBe("")
 })
 
 // measuredAt: a click speaks the clamped line's characters; the caret is
@@ -103,8 +104,8 @@ test("an all-blank note has only the start", () => {
 })
 
 test("a wikilink is the words it shows, never its brackets or its name", () => {
-  expect(plainLine("Measure against [[kitchen-sink#Tables|the sink table]] and [[finishes]].")).toBe(
+  expect(previewLine("Measure against [[kitchen-sink#Tables|the sink table]] and [[finishes]].")).toBe(
     "Measure against the sink table and finishes.",
   )
-  expect(plainLine("see `[[code]]` here")).toBe("see [[code]] here")
+  expect(previewLine("see `[[code]]` here")).toBe("see [[code]] here")
 })

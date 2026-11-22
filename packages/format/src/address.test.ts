@@ -9,13 +9,13 @@ import {
   addressOf,
   addressWritten,
   DocumentPath,
-  linkedTitle,
   NodeId,
   parseAddress,
   PIN_NAME_UNWRITABLE,
   pinTitle,
   printAddress,
 } from "./address.ts"
+import { linkedTitle } from "@olai/prose/linked.ts"
 import { Slug } from "@olai/prose/slug.ts"
 const document = (path: string): Address => ({
   kind: "document",

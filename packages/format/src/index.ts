@@ -248,12 +248,11 @@ export {
    *  the chat's one-time move on the server. */
   addressAt,
   DocumentPath,
-  /** The address a TITLE carries, and the two halves of the one link it may be
-   *  written as — the shape a NAMED pin takes, read by the shelf reading down
-   *  here and by the browser drawing the same title (website/docs/format.md's Pins).
-   *  One spelling, because two readers cut it. */
+  /** The address a TITLE carries — the shape a NAMED pin takes, read by the
+   *  shelf reading down here and by the browser drawing the same title
+   *  (website/docs/format.md's Pins). The two halves of that link are
+   *  `@olai/prose`'s `linkedTitle`, which both sides read it through. */
   addressWritten,
-  linkedTitle,
   /** ...and the other direction: the title a pin carries for a name somebody
    *  typed, refused rather than mangled when the words cannot go in a link.
    *  Two writers cut this too — the server resolving a `pin`, the browser
@@ -286,11 +285,6 @@ export {
 } from "./links/paths.ts"
 export { addressOfPlace, pictureOf, type Place, placeOf } from "./links/standard.ts"
 export { type Landing, standardLanding, wikilinkLanding } from "./links/landing.ts"
-export {
-  /** The text with each wikilink as the words it shows — the browser's
-   *  preview line, before the parser has loaded. */
-  wikilinksShown,
-} from "./links/shown.ts"
 export { namesOf, type Names } from "./links/names.ts"
 export {
   wikilinkAddress,

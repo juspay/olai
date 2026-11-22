@@ -707,6 +707,7 @@
         "@olai/edit-history": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/prose": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",

@@ -99,7 +99,7 @@
  */
 import { Schema } from "effect"
 
-import { linkedTitle } from "./address.ts"
+import { linkedTitle } from "@olai/prose/linked.ts"
 import { type Derived, under } from "./derive.ts"
 import { isMarkdown } from "./document.ts"
 import { type Claim, type Claims, nameOf, textKind } from "./kinds.ts"

@@ -1,9 +1,12 @@
 /**
- * WHAT A WIKILINK SHOWS, read off raw text — the browser's preview line under
- * a row reads a note's first line before the parser has loaded, and this is
- * how it turns `[[kitchen-sink#Tables|the table]]` into `the table` there.
- * Everything else reads wikilinks out of the parse (`@olai/prose`'s
- * `obsidian.ts`).
+ * WHAT A WIKILINK SHOWS, read off raw text — the one reader here that does
+ * not go through the parser, and the half of `./preview.ts` that turns
+ * `[[kitchen-sink#Tables|the table]]` into `the table` for the line drawn
+ * under a row before the parser has loaded.
+ *
+ * It is a SHORTCUT, held to the parse: `./preview.test.ts` reads every
+ * fixture note and docs page both ways. Everything that reads finished text
+ * reads wikilinks out of the parse instead (`./obsidian.ts`).
  */
 
 /**
@@ -75,7 +78,8 @@ const proseMask = (text: string): string => withoutCodeSpans(withoutCodeBlocks(t
  *
  * What it NAMES is {@link Wikilink.name}: the target and its headings, never
  * the alias. Which file that is depends on what the directory holds, so it is
- * answered by `./wikilink.ts` whenever it is asked, never here.
+ * answered by `@olai/format`'s `links/wikilink.ts` whenever it is asked,
+ * never here.
  */
 export interface Wikilink {
   /** Offset of the link's first character (the `!` of an embed). */

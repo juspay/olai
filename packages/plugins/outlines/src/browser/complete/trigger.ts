@@ -42,7 +42,7 @@
 // literals in a widget (`@olai/prose`'s tags.ts says why, beside the regex
 // they all answer for). What is left in this file is only WHERE the caret is.
 import { isTagName, TAG_SIGILS, type TagSigil, tagOpensAt } from "@olai/prose/tags.ts"
-import { wikilinkWritten } from "@olai/prose/wikilink.ts"
+import { wikilinkOpenAt, wikilinkWritten } from "@olai/prose/wikilink.ts"
 
 /** What the caret is inside, if anything. `from` is the index of the opener's
  *  FIRST character, so `[from, caret)` is the span a chosen completion
@@ -117,19 +117,15 @@ export const triggerIn = (text: string, caret: number): Trigger | null => {
 }
 
 /**
- * The `[[` nearest the caret, when the caret is still inside it — `undefined`
- * when it is not (none, or closed by a `]]`, or ended by a line break), and
- * `null` when it is but there is nothing this list can offer: the alias after
- * a `|`, the heading after a `#`, or more than a name's worth of text.
+ * The `[[` the caret is inside, as this file's offer — the grammar of an open
+ * link is `@olai/prose`'s ({@link wikilinkOpenAt}), and what is added here is
+ * only which widget the span arms. Its three answers are kept: `undefined` for
+ * a caret outside any link, `null` for one inside a link with nothing to
+ * offer, and the span otherwise.
  */
 const wikilinkIn = (before: string): Trigger | null | undefined => {
-  const at = before.lastIndexOf("[[")
-  if (at === -1) return undefined
-  const query = before.slice(at + 2)
-  if (query.includes("]]") || query.includes("\n")) return undefined
-  return query.length <= NAME_CAP && !/[|#\]]/.test(query)
-    ? { kind: "wikilink", from: at, query }
-    : null
+  const open = wikilinkOpenAt(before, NAME_CAP)
+  return open === undefined || open === null ? open : { kind: "wikilink", ...open }
 }
 
 /** The `((` nearest the caret, if it is still open. */

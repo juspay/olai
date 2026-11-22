@@ -80,7 +80,8 @@ import { PluginFolds } from "./Folds.tsx"
 import { For } from "solid-js"
 import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
-import { measuredAt, plainLine } from "./note/preview.ts"
+import { measuredAt } from "./note/preview.ts"
+import { previewLine } from "@olai/prose/preview.ts"
 import { Note } from "./Note.tsx"
 import { useLicences } from "./reading.tsx"
 import { dressed } from "./faces.ts"
@@ -177,7 +178,7 @@ export function NodeBody(props: {
     if (props.preview !== true) return undefined
     const desc = props.shows.node.desc
     if (desc === undefined || desc === "") return undefined
-    return { runs: [{ text: plainLine(desc), lit: false }], hit: false }
+    return { runs: [{ text: previewLine(desc), lit: false }], hit: false }
   })
 
   return (
