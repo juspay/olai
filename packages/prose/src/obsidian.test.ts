@@ -135,10 +135,14 @@ test("a wikilink inside a link's words leaves that label no link", () => {
   expect(linksOf(parse("[a [[finishes]] b](x.md) then [c](y.md)")).map((one) => one.url)).toEqual(["y.md"])
 })
 
-/** Each shape the two constructs could be made to read twice, at four times
- *  the length: linear work is about four times the time, and a construct that
- *  read to the line's end from every `](` — as the spaced address once did —
- *  about sixteen. */
+/**
+ * Each shape the two constructs could be made to read twice, at eight times
+ * the length, held against PLAIN WORDS of the same two lengths parsed in the
+ * same moment: a loaded machine slows both alike, so the ratio of their growths
+ * is what is left of the construct. Linear work grows as plain words do; a
+ * construct that read to the line's end from every `](` — as the spaced
+ * address once did — grows eight times faster than they do.
+ */
 test("no text makes the constructs read the same characters again and again", () => {
   const shapes: ReadonlyArray<(n: number) => string> = [
     (n) => "[a](b ".repeat(n),
@@ -150,17 +154,21 @@ test("no text makes the constructs read the same characters again and again", ()
     (n) => "[x [[a]] ".repeat(n),
     (n) => "[a] ".repeat(n) + "(b c)",
   ]
+  const time = (text: string): number => {
+    const started = performance.now()
+    parse(text)
+    return performance.now() - started
+  }
+  const best = (text: string): number => Math.max(Math.min(time(text), time(text), time(text)), 0.05)
+  const plain = (length: number): string => "paint the shed ".repeat(Math.ceil(length / 15)).slice(0, length)
   for (const shape of shapes) {
-    const time = (n: number): number => {
-      const text = shape(n)
-      const started = performance.now()
-      parse(text)
-      return performance.now() - started
-    }
-    const best = (n: number): number => Math.min(time(n), time(n), time(n))
-    time(500)
-    const small = Math.max(best(1_000), 1)
-    const large = best(4_000)
-    expect({ shape: shape(1), linear: large / small < 10 }).toEqual({ shape: shape(1), linear: true })
+    time(shape(250))
+    const [small, large] = [shape(500), shape(4_000)]
+    const growth = best(large) / best(small)
+    const words = best(plain(large.length)) / best(plain(small.length))
+    // A wikilink per six characters makes a tree node per six characters,
+    // where plain words make one: about twice the growth here from the tree
+    // alone. Re-reading to the line's end is eight times, or more.
+    expect({ shape: shape(1), linear: growth / words < 4 }).toEqual({ shape: shape(1), linear: true })
   }
 })
