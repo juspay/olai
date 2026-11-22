@@ -98,8 +98,7 @@ const renderingOf = (
   names?: Names,
   fences?: ReadonlySet<string>,
 ): Rendered => {
-  const ids = keyFor(shape, from, source)
-  if (claims === undefined) return render(claims, source, from, ids, shape, names, fences)
+  if (claims === undefined) return render(claims, source, from, shape, names, fences)
   let revisions = renderings.get(claims)
   if (revisions === undefined) {
     revisions = new WeakMap()
@@ -112,11 +111,11 @@ const renderingOf = (
     rendered = new Map()
     revisions.set(namespace, rendered)
   }
-  const key = ids + fencesKey(fences)
+  const key = keyFor(shape, from, source) + fencesKey(fences)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(claims, source, from, ids, shape, names, fences)
+  const result = render(claims, source, from, shape, names, fences)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
@@ -165,10 +164,11 @@ export const outlineOf = (claims: Claims | undefined, source: string, from: stri
  * about the panel rather than about markdown.
  */
 export const renderStreaming = (claims: Claims | undefined, source: string, from: string): string =>
-  // Same key shape as {@link renderingOf} for "block": footnote ids are minted
-  // from the key, so a streamed answer and its final render must agree or
-  // every `href="#md-…-fn-1"` breaks the instant streaming ends.
-  render(claims, source, from, keyFor("block", from, source), "block").html
+  // The same walk as {@link renderingOf}'s for "block", ids and all: footnote
+  // ids are minted from the key {@link walked} derives, so a streamed answer
+  // and its final render agree and no `href="#md-…-fn-1"` breaks when
+  // streaming ends.
+  render(claims, source, from, "block").html
 
 /**
  * The sanitised HAST for a source, before stringify.
@@ -184,13 +184,7 @@ export const renderToTree = (
   shape: "block" | "inline",
   names?: Names,
   fences?: ReadonlySet<string>,
-): Root => {
-  const key = keyFor(shape, from, source)
-  const tree = pipelineNow().treeOf(source)
-  if (shape === "inline") toInline(tree)
-  rewrite(tree, rewriting(claims, from, key, shape, names, fences))
-  return tree
-}
+): Root => walked(claims, source, from, shape, names, fences).tree
 
 /**
  * The text markdown reads in a source — the same reading {@link renderToTree}
@@ -240,31 +234,34 @@ const render = (
   claims: Claims | undefined,
   source: string,
   from: string,
-  key: string,
   shape: "block" | "inline",
   names?: Names,
   fences?: ReadonlySet<string>,
 ): Rendered => {
-  const pipeline = pipelineNow()
-  const tree = pipeline.treeOf(source)
-  if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, rewriting(claims, from, key, shape, names, fences))
-  return { html: pipeline.htmlOf(tree), headings }
+  const { tree, headings } = walked(claims, source, from, shape, names, fences)
+  return { html: pipelineNow().htmlOf(tree), headings }
 }
 
-/** The walk's options for one rendering — one spelling for the two runs. */
-const rewriting = (
+/** ONE RUN OF THE WALK, for both entry points: the pipeline's tree, cut down
+ *  to phrasing content for a title, then {@link rewrite}'s walk over it, its
+ *  ids minted from the one key a block's rendering is known by. */
+const walked = (
   claims: Claims | undefined,
+  source: string,
   from: string,
-  key: string,
   shape: "block" | "inline",
   names: Names | undefined,
   fences: ReadonlySet<string> | undefined,
-) => ({
-  claims, from, ids: idsFor(key), inline: shape === "inline",
-  ...(names === undefined ? {} : { names }),
-  ...(fences === undefined ? {} : { fences }),
-})
+): { readonly tree: Root; readonly headings: readonly Heading[] } => {
+  const tree = pipelineNow().treeOf(source)
+  if (shape === "inline") toInline(tree)
+  const headings = rewrite(tree, {
+    claims, from, ids: idsFor(keyFor(shape, from, source)), inline: shape === "inline",
+    ...(names === undefined ? {} : { names }),
+    ...(fences === undefined ? {} : { fences }),
+  })
+  return { tree, headings }
+}
 
 /**
  * This block's id namespace, from the block itself.
