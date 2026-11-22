@@ -49,6 +49,7 @@ export const holdRoutePages = table.hold
 export const routePages = (): MountedPages => table.read()?.() ?? NO_PAGES
 
 const pluginFiles = heldService<() => ReadonlyArray<FilePage>>()
+const NO_FILE_PAGES: ReadonlyArray<FilePage> = []
 
 /** The `file.page` faces, settled into pages — told by `./browser.tsx`'s
  *  `renderer` component, which holds the faces they are read from, so the
@@ -57,7 +58,7 @@ export const holdPluginFilePages = pluginFiles.hold
 
 /** ...and read by `./PageView.tsx`: empty while no renderer holds them. A
  *  tracked holder, so a reader learns when they are held and released. */
-export const pluginFilePages = (): ReadonlyArray<FilePage> => pluginFiles.read()?.() ?? []
+export const pluginFilePages = (): ReadonlyArray<FilePage> => pluginFiles.read()?.() ?? NO_FILE_PAGES
 
 /**
  * ...and the grammar bound over it — the value `navigation.state` carries and
