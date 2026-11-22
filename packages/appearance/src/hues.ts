@@ -4,14 +4,15 @@
  *
  * The table makes a claim about how it LOOKS (`./palettes.ts`): one light
  * paper in every 60° sector and one dark in every 120°, no two papers of a
- * polarity alike, accents that never repeat a note. A claim about looking
- * cannot be checked in HSL — the wheel is not there: yellows crowd into a few
- * degrees and cyans stretch over thirty — so it is checked in OKLCH, the
- * perceptual space this app already renders its tag ink through.
- * `./tagInk.ts` maps the other way (an `oklch()` to the sRGB a browser
- * paints); these are the same Ottosson matrices read backwards.
- * `./palettes.test.ts` holds the table's claims with them, and the theme
- * row's picker reads them to stand each dark swatch under its own hue.
+ * polarity alike, and accents apart but for chalk and reef, which share the
+ * coral on purpose. A claim about looking cannot be checked in HSL — the
+ * wheel is not there: yellows crowd into a few degrees and cyans stretch over
+ * thirty — so it is checked in OKLCH, the perceptual space this app already
+ * renders its tag ink through. `./tagInk.ts` maps the other way (an
+ * `oklch()` to the sRGB a browser paints); these are the same Ottosson
+ * matrices read backwards. `./palettes.test.ts` holds the table's claims
+ * with them, and `./families.ts` reads them to pair each dark palette with
+ * the light one of its own hue.
  *
  * Pure: no observer, no DOM, no theme. A colour in, a number out.
  */

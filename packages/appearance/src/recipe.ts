@@ -32,8 +32,8 @@ type GroundToken = "paper" | "desk" | "panel" | "pill" | "ink" | "muted" | "rule
 type Ramp = Readonly<Record<GroundToken, readonly [l: number, c: number]>>
 
 /** The ramps, per polarity and depth. A closed set: by day a row is `pale` or
- *  `deep`, by night only `deep` — a dark ground carries less chroma, and a
- *  second dark depth would be hues read as one ground twice. */
+ *  `deep`, by night only `deep` — the dark ramp is abyss's, the one dark ramp
+ *  measured off a shipped row, and no second one has been drawn. */
 export const RAMP: Readonly<Record<Scheme, Readonly<Partial<Record<Depth, Ramp>>>>> = {
   light: {
     pale: {
@@ -89,8 +89,10 @@ export const ACCENT: Readonly<Record<Scheme, { readonly l: number; readonly c: n
 /** How far a light accent's lightness drops per try. */
 const ACCENT_STEP = 0.002
 
-/** The ratio a light accent is dimmed to on its paper: AA's 4.5 with room for
- *  the accent to sit on a desk or a lit row as well. */
+/** The ratio a light accent is dimmed to on its own paper: AA's 4.5 with a
+ *  margin, on the paper alone. It promises nothing on another ground — on the
+ *  grammar's light rows the accent reads 4.69–4.74 on desk, 4.26–4.32 on pill
+ *  and 3.64–3.69 on rule. */
 export const ACCENT_ON_PAPER = 5.1
 
 /**

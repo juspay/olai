@@ -8,16 +8,17 @@
  * would be the same eleven lines copied once per theme, and one place per
  * theme for a new token to be forgotten.
  *
- * ELEVEN PALETTES, seven light and four dark, and the number is a measurement
- * rather than an appetite. The set is asked to cover the whole wheel AND to
- * have no two rows a person could mistake for each other, and those two pull
- * against each other: the floor is the distance between the two papers that
- * shipped closest together (chalk and reef, about 0.030 in OKLab), and on one
- * lightness ramp that floor leaves room for a hue every 60° by day and every
- * 120° by night — a dark ground carries less chroma, so hues 45° apart there
- * read as one ground twice. So each polarity is a neutral, which is what the
- * day is mostly read in, and a lattice of hues anchored on the lagoon, which
- * is ours:
+ * ELEVEN PALETTES, seven light and four dark. The set is asked to cover the
+ * whole wheel AND to have no two rows a person could mistake for each other,
+ * and those two pull against each other. The floor is the distance between
+ * the two papers that shipped closest together (chalk and reef, about 0.030
+ * in OKLab). By day, a hue every 60° clears it with no room to spare (leaf
+ * and reef, 0.030). By night, hues 45° apart fall under it (0.027), and a
+ * preview at that spacing was judged too alike to keep; a hue every 60° would
+ * clear it (0.036), and every 120° is the CHOICE made after that preview, so
+ * the hued darks sit nearly twice the floor apart (ember and dusk, 0.056).
+ * So each polarity is a neutral, which is what the day is mostly read in,
+ * and a lattice of hues anchored on the lagoon, which is ours:
  *
  *   chalk       warm near-white, the coral note. The default when the OS is light.
  *   bloom       a rose page, the faintest tint of the set, a teal note.
