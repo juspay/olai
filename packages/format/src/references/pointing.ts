@@ -441,11 +441,21 @@ const NOTHING_RECORDS: ReadonlyArray<Located> = []
  * rebuild and the carry are one module here, where there the patcher is a
  * module of its own.
  */
-const pointInto = (into: Filling, claims: Claims, document: Document): void => {
+const pointInto = (
+  into: Filling,
+  claims: Claims,
+  document: Document,
+  records: ReadonlyArray<Located> | undefined = recordsIn(document),
+): void => {
   const face = faceOf(document)
-  const records = document.holds === "nodes" ? document.nodes : undefined
   fileEach(into, face, contributionsOf(claims, face, records))
 }
+
+/** A document's records, or `undefined` for a body — read once per document
+ *  per fold, and handed to each fold that needs them, since a carry asks a
+ *  departing file for its links and its declared values both. */
+const recordsIn = (document: Document): ReadonlyArray<Located> | undefined =>
+  document.holds === "nodes" ? document.nodes : undefined
 
 /**
  * WHAT ONE FOLD SAID, FILED — one entry per contribution, under the key its
@@ -736,9 +746,10 @@ const propertyInto = (
   claims: Claims,
   declared: PropDeclarations,
   document: Document,
+  records: ReadonlyArray<Located> | undefined = recordsIn(document),
 ): void => {
-  if (!isOutline(document)) return
-  fileEach(into, faceOf(document), propertiesOf(claims, declared, document.nodes))
+  if (records === undefined) return
+  fileEach(into, faceOf(document), propertiesOf(claims, declared, records))
 }
 
 /** One property entry into a key's entries, as they already stand — the merge
@@ -942,14 +953,14 @@ const moved = (
   // in would put a `.md`'s whole body in a map for the length of one carry —
   // which is the retention this index takes the face to avoid, and a departing
   // side that grew a second reader tomorrow would grow it silently.
-  const left = (document: Document): void => {
+  const left = (document: Document, records = recordsIn(document)): void => {
     touched.add(document.path)
-    pointInto(departing, claims, document)
-    propertyInto(departing, claims, declared, document)
+    pointInto(departing, claims, document, records)
+    propertyInto(departing, claims, declared, document, records)
   }
-  const joined = (document: Document): void => {
+  const joined = (document: Document, records = recordsIn(document)): void => {
     touched.add(document.path)
-    pointInto(arriving, claims, document)
+    pointInto(arriving, claims, document, records)
   }
   while (here < was.length && there < now.length) {
     const one = was[here] as Document
@@ -980,13 +991,14 @@ const moved = (
       // hands INCOMPUTED bytes back as the very same record objects, so the
       // two revisions' `nodes` arrays differ by identity exactly when a record
       // changed, at no comparison cost; only a plain equality would be a walk.
+      // Each side's records are read ONCE here and handed to the folds below.
       const faces = sameFace(one, other)
-      const records = isOutline(one) && isOutline(other)
-        ? one.nodes !== other.nodes
-        : false
+      const before = recordsIn(one)
+      const after = recordsIn(other)
+      const records = before !== undefined && after !== undefined && before !== after
       if (!faces || records) {
-        left(one)
-        joined(other)
+        left(one, before)
+        joined(other, after)
       }
       here++
       there++
