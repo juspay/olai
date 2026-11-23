@@ -33,9 +33,9 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
     | `@agentclientprotocol/claude-agent-acp` | 0.81.2 |
     | Claude Code | the one agent-distro ships |
 
-[^distro]: The Claude Code olai starts is the one agent-distro ships. agent-distro launches coding agents with the setup a repository's `plugin.json` describes: skills, MCP servers, packages and environment. A conversation runs in the directory olai serves. When that directory, or one above it in the same git repository, holds such a file, or olai's environment sets `AI_PROFILE`, that setup applies here too.
+[^distro]: The Claude Code olai starts is the one agent-distro ships. agent-distro launches coding agents with the setup a repository's `plugin.json` describes: skills, MCP servers, packages and environment. A conversation runs in the directory olai serves. If that directory is in a git repository, the nearest such file up to its root applies; outside one, none does. `AI_PROFILE` in olai's environment applies either way.
 
-    Claude Code's own attribution lines on commits and pull requests are off by default. If your own Claude Code settings turn attribution on, it stays on while chat's `auto-compact` is `no`, and is turned off while `auto-compact` is on.
+    Claude Code's attribution lines on commits and pull requests are off by default. If your own Claude Code settings turn attribution on, it stays on while chat's `auto-compact` is `no`, and is turned off while `auto-compact` is on.
 
 [^swap]: `KOLU_ACP_AGENT` holds the command line olai runs as the adapter, and the wrapper sets it to the build olai ships unless you have set it to something else first. Set it to a command line of your own to run another build of Claude Code, or another agent that speaks the same protocol: olai then talks to that agent exactly as it talks to Claude Code.
 
