@@ -96,11 +96,12 @@ Feature: A Claude chat is told where to compact its conversation, or left to its
     When I open the plugins panel
     And I press custom for "chat" setting "compact-at"
     # PRESSING IT SAVES NOTHING: it opens an empty field, with the caret in it
-    # and the sentence that says what to type.
+    # and the sentence that says what to type, and the setting is still the
+    # default. (The file has no `chat` row to read an absent property off yet.)
     Then the "chat" setting "compact-at" shows custom pressed with "" in its field
     And the "chat" setting "compact-at" has focus
     And the "chat" setting "compact-at" suggests "a whole number of thousands from 100k to 1000k"
-    And file "_olai/Settings.olai" has namespace "chat" setting "compact-at" as "<absent>"
+    And the plugin "chat" marks "compact-at" as authored by "default"
     When I type "500k" into "chat" setting "compact-at"
     And I press "Enter" in "chat" setting "compact-at"
     Then file "_olai/Settings.olai" has namespace "chat" setting "compact-at" as "500k"
