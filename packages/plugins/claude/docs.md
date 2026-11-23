@@ -20,7 +20,7 @@ A message you send while the agent is working waits until it finishes, then runs
 
 ## What you see while it answers
 
-Shell output appears under the line for that command, ending with the exit code.[^terminal] A command left running in the background is tracked in the strip above the conversation.[^background] The line above the box you type in names the model running and the account signed in,[^models][^identity] and a model switch can be refused.[^refused] Memory between conversations is off.[^memory] Your Claude Code settings decide compaction.[^compact] **Earlier chats** lists saved conversations.[^earlier]
+Shell output appears under the line for that command, ending with the exit code.[^terminal] A command left running in the background is tracked in the strip above the conversation.[^background] The line above the box you type in names the model running and the account signed in,[^models][^identity] and a model switch can be refused.[^refused] Memory between conversations is off.[^memory] By default olai leaves compaction alone.[^compact] **Earlier chats** lists saved conversations.[^earlier]
 
 ## When Claude Code does not appear
 

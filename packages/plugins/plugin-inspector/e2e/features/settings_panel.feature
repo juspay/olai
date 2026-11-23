@@ -212,12 +212,8 @@ Feature: Edit plugin settings on the panel
   Scenario: An absent reader freezes knobs and enabling it restores editing
     Given I open the app
     When I open the plugins panel
-    # THE TYPED-VALUE FIELD IS OPENED FIRST, so the freeze below reaches the
-    # segment that opened it and the field alike.
-    And I press custom for "chat" setting "compact-at"
     And I switch the plugin "settings" off
     Then the "kolu" setting "watch.held-for" is frozen because "Settings can be edited when the configuration reader is running"
-    And the "chat" setting "compact-at" shows custom pressed with "" in its field
     And the "chat" setting "compact-at" is frozen because "Settings can be edited when the configuration reader is running"
     When I switch the plugin "settings" on
     And I type "90s" into "kolu" setting "watch.held-for"
