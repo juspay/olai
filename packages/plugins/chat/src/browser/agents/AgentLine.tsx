@@ -18,12 +18,30 @@ import { Tip } from "@olai/web/client/Tip.tsx"
 import { LINE_VERB } from "./verb.ts"
 import { itemOf } from "@olai/format"
 import { ChatBeside } from "./ChatBeside.tsx"
+import { StripChips } from "../chat/Strips.tsx"
 
-export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly own?: boolean }) {
+/**
+ * `foot` is a chat page's STATUS BAR (`./ChatPage.tsx`): the same line drawn
+ * between the conversation and the box somebody types in, where the
+ * `../chat/Busy.tsx` strip goes on every other face. So it says *Starting…*
+ * itself, which the Busy strip said there; the model list opens upward, since
+ * down is the box; and the standing strips ride it as chips
+ * (`../chat/Strips.tsx`'s `StripChips`) rather than stacking under it.
+ */
+export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly own?: boolean; readonly foot?: boolean }) {
   const agents = useAgents()
   const state = () => props.chat.state()
   const doing = () => busyIn(state())
-  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule bg-desk/50 px-3 py-1.5 text-label text-muted" classList={{ "rounded-t-surface": !props.page }}>
+  /** How the turn stands, in two words — `null` while there is nothing to say. */
+  const turn = () => {
+    const kind = doing()?.kind
+    return kind === "working" ? "Working…" : kind === "waiting" ? "Waiting on you" : kind === "starting" && props.foot ? "Starting…" : null
+  }
+  return <div
+    class={`relative flex flex-wrap items-center gap-2 border-rule bg-desk/50 px-3 py-1.5 text-label text-muted ${props.foot ? "border-t" : "border-b"}`}
+    classList={{ "rounded-t-surface": !props.page }}
+    data-testid={props.foot ? TESTID.chatStatusBar : undefined}
+  >
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>
@@ -38,7 +56,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
       identity={identity}
       pressable={(agentIn(state())?.methods.length ?? 0) > 0 && state().signIn === null}
     />}</Show>
-    <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || doing()?.kind === "starting"}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} /></Show>
+    <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || (doing()?.kind === "starting" && !props.foot)}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} up={props.foot} /></Show>
     {/* WHAT THE NUMBER IS. The percentage alone names nothing, so the words
         ride an sr-only companion AFTER the chip — outside it, because a
         scenario reads the chip's own text — and the tip is the pointer's
@@ -46,10 +64,11 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     <Show when={usageOf(state().usage)}>{usage => <Tip text="Context used" say>
       <span data-testid={TESTID.chatUsage}>{usage()}</span>
     </Tip>}</Show>
-    <Show when={doing()?.kind === "working" || doing()?.kind === "waiting"}>
-      <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "Waiting on you" : "Working…"}</span>
-    </Show>
+    <Show when={turn()}>{words =>
+      <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{words()}</span>
+    }</Show>
     <span class="flex-1" />
+    <Show when={props.foot}><StripChips chat={props.chat} /></Show>
     <AgentAbove node={props.node} />
     {/* THIS CONVERSATION, BESIDE WHAT IT IS ABOUT — offered on every line
         drawn where the item itself is (a fold, a node's page, the line at the

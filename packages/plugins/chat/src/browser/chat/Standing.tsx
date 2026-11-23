@@ -21,12 +21,14 @@
  * bordered empty line), and whether a rule belongs between the two kinds depends
  * on whether both drew. What each item SAYS is still its own — the questions here
  * are "is there a sleep item" and "is there a wake face", read off the same two
- * sources the items read.
+ * sources the items read. They are {@link standingOf}, exported because the chip
+ * a chat page's status bar draws for this line asks them too ({@link ./Strips.tsx}).
  */
 
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
+import type { NodeAgentRow } from "../../wire.ts"
 import { agentReadings } from "../agents/reading.ts"
 import { faces } from "../faces.ts"
 import { addressOf } from "./address.ts"
@@ -35,12 +37,20 @@ import type { Chat } from "./state.ts"
 import { Sleeping } from "./Sleeping.tsx"
 import { Wake } from "./Wake.tsx"
 
+/** The line's two presence questions: the node agent row the sleep item is
+ *  drawn from, and whether any wake face is hung for this conversation. */
+export const standingOf = (chat: Chat): { readonly sleep: NodeAgentRow | undefined; readonly waking: boolean } => {
+  const to = addressOf(chat.state())
+  return {
+    sleep: nodeAgentOf(agentReadings()?.agents.rows() ?? [], to),
+    waking: to !== undefined && faces().hung("conversation.wake").length > 0,
+  }
+}
+
 export function Standing(props: { readonly chat: Chat }) {
-  const to = () => addressOf(props.chat.state())
-  const sleeping = () => nodeAgentOf(agentReadings()?.agents.rows() ?? [], to()) !== undefined
-  const waking = () => to() !== undefined && faces().hung("conversation.wake").length > 0
+  const standing = createMemo(() => standingOf(props.chat))
   return (
-    <Show when={sleeping() || waking()}>
+    <Show when={standing().sleep !== undefined || standing().waking}>
       <section
         class="relative shrink-0 border-b border-rule bg-desk/40 px-3 py-1.5 text-caption leading-snug"
         data-testid={TESTID.chatStanding}
@@ -48,7 +58,7 @@ export function Standing(props: { readonly chat: Chat }) {
       >
         <p class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <Sleeping chat={props.chat} />
-          <Show when={sleeping() && waking()}>
+          <Show when={standing().sleep !== undefined && standing().waking}>
             <span aria-hidden="true" class="text-muted">·</span>
           </Show>
           <Wake chat={props.chat} />

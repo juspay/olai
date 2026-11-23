@@ -36,13 +36,13 @@
  *
  * Width is what every other rule in this app responds to, and on a handset
  * turned sideways width is the thing that got BIGGER: 844×390 is past the
- * `md` breakpoint, so the page wears a desktop's generous head — a display
- * title, a line of padding over it — while the screen it is drawn on is 390
- * pixels tall. The chat page is the face that cannot afford it: its head is
- * pinned and its composer is pinned, so every pixel either of them takes is
- * taken from the only part a person reads — which is why, on a screen this
- * short, it pins the item's line alone rather than its whole head
- * (`./agents/ChatPage.tsx`).
+ * `md` breakpoint, so the page would wear a desktop's arrangement while the
+ * screen it is drawn on is 390 pixels tall. The chat page is the face that
+ * cannot afford it: its item's line is pinned and its composer is pinned, so
+ * every pixel either of them takes is taken from the only part a person reads
+ * — which is why, on a screen this short, it keeps its agent line in the head
+ * as a phone does rather than pinning it on the composer as a status bar
+ * (`./agents/ChatPage.tsx`'s `createRoomy`, which asks this same query).
  *
  * 540 PIXELS, in pixels rather than `rem`: this is a fact about the SCREEN,
  * and a `rem` here would move the rule with the reader's text size — a person

@@ -141,8 +141,13 @@ export function usePage(node: Accessor<string>) {
  * page (`./ChatPage.tsx`) and by nothing else. A line there draws no *Open
  * beside* of its own (the page's item line above it carries the way back),
  * where every other line offers the conversation beside the item it is drawn
- * under. */
-export function PageHead(props: { readonly node: string; readonly own?: boolean }) {
+ * under.
+ *
+ * `bar` is that page on a desktop, where the agent line is the status bar on
+ * its composer instead (`PageFoot`'s `bar`): the head then draws only what
+ * stands in for a conversation — the one line saying it is beside, or the
+ * agent above while there is none. */
+export function PageHead(props: { readonly node: string; readonly own?: boolean; readonly bar?: boolean }) {
   const beside = useBeside(() => props.node)
   // THE ONE LINE INSTEAD OF THE CONVERSATION, and the page session with it:
   // `<Show>` disposes what it is not drawing, so a page whose chat is in the
@@ -152,36 +157,39 @@ export function PageHead(props: { readonly node: string; readonly own?: boolean 
       <ChatBeside item={itemOf(props.node)} />
     </div>
   }>
-    <PageAgentLine node={props.node} own={props.own} />
+    <PageAgentLine node={props.node} own={props.own} bar={props.bar} />
   </Show>
 }
 
-function PageAgentLine(props: { readonly node: string; readonly own?: boolean }) {
+function PageAgentLine(props: { readonly node: string; readonly own?: boolean; readonly bar?: boolean }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
-    <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-      <AgentLine chat={current()} node={props.node} page own={props.own} />
-      <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
-        <Strips chat={chat} />
-      </ConversationUIProvider>}</Show>
-    </div>
+    <Show when={!props.bar}>
+      <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
+        <AgentLine chat={current()} node={props.node} page own={props.own} />
+        <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
+          <Strips chat={chat} />
+        </ConversationUIProvider>}</Show>
+      </div>
+    </Show>
   }</Show>
 }
 
 /** The conversation itself — drawn where the head says it is, and nowhere
  *  else: with a pane on this chat the head carries the whole of what this
- *  page says about it, so there is no second line here to press. */
-export function PageFoot(props: { readonly node: string }) {
+ *  page says about it, so there is no second line here to press. `bar` puts
+ *  the agent line on its composer (`PageHead`'s `bar`). */
+export function PageFoot(props: { readonly node: string; readonly bar?: boolean }) {
   const beside = useBeside(() => props.node)
-  return <Show when={beside() === null}><PageConversation node={props.node} /></Show>
+  return <Show when={beside() === null}><PageConversation node={props.node} bar={props.bar} /></Show>
 }
 
-function PageConversation(props: { readonly node: string }) {
+function PageConversation(props: { readonly node: string; readonly bar?: boolean }) {
   const page = usePage(() => props.node)
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>
       <Show when={owner().chat()} keyed fallback={<PlainComposer node={props.node} page={owner()} />}>{chat =>
-        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} page /></ConversationUIProvider>
+        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} page bar={props.bar} /></ConversationUIProvider>
       }</Show>
     </div>
   }</Show>

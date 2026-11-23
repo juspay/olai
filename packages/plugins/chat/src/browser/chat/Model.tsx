@@ -10,7 +10,9 @@ import { type Offered, visibleModels } from "./model-filter.ts"
 import type { Setting } from "@kolu/acp/wire"
 import type { Chat } from "./state.ts"
 
-export function Model(props: { readonly chat: Chat; readonly name: string }) {
+/** `up` hangs the list ABOVE the line, for a line at the foot of the screen
+ *  (a chat page's status bar, `../agents/AgentLine.tsx`). */
+export function Model(props: { readonly chat: Chat; readonly name: string; readonly up?: boolean }) {
   const state = () => props.chat.state()
   const [pending, setPending] = createSignal(false)
   const picker = createInlinePicker({
@@ -161,7 +163,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
       </button>
       <Show when={picker.open()}>
         <ul ref={picker.setList} aria-label="Models"
-          class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded-surface border border-rule bg-panel p-1 shadow-raised`}>
+          class={`absolute inset-x-3 ${props.up ? "bottom-full mb-1" : "top-full mt-1"} ${LAYER.page} max-h-80 list-none overflow-y-auto rounded-surface border border-rule bg-panel p-1 shadow-raised`}>
           <Show when={state().models.length > 0}>
             <ModelFilter />
           </Show>

@@ -100,19 +100,30 @@ export const TESTID = {
   chatPage: "chat-page",
   /** Its heading: the item's name, live. */
   chatPageTitle: "chat-page-title",
-  /** THE PINNED HEAD, WHOLE — the item's line, where it is, the agent line
-   *  with its tool row, what is still running, the sleep line and a note's
-   *  *Opens* switch, held under the app's chrome over an opaque ground while
-   *  the conversation scrolls beneath it, on a desktop. On a phone (below `md`,
-   *  or a screen too `short`) it is not a box at all (`display: contents`),
-   *  and only the item's line pins. */
-  chatPagePinned: "chat-page-pinned",
-  /** THE ITEM'S LINE — its name, how the chat stands and the way back to the
-   *  item. Pinned at every size, which on a phone with the chat alone is the
-   *  only way back to the note. */
+  /** THE ITEM'S LINE — its name, where it is on a desktop, how the chat
+   *  stands and the way back to the item. The one thing the page pins at its
+   *  top, at every size; on a phone with the chat alone it is the only way
+   *  back to the note. */
   chatPageHead: "chat-page-head",
-  /** The small mono line under it — a note's path, a node's outline. */
+  /** Where the item is — a note's path, a node's outline — in small mono:
+   *  on the item's line on a desktop, on a line of its own under it on a
+   *  phone. */
   chatPageWhere: "chat-page-where",
+  /** THE STATUS BAR — a chat page's agent line, drawn on a desktop between
+   *  the conversation and the box somebody types in, in place of the
+   *  `chatBusy` strip: the agent, its account, model, context use, how it is
+   *  doing, a chip for each standing strip, *Fresh start* and *Close*. */
+  chatStatusBar: "chat-status-bar",
+  /** One chip on the status bar. `data-strip` names the strip it opens —
+   *  `plan`, `tools`, `running` or `standing` — and `aria-expanded` whether
+   *  the panel is showing it. Absent while that strip would draw nothing. */
+  chatBarChip: "chat-bar-chip",
+  /** The one panel the chips open, over the conversation and above the bar.
+   *  `hidden` while it is shut: the strips in it stay mounted. */
+  chatBarPanel: "chat-bar-panel",
+  /** One strip's place in that panel, `data-strip` as on its chip, `hidden`
+   *  unless the panel is showing it. */
+  chatBarStrip: "chat-bar-strip",
   /** How the chat stands, at the right of the head. Read-only here: the page
    *  IS the conversation, so there is nothing for a press to unfold. */
   chatPageStanding: "chat-page-standing",
