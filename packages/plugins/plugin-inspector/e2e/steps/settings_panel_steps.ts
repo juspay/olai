@@ -122,6 +122,36 @@ When("I pick {string} for {string} setting {string}", async function(this: OlaiW
   const line = await control(this, name, key)
   await line.locator(`button${attr("data-value", value)}`).click()
 })
+/** A choice's typed-value segment — found by its id, because it carries no
+ *  `data-value` and so `I pick` cannot name it. Pressing it saves nothing. */
+When("I press custom for {string} setting {string}", async function(this: OlaiWorld, name: string, key: string) {
+  await (await control(this, name, key)).locator(selector(TESTID.pluginOther)).click()
+})
+/** ONE WORD ON THE LIST PRESSED, and nothing else: not the typed-value
+ *  segment, and no field open under the knob. */
+Then("the {string} setting {string} shows {string} pressed", async function(this: OlaiWorld, name: string, key: string, value: string) {
+  const knob = await control(this, name, key)
+  await this.waitUntil(async () =>
+    await knob.locator(`button${attr("data-value", value)}`).getAttribute("aria-pressed") === "true"
+    && await knob.locator('[aria-pressed="true"]').count() === 1
+    && await knob.locator(selector(TESTID.pluginOtherField)).count() === 0,
+  `the ${name}.${key} knob to press ${JSON.stringify(value)} with its field closed`)
+})
+/** THE TYPED-VALUE SEGMENT PRESSED, no word on the list pressed, and the field
+ *  open reading `value` — the saved word when it is not on the list, empty
+ *  when it is. The field has a name of its own, not the group's. */
+Then("the {string} setting {string} shows custom pressed with {string} in its field", async function(this: OlaiWorld, name: string, key: string, value: string) {
+  const knob = await control(this, name, key)
+  const field = knob.locator(selector(TESTID.pluginOtherField))
+  await this.waitUntil(async () =>
+    await knob.locator(selector(TESTID.pluginOther)).getAttribute("aria-pressed") === "true"
+    && await knob.locator('[aria-pressed="true"]').count() === 1
+    && await field.count() === 1 && await field.inputValue() === value,
+  `the ${name}.${key} knob to press custom with ${JSON.stringify(value)} in its field`)
+  const group = await knob.getByRole("group").getAttribute("aria-label")
+  const own = await field.getAttribute("aria-label")
+  assert.ok(own !== null && own !== "" && own !== group, `the field's name ${JSON.stringify(own)} is the group's ${JSON.stringify(group)}`)
+})
 When("I type {string} into {string} setting {string}", async function(this: OlaiWorld, value: string, name: string, key: string) {
   await (await control(this, name, key)).locator("input").fill(value)
 })

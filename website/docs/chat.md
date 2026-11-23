@@ -109,7 +109,7 @@ A conversation opens with its newest sixty messages.[^scroll] A restart reopens 
 
     An agent that reports no number leaves the line blank, which is different from a conversation that has spent nothing and says `0/200k`. You see that before a new conversation's first turn, and when you open a stored conversation, which replays its messages without any report of usage. The next turn fills the number in.
 
-[^compact]: A Claude Code conversation compacts itself by the time it holds 200k tokens, so it does not run out of room. The `auto-compact` and `compact-at` settings of the chat plugin turn that off or change the size ([Claude Code](plugins/claude.md), [chat](plugins/chat.md)).
+[^compact]: olai tells a Claude Code conversation where to compact only when you choose a size in the chat plugin's `compact-at` setting. By default it sends none, and Claude Code's own settings decide. `auto-compact` at `no` stops olai sending a size and removing the variables that would override those settings ([Claude Code](plugins/claude.md), [chat](plugins/chat.md)).
 
 [^send]: The box never locks, and **Send** says the same thing the whole time. While a turn runs, **Cancel** sits beside **Send**, and on an agent that takes interruptions, **Interrupt** sits between them. What you send goes to the conversation on screen when you press. A browser tab that has moved to another row cannot send, interrupt, cancel or retry here, and the refused text, with the files and rows attached to it, goes back to the conversation it came from.
 

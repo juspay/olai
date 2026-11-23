@@ -35,8 +35,17 @@ declare module "effect/Schema" {
 export const preference = <S extends Schema.Top>(self: S): S["Rebuild"] =>
   Schema.annotate({ preference: true })(self)
 
+/**
+ * WHAT KIND OF CONTROL A LEAF IS DRAWN AS, read off its schema.
+ *
+ * A `choice` with `other` is a list of words AND a typed value beside them:
+ * a union of string literals with exactly one string arm. The words are the
+ * list; anything else the string arm accepts is typed, and `expected` is that
+ * arm's own check text, so a person reads what to type before the server
+ * refuses it. The leaf's own decoder still decides every write.
+ */
 export type Control =
-  | { readonly kind: "choice"; readonly options: ReadonlyArray<string> }
+  | { readonly kind: "choice"; readonly options: ReadonlyArray<string>; readonly other?: { readonly expected?: string } }
   | { readonly kind: "switch" }
   | { readonly kind: "number"; readonly integer: boolean; readonly min?: number; readonly max?: number }
   | { readonly kind: "text"; readonly expected?: string }
@@ -47,11 +56,22 @@ const checksOf = (ast: SchemaAST.AST): ReadonlyArray<SchemaAST.Check<unknown>> =
   return (ast.checks ?? []).flatMap(flatten)
 }
 
+const expectedOf = (ast: SchemaAST.AST): string =>
+  checksOf(ast).map(check => check.annotations?.expected).filter((one): one is string => typeof one === "string").join("; ")
+
+const isWord = (ast: SchemaAST.AST): ast is SchemaAST.Literal => ast._tag === "Literal" && typeof ast.literal === "string"
+
 /** Describe the decoded leaf, independent of its string encoding/default. */
 export const policyControl = (ast: SchemaAST.AST): Control => {
   const arms = ast._tag === "Union" ? ast.types : [ast]
-  if (arms.every(one => one._tag === "Literal" && typeof one.literal === "string"))
-    return { kind: "choice", options: arms.map(one => String((one as SchemaAST.Literal).literal)) }
+  if (arms.every(isWord))
+    return { kind: "choice", options: arms.map(one => String(one.literal)) }
+  const words = arms.filter(isWord)
+  const typed = arms.filter(one => !isWord(one))
+  if (words.length > 0 && typed.length === 1 && typed[0]!._tag === "String") {
+    const expected = expectedOf(typed[0]!)
+    return { kind: "choice", options: words.map(one => String(one.literal)), other: expected === "" ? {} : { expected } }
+  }
   if (arms.every(one => one._tag === "Boolean")) return { kind: "switch" }
   if (arms.every(one => one._tag === "Number")) {
     const checks = [...checksOf(ast), ...arms.flatMap(checksOf)]
@@ -67,7 +87,7 @@ export const policyControl = (ast: SchemaAST.AST): Control => {
     }
     return { kind: "number", integer: arms.every(one => checksOf(one).some(check => check.annotations?.representation?.id === "effect/schema/isInt")) || checksOf(ast).some(check => check.annotations?.representation?.id === "effect/schema/isInt"), ...bounds }
   }
-  const expected = checksOf(ast).map(check => check.annotations?.expected).filter((one): one is string => typeof one === "string").join("; ")
+  const expected = expectedOf(ast)
   return { kind: "text", ...(expected === "" ? {} : { expected }) }
 }
 

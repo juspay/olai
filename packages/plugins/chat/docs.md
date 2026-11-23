@@ -181,8 +181,8 @@ Changing a setting other than `on` restarts chat. A chat open under a row closes
 | `sleep-question` | `20m` | How long a tidying turn may sit on a question before olai stops it. |
 | `sleep-limit` | `1h` | How long one tidying turn may run before olai stops it. |
 | `remind-every` | `20` | Every how many messages a node agent is reminded where to write. Zero never reminds. |
-| `auto-compact` | `yes` | Whether Claude Code is told where to compact a conversation. |
-| `compact-at` | `200k` | Where it compacts: `100k`, `200k`, `300k` or `500k` tokens. |
+| `auto-compact` | `yes` | Whether olai acts on `compact-at` for Claude Code. At `no`, olai sends nothing and leaves the host's compaction variables alone, where `model-limit` removes them. |
+| `compact-at` | `model-limit` | Where a conversation compacts. `model-limit` sends no size, so Claude Code's own settings decide. `200k`, or a size you type under **custom** from `100k` to `1000k`, sets one. |
 
 </details>
 

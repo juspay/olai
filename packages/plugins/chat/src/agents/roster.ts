@@ -138,9 +138,9 @@ export interface Installed {
   /** Which channel this engine's standing prompt rides — read by
    *  {@link ../chat.ts} when a node agent's session is taught its contract. */
   readonly prompt: PromptChannel
-  /** How to open this engine so it compacts at a number of tokens, when it can
-   *  be told — read by {@link ../chat.ts} at each bring-up against the chat's
-   *  `compact-at` setting. The registration's own pure function, carried as
+  /** How to tell this engine where to compact, when it can be told — read by
+   *  {@link ../chat.ts} at each bring-up against the chat's `auto-compact` and
+   *  `compact-at` settings. The registration's own static value, carried as
    *  is: absent, the engine is opened with {@link leg} and {@link adapter}. */
   readonly compacting?: Registering["compacting"]
 }

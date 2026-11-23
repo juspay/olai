@@ -1239,7 +1239,7 @@ export default definePlugin({
         remindEvery: settings["remind-every"],
         // ... AND WHERE ITS AGENTS COMPACT, for the same reason: a change to
         // `auto-compact` or `compact-at` re-applies the row, and every agent
-        // brought up after it is opened with the new number.
+        // brought up after it is opened with the new setting.
         compactAt: compactingPolicy(settings),
         nodeAt: (node) => nodeAgents.nodeAt(node),
         seatableAt: (node) => nodeAgents.seatableAt(node),

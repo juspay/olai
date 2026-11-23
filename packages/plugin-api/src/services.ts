@@ -837,9 +837,9 @@ export const Wakes = serviceTag<Wakes>("wakes")
  *
  * {@link Registering} — a name a person reads, the leg that reads this agent's
  * wire, a probe that answers `Adapter | NotHere` for this host, the channel
- * its standing prompt rides, and — for an engine that can be told — how to open
- * it so it compacts at a number of tokens the chat chooses
- * ({@link Registering.compacting}). HOW A PERSON GETS ONE is in that answer now: the
+ * its standing prompt rides, and — for an engine that can be told — how to tell
+ * it where to compact, at a number of tokens the chat chooses or by its own
+ * settings ({@link Registering.compacting}). HOW A PERSON GETS ONE is in that answer now: the
  * `NotHere` arm is the engine's own install sentence, spelled once in its
  * `install.ts` and spent where the reading is published — the roster's row, the
  * picker's greyed entry and the log's `missing` line — where for one revision
@@ -2046,26 +2046,31 @@ export { exposeMapsOf, kindWordOf, NO_TICKET, NOWHERE_TO_WRITE, surfacesOf } fro
  */
 export interface Registering extends ProtocolRegistering {
   /**
-   * HOW TO OPEN THIS ENGINE SO IT COMPACTS ITS OWN CONVERSATION at `tokens` of
-   * context — the leg to open with in place of {@link ProtocolRegistering.leg}, and
-   * the variables its spawn must also not see, added to the adapter's own
-   * `unset`. Absent for an engine olai cannot tell where to compact, which is
-   * then opened as registered.
+   * HOW TO TELL THIS ENGINE WHERE TO COMPACT ITS OWN CONVERSATION — the leg
+   * that opens it at a number of tokens ({@link Compacting.at}), and the
+   * variables that would override what decides ({@link Compacting.unset}).
+   * Absent for an engine olai cannot tell where to compact, which is then
+   * opened as registered.
    *
-   * A PURE FUNCTION OF ITS ARGUMENT, and that is what lets it cross here: it
-   * closes over no activation's services, environment or scope, so a chat
-   * holding the registration holds no live value of the engine's
+   * A STATIC VALUE WITH A PURE FUNCTION IN IT, and that is what lets it cross
+   * here: it closes over no activation's services, environment or scope, so a
+   * chat holding the registration holds no live value of the engine's
    * (`website/docs/architecture/cordis.md`, "Importing a module is not
-   * depending on a plugin"). The number is the CALLER's — a person's setting,
-   * read by whoever opens the session — and the engine says only how to say it.
+   * depending on a plugin"). Whether to send a number, and which, is the
+   * CALLER's — a person's setting, read by whoever opens the session — and the
+   * engine says only how to say it.
    */
-  readonly compacting?: (tokens: number) => Compacting
+  readonly compacting?: Compacting
 }
 
-/** {@link Registering.compacting}'s answer: one bring-up's leg and the
- *  variables that would override it. */
+/** {@link Registering.compacting}: how one engine is told where to compact. */
 export interface Compacting {
-  readonly leg: Leg
+  /** The leg that opens every session so the agent compacts at `tokens`, in
+   *  place of {@link ProtocolRegistering.leg}. */
+  readonly at: (tokens: number) => Leg
+  /** The variables that would override what decides, taken from the spawn —
+   *  added to the adapter's own `unset` — whenever the chat decides, whether
+   *  with a number or by leaving it to the agent's own settings. */
   readonly unset: ReadonlyArray<string>
 }
 
