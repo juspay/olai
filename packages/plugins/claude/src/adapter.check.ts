@@ -57,6 +57,9 @@ const child = spawn(adapter, [], {
 const send = (message: object) => child.stdin.write(`${JSON.stringify(message)}\n`)
 
 const deadline = setTimeout(() => fail("no answer to `session/new` within 120s"), 120_000)
+// A path that does not exist or cannot run is the adapter not starting, said in
+// this check's own words rather than as an unhandled spawn error.
+child.on("error", (error) => fail(`the adapter did not start: ${error.message}`))
 child.on("exit", (code, signal) => fail(`the adapter exited (${code ?? signal}) before answering`))
 
 let buffered = ""
@@ -65,12 +68,21 @@ child.stdout.on("data", (chunk: Buffer) => {
   for (let end = buffered.indexOf("\n"); end !== -1; end = buffered.indexOf("\n")) {
     const line = buffered.slice(0, end)
     buffered = buffered.slice(end + 1)
-    let message: { id?: unknown; error?: unknown; result?: { configOptions?: { id?: unknown; options?: Choice[] }[] } }
+    let message: {
+      id?: unknown
+      method?: unknown
+      error?: unknown
+      result?: { configOptions?: { id?: unknown; options?: Choice[] }[] }
+    }
     try {
       message = JSON.parse(line)
     } catch {
       continue
     }
+    // JSON-RPC ids are per direction: a request or notification FROM the agent
+    // may carry the id of one of ours, and only a message without a `method`
+    // is an answer.
+    if (message.method !== undefined) continue
     if (message.error !== undefined) fail(`request ${String(message.id)} failed: ${JSON.stringify(message.error)}`)
     if (message.id === 1) {
       send({ jsonrpc: "2.0", id: 2, method: "session/new", params: { cwd: home, mcpServers: [] } })
