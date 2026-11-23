@@ -71,10 +71,17 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   }}</Show></ShownProvider>
 }
 
+/** A page's foot, pinned to the bottom of whatever scrolls the page. */
+const FOOT = `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}`
+
 /** `page` is the node page's face: the pane is the scroll, so the transcript is
  * uncapped, the composer pins to the bottom, and the standing strips are drawn
- * in the page's pinned head instead of here. */
-export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly node: string }) {
+ * in the page's pinned head instead of here.
+ *
+ * `bar` is a chat page on a desktop (`./ChatPage.tsx`): the agent line, with
+ * its strips as chips, is pinned on the composer as the page's status bar, in
+ * the Busy strip's place — it says the same *Working…*, beside the controls. */
+export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly bar?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
   let insert: ((text: Insertion) => void) | undefined
   const [carrying, setCarrying] = createSignal<string | null>(null)
@@ -114,10 +121,16 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
       <SignIn chat={props.chat} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} />
-        <div class={props.page ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
-          <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} onInsert={write => { insert = write; return () => { if (insert === write) insert = undefined } }} />
+        <div class={props.page ? FOOT : "contents"}>
+          <Show when={props.bar} fallback={<Busy chat={props.chat} />}><AgentLine chat={props.chat} node={props.node} page own foot /></Show>
+          <Composer chat={props.chat} holding={holding} onInsert={write => { insert = write; return () => { if (insert === write) insert = undefined } }} />
         </div>
-      </DropTarget>}>{unopened => <Unopened chat={props.chat} unopened={unopened()} node={props.node} />}</Show>
+      </DropTarget>}>{unopened => <>
+        <Unopened chat={props.chat} unopened={unopened()} node={props.node} />
+        {/* A CONVERSATION THAT DID NOT OPEN still has its agent line — its
+            *Fresh start* and *Close* are the ways out of a refusal. */}
+        <Show when={props.bar}><div class={FOOT}><AgentLine chat={props.chat} node={props.node} page own foot /></div></Show>
+      </>}</Show>
     </ElapsedProvider>
   </div>
 }

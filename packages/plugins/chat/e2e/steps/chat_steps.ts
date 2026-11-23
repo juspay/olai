@@ -152,6 +152,7 @@ import {
   CHAT_UNOPENED_WHY,
   CHAT_WAITING,
   CHAT_WORKING,
+  CHAT_STATUS_BAR,
   CHAT_TOOL_TEXT,
   CHAT_TOOL_FILE,
   CHAT_TOOL_CALLED,
@@ -977,17 +978,23 @@ Then("the agent is working", async function (this: OlaiWorld) {
   );
 });
 
-/** The strip between the transcript and the box, by what it SAYS. The words
- *  are the assertion rather than the element's presence: "working", "starting"
- *  and "waiting on your answer" are three different things to be told, and a
- *  strip that said the wrong one would pass a test about a strip. */
+/** WHERE THE PANEL SAYS IT IS BUSY: the strip between the transcript and the
+ *  box — or, on a desktop chat page, the status bar standing in that strip's
+ *  place, whose turn word says it beside the agent's name. */
+const BUSY = `${CHAT_BUSY}, ${CHAT_STATUS_BAR} ${CHAT_WORKING}`;
+
+/** The panel's busy line, by what it SAYS. The words are the assertion rather
+ *  than the element's presence: "working", "starting" and "waiting" are three
+ *  different things to be told, and a line that said the wrong one would pass
+ *  a test about a line. Read without case, because the strip puts the word
+ *  after the agent's name and the bar starts with it. */
 Then(
   "the panel says it is busy, with {string}",
   async function (this: OlaiWorld, what: string) {
-    const busy = this.chat(CHAT_BUSY);
+    const busy = this.chat(BUSY);
     await busy.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await this.waitUntil(
-      async () => oneLine(await busy.innerText()).includes(what),
+      async () => oneLine(await busy.innerText()).toLowerCase().includes(what.toLowerCase()),
       `the busy line to say "${what}"`,
     );
   },
@@ -997,7 +1004,7 @@ Then(
  *  left up over a finished turn is the same lie the other way round. */
 Then("the panel does not say it is busy", async function (this: OlaiWorld) {
   await this.waitUntil(
-    async () => (await this.chat(CHAT_BUSY).count()) === 0,
+    async () => (await this.chat(BUSY).count()) === 0,
     "the busy line to go away",
     HYDRATION_TIMEOUT,
   );
@@ -2339,9 +2346,9 @@ Then(
     // transcript pane, so it answers "is my watch still up?" from wherever the
     // reader is — including, in this scenario, from the bottom of a
     // conversation whose arming row is long gone off the top.
-    const task = this.chat(`${CHAT_WATCHING} ${CHAT_WATCHING_TASK}`)
+    const task = await this.uncover(this.chat(`${CHAT_WATCHING} ${CHAT_WATCHING_TASK}`)
       .filter({ hasText: name })
-      .first();
+      .first());
     await task.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // ... naming the ROW it belongs to, so the strip and the record are one
     // task named twice rather than two facts free to disagree.
@@ -3337,7 +3344,7 @@ Then(
     // this claim is about the sentence rather than about the glyph — a step
     // that spelled `’` would be one more place to edit the day somebody
     // reworded the line, and would fail for a reason no reader would guess.
-    const said = oneLine(await this.chat(CHAT_ROSTER_OWN).innerText())
+    const said = oneLine(await (await this.uncover(this.chat(CHAT_ROSTER_OWN))).innerText())
       .replace(/[‘’]/g, "'");
     assert.ok(
       said.includes("the agent's own"),
@@ -3387,7 +3394,7 @@ Then(
   "the reason it gives for {string} is {string}",
   async function (this: OlaiWorld, name: string, reason: string) {
     const row = this.chat(`${CHAT_MISSING_SERVER}${attr("data-server", name)}`);
-    const said = oneLine(await row.locator(CHAT_MISSING_WHY).innerText());
+    const said = oneLine(await (await this.uncover(row.locator(CHAT_MISSING_WHY))).innerText());
     assert.ok(
       said.includes(reason),
       `the panel names a missing server without the reason "${reason}", which is ` +
@@ -3422,7 +3429,7 @@ Then(
  *  is a temporary directory's, and only the running server knows it. */
 Then("it names the configured executable", async function (this: OlaiWorld) {
   const said = oneLine(
-    await this.chat(`${CHAT_MISSING_SERVER}${attr("data-server", "kolu")}`).innerText(),
+    await (await this.uncover(this.chat(`${CHAT_MISSING_SERVER}${attr("data-server", "kolu")}`))).innerText(),
   );
   assert.ok(
     /\/[^\s]*\/kolu\b/.test(said),
@@ -4206,8 +4213,8 @@ When("I open the agent's work from the transcript", async function (this: OlaiWo
 When("I open {string} from the strip", async function (this: OlaiWorld, named: string) {
   // BY NAME, because the strip is the tab bar of a fan-out and the whole point
   // of pressing one entry rather than another is which agent you get.
-  const entry = this.chat(`${CHAT_WATCHING_TASK}[data-kind="agent"]`, { hasText: named })
-    .first();
+  const entry = await this.uncover(this.chat(`${CHAT_WATCHING_TASK}[data-kind="agent"]`, { hasText: named })
+    .first());
   await entry.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await entry.click();
 });
@@ -4576,14 +4583,20 @@ Then("session setting {string} is {string}", async function (this: OlaiWorld, na
 When("I attempt session setting {string} to {string}", async function (this: OlaiWorld, name: string, value: string) {
   await this.chatLine().getByRole("combobox", { name, exact: true }).selectOption(value);
 });
+/** The plan, by its own name — a CSS match rather than `getByLabel`, because
+ *  on a chat page's status bar it may be `hidden` behind its chip, and what
+ *  is asked here is whether the plan SAYS something, not whether it is open. */
+const PLAN = `[aria-label="Execution plan"]`;
 Then("the execution plan contains {string} as {string}", async function (this: OlaiWorld, text: string, status: string) {
-  await this.chatLine().getByLabel("Execution plan", { exact: true }).locator(`li${attr("data-status", status)}`).filter({ hasText: text }).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const step = await this.uncover(this.chatLine().locator(PLAN).locator(`li${attr("data-status", status)}`).filter({ hasText: text }));
+  await step.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 Then("the execution plan omits {string}", async function (this: OlaiWorld, text: string) {
-  await this.chatLine().getByLabel("Execution plan", { exact: true }).getByText(text, { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+  const plan = await this.uncover(this.chatLine().locator(PLAN));
+  await plan.getByText(text, { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
 });
 Then("there is no execution plan", async function (this: OlaiWorld) {
-  await this.chatLine().getByLabel("Execution plan", { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => await this.chatLine().locator(PLAN).count() === 0, "the execution plan to go", HYDRATION_TIMEOUT);
 });
 Then("terminal output contains {string}", async function (this: OlaiWorld, text: string) {
   await this.waitUntil(async () => (await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).some(output => output.includes(text)), "terminal output: " + text, HYDRATION_TIMEOUT);

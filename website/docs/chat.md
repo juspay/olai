@@ -35,28 +35,29 @@ Each agent's own page says what else it supports. What a conversation does with 
 
 ## Sign in
 
-An agent that is not signed in cannot answer you, so olai shows the ways that agent offers. Type `/login` to sign in first.[^methods] There are three kinds:
+An agent that is not signed in cannot answer, so olai shows the ways it offers. Type `/login` to sign in first.[^methods] There are three kinds:
 
 - a command olai runs for you[^command]
 - a sign-in page the agent opens[^card]
 - a command you type in a terminal on the server[^wizard]
 
-Only one sign-in runs at a time for each agent.[^one]
+One sign-in runs at a time per agent.[^one]
 
 ## Read the chat page
 
-The page says what the chat is about.[^where] One line under that says who you are talking to and what it is doing:[^line]
+The top line says what the chat is about.[^where] The agent line says who you are talking to and what it is doing:[^line]
 
 - the account it is signed in as[^account]
-- the model it uses, which you can change[^model]
+- the model, which you can change[^model]
 - how full the model's context is, such as `22k/1M`[^context][^compact]
 - **Working…**, **Waiting on you** or **Ready**
+- chips for the plan, tools, running tasks and sleep[^chips]
 
 ![Session settings](images/acp/acp-session-settings.png)
 
 ## Type while the agent works
 
-Press **Send** at any time.[^send] **Cancel** stops the turn, which is the agent's work on your last message.[^cancel] **Interrupt** (`Alt` + `Enter`) cuts into a turn that is running.[^interrupt] Plans and command output appear as they arrive.[^plan] One word under your message says what became of it.[^status]
+Press **Send** at any time.[^send] **Cancel** stops the turn: the agent's work on your last message.[^cancel] **Interrupt** (`Alt` + `Enter`) cuts into a turn that is running.[^interrupt] Plans and command output appear as they arrive.[^plan] One word under your message says what became of it.[^status]
 
 <details>
 <summary>What the word under your message means</summary>
@@ -95,9 +96,11 @@ A conversation opens with its newest sixty messages.[^scroll] A restart reopens 
 
     You can sign in before a conversation exists: the first start records only which agent you chose, and the conversation is written down once the agent opens one.
 
-[^where]: On a desktop, the top of a chat's page stays in view as you scroll: the row or document's name, how the chat stands, **Open plan beside ›**, the path, the agent line, the tools, running tasks and the sleep line. On a phone, only the first line stays. **Open plan beside ›** puts the row or document beside the conversation ([node agents](node-agents.md)). Open a chat from **Chats**, a document's top line, or a row with an agent.
+[^where]: The top line holds the row or document's name, how the chat stands and **Open plan beside ›**, with the path beside them on a desktop. It stays in view as you scroll, on a desktop and on a phone. **Open plan beside ›** puts the row or document beside the conversation ([node agents](node-agents.md)). Open a chat from **Chats**, a document's top line, or a row with an agent.
 
-[^line]: The agent line carries the agent's icon and name, and one of these states: **Starting…**, **Working…**, **Waiting on you**, **Ready**, **Not running** or **Not set up**. Its buttons sit at the right: **Fresh start** and **Close**. **Close** unties the chat from the row or document, and olai then shows that conversation nowhere ([node agents](node-agents.md)). Under a row, or on a row's page, the first button is **Open beside ›** and **Show in outline ›** sits beside it.
+[^line]: The agent line carries the agent's icon and name, and one of these states: **Starting…**, **Working…**, **Waiting on you**, **Ready**, **Not running** or **Not set up**. Its buttons sit at the right: **Fresh start** and **Close**. **Close** unties the chat from the row or document, and olai then shows that conversation nowhere ([node agents](node-agents.md)).
+
+    On a desktop chat page it stays just above the box you type in; on a phone it scrolls away under the top line. Under a row, or on a row's page, it starts with **Open beside ›** and **Show in outline ›**.
 
 [^account]: The account reads `Claude Max · you@example.com` for a subscription, `Anthropic API key · apiKeyHelper` for an API key or a gateway, and `Not signed in` when the agent looked and found nobody. The organization, the plan and the rest of the detail are in the tip that hovering shows, and pressing the account opens the sign-in chooser. An agent that reports no account shows none, which is not the same as being signed out. Pi, Oh My Pi and OpenCode report no account.
 
@@ -111,19 +114,21 @@ A conversation opens with its newest sixty messages.[^scroll] A restart reopens 
 
 [^compact]: olai tells a Claude Code conversation where to compact only when you choose a size in the chat plugin's `compact-at` setting. By default it sends none, and Claude Code's own settings decide. `auto-compact` at `no` stops olai sending a size and removing the variables that would override those settings ([Claude Code](plugins/claude.md), [chat](plugins/chat.md)).
 
+[^chips]: Each chip is there only while it has something to show: **Plan 2/5**, **✓ 4 tools** (a **×** when one did not connect), **2 running** and **Sleep · On**, which reads **Alert** for a chat that does not sleep. Clicking a chip opens that list over the conversation, with its own buttons, such as **Tidy memory** and the switches. Click it again or press `Escape` to close it. On a phone the lists sit under the agent line instead.
+
 [^send]: The box never locks, and **Send** says the same thing the whole time. While a turn runs, **Cancel** sits beside **Send**, and on an agent that takes interruptions, **Interrupt** sits between them. What you send goes to the conversation on screen when you press. A browser tab that has moved to another row cannot send, interrupt, cancel or retry here, and the refused text, with the files and rows attached to it, goes back to the conversation it came from.
 
 [^cancel]: Pressing **Cancel** stops the turn and nothing else. Messages waiting behind it are already at the agent, so they survive and are answered next.
 
 [^interrupt]: An interruption reaches the turn that is running, so whatever the agent was in the middle of is thrown away to make room for your message. Once a conversation has queued a message, it stops offering the control for the rest of its life, and `Alt` + `Enter` then sends an ordinary message. A new conversation offers the control again.
 
-[^plan]: An agent that sends a plan draws **Execution plan** under the agent line, listing the steps it has not started, the one it is on and the ones it has finished. Each update from the agent replaces the whole plan, an empty plan removes it, and starting another conversation clears it.
+[^plan]: An agent that sends a plan draws **Execution plan**, listing the steps it has not started, the one it is on and the ones it has finished. Each update from the agent replaces the whole plan, an empty plan removes it, and starting another conversation clears it.
 
     A tool call that runs a command shows the command's output as it arrives, then its exit code or the signal that killed it. The output stays readable after the agent closes the terminal. The closed block at the foot of this page has pictures of both.
 
-[^status]: A line under the transcript says what is happening (*working…*, *starting…*, or that the turn has stopped on a question), and it goes as soon as nothing is happening. *Queued* means the agent is holding your message until the turns in front of it end; the word goes by itself.
+[^status]: A line under the transcript says what is happening (*working…*, *starting…* or waiting on your answer) and goes when nothing is. On a desktop chat page, the agent line says it there. *Queued* means the agent is holding your message until the turns in front of it end; the word goes by itself.
 
-    *Not sent* means the message or interruption was refused, or the agent was not running, or you cancelled while it was on its way. **Send again** sends it for the first time, as an ordinary message. After *no answer* olai offers no button, because sending again could deliver a second copy.
+    *Not sent* means the message or interruption was refused, or the agent was not running, or you cancelled while it was on its way. **Send again** sends it as an ordinary message. After *no answer* olai offers no button, because sending again could deliver a second copy.
 
 [^scroll]: A conversation opens at its newest message, and **Earlier messages** sits above the transcript only when there are older ones. Pressing it fetches the messages before what is on screen, so you walk back through the conversation a page at a time, and the button goes once you reach the first message.
 

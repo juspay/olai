@@ -39,7 +39,9 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^engine]: `OLAI_AGENT_PATH` lists the directories that hold those programs; unset, olai searches `PATH`. Switching one engine plugin off, or emptying the path to its own program, makes only that engine unavailable. The other engines that are switched on are still found, and conversations carry on.
 
-[^page]: A chat's page is headed by one line that stays in view: the name of the row or document it is about, how the chat stands, and **Open <name> beside ›**. The path and the agent line scroll with the conversation, whose box is pinned at the foot. There are no breadcrumbs. With no chat yet, a box reading **Ask about <name>…** stands in its place.
+[^page]: A chat's page is headed by one line that stays in view: the name of the row or document it is about, how the chat stands, and **Open <name> beside ›**, with the path on a desktop. There are no breadcrumbs. With no chat yet, a box reading **Ask about <name>…** stands in its place.
+
+    The box you type in is pinned at the foot. On a desktop the agent line is pinned on it, with a chip for the plan, the tools, the tasks still running and sleep. On a phone the agent line scrolls with the conversation.
 
 [^drawnonce]: The **Open beside ›** button opens the conversation in a new pane to the right, taking no pane already open. Where a pane already holds that conversation, every other place draws one line reading **Shown beside**, which takes you to that pane. A link clicked inside a chat pane opens in the pane beside it.
 
@@ -84,7 +86,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | --- | --- |
 | inside a row | The conversation, the line naming the agent, and the box you type in. |
 | a node's page | The agent line under the title, and the conversation and the box after the rows. |
-| the chat's own page | The whole conversation, headed by the name of the row or document it is about. |
+| the chat's own page | The whole conversation, headed by the name of the row or document it is about, with the agent line on its box on a desktop. |
 | the line at the top of a document | How that document's chat stands, **Chat about this page** and **Open beside ›**, or the box that starts a chat. |
 | beside a row | What the row's agent is doing, or a button to start an agent while one is available. |
 | a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the chat** and the sleep entries on a row that has one. |

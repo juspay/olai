@@ -18,6 +18,7 @@ import {
   CHAT_PANEL,
   CHAT_SAID,
   HYDRATION_TIMEOUT,
+  oneLine,
   PANE_TABS,
   POLL_TIMEOUT,
   ZOOM_TITLE,
@@ -37,17 +38,19 @@ import {
   CHAT_OPENS_SWITCH,
   CHAT_PAGE,
   CHAT_PAGE_GONE,
+  CHAT_BAR_CHIP,
+  CHAT_BAR_PANEL,
   CHAT_PAGE_HEAD,
-  CHAT_PAGE_PINNED,
   CHAT_PAGE_STANDING,
   CHAT_PAGE_TITLE,
   CHAT_PAGE_UNTIED,
   CHAT_PAGE_WHERE,
   CHAT_RETIE,
-  CHAT_ROSTER,
   CHAT_SEND,
+  CHAT_STATUS_BAR,
   CHAT_TRANSCRIPT,
   CHAT_WATCHING,
+  CHAT_WATCHING_TASK,
 } from "../selectors.ts";
 import { matterOf } from "./chat_about_steps.ts";
 
@@ -111,15 +114,17 @@ Then("the chat page stands {string}", async function (this: OlaiWorld, standing:
  *  page — and a NOTE'S chat has none at all, with no *Tidy memory* beside it:
  *  the note IS the memory of its chat. */
 Then("the chat page offers to put the chat to sleep", async function (this: OlaiWorld) {
-  await page(this).locator(selector(TESTID.chatSleeping)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const sleep = await this.uncover(page(this).locator(selector(TESTID.chatSleeping)));
+  await sleep.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("the chat page never offers sleep or tidying", async function (this: OlaiWorld) {
   const here = page(this);
   await here.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  // The agent line is on screen, so a conversation HAS been drawn — an absence
-  // read before that would pass on every page.
-  await here.locator(selector(TESTID.agentPageHead)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  // The agent line is on screen — in the head on a phone, on the composer on
+  // a desktop — so a conversation HAS been drawn: an absence read before that
+  // would pass on every page.
+  await here.locator(CHAT_AGENT).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await here.locator(selector(TESTID.chatSleeping)).count(), 0, "a note's chat page offered sleep");
   assert.equal(await here.locator(selector(TESTID.chatTidyMemory)).count(), 0, "a note's chat page offered tidying");
   assert.ok(!(await here.innerText()).includes("Memory"), "a note's chat page says Memory");
@@ -241,7 +246,7 @@ Then("the chat page says it opens {string}", async function (this: OlaiWorld, wo
 
 Then("the chat page has no opens switch", async function (this: OlaiWorld) {
   const here = page(this);
-  await here.locator(selector(TESTID.agentPageHead)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await here.locator(CHAT_AGENT).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await here.locator(CHAT_OPENS).count(), 0, "a node's chat page drew an opens switch");
 });
 
@@ -387,84 +392,159 @@ const opaque = (colour: string): boolean => {
 };
 
 /**
- * THE WHOLE HEAD, AFTER A SCROLL — the item's line, the agent line with
- * *Fresh start* and *Close*, the tool row, what is still running and the
- * sleep line, all still at the top of whatever scrolls the page, with the
- * conversation under them rather than through them.
+ * AFTER A SCROLL, A DESKTOP CHAT PAGE PINS TWO THINGS: the item's line at the
+ * top of whatever scrolls the page, and the agent line as a status bar on the
+ * box somebody types in — the agent, *Fresh start*, *Close* and a chip for
+ * the tools, what is still running and the sleep line — with the conversation
+ * scrolling between them, and nothing else of the head over it.
  *
  * WHATEVER SCROLLS: the document on a lone desktop page, the column in a
- * desktop split. Where the head belongs is read off its own `top` against
- * that scroller rather than off the chrome above it, so one step says the
- * same thing about both. A phone pins the item's line alone, which the step
- * after `the chat page's head stays in view` holds.
+ * desktop split. Where the item's line belongs is read off its own `top`
+ * against that scroller rather than off the chrome above it, so one step says
+ * the same thing about both. A phone pins the item's line alone, which the
+ * step after `the chat page's head stays in view` holds.
  *
- * ON TOP, NOT ONLY IN PLACE: the middle of every row is hit-tested, so a row
- * the chrome or the conversation paints over fails here. OPAQUE: the ground
- * is read off the head itself, because the agent line's own is a tint and a
- * hit test cannot see through paint. And the box somebody types in is below
- * the head and on screen, which is what a pinned head must never take.
+ * ON TOP, NOT ONLY IN PLACE: the middle of every control on the bar is
+ * hit-tested, so one the conversation paints over fails here. OPAQUE: the
+ * ground is read off the foot the bar is pinned in, because the bar's own is
+ * a tint and a hit test cannot see through paint.
  */
-Then("the chat page's whole head stays at the top over the conversation", async function (this: OlaiWorld) {
-  const pinned = page(this).locator(CHAT_PAGE_PINNED);
-  await pinned.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const rows = {
-    "the item's line": CHAT_PAGE_HEAD,
+Then("the chat page keeps only its name line at the top and its status bar on the box", async function (this: OlaiWorld) {
+  const head = page(this).locator(CHAT_PAGE_HEAD);
+  await head.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await page(this).locator(CHAT_STATUS_BAR).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const controls = {
     "the agent": CHAT_AGENT,
     "Fresh start": selector(TESTID.chatFreshSession),
     "Close": selector(TESTID.chatCloseAgent),
-    "the tool row": CHAT_ROSTER,
-    "what is still running": CHAT_WATCHING,
-    "the sleep line": selector(TESTID.chatStanding),
+    "the tools chip": `${CHAT_BAR_CHIP}${attr("data-strip", "tools")}`,
+    "the running chip": `${CHAT_BAR_CHIP}${attr("data-strip", "running")}`,
+    "the sleep chip": `${CHAT_BAR_CHIP}${attr("data-strip", "standing")}`,
   };
-  const seen = await pinned.evaluate((head, ids) => {
+  const seen = await head.evaluate((line, ids) => {
     // THE DOCUMENT IS THE WINDOW, whatever its own `overflow` says: its box
-    // moves with the scroll, so it cannot be what a pinned head is held to.
-    let host: HTMLElement | null = head.parentElement;
+    // moves with the scroll, so it cannot be what a pinned line is held to.
+    let host: HTMLElement | null = line.parentElement;
     while (host !== null && host !== document.body
       && !(/auto|scroll/.test(getComputedStyle(host).overflowY) && host.scrollHeight > host.clientHeight + 1)) {
       host = host.parentElement;
     }
     if (host === document.body) host = null;
     const frame = host === null ? { top: 0, bottom: window.innerHeight } : host.getBoundingClientRect();
-    const box = head.getBoundingClientRect();
+    const main = line.parentElement!;
+    const bar = main.querySelector(ids.bar)!;
     const missing: string[] = [];
     const covered: string[] = [];
-    for (const [name, id] of Object.entries(ids.rows)) {
-      const row = head.querySelector(id);
-      if (row === null) {
+    for (const [name, id] of Object.entries(ids.controls)) {
+      const control = bar.querySelector(id);
+      if (control === null) {
         missing.push(name);
         continue;
       }
-      const at = row.getBoundingClientRect();
+      const at = control.getBoundingClientRect();
       const hit = document.elementFromPoint(at.x + at.width / 2, at.y + at.height / 2);
-      if (hit === null || !head.contains(hit)) {
+      if (hit === null || !bar.contains(hit)) {
         covered.push(`${name} under ${hit?.closest("[data-testid]")?.getAttribute("data-testid") ?? hit?.tagName ?? "nothing"}`);
       }
     }
-    const main = head.parentElement!;
-    const typed = main.querySelector(ids.typed)?.getBoundingClientRect();
+    const box = (element: Element | null) => {
+      const rect = element?.getBoundingClientRect();
+      return rect === undefined ? null : { top: rect.top, bottom: rect.bottom };
+    };
     return {
       scrolled: host === null ? window.scrollY : host.scrollTop,
-      belongs: frame.top + parseFloat(getComputedStyle(head).top),
-      head: { top: box.top, bottom: box.bottom },
+      belongs: frame.top + parseFloat(getComputedStyle(line).top),
+      line: box(line)!,
       frame: { top: frame.top, bottom: frame.bottom },
-      ground: getComputedStyle(head).backgroundColor,
-      transcript: main.querySelector(ids.transcript)?.getBoundingClientRect().top ?? null,
-      typed: typed === undefined ? null : { top: typed.top, bottom: typed.bottom },
+      bar: box(bar)!,
+      ground: getComputedStyle(bar.parentElement!).backgroundColor,
+      transcript: box(main.querySelector(ids.transcript))?.top ?? null,
+      typed: box(main.querySelector(ids.typed)),
       missing,
       covered,
     };
-  }, { rows, transcript: CHAT_TRANSCRIPT, typed: selector(TESTID.chatInput) });
+  }, { controls, bar: CHAT_STATUS_BAR, transcript: CHAT_TRANSCRIPT, typed: selector(TESTID.chatInput) });
   const said = JSON.stringify(seen);
   assert.ok(seen.scrolled > 0, `nothing is scrolled, so nothing here is about staying in view: ${said}`);
-  assert.ok(Math.abs(seen.head.top - seen.belongs) <= 1, `the chat page's head scrolled away: ${said}`);
-  assert.deepEqual(seen.missing, [], `the pinned head is missing a row: ${said}`);
-  assert.deepEqual(seen.covered, [], `a row of the pinned head is painted over: ${said}`);
-  assert.ok(opaque(seen.ground), `the conversation shows through the head's ground: ${said}`);
-  assert.ok(seen.transcript !== null && seen.transcript < seen.head.bottom,
-    `the conversation has not scrolled under the head: ${said}`);
-  assert.ok(seen.typed !== null && seen.typed.top >= seen.head.bottom - 1 && seen.typed.bottom <= seen.frame.bottom + 1,
-    `the pinned head covers the box somebody types in: ${said}`);
+  assert.ok(Math.abs(seen.line.top - seen.belongs) <= 1, `the chat page's name line scrolled away: ${said}`);
+  assert.deepEqual(seen.missing, [], `the status bar is missing a control: ${said}`);
+  assert.deepEqual(seen.covered, [], `a control on the status bar is painted over: ${said}`);
+  assert.ok(opaque(seen.ground), `the conversation shows through the status bar's ground: ${said}`);
+  assert.ok(seen.transcript !== null && seen.transcript < seen.line.bottom,
+    `the conversation has not scrolled under the name line: ${said}`);
+  assert.ok(seen.bar.top >= seen.line.bottom,
+    `the agent line is still pinned at the top: ${said}`);
+  assert.ok(seen.typed !== null && seen.bar.bottom <= seen.typed.top + 1 && seen.typed.bottom <= seen.frame.bottom + 1,
+    `the status bar is not on the box somebody types in: ${said}`);
+});
+
+/** A CHIP OPENS ITS STRIP ABOVE THE BAR, over the conversation and on top of
+ *  it: what is still running, pressed into view the way a person would. */
+Then("what is still running opens above the status bar", async function (this: OlaiWorld) {
+  const strip = await this.uncover(page(this).locator(CHAT_WATCHING));
+  await strip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const panel = await page(this).locator(CHAT_BAR_PANEL).boundingBox();
+  const bar = await page(this).locator(CHAT_STATUS_BAR).boundingBox();
+  const said = JSON.stringify({ panel, bar });
+  assert.ok(panel && bar && panel.y + panel.height <= bar.y + 1, `what is still running did not open above the status bar: ${said}`);
+  const task = page(this).locator(`${CHAT_WATCHING} ${CHAT_WATCHING_TASK}`).first();
+  const onTop = await task.evaluate((element) => {
+    const at = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(at.x + at.width / 2, at.y + at.height / 2);
+    return hit !== null && element.contains(hit);
+  });
+  assert.ok(onTop, `what is still running is painted over: ${said}`);
+});
+
+/** A CHIP IS THERE WHILE ITS STRIP HAS SOMETHING TO SAY, and no longer. */
+Then("the status bar offers no {string} chip", async function (this: OlaiWorld, strip: string) {
+  const bar = page(this).locator(CHAT_STATUS_BAR);
+  await bar.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => (await bar.locator(`${CHAT_BAR_CHIP}${attr("data-strip", strip)}`).count()) === 0,
+    `the status bar to drop its ${strip} chip`, HYDRATION_TIMEOUT);
+});
+
+/** One chip on the status bar, by the strip it stands for. */
+const chipOf = (world: OlaiWorld, strip: string): Locator =>
+  page(world).locator(`${CHAT_STATUS_BAR} ${CHAT_BAR_CHIP}${attr("data-strip", strip)}`);
+
+When("I press the {string} chip on the status bar", async function (this: OlaiWorld, strip: string) {
+  await this.press(chipOf(this, strip));
+});
+
+/** WHAT A CHIP SAYS, which is the strip in a few words: a person reads the
+ *  bar without opening anything. */
+Then("the status bar's {string} chip reads {string}", async function (this: OlaiWorld, strip: string, words: string) {
+  const chip = chipOf(this, strip);
+  await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => oneLine(await chip.innerText()) === words,
+    `the ${strip} chip to read ${JSON.stringify(words)}`, HYDRATION_TIMEOUT);
+});
+
+/** ONE STRIP AT A TIME: the panel shows the strip of the chip pressed last,
+ *  that chip says it is open, and every other strip in the panel is hidden. */
+Then("the status bar shows the {string} strip alone", async function (this: OlaiWorld, strip: string) {
+  const panel = page(this).locator(CHAT_BAR_PANEL);
+  await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const shown = await panel.evaluate((box, ids) => [...box.querySelectorAll(ids.strip)]
+    .filter((one) => !one.hasAttribute("hidden"))
+    .map((one) => one.getAttribute("data-strip")), { strip: selector(TESTID.chatBarStrip) });
+  assert.deepEqual(shown, [strip], `the panel shows ${JSON.stringify(shown)} rather than ${strip}`);
+  assert.equal(await chipOf(this, strip).getAttribute("aria-expanded"), "true", `the ${strip} chip does not say it is open`);
+});
+
+Then("the status bar shows no strip", async function (this: OlaiWorld) {
+  await page(this).locator(CHAT_BAR_PANEL).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await page(this).locator(`${CHAT_BAR_CHIP}[aria-expanded="true"]`).count(), 0, "a chip still says its strip is open");
+});
+
+/** ...AND A PHONE DRAWS NO BAR AT ALL: its foot is the box and its keyboard.
+ *  Read once the agent line has been drawn in the head, so the absence is an
+ *  answer rather than a page that has not drawn yet. */
+Then("the chat page draws no status bar", async function (this: OlaiWorld) {
+  const here = page(this);
+  await here.locator(selector(TESTID.agentPageHead)).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await here.locator(CHAT_STATUS_BAR).count(), 0, "a phone's chat page pinned a status bar on its box");
 });
 
 // ── how much of the screen the conversation gets ───────────────────────
@@ -479,8 +559,7 @@ Then("the chat page's whole head stays at the top over the conversation", async 
  * What a scenario asserts is therefore not "the head is small" but what is
  * LEFT: the band from the lowest thing pinned at the top (the bar, the strip
  * of tabs where there is one, and the page's own pinned line) down to the TOP
- * OF THE TEXT BOX. The whole head's box is counted too, which a phone does not
- * draw (`display: contents`), so a head pinned whole there again fails here.
+ * OF THE TEXT BOX.
  *
  * THE TOP OF THE BOX, and not the *Send* button on the row under it: what a
  * person READS is the conversation, and a measure that stopped at the send
@@ -507,7 +586,6 @@ Then("the conversation gets at least {int}% of the screen", async function (this
     await bottomOf(this.page.locator(APP_HEADER)),
     await bottomOf(this.frontLane().locator(PANE_TABS)),
     await bottomOf(here.locator(CHAT_PAGE_HEAD)),
-    await bottomOf(here.locator(CHAT_PAGE_PINNED)),
   ].filter((edge): edge is number => edge !== null));
   const typed = await box.boundingBox();
   assert.ok(typed !== null, "the chat page draws no box to measure against");

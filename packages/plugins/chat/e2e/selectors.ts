@@ -257,15 +257,18 @@ export const CHAT_FILE_MARK = selector(TESTID.chatFileMark);
 /** THE PAGE. `data-item` is the item key the address names, `data-kind` which
  *  of the two kinds of item it is. */
 export const CHAT_PAGE = selector(TESTID.chatPage);
-/** Its heading, and the small mono line under it saying where the item is. */
+/** Its heading, and the small mono line saying where the item is — on the
+ *  item's line on a desktop, under it on a phone. */
 export const CHAT_PAGE_TITLE = selector(TESTID.chatPageTitle);
 export const CHAT_PAGE_WHERE = selector(TESTID.chatPageWhere);
-/** The item's line — the one band pinned at every size, because on a phone
- *  with the chat alone it is the only way back to the note. */
+/** The item's line — the one band pinned at the top, at every size, because
+ *  on a phone with the chat alone it is the only way back to the note. */
 export const CHAT_PAGE_HEAD = selector(TESTID.chatPageHead);
-/** ...and the whole head it heads, pinned over the conversation on a desktop
- *  and in a desktop column; a phone draws no box for it. */
-export const CHAT_PAGE_PINNED = selector(TESTID.chatPagePinned);
+/** THE STATUS BAR a desktop chat page pins on its composer: the agent line,
+ *  with a chip for each standing strip and the one panel the chips open. */
+export const CHAT_STATUS_BAR = selector(TESTID.chatStatusBar);
+export const CHAT_BAR_CHIP = selector(TESTID.chatBarChip);
+export const CHAT_BAR_PANEL = selector(TESTID.chatBarPanel);
 /** How the chat stands, at the right of that line — read-only here. */
 export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);
 /** *Open <name> beside ›*, and what it reads once a pane has the item. */

@@ -33,7 +33,7 @@ When("the Gmail history cursor expires", function(this: OlaiWorld) { this.mailHi
 const switchWake = async (world: OlaiWorld, on: boolean) => {
   const button = world.chat('[data-testid="mail-wake-switch"]')
   await world.waitUntil(async () => await button.count() === 1, "mail wake switch")
-  if ((await button.getAttribute("aria-checked") === "true") !== on) await button.click()
+  if ((await button.getAttribute("aria-checked") === "true") !== on) await (await world.uncover(button)).click()
   await world.waitUntil(async () => (await button.getAttribute("aria-checked") === "true") === on, `mail wake ${on ? "on" : "off"}`)
 }
 When("I switch the mail wake on for this conversation", async function(this: OlaiWorld) { await switchWake(this, true) })

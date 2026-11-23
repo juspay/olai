@@ -286,7 +286,7 @@ Then("the chat's browser chip links to the browser pane", async function (this: 
 })
 
 When("I press the chat's browser chip", async function (this: OlaiWorld) {
-  await this.press(this.chatLine().getByTestId(CHAT.chatServer).and(this.page.locator(attr("data-server", "browser"))).locator("a"))
+  await this.press(await this.uncover(this.chatLine().getByTestId(CHAT.chatServer).and(this.page.locator(attr("data-server", "browser"))).locator("a")))
 })
 
 When("I ask the agent to open the site's {string} page with its browser tools", async function (this: OlaiWorld, page: string) {

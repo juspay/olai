@@ -9,10 +9,15 @@ import { TESTID } from "../../testids.ts"
 import { type Offered, visibleModels } from "./model-filter.ts"
 import type { Setting } from "@kolu/acp/wire"
 import type { Chat } from "./state.ts"
+import { type Hang, hangFrom } from "./hang.ts"
 
-export function Model(props: { readonly chat: Chat; readonly name: string }) {
+/** `foot` is a line at the foot of the screen (a chat page's status bar,
+ *  `../agents/AgentLine.tsx`): the list opens to whichever side has the room,
+ *  cut to it (`./hang.ts`). */
+export function Model(props: { readonly chat: Chat; readonly name: string; readonly foot?: boolean }) {
   const state = () => props.chat.state()
   const [pending, setPending] = createSignal(false)
+  const [hang, setHang] = createSignal<Hang>()
   const picker = createInlinePicker({
     opening: () => ({ agent: agentIn(state())?.id, session: state().session?.id }),
   })
@@ -155,13 +160,17 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
       fallback={<span data-testid={TESTID.chatModel}>{props.name}</span>}>
       <button type="button" ref={picker.setTrigger} disabled={disabled()}
         class="truncate text-left hover:text-accent disabled:cursor-default"
-        aria-label="Change model" aria-expanded={picker.open()} onClick={picker.toggle}>
+        aria-label="Change model" aria-expanded={picker.open()} onClick={(event) => {
+          if (props.foot && !picker.open()) setHang(hangFrom(event.currentTarget.offsetParent ?? event.currentTarget))
+          picker.toggle()
+        }}>
         <span data-testid={TESTID.chatModel}>{props.name}</span>
         <span aria-hidden="true"> ▾</span>
       </button>
       <Show when={picker.open()}>
         <ul ref={picker.setList} aria-label="Models"
-          class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded-surface border border-rule bg-panel p-1 shadow-raised`}>
+          class={`absolute inset-x-3 ${hang()?.up === true ? "bottom-full mb-1" : "top-full mt-1"} ${LAYER.page} max-h-80 list-none overflow-y-auto rounded-surface border border-rule bg-panel p-1 shadow-raised`}
+          style={hang() === undefined ? undefined : { "max-height": `min(20rem, ${hang()?.room}px)` }}>
           <Show when={state().models.length > 0}>
             <ModelFilter />
           </Show>

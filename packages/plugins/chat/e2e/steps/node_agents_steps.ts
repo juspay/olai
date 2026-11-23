@@ -548,7 +548,9 @@ Then(
     assert.ok(this.activeAgent);
     const id = this.nodeId(this.activeAgent);
     const line = this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", id)}`);
-    const pageHead = this.page.locator(`${selector(PLUGIN_TESTID.agentPageHead)}${attr("data-agent", id)}`);
+    // THE PAGE'S AGENT LINE: in its head on a node's page and a phone's chat
+    // page, the status bar on the composer of a desktop chat page.
+    const agentLine = this.page.locator(`${selector(PLUGIN_TESTID.agentPageHead)}${attr("data-agent", id)}, ${selector(PLUGIN_TESTID.agentPageFoot)}${attr("data-agent", id)} ${selector(PLUGIN_TESTID.chatStatusBar)}`).first();
     // The conversation's two page faces name their subject in one line each:
     // the node's own page heads with the node's title, and the chat's own page
     // heads with the name of the item the chat belongs to.
@@ -556,7 +558,7 @@ Then(
     await this.waitUntil(
       async () => (await line.count()) > 0
         ? (await line.getAttribute("aria-label")) === title
-        : await pageHead.isVisible() && oneLine(await titled.innerText()) === title,
+        : await agentLine.isVisible() && oneLine(await titled.innerText()) === title,
       `the panel header to name the node agent ${JSON.stringify(title)}`,
     );
   },
