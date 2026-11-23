@@ -54,9 +54,9 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     {/* THIS CONVERSATION, BESIDE WHAT IT IS ABOUT — offered on every line
         drawn where the item itself is (a fold, a node's page, the line at the
         top of a note), and never on the chat's own page, whose head carries
-        the opposite verb (`./ChatPage.tsx`'s pinned line, which is where the
-        way back has to be: this line scrolls away with the conversation).
-        `own` is how that page says the line is its own.
+        the opposite verb (`./ChatPage.tsx`'s item line, which is where the
+        way back has to be: it is the one line that stays pinned on every
+        screen). `own` is how that page says the line is its own.
 
         DRAWN ONLY WHERE THERE CAN BE A PANE BESIDE THIS ONE. Below `md` the
         panes are a strip of tabs, one at a time, so "beside" names nothing a

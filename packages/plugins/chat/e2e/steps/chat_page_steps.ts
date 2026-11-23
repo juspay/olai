@@ -30,6 +30,7 @@ import {
   ASK_INPUT,
   ASK_SEND,
   CHAT_ABOUT,
+  CHAT_AGENT,
   CHAT_FILE_MARK,
   CHAT_OPEN_BESIDE,
   CHAT_OPENS,
@@ -37,13 +38,16 @@ import {
   CHAT_PAGE,
   CHAT_PAGE_GONE,
   CHAT_PAGE_HEAD,
+  CHAT_PAGE_PINNED,
   CHAT_PAGE_STANDING,
   CHAT_PAGE_TITLE,
   CHAT_PAGE_UNTIED,
   CHAT_PAGE_WHERE,
   CHAT_RETIE,
+  CHAT_ROSTER,
   CHAT_SEND,
   CHAT_TRANSCRIPT,
+  CHAT_WATCHING,
 } from "../selectors.ts";
 import { matterOf } from "./chat_about_steps.ts";
 
@@ -357,19 +361,109 @@ Then("the chat page's head stays in view", async function (this: OlaiWorld) {
     `the chat page's head scrolled away: ${JSON.stringify({ above, box, scrolled })}`);
 });
 
+/** Whether a computed colour lets nothing through: not `transparent`, and no
+ *  alpha under 1 in either form a browser writes one (`rgba(…, a)`, or
+ *  `oklch(… / a)` and the other functions with a slash). */
+const opaque = (colour: string): boolean => {
+  if (colour === "transparent") return false;
+  const slash = /\/\s*([\d.]+)(%?)\s*\)$/.exec(colour);
+  if (slash !== null) return Number(slash[1]) >= (slash[2] === "%" ? 100 : 1);
+  const rgba = /^rgba\(.*,\s*([\d.]+)\s*\)$/.exec(colour);
+  return rgba === null || Number(rgba[1]) >= 1;
+};
+
+/**
+ * THE WHOLE HEAD, AFTER A SCROLL — the item's line, the agent line with
+ * *Fresh start* and *Close*, the tool row, what is still running and the
+ * sleep line, all still at the top of whatever scrolls the page, with the
+ * conversation under them rather than through them.
+ *
+ * WHATEVER SCROLLS: the document on a phone and on a lone desktop page, the
+ * column in a desktop split. Where the head belongs is read off its own
+ * `top` against that scroller rather than off the chrome above it, so one
+ * step says the same thing about all three.
+ *
+ * ON TOP, NOT ONLY IN PLACE: the middle of every row is hit-tested, so a row
+ * the chrome or the conversation paints over fails here. OPAQUE: the ground
+ * is read off the head itself, because the agent line's own is a tint and a
+ * hit test cannot see through paint. And the box somebody types in is below
+ * the head and on screen, which is what a pinned head must never take.
+ */
+Then("the chat page's whole head stays at the top over the conversation", async function (this: OlaiWorld) {
+  const pinned = page(this).locator(CHAT_PAGE_PINNED);
+  await pinned.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const rows = {
+    "the item's line": CHAT_PAGE_HEAD,
+    "the agent": CHAT_AGENT,
+    "Fresh start": selector(TESTID.chatFreshSession),
+    "Close": selector(TESTID.chatCloseAgent),
+    "the tool row": CHAT_ROSTER,
+    "what is still running": CHAT_WATCHING,
+    "the sleep line": selector(TESTID.chatStanding),
+  };
+  const seen = await pinned.evaluate((head, ids) => {
+    // THE DOCUMENT IS THE WINDOW, whatever its own `overflow` says: its box
+    // moves with the scroll, so it cannot be what a pinned head is held to.
+    let host: HTMLElement | null = head.parentElement;
+    while (host !== null && host !== document.body
+      && !(/auto|scroll/.test(getComputedStyle(host).overflowY) && host.scrollHeight > host.clientHeight + 1)) {
+      host = host.parentElement;
+    }
+    if (host === document.body) host = null;
+    const frame = host === null ? { top: 0, bottom: window.innerHeight } : host.getBoundingClientRect();
+    const box = head.getBoundingClientRect();
+    const missing: string[] = [];
+    const covered: string[] = [];
+    for (const [name, id] of Object.entries(ids.rows)) {
+      const row = head.querySelector(id);
+      if (row === null) {
+        missing.push(name);
+        continue;
+      }
+      const at = row.getBoundingClientRect();
+      const hit = document.elementFromPoint(at.x + at.width / 2, at.y + at.height / 2);
+      if (hit === null || !head.contains(hit)) {
+        covered.push(`${name} under ${hit?.closest("[data-testid]")?.getAttribute("data-testid") ?? hit?.tagName ?? "nothing"}`);
+      }
+    }
+    const main = head.parentElement!;
+    const typed = main.querySelector(ids.typed)?.getBoundingClientRect();
+    return {
+      scrolled: host === null ? window.scrollY : host.scrollTop,
+      belongs: frame.top + parseFloat(getComputedStyle(head).top),
+      head: { top: box.top, bottom: box.bottom },
+      frame: { top: frame.top, bottom: frame.bottom },
+      ground: getComputedStyle(head).backgroundColor,
+      transcript: main.querySelector(ids.transcript)?.getBoundingClientRect().top ?? null,
+      typed: typed === undefined ? null : { top: typed.top, bottom: typed.bottom },
+      missing,
+      covered,
+    };
+  }, { rows, transcript: CHAT_TRANSCRIPT, typed: selector(TESTID.chatInput) });
+  const said = JSON.stringify(seen);
+  assert.ok(seen.scrolled > 0, `nothing is scrolled, so nothing here is about staying in view: ${said}`);
+  assert.ok(Math.abs(seen.head.top - seen.belongs) <= 1, `the chat page's head scrolled away: ${said}`);
+  assert.deepEqual(seen.missing, [], `the pinned head is missing a row: ${said}`);
+  assert.deepEqual(seen.covered, [], `a row of the pinned head is painted over: ${said}`);
+  assert.ok(opaque(seen.ground), `the conversation shows through the head's ground: ${said}`);
+  assert.ok(seen.transcript !== null && seen.transcript < seen.head.bottom,
+    `the conversation has not scrolled under the head: ${said}`);
+  assert.ok(seen.typed !== null && seen.typed.top >= seen.head.bottom - 1 && seen.typed.bottom <= seen.frame.bottom + 1,
+    `the pinned head covers the box somebody types in: ${said}`);
+});
+
 // ── how much of the screen the conversation gets ───────────────────────
 
 /**
  * THE SHARE OF THE SCREEN LEFT FOR THE CONVERSATION, measured between the
  * chrome pinned over the page and the box somebody types in, pinned under it.
  *
- * This is the complaint, as a number. With the whole head pinned, a portrait
- * handset spent 450 of its 844 pixels on chrome and a landscape one 310 of
- * 390 — the conversation was a slot, and on its side there was none at all.
- * What a scenario asserts is therefore not "the head is small" but what is
- * LEFT: the band from the lowest thing pinned at the top (the bar, the strip
- * of tabs where there is one, and the page's own pinned line) down to the TOP
- * OF THE TEXT BOX.
+ * This is the complaint, as a number: a pinned head is worth nothing if it
+ * leaves the conversation a slot. What a scenario asserts is therefore not
+ * "the head is small" but what is LEFT: the band from the lowest thing pinned
+ * at the top (the bar, the strip of tabs where there is one, and the page's
+ * own pinned head — whole where the screen is tall, the item's line alone on
+ * a short one) down to the TOP OF THE TEXT BOX.
  *
  * THE TOP OF THE BOX, and not the *Send* button on the row under it: what a
  * person READS is the conversation, and a measure that stopped at the send
@@ -396,6 +490,7 @@ Then("the conversation gets at least {int}% of the screen", async function (this
     await bottomOf(this.page.locator(APP_HEADER)),
     await bottomOf(this.frontLane().locator(PANE_TABS)),
     await bottomOf(here.locator(CHAT_PAGE_HEAD)),
+    await bottomOf(here.locator(CHAT_PAGE_PINNED)),
   ].filter((edge): edge is number => edge !== null));
   const typed = await box.boundingBox();
   assert.ok(typed !== null, "the chat page draws no box to measure against");
