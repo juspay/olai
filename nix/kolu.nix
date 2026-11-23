@@ -97,8 +97,8 @@
 #     `packages/plugins/claude/default.nix` builds `nix/packages/acp-adapter.nix`
 #     (the wrapper, its env, and which `claude` it drives) over the floor that
 #     `packages/agent-distro/package.nix` builds from olai's `agent-distro` pin,
-#     so olai's Claude drives the Claude Code a person's terminals and kolu do,
-#     and offers the models it offers. `LAUNCHER_SETTINGS` from
+#     so olai's Claude drives the Claude Code agent-distro ships, the one kolu
+#     drives, and offers the models it offers. `LAUNCHER_SETTINGS` from
 #     `@kolu/acp-claude` is what that launcher passes as `--settings`;
 #     `olai-plugin-claude`'s `compacting` restates it, because session
 #     settings replace it. Both Nix files are imported by path, so a rename in

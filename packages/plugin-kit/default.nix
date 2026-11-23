@@ -10,7 +10,8 @@
 #   - `mark`      — a tenant's own logo, out of that tenant's pin, as a TS module.
 #   - `npmAdapter`— one ACP adapter built from an npm shim (with its own lock):
 #                   kolu's `nix/npm-adapter.nix`, read out of the kolu pin,
-#                   because both products build the same pinned adapter.
+#                   so an adapter olai ships is built by the builder kolu
+#                   maintains and builds its own Claude adapter with.
 #   - `contract`  — the validator: known keys, right types, `.generated.` infix,
 #                   knob-vs-manifest equality. Every refusal names the plugin.
 #   - `knobShell` — the `--set-default` / `--run` lines for `makeWrapper` and the
