@@ -18,6 +18,7 @@ import {
   CHAT_PANEL,
   CHAT_SAID,
   HYDRATION_TIMEOUT,
+  oneLine,
   PANE_TABS,
   POLL_TIMEOUT,
   ZOOM_TITLE,
@@ -501,6 +502,40 @@ Then("the status bar offers no {string} chip", async function (this: OlaiWorld, 
   await bar.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => (await bar.locator(`${CHAT_BAR_CHIP}${attr("data-strip", strip)}`).count()) === 0,
     `the status bar to drop its ${strip} chip`, HYDRATION_TIMEOUT);
+});
+
+/** One chip on the status bar, by the strip it stands for. */
+const chipOf = (world: OlaiWorld, strip: string): Locator =>
+  page(world).locator(`${CHAT_STATUS_BAR} ${CHAT_BAR_CHIP}${attr("data-strip", strip)}`);
+
+When("I press the {string} chip on the status bar", async function (this: OlaiWorld, strip: string) {
+  await this.press(chipOf(this, strip));
+});
+
+/** WHAT A CHIP SAYS, which is the strip in a few words: a person reads the
+ *  bar without opening anything. */
+Then("the status bar's {string} chip reads {string}", async function (this: OlaiWorld, strip: string, words: string) {
+  const chip = chipOf(this, strip);
+  await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => oneLine(await chip.innerText()) === words,
+    `the ${strip} chip to read ${JSON.stringify(words)}`, HYDRATION_TIMEOUT);
+});
+
+/** ONE STRIP AT A TIME: the panel shows the strip of the chip pressed last,
+ *  that chip says it is open, and every other strip in the panel is hidden. */
+Then("the status bar shows the {string} strip alone", async function (this: OlaiWorld, strip: string) {
+  const panel = page(this).locator(CHAT_BAR_PANEL);
+  await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const shown = await panel.evaluate((box, ids) => [...box.querySelectorAll(ids.strip)]
+    .filter((one) => !one.hasAttribute("hidden"))
+    .map((one) => one.getAttribute("data-strip")), { strip: selector(TESTID.chatBarStrip) });
+  assert.deepEqual(shown, [strip], `the panel shows ${JSON.stringify(shown)} rather than ${strip}`);
+  assert.equal(await chipOf(this, strip).getAttribute("aria-expanded"), "true", `the ${strip} chip does not say it is open`);
+});
+
+Then("the status bar shows no strip", async function (this: OlaiWorld) {
+  await page(this).locator(CHAT_BAR_PANEL).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await page(this).locator(`${CHAT_BAR_CHIP}[aria-expanded="true"]`).count(), 0, "a chip still says its strip is open");
 });
 
 /** ...AND A PHONE DRAWS NO BAR AT ALL: its foot is the box and its keyboard.

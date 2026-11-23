@@ -77,6 +77,29 @@ Feature: A chat is a page of its own
     And the status bar offers no "running" chip
     And there should be no page errors
 
+  # THE CHIPS SAY THEIR STRIP IN A FEW WORDS AND OPEN IT ONE AT A TIME: a
+  # second chip swaps what the panel shows rather than stacking a second
+  # panel, Escape puts it away, and a switch pressed inside it is read back on
+  # the chip without opening anything.
+  Scenario: The status bar's chips open one strip at a time and say what is in it
+    Given I open the plain node composer for "install"
+    When I send "hello" from the plain node composer
+    Then the node page conversation is ready for "install"
+    And the agent is idle
+    When I press the Chats row "install"
+    Then the chat page conversation is ready
+    And the status bar's "standing" chip reads "Sleep · Off"
+    When I press the "tools" chip on the status bar
+    Then the status bar shows the "tools" strip alone
+    When I press the "standing" chip on the status bar
+    Then the status bar shows the "standing" strip alone
+    When I press "Escape"
+    Then the status bar shows no strip
+    When I switch sleep when idle on for this conversation
+    Then sleep when idle is on for this conversation
+    And the status bar's "standing" chip reads "Sleep · On"
+    And there should be no page errors
+
   # ...BUT ON A PHONE ONLY THE NAME LINE STAYS, and the agent line is not a
   # bar on the box: a phone's foot is the box and its keyboard, so the agent
   # line, the tool row and the sleep line stay under the name and scroll away

@@ -30,6 +30,7 @@
  */
 
 import { createEffect, createMemo, createUniqueId, type JSX, Show } from "solid-js"
+import { notHere } from "olai-plugin-chat/wire"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 
@@ -39,7 +40,6 @@ import { LIVE_DOT } from "./live.ts"
 import { Plan } from "./Plan.tsx"
 import { Roster } from "./Roster.tsx"
 import { sleepWords } from "./sleeping.ts"
-import { SAID } from "./standing.ts"
 import { Standing, standingOf } from "./Standing.tsx"
 import type { Chat } from "./state.ts"
 import { Watching } from "./Watching.tsx"
@@ -66,8 +66,9 @@ export function StripChips(props: { readonly chat: Chat }) {
   const state = () => props.chat.state()
   const standing = createMemo(() => standingOf(props.chat))
   const done = () => state().plan.filter((step) => step.status === "completed").length
-  /** Servers the table itself marks as trouble (`./standing.ts`'s `SAID`). */
-  const trouble = () => state().servers.filter((server) => SAID[server.standing].mark?.tint === "text-alarm").length
+  /** Servers this conversation does not have, by the wire's own total switch
+   *  (`./Missing.tsx` lists the same ones under the roster). */
+  const absent = () => state().servers.filter(notHere).length
   const connected = () => state().servers.every((server) => server.standing === "connected")
   /** What the wake faces are holding for this conversation, all of them. */
   const waiting = () => faces().hung("conversation.wake")
@@ -118,13 +119,15 @@ export function StripChips(props: { readonly chat: Chat }) {
   return <>
     <Chip strip="plan">Plan {done()}/{state().plan.length}</Chip>
     <Chip strip="tools">
-      <Show when={trouble() > 0} fallback={<Show when={connected()}><span class="text-done" aria-hidden="true">✓</span></Show>}>
+      <Show when={absent() > 0} fallback={<Show when={connected()}><span class="text-done" aria-hidden="true">✓</span></Show>}>
         <span class="text-alarm" aria-hidden="true">×</span>
       </Show>
-      {trouble() > 0 ? `${trouble()} of ${state().servers.length} tools` : state().servers.length === 1 ? "1 tool" : `${state().servers.length} tools`}
+      {absent() > 0 ? `${absent()} of ${state().servers.length} tools` : state().servers.length === 1 ? "1 tool" : `${state().servers.length} tools`}
     </Chip>
     <Chip strip="running" tone="text-doing"><span class={LIVE_DOT} aria-hidden="true" />{state().watching.length} running</Chip>
     <Chip strip="standing">
+      {/* A chat whose sleep is off in this directory's settings has no
+          forecast, and reads Off whatever its own mark says. */}
       <Show when={standing().sleep} fallback="Alerts">{(row) => `Sleep · ${sleepWords(row().sleep !== null && row().sleeps)}`}</Show>
       <Show when={waiting() > 0}><span class="text-doing">· {waiting()} waiting</span></Show>
     </Chip>
