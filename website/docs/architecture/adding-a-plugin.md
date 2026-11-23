@@ -153,9 +153,9 @@ A plugin may have a `packages/plugins/<name>/default.nix`, which is its Nix part
 | `npmTrees` | directories `just install` runs `npm ci` in, where a test needs a real `node_modules` |
 | `knobs` | the environment variables the packaged wrapper sets with `--set-default` |
 | `packages` | flake outputs this plugin contributes, such as `claude-agent` or `odu-bin` |
-| `checks` | checks that need the built tree, exposed as `checks.<system>.plugin-<name>-<check>` |
+| `checks` | Nix checks, exposed as `checks.<system>.plugin-<name>-<check>`. Each is given the built tree, and a check that needs only what the plugin builds can ignore it |
 
-An ACP adapter olai ships lives in the plugin's own `acp/` directory, with its patches and the test rigs for them. Where the adapter is released on its own schedule, as Codex is, it also has a lock file and derivation of its own. The plugin's `default.nix` declares it through `@olai/plugin-kit`'s `npmAdapter`, and nothing outside the plugin's directory names any of it.
+An ACP adapter olai ships lives in the plugin's own `acp/` directory, with its patches and the test rigs for them, and the plugin's `default.nix` declares it through `@olai/plugin-kit`'s `npmAdapter`. An adapter released on its own schedule, as Codex is, has a lock file and derivation of its own instead. An adapter kolu ships too, as Claude Code's is, is kolu's own derivation, which the plugin's `default.nix` builds from the kolu pin.
 
 ## 9. If the plugin runs a coding agent: `e2e/fake/`
 
