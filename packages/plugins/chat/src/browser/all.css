@@ -40,7 +40,9 @@
  * title, a line of padding over it — while the screen it is drawn on is 390
  * pixels tall. The chat page is the face that cannot afford it: its head is
  * pinned and its composer is pinned, so every pixel either of them takes is
- * taken from the only part a person reads.
+ * taken from the only part a person reads — which is why, on a screen this
+ * short, it pins the item's line alone rather than its whole head
+ * (`./agents/ChatPage.tsx`).
  *
  * 540 PIXELS, in pixels rather than `rem`: this is a fact about the SCREEN,
  * and a `rem` here would move the rule with the reader's text size — a person

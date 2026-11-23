@@ -4,21 +4,20 @@
  *
  * ## What is on it, and in what order
  *
- * The ITEM first, on ONE PINNED LINE: its mark, its name as the page's own
- * title, how the chat STANDS at the right of it (read-only — the page IS the
+ * The ITEM first, on one line: its mark, its name as the page's own title,
+ * how the chat STANDS at the right of it (read-only — the page IS the
  * conversation, so there is nothing here for a press to unfold), and the door
- * back to the item, *Open <name> beside ›* (`./OpenBeside.tsx`). That line is
- * the whole of what this page pins, at every width: it is the way back, and
- * nothing else on the page is.
+ * back to the item, *Open <name> beside ›* (`./OpenBeside.tsx`).
  *
- * UNDER IT, SCROLLING WITH THE CONVERSATION: the path of the note or the
- * outline the node is written in, in the small mono a place is written in
- * everywhere else; the agent line the node page draws (`./Page.tsx`'s
- * `PageHead`) with its tool row and wake switches; for a note, the switch
- * saying where this chat opens (`./Opens.tsx`); then the conversation itself,
- * through the same `PageFoot` a node's page uses, so this page and that one
- * share one per-pane session, one set of testids and one answer to what a
- * transcript does when the pane scrolls.
+ * UNDER IT: the path of the note or the outline the node is written in, in
+ * the small mono a place is written in everywhere else; the agent line the
+ * node page draws (`./Page.tsx`'s `PageHead`) with its tool row, what is
+ * still running and the sleep line; for a note, the switch saying where this
+ * chat opens (`./Opens.tsx`). All of that is the page's HEAD, and it is
+ * pinned whole (the comment on it below says where, and where not). Then the
+ * conversation itself, through the same `PageFoot` a node's page uses, so
+ * this page and that one share one per-pane session, one set of testids and
+ * one answer to what a transcript does when the pane scrolls.
  *
  * NO BREADCRUMB. A chat is not inside anything — it belongs to one item, the
  * item is the title, and the trail above a note would be a trail to a file
@@ -177,50 +176,53 @@ export function ChatPage(props: { readonly item: AgentItem }) {
       data-kind={props.item.kind}
       {...LINKS_ASIDE}
     >
-      {/* PINNED: THE LINE WITH THE ITEM'S NAME AND ITS DOOR, and nothing
-          else. The page is the scroll, so a head that scrolled away would
-          take the name of the thing being talked about — and the way back to
-          it — with it. `--height-chrome` is the bar on a phone, with the tab
-          strip added while the lane has one, and zero inside a desktop
-          column, which is its own scrollport (`olai-plugin-layout`'s
-          `Panes.tsx`).
+      {/* PINNED ON A DESKTOP: THE WHOLE HEAD — the item's line, where it is,
+          the agent line with its tool row, what is still running and the
+          sleep line, and a note's *Opens* switch. The page is the scroll, so
+          a head that scrolled away would take the controls of the
+          conversation being read with it. `--height-chrome` is the bar, with
+          the desktop strip added while there is one, and zero inside a
+          desktop column, which is its own scrollport (`olai-plugin-layout`'s
+          `Panes.tsx`). The ground is opaque so the conversation scrolling
+          under it does not show through the agent line's tinted one.
 
-          ONE LINE AT EVERY WIDTH, and that is the whole rule. Pinning the
-          head WHOLE — the agent line, the tool row, the wake switches, the
-          *Opens* switch — cost 450 of a portrait handset's 844 pixels and
-          310 of a landscape one's 390, which is a conversation nobody can
-          read in a box nobody can type into. Everything under this line is
-          about the conversation rather than the way out of it, so it scrolls
-          with the conversation; what a reader needs from anywhere in a long
-          chat is which item this is and how to get to it.
+          ON A PHONE ONLY THE ITEM'S LINE PINS — below `md`, and on any screen
+          too `short` for it, which is a phone on its side. The whole head
+          there leaves the conversation a slot or covers the box somebody
+          types in, so the wrapper steps out of the layout (`contents`) and
+          the item's line sticks by itself, as the way back to the item.
 
-          THE DOOR IS ON IT WHETHER OR NOT THERE IS A CONVERSATION. It used
-          to ride the agent line once a chat was open — and the agent line
-          scrolls now. Not for a note that is GONE: there is no page to put
+          THE DOOR IS ON THE ITEM'S LINE WHETHER OR NOT THERE IS A
+          CONVERSATION. Not for a note that is GONE: there is no page to put
           beside this one. */}
       <div
-        class={`sticky top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6 short:pt-2`}
-        data-testid={TESTID.chatPageHead}
+        class={`sticky top-[var(--height-chrome)] ${LAYER.page} bg-paper max-md:contents short:contents`}
+        data-testid={TESTID.chatPagePinned}
       >
-        <Show when={mark()}>
-          {(drawn) => <span class={`${MARK_BOX} self-center text-muted`} data-testid={TESTID.chatFileMark}><Dynamic component={drawn()} /></span>}
-        </Show>
-        <h1 class={`min-w-0 ${CHAT_TITLE}`} data-testid={TESTID.chatPageTitle}>{name()}</h1>
-        <span class="flex-1" />
-        <Show when={row()}>{(held) => <Standing row={held()} />}</Show>
-        <Show when={lost()?.kind !== "gone"}><OpenBeside item={props.item} name={name()} /></Show>
-      </div>
-      <header>
-        <Show when={where()}>
-          {(at) => <p class="mb-2 mt-1 font-mono text-caption text-muted" data-testid={TESTID.chatPageWhere}>{at()}</p>}
-        </Show>
-        <Show when={open()}>
-          <PageHead node={key()} own />
-          <Show when={props.item.kind === "note" ? props.item.path : undefined}>
-            {(path) => <Opens path={path()} name={name()} beside={row()?.beside === true} />}
+        <div
+          class={`max-md:sticky max-md:top-[var(--height-chrome)] short:sticky short:top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6 short:pt-2`}
+          data-testid={TESTID.chatPageHead}
+        >
+          <Show when={mark()}>
+            {(drawn) => <span class={`${MARK_BOX} self-center text-muted`} data-testid={TESTID.chatFileMark}><Dynamic component={drawn()} /></span>}
           </Show>
-        </Show>
-      </header>
+          <h1 class={`min-w-0 ${CHAT_TITLE}`} data-testid={TESTID.chatPageTitle}>{name()}</h1>
+          <span class="flex-1" />
+          <Show when={row()}>{(held) => <Standing row={held()} />}</Show>
+          <Show when={lost()?.kind !== "gone"}><OpenBeside item={props.item} name={name()} /></Show>
+        </div>
+        <header>
+          <Show when={where()}>
+            {(at) => <p class="mb-2 mt-1 font-mono text-caption text-muted" data-testid={TESTID.chatPageWhere}>{at()}</p>}
+          </Show>
+          <Show when={open()}>
+            <PageHead node={key()} own />
+            <Show when={props.item.kind === "note" ? props.item.path : undefined}>
+              {(path) => <Opens path={path()} name={name()} beside={row()?.beside === true} />}
+            </Show>
+          </Show>
+        </header>
+      </div>
       {/* THE NOTE'S OWN TWO LOSSES COME FIRST, before the door: a page whose
           note is gone, or whose note has stopped naming the conversation
           being read, is not a page to start a chat on (`./lost.ts`). */}

@@ -259,10 +259,13 @@ export const CHAT_FILE_MARK = selector(TESTID.chatFileMark);
 export const CHAT_PAGE = selector(TESTID.chatPage);
 /** Its heading, and the small mono line under it saying where the item is. */
 export const CHAT_PAGE_TITLE = selector(TESTID.chatPageTitle);
-/** The pinned head itself — the band that must not scroll away, because on a
- *  phone with the chat alone it is the only way back to the note. */
-export const CHAT_PAGE_HEAD = selector(TESTID.chatPageHead);
 export const CHAT_PAGE_WHERE = selector(TESTID.chatPageWhere);
+/** The item's line — the one band pinned at every size, because on a phone
+ *  with the chat alone it is the only way back to the note. */
+export const CHAT_PAGE_HEAD = selector(TESTID.chatPageHead);
+/** ...and the whole head it heads, pinned over the conversation on a desktop
+ *  and in a desktop column; a phone draws no box for it. */
+export const CHAT_PAGE_PINNED = selector(TESTID.chatPagePinned);
 /** How the chat stands, at the right of that line — read-only here. */
 export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);
 /** *Open <name> beside ›*, and what it reads once a pane has the item. */

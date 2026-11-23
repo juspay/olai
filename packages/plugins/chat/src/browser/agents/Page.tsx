@@ -139,9 +139,9 @@ export function usePage(node: Accessor<string>) {
  *
  * `own` is the chat's own page saying the line is ITS OWN — handed in by that
  * page (`./ChatPage.tsx`) and by nothing else. A line there draws no *Open
- * beside* of its own (the page's pinned line carries the way back, and this
- * line scrolls), where every other line offers the conversation beside the
- * item it is drawn under. */
+ * beside* of its own (the page's item line above it carries the way back),
+ * where every other line offers the conversation beside the item it is drawn
+ * under. */
 export function PageHead(props: { readonly node: string; readonly own?: boolean }) {
   const beside = useBeside(() => props.node)
   // THE ONE LINE INSTEAD OF THE CONVERSATION, and the page session with it:
