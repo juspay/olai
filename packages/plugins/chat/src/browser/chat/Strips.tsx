@@ -36,7 +36,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 
 import { TESTID } from "../../testids.ts"
 import { faces } from "../faces.ts"
-import { type Hang, hangFrom } from "./hang.ts"
+import { hangFrom } from "./hang.ts"
 import { LIVE_DOT } from "./live.ts"
 import { Plan } from "./Plan.tsx"
 import { Roster } from "./Roster.tsx"
@@ -85,10 +85,10 @@ export function StripChips(props: { readonly chat: Chat }) {
 
   let pressed: Strip = "tools"
   const picker = createInlinePicker<Strip>({ opening: () => pressed })
-  const [hang, setHang] = createSignal<Hang>({ up: true, room: 0 })
+  const [up, setUp] = createSignal(true)
   const press = (strip: Strip, chip: HTMLElement): void => {
     const other = picker.open() && picker.showing() !== strip
-    if (!picker.open()) setHang(hangFrom(chip.offsetParent ?? chip))
+    if (!picker.open()) setUp(hangFrom(chip.offsetParent ?? chip).up)
     picker.setTrigger(chip)
     pressed = strip
     if (other) picker.show(strip)
@@ -136,14 +136,18 @@ export function StripChips(props: { readonly chat: Chat }) {
     </Chip>
     {/* HUNG FROM THE BAR'S BOX, as wide as the conversation, and opening to
         whichever side has the room (`./hang.ts`) — over the conversation,
-        since the bar sits on the composer at the bottom of the screen. */}
+        since the bar sits on the composer at the bottom of the screen.
+
+        NOT A SCROLLER, and not cut to that room: a strip hangs lists of its
+        own (a wake face's file picker, `absolute top-full` of its row), and a
+        box that clipped its overflow would hide them inside it. The strips
+        are a few lines each, and the plan scrolls its own steps. */}
     <div
       id={panel}
       ref={picker.setList}
       hidden={!picker.open()}
       data-testid={TESTID.chatBarPanel}
-      class={`absolute inset-x-3 ${hang().up ? "bottom-full mb-1" : "top-full mt-1"} ${LAYER.page} overflow-y-auto rounded-surface border border-rule bg-panel text-ink shadow-raised`}
-      style={{ "max-height": `min(24rem, ${hang().room}px)` }}
+      class={`absolute inset-x-3 ${up() ? "bottom-full mb-1" : "top-full mt-1"} ${LAYER.page} rounded-surface border border-rule bg-panel text-ink shadow-raised`}
     >
       <Shown strip="plan"><Plan chat={props.chat} /></Shown>
       <Shown strip="tools"><Roster chat={props.chat} /></Shown>

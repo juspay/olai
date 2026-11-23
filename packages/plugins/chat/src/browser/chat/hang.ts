@@ -7,7 +7,7 @@
  * a conversation shorter than the screen leaves the bar where its last line
  * ends, near the top, and a list opened upward there runs under the app's
  * pinned chrome where nothing in it can be pressed. So the side with more
- * room wins, and the list is cut to that room.
+ * room wins, and the model list, which can be long, is cut to that room.
  *
  * THE TOP OF THE ROOM is the chrome the root reserves for jumps (its
  * `scroll-padding-top`, which is `--height-chrome` resolved to pixels,
