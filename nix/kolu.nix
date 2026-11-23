@@ -93,6 +93,17 @@
 #     `auto-compact` / `compact-at` settings choose the number.
 #     https://github.com/juspay/kolu/pull/2415
 #
+#   * PR #2431 — the Claude adapter olai ships is kolu's own derivation.
+#     `packages/plugins/claude/default.nix` builds `nix/packages/acp-adapter.nix`
+#     (the wrapper, its env, and which `claude` it drives) over the floor that
+#     `packages/agent-distro/package.nix` builds from olai's `agent-distro` pin,
+#     so olai's Claude drives the Claude Code agent-distro ships, the one kolu
+#     drives, and offers the models it offers. `LAUNCHER_SETTINGS` from
+#     `@kolu/acp-claude` is what that launcher passes as `--settings`;
+#     `olai-plugin-claude`'s `compacting` restates it, because session
+#     settings replace it. Both Nix files are imported by path, so a rename in
+#     kolu fails olai's eval at the bump. https://github.com/juspay/kolu/pull/2431
+#
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more
 # thing to keep in step.

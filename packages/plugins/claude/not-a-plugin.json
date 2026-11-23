@@ -2,5 +2,13 @@
   "//kolu": "the adapter knob is `KOLU_ACP_AGENT` — `@kolu/acp` declares the variable's name (AGENT_ENV) because kolu owns the protocol's words, and this row's `environment` entry has to spell what a person would set. It is not a reach for the kolu tenant.",
   "kolu": {
     "src/server.ts": 1
+  },
+  "//settings": "`LAUNCHER_SETTINGS` is `@kolu/acp-claude`'s name for the `--settings` agent-distro's `claude` launcher passes, imported and passed to `compactingAt`. It is Claude Code's settings, not a reach for the settings plugin.",
+  "settings": {
+    "src/server.ts": 2
+  },
+  "//mcp": "`mcpServers` is a field of the Agent Client Protocol's `session/new`, which the adapter check sends empty. It is the protocol's word, not a reach for the mcp plugin.",
+  "mcp": {
+    "src/adapter.check.ts": 1
   }
 }

@@ -33,7 +33,7 @@ import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@kolu/acp/en
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
-import { CLAUDE, COMPACTION_OVERRIDES, compactingAt, NAME, REMOTE_SIGNALS } from "@kolu/acp-claude"
+import { CLAUDE, COMPACTION_OVERRIDES, compactingAt, LAUNCHER_SETTINGS, NAME, REMOTE_SIGNALS } from "@kolu/acp-claude"
 
 import { INSTALL } from "./install.ts"
 import { name } from "./index.ts"
@@ -121,11 +121,13 @@ export const ENGINE: Registering = {
   // whose open carries no settings: the person's own Claude Code settings
   // decide.
   //
-  // `launched` IS EMPTY because the packaged launcher passes the CLI no
-  // `--settings` to restate (`../default.nix`'s wrapper sets environment
-  // only). Session settings REPLACE a launcher's — kolu measured it — so a
-  // custom `KOLU_ACP_AGENT` that passes its own loses them while a number is
-  // set, and `../docs.md` says so.
+  // `launched` IS `LAUNCHER_SETTINGS`, `@kolu/acp-claude`'s statement of what
+  // agent-distro's `claude` launcher passes the CLI as `--settings`. The
+  // packaged adapter drives that launcher (`../default.nix` builds kolu's
+  // derivation), and session settings replace a launcher's, so they are said
+  // again here or lost while a number is set. A custom `KOLU_ACP_AGENT` whose
+  // launcher passes other settings loses them while a number is set, and
+  // `../docs.md` says so.
   //
   // `compaction` IS NOT ADVERTISED, so the adapter reports a compaction the
   // way it does today, as the "Compact conversation" tool row the panel
@@ -142,7 +144,7 @@ export const ENGINE: Registering = {
   // nothing of this activation's, which is what lets chat hold it
   // (`@olai/plugin-api`'s `Registering.compacting`).
   compacting: {
-    at: (tokens) => ({ ...compactingAt(tokens, {}).leg, compaction: false }),
+    at: (tokens) => ({ ...compactingAt(tokens, LAUNCHER_SETTINGS).leg, compaction: false }),
     unset: COMPACTION_OVERRIDES,
   },
 }
