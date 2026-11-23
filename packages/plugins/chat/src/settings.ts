@@ -183,7 +183,7 @@ export const Config = Schema.Struct({
     Schema.withDecodingDefaultKey(Effect.succeed(MODEL_LIMIT)),
     Schema.annotate({
       description:
-        "Where a conversation is compacted: model-limit (your own Claude Code settings decide), 200k, or a number of thousands from 100k to 1000k.",
+        "Where a conversation is compacted: model-limit (the agent's own settings decide), 200k, or a number of thousands from 100k to 1000k.",
     }),
   ),
 })

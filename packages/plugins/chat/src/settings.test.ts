@@ -74,7 +74,7 @@ test("a node agent is reminded every twenty messages, and zero is the switch tha
   }
 })
 
-test("agents compact at their model's limit unless a person says otherwise, and off says nothing", () => {
+test("olai names no size unless a person chooses one, and off says nothing", () => {
   const decode = Schema.decodeUnknownSync(Config)
   const config = decode({})
   expect(config["auto-compact"]).toBe(true)
