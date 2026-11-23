@@ -4,7 +4,7 @@ Claude Code comes with olai: a new install can chat with it without you installi
 
 ## What olai runs
 
-olai starts agent-distro's Claude Code[^distro] through a helper program called an adapter, named in the `KOLU_ACP_AGENT` variable.[^swap] To stop offering Claude Code, switch its plugin off on the **Plugins** panel.[^off]
+olai starts Claude Code[^distro] through a helper program called an adapter, named in the `KOLU_ACP_AGENT` variable.[^swap] To stop offering Claude Code, switch its plugin off on the **Plugins** panel.[^off]
 
 ## What it asks you about
 
@@ -31,9 +31,11 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
     | What olai ships | Version |
     | --- | --- |
     | `@agentclientprotocol/claude-agent-acp` | 0.81.2 |
-    | Claude Code | 2.1.325, the one agent-distro ships |
+    | Claude Code | the one agent-distro ships |
 
-[^distro]: The Claude Code olai ships runs through agent-distro's `claude` launcher, so your agent-distro profile applies to it. Claude Code's own attribution lines on commits and pull requests are off by default. If your own Claude Code settings turn attribution on, it stays on while chat's `auto-compact` is `no`. While `auto-compact` is on, the settings olai sends with each conversation turn it off again.
+[^distro]: The Claude Code olai starts is the one agent-distro ships. agent-distro launches coding agents with the setup a repository's `plugin.json` describes: skills, MCP servers, packages and environment. When a conversation runs in a git repository with such a file, or olai's environment sets `AI_PROFILE`, that setup applies to this Claude Code too.
+
+    Claude Code's own attribution lines on commits and pull requests are off by default. If your own Claude Code settings turn attribution on, it stays on while chat's `auto-compact` is `no`, and is turned off while `auto-compact` is on.
 
 [^swap]: `KOLU_ACP_AGENT` holds the command line olai runs as the adapter, and the wrapper sets it to the build olai ships unless you have set it to something else first. Set it to a command line of your own to run another build of Claude Code, or another agent that speaks the same protocol: olai then talks to that agent exactly as it talks to Claude Code.
 
@@ -61,7 +63,7 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 
 [^background]: A command started in the background reports back early. `Bash(run_in_background)` answers as soon as the command is running. The line then carries the adapter's *Command running in background with ID …* notice and `exit_code: 0`, both of which describe the start rather than the result. olai draws no terminal for that answer. The strip above the conversation keeps the task until Claude Code says how it ended: `completed`, `failed`, `killed` or `stopped`.
 
-[^models]: The picker and the agent line name the same model differently. The picker offers the adapter's short names, such as `sonnet` and `fable`. The running model is the full name the command reports, such as `claude-fable-5-2`, which the line shows as **Fable 5.2**, with no context window size the model never stated.
+[^models]: The picker and the agent line show a model's name, such as **Fable 5.2**. Choosing it sends the adapter's short name, `fable`, and typing in the picker matches either. Claude Code reports the running model's full name, such as `claude-fable-5-2`, and the line shows the matching row's name instead, claiming no context window size the model never stated.
 
     A conversation that remembers a version the picker does not offer, such as `claude-fable-5-1`, opens on the agent's own model. Each time it opens, it says *this conversation was on claude-fable-5-1 and could not be put back*, with Claude Code's reason.
 
