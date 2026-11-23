@@ -20,11 +20,12 @@
 # graft guard: that one compares only while the kolu plugin's seeds happen to
 # reach `@juspay/agent-distro`.
 #
-# THIS file owns only olai's own lines: that check, the knob
+# THIS file owns only olai's own lines: that revision check, the knob
 # `KOLU_ACP_AGENT`, a `file` the fold bakes into the `olai` wrapper with
-# `--set-default` as it does for every plugin knob, and the flake output
-# `.#claude-agent` — `packages.claude-agent` at the bottom — arrived at
-# through the fold's disjoint-union merge rather than a root line.
+# `--set-default` as it does for every plugin knob, the flake output
+# `.#claude-agent` — `packages.claude-agent`, arrived at through the fold's
+# disjoint-union merge rather than a root line — and the sandboxed check that
+# the built adapter answers a model picker.
 { pkgs, pins, ... }:
 let
   koluFloor = (builtins.fromJSON (builtins.readFile "${pins.kolu}/npins/sources.json")).pins.agent-distro.revision;
@@ -48,4 +49,25 @@ in
   };
   # Exported by the flake as `.#claude-agent`.
   packages.claude-agent = adapter;
+  # SANDBOXED ADAPTER CHECK — `checks.plugin-claude-adapter`: the built adapter,
+  # spoken to over ACP in the build sandbox with an empty `HOME`, no
+  # credentials and no network, must answer `session/new` with a `model`
+  # picker of at least one row (`src/adapter.check.ts` says why, and why it
+  # names no model). It reads no other source of this repository, so it takes
+  # the probe file alone rather than the staged `tree` the other plugins'
+  # surface checks run in.
+  checks = { ... }: {
+    adapter = pkgs.runCommand "olai-plugin-claude-adapter"
+      {
+        nativeBuildInputs = [ pkgs.bun ];
+        probe = ./src/adapter.check.ts;
+        inherit adapter;
+      } ''
+      export HOME=$TMPDIR/home
+      mkdir -p $HOME
+      bun $probe $adapter/bin/claude-agent-acp $HOME
+      mkdir -p $out
+      echo "$adapter/bin/claude-agent-acp" > $out/ok
+    '';
+  };
 }
