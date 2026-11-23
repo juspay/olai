@@ -24,9 +24,10 @@ import { StripChips } from "../chat/Strips.tsx"
  * `foot` is a chat page's STATUS BAR (`./ChatPage.tsx`): the same line drawn
  * between the conversation and the box somebody types in, where the
  * `../chat/Busy.tsx` strip goes on every other face. So it says *Starting…*
- * itself, which the Busy strip said there; the model list opens upward, since
- * down is the box; and the standing strips ride it as chips
- * (`../chat/Strips.tsx`'s `StripChips`) rather than stacking under it.
+ * itself, which the Busy strip said there; the model list and the strips'
+ * panel open to whichever side of it has the room (`../chat/hang.ts`); and
+ * the standing strips ride it as chips (`../chat/Strips.tsx`'s `StripChips`)
+ * rather than stacking under it.
  */
 export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly own?: boolean; readonly foot?: boolean }) {
   const agents = useAgents()
@@ -56,7 +57,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
       identity={identity}
       pressable={(agentIn(state())?.methods.length ?? 0) > 0 && state().signIn === null}
     />}</Show>
-    <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || (doing()?.kind === "starting" && !props.foot)}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} up={props.foot} /></Show>
+    <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || (doing()?.kind === "starting" && !props.foot)}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} foot={props.foot} /></Show>
     {/* WHAT THE NUMBER IS. The percentage alone names nothing, so the words
         ride an sr-only companion AFTER the chip — outside it, because a
         scenario reads the chip's own text — and the tip is the pointer's

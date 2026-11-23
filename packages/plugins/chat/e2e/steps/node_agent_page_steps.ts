@@ -48,7 +48,10 @@ Given("I open the plain node composer for {string}", async function(this: OlaiWo
 });
 Then("the node page conversation is ready for {string}", async function(this: OlaiWorld, node: string) {
   this.activeAgent = node;
-  await this.page.locator(`${head}${attr("data-agent", this.nodeId(node))}`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  // The agent line: the page's head, or — where a zoom landed on the chat's
+  // own page on a desktop — the status bar on its box.
+  const of = attr("data-agent", this.nodeId(node));
+  await this.page.locator(`${head}${of}, ${foot}${of} ${selector(PLUGIN_TESTID.chatStatusBar)}`).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.chat(CHAT_INPUT).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => await this.chat(CHAT_PANEL).getAttribute("data-session-id") !== null, "the page's conversation identity", HYDRATION_TIMEOUT);
 });

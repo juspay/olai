@@ -29,13 +29,14 @@
  * another chip.
  */
 
-import { createEffect, createMemo, createUniqueId, type JSX, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, createUniqueId, type JSX, Show } from "solid-js"
 import { notHere } from "olai-plugin-chat/wire"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { TESTID } from "../../testids.ts"
 import { faces } from "../faces.ts"
+import { type Hang, hangFrom } from "./hang.ts"
 import { LIVE_DOT } from "./live.ts"
 import { Plan } from "./Plan.tsx"
 import { Roster } from "./Roster.tsx"
@@ -84,8 +85,10 @@ export function StripChips(props: { readonly chat: Chat }) {
 
   let pressed: Strip = "tools"
   const picker = createInlinePicker<Strip>({ opening: () => pressed })
+  const [hang, setHang] = createSignal<Hang>({ up: true, room: 0 })
   const press = (strip: Strip, chip: HTMLElement): void => {
     const other = picker.open() && picker.showing() !== strip
+    if (!picker.open()) setHang(hangFrom(chip.offsetParent ?? chip))
     picker.setTrigger(chip)
     pressed = strip
     if (other) picker.show(strip)
@@ -128,18 +131,19 @@ export function StripChips(props: { readonly chat: Chat }) {
     <Chip strip="standing">
       {/* A chat whose sleep is off in this directory's settings has no
           forecast, and reads Off whatever its own mark says. */}
-      <Show when={standing().sleep} fallback="Alert">{(row) => `Sleep · ${sleepWords(row().sleep !== null && row().sleeps)}`}</Show>
+      <Show when={standing().sleep} fallback="Alert">{(row) => <>Sleep · {sleepWords(row().sleep !== null && row().sleeps)}</>}</Show>
       <Show when={waiting() > 0}><span class="text-doing">· {waiting()} waiting</span></Show>
     </Chip>
-    {/* HUNG FROM THE BAR'S BOX, as wide as the conversation and opening
-        UPWARD over it — the bar sits on the composer at the bottom of the
-        screen, so the way down is the box somebody types in. */}
+    {/* HUNG FROM THE BAR'S BOX, as wide as the conversation, and opening to
+        whichever side has the room (`./hang.ts`) — over the conversation,
+        since the bar sits on the composer at the bottom of the screen. */}
     <div
       id={panel}
       ref={picker.setList}
       hidden={!picker.open()}
       data-testid={TESTID.chatBarPanel}
-      class={`absolute inset-x-3 bottom-full ${LAYER.page} mb-1 max-h-[min(24rem,60vh)] overflow-y-auto rounded-surface border border-rule bg-panel text-ink shadow-raised`}
+      class={`absolute inset-x-3 ${hang().up ? "bottom-full mb-1" : "top-full mt-1"} ${LAYER.page} overflow-y-auto rounded-surface border border-rule bg-panel text-ink shadow-raised`}
+      style={{ "max-height": `min(24rem, ${hang().room}px)` }}
     >
       <Shown strip="plan"><Plan chat={props.chat} /></Shown>
       <Shown strip="tools"><Roster chat={props.chat} /></Shown>
