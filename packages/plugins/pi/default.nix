@@ -1,11 +1,10 @@
 # PI'S NIX HALF — the plugin's own `default.nix`, in the fold's contract.
 #
-# The pi engine's shipped ACP adapter is the other half of the same `acp/` shim
-# the Claude row reads (one lockfile, one npmDepsHash — see acp/README.md). Now
-# that engines are plugins, THIS file owns the pi row's facts: the npm package,
-# the wrapper's bin, the MCP extension that arms it, and the bridge bundle the
-# extension loads. The shared build itself is `@olai/plugin-kit`'s
-# `kit.npmAdapter`, the same mechanism the Claude plugin calls.
+# The pi engine ships its ACP adapter from its own `acp/shim` (one lockfile,
+# one npmDepsHash). Now that engines are plugins, THIS file owns the pi row's
+# facts: the npm package, the wrapper's bin, the MCP extension that arms it,
+# and the bridge bundle the extension loads. The shared build itself is
+# `@olai/plugin-kit`'s `kit.npmAdapter`, kolu's `nix/npm-adapter.nix`.
 #
 # The knob `OLAI_ACP_PI` is a `file` the fold bakes into the `olai` wrapper with
 # `--set-default`, and the package `pi-agent` is what the fold exports as a

@@ -1095,6 +1095,52 @@ Feature: Talking to a node agent
     And the node agent's fold is ready
     Then the chat eventually shows "could not be put back"
 
+  @agent-stored @scratch:chat
+  Scenario: A remembered model version the picker no longer offers is not put on the newer one
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
+    And the node agent's fold is ready
+    # The picker's only Lyric row is the bare alias `lyric`, labelled with the
+    # version it stands for today: "Fake Lyric 5.2". That is how the real
+    # adapter offers Fable, and why a conversation that was on
+    # `claude-fable-5-1` must not reopen as Fable 5.2: the row states a
+    # version, and it is not the remembered one.
+    #
+    # The row answers for its own version, so what follows is the version rule
+    # and not an unreachable row.
+    When I ask the agent "model claude-lyric-5-2"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Lyric 5.2"
+    # ... and not for another one: the header says the id raw.
+    When I ask the agent "model claude-lyric-5-1"
+    And I ask the agent "hello"
+    Then the panel header names the model "claude-lyric-5-1"
+    # Reopened, the panel asks for the remembered id in its own words, because
+    # no row answers for it, and the agent refuses it. The conversation opens on
+    # the agent's own model and says so, rather than on the Lyric row.
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the node agent's fold is ready
+    Then the opened conversation carries the title "the last conversation"
+    And the chat eventually shows "this conversation was on claude-lyric-5-1 and could not be put back"
+    And the chat eventually shows "Invalid value for config option model: claude-lyric-5-1"
+    And the panel header names the model "Fake One"
+    # ... and it is the AGENT that is on it: the next turn's report of the
+    # running model names the pin, not the Lyric row. The header says Fake One
+    # before the turn too, so the turn has to have ended for this to say
+    # anything.
+    When I ask the agent "hello"
+    Then the agent is idle
+    And the panel header names the model "Fake One"
+    # The memory was left alone, so the next boot asks again and says so again.
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the node agent's fold is ready
+    Then the chat eventually shows "this conversation was on claude-lyric-5-1 and could not be put back"
+    And the panel header names the model "Fake One"
+
   @scratch:chat
   Scenario: A message sent mid-turn WAITS ITS TURN, and the row says so
     When I open the "claude" agent on node "kitchen"
@@ -2384,7 +2430,7 @@ Feature: Talking to a node agent
     Then the model picker offers only "Fake Haiku"
     When I press "Escape" in the model filter
     And I open the session settings
-    Then the model picker offers only "Fake One, Fake Two, Fake Sonnet, Fake Haiku, Fake Opus (1M context), Fake Fable"
+    Then the model picker offers only "Fake One, Fake Two, Fake Sonnet, Fake Haiku, Fake Opus (1M context), Fake Fable, Fake Lyric 5.2"
 
   @scratch:chat
   Scenario: Claude's olai write has its title, outline, clickable story and one reply

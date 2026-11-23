@@ -917,6 +917,16 @@ const storedSessions = () =>
  * transcript — and the first two are re-asserted over the third on resume), and
  * it is the whole of what makes `chat-model-reverts-on-restart` reproducible
  * here.
+ *
+ * `lyric` is the one alias whose LABEL STATES A VERSION, the way the real
+ * adapter labels its `fable` row "Fable 5.2". The panel's naming rule lets
+ * such a row answer for `claude-lyric-5-2` and not for `claude-lyric-5-1`,
+ * and this agent refuses the raw `claude-lyric-5-1` it does not offer, as the
+ * real one refuses `claude-fable-5-1`: a conversation that remembers the older
+ * version is not quietly moved onto the newer one. Its family is its
+ * own, so every scenario reading the other labels reads them unchanged, and
+ * its name has no `s` in it, so the filter scenarios' "s" still narrows to
+ * the same two rows.
  */
 const MODEL_ROWS = [
   { value: "fake-model-1", name: "Fake One" },
@@ -925,6 +935,7 @@ const MODEL_ROWS = [
   { value: "haiku", name: "Fake Haiku" },
   { value: "opus[1m]", name: "Fake Opus (1M context)" },
   { value: "fable", name: "Fake Fable" },
+  { value: "lyric", name: "Fake Lyric 5.2" },
 ]
 
 /** The picker value the signed-in account may not use, if a scenario named
