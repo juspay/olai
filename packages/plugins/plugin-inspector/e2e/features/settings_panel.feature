@@ -22,6 +22,11 @@ Feature: Edit plugin settings on the panel
     When I focus the enable switch for "git"
     And I press "Tab"
     Then the first choice of "git" setting "commit" has focus
+    # A CHOICE WITH A TYPED VALUE keeps the panel one column with its field
+    # open: the field sits on a line of its own under the segments.
+    When I press custom for "chat" setting "compact-at"
+    Then the "chat" setting "compact-at" shows custom pressed with "" in its field
+    And the plugins panel is one column and has no horizontal overflow
     And there should be no page errors
 
   Scenario: A vault setting change keeps the tab connected
@@ -207,8 +212,13 @@ Feature: Edit plugin settings on the panel
   Scenario: An absent reader freezes knobs and enabling it restores editing
     Given I open the app
     When I open the plugins panel
+    # THE TYPED-VALUE FIELD IS OPENED FIRST, so the freeze below reaches the
+    # segment that opened it and the field alike.
+    And I press custom for "chat" setting "compact-at"
     And I switch the plugin "settings" off
     Then the "kolu" setting "watch.held-for" is frozen because "Settings can be edited when the configuration reader is running"
+    And the "chat" setting "compact-at" shows custom pressed with "" in its field
+    And the "chat" setting "compact-at" is frozen because "Settings can be edited when the configuration reader is running"
     When I switch the plugin "settings" on
     And I type "90s" into "kolu" setting "watch.held-for"
     And I press "Enter" in "kolu" setting "watch.held-for"
@@ -242,6 +252,9 @@ Feature: Edit plugin settings on the panel
     Then the plugins panel has one column and fits the phone
     When I expand the plugin "kolu"
     Then the plugin "kolu" has inline controls
+    And the plugins panel has one column and fits the phone
+    When I press custom for "chat" setting "compact-at"
+    Then the "chat" setting "compact-at" shows custom pressed with "" in its field
     And the plugins panel has one column and fits the phone
     And there should be no page errors
 
