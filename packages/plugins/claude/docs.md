@@ -33,7 +33,7 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
     | `@agentclientprotocol/claude-agent-acp` | 0.81.2 |
     | Claude Code | the one agent-distro ships |
 
-[^distro]: The Claude Code olai starts is the one agent-distro ships. agent-distro launches coding agents with the setup a repository's `plugin.json` describes: skills, MCP servers, packages and environment. When a conversation runs in a git repository with such a file, or olai's environment sets `AI_PROFILE`, that setup applies to this Claude Code too.
+[^distro]: The Claude Code olai starts is the one agent-distro ships. agent-distro launches coding agents with the setup a repository's `plugin.json` describes: skills, MCP servers, packages and environment. A conversation runs in the directory olai serves. When that directory, or one above it in the same git repository, holds such a file, or olai's environment sets `AI_PROFILE`, that setup applies here too.
 
     Claude Code's own attribution lines on commits and pull requests are off by default. If your own Claude Code settings turn attribution on, it stays on while chat's `auto-compact` is `no`, and is turned off while `auto-compact` is on.
 

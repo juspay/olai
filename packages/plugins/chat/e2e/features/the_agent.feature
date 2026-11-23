@@ -1127,9 +1127,12 @@ Feature: Talking to a node agent
     And the chat eventually shows "Invalid value for config option model: claude-lyric-5-1"
     And the panel header names the model "Fake One"
     # ... and it is the AGENT that is on it: the next turn's report of the
-    # running model names the pin, not the Lyric row.
+    # running model names the pin, not the Lyric row. The header says Fake One
+    # before the turn too, so the turn has to have ended for this to say
+    # anything.
     When I ask the agent "hello"
-    Then the panel header names the model "Fake One"
+    Then the agent is idle
+    And the panel header names the model "Fake One"
     # The memory was left alone, so the next boot asks again and says so again.
     When the server stops
     And the server starts again on the same port
