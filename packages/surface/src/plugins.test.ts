@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
 import { environmentReadings } from "@olai/plugin-api/configuration"
-import { EnvironmentReading, isPluginCode } from "./plugins.ts"
+import { BuiltPlugin, EnvironmentReading, isPluginCode } from "./plugins.ts"
 
 test("a secret reading has no value; machine paths retain theirs", () => {
   const readings = environmentReadings([
@@ -50,6 +50,13 @@ test("controls and file problems survive the row and process wire readings", asy
     expect(reading).not.toHaveProperty("control")
     expect(reading).not.toHaveProperty("value")
   }
+})
+
+test("a choice with a typed value survives the row wire, and one without still decodes", () => {
+  const typed = { key: "size", value: "250k", setBy: "vault", says: "how big", control: { kind: "choice", options: ["200k", "auto"], other: { expected: "a number of thousands" } } } as const
+  const bare = { key: "mode", value: "quiet", setBy: "default", says: "how much", control: { kind: "choice", options: ["quiet", "loud"] } } as const
+  const row = Schema.decodeUnknownSync(BuiltPlugin)({ name: "example", running: true, configurationValues: [typed, bare] })
+  expect(row.configurationValues).toEqual([typed, bare])
 })
 
 test("a name with a line break, a line separator or another control character is not plugin code", () => {

@@ -20,7 +20,7 @@ A message you send while the agent is working waits until it finishes, then runs
 
 ## What you see while it answers
 
-Shell output appears under the line for that command, ending with the exit code.[^terminal] A command left running in the background is tracked in the strip above the conversation.[^background] The line above the box you type in names the model running and the account signed in,[^models][^identity] and a model switch can be refused.[^refused] Memory between conversations is off.[^memory] A long conversation compacts itself.[^compact] **Earlier chats** lists saved conversations.[^earlier]
+Shell output appears under the line for that command, ending with the exit code.[^terminal] A command left running in the background is tracked in the strip above the conversation.[^background] The line above the box you type in names the model running and the account signed in,[^models][^identity] and a model switch can be refused.[^refused] Memory between conversations is off.[^memory] By default olai leaves compaction alone.[^compact] **Earlier chats** lists saved conversations.[^earlier]
 
 ## When Claude Code does not appear
 
@@ -35,7 +35,7 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 
 [^distro]: The Claude Code olai starts is the one agent-distro ships. agent-distro launches coding agents with the setup a repository's `plugin.json` describes: skills, MCP servers, packages and environment. A conversation runs in the directory olai serves. If that directory is in a git repository, the nearest such file up to its root applies; outside one, none does. `AI_PROFILE` in olai's environment applies either way.
 
-    Claude Code's attribution lines on commits and pull requests are off by default. If your own Claude Code settings turn attribution on, it stays on while chat's `auto-compact` is `no`, and is turned off while `auto-compact` is on.
+    Claude Code's attribution lines on commits and pull requests are off by default. If your own Claude Code settings turn attribution on, it stays on, except while chat's `compact-at` is a size and `auto-compact` is on.
 
 [^swap]: `KOLU_ACP_AGENT` holds the command line olai runs as the adapter, and the wrapper sets it to the build olai ships unless you have set it to something else first. Set it to a command line of your own to run another build of Claude Code, or another agent that speaks the same protocol: olai then talks to that agent exactly as it talks to Claude Code.
 
@@ -77,9 +77,9 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 
 [^memory]: Claude Code's automatic memory is switched off. Every time olai starts the adapter it sets `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, which overrides `autoMemoryEnabled` in the adapter's `settings.json` and anything you set yourself, so the rows under the node the chat hangs from are the conversation's only memory. A `CLAUDE.md` file is instructions you wrote rather than memory, and it still loads.
 
-[^compact]: olai opens and resumes every conversation with settings that tell Claude Code to compact once it holds about the `compact-at` size. A model whose own window is smaller compacts sooner: at the default of 200k, a model with a 200k window compacts at about 167k. A compaction shows as a **Compact conversation** tool call.
+[^compact]: By default olai sends Claude Code no compaction setting. When you choose a size in [chat](chat.md)'s `compact-at`, olai opens and resumes every conversation with settings that tell Claude Code to compact once it holds about that size. A model whose own window is smaller compacts sooner: at `200k`, a model with a 200k window compacts at about 167k.
 
-    The same settings carry the attribution setting the shipped Claude Code starts with. They replace any `--settings` your own `KOLU_ACP_AGENT` passes, and the models `CLAUDE_MODEL_CONFIG` names. With [chat](chat.md)'s `auto-compact` at `no`, olai sends none of this.
+    These settings carry the attribution setting the shipped Claude Code starts with. They replace any `--settings` your own `KOLU_ACP_AGENT` passes, and the models `CLAUDE_MODEL_CONFIG` names. A compaction shows as a **Compact conversation** tool call. With `auto-compact` at `no`, olai sends none of this.
 
 [^earlier]: The list of saved conversations says how many messages each one holds, and when a `/clear` ended one, it names the conversation that took its place. The **Earlier chats** list shows both.
 
@@ -95,7 +95,7 @@ If `KOLU_ACP_AGENT` is empty or unset, Claude Code is still listed but cannot st
 | `CLAUDE_CODE_DISABLE_AUTO_MEMORY` | olai sets it to `1` every time it starts the adapter, whatever you set |
 | `IS_SANDBOX` | the adapter offers its permission-free mode to a user running as root only when this is set |
 | `NO_BROWSER`, `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY`, `CLAUDE_CODE_REMOTE` | olai removes these every time it starts the adapter |
-| `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | olai removes these every time it starts the adapter for a conversation, unless chat's `auto-compact` is `no` |
+| `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | olai removes these every time it starts the adapter for a conversation, at `model-limit` as at a size, unless chat's `auto-compact` is `no` |
 
 olai tells the adapter that it can run terminal commands, so the adapter offers `claude-ai-login` and `console-login` as sign-in commands for olai to run, and that is what the panel does.
 

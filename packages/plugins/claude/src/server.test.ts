@@ -121,20 +121,21 @@ describe("telling Claude Code where to compact", () => {
   if (compacting === undefined) throw new Error("the Claude engine must say how it is told where to compact")
 
   test("the session open turns auto-compaction on at the number, beside the raw-message subscription", () => {
-    const { leg } = compacting(200_000)
+    const leg = compacting.at(200_000)
     // THE WINDOW IS THE NUMBER PLUS kolu's 33k RESERVE, measured on the pinned
     // pair: Claude Code fires that far below the window it is given. THE
     // LAUNCHER'S OWN SETTINGS RIDE BESIDE IT, because session settings replace
     // the `--settings` agent-distro's `claude` was launched with: said again,
-    // or lost while compaction is on.
+    // or lost while a number is set.
     expect(leg.rawMessages?.openMeta).toEqual({
       claudeCode: {
         ...(CLAUDE.rawMessages?.openMeta["claudeCode"] as object),
         options: { settings: { ...LAUNCHER_SETTINGS, autoCompactEnabled: true, autoCompactWindow: 233_000 } },
       },
     })
-    expect(compacting(500_000).leg.rawMessages?.openMeta).toMatchObject({
-      claudeCode: { options: { settings: { autoCompactWindow: 533_000 } } },
+    // ... UP TO THE LARGEST SIZE A PERSON CAN TYPE.
+    expect(compacting.at(1_000_000).rawMessages?.openMeta).toMatchObject({
+      claudeCode: { options: { settings: { autoCompactWindow: 1_033_000 } } },
     })
     // ... AND EVERYTHING ELSE IS THE REGISTERED LEG'S, so the panel reads this
     // agent's wire exactly as it did: the same forwarded-message channel and
@@ -143,18 +144,25 @@ describe("telling Claude Code where to compact", () => {
     expect(leg.rawMessages?.modelIn).toBe(CLAUDE.rawMessages?.modelIn)
     expect(leg.rawMessages?.serversIn).toBe(CLAUDE.rawMessages?.serversIn)
     expect(leg.models).toBe(CLAUDE.models)
+  })
+
+  test("the registered open carries no settings, so model-limit sends nothing", () => {
+    // Chat opens `model-limit` with the registered leg: if that ever carried
+    // session settings, the person's own Claude Code settings would not decide.
     expect(ENGINE.leg).toBe(CLAUDE)
+    expect((CLAUDE.rawMessages?.openMeta["claudeCode"] as { options?: unknown } | undefined)?.options).toBeUndefined()
   })
 
   test("compaction reports are not asked for, so a compaction stays the tool row the panel draws", () => {
     // Asked for, the adapter sends `compaction_update` frames instead of its
     // "Compact conversation" tool call, and the chat passes nothing that draws
     // them: a compaction would vanish from the transcript.
-    expect(compacting(200_000).leg.compaction).toBeFalsy()
+    expect(compacting.at(200_000).compaction).toBeFalsy()
+    expect(ENGINE.leg.compaction).toBeFalsy()
   })
 
-  test("the variables that would override the number are taken from the spawn", () => {
-    expect([...compacting(200_000).unset].sort()).toEqual([
+  test("the variables that would override what decides are taken from the spawn", () => {
+    expect([...compacting.unset].sort()).toEqual([
       "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE",
       "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
       "DISABLE_AUTO_COMPACT",

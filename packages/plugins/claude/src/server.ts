@@ -117,13 +117,16 @@ export const ENGINE: Registering = {
   // at `tokens` into `claudeCode.options.settings`, which rides `session/new`
   // and `session/load` alike, so a resumed conversation is told too. The
   // number is chat's (its `compact-at` setting); this row says only how.
+  // Chat's `model-limit` sends no number and opens with `leg` above, `CLAUDE`,
+  // whose open carries no settings: the person's own Claude Code settings
+  // decide.
   //
   // `launched` IS `LAUNCHER_SETTINGS`, `@kolu/acp-claude`'s statement of what
   // agent-distro's `claude` launcher passes the CLI as `--settings`. The
   // packaged adapter drives that launcher (`../default.nix` builds kolu's
   // derivation), and session settings replace a launcher's, so they are said
-  // again here or lost while compaction is on. A custom `KOLU_ACP_AGENT` whose
-  // launcher passes other settings loses them while this is on, and
+  // again here or lost while a number is set. A custom `KOLU_ACP_AGENT` whose
+  // launcher passes other settings loses them while a number is set, and
   // `../docs.md` says so.
   //
   // `compaction` IS NOT ADVERTISED, so the adapter reports a compaction the
@@ -131,17 +134,19 @@ export const ENGINE: Registering = {
   // already draws: advertised, the adapter would send `compaction_update`
   // frames that only an `onCompaction` the chat does not pass would draw.
   //
-  // ... AND THE VARIABLES THAT WOULD OVERRIDE THE NUMBER are stripped from
+  // ... AND THE VARIABLES THAT WOULD OVERRIDE WHAT DECIDES are stripped from
   // that spawn beside `REMOTE_SIGNALS`, for `REMOTE_SIGNALS`' reason: one set
-  // on a host is not the person's choice in this panel.
+  // on a host is not the person's choice in this panel. On `model-limit` too,
+  // as kolu does: the person's Claude Code settings decide, not a host's
+  // export.
   //
-  // A PURE FUNCTION over module constants and nothing of this activation's,
-  // which is what lets chat hold it (`@olai/plugin-api`'s
-  // `Registering.compacting`).
-  compacting: (tokens) => ({
-    leg: { ...compactingAt(tokens, LAUNCHER_SETTINGS).leg, compaction: false },
+  // A STATIC VALUE over module constants with a pure function in it, and
+  // nothing of this activation's, which is what lets chat hold it
+  // (`@olai/plugin-api`'s `Registering.compacting`).
+  compacting: {
+    at: (tokens) => ({ ...compactingAt(tokens, LAUNCHER_SETTINGS).leg, compaction: false }),
     unset: COMPACTION_OVERRIDES,
-  }),
+  },
 }
 
 /**

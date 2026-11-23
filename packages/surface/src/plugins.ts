@@ -85,7 +85,9 @@ export const EnvironmentReading = Schema.Union([
 ])
 
 const PolicyControl = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("choice"), options: Schema.Array(Schema.String) }),
+  // `other` is a typed value beside the list (`@olai/plugin-api/configuration`'s
+  // `Control`); absent on every older serve and every closed list.
+  Schema.Struct({ kind: Schema.Literal("choice"), options: Schema.Array(Schema.String), other: Schema.optionalKey(Schema.Struct({ expected: Schema.optionalKey(Schema.String) })) }),
   Schema.Struct({ kind: Schema.Literal("switch") }),
   Schema.Struct({ kind: Schema.Literal("number"), integer: Schema.Boolean, min: Schema.optionalKey(Schema.Number), max: Schema.optionalKey(Schema.Number) }),
   Schema.Struct({ kind: Schema.Literal("text"), expected: Schema.optionalKey(Schema.String) }),

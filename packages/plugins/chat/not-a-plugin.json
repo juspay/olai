@@ -1,6 +1,6 @@
 {
   "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin; the browser entry's palette row carries its `search` words, the palette's own key, as the other palette rows here do.",
-  "//settings": "The sentence a person is told when the pass is switched off reads `sleep is off in this directory's settings`: the directory's own settings, not the settings row. The sleep item's own sentence reads `off in Settings` and names the file it comes from (`_olai/Settings.olai`), which is a vault file and not the settings row.",
+  "//settings": "The sentence a person is told when the pass is switched off reads `sleep is off in this directory's settings`: the directory's own settings, not the settings row. The sleep item's own sentence reads `off in Settings` and names the file it comes from (`_olai/Settings.olai`), which is a vault file and not the settings row. `src/settings.ts`'s second spelling is `compact-at`'s description, `the agent's own settings decide`: the agent's own configuration, which decides where to compact when olai names no size, not the settings row.",
   "//alerts": "The words chat's own surfaces use for somebody else's alarm: the wake strip used to carry `alerts` as its accessible label and does not any more, and what remains is chat's browser entry and its attention line, which say the word as ordinary English rather than naming the alerts row.",
   "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row. `src/chat.ts`'s eighth spelling is the same kind: `files: []` on a prompt is `@kolu/acp-harness`'s `PersonSaid.files` — the protocol's own attachment blocks, which olai never sends because its pictures travel as paths in the body. The field is required by that shape, so the word is the harness's rather than this package's choice.",
   "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin; in `teaching.ts` the word is the MCP TOOL NAME `markdown_read`, which is what an agent is told to read a note with.",
@@ -81,7 +81,7 @@
     "src/browser/chat/sleeping.ts": 4,
     "src/chat.ts": 3,
     "src/server.ts": 6,
-    "src/settings.ts": 1,
+    "src/settings.ts": 2,
     "src/wire/members.ts": 2
   },
   "sidebar": {

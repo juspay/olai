@@ -19,6 +19,23 @@ test("boolean and numeric spellings share the decoder; bounds and filters descri
   expect(policyControl(Schema.Array(Schema.String).ast)).toEqual({ kind: "text" })
 })
 
+test("words beside one string arm are a list with a typed value; words alone and a string alone are what they were", () => {
+  const size = Schema.String.check(Schema.makeFilter(value => /^\d+k$/.test(value), { expected: "a number of thousands" }))
+  const open = Schema.Union([Schema.Literal("small"), Schema.Literal("large"), size])
+  expect(policyControl(open.ast)).toEqual({ kind: "choice", options: ["small", "large"], other: { expected: "a number of thousands" } })
+  // THE LEAF'S OWN DECODER still decides a typed value, and its refusal is the
+  // arm's check text.
+  expect(coerceLeaf(open, "large")).toBe("large")
+  expect(coerceLeaf(open, "250k")).toBe("250k")
+  expect(() => coerceLeaf(open, "250")).toThrow("a number of thousands")
+  // A string arm with no check says nothing to type.
+  expect(policyControl(Schema.Union([Schema.Literal("small"), Schema.String]).ast)).toEqual({ kind: "choice", options: ["small"], other: {} })
+  expect(policyControl(Schema.Literals(["small", "large"]).ast)).toEqual({ kind: "choice", options: ["small", "large"] })
+  expect(policyControl(size.ast)).toEqual({ kind: "text", expected: "a number of thousands" })
+  // TWO TYPED ARMS are not one typed value: the knob stays a text field.
+  expect(policyControl(Schema.Union([Schema.Literal("small"), Schema.String, Schema.String]).ast).kind).toBe("text")
+})
+
 test("a declaration marks a leaf a preference, and the flag travels on its reading", () => {
   const Config = Schema.Struct({
     plain: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("a")), Schema.annotate({ description: "kept in the plugins panel" })),
