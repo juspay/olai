@@ -36,6 +36,7 @@ export function Control(props: {
   /** The typed-value segment was pressed, and no save has been accepted since. */
   const [typing, setTyping] = createSignal(false)
   let reset: HTMLButtonElement | undefined
+  let segments: HTMLDivElement | undefined
   let field: HTMLInputElement | undefined
   let active = true
   onCleanup(() => { active = false })
@@ -92,9 +93,15 @@ export function Control(props: {
    * writes a half-typed draft into the shared file because a plugin was
    * toggled in another tab — a write nobody asked for, from a page whose wire
    * is gone.
+   *
+   * A MOVE TO THIS KNOB'S OWN ↺ OR SEGMENTS IS NOT A LEAVE either: the press
+   * that follows is the person's choice. Saving the typed draft first would
+   * set `pending`, which disables the segments, and the press would be lost —
+   * the draft written, or refused, in place of the word that was pressed.
    */
   const leaving = (event: FocusEvent) =>
-    event.relatedTarget !== reset && !takingOfflineFocus()
+    event.relatedTarget !== reset && !(event.relatedTarget instanceof Node && segments?.contains(event.relatedTarget) === true)
+    && !takingOfflineFocus()
   // Bound natively on the input: Solid's delegated listener runs at document,
   // where the popover's Escape dismissal would already have spent the key.
   const keyboard = (event: KeyboardEvent) => {
@@ -119,7 +126,7 @@ export function Control(props: {
               </Tip>
             }>
               <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
-                <div class="plugins-knob-segments" role="group" aria-label={named()}>
+                <div ref={segments} class="plugins-knob-segments" role="group" aria-label={named()}>
                   <For each={list().options}>{option => <button type="button" disabled={disabled()} aria-pressed={!typedOpen() && text() === option} data-value={option}
                     onClick={() => save(option)}>{option}</button>}</For>
                   {/* PRESSING IT SAVES NOTHING: it opens the field below. It
