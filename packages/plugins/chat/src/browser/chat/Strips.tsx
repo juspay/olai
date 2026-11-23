@@ -128,7 +128,7 @@ export function StripChips(props: { readonly chat: Chat }) {
     <Chip strip="standing">
       {/* A chat whose sleep is off in this directory's settings has no
           forecast, and reads Off whatever its own mark says. */}
-      <Show when={standing().sleep} fallback="Alerts">{(row) => `Sleep · ${sleepWords(row().sleep !== null && row().sleeps)}`}</Show>
+      <Show when={standing().sleep} fallback="Alert">{(row) => `Sleep · ${sleepWords(row().sleep !== null && row().sleeps)}`}</Show>
       <Show when={waiting() > 0}><span class="text-doing">· {waiting()} waiting</span></Show>
     </Chip>
     {/* HUNG FROM THE BAR'S BOX, as wide as the conversation and opening
