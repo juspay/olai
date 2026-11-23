@@ -105,9 +105,15 @@ test("a size is a whole number of thousands from 100k to 1000k, spelled exactly,
   for (const value of ["99k", "1001k", "250", "250K", "250.5k", "0250k", "-200k", " 250k", "abc", "", 200_000]) {
     expect(() => decode({ "compact-at": value })).toThrow()
   }
-  // READ FROM THE FILE THE WAY THE PANEL WRITES IT, and a refusal names what
-  // a size must be, so the person reading it under the knob knows what to type.
+  // DRAWN AS TWO WORDS AND A TYPED SIZE, read from the file the way the panel
+  // writes it, and a refusal names what a size must be, so the person reading
+  // it under the knob knows what to type.
   const size = Config.fields["compact-at"]
+  expect(policyControl(size.ast)).toEqual({
+    kind: "choice",
+    options: ["200k", "model-limit"],
+    other: { expected: "a whole number of thousands from 100k to 1000k" },
+  })
   expect(coerceLeaf(size, "250k")).toBe("250k")
   expect(() => coerceLeaf(size, "250")).toThrow("a whole number of thousands from 100k to 1000k")
   // The switch's words are `yes` and `no`, and nothing else is.

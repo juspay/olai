@@ -15,6 +15,11 @@ import { TESTID } from "../testids.ts"
 import { switchText } from "@olai/plugin-api/configuration"
 import { configurationAuthored, controlOf, labelOf, knobLabel, knobUnit, knobWidth, knobAuthored, type PolicyReading } from "./knobs.ts"
 
+/** THE PANEL'S OWN WORD for a typed value beside a list — a choice's `other`
+ *  (`@olai/plugin-api/configuration`'s `Control`). One word for every such
+ *  choice, never a plugin's, so this file still knows no plugin. */
+const OTHER = "custom"
+
 export function Control(props: {
   readonly name: string
   readonly value: PolicyReading
@@ -28,12 +33,27 @@ export function Control(props: {
   const draft = () => edited() ?? reading()
   const [pending, setPending] = createSignal(false)
   const [refused, setRefused] = createSignal<string>()
+  /** The typed-value segment was pressed, and no save has been accepted since. */
+  const [typing, setTyping] = createSignal(false)
   let reset: HTMLButtonElement | undefined
+  let field: HTMLInputElement | undefined
   let active = true
   onCleanup(() => { active = false })
   const metadata = () => controlOf(props.value)
   const frozen = () => props.frozen ?? (metadata() === undefined ? "This setting can't be changed here." : undefined)
   const disabled = () => frozen() !== undefined || pending()
+  /** The list this knob draws, when it is one and the reading is good. */
+  const choice = () => {
+    const control = metadata()
+    return !props.value.problem && control?.kind === "choice" ? control : undefined
+  }
+  const listed = () => choice()?.options.includes(text()) === true
+  /**
+   * WHETHER THE TYPED-VALUE FIELD IS OPEN: while the saved value is not on the
+   * list, or from a press of the segment until the next accepted save — so a
+   * typed `200k` closes it and presses `200k`, and ↺ closes it too.
+   */
+  const typedOpen = () => choice()?.other !== undefined && (typing() || !listed())
   /**
    * WHAT THE CONTROL IS CALLED, and — where it will not move — why. The tip
    * beside it says the same words for a pointer, and a tip exposes nothing to
@@ -41,9 +61,9 @@ export function Control(props: {
    * after what is being set, never instead of it: a frozen knob must still
    * answer "which setting is this?".
    */
-  const named = () => {
+  const named = (what = labelOf(props.value.key)) => {
     const why = frozen()
-    return why === undefined ? labelOf(props.value.key) : `${labelOf(props.value.key)} — ${why}`
+    return why === undefined ? what : `${what} — ${why}`
   }
   const save = (value: string | null) => {
     if (disabled()) return
@@ -57,6 +77,7 @@ export function Control(props: {
       if (!active) return
       setPending(false)
       setDraft(undefined)
+      setTyping(false)
     })
   }
   const saveDraft = () => { if (edited() !== undefined) save(draft()) }
@@ -89,18 +110,24 @@ export function Control(props: {
       <div class="plugins-knob-line">
         <Show when={props.label !== false}><span class="plugins-knob-key">{knobLabel(props.value.key)}</span></Show>
         <Switch fallback={<span>{text()}</span>}>
-          <Match when={!props.value.problem && metadata()?.kind === "choice" ? metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "choice" }> : undefined}>{choice =>
-            <Show when={choice().options.length <= 4} fallback={
+          <Match when={choice()}>{list =>
+            <Show when={list().options.length <= 4 || list().other !== undefined} fallback={
               <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
                 <select class="plugins-knob-input" aria-label={named()} disabled={disabled()} value={text()} onChange={event => save(event.currentTarget.value)}>
-                  <For each={choice().options}>{option => <option value={option}>{option}</option>}</For>
+                  <For each={list().options}>{option => <option value={option}>{option}</option>}</For>
                 </select>
               </Tip>
             }>
               <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
                 <div class="plugins-knob-segments" role="group" aria-label={named()}>
-                  <For each={choice().options}>{option => <button type="button" disabled={disabled()} aria-pressed={text() === option} data-value={option}
+                  <For each={list().options}>{option => <button type="button" disabled={disabled()} aria-pressed={!typedOpen() && text() === option} data-value={option}
                     onClick={() => save(option)}>{option}</button>}</For>
+                  {/* PRESSING IT SAVES NOTHING: it opens the field below. It
+                      carries no `data-value`, so no option's word can name it. */}
+                  <Show when={list().other}>
+                    <button type="button" disabled={disabled()} aria-pressed={typedOpen()} data-testid={TESTID.pluginOther}
+                      onClick={() => { setTyping(true); queueMicrotask(() => field?.focus()) }}>{OTHER}</button>
+                  </Show>
                 </div>
               </Tip>
             </Show>
@@ -153,6 +180,21 @@ export function Control(props: {
           </Tip>
         </Show>
       </div>
+      {/* THE TYPED VALUE, on a line of its own so the knob stays one column on
+          a phone. The same text input every text knob is: Enter saves, leaving
+          saves a changed draft, Escape drops it, and the server's refusal is
+          drawn below. It reads the saved word only when that word is not one
+          of the list's. */}
+      <Show when={typedOpen()}>
+        <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
+          <input ref={field} class="plugins-knob-input plugins-knob-other" data-testid={TESTID.pluginOtherField}
+            aria-label={named(`${labelOf(props.value.key)}, ${OTHER}`)} aria-invalid={refused() !== undefined ? "true" : undefined}
+            disabled={disabled()} value={edited() ?? (listed() ? "" : text())} placeholder={choice()?.other?.expected}
+            enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck={false}
+            onInput={event => { setDraft(event.currentTarget.value); setRefused(undefined) }}
+            onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
+        </Tip>
+      </Show>
       <Show when={props.value.problem}>{problem => <p class="plugins-knob-problem" data-testid={TESTID.pluginProblem}>{problem().why} · using {text()}</p>}</Show>
       <Show when={refused()}>{reason => <p role="alert" class="plugins-knob-problem" data-testid={TESTID.pluginProblem}>{reason()}</p>}</Show>
     </div>

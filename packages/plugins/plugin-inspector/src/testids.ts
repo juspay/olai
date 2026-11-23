@@ -16,6 +16,9 @@ export const TESTID = {
   pluginPreferenceLink: "plugin-preference-link",
   pluginConfigError: "plugin-config-error",
   pluginSwitch: "plugin-switch",
+  /** A choice's typed-value segment, and the field it opens. */
+  pluginOther: "plugin-other",
+  pluginOtherField: "plugin-other-field",
   pluginGroup: "plugin-group",
   pluginConfirm: "plugin-confirm",
   pluginConfirmOff: "plugin-confirm-off",

@@ -106,6 +106,9 @@ a.plugins-link code { color: inherit; }
 .plugins-knob-segments { display: inline-flex; flex-wrap: wrap; min-width: 0; border: 1px solid var(--color-rule); border-radius: var(--radius-control); overflow: hidden; }
 .plugins-knob-segments button { padding: 3px 8px; font: inherit; color: var(--color-muted); }
 .plugins-knob-segments button[aria-pressed="true"] { background: color-mix(in srgb, var(--color-done) 20%, var(--color-panel)); color: var(--color-ink); }
+/* A choice's typed value sits on its own line under the segments, never wider
+   than the row (`.plugins-knob-input`'s max-width). */
+.plugins-knob-other { width: 24ch; margin-top: 4px; }
 .plugins-knob-source { color: var(--color-done); font-size: var(--text-caption); }
 .plugins-knob-reset { color: var(--color-muted); }
 .plugins-knob-problem { color: var(--color-alarm); font-size: var(--text-caption); overflow-wrap: anywhere; white-space: pre-wrap; }
