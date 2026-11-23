@@ -44,11 +44,11 @@ Feature: A chat is a page of its own
     And the chat page has no opens switch
     And there should be no page errors
 
-  # THE WHOLE HEAD STAYS AT THE TOP of a long conversation — the agent line
-  # with Fresh start and Close, the tool row, what is still running and the
-  # sleep line — over an opaque ground, so a reader at the newest line still
-  # has the conversation's controls and sees what is still out. Alone, the
-  # document scrolls under it; beside its row, the chat's own column does.
+  # ON A DESKTOP THE WHOLE HEAD STAYS AT THE TOP of a long conversation — the
+  # agent line with Fresh start and Close, the tool row, what is still running
+  # and the sleep line — over an opaque ground, so a reader at the newest line
+  # still has the conversation's controls and sees what is still out. Alone,
+  # the document scrolls under it; beside its row, the chat's own column does.
   Scenario: A long chat scrolls under its whole head, alone and beside its row
     Given I open the plain node composer for "install"
     When I send "hello" from the plain node composer
@@ -72,10 +72,11 @@ Feature: A chat is a page of its own
     Then the strip lists no agent still out
     And there should be no page errors
 
-  # ...AND ON A PHONE HELD UPRIGHT, where the head is the most of the screen it
-  # ever takes and the box somebody types in must still be clear of it.
+  # ...BUT ON A PHONE ONLY THE NAME LINE STAYS: the whole head there leaves the
+  # conversation a slot, so the agent line, the tool row and the sleep line
+  # scroll away with the chat while the item's name and its way back stay.
   @phone
-  Scenario: On a phone a long chat scrolls under its whole head
+  Scenario: On a phone a long chat keeps only its name line pinned
     Given I open the plain node composer for "install"
     When I send "hello" from the plain node composer
     Then the node page conversation is ready for "install"
@@ -85,12 +86,9 @@ Feature: A chat is a page of its own
     And the chat page conversation is ready
     When I ask the agent "flood"
     And the agent is idle
-    And I ask the agent "subagent slow"
-    Then the strip lists 1 agents still out
-    When I scroll the page to its end
-    Then the chat page's whole head stays at the top over the conversation
-    When the agent is released
-    Then the strip lists no agent still out
+    And I scroll the page to its end
+    Then the chat page's head stays in view
+    And the rest of the chat page's head has scrolled away under it
     And there should be no page errors
 
   Scenario: Open beside puts the note on the left, names both panes, and then only focuses it

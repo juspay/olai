@@ -263,8 +263,8 @@ export const CHAT_PAGE_WHERE = selector(TESTID.chatPageWhere);
 /** The item's line — the one band pinned at every size, because on a phone
  *  with the chat alone it is the only way back to the note. */
 export const CHAT_PAGE_HEAD = selector(TESTID.chatPageHead);
-/** ...and the whole head it heads, pinned over the conversation wherever the
- *  screen is tall enough to hold it. */
+/** ...and the whole head it heads, pinned over the conversation on a desktop
+ *  and in a desktop column; a phone draws no box for it. */
 export const CHAT_PAGE_PINNED = selector(TESTID.chatPagePinned);
 /** How the chat stands, at the right of that line — read-only here. */
 export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);

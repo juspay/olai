@@ -361,6 +361,20 @@ Then("the chat page's head stays in view", async function (this: OlaiWorld) {
     `the chat page's head scrolled away: ${JSON.stringify({ above, box, scrolled })}`);
 });
 
+/**
+ * ...AND ON A PHONE NOTHING ELSE OF THE HEAD IS PINNED WITH IT: the agent
+ * line — and the tool row and sleep line under it — has gone up past the
+ * item's line with the conversation, so it ends at or above that line's
+ * bottom edge rather than holding a band of the screen below it.
+ */
+Then("the rest of the chat page's head has scrolled away under it", async function (this: OlaiWorld) {
+  const here = page(this);
+  const line = await here.locator(CHAT_PAGE_HEAD).boundingBox();
+  const agent = await here.locator(selector(TESTID.agentPageHead)).boundingBox();
+  assert.ok(line && agent && agent.y + agent.height <= line.y + line.height + 1,
+    `the agent line is still pinned under the item's line: ${JSON.stringify({ line, agent })}`);
+});
+
 /** Whether a computed colour lets nothing through: not `transparent`, and no
  *  alpha under 1 in either form a browser writes one (`rgba(…, a)`, or
  *  `oklch(… / a)` and the other functions with a slash). */
@@ -378,10 +392,11 @@ const opaque = (colour: string): boolean => {
  * sleep line, all still at the top of whatever scrolls the page, with the
  * conversation under them rather than through them.
  *
- * WHATEVER SCROLLS: the document on a phone and on a lone desktop page, the
- * column in a desktop split. Where the head belongs is read off its own
- * `top` against that scroller rather than off the chrome above it, so one
- * step says the same thing about all three.
+ * WHATEVER SCROLLS: the document on a lone desktop page, the column in a
+ * desktop split. Where the head belongs is read off its own `top` against
+ * that scroller rather than off the chrome above it, so one step says the
+ * same thing about both. A phone pins the item's line alone, which the step
+ * after `the chat page's head stays in view` holds.
  *
  * ON TOP, NOT ONLY IN PLACE: the middle of every row is hit-tested, so a row
  * the chrome or the conversation paints over fails here. OPAQUE: the ground
@@ -458,12 +473,14 @@ Then("the chat page's whole head stays at the top over the conversation", async 
  * THE SHARE OF THE SCREEN LEFT FOR THE CONVERSATION, measured between the
  * chrome pinned over the page and the box somebody types in, pinned under it.
  *
- * This is the complaint, as a number: a pinned head is worth nothing if it
- * leaves the conversation a slot. What a scenario asserts is therefore not
- * "the head is small" but what is LEFT: the band from the lowest thing pinned
- * at the top (the bar, the strip of tabs where there is one, and the page's
- * own pinned head — whole where the screen is tall, the item's line alone on
- * a short one) down to the TOP OF THE TEXT BOX.
+ * This is the complaint, as a number. With the whole head pinned, a portrait
+ * handset spent 450 of its 844 pixels on chrome and a landscape one 310 of
+ * 390 — the conversation was a slot, and on its side there was none at all.
+ * What a scenario asserts is therefore not "the head is small" but what is
+ * LEFT: the band from the lowest thing pinned at the top (the bar, the strip
+ * of tabs where there is one, and the page's own pinned line) down to the TOP
+ * OF THE TEXT BOX. The whole head's box is counted too, which a phone does not
+ * draw (`display: contents`), so a head pinned whole there again fails here.
  *
  * THE TOP OF THE BOX, and not the *Send* button on the row under it: what a
  * person READS is the conversation, and a measure that stopped at the send

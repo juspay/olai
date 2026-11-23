@@ -95,7 +95,7 @@ A conversation opens with its newest sixty messages.[^scroll] A restart reopens 
 
     You can sign in before a conversation exists: the first start records only which agent you chose, and the conversation is written down once the agent opens one.
 
-[^where]: The top of a chat's page stays in view as you scroll: the row or document's name, how the chat stands, **Open plan beside ›**, the path, the agent line, the tools, what is still running and the sleep line. On a phone on its side, only the first line stays. **Open plan beside ›** puts the row or document beside the conversation ([node agents](node-agents.md)). Open a chat from **Chats**, a document's top line, or a row with an agent.
+[^where]: On a desktop, the top of a chat's page stays in view as you scroll: the row or document's name, how the chat stands, **Open plan beside ›**, the path, the agent line, the tools, running tasks and the sleep line. On a phone, only the first line stays. **Open plan beside ›** puts the row or document beside the conversation ([node agents](node-agents.md)). Open a chat from **Chats**, a document's top line, or a row with an agent.
 
 [^line]: The agent line carries the agent's icon and name, and one of these states: **Starting…**, **Working…**, **Waiting on you**, **Ready**, **Not running** or **Not set up**. Its buttons sit at the right: **Fresh start** and **Close**. **Close** unties the chat from the row or document, and olai then shows that conversation nowhere ([node agents](node-agents.md)). Under a row, or on a row's page, the first button is **Open beside ›** and **Show in outline ›** sits beside it.
 

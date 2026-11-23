@@ -176,30 +176,31 @@ export function ChatPage(props: { readonly item: AgentItem }) {
       data-kind={props.item.kind}
       {...LINKS_ASIDE}
     >
-      {/* PINNED: THE WHOLE HEAD — the item's line, where it is, the agent
-          line with its tool row, what is still running and the sleep line,
-          and a note's *Opens* switch. The page is the scroll, so a head that
-          scrolled away would take the controls of the conversation being
-          read with it. `--height-chrome` is the bar on a phone, with the tab
-          strip added while the lane has one, and zero inside a desktop
-          column, which is its own scrollport (`olai-plugin-layout`'s
+      {/* PINNED ON A DESKTOP: THE WHOLE HEAD — the item's line, where it is,
+          the agent line with its tool row, what is still running and the
+          sleep line, and a note's *Opens* switch. The page is the scroll, so
+          a head that scrolled away would take the controls of the
+          conversation being read with it. `--height-chrome` is the bar, with
+          the desktop strip added while there is one, and zero inside a
+          desktop column, which is its own scrollport (`olai-plugin-layout`'s
           `Panes.tsx`). The ground is opaque so the conversation scrolling
           under it does not show through the agent line's tinted one.
 
-          EXCEPT ON A SHORT SCREEN (`short`, a phone on its side): there the
-          whole head would cover the box somebody types in, so the wrapper
-          steps out of the layout and only the item's line pins, as the way
-          back to the item.
+          ON A PHONE ONLY THE ITEM'S LINE PINS — below `md`, and on any screen
+          too `short` for it, which is a phone on its side. The whole head
+          there leaves the conversation a slot or covers the box somebody
+          types in, so the wrapper steps out of the layout (`contents`) and
+          the item's line sticks by itself, as the way back to the item.
 
           THE DOOR IS ON THE ITEM'S LINE WHETHER OR NOT THERE IS A
           CONVERSATION. Not for a note that is GONE: there is no page to put
           beside this one. */}
       <div
-        class={`sticky top-[var(--height-chrome)] ${LAYER.page} bg-paper short:contents`}
+        class={`sticky top-[var(--height-chrome)] ${LAYER.page} bg-paper max-md:contents short:contents`}
         data-testid={TESTID.chatPagePinned}
       >
         <div
-          class={`short:sticky short:top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6 short:pt-2`}
+          class={`max-md:sticky max-md:top-[var(--height-chrome)] short:sticky short:top-[var(--height-chrome)] ${LAYER.page} flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-paper pb-1 pt-6 short:pt-2`}
           data-testid={TESTID.chatPageHead}
         >
           <Show when={mark()}>

@@ -242,13 +242,13 @@ Feature: A press in Chats opens the conversation the way its item says
   # the band from the lowest pinned thing down to the TOP OF THE BOX somebody
   # types in, which is all a person can read.
   #
-  # UPRIGHT the whole head is pinned — the item's line, the agent line, the
-  # tool row and the switches — so the reader keeps the conversation's
-  # controls at the bottom of a long chat; what it may not do is leave the
-  # conversation a slot. ON ITS SIDE only the item's line is pinned, because
-  # the whole head there covers the box somebody types in.
+  # Only the line with the item's name and its door is pinned; the agent line,
+  # the tool row and the switches scroll with the chat. Pinning the whole head
+  # left about 190 of a portrait handset's 844 pixels for the conversation and
+  # covered the box entirely on its side, which is the complaint this
+  # measures.
   @phone
-  Scenario: On a phone the conversation keeps its share of the screen, upright and on its side
+  Scenario: On a phone the conversation gets most of the screen, upright and on its side
     Given the vault holds "notes/plan.md" saying "# Plan"
     And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
     And I open the outline "house.olai"
@@ -259,8 +259,8 @@ Feature: A press in Chats opens the conversation the way its item says
     And the agent is idle
     And I scroll the page to its end
     Then the chat page's head stays in view
-    # UPRIGHT, under the whole head: at least 127 of 844 pixels, five lines.
-    And the conversation gets at least 15% of the screen
+    # UPRIGHT: 456 of 844 pixels, about twenty lines.
+    And the conversation gets at least 50% of the screen
     # ON ITS SIDE the screen is 390 points tall and the page is past `md`, so
     # it used to wear a desktop's head and a desktop's spacing on a handset:
     # 56 pixels, two lines, between the pinned line and the box. A screen that

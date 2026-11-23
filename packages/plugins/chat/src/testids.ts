@@ -103,8 +103,9 @@ export const TESTID = {
   /** THE PINNED HEAD, WHOLE — the item's line, where it is, the agent line
    *  with its tool row, what is still running, the sleep line and a note's
    *  *Opens* switch, held under the app's chrome over an opaque ground while
-   *  the conversation scrolls beneath it. On a short screen it is not a box
-   *  at all (`display: contents`), and only the item's line pins. */
+   *  the conversation scrolls beneath it, on a desktop. On a phone (below `md`,
+   *  or a screen too `short`) it is not a box at all (`display: contents`),
+   *  and only the item's line pins. */
   chatPagePinned: "chat-page-pinned",
   /** THE ITEM'S LINE — its name, how the chat stands and the way back to the
    *  item. Pinned at every size, which on a phone with the chat alone is the
