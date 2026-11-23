@@ -2009,9 +2009,30 @@ export class OlaiWorld extends World {
   }
   chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
   /** Settings and the standing strips (plan, tools, still running, alerts)
-   *  live in the fold, or in the pinned head of a node page or a chat page. */
+   *  live in the fold, in the pinned head of a node page or a phone's chat
+   *  page, or on the status bar a desktop chat page pins on its composer. */
   chatLine(): Locator {
-    return this.page.locator(this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead)));
+    return this.page.locator(this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead), selector(PLUGIN_TESTID.agentPageFoot)));
+  }
+  /**
+   * A STRIP A CHAT PAGE KEEPS BEHIND A CHIP, pressed into view. On a desktop
+   * the chat page's standing strips ride its status bar as chips
+   * (`olai-plugin-chat`'s `Strips.tsx`): mounted, and `hidden` until their
+   * chip is pressed. A step that reads or presses something in one presses
+   * the chip first, as a person would; anywhere else this does nothing. It
+   * waits for the target to be on the page, which is the half of `visible`
+   * a hidden strip can answer.
+   */
+  async uncover(target: Locator): Promise<Locator> {
+    const one = target.first();
+    await one.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    const strip = await one.evaluate((element, shut) => element.closest(shut)?.getAttribute("data-strip") ?? null,
+      `${selector(PLUGIN_TESTID.chatBarStrip)}[hidden]`);
+    if (strip !== null) {
+      await this.press(one.locator(`xpath=ancestor::*[@data-testid="${PLUGIN_TESTID.chatStatusBar}"]`)
+        .locator(`${selector(PLUGIN_TESTID.chatBarChip)}${attr("data-strip", strip)}`));
+    }
+    return target;
   }
   chatRoot(): Locator {
     return this.page.locator(this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageFoot)));

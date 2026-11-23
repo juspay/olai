@@ -103,7 +103,9 @@ The count stops when the call's turn stops, so a line left behind by a turn that
 
 Some calls answer at once and keep working in the background, such as a monitor or a shell command sent off to run on its own. The line that started one stays live, showing the description the task was started with, how long it has been running, and **Still running…** under it. There is no terminal pane for it, because the exit code the launch returned is not the task's own.
 
-While a task is running it is listed on the **Still running** strip above the conversation, which stays in place as you scroll. When the task ends, the strip clears and a new line arrives at the bottom of the conversation in the agent's own word for it: *completed*, *failed*, *killed* or *stopped*. The line that started the task keeps the ending it already had.
+While a task is running it is listed on the **Still running** strip above the conversation, which stays in place as you scroll. On a desktop chat page, that list opens from the **2 running** chip on the agent line, above the box you type in.
+
+When the task ends, the strip clears and a new line arrives at the bottom of the conversation in the agent's own word for it: *completed*, *failed*, *killed* or *stopped*. The line that started the task keeps the ending it already had.
 
 A turn ending leaves such a task running; the agent dying abandons it. Only Claude Code reports background tasks. On another agent a background command is drawn as a call that finished the moment it started.
 

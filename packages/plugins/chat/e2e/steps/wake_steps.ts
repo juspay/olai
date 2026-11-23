@@ -64,7 +64,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
  * picker already stamps `data-plugin`; the step names whose.
  */
 const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => {
-  const strip = world.chat(CHAT_WAKE);
+  const strip = await world.uncover(world.chat(CHAT_WAKE));
   await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const picker = world.chat(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`);
   await picker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

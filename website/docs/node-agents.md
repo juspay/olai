@@ -34,13 +34,15 @@ The first message carries an instruction from olai.[^preamble] On a row, the not
 
 [^zoom]: Zooming into a row means opening it so that it is the top of what you see. Sending from the box below it starts that row's agent and delivers what you typed to the new conversation, with the rows under it still in front of you. A row that already has a chat shows the conversation there instead.
 
-[^page]: The head carries the row's title, or the document's name with its file mark, then its path, and how the chat stands at the right. Under that is the agent line, and then the conversation, whose box stays at the foot of the pane while the messages scroll. The page draws no trail of the pages above it. An item with no chat yet shows an **Ask about plan…** box in the conversation's place.
+[^page]: The top line carries the row's title, or the document's name with its file mark, and how the chat stands. It stays in view as you scroll. The path sits beside the name on a desktop and under it on a phone.
+
+    The box you type in stays at the foot. On a desktop the agent line sits on it; on a phone it scrolls away under the top line. The page draws no trail of the pages above it. With no chat yet, an **Ask about plan…** box stands in the conversation's place.
 
 [^beside]: Pressing **Open beside ›** opens the conversation in the pane to the right, and leaves the page you are reading as it is. The same button on a chat's own page, **Open plan beside ›**, puts the row or document in the pane to its left. Below `md` it reads **Open plan ›** and opens the item in the next tab ([the sidebar, tabs and the palette](getting-around.md)).
 
     A conversation is drawn in one place at a time: a row's fold, the row's page and a document's line each read **Shown beside** while a pane holds it, and take you there.
 
-[^opens]: The **Opens** line sits under the agent line on a document's chat page, and says **alone** or **with plan beside**. Pressing it writes `chat-opens` into that document's own front matter ([the outline file format](format.md)), so the answer travels with your files. With **beside**, opening that chat from **Chats** or the palette puts the document on the left and the conversation on the right. A row's chat always opens alone, because a row has nowhere to keep the switch.
+[^opens]: The **Opens** line sits under the top line of a document's chat page, and says **alone** or **with plan beside**. Pressing it writes `chat-opens` into that document's own front matter ([the outline file format](format.md)), so the answer travels with your files. With **beside**, opening that chat from **Chats** or the palette puts the document on the left and the conversation on the right. A row's chat always opens alone, because a row has nowhere to keep the switch.
 
     Pressing it again opens nothing new: it uses the panes already showing the document and the conversation.
 

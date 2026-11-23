@@ -225,7 +225,8 @@ Then("the new chat draft is {string}", async function(this: OlaiWorld, text: str
  *  every `data-agent` carry. */
 Then("the new conversation is unfolded as {string} with engine {string}", async function(this: OlaiWorld, name: string, engine: string) {
   const key = itemKey(this, name);
-  const head = this.page.locator(`${selector(PLUGIN_TESTID.agentPageHead)}${attr("data-agent", key)}`).first();
+  // The agent line: the page's head, or a desktop chat page's status bar.
+  const head = this.page.locator(`${selector(PLUGIN_TESTID.agentPageHead)}${attr("data-agent", key)}, ${selector(PLUGIN_TESTID.agentPageFoot)}${attr("data-agent", key)} ${selector(PLUGIN_TESTID.chatStatusBar)}`).first();
   await head.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => String(tieOf(this, name) ?? "").startsWith(`${engine}:`),
     `${name} to carry a ${engine} session`, HYDRATION_TIMEOUT);

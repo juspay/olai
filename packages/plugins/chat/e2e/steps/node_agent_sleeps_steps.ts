@@ -185,7 +185,7 @@ Given("one row under {string} has moved", async function (this: OlaiWorld, node:
 /** ...AND WHAT THE ITEM SAYS, for the states whose point is the sentence rather
  *  than the state: a floor is only visible as "1 of 2 rows". */
 Then("the sleep item mentions {string}", async function (this: OlaiWorld, words: string) {
-  const said = await item(this).innerText();
+  const said = await (await this.uncover(item(this))).innerText();
   assert.ok(said.includes(words), `the sleep item should mention ${words}: ${said}`);
 });
 
@@ -305,7 +305,7 @@ Then("the standing line has wrapped", async function (this: OlaiWorld) {
  * verb the row menu and ⌘K carry.
  */
 When("I press Tidy memory on the strip", async function (this: OlaiWorld) {
-  const button = this.chat(selector(TESTID.chatTidyMemory));
+  const button = await this.uncover(this.chat(selector(TESTID.chatTidyMemory)));
   await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await button.click();
 });
@@ -324,7 +324,7 @@ When("I press Tidy memory on the strip", async function (this: OlaiWorld) {
 const switchSleep = async (world: OlaiWorld, on: boolean) => {
   const button = world.chat('[data-testid="chat-sleep-switch"]');
   await world.waitUntil(async () => await button.count() === 1, "the sleep switch in the strip");
-  if ((await button.getAttribute("aria-checked") === "true") !== on) await button.click();
+  if ((await button.getAttribute("aria-checked") === "true") !== on) await (await world.uncover(button)).click();
   await world.waitUntil(
     async () => (await button.getAttribute("aria-checked") === "true") === on,
     `sleep when idle ${on ? "on" : "off"}`,

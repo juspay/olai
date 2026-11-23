@@ -44,12 +44,15 @@ Feature: A chat is a page of its own
     And the chat page has no opens switch
     And there should be no page errors
 
-  # ON A DESKTOP THE WHOLE HEAD STAYS AT THE TOP of a long conversation — the
-  # agent line with Fresh start and Close, the tool row, what is still running
-  # and the sleep line — over an opaque ground, so a reader at the newest line
-  # still has the conversation's controls and sees what is still out. Alone,
-  # the document scrolls under it; beside its row, the chat's own column does.
-  Scenario: A long chat scrolls under its whole head, alone and beside its row
+  # ON A DESKTOP ONLY THE NAME LINE STAYS AT THE TOP of a long conversation,
+  # and the agent line rides the box somebody types in as a status bar —
+  # Fresh start, Close, and a chip each for the tool row, what is still
+  # running and the sleep line — so a reader at the newest line has the
+  # conversation's controls without a head taking a third of the screen. A
+  # chip opens its strip above the bar, and goes when its strip has nothing
+  # to say. Alone, the document scrolls between the two; beside its row, the
+  # chat's own column does.
+  Scenario: A long chat keeps its name at the top and its agent line on the box, alone and beside its row
     Given I open the plain node composer for "install"
     When I send "hello" from the plain node composer
     Then the node page conversation is ready for "install"
@@ -62,19 +65,22 @@ Feature: A chat is a page of its own
     And I ask the agent "subagent slow"
     Then the strip lists 1 agents still out
     When I scroll the page to its end
-    Then the chat page's whole head stays at the top over the conversation
+    Then the chat page keeps only its name line at the top and its status bar on the box
+    And what is still running opens above the status bar
     When I press Open beside on the chat page
     Then there are 2 panes
     And pane 1 is showing "/chat/install"
     When I scroll pane 1 to the bottom
-    Then the chat page's whole head stays at the top over the conversation
+    Then the chat page keeps only its name line at the top and its status bar on the box
     When the agent is released
     Then the strip lists no agent still out
+    And the status bar offers no "running" chip
     And there should be no page errors
 
-  # ...BUT ON A PHONE ONLY THE NAME LINE STAYS: the whole head there leaves the
-  # conversation a slot, so the agent line, the tool row and the sleep line
-  # scroll away with the chat while the item's name and its way back stay.
+  # ...BUT ON A PHONE ONLY THE NAME LINE STAYS, and the agent line is not a
+  # bar on the box: a phone's foot is the box and its keyboard, so the agent
+  # line, the tool row and the sleep line stay under the name and scroll away
+  # with the chat while the item's name and its way back stay.
   @phone
   Scenario: On a phone a long chat keeps only its name line pinned
     Given I open the plain node composer for "install"
@@ -89,6 +95,7 @@ Feature: A chat is a page of its own
     And I scroll the page to its end
     Then the chat page's head stays in view
     And the rest of the chat page's head has scrolled away under it
+    And the chat page draws no status bar
     And there should be no page errors
 
   Scenario: Open beside puts the note on the left, names both panes, and then only focuses it
