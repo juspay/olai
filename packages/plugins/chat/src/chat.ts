@@ -136,7 +136,6 @@ import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { remindingFor, teachingFor } from "./teaching.ts"
 import { sameWatching, watching } from "./watching.ts"
-import type { CompactAt } from "./settings.ts"
 
 /** One conversation a plugin may wake, optionally narrowed to a node scope. */
 export interface WakeScope {
@@ -192,6 +191,19 @@ export const SLOTS = 32
  * list is its bound.
  */
 const CONVERSATIONS = 32
+
+/**
+ * {@link PanelOptions.compactAt}'s word for "the chat decides, with no
+ * number": the session opens with nothing about compaction, and only the
+ * variables that would override the agent's own settings are taken from the
+ * spawn. It is also `compact-at`'s file word for it (`./settings.ts`), so THE
+ * ONE SPELLING lives with the option that reads it; {@link openingOf} tells it
+ * from a number by type.
+ */
+export const MODEL_LIMIT = "model-limit"
+
+/** Where a chat's agents compact: a number of tokens, or {@link MODEL_LIMIT}. */
+export type CompactAt = number | typeof MODEL_LIMIT
 
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */

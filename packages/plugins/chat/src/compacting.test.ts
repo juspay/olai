@@ -22,9 +22,8 @@ import { join } from "node:path"
 import { FORWARDS, QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
-import { makePanel } from "./chat.ts"
+import { type CompactAt, makePanel } from "./chat.ts"
 import { volatile } from "./memory.ts"
-import type { CompactAt } from "./settings.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "compaction-agent.ts")
 

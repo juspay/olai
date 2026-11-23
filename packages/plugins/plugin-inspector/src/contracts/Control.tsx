@@ -6,7 +6,7 @@
  * — and a component another package may mount must reach nothing this
  * activation holds (`./control.ts`). Everything it draws from arrives as a
  * prop; everything it keeps is one draft, which dies with the mount. */
-import { createEffect, createSignal, For, onCleanup, Show, Switch, Match } from "solid-js"
+import { createEffect, createSignal, For, onCleanup, Show, Switch, Match, type JSX } from "solid-js"
 import type { BrowserManagement } from "@olai/surface/management"
 import { run } from "@olai/web/client/run.ts"
 import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
@@ -112,6 +112,24 @@ export function Control(props: {
     }
   }
   const invalid = () => props.value.problem !== undefined || refused() !== undefined
+  /**
+   * THE ONE TEXT INPUT A KNOB DRAWS, whichever value it edits — a text or
+   * number knob's own, or a choice's typed value: one draft, Enter saves,
+   * leaving saves a changed draft, Escape drops it.
+   *
+   * THE KEYBOARD IT ASKS FOR. `enterkeyhint="done"` because Enter here saves
+   * the draft and leaves the knob where it is (`keyboard`, above) — nothing is
+   * sent and nowhere is gone to. A knob's text value is a setting rather than
+   * prose — a path, a name, a duration — so the three corrections go off with
+   * it.
+   */
+  const DraftInput = (input: JSX.InputHTMLAttributes<HTMLInputElement>) =>
+    <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
+      <input {...input} class={input.class === undefined ? "plugins-knob-input" : `plugins-knob-input ${input.class}`} disabled={disabled()}
+        enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck={false}
+        onInput={event => { setDraft(event.currentTarget.value); setRefused(undefined) }}
+        onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
+    </Tip>
   return <Tip text={props.value.says} disabled={props.value.says === ""}>
     <div class="plugins-knob" data-testid={TESTID.pluginKnob} data-config={props.value.key} data-set-by={props.value.setBy} data-value={text()}>
       <div class="plugins-knob-line">
@@ -148,28 +166,17 @@ export function Control(props: {
             </Tip>
           </Match>
           <Match when={props.value.problem || metadata()?.kind === "number" || metadata()?.kind === "text"}>
-            {/* THE KEYBOARD A KNOB ASKS FOR. `enterkeyhint="done"` because Enter
-                here saves the draft and leaves the knob where it is (`keyboard`,
-                above) — nothing is sent and nowhere is gone to.
-
-                `inputmode` is set ONLY for a number, where the keyboard it asks
+            {/* `inputmode` is set ONLY for a number, where the keyboard it asks
                 for genuinely differs. It used to say `text` for everything else,
                 which is the default spelled out: a value with no effect that
-                reads like a decision. A knob's text value is a setting rather
-                than prose — a path, a name, a duration — so the three
-                corrections go off with it. */}
-            <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
-              <input class="plugins-knob-input" style={{ width: knobWidth(props.value) }} aria-label={named()} aria-invalid={invalid() ? "true" : undefined}
-                disabled={disabled()} value={draft()}
-                enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck={false}
-                type={metadata()?.kind === "number" && !props.value.problem ? "number" : "text"} inputmode={metadata()?.kind === "number" ? "numeric" : undefined}
-                min={metadata()?.kind === "number" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).min : undefined}
-                max={metadata()?.kind === "number" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).max : undefined}
-                step={metadata()?.kind === "number" && (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).integer ? 1 : "any"}
-                placeholder={metadata()?.kind === "text" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "text" }>).expected : undefined}
-                onInput={event => { setDraft(event.currentTarget.value); setRefused(undefined) }}
-                onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
-            </Tip>
+                reads like a decision. */}
+            <DraftInput style={{ width: knobWidth(props.value) }} aria-label={named()} aria-invalid={invalid() ? "true" : undefined}
+              value={draft()}
+              type={metadata()?.kind === "number" && !props.value.problem ? "number" : "text"} inputmode={metadata()?.kind === "number" ? "numeric" : undefined}
+              min={metadata()?.kind === "number" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).min : undefined}
+              max={metadata()?.kind === "number" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).max : undefined}
+              step={metadata()?.kind === "number" && (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).integer ? 1 : "any"}
+              placeholder={metadata()?.kind === "text" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "text" }>).expected : undefined} />
             <Show when={metadata()?.kind === "number" && knobUnit(props.value.key)}>{unit => <span class="plugins-knob-key">{unit()}</span>}</Show>
           </Match>
         </Switch>
@@ -188,19 +195,12 @@ export function Control(props: {
         </Show>
       </div>
       {/* THE TYPED VALUE, on a line of its own so the knob stays one column on
-          a phone. The same text input every text knob is: Enter saves, leaving
-          saves a changed draft, Escape drops it, and the server's refusal is
-          drawn below. It reads the saved word only when that word is not one
-          of the list's. */}
+          a phone, and the same input as every text knob's. It reads the saved
+          word only when that word is not one of the list's. */}
       <Show when={typedOpen()}>
-        <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
-          <input ref={field} class="plugins-knob-input plugins-knob-other" data-testid={TESTID.pluginOtherField}
-            aria-label={named(`${labelOf(props.value.key)}, ${OTHER}`)} aria-invalid={refused() !== undefined ? "true" : undefined}
-            disabled={disabled()} value={edited() ?? (listed() ? "" : text())} placeholder={choice()?.other?.expected}
-            enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck={false}
-            onInput={event => { setDraft(event.currentTarget.value); setRefused(undefined) }}
-            onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
-        </Tip>
+        <DraftInput ref={field} class="plugins-knob-other" data-testid={TESTID.pluginOtherField}
+          aria-label={named(`${labelOf(props.value.key)}, ${OTHER}`)} aria-invalid={refused() !== undefined ? "true" : undefined}
+          value={edited() ?? (listed() ? "" : text())} placeholder={choice()?.other?.expected} />
       </Show>
       <Show when={props.value.problem}>{problem => <p class="plugins-knob-problem" data-testid={TESTID.pluginProblem}>{problem().why} · using {text()}</p>}</Show>
       <Show when={refused()}>{reason => <p role="alert" class="plugins-knob-problem" data-testid={TESTID.pluginProblem}>{reason()}</p>}</Show>

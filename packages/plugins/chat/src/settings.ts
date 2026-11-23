@@ -1,5 +1,6 @@
 /** Node-process policy. Machine resources continue to arrive through Env. */
 import { Duration, Effect, Schema, SchemaTransformation } from "effect"
+import { type CompactAt, MODEL_LIMIT } from "./chat.ts"
 import { DEFAULT_IDLE } from "./scoped.ts"
 
 /**
@@ -75,17 +76,6 @@ const span = (key: SpanKey) =>
     Schema.withDecodingDefaultKey(Effect.succeed(SPANS[key].default)),
     Schema.annotate({ description: SPANS[key].says }),
   )
-
-/**
- * {@link Config}'s `compact-at` word for "olai says no number": the session
- * opens with nothing about compaction, and only the variables that would
- * override the person's own agent settings are taken from the spawn. THE ONE
- * SPELLING of it — chat's `openingOf` tells it from a number by type.
- */
-export const MODEL_LIMIT = "model-limit"
-
-/** Where a chat's agents compact: a number of tokens, or {@link MODEL_LIMIT}. */
-export type CompactAt = number | typeof MODEL_LIMIT
 
 /**
  * A `compact-at` size as the tokens it means — `undefined` for a word that is
