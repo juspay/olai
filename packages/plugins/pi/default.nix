@@ -5,7 +5,8 @@
 # that engines are plugins, THIS file owns the pi row's facts: the npm package,
 # the wrapper's bin, the MCP extension that arms it, and the bridge bundle the
 # extension loads. The shared build itself is `@olai/plugin-kit`'s
-# `kit.npmAdapter`, the same mechanism the Claude plugin calls.
+# `kit.npmAdapter` — kolu's `nix/npm-adapter.nix`, which builds the Claude
+# plugin's adapter too, inside kolu's own derivation.
 #
 # The knob `OLAI_ACP_PI` is a `file` the fold bakes into the `olai` wrapper with
 # `--set-default`, and the package `pi-agent` is what the fold exports as a

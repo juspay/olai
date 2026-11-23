@@ -33,7 +33,7 @@ import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@kolu/acp/en
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
-import { CLAUDE, COMPACTION_OVERRIDES, compactingAt, NAME, REMOTE_SIGNALS } from "@kolu/acp-claude"
+import { CLAUDE, COMPACTION_OVERRIDES, compactingAt, LAUNCHER_SETTINGS, NAME, REMOTE_SIGNALS } from "@kolu/acp-claude"
 
 import { INSTALL } from "./install.ts"
 import { name } from "./index.ts"
@@ -118,11 +118,15 @@ export const ENGINE: Registering = {
   // and `session/load` alike, so a resumed conversation is told too. The
   // number is chat's (its `compact-at` setting); this row says only how.
   //
-  // `launched` IS EMPTY because the packaged launcher passes the CLI no
-  // `--settings` to restate (`../default.nix`'s wrapper sets environment
-  // only). Session settings REPLACE a launcher's — kolu measured it — so a
-  // custom `KOLU_ACP_AGENT` that passes its own loses them while this is on,
-  // and `../docs.md` says so.
+  // `launched` IS `LAUNCHER_SETTINGS`, `@kolu/acp-claude`'s statement of the
+  // `--settings` agent-distro's `claude` launcher passes the CLI (Claude
+  // Code's own attribution off). The packaged adapter drives that launcher
+  // (`../default.nix` builds kolu's derivation), and session settings REPLACE
+  // a launcher's — kolu measured it — so without them attribution would be
+  // off with chat's auto-compact off and on with it on. Sent regardless, the
+  // way kolu sends it: a person whose own settings turn attribution on is
+  // overridden here. A custom `KOLU_ACP_AGENT` whose launcher passes other
+  // settings loses them while this is on, and `../docs.md` says so.
   //
   // `compaction` IS NOT ADVERTISED, so the adapter reports a compaction the
   // way it does today, as the "Compact conversation" tool row the panel
@@ -137,7 +141,7 @@ export const ENGINE: Registering = {
   // which is what lets chat hold it (`@olai/plugin-api`'s
   // `Registering.compacting`).
   compacting: (tokens) => ({
-    leg: { ...compactingAt(tokens, {}).leg, compaction: false },
+    leg: { ...compactingAt(tokens, LAUNCHER_SETTINGS).leg, compaction: false },
     unset: COMPACTION_OVERRIDES,
   }),
 }

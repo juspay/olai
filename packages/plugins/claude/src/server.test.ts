@@ -17,7 +17,7 @@
 import { AGENT_ENV } from "@kolu/acp/engine"
 import { describe, expect, test } from "bun:test"
 
-import { CLAUDE, REMOTE_SIGNALS } from "@kolu/acp-claude"
+import { CLAUDE, LAUNCHER_SETTINGS, REMOTE_SIGNALS } from "@kolu/acp-claude"
 import { DISABLE_AUTO_MEMORY_ENV, ENGINE } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
@@ -123,11 +123,14 @@ describe("telling Claude Code where to compact", () => {
   test("the session open turns auto-compaction on at the number, beside the raw-message subscription", () => {
     const { leg } = compacting(200_000)
     // THE WINDOW IS THE NUMBER PLUS kolu's 33k RESERVE, measured on the pinned
-    // pair: Claude Code fires that far below the window it is given.
+    // pair: Claude Code fires that far below the window it is given. THE
+    // LAUNCHER'S OWN SETTINGS RIDE BESIDE IT, because session settings replace
+    // the `--settings` agent-distro's `claude` was launched with: said again,
+    // or lost while compaction is on.
     expect(leg.rawMessages?.openMeta).toEqual({
       claudeCode: {
         ...(CLAUDE.rawMessages?.openMeta["claudeCode"] as object),
-        options: { settings: { autoCompactEnabled: true, autoCompactWindow: 233_000 } },
+        options: { settings: { ...LAUNCHER_SETTINGS, autoCompactEnabled: true, autoCompactWindow: 233_000 } },
       },
     })
     expect(compacting(500_000).leg.rawMessages?.openMeta).toMatchObject({
