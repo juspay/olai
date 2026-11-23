@@ -6,7 +6,7 @@
  * — and a component another package may mount must reach nothing this
  * activation holds (`./control.ts`). Everything it draws from arrives as a
  * prop; everything it keeps is one draft, which dies with the mount. */
-import { createEffect, createSignal, For, onCleanup, Show, Switch, Match, type JSX } from "solid-js"
+import { createEffect, createSignal, For, onCleanup, Show, splitProps, Switch, Match, type JSX } from "solid-js"
 import type { BrowserManagement } from "@olai/surface/management"
 import { run } from "@olai/web/client/run.ts"
 import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
@@ -122,14 +122,21 @@ export function Control(props: {
    * sent and nowhere is gone to. A knob's text value is a setting rather than
    * prose — a path, a name, a duration — so the three corrections go off with
    * it.
+   *
+   * `value` IS SET LAST, after `type`: a spread sets props in key order, and
+   * a refused file spelling such as `whenever` written while the input is
+   * still `type="number"` is wiped by the browser before `type` turns to
+   * `text`. The compiled non-spread input put `value` last by itself.
    */
-  const DraftInput = (input: JSX.InputHTMLAttributes<HTMLInputElement>) =>
-    <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
-      <input {...input} class={input.class === undefined ? "plugins-knob-input" : `plugins-knob-input ${input.class}`} disabled={disabled()}
+  const DraftInput = (input: JSX.InputHTMLAttributes<HTMLInputElement>) => {
+    const [own, rest] = splitProps(input, ["class", "value"])
+    return <Tip text={frozen() ?? ""} disabled={frozen() === undefined}>
+      <input {...rest} class={own.class === undefined ? "plugins-knob-input" : `plugins-knob-input ${own.class}`} disabled={disabled()}
         enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck={false}
         onInput={event => { setDraft(event.currentTarget.value); setRefused(undefined) }}
-        onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
+        onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} value={own.value} />
     </Tip>
+  }
   return <Tip text={props.value.says} disabled={props.value.says === ""}>
     <div class="plugins-knob" data-testid={TESTID.pluginKnob} data-config={props.value.key} data-set-by={props.value.setBy} data-value={text()}>
       <div class="plugins-knob-line">
