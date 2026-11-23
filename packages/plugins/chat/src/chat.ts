@@ -136,6 +136,7 @@ import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { remindingFor, teachingFor } from "./teaching.ts"
 import { sameWatching, watching } from "./watching.ts"
+import type { CompactAt } from "./settings.ts"
 
 /** One conversation a plugin may wake, optionally narrowed to a node scope. */
 export interface WakeScope {
@@ -343,17 +344,19 @@ export interface PanelOptions {
    */
   readonly remindEvery?: number
   /**
-   * WHERE THIS CHAT'S AGENTS COMPACT THEIR OWN CONVERSATION, in tokens of
-   * context (`./settings.ts`'s `auto-compact` and `compact-at`, as
-   * `compactingPolicy` decodes them) — handed in, like {@link remindEvery},
-   * by the composition root that read the settings.
+   * WHERE THIS CHAT'S AGENTS COMPACT THEIR OWN CONVERSATION — a number of
+   * tokens of context, or `model-limit` for the agent's own settings
+   * (`./settings.ts`'s `auto-compact` and `compact-at`, as `compactingPolicy`
+   * decodes them) — handed in, like {@link remindEvery}, by the composition
+   * root that read the settings.
    *
    * Read at each bring-up: an engine whose registration can be told
-   * (`Installed.compacting`) is opened with the leg and the extra `unset` it
-   * answers for this number. `null` — or absent — tells no engine anything,
-   * and an engine that cannot be told is opened as registered either way.
+   * (`Installed.compacting`) is opened with the leg it answers for a number,
+   * or its registered leg for `model-limit`, and with the extra `unset` it
+   * names either way. `null` — or absent — tells no engine anything, and an
+   * engine that cannot be told is opened as registered either way.
    */
-  readonly compactAt?: number | null
+  readonly compactAt?: CompactAt | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -860,24 +863,25 @@ const remembranceLost = (failure: AcpAgent.MemoryFailure): string =>
 
 /**
  * WHAT ONE BRING-UP OPENS THIS ROW WITH — its registered leg and adapter, or,
- * when this chat says where to compact ({@link PanelOptions.compactAt}) and
- * the engine can be told ({@link Installed.compacting}), the leg the engine
- * answers for that number and the adapter with the variables it names taken
- * away AS WELL AS its own: the engine's `unset` is extended, never replaced,
- * so what it strips for every spawn is still stripped.
+ * when this chat decides where to compact ({@link PanelOptions.compactAt}) and
+ * the engine can be told ({@link Installed.compacting}), the adapter with the
+ * variables the engine names taken away AS WELL AS its own — the engine's
+ * `unset` is extended, never replaced, so what it strips for every spawn is
+ * still stripped — and the leg the engine answers for a number, or its
+ * registered leg for `model-limit`, so `model-limit` sends nothing by
+ * construction for every engine.
  *
  * Either half missing is the row as registered, so an engine that cannot be
  * told is opened exactly as it was before the setting existed.
  */
 const openingOf = (
   row: Installed,
-  compactAt: number | null,
+  compactAt: CompactAt | null,
 ): Pick<Installed, "leg" | "adapter"> => {
   if (compactAt === null || row.compacting === undefined) return { leg: row.leg, adapter: row.adapter }
-  const compacting = row.compacting(compactAt)
   return {
-    leg: compacting.leg,
-    adapter: { ...row.adapter, unset: [...(row.adapter.unset ?? []), ...compacting.unset] },
+    leg: typeof compactAt === "number" ? row.compacting.at(compactAt) : row.leg,
+    adapter: { ...row.adapter, unset: [...(row.adapter.unset ?? []), ...row.compacting.unset] },
   }
 }
 

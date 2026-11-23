@@ -1,6 +1,7 @@
 /**
  * WHERE A CHAT'S AGENT IS TOLD TO COMPACT — what one bring-up opens an engine
- * with, given the chat's `compact-at` policy and whether the engine can be told.
+ * with, given the chat's `compact-at` policy (a number, `model-limit`, or off)
+ * and whether the engine can be told.
  *
  * Read from inside the spawn: the fixture agent writes down the `_meta` its
  * session open carried and which variables its environment holds, so what is
@@ -23,6 +24,7 @@ import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel } from "./chat.ts"
 import { volatile } from "./memory.ts"
+import type { CompactAt } from "./settings.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "compaction-agent.ts")
 
@@ -77,10 +79,10 @@ const engine = (capable: boolean): Installed => ({
   // was asked for, and one variable to take away.
   ...(capable
     ? {
-      compacting: (tokens: number) => ({
-        leg: { ...QUEUES, rawMessages: { ...FORWARDS.rawMessages!, openMeta: { compactAt: tokens } } },
+      compacting: {
+        at: (tokens: number) => ({ ...QUEUES, rawMessages: { ...FORWARDS.rawMessages!, openMeta: { compactAt: tokens } } }),
         unset: [OVERRIDE],
-      }),
+      },
     }
     : {}),
 })
@@ -92,7 +94,7 @@ interface Opened {
 
 /** One bring-up — the boot's, since one engine is not a choice — and the
  *  session it opens, as the agent reported it. */
-const openedWith = async (row: Installed, compactAt: number | null): Promise<Opened> => {
+const openedWith = async (row: Installed, compactAt: CompactAt | null): Promise<Opened> => {
   const panel = await run(makePanel({
     roster: () => [seated(row)],
     cwd,
@@ -114,11 +116,20 @@ const openedWith = async (row: Installed, compactAt: number | null): Promise<Ope
   }
 }
 
-test("an engine that can be told, with the policy on, is opened at the number without the overriding variable", async () => {
+test("an engine that can be told, with a number, is opened at the number without the overriding variable", async () => {
   const opened = await openedWith(engine(true), 300_000)
   expect(opened.meta).toEqual({ compactAt: 300_000 })
   // THE ENGINE'S OWN STRIP STILL HOLDS: the capability's variables are added
   // to the adapter's `unset`, not put in its place.
+  expect(opened.seen).toEqual([])
+})
+
+test("model-limit opens an engine that can be told with its registered open, without the overriding variable", async () => {
+  // NOTHING ABOUT COMPACTING RIDES THE OPEN — the registered leg's `_meta`,
+  // which here is none — and the host's override is still taken away, so the
+  // agent's own settings decide.
+  const opened = await openedWith(engine(true), "model-limit")
+  expect(opened.meta).toBeNull()
   expect(opened.seen).toEqual([])
 })
 
@@ -128,8 +139,11 @@ test("the policy off opens the engine as registered, and the host's variable rea
   expect(opened.seen).toEqual([OVERRIDE])
 })
 
-test("an engine that cannot be told is opened as registered with the policy on", async () => {
-  const opened = await openedWith(engine(false), 200_000)
-  expect(opened.meta).toBeNull()
-  expect(opened.seen).toEqual([OVERRIDE])
+test("an engine that cannot be told is opened as registered, at a number or at model-limit", async () => {
+  for (const compactAt of [200_000, "model-limit"] as const) {
+    rmSync(report, { force: true })
+    const opened = await openedWith(engine(false), compactAt)
+    expect(opened.meta).toBeNull()
+    expect(opened.seen).toEqual([OVERRIDE])
+  }
 })

@@ -76,17 +76,40 @@ const span = (key: SpanKey) =>
     Schema.annotate({ description: SPANS[key].says }),
   )
 
-/** {@link Config}'s `compact-at`, as the tokens each spelling means — THE ONE
- *  PLACE the words become numbers, as {@link sleepingPolicy} is for spans. The
- *  list a person picks from is this table's keys, so the two cannot drift. */
-const COMPACT_TOKENS = {
-  "100k": 100_000,
-  "200k": 200_000,
-  "300k": 300_000,
-  "500k": 500_000,
-} as const
+/**
+ * {@link Config}'s `compact-at` word for "olai says no number": the session
+ * opens with nothing about compaction, and only the variables that would
+ * override the person's own agent settings are taken from the spawn. THE ONE
+ * SPELLING of it — chat's `openingOf` tells it from a number by type.
+ */
+export const MODEL_LIMIT = "model-limit"
 
-type CompactSize = keyof typeof COMPACT_TOKENS
+/** Where a chat's agents compact: a number of tokens, or {@link MODEL_LIMIT}. */
+export type CompactAt = number | typeof MODEL_LIMIT
+
+/**
+ * A `compact-at` size as the tokens it means — `undefined` for a word that is
+ * not one. THE ONE PLACE the words become numbers, as {@link spanMillis} is
+ * for spans: the schema's check and {@link compactingPolicy} both read it.
+ *
+ * A WHOLE NUMBER OF THOUSANDS, 100k to 1000k, spelled exactly — no sign, no
+ * leading zero, no fraction, no space, a lower-case `k`. The bounds and the
+ * spelling are kolu's (`packages/common/src/conductorSchema.ts`,
+ * `CONDUCTOR_COMPACTS_AT_MIN`/`MAX`), written again here because that package
+ * is not one olai can import: a count small enough to compact every turn is
+ * not a setting anybody means.
+ */
+const compactTokens = (word: string): number | undefined => {
+  const match = /^([1-9]\d*)k$/.exec(word)
+  const thousands = match === null ? Number.NaN : Number(match[1])
+  return thousands >= 100 && thousands <= 1000 ? thousands * 1000 : undefined
+}
+
+/** A size a person types, refused unless {@link compactTokens} reads it. */
+const compactSize = Schema.String.check(Schema.makeFilter(
+  (value: string) => compactTokens(value) !== undefined,
+  { expected: "a whole number of thousands from 100k to 1000k" },
+))
 
 export const Config = Schema.Struct({
   "idle-ms": Schema.Union([Schema.Int, Schema.NumberFromString.check(Schema.isInt())]).check(Schema.isBetween({ minimum: 1, maximum: 2147483647 })).pipe(
@@ -134,33 +157,46 @@ export const Config = Schema.Struct({
     }),
   ),
   // WHETHER OLAI TELLS AN AGENT WHERE TO COMPACT ITS OWN CONVERSATION, and at
-  // how many tokens of context. A SWITCH AND A SHORT LIST rather than a free
-  // number: the four sizes are the ones kolu offers, and a count small enough
-  // to compact every turn is not a setting anybody means. OFF SAYS NOTHING —
-  // the agent's own default and the host's variables decide, which is what
-  // every chat did before this setting existed. Only an engine that can be
-  // told (`@olai/plugin-api`'s `Registering.compacting`) is told; every other
-  // one is opened as it always was, whatever these say. The switch's file
-  // words (`yes`, `no`) are `@olai/plugin-api/configuration`'s, read where
-  // every leaf is read from text (`coerceLeaf`).
+  // how many tokens of context. A SWITCH, TWO WORDS AND A TYPED SIZE: `200k`
+  // and `model-limit` are kolu's segments, and any other size is a whole
+  // number of thousands ({@link compactTokens}). The literal arms are FLAT in
+  // the union, not one `Literals` nested in it, so the panel reads the words
+  // as the list and the string arm as the typed value beside it.
+  //
+  // `model-limit`, THE DEFAULT, SENDS NO NUMBER: the person's own agent
+  // settings decide, and the host variables that would override them are
+  // taken away. OFF SAYS NOTHING AND TAKES NOTHING AWAY — the agent's own
+  // settings and the host's variables decide, which is what every chat did
+  // before these settings existed. Only an engine that can be told
+  // (`@olai/plugin-api`'s `Registering.compacting`) is told; every other one
+  // is opened as it always was, whatever these say. The switch's file words
+  // (`yes`, `no`) are `@olai/plugin-api/configuration`'s, read where every
+  // leaf is read from text (`coerceLeaf`).
   "auto-compact": Schema.Boolean.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(true)),
     Schema.annotate({
-      description: "Whether olai tells an agent that can be told to compact its conversation on its own",
+      description:
+        "Whether olai acts on compact-at for an agent that can be told where to compact. Off, olai sends nothing and leaves the host's variables alone.",
     }),
   ),
-  "compact-at": Schema.Literals(Object.keys(COMPACT_TOKENS) as ReadonlyArray<CompactSize>).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed<CompactSize>("200k")),
+  "compact-at": Schema.Union([Schema.Literal("200k"), Schema.Literal(MODEL_LIMIT), compactSize]).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(MODEL_LIMIT)),
     Schema.annotate({
-      description: "How many tokens of context a conversation may hold before its agent compacts it",
+      description:
+        "Where a conversation is compacted: model-limit (your own Claude Code settings decide), 200k, or a number of thousands from 100k to 1000k.",
     }),
   ),
 })
 
-/** Where a chat's agents compact, off the decoded config: the token count, or
- *  `null` when the switch is off and olai says nothing. */
-export const compactingPolicy = (config: typeof Config.Type): number | null =>
-  config["auto-compact"] ? COMPACT_TOKENS[config["compact-at"]] : null
+/** Where a chat's agents compact, off the decoded config: a token count,
+ *  {@link MODEL_LIMIT}, or `null` when the switch is off and olai says
+ *  nothing. The fallback is the schema's own default, for the reason
+ *  {@link sleepingPolicy} gives. */
+export const compactingPolicy = (config: typeof Config.Type): CompactAt | null => {
+  if (!config["auto-compact"]) return null
+  const word = config["compact-at"]
+  return word === MODEL_LIMIT ? MODEL_LIMIT : compactTokens(word) ?? MODEL_LIMIT
+}
 
 /** The spans as the durations the pass waits, off the decoded config —
  *  the one place the spellings become numbers, so a caller cannot read one of
