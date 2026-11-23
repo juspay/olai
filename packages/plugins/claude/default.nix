@@ -11,14 +11,15 @@
 # adapter and CLI together. Both kolu files say in their headers that another
 # repository imports them by path.
 #
-# THE FLOOR'S REVISION IS CHECKED HERE. kolu builds its own floor from the
-# `agent-distro` revision in its own `npins`, and `LAUNCHER_SETTINGS` restates
-# that floor's launcher at that revision; a different pin here would be a
-# different Claude Code from kolu's, behind settings stated for another one.
-# So this file refuses at eval when olai's `agent-distro` pin and the kolu
-# pin's record disagree, naming both. It does not lean on the kolu plugin's
-# graft guard: that one compares only while the kolu plugin's seeds happen to
-# reach `@juspay/agent-distro`.
+# THE FLOOR'S REVISION IS CHECKED HERE. kolu builds its own floor from one
+# `agent-distro` revision, which it publishes for consumers in
+# `nix/consumer-closure.json`, and `LAUNCHER_SETTINGS` restates that floor's
+# launcher at that revision; a different pin here would be a different Claude
+# Code from kolu's, behind settings stated for another one. So this file
+# refuses at eval when olai's `agent-distro` pin and that record disagree,
+# naming both. It does not lean on the kolu plugin's graft guard: that one
+# compares only while the kolu plugin's seeds happen to reach
+# `@juspay/agent-distro`.
 #
 # THIS file owns only olai's own lines: that revision check, the knob
 # `KOLU_ACP_AGENT`, a `file` the fold bakes into the `olai` wrapper with
@@ -28,7 +29,7 @@
 # the built adapter answers a model picker.
 { pkgs, pins, ... }:
 let
-  koluFloor = (builtins.fromJSON (builtins.readFile "${pins.kolu}/npins/sources.json")).pins.agent-distro.revision;
+  koluFloor = (builtins.fromJSON (builtins.readFile "${pins.kolu}/nix/consumer-closure.json")).members."@juspay/agent-distro".pin.revision;
   floor =
     if pins.agent-distro.revision != koluFloor then
       throw "claude plugin: olai's agent-distro pin is ${pins.agent-distro.revision}, but the kolu pin (${pins.kolu.revision}) builds its floor from ${koluFloor}; move the agent-distro pin to ${koluFloor}"
@@ -63,9 +64,9 @@ in
         probe = ./src/adapter.check.ts;
         inherit adapter;
       } ''
-      export HOME=$TMPDIR/home
-      mkdir -p $HOME
-      bun $probe $adapter/bin/claude-agent-acp $HOME
+      export HOME=$TMPDIR
+      mkdir $TMPDIR/empty-home
+      bun $probe $adapter/bin/claude-agent-acp $TMPDIR/empty-home
       mkdir -p $out
       echo "$adapter/bin/claude-agent-acp" > $out/ok
     '';

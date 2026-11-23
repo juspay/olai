@@ -118,15 +118,13 @@ export const ENGINE: Registering = {
   // and `session/load` alike, so a resumed conversation is told too. The
   // number is chat's (its `compact-at` setting); this row says only how.
   //
-  // `launched` IS `LAUNCHER_SETTINGS`, `@kolu/acp-claude`'s statement of the
-  // `--settings` agent-distro's `claude` launcher passes the CLI (Claude
-  // Code's own attribution off). The packaged adapter drives that launcher
-  // (`../default.nix` builds kolu's derivation), and session settings REPLACE
-  // a launcher's — kolu measured it — so without them attribution would be
-  // off with chat's auto-compact off and on with it on. Sent regardless, the
-  // way kolu sends it: a person whose own settings turn attribution on is
-  // overridden here. A custom `KOLU_ACP_AGENT` whose launcher passes other
-  // settings loses them while this is on, and `../docs.md` says so.
+  // `launched` IS `LAUNCHER_SETTINGS`, `@kolu/acp-claude`'s statement of what
+  // agent-distro's `claude` launcher passes the CLI as `--settings`. The
+  // packaged adapter drives that launcher (`../default.nix` builds kolu's
+  // derivation), and session settings replace a launcher's, so they are said
+  // again here or lost while compaction is on. A custom `KOLU_ACP_AGENT` whose
+  // launcher passes other settings loses them while this is on, and
+  // `../docs.md` says so.
   //
   // `compaction` IS NOT ADVERTISED, so the adapter reports a compaction the
   // way it does today, as the "Compact conversation" tool row the panel

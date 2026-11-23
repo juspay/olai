@@ -47,10 +47,11 @@ const fail = (why: string): never => {
   process.exit(1)
 }
 
-// The adapter's own environment and nothing of the builder's: an empty home
-// for the CLI's config, and Claude Code told to make no traffic it can skip.
+// The adapter's own environment and nothing of the builder's: an empty home,
+// so the CLI finds no config or credentials, and Claude Code told to make no
+// traffic it can skip.
 const child = spawn(adapter, [], {
-  env: { HOME: home, CLAUDE_CONFIG_DIR: `${home}/.claude`, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
+  env: { HOME: home, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
   cwd: home,
   stdio: ["pipe", "pipe", "inherit"],
 })
