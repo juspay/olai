@@ -92,7 +92,8 @@
  */
 import { TESTID } from "@olai/web/client/testids.ts"
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
-import { createEffect, createMemo, createSignal, onCleanup, Show, type Accessor } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, Show, untrack, type Accessor } from "solid-js"
+import type { LinkEvent } from "@olai/log/link"
 
 import { handBackFocus, withOfflineFocus, type FocusMemory } from "./focus.ts"
 import { reachable } from "./reaching.ts"
@@ -111,6 +112,15 @@ export function Offline(props: {
    * this component already holds it.
    */
   readonly rosterChanging: Accessor<boolean>
+  /**
+   * SAY THE CARD in the connection's diary: up, which state put it there,
+   * whether this page's roster change urged it, and how long it stayed. An
+   * operation passed in rather than the diary imported, for the reason
+   * `rosterChanging` is: the diary is `../wire.ts`'s, which dials at module
+   * scope, and the frame that mounts this component already holds the
+   * operation (`connectionCard`).
+   */
+  readonly card: (card: Extract<LinkEvent, { readonly _tag: "Card" }>) => void
 }) {
   let overlay!: HTMLDialogElement
   /**
@@ -171,6 +181,20 @@ export function Offline(props: {
   onCleanup(stopHanding)
   const look = () => frozenLookOf(props.readout)
 
+  // The card's edges, read untracked: the freeze alone decides when this runs.
+  // The card that went up is remembered, so the line for it coming down says
+  // which card it was and how long it stayed, not the readout it lifted into.
+  let up: { readonly at: number; readonly status: string; readonly urged: boolean } | undefined
+  const cardUp = () => untrack(() => {
+    up = { at: Date.now(), status: props.readout.status, urged: urged() }
+    props.card({ _tag: "Card", shown: true, status: up.status, urged: up.urged })
+  })
+  const cardDown = () => {
+    if (up === undefined) return
+    props.card({ _tag: "Card", shown: false, status: up.status, urged: up.urged, after: Date.now() - up.at })
+    up = undefined
+  }
+
   // OPENING IS A CALL, not a class: the top layer is only entered through
   // `showModal`, and the inertness of everything else comes with it. Guarded on
   // `open` because a second call on an open dialog throws.
@@ -179,7 +203,10 @@ export function Offline(props: {
       // THE KEYBOARD IS TAKEN AGAIN: a hand-back still waiting on the last
       // freeze is over — the dialog it was for is up again.
       stopHanding()
-      if (!overlay.open) withOfflineFocus(() => overlay.showModal())
+      if (!overlay.open) {
+        withOfflineFocus(() => overlay.showModal())
+        cardUp()
+      }
       return
     }
     // The wire came back. Closing hands focus back to whatever had it when the
@@ -194,6 +221,7 @@ export function Offline(props: {
       overlay.close()
       stopHanding()
       handing = handBackFocus(props.memory)
+      cardDown()
     }
   })
 

@@ -42,9 +42,9 @@ Click it for a list with one line per thing it reports on.[^popover]
 
 ## When the connection drops
 
-The page freezes behind a card, a box drawn over it, and works again by itself
-when the connection returns.[^cards] Other cards ask you to click
-**Reload**.[^reload]
+The page freezes behind a card, a box drawn over it, until the connection
+returns.[^cards] Other cards ask you to click **Reload**.[^reload] The server's
+log says why.[^why]
 
 ## Logging
 
@@ -130,6 +130,12 @@ olai picks both up while it runs, with no restart.[^live]
     page` / `Your files are safe. Reload to try again.` offers **Reload** and
     **Go home**, and hides the technical text in a closed `Details` block.
 
+[^why]: Each browser tab sends the server what it saw of its connection, and
+    the server logs each entry with `side=browser`. A `wire dropped` line names
+    a `cause`, and carries a `tab` and a `dial` that match the server's own
+    `tab disconnected` line for the same connection. The closed block at the
+    foot of this page lists every cause.
+
 [^lines]: The log says which address the server is listening on, which agents
     it found on this machine, and anything that went wrong. It also follows a
     chat: a conversation opening, a prompt sent, a turn that ended or failed,
@@ -213,6 +219,32 @@ When you pipe the output elsewhere, the logfmt format keeps the full path and
 the full session annotations. At the `debug` level olai also logs the path and
 arguments of every command it runs, the tool checks that succeeded, and
 whatever an agent writes to its own stderr.
+
+</details>
+
+<details>
+<summary>Why a connection dropped: every cause</summary>
+
+A `wire dropped` line in the server's log has one of these as its `cause`:
+
+| `cause` | What happened |
+| --- | --- |
+| `peer-closed` | the server or the network closed the connection; `code` and `means` say how |
+| `frame-over-cap` | the server sent the tab a message over 16 MiB, more than a tab accepts; the server also logs `sent a frame larger than a tab accepts` |
+| `half-open` | the connection stayed open but nothing came back, so the tab gave up on it after about 25 seconds |
+| `roster-refresh` | olai reconnected because a plugin was switched on or off |
+| `redial` | olai connected again with a new set of plugins |
+| `unload` | the tab was closing |
+| `severed` | the tab closed the connection for a reason only its connection code saw, such as a message it could not read; `heard` quotes what the page's updates were told |
+
+- `roster-refresh`, `redial` and `unload` are ordinary, so they appear only at
+  the `debug` level.
+- A connection that keeps dropping the same way is logged in full the first
+  three times and then every tenth time, with `streak` counting the drops.
+- Other lines from the tab: `dial did not open` and `heartbeat gave up`, and
+  `connection card shown` and `connection card lifted`, with `status` naming
+  which card. The card a page shows while it first connects, and the one a
+  plugin switch shows, appear only at the `debug` level.
 
 </details>
 

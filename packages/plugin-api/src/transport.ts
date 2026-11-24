@@ -18,6 +18,41 @@ export interface ListenerContribution {
     readonly handle: (request: IncomingMessage, socket: Duplex, head: Buffer) => void
   }
 }
+/** One accepted socket's account, as of the moment it was read. Times are
+ *  milliseconds; `sincePong` and `sinceInbound` are absent when the tab never
+ *  answered a ping or never sent a frame. */
+export interface LinkMeasure {
+  readonly lived: number
+  readonly inFrames: number
+  readonly inBytes: number
+  readonly outFrames: number
+  readonly outBytes: number
+  readonly largestOut: number
+  readonly sincePong?: number
+  readonly sinceInbound?: number
+}
+/**
+ * What the socket's owner knows that kolu's event union has no arm for. Core's
+ * `report` says how these read, beside the framework's own events.
+ *
+ *   - `LinkEnded`: the framework's `Disconnected`, with what the socket carried.
+ *   - `FrameOverCap`: the server sent a frame larger than a tab accepts. `kind`
+ *     and `request` are read off the frame's envelope when it has one.
+ */
+export type LinkFact =
+  | {
+    readonly _tag: "LinkEnded"
+    readonly ended: Extract<SurfaceAppEvent<string>, { readonly _tag: "Disconnected" }>
+    readonly measure: LinkMeasure
+  }
+  | {
+    readonly _tag: "FrameOverCap"
+    readonly connection: SurfaceAppConnection<string>
+    readonly bytes: number
+    readonly cap: number
+    readonly kind?: string
+    readonly request?: string
+  }
 export interface TransportSurface {
   /** Acquisitions are independent; each scope withdraws only what it added. */
   readonly register: (contribution: ListenerContribution) => Effect.Effect<void, never, Scope.Scope>
@@ -26,7 +61,7 @@ export interface TransportSurface {
   readonly services: (connection: SurfaceAppConnection<string>) => Layer.Layer<never>
   readonly upgradeHeaders: () => ReadonlyArray<string>
   readonly allowedOrigins: ReadonlyArray<string>
-  readonly report: (event: SurfaceAppEvent<string>) => void
+  readonly report: (event: SurfaceAppEvent<string> | LinkFact) => void
   readonly who: (headers: HttpServerRequest.HttpServerRequest["headers"]) => { readonly login: string } | null
   readonly clientDist: Effect.Effect<string>
   /** Authoritative selected browser-only rows, for boot before the socket opens. */

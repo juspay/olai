@@ -11,11 +11,11 @@
  * the instance's minimum level ({@link ./level.ts}).
  *
  * The serve supplies the face and how quiet it is. The verbs stay
- * Effect's. The level is a fact of the running process, read at the one env
- * edge, default `info`.
+ * Effect's. The level is a fact of the running serve, read from the `olai`
+ * node of its settings file and applied live, default `info`.
  */
 
 export { codeOf, prettyCause, reasonOf } from "./cause.ts"
-export { type Emit, emitter } from "./emit.ts"
+export { type Emit, emitter, emitterOf } from "./emit.ts"
 export { liveLevel } from "./level.ts"
 export { toStderr, toStdout } from "./sinks.ts"

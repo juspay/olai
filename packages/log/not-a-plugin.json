@@ -1,0 +1,6 @@
+{
+  "//search": "A URL's query (`searchParams`), not the search row.",
+  "search": {
+    "src/stamp.ts": 4
+  }
+}

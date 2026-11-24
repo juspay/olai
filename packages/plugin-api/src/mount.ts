@@ -27,6 +27,8 @@ export interface BrowserMount {
 }
 export const BrowserMount = serviceTag<BrowserMount>("browser-mount")
 export const BROWSER_BOOT_PATH = "/olai/browser-boot"
+/** Where a tab posts its connection diary, for the server's log. */
+export const BROWSER_DIARY_PATH = "/olai/diary"
 /** Build-derived URLs, never a selection roster. Used only to retry a module
  * whose original dynamic import was cached as failed by the browser. */
 export const BROWSER_MODULES_ID = "olai-browser-modules"

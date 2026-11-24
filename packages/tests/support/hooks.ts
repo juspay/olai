@@ -117,6 +117,7 @@ import {
 } from "./scratch.ts";
 import {
   AFTER_SHARE_TIMEOUT,
+  consoleError,
   SCENARIO_SETUP_TIMEOUT,
   SERVER_START_TIMEOUT,
 } from "./world.ts";
@@ -1947,7 +1948,7 @@ Before(
     });
     this.page.on("console", (message) => {
       if (message.type() === "error") {
-        this.errors.push(`console.error: ${message.text()}`);
+        this.errors.push(consoleError(message.text(), message.location().url));
       }
     });
   },

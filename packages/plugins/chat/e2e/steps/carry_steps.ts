@@ -3,7 +3,9 @@ import { When, Then } from "@olai/tests/harness/runner.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import {
   CHAT_DIFF,
+  CHAT_PANEL,
   NODE_TITLE,
+  OFFLINE,
   attr,
   CHAT_GRIP,
   CHAT_INPUT,
@@ -95,7 +97,27 @@ When("I carry the last {string} row over the conversation", async function(this:
 When("I press the last transcript grip without travelling", async function(this: OlaiWorld) {
   const entry = this.chat(CHAT_ENTRY).last();
   await entry.hover();
-  await entry.locator("..").locator(CHAT_GRIP).first().click();
+  try {
+    await entry.locator("..").locator(CHAT_GRIP).first().click();
+  } catch (cause) {
+    // WHAT THE TRANSCRIPT HELD when the grip never came: a grip is drawn only
+    // for a row with words to carry (an agent row that is not streaming, a
+    // user row, a tool row with something to show), so each row's kind, its
+    // streaming mark and whether a grip stands beside it say which held.
+    const rows = await this.chat(CHAT_ENTRY)
+      .evaluateAll((nodes, grip) => nodes.map((node) =>
+        `${node.getAttribute("data-kind")} streaming=${node.getAttribute("data-streaming")} grip=${node.parentElement?.querySelector(grip) != null}`), CHAT_GRIP)
+      .catch((failure: unknown) => [`(rows unreadable: ${String(failure)})`]);
+    const read = (where: ReturnType<OlaiWorld["chat"]>, name: string) =>
+      where.getAttribute(name, { timeout: 2_000 }).catch(() => "(unreadable)");
+    const panel = this.chat(CHAT_PANEL).first();
+    assert.fail(
+      `${cause instanceof Error ? cause.message : String(cause)}\n` +
+        `transcript rows, in order:\n  ${rows.join("\n  ")}\n` +
+        `panel data-status=${await read(panel, "data-status")} data-pending-sends=${await read(panel, "data-pending-sends")}\n` +
+        `connection data-connection=${await read(this.page.locator(OFFLINE).first(), "data-connection")}`,
+    );
+  }
 });
 When("I flick the last transcript row", async function(this: OlaiWorld) { await this.flick(this.chat(CHAT_ENTRY).last()); });
 When("I carry the row away from the conversation above {string}", async function(this: OlaiWorld, id: string) {

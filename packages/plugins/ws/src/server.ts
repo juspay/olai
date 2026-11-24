@@ -34,7 +34,7 @@
 import { definePlugin } from "@olai/plugin-api"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import { SURFACE_WS_PATH } from "@kolu/surface-app"
-import { acceptSurfaceSocket, serveSurfaceSocket, type ServableSocket, type SurfaceSocketServing } from "@kolu/surface-app/server"
+import { acceptSurfaceSocket, serveSurfaceSocket, type SurfaceSocketServing } from "@kolu/surface-app/server"
 import { checkUpgradeHeaders, pickUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
 import { restrictServedGeneration } from "@kolu/surface/expose"
 import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
@@ -43,6 +43,7 @@ import { toError } from "@kolu/surface/run-stream"
 import type { SurfaceAppConnection } from "@kolu/surface-app/serve"
 import { WebSocketServer } from "ws"
 import { Effect } from "effect"
+import { measured, type MeasurablePeer } from "./measured.ts"
 import { name } from "./index.ts"
 export { name } from "./index.ts"
 
@@ -101,10 +102,21 @@ export const upgrade = (shared: TransportSurface) => Effect.gen(function*() {
                 closeFrame = { code: code ?? 1000, reason }
               },
             })
+            // Counted from the accept: the view the RPC server sends through,
+            // and the account the close line carries. Its listeners leave with
+            // the peer.
+            const counted = measured(peer as unknown as MeasurablePeer, {
+              now: Date.now,
+              overCap: (frame) => report({ _tag: "FrameOverCap", connection, ...frame }),
+            })
             report({ _tag: "Connected", connection })
-            peer.once("close", (code, reason) => report({ _tag: "Disconnected", connection, code, reason: reason.toString() }))
+            peer.once("close", (code, reason) => report({
+              _tag: "LinkEnded",
+              ended: { _tag: "Disconnected", connection, code, reason: reason.toString() },
+              measure: counted.measure(),
+            }))
             const services = closeFrame === undefined ? shared.services(connection) : undefined
-            const serving = serveSurfaceSocket({ group: served.group, handlers: served.handlers, socket: peer as unknown as ServableSocket, services })
+            const serving = serveSurfaceSocket({ group: served.group, handlers: served.handlers, socket: counted.view, services })
             servings.add(serving)
             liveServing = serving
             if (closeFrame !== undefined) serving.close(closeFrame.code, closeFrame.reason)
