@@ -1,6 +1,6 @@
 @corpus:good
-Feature: Tabs above the panes
-  Several pages stay open as tabs in the main column. The tab in front is the
+Feature: Tabs in the header
+  Several pages stay open as tabs in the header, over the pages they hold. The tab in front is the
   page the address bar shows: a door, Back and every pane verb act on it, and a
   tab in the background keeps its page, its filter and its place.
 

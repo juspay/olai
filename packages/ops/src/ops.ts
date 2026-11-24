@@ -100,7 +100,7 @@ export interface Ledger {
  * THE MATCHER DOOR, as this layer calls it — this query, over this reading,
  * answered. Core does not stand behind it; the search plugin does.
  *
- * Absent is "no provider mounted": every one of the four doors onto search —
+ * Absent is "no provider mounted": every one of the five doors onto search —
  * `search_nodes` for an agent, and the ⌘K palette, the composer's `@` list,
  * the edges panel and the move picker for a person — is
  * answered with no hits AND WITH THE REASON ({@link NO_SEARCH}), which is the
