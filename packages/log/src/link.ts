@@ -167,10 +167,11 @@ export const LinkEvent = Schema.TaggedUnion({
   /** The server retired this tab: it was replaced by a newer process. */
   Retired: { code: Schema.optionalKey(Count) },
   /** The card over a frozen page went up or came down. `status` is the
-   *  connection state that put it up (`connecting`, `reconnecting`, `retired`,
-   *  `degraded`) and `urged` whether this page's own roster change did; both
-   *  are the card's, on the way down too. `after` is how long it was up, on the
-   *  way down. */
+   *  connection state that put it up (`connecting`, `reconnecting` or
+   *  `retired`: a degraded connection still reaches the server, so it never
+   *  freezes the page) and `urged` whether this page's own roster change did;
+   *  both are the card's, on the way down too. `after` is how long it was up,
+   *  on the way down. */
   Card: { shown: Schema.Boolean, status: Text(32), urged: Schema.Boolean, after: Schema.optionalKey(Ms) },
   /** The connection readout changed status. */
   Readout: { from: Text(32), to: Text(32), stopped: Schema.Array(Text(200)).check(Schema.isMaxLength(STARVED_LIMIT)) },
