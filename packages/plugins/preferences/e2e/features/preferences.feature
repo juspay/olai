@@ -136,29 +136,35 @@ Feature: One place to set how this browser reads
     # and leaving the caret on the trigger means the controls are not reachable
     # in any sense a person would accept.
     #
-    # So the trigger and its panel are ONE tab cycle: opening moves the caret
-    # into the panel, Shift+Tab goes back out to the trigger, and Tab goes in to
-    # the first control.
+    # So the door and its panel are ONE tab cycle: opening moves the caret into
+    # the panel, Shift+Tab goes back out to what the panel hangs from, and Tab
+    # goes in to the first control. On a desktop the Preferences door is a line
+    # in the health dot's list, which shuts when the line is picked, so the
+    # panel hangs from the dot and the cycle's other end is the dot.
     When I open the app
     And I focus the preferences trigger
     And I press Enter
     Then the preferences are open
+    And the health popover is shut
     And the preferences panel has the focus
     When I press Shift+Tab
-    Then the preferences trigger has the focus
+    Then the health dot has the focus
     When I press Tab
     Then the first control in the preferences has the focus
     When I press Shift+Tab
-    Then the preferences trigger has the focus
+    Then the health dot has the focus
+    When I press Escape on the preferences
+    Then the preferences are shut
+    And the health dot has the focus
 
   Scenario: Tab does not walk out of an open panel
-    # The other half of one cycle: the last control leads back to the trigger
-    # rather than to the page underneath, which is what a portalled panel would
-    # otherwise hand a keyboard.
+    # The other half of one cycle: the last control leads back to the dot the
+    # panel hangs from rather than to the page underneath, which is what a
+    # portalled panel would otherwise hand a keyboard.
     When I open the app
     And I open the preferences
     And I press Shift+Tab
-    Then the preferences trigger has the focus
+    Then the health dot has the focus
     When I press Shift+Tab
     Then the last control in the preferences has the focus
 

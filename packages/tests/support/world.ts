@@ -723,17 +723,16 @@ export const APP_CHROME = selector(TESTID.appChrome);
 
 /** The default desktop inventory of that row, in order: the calm bar. The
  *  connection, the Commit readout, every plugin's readout and the uptime line
- *  are ROWS of the health popover now, not chips in the bar, and the plugins
- *  door is that popover's foot. The Commit readout is still the only control
- *  anywhere in the chrome that reports on the repository, which is what the
- *  git-indicator step guards — it now counts rows of the popover. */
+ *  are ROWS of the health popover now, not chips in the bar, and the
+ *  Preferences and Plugins doors are that popover's foot. The Commit readout
+ *  is still the only control anywhere in the chrome that reports on the
+ *  repository, which is what the git-indicator step guards — it now counts
+ *  rows of the popover. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
-  // The search box, and beside it the magnifier a phone gets instead.
-  PLUGIN_TESTID.headerSearch,
+  // The search door: `Search` and the chord on a desktop, a magnifier on a phone.
   PLUGIN_TESTID.headerSearchOpen,
   // ONE dot for everything the bar used to stand a pill for.
   TESTID.health,
-  TESTID.prefsTrigger,
   // Who is looking, last — a plugin's face in the app.viewer seat.
   PLUGIN_TESTID.identity,
 ];
@@ -842,12 +841,10 @@ export const PALETTE_SAID = selector(TESTID.paletteSaid);
  *  inside it wears {@link PALETTE}. */
 export const PALETTE_MODAL = `dialog:has(${PALETTE})`;
 export const SHORTCUTS = selector(TESTID.shortcuts);
-/** The header box's panel of results, and the shelf of pins in the sidebar —
- *  here rather than spelled at a step file, which is where the rest of the
- *  suite's selectors live. */
-export const HEADER_SEARCH = selector(PLUGIN_TESTID.headerSearch);
+/** The header's search door (a button that opens the palette), and the shelf
+ *  of pins in the sidebar — here rather than spelled at a step file, which is
+ *  where the rest of the suite's selectors live. */
 export const HEADER_SEARCH_OPEN = selector(PLUGIN_TESTID.headerSearchOpen);
-export const HEADER_SEARCH_RESULTS = selector(PLUGIN_TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 
 export const CHAT_ENTRY_STREAMING =

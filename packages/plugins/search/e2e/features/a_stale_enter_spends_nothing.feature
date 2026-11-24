@@ -22,15 +22,15 @@ Feature: A stale Enter is claimed and spends nothing
   below, because the way it breaks is a later change moving the gate inside the
   take — which no key scenario here would notice.
 
-  The five doors that take a row this way are the ⌘K palette, the header's
-  search box, the chat composer's `@` list, the shortlist every node-picking
-  panel is built from, and the row editor's own three widgets. Three of them
-  are here; the other two say it where their own feature already lives —
-  `edge_editing.feature` for the shortlist, `input_widgets.feature` for the
-  `((` list in a row's title.
+  The four doors that take a row this way are the ⌘K palette (which the
+  header's search button opens), the chat composer's `@` list, the shortlist
+  every node-picking panel is built from, and the row editor's own three
+  widgets. Two of them are here; the other two say it where their own feature
+  already lives — `edge_editing.feature` for the shortlist,
+  `input_widgets.feature` for the `((` list in a row's title.
 
-  `@corpus:` rather than `@scratch:`: nothing here writes the directory. Two of
-  the doors NAVIGATE and the third writes into a message box, so what a wrong
+  `@corpus:` rather than `@scratch:`: nothing here writes the directory. The
+  palette NAVIGATES and the `@` list writes into a message box, so what a wrong
   row spends is an address and a sentence.
 
   Scenario: The palette opens nothing for a row the query has moved past
@@ -78,21 +78,6 @@ Feature: A stale Enter is claimed and spends nothing
     When I press the palette shortcut
     And I retype the palette as "agenda" and press Enter at once
     Then the address is "/agenda"
-    And there should be no page errors
-
-  Scenario: The header box opens nothing for a row the query has moved past
-    Given I open the outline "house.olai"
-    When I search the header for "compost"
-    Then the header search lists the node "the compost heap"
-    # The cap on the key this scenario is about: Go, because the press opens
-    # the row the cursor is on rather than submitting a search.
-    And the header search box asks for a Go key and no corrections
-    When I retype the header search as "mint" and press Enter at once
-    Then the address is "/house.olai"
-    And the header search lists the node "split the mint"
-    And the address is "/house.olai"
-    When I press "Enter"
-    Then the unified destination row "mint" is selected
     And there should be no page errors
 
   Scenario: The @ list writes nothing for a row the word has moved past

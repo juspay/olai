@@ -49,15 +49,14 @@ Feature: Documents
     And the page has not reloaded
     And there should be no page errors
 
-  # One reading, two doors — the rule the node hits already keep. A box that
-  # found a document while the chord beside it did not would be the same drift
-  # inside one client.
+  # The header's search button opens the same palette, so a reader who never
+  # learnt the chord reaches the same document the same way.
   @corpus:good
-  Scenario: The header's box finds the same document, drawn the same way
+  Scenario: The header's search button finds the same document
     Given I open the outline "house.olai"
-    When I search the header for "palette"
-    Then the header search lists the document "notes/palette.md"
-    When I press the header search result "palette.md"
+    When I search from the header for "palette"
+    Then the palette lists the document "notes/palette.md"
+    When I pick the palette item "palette.md"
     Then the document open is "notes/palette.md"
     And the address is "/notes/palette.md"
     And there should be no page errors
@@ -213,11 +212,12 @@ Feature: Documents
   @corpus:good
   Scenario: A document is found by a property its frontmatter writes
     Given I open the outline "house.olai"
-    When I search the header for "prop:agent=claude-opus"
-    Then the header search lists the document "notes/palette.md"
-    And the header search result for the document "notes/palette.md" is called "Palette"
-    And the header search result "Palette" shows the property "agent" holding "claude-opus"
-    And the header search result "Palette" marks "agent" as why it matched
+    When I press the palette shortcut
+    And I type "prop:agent=claude-opus" into the palette
+    Then the palette lists the document "notes/palette.md"
+    And the palette result for the document "notes/palette.md" is called "Palette"
+    And the palette result "Palette" shows the property "agent" holding "claude-opus"
+    And the palette result "Palette" marks "agent" as why it matched
     And there should be no page errors
 
   # The title is the first line's WORDS: markup on it is the page's business,
@@ -229,8 +229,9 @@ Feature: Documents
       """
       **Palette** for the [kitchen](../house.olai)
       """
-    And I search the header for "Palette"
-    Then the header search result for the document "notes/palette.md" is called "Palette for the kitchen"
+    And I press the palette shortcut
+    And I type "Palette" into the palette
+    Then the palette result for the document "notes/palette.md" is called "Palette for the kitchen"
     And there should be no page errors
 
   # A text nested past the parse's bound is still formatted: quotes nest as far
@@ -662,17 +663,6 @@ Feature: Documents
     When I press the palette shortcut
     And I type "cabinetmaker" into the palette
     Then the palette lists the document "finishes.md"
-    And there should be no page errors
-
-  # …and the same word through the other door, over the same reading: two doors
-  # that found different things would be the drift the one index exists against.
-  @corpus:good
-  Scenario: The header's box finds a body too
-    Given I open the outline "house.olai"
-    When I search the header for "cabinetmaker"
-    Then the header search lists the document "finishes.md"
-    When I press the header search result "Finishes"
-    Then the document open is "finishes.md"
     And there should be no page errors
 
   @scratch:good

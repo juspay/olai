@@ -43,10 +43,10 @@ Feature: Search can narrow to nodes or files for the session
     And search kind "Files" is selected
     And there should be no page errors
 
-  Scenario: Header and palette share the pick and a plugin rebuild resets it
-    When I search the header for "zinnia"
+  Scenario: The pick holds across openings of the palette and a plugin rebuild resets it
+    When I search from the header for "zinnia"
     And I pick search kind "Files"
-    Then the header search lists the document "zinnia.md"
+    Then the palette lists the document "zinnia.md"
     When I press "Escape"
     And I press the palette shortcut
     Then search kind "Files" is selected
@@ -71,14 +71,14 @@ Feature: Search can narrow to nodes or files for the session
     And the palette lists the node "Keep a note"
     And the palette lists no document "zinnia.md"
 
-  Scenario: The header cycles kinds and keeps refusals visible
-    When I search the header for "is:open"
+  Scenario: Tab cycles kinds in the palette the header opens and keeps refusals visible
+    When I search from the header for "is:open"
     And I press "Tab"
     Then search kind "Rows" is selected
     When I press "Tab"
     Then search kind "Files" is selected
     And the search refuses "is:open" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
-    And the header search found "No matches"
+    And the palette found "No matches"
 
   Scenario: Picking Files leaves the move picker node-only
     When I press the palette shortcut

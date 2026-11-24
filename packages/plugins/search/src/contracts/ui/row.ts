@@ -24,7 +24,7 @@ export interface HitRow {
   readonly route: Route
   /**
    * The file the row's label's PROSE is written in — handed to `renderTitle`
-   * so a markdown title in the palette or the header box is the same HTML a
+   * so a markdown title in the palette is the same HTML a
    * tree row draws. Both kinds carry it now: a node's is its outline, a
    * document hit's is its own path, because a document face's title is prose
    * the format tags the same way (its tags are read off it, website/docs/format.md),

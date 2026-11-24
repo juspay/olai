@@ -89,7 +89,7 @@ The parts that serve olai to your browser and to agents.
 | [settings: reading the settings file](plugins/settings.md) | Settings for the whole directory, read from one `Settings.olai` file. |
 | [identity: who is making a request](plugins/identity.md) | Who is looking at the page: which request headers olai trusts, and the `captured-by` chip. |
 | [The git plugin: commits, pushes and its two settings](plugins/git.md) | Records commits, and holds the `commit` and `push` settings. |
-| [The search plugin: the index and the search box](plugins/search.md) | Matches search queries, and what still works when search is switched off. |
+| [The search plugin: the index and the Search button](plugins/search.md) | Matches search queries, and what still works when search is switched off. |
 | [vault-plugins: running the plugins your directory defines](plugins/vault-plugins.md) | The plugins a directory keeps in its own `plugins/` folder: reading them, approving them, and their pages. |
 
 ### Integrations

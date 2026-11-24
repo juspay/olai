@@ -41,9 +41,8 @@
  * (`../edges/editing.tsx`, `../move/moving.tsx`).
  *
  * The other two doors onto the same reading are deliberately not consumers.
- * The ⌘K palette and the header's box draw more than node hits (shell
- * commands, the grammar's own refusals, an ask to the agent) and place
- * themselves (a portal, an anchor re-measured while the page scrolls); the
+ * The ⌘K palette draws more than node hits (shell commands, the grammar's own
+ * refusals, an ask to the agent) and places itself (a modal of its own); the
  * `((` widget has no box at all — the row's own editor is the input
  * (`../complete/Completions.tsx`). Bending any of them onto this would make it
  * a bundle of everything a list can be, which is the shape `RowPanel.tsx`

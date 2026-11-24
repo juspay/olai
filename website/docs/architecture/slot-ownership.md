@@ -105,7 +105,8 @@ A contribution is `{ place, body, status? }`.
 A contribution is `{ body, headerOrder, closetOrder, mobileWithoutSidebar?, desktop? }`.
 
 - `desktop` picks where it goes on a desktop, `header` or `health`, and `body` is told where it is being drawn: `header`, `health` or `closet`.
-- A button placed at `health` is drawn beside the health dot and gives the popover a row of its own. Clicking that row closes the popover and opens the button's panel, anchored to the dot.
+- A button placed at `health` is drawn beside the health dot and gives the popover a row of its own. Clicking that row closes the popover and opens the button's panel, anchored to the dot. Preferences and Plugins both ask for `health`, so no door of olai's own stands in the bar.
+- Rows at `health` stand in `headerOrder`: Preferences, then Plugins, the order the phone drawer's foot uses.
 - A button whose open or closed state is kept outside the app frame, as the plugins panel keeps its own inside the plugin inspector, is drawn again by that button when the frame is rebuilt.
 
 ### `sidebar.entry` and `sidebar.section`

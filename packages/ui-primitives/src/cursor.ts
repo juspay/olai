@@ -1,9 +1,9 @@
 /**
  * WHICH row of a shortlist is the one Enter would take.
  *
- * Three surfaces in this client draw a list of {@link ./Result.tsx} rows and
- * let somebody walk it — the ⌘K palette, the header's search box through it,
- * and the row editor's three input widgets (`../complete/`) — and each of them
+ * Two surfaces in this client draw a list of {@link ./Result.tsx} rows and
+ * let somebody walk it — the ⌘K palette and the row editor's three input
+ * widgets (`../complete/`) — and each of them
  * had, or was about to have, the same four lines: an index signal, `(i + 1) %
  * n`, `(i - 1 + n) % n`, and a guard for a list that got shorter underneath.
  *

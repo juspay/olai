@@ -583,9 +583,9 @@ Feature: Properties on a node, from the web
     # The board's own query, asked by a person this time. The row draws both
     # properties — a hit carries the whole map — and marks the one the query
     # named, which leads so a narrow panel ellipsizes the others instead.
-    When I search the header for "prop:agent=claude-opus"
-    Then the header search lists the node "choose the handles"
-    And the header search result "choose the handles" shows the property "agent" holding "claude-opus"
-    And the header search result "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
-    And the header search result "choose the handles" marks "agent" as why it matched
+    When I search from the header for "prop:agent=claude-opus"
+    Then the palette lists the node "choose the handles"
+    And the palette result "choose the handles" shows the property "agent" holding "claude-opus"
+    And the palette result "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
+    And the palette result "choose the handles" marks "agent" as why it matched
     And there should be no page errors

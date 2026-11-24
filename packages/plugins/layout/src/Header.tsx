@@ -29,13 +29,11 @@
  * 390pt phone in every connection state longer than `live`. That squeeze is why
  * the pills left the phone bar rather than learning a fifth give-way rule.
  *
- * On DESKTOP whatever sits in the LEAD SEAT is the one control here that may
- * shrink to nothing before any pill loses a character — an input narrowed to a
- * slot is still an input, which is what its `min-w-0` and its cap are for. That
- * seat is the search row's (`olai-plugin-search`), which is also why it is the
- * one seat drawn outside the desktop gate: on a phone the same door is a 44px
- * magnifier that opens the ⌘K palette. The last commit's AGE
- * (`commit/Commit.tsx`'s `· 3m ago`) is `sm` and up only.
+ * The LEAD SEAT is the search row's (`olai-plugin-search`): a button that
+ * opens the ⌘K palette, the word and the chord on a desktop and a 44px
+ * magnifier on a phone. It is the one seat drawn outside the desktop gate for
+ * that reason. The last commit's AGE (`commit/Commit.tsx`'s `· 3m ago`) is `sm`
+ * and up only.
  *
  * The wordmark and the burger never give way at all: they are the app's
  * identity and the way back to the directory — and the wordmark is the
@@ -222,29 +220,24 @@ export function Header(props: {
         class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2 md:flex-none md:pl-2 md:pr-3"
         data-testid={TESTID.appChrome}
       >
-        {/* THE LEAD SEAT — first in the cluster, and whatever is in it is the
-            one control here that may shrink to nothing: it takes what is left
-            after the pills have their floors, so nothing a reader came for
-            gives way to it. It is also the one seat drawn OUTSIDE the desktop
-            gate below, because the face in it is expected to have a phone arm.
-
-            The search box was spelled out here, handed a `go` this file read
-            for it. It is `olai-plugin-search`'s face now and this bar names no
-            row: what a `place` word means is still the bar's decision and it is
-            these two lines (`./plugins/Chrome.tsx`). */}
+        {/* THE LEAD SEAT — first in the cluster, and the one seat drawn
+            OUTSIDE the desktop gate below, because the face in it is expected
+            to have a phone arm. It is `olai-plugin-search`'s door, and this bar
+            names no row: what a `place` word means is still the bar's decision
+            and it is these two lines (`./plugins/Chrome.tsx`). */}
         <PluginHeaders place="lead" />
         <Show when={desktop()}>
           {/* THE HEALTH DOT: one mark for everything the bar used to stand
               a pill for — the connection, every plugin's `cluster` readout
               (git's Commit readout, kolu, odu, mail, spaces), and under them
-              the uptime line and the plugins door. It wears the worst tone
-              among them and names what is wrong; its popover draws each as a
-              row, still the owner's own face (`./Health.tsx`). A calm bar is
-              the wordmark, search, this dot, preferences and who is looking. */}
+              the uptime line and the doors that ask for its foot
+              (`desktop: "health"`: Preferences and Plugins). It wears the
+              worst tone among them and names what is wrong; its popover draws
+              each as a row, still the owner's own face (`./Health.tsx`). A
+              calm bar's right end is search, this dot and who is looking. */}
           <Health slots={props.slots} />
-          {/* The door a reader reaches for by habit: preferences, the gear
-              alone. Doors that ask for the health popover's foot instead
-              (`desktop: "health"` — the plugins panel's) are drawn there. */}
+          {/* A door that asks for the bar itself (`desktop: "header"`, the
+              default) stands here. None of olai's own does. */}
           <Tools slots={props.slots} where="header" />
         </Show>
         {/* Phone screens with no directory drawer (the error report, the

@@ -55,16 +55,14 @@ Feature: The sidebar and command palette
     Then the sidebar rail is showing
 
   @corpus:good
-  Scenario: The header's search box is the other door to the same reading
-    # One reading, two doors: the box asks the same server procedure the
-    # palette does and draws the same rows, so a result pressed here behaves
-    # exactly as one pressed there.
+  Scenario: The header's search button opens the same palette
+    # One reading, one drawing of it: the button opens the palette the chord
+    # opens, so a result picked there behaves exactly as one picked after ⌘K.
     Given I open the outline "house.olai"
-    When I search the header for "hinges"
-    Then the header search lists the node "pick the hinges"
-    When I press the header search result "pick the hinges"
+    When I search from the header for "hinges"
+    Then the palette lists the node "pick the hinges"
+    When I pick the palette item "pick the hinges"
     Then the unified destination row "hinges" is selected
-    And the unified destination row "hinges" is selected
 
   @corpus:good
   Scenario: Palette search finds a node and jumps to it

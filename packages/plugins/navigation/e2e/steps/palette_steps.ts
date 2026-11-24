@@ -46,6 +46,12 @@ import {
   SHORTCUTS,
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+import { selector } from "@olai/web/testlib";
+
+import { TESTID } from "../../src/testids.ts";
+
+/** One `key value` pair on a palette result row. */
+const PALETTE_ITEM_PROP = selector(TESTID.paletteItemProp);
 
 // ── opening it, and typing into it ─────────────────────────────────────
 
@@ -324,12 +330,80 @@ Then(
   },
 );
 
+/**
+ * ...and the NODE that is not there — the half a span assertion is made of.
+ * A search that lists two nodes proves what it found; what a range has to
+ * prove is what it left out. Asserted AFTER this query's answer has arrived,
+ * because a row absent from a list that has not answered yet is absent for the
+ * wrong reason.
+ */
+Then(
+  "the palette does not list the node {string}",
+  async function (this: OlaiWorld, title: string) {
+    await answered(this, PALETTE, await (await paletteBox(this)).inputValue());
+    assert.strictEqual(
+      await this.page.locator(`${PALETTE_ITEM}[data-id^="hit-#"]`).filter({ hasText: title }).count(),
+      0,
+      `the palette lists ${JSON.stringify(title)}, and this step says it does not`,
+    );
+  },
+);
+
+/** One DOCUMENT row by path: the label is the file's title, the id its path. */
+const paletteDocument = (world: OlaiWorld, file: string) =>
+  world.page.locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`);
+
+/** One `key value` pair on a result row's third line, scoped to the row. */
+const paletteRowProp = (world: OlaiWorld, title: string, key: string) =>
+  world.page.locator(PALETTE_ITEM).filter({ hasText: title }).first()
+    .locator(`${PALETTE_ITEM_PROP}${attr("data-key", key)}`);
+
+/** WHAT A DOCUMENT ROW CALLS IT — the row's first line, asked by PATH so the
+ *  assertion cannot be satisfied by the thing it is about. */
+Then(
+  "the palette result for the document {string} is called {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    const row = paletteDocument(this, file);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await row.innerText()).split("\n")[0]?.trim() === title,
+      `the palette row for ${JSON.stringify(file)} to be called ${JSON.stringify(title)}`,
+    );
+  },
+);
+
+Then(
+  "the palette result {string} shows the property {string} holding {string}",
+  async function (this: OlaiWorld, title: string, key: string, value: string) {
+    const prop = paletteRowProp(this, title, key);
+    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(oneLine(await prop.innerText()), `${key} ${value}`);
+  },
+);
+
+/** The property a query matched on is drawn as the reason, and it LEADS the
+ *  row's third line, because a line that has to be ellipsized shows its front. */
+Then(
+  "the palette result {string} marks {string} as why it matched",
+  async function (this: OlaiWorld, title: string, key: string) {
+    const prop = paletteRowProp(this, title, key);
+    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await prop.getAttribute("data-matched"),
+      "true",
+      `"${key}" is drawn on the row for "${title}" but not as the reason it is there`,
+    );
+    const first = this.page.locator(PALETTE_ITEM).filter({ hasText: title }).first()
+      .locator(PALETTE_ITEM_PROP).first();
+    assert.equal(await first.getAttribute("data-key"), key);
+  },
+);
+
 // ── how much of the answer it drew ─────────────────────────────────────
 //
-// The ritual is `support/counted.ts`', shared with the header box's steps: one
-// line, one function in the client, one question here. What is the palette's
-// own is the door it is read INSIDE — the modal, so that a scenario says which
-// of the two doors it means even though both draw the line under one name.
+// The ritual is `support/counted.ts`': one line, one function in the client,
+// one question here. What is the palette's own is the door it is read INSIDE —
+// the modal.
 
 Then(
   "the palette found {string}",

@@ -107,8 +107,21 @@ When("I press Escape on the preferences", async function (this: OlaiWorld) {
 
 // ── where the caret is ─────────────────────────────────────────────────
 
+/** Put the caret on the Preferences door the way a keyboard gets there. On a
+ *  desktop the door is a line in the health dot's list, so the dot is focused
+ *  and opened with `Enter` first; where the door stands on its own (a phone's
+ *  drawer, a page with no drawer) it is focused directly. */
 When("I focus the preferences trigger", async function (this: OlaiWorld) {
-  await this.page.locator(PREFS_TRIGGER).focus();
+  const trigger = this.page.locator(PREFS_TRIGGER).locator("visible=true");
+  const dot = this.page.locator(HEALTH);
+  await dot.or(trigger).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  if (!(await trigger.isVisible()) && await dot.isVisible()) {
+    await dot.focus();
+    await pressed(this, "Enter");
+    await this.page.locator(HEALTH_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
+  await trigger.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await trigger.focus();
 });
 
 When("I press Enter", async function (this: OlaiWorld) {
@@ -173,15 +186,6 @@ Then(
   },
 );
 
-Then("the preferences trigger has the focus", async function (this: OlaiWorld) {
-  const held = await focusedOn(this);
-  assert.equal(
-    held,
-    TESTID.prefsTrigger,
-    `the focus is on ${held}, not on the control that opened the panel`,
-  );
-});
-
 Then(
   "the panel says these preferences are this browser's",
   async function (this: OlaiWorld) {
@@ -199,7 +203,7 @@ Then(
   },
 );
 
-/** The panel opens DOWNWARD from its trigger, escapes the bar, and lands
+/** The panel opens DOWNWARD from what it hangs off, escapes the bar, and lands
  *  inside the window.
  *
  *  The header is `sticky` with a z-index, which makes it a stacking context and
@@ -207,12 +211,15 @@ Then(
  *  viewport (`web/src/client/anchor.ts`). A panel laid out inside the bar is
  *  the failure this catches, and it is invisible to any assertion phrased as
  *  "the panel is visible": a clipped one still is. Its top is measured against
- *  the TRIGGER rather than the bar, because that is what it is anchored to —
- *  the pill has padding above and below it inside the bar, so the gap below the
- *  pill starts a pixel or two above the bar's own bottom edge. */
+ *  its ANCHOR rather than the bar: on a desktop the health dot, whose list the
+ *  Preferences line stands in; elsewhere the door itself. */
 Then("the preferences panel opens downward, clear of the bar", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
-  const trigger = await this.box(this.page.locator(PREFS_TRIGGER), "the trigger");
+  const dot = this.page.locator(HEALTH);
+  const trigger = await this.box(
+    (await dot.isVisible()) ? dot : this.page.locator(PREFS_TRIGGER).locator("visible=true"),
+    "what the panel hangs off",
+  );
   const panel = await this.box(this.page.locator(PREFS_PANEL), "the preferences");
   assert.ok(
     panel.y >= trigger.y + trigger.height - 1,
@@ -587,14 +594,19 @@ When(
 /** Intent sentences the tree features already speak. They go through Prefs
  *  and then put the panel away, because the next step is about the TREE and a
  *  portalled panel would sit on top of it. */
-/** The panel AND whatever stood behind it back off the page. The trigger,
- *  not Escape: hide/show is about the TREE, and a global Escape would
- *  cancel an editor or a menu the next step is about. On a phone the
- *  trigger lives in the directory drawer, so that tap shut the panel with
- *  the drawer still standing over the page — the scrim is its own way out.
+/** The panel AND whatever stood behind it back off the page. Not a global
+ *  Escape: hide/show is about the TREE, and an Escape aimed at the page would
+ *  cancel an editor or a menu the next step is about. Where the door is
+ *  standing (a phone's drawer) it is pressed again; on a desktop the door is a
+ *  line of the health dot's list, which shut when it was picked, so Escape is
+ *  pressed on the panel itself, as a person shuts a panel there. On a phone the
+ *  tap shut the panel with the drawer still standing over the page — the
+ *  scrim is its own way out.
  */
 const prefsAway = async (world: OlaiWorld): Promise<void> => {
-  await world.press(world.page.locator(PREFS_TRIGGER));
+  const trigger = world.page.locator(PREFS_TRIGGER).locator("visible=true");
+  if (await trigger.isVisible()) await world.press(trigger);
+  else await world.page.locator(PREFS_PANEL).press("Escape");
   await world.page
     .locator(PREFS_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });

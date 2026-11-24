@@ -8,16 +8,15 @@ The `layout` plugin draws the frame around every page: the header, the left colu
 | --- | --- |
 | `olai` and this server's name, as wide as the sidebar under it | layout |
 | the tabs, over the pages they hold | [tabs.md](tabs.md)[^strip] |
-| the search box | [search.md](search.md) |
+| **Search**, which opens the palette | [search.md](search.md) |
 | the health dot | layout |
-| the Preferences gear | [preferences.md](preferences.md) |
 | who is signed in | [identity.md](identity.md) |
 
-A phone keeps the search box and who is signed in, and adds a menu button.[^phone]
+A phone keeps a magnifier for search and who is signed in, and adds a menu button.[^phone]
 
 ## The health dot
 
-One dot is always drawn, green, amber or red: the worst colour among the connection and every report a plugin makes.[^name] Clicking the dot opens a list of those reports, worst first.[^rows][^votes] The connection has a line of its own.[^connection] At its foot is **Plugins**, which opens the plugins panel ([plugin-inspector.md](plugin-inspector.md)).[^foot]
+One dot is always drawn, green, amber or red: the worst colour among the connection and every report a plugin makes.[^name] Clicking the dot opens a list of those reports, worst first.[^rows][^votes] The connection has a line of its own.[^connection] At its foot are **Preferences** ([preferences.md](preferences.md)) and **Plugins**, which opens the plugins panel ([plugin-inspector.md](plugin-inspector.md)).[^foot]
 
 ## The columns
 
@@ -46,11 +45,11 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 
 [^seats]: The header runs across the top of the window, the sidebar's column down the left, and the bar of buttons along the bottom of a phone's screen. The layout plugin decides how much room each of those gets, and leaves a place in each one for another plugin to fill. Which places there are, and what layout tells the plugins filling them, are in the closed block at the foot of this page.
 
-[^strip]: The tabs stand in the header between the server's name and the search box, on a desktop only. The tab in front is drawn on the page's own paper and meets the page below it. When you minimize the sidebar to its strip of icons, the name narrows to the leaf and the tabs start at the page's left edge. With the tabs plugin switched off, that part of the header stays empty and the header keeps its height.
+[^strip]: The tabs stand in the header between the server's name and **Search**, on a desktop only. The tab in front is drawn on the page's own paper and meets the page below it. When you minimize the sidebar to its strip of icons, the name narrows to the leaf and the tabs start at the page's left edge. With the tabs plugin switched off, that part of the header stays empty and the header keeps its height.
 
 [^phone]: The menu button sits before the word `olai`, and is named **Show sidebar** or **Hide sidebar**. A phone draws no health dot. News about the connection, and news from git, appear as banners under the top bar, and only when there is news.
 
-    A plugin may ask for a place in the phone's top bar for pages that have no sidebar. On a phone with a sidebar drawer, Preferences and Plugins are entries at the foot of the drawer instead. On a phone page with no drawer, such as the error page, the gear stays in the top bar.
+    A plugin may ask for a place in the phone's top bar for pages that have no sidebar. On a phone with a sidebar drawer, Preferences and Plugins are entries at the foot of the drawer instead. On a phone page with no drawer, such as the error page, Preferences stands in the top bar.
 
 [^name]: A screen reader reads the dot as `Status: all good`, or as `Status: ` followed by each piece of news in the words of the plugin that reported it, joined by ` · `, alarms first.
 
@@ -60,7 +59,7 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 
 [^connection]: The connection line says `Connected` while the page is reading from the server, `Connecting…` while the first connection is still being made, and `Reconnecting…` when the connection dropped and is being retried. `Partly connected` means the connection is up but some plugins have stopped receiving updates, and the line names them. `The server restarted` is followed by `Reload the page to keep working.`
 
-[^foot]: The last line above the foot is quiet and does not affect the dot's colour: `Running for 2h`, with `Running since <instant>` in its tip and in what a screen reader reads. Choosing **Plugins** closes the list and opens the plugins panel under the dot. `Escape` closes the panel and puts the keyboard focus back on the dot.
+[^foot]: The last line above the foot is quiet and does not affect the dot's colour: `Running for 2h`, with `Running since <instant>` in its tip and in what a screen reader reads. Choosing **Preferences** or **Plugins** closes the list and opens that panel under the dot. `Escape` closes the panel and puts the keyboard focus back on the dot.
 
 [^widths]: The columns sit under the header. The stored width is fitted to the window as you resize it, so the pages keep their minimum space. The command `Reset sidebar width` in the command palette puts the sidebar back to its default width, for a keyboard that cannot drag a handle.
 

@@ -34,7 +34,7 @@ Each row shows where the query matched.[^guess] A match highlights the word you 
 
 Every page but a document filters the same way: same query language, address, counts and refusals.[^which] Collapsed rows are opened,[^folds] and the page keeps following the files.[^follow]
 
-[^box]: The filter box takes rows away from the page in front of you. The header's search box instead takes you to a row anywhere in the directory olai serves.
+[^box]: The filter box takes rows away from the page in front of you. The palette, which **Search** in the header opens, instead takes you to a row anywhere in the directory olai serves.
 
 [^hint]: The hint under the filter box lists the forms a query can take: `words`, `"a phrase"`, `a OR b`, `#tag`, `is:done`, `has:desc`, `date:last-week`, `changed:today`, `-not`.
 

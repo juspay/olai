@@ -20,7 +20,7 @@ import {
   HEALTH,
   HEADINGS,
   POLL_TIMEOUT,
-  PREFS_TRIGGER,
+  HEADER_SEARCH_OPEN,
   SIDEBAR,
   SIDEBAR_RAIL,
   WORDMARK,
@@ -60,15 +60,15 @@ Then("the app header is at the top of the viewport", async function (this: OlaiW
  * A sticky bar with too low a layer is the same defect wearing a passing
  * bounding box: the page keeps scrolling under it and paints straight over it,
  * and every measurement above still holds. Two controls rather than one, at
- * opposite ends of the right-hand group, because a single sample is one column
- * of a bar that is a row.
+ * the two ends of the right-hand group's doors, because a single sample is one
+ * column of a bar that is a row.
  */
 Then(
   "the header chrome takes the pointer where the page runs under it",
   async function (this: OlaiWorld) {
     for (const [selector, name] of [
+      [HEADER_SEARCH_OPEN, "header-search-open"],
       [HEALTH, "health"],
-      [PREFS_TRIGGER, "prefs-trigger"],
     ] as const) {
       const found = await this.topmostTestidOver(this.page.locator(selector), name);
       assert.strictEqual(

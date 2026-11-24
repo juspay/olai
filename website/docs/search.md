@@ -1,6 +1,6 @@
 # Search
 
-olai has one query language. You type it in the header's search box, in the palette or in a picker under a row; an agent calls `search_nodes`.[^scope]
+olai has one query language. You type it in the palette or in a picker under a row; an agent calls `search_nodes`.[^scope]
 
 ## Words, phrases and joiners
 
@@ -30,14 +30,14 @@ A colon elsewhere is part of a word: `TODO:` and `http://…` are ordinary text.
 
 | Where | What it is |
 | --- | --- |
-| the header's search box | on a desktop: type, arrow up and down, `Enter` opens, `Escape` clears |
-| the magnifier | the same place on a phone; opens the palette |
+| **Search** in the header | on a desktop, a button showing the palette's keys; opens the palette |
+| the magnifier | the same button on a phone |
 | the palette | what `Cmd` + `K` opens, or `Ctrl` + `K` elsewhere[^palette] |
 | a panel under a row | the `((` mirror widget, the box for what a row waits for, the move-to picker[^panels] |
 | the chat composer's `@` list | names one row in a message ([chat.md](chat.md)) |
 | `search_nodes` | the same answer for an agent, over MCP[^agent] |
 
-The palette and the search box draw at most eight results.[^eight]
+The palette draws at most eight results.[^eight]
 
 ## When a query is refused
 
@@ -61,7 +61,7 @@ A refusal names the rule you broke, the values the operator takes, and what you 
 
 [^agent]: An olai serving without the search plugin switched on answers every one of these places with no results ([plugins/search.md](plugins/search.md)).
 
-[^eight]: The palette and the header's box each draw at most eight results, and say `8 of 90 matches` underneath whenever more matched than fit. There is no results page and no larger limit: narrow the query in the box, or with the selector.
+[^eight]: The palette draws at most eight results, and says `8 of 90 matches` underneath whenever more matched than fit. There is no results page and no larger limit: narrow the query in the box, or with the selector.
 
 [^refusal]: A refusal quotes what you typed with its capitals: `IS:DONE` works, and a refusal for `is:OPEN` says `is:OPEN`. Every refusal is in a closed block below.
 
@@ -205,20 +205,20 @@ A `kind` narrows what an answer may hold: `node` for rows, `document` for markdo
 </details>
 
 <details>
-<summary>Inside the search boxes: the selector, the counts, and following the directory</summary>
+<summary>Inside the palette: the selector, the counts, and following the directory</summary>
 
-An open palette or header search follows the directory without another keystroke: results that stop matching stop being drawn, new ones arrive, and the counts move with them.
+An open palette follows the directory without another keystroke: results that stop matching stop being drawn, new ones arrive, and the counts move with them.
 
 ### All, Rows and Files
 
-The palette and the header box carry a selector under the box: **All**, **Rows** for rows, and **Files** for outlines, markdown documents, saved HTML pages, CSV files, images and PDFs. `Tab` moves through the three while the caret is in either box.
+The palette carries a selector under its box: **All**, **Rows** for rows, and **Files** for outlines, markdown documents, saved HTML pages, CSV files, images and PDFs. `Tab` moves through the three while the caret is in the box.
 
 - The pick sets the kind on the request before the answer is capped; it never filters an answer that was already cut short.
-- It lasts for this browser session, is shared by both boxes, and survives a reconnect. Loading the page puts it back to **All**.
+- It lasts for this browser session, holds each time the palette opens, and survives a reconnect. Loading the page puts it back to **All**.
 
 ### How much was left out
 
-When everything found is on screen the boxes say nothing at all, and **Files** with `is:done` says `0 matches`.
+When everything found is on screen the palette says nothing at all, and **Files** with `is:done` says `0 matches`.
 
 `Enter` opens the result the list has selected. A search waits a fifth of a second before it asks, and `Enter` inside that gap does nothing rather than opening what the query before last found; a click is never held back. In chat, a query with a space in it needs you to pick a result with the arrow keys first, or `Enter` sends the message as you typed it.
 
@@ -244,8 +244,8 @@ A search reaches both kinds of thing the directory holds, rows and files, ranked
 - A query scoped with `file` or `under` selects no documents at all: both ask where a row sits in a tree.
 - A saved web page, a CSV file, an image and a PDF are matched by their name and not by their contents, so each is found by what it is called and by nothing inside it.
 - An outline's own name and path match too: `Home` finds `Home.olai`, and `Enter` opens the outline. Operators select no outlines, and files under `_olai/` never appear as outline results.
-- A match in the body of a markdown document carries its line. Opening it from the palette or the header sets `?q=<query>#L<line>`, scrolls to the rendered block holding that source line and lights the query's words there; the address can be shared, and Back returns to the page you searched from.
+- A match in the body of a markdown document carries its line. Opening it from the palette sets `?q=<query>#L<line>`, scrolls to the rendered block holding that source line and lights the query's words there; the address can be shared, and Back returns to the page you searched from.
 - A blank line or an opening fence marker lands on the block before it, and a line past the end of the file opens at the top without an error.
-- Neither search box makes a file: **New document** and **New outline** are in the sidebar ([getting-around.md](getting-around.md)).
+- The palette makes no file: **New document** and **New outline** are in the sidebar ([getting-around.md](getting-around.md)).
 
 </details>

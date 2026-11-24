@@ -21,6 +21,8 @@ import type { Page } from "playwright";
 
 import {
   attr,
+  HEALTH,
+  HEALTH_PANEL,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
   PREFS_CHOICE,
@@ -34,19 +36,27 @@ import {
 } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
-/** Open the panel unless it is already open. Idempotent, because a scenario
- *  that opened it to pick a theme should not have to know whether the step
- *  after it needs opening again. */
+/** Open the panel unless it is already open, the way a person gets to it: on
+ *  a desktop the door is the `Preferences` line at the foot of the health
+ *  dot's list, so the dot is pressed first; on a phone it is a row of the
+ *  directory drawer; on a phone page with no drawer it stands in the bar.
+ *  Idempotent, because a scenario that opened it to pick a theme should not
+ *  have to know whether the step after it needs opening again. */
 export const showPreferences = async (page: Page): Promise<void> => {
   const panel = page.locator(PREFS_PANEL);
   if (await panel.isVisible().catch(() => false)) return;
-  const trigger = page.locator(PREFS_TRIGGER);
+  const trigger = page.locator(PREFS_TRIGGER).locator("visible=true");
   if (!(await trigger.isVisible().catch(() => false))) {
-    // Phone: the trigger is a row in the directory drawer.
+    const dot = page.locator(HEALTH);
     const burger = page.locator(SIDEBAR_TOGGLE);
-    await burger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await burger.click();
-    await page.locator(SIDEBAR_BODY).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await dot.or(burger).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if (await dot.isVisible()) {
+      if (!(await page.locator(HEALTH_PANEL).isVisible())) await dot.click();
+      await page.locator(HEALTH_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } else {
+      await burger.click();
+      await page.locator(SIDEBAR_BODY).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    }
   }
   await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await trigger.click();

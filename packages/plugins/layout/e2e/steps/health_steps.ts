@@ -19,6 +19,7 @@ import {
   COMMIT_PANEL,
   HEALTH,
   HEALTH_PANEL,
+  HEADER_SEARCH_OPEN,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
   PREFS_TRIGGER,
@@ -166,8 +167,9 @@ Then("the commit panel is up", async function (this: OlaiWorld) {
 });
 
 /** THE CALM BAR: what stands in the desktop header's right-hand group is the
- *  search box, the one dot, preferences and who is looking — nothing else. A
- *  pill that found its way back into the bar is the regression this names. */
+ *  search door, the one dot and who is looking — nothing else. A pill or a
+ *  door that found its way back into the bar is the regression this names;
+ *  Preferences and Plugins are lines in the dot's list. */
 Then("the desktop header holds only its calm controls", async function (this: OlaiWorld) {
   const chrome = this.page.locator(APP_HEADER).locator(APP_CHROME);
   await chrome.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -186,5 +188,6 @@ Then("the desktop header holds only its calm controls", async function (this: Ol
       "a status readout belongs in the health popover",
   );
   assert.ok(standing.includes(TESTID.health), `the bar has no health dot: ${JSON.stringify(standing)}`);
-  assert.ok(await chrome.locator(PREFS_TRIGGER).isVisible(), "the bar has no preferences door");
+  assert.ok(await chrome.locator(HEADER_SEARCH_OPEN).isVisible(), `the bar has no search door: ${JSON.stringify(standing)}`);
+  assert.equal(await chrome.locator(PREFS_TRIGGER).count(), 0, "the preferences door stands in the bar rather than in the dot's list");
 });
