@@ -18,7 +18,6 @@
  */
 
 import { type LogLevel, Schema } from "effect"
-import { reasonOf } from "./cause.ts"
 
 // ── The stamp ───────────────────────────────────────────────────────────────
 
@@ -86,7 +85,6 @@ export const closeMeans = (code: number): string => CLOSE_CODES[code] ?? "unlist
  * | --- | --- |
  * | `peer-closed` | the page never called `close()`: the server or the network ended it |
  * | `frame-over-cap` | the page closed it after a frame larger than the wire's cap arrived |
- * | `undecodable` | the page closed it after a call failed to decode a frame |
  * | `half-open` | the page closed it because the heartbeat heard nothing back |
  * | `roster-refresh` | olai refreshed an open socket after the plugin roster moved |
  * | `redial` | olai dialled again with a new set of plugins |
@@ -96,7 +94,6 @@ export const closeMeans = (code: number): string => CLOSE_CODES[code] ?? "unlist
 export const Cause = Schema.Literals([
   "peer-closed",
   "frame-over-cap",
-  "undecodable",
   "half-open",
   "roster-refresh",
   "redial",
@@ -139,7 +136,7 @@ export const LinkEvent = Schema.TaggedUnion({
   Opened: { took: Ms, recovered: Schema.Boolean },
   /** An opened socket ended. `code`, `reason` and `clean` are the close
    *  event's; absent when the page went away before one arrived. `silent` is
-   *  how long nothing had arrived; `heard` the failure texts calls and
+   *  how long nothing had arrived; `heard` the failure texts its
    *  subscriptions were told on this dial; `starved` the subscriptions that
    *  received nothing on it, and how many more there were. */
   Dropped: {
@@ -167,9 +164,6 @@ export const LinkEvent = Schema.TaggedUnion({
   /** The heartbeat's probe went unanswered, so the page is about to close an
    *  open socket. */
   Stale: { silent: Ms, hidden: Schema.Boolean },
-  /** A call failed with a transport error. `reason` is the error's reason tag,
-   *  `said` its message, `detail` what the reason's own cause says. */
-  CallFailed: { reason: Text(64), said: Text(200), detail: Text(200) },
   /** The server retired this tab: it was replaced by a newer process. */
   Retired: { code: Schema.optionalKey(Count) },
   /** The connection-lost card went up or came down. `after` is how long it was
@@ -181,6 +175,9 @@ export const LinkEvent = Schema.TaggedUnion({
   Roster: { restarting: Schema.Array(Text(64)).check(Schema.isMaxLength(64)) },
   /** …and could not follow it. */
   RosterRefused: { why: Text(200) },
+  /** The page could not read which plugins to start before its socket
+   *  answered. */
+  BootFailed: { why: Text(200) },
 })
 export type LinkEvent = typeof LinkEvent.Type
 
@@ -199,10 +196,12 @@ export const Entry = Schema.Struct({
 })
 export type Entry = typeof Entry.Type
 
-/** What a tab posts: its id and a run of its entries. */
+/** What a tab posts: its id, a run of its entries, and how many entries its
+ *  diary had to drop since the last post because nobody was taking them. */
 export const Batch = Schema.Struct({
   tab: Tab,
   entries: Schema.Array(Entry).check(Schema.isMaxLength(500)),
+  lost: Count,
 })
 export type Batch = typeof Batch.Type
 
@@ -239,18 +238,14 @@ export interface Described {
 export const duration = (ms: number): string =>
   ms < 1000 ? `${Math.round(ms)}ms` : ms < 10_000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms / 1000)}s`
 
-/** A failure's own cause, in one bounded line — what a call's transport error
- *  says about why. */
-export const detailOf = (cause: unknown): string => {
-  const text = reasonOf(cause)
-  return text.length > 200 ? `${text.slice(0, 199)}…` : text
-}
+/** Text cut to `max` characters, so it fits the field it is said in. */
+export const clip = (text: string, max: number): string => text.length > max ? `${text.slice(0, max - 1)}…` : text
 
 const quieted = (level: LogLevel.LogLevel, streak: number): LogLevel.LogLevel => loudAt(streak) ? level : "Debug"
 
 /** How one entry reads: its level, its sentence, its fields. Total over
- *  {@link LinkEvent}; the identity fields (`tab`, `dial`, `seq`, `at`) are the
- *  caller's to add. */
+ *  {@link LinkEvent}; the fields that place an entry (`tab`, `dial`, `seq`,
+ *  `at`) are the caller's to add. */
 export const describe = (entry: Entry): Described => {
   const { event, streak } = entry
   switch (event._tag) {
@@ -304,12 +299,6 @@ export const describe = (entry: Entry): Described => {
       }
     case "Stale":
       return { level: "Warn", message: "heartbeat gave up", fields: { silent: duration(event.silent), hidden: event.hidden } }
-    case "CallFailed":
-      return {
-        level: event.reason === "RpcClientDefect" ? "Warn" : "Debug",
-        message: "a call failed on the wire",
-        fields: { reason: event.reason, said: event.said, detail: event.detail },
-      }
     case "Retired":
       return {
         level: "Warn",
@@ -344,5 +333,7 @@ export const describe = (entry: Entry): Described => {
       }
     case "RosterRefused":
       return { level: "Error", message: "roster redial refused", fields: { why: event.why } }
+    case "BootFailed":
+      return { level: "Warn", message: "browser bootstrap could not be read", fields: { why: event.why } }
   }
 }

@@ -1345,6 +1345,7 @@
         "@olai/effect-cordis": "workspace:*",
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/log": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-build": "workspace:*",
         "@olai/surface": "workspace:*",

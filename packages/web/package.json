@@ -18,6 +18,7 @@
     "@kobalte/core": "^0.13.13",
     "@olai/fonts": "workspace:*",
     "@olai/format": "workspace:*",
+    "@olai/log": "workspace:*",
     "@olai/surface": "workspace:*",
     "@solid-primitives/scheduled": "^1.5.3",
     "effect": "4.1.4",

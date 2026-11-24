@@ -7,6 +7,9 @@
 
 import { supplyManagement } from "../host/management.ts"
 import { connectSocket } from "./connection/socket.ts"
+import { createDiary, mintTab, printToConsole } from "./connection/diary.ts"
+import { subscriptionLiveness } from "@kolu/surface/subscriptions"
+import { clip, type LinkEvent, STARVED_LIMIT } from "@olai/log/link"
 import { restartRows, signatureOf, type Named } from "./connection/signature.ts"
 import { bootstrapSelected } from "../host/bootstrap.ts"
 import { heldToWord, loadRows, retryableModule } from "../host/loading.ts"
@@ -16,7 +19,7 @@ import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
-import { createEffect, createRoot, createSignal } from "solid-js"
+import { createEffect, createRoot, createSignal, onCleanup } from "solid-js"
 
 import { browserReports, browserRequiresReload, composeTo } from "../host/runtime.ts"
 
@@ -35,6 +38,36 @@ import { browserReports, browserRequiresReload, composeTo } from "../host/runtim
 const CORE = "olai"
 
 /**
+ * THE CONNECTION'S DIARY (`./connection/diary.ts`), created beside the
+ * connection and living as long as the page. It is the connection's, so it
+ * lives in this module, the connection's argued owner, and nothing outside
+ * reaches it but the one operation exported below ({@link connectionCard}).
+ * Every socket kolu dials goes through its tap, so each is a numbered dial of
+ * this tab. It owns its settle timers; this root owns it and the `pagehide`
+ * listener that says every standing socket before the page goes.
+ */
+const diary = createDiary({
+  tab: mintTab(),
+  now: Date.now,
+  online: () => navigator.onLine,
+  hidden: () => document.visibilityState === "hidden",
+  liveness: subscriptionLiveness,
+  timers: {
+    set: (run, ms) => {
+      const handle = setTimeout(run, ms)
+      return () => clearTimeout(handle)
+    },
+  },
+  print: printToConsole,
+})
+createRoot(() => {
+  const leaving = () => diary.unload()
+  window.addEventListener("pagehide", leaving)
+  onCleanup(() => window.removeEventListener("pagehide", leaving))
+  onCleanup(diary.dispose)
+})
+
+/**
  * THE FIRST DIAL — the root, and no siblings.
  *
  * NO `url`. It defaults to `surfaceWsUrl(location.origin)` — the ONE
@@ -48,25 +81,25 @@ const CORE = "olai"
  * when the `core` slot landed, and core is always here.
  */
 const live = await connectSurfaces({
-  connect: connectSocket,
+  connect: connectSocket(diary),
   // Only host management is permanent. Every capability contributes its own
   // descriptor and receives a namespaced client after redial; removing it
   // withdraws that client without teaching this module any application verbs.
   core: { surface, name: CORE },
   surfaces: {} as Record<string, Surface<SurfaceSpec>>,
+  // The heartbeat's verdict, in the diary rather than kolu's default console
+  // line: it is what names a half-open drop.
+  heartbeat: { onStale: () => diary.stale() },
   // What happens when the server retires this wire. Required by the seam, with
   // no default, so a wire that compiles has been asked what happens when it
   // dies.
   //
   // What a READER sees is not wired from here: the indicator and the reload
   // screen ride `readout()`, so the retirement has ONE source and the dot and
-  // the screen cannot disagree about it. This is the RECORD — one line naming
-  // the moment, for whoever is looking at the console of a tab that stopped.
-  // A `warn`, not an `error`: nothing is broken, the server was replaced.
-  retired: () =>
-    console.warn(
-      "olai: the server retired this tab — it was replaced by a newer process, so this page will not update again until it is reloaded",
-    ),
+  // the screen cannot disagree about it. This is the RECORD — one entry naming
+  // the moment. A `warn`, not an `error`: nothing is broken, the server was
+  // replaced.
+  retired: () => diary.retired(),
 })
 
 /** THE ROSTER THIS TAB HAS ACTUALLY COMPOSED — one value read by both the
@@ -182,7 +215,7 @@ export const bootstrapBrowser = async (): Promise<void> => {
     })
   } catch (error) {
     if (receivedRoster) return
-    console.warn("olai: browser bootstrap could not be read", error)
+    diary.say({ _tag: "BootFailed", why: clip(String(error), 200) })
     boot?.failed(`olai couldn't start in this tab. Check the connection and try again. (${String(error)})`, retryBrowser)
   }
 }
@@ -217,7 +250,13 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     // every plugin narrows it once, at its own edge, against a shape it
     // declares itself.
     const established = live.connectionEpoch()
-    await live.redial(surfaceMapOf(halves))
+    // The socket this closes is olai's own doing, and the diary says so.
+    const redialling = diary.declare("redial")
+    try {
+      await live.redial(surfaceMapOf(halves))
+    } finally {
+      redialling()
+    }
     // Kolu skips an unchanged surface map, but a changed plugin roster can
     // also change the upgrade-header policy (a plugin need not own a surface).
     // Refresh an unchanged, open socket so its next accept reads that policy.
@@ -238,7 +277,12 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
             if (status === "open") resolve()
             else if (status === "retired") reject(new Error("plugin roster socket retired during refresh"))
           })
-          live.link.wire.forceReconnect()
+          const refreshing = diary.declare("roster-refresh")
+          try {
+            live.link.wire.forceReconnect()
+          } finally {
+            refreshing()
+          }
         })
       } finally {
         detach()
@@ -250,9 +294,7 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     // whole movement into the retry. The one diagnostic for a moving frame is
     // this list, the same value the composition acts on.
     const restart = restartRows(composedRows ?? [], want)
-    console.debug(
-      `olai: roster frame — redialling${restart.length === 0 ? "" : `; restarting ${restart.join(", ")}`}`,
-    )
+    diary.say({ _tag: "Roster", restarting: restart.slice(0, 64).map((name) => clip(name, 64)) })
     await composeTo(
       halves,
       (plugin) => (live.clients as Record<string, unknown>)[plugin],
@@ -270,10 +312,7 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     else boot?.clear()
   } catch (refused) {
     boot?.failed(`olai couldn't load its plugins in this tab. Try again. (${String(refused)})`, retryBrowser)
-    console.error(
-      "olai: this tab could not follow the server's plugin roster, so it is still serving the previous one",
-      refused,
-    )
+    diary.say({ _tag: "RosterRefused", why: clip(String(refused), 200) })
     return
   }
 }
@@ -377,23 +416,22 @@ createRoot(() => {
     void rerost(want).then(settle)
   })
   /**
-   * THE READOUT'S EDGES: the stopped streams on the way into `degraded`, and
-   * the all clear on the way out. A quiet tab is a green dot, but the console
-   * is where a person looks when it is not — raw ids here, plugin rows in the
-   * sentence `connection/status.ts` writes.
+   * THE READOUT'S EDGES, every one: `debug` as a rule, `warn` on the way into
+   * `degraded` with the stopped streams (raw ids here, plugin rows in the
+   * sentence `connection/status.ts` writes), `info` on the way out. A change
+   * with no drop beside it is the readout's own news — health, not the wire.
    */
   let was: string | undefined
   createEffect(() => {
     const readout = live.readout()
     const status = readout.status
     if (status === was) return
-    if (status === "degraded") {
-      console.warn(
-        `olai: partly connected — these subscriptions stopped: ${readout.stopped.join(", ")}`,
-      )
-    } else if (was === "degraded") {
-      console.info("olai: every subscription is arriving again")
-    }
+    diary.say({
+      _tag: "Readout",
+      from: was ?? "none",
+      to: status,
+      stopped: (readout.stopped ?? []).slice(0, STARVED_LIMIT).map((label) => clip(label, 200)),
+    })
     was = status
   })
 })
@@ -403,6 +441,9 @@ export const olai = live.core
 
 /** Kolu owns reconnecting, degraded and terminal retirement state. */
 export const connectionReadout = live.readout
+
+/** Say that the connection-lost card went up or came down. */
+export const connectionCard = (card: Extract<LinkEvent, { readonly _tag: "Card" }>): void => diary.say(card)
 
 /** Re-fetch per-connection answers after an establishment; never remount UI. */
 export const connectionEpoch = live.connectionEpoch

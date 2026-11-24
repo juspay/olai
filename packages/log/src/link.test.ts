@@ -32,7 +32,6 @@ const table: ReadonlyArray<readonly [string, Entry, LogLevel.LogLevel, string]> 
   ["a peer's close", entry(dropped("peer-closed"), 1), "Warn", "wire dropped"],
   ["a severed socket", entry(dropped("severed"), 1), "Warn", "wire dropped"],
   ["a frame over the cap", entry(dropped("frame-over-cap"), 1), "Warn", "wire dropped"],
-  ["an undecodable frame", entry(dropped("undecodable"), 1), "Warn", "wire dropped"],
   ["a half-open wire", entry(dropped("half-open"), 1), "Warn", "wire dropped"],
   ["olai's redial", entry(dropped("redial"), 1), "Debug", "wire dropped"],
   ["olai's roster refresh", entry(dropped("roster-refresh"), 1), "Debug", "wire dropped"],
@@ -41,8 +40,6 @@ const table: ReadonlyArray<readonly [string, Entry, LogLevel.LogLevel, string]> 
   ["a tenth drop in a loop", entry(dropped("peer-closed"), 10), "Warn", "wire dropped"],
   ["a dial that did not open", entry({ _tag: "Unopened", took: 20, code: 1006, attempts: 3, online: true }), "Warn", "dial did not open"],
   ["the heartbeat", entry({ _tag: "Stale", silent: 25_000, hidden: false }), "Warn", "heartbeat gave up"],
-  ["an undecodable call", entry({ _tag: "CallFailed", reason: "RpcClientDefect", said: "RpcClientDefect: Error decoding message", detail: "Unexpected token" }), "Warn", "a call failed on the wire"],
-  ["a closed socket's call", entry({ _tag: "CallFailed", reason: "SocketCloseError", said: "SocketCloseError: closed", detail: "closed" }), "Debug", "a call failed on the wire"],
   ["a retirement", entry({ _tag: "Retired", code: 4001 }), "Warn", "wire retired"],
   ["the card up", entry({ _tag: "Card", shown: true, status: "reconnecting", urged: false }), "Info", "connection-lost card shown"],
   ["the card down", entry({ _tag: "Card", shown: false, status: "live", urged: false, after: 4200 }), "Info", "connection-lost card lifted"],
@@ -51,6 +48,7 @@ const table: ReadonlyArray<readonly [string, Entry, LogLevel.LogLevel, string]> 
   ["into reconnecting", entry({ _tag: "Readout", from: "live", to: "reconnecting", stopped: [] }), "Debug", "readout changed"],
   ["a roster redial", entry({ _tag: "Roster", restarting: ["chat"] }), "Debug", "roster redial"],
   ["a refused roster", entry({ _tag: "RosterRefused", why: "chunk failed" }), "Error", "roster redial refused"],
+  ["an unreadable bootstrap", entry({ _tag: "BootFailed", why: "timed out" }), "Warn", "browser bootstrap could not be read"],
 ]
 
 test.each(table)("%s reads at its level, in its sentence", (_, given, level, message) => {
@@ -91,14 +89,14 @@ test("close codes say what they mean", () => {
 })
 
 test("a batch survives a round trip through JSON", () => {
-  const batch = { tab: "0123456789abcdef", entries: table.map(([, one]) => one) }
+  const batch = { tab: "0123456789abcdef", entries: table.map(([, one]) => one), lost: 2 }
   const codec = Schema.fromJsonString(Batch)
   const back = Schema.decodeUnknownSync(codec)(Schema.encodeSync(codec)(batch))
   expect(back).toEqual(batch)
 })
 
 test("a batch with a malformed tab is refused", () => {
-  expect(() => Schema.decodeUnknownSync(Batch)({ tab: "../../etc", entries: [] })).toThrow()
+  expect(() => Schema.decodeUnknownSync(Batch)({ tab: "../../etc", entries: [], lost: 0 })).toThrow()
 })
 
 test("a socket URL names its tab and dial only when they have the shape a tab mints", () => {

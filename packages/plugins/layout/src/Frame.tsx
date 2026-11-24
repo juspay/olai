@@ -35,7 +35,7 @@ import { watchFocus } from "@olai/web/client/connection/focus.ts"
 import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
 import { PluginBanners } from "./Chrome.tsx"
 import { PluginsMounted } from "./Mounted.tsx"
-import { connectionReadout, rosterChanging } from "@olai/web/client/wire.ts"
+import { connectionCard, connectionReadout, rosterChanging } from "@olai/web/client/wire.ts"
 import { desktop } from "./layout/live.ts"
 import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
@@ -86,7 +86,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
           the page's arm because it covers the chrome too; WHERE it sits in this
           composition decides nothing about what it paints over, because it is a
           `<dialog>` in the top layer rather than a box with a number on it. */}
-      <Offline readout={connectionReadout()} memory={focus} rosterChanging={rosterChanging} />
+      <Offline readout={connectionReadout()} memory={focus} rosterChanging={rosterChanging} card={connectionCard} />
       <For each={props.slots.read(overlays)}>{({value: Overlay})=><Overlay
         toggleDirectory={()=>{if(desktop())toggleSidebar();else setMenuOpen(!menuOpen())}}
       />}</For>
