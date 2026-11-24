@@ -52,6 +52,24 @@ Feature: The sidebar reads in one order, and its buttons wait for a pointer
       | Plugins |
     And there should be no page errors
 
+  # What needs you stands above your own files: an agent waiting on a person
+  # is the one thing in the column that is owed now, and the Chats list it
+  # comes from stays below the files.
+  @scratch:chat
+  Scenario: A chat waiting on you stands above the files, and Chats below them
+    Given I open the outline "house.olai"
+    When I open the node menu of "install"
+    And I choose "Start an agent" from the node menu
+    And the node agent's fold is ready
+    And I ask the agent "ask"
+    Then the chat shows a question
+    And Needs you lists "install"
+    And the sidebar reads, top to bottom:
+      | Needs you |
+      | Files     |
+      | Chats     |
+    And there should be no page errors
+
   # Chats and Plugins hold their places when the other is gone.
   @scratch:good
   Scenario: With chat off, or with the directory's plugins off, what remains keeps its order
