@@ -63,13 +63,20 @@ Then(
     await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // An empty ul has no visible box, but must be mounted before counting.
     await this.page.locator(OUTLINE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-    const files = await links.evaluateAll((nodes) =>
-      nodes.map((node) => node.getAttribute("data-file")),
-    );
+    const files = () => links.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-file")))
+    // The list follows the directory on the watcher's clock: a step that
+    // removed files a moment ago may find the list still redrawing. Wait for
+    // the count, then say what is there if it never comes.
+    await this.waitUntil(
+      async () => (await files()).length === expected,
+      `the sidebar to list ${expected} outline(s)`,
+      HYDRATION_TIMEOUT,
+    ).catch(() => {});
+    const listed = await files();
     assert.strictEqual(
-      files.length,
+      listed.length,
       expected,
-      `expected ${expected} outline(s) in the sidebar, found ${files.length}: ${files.join(", ")}`,
+      `expected ${expected} outline(s) in the sidebar, found ${listed.length}: ${listed.join(", ")}`,
     );
   },
 );
