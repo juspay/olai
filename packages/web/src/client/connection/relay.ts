@@ -67,7 +67,6 @@ export const relayDiary = (options: {
       through: taken.at(-1)?.seq ?? 0,
       lost,
       empty: taken.length === 0 && lost === 0,
-      more: taken.length < entries.length,
     }
   }
 
@@ -98,7 +97,9 @@ export const relayDiary = (options: {
           return
         }
         diary.acknowledge(next.through, next.lost)
-        if (next.more) flush()
+        // Whatever is waiting now: what this batch left out, and what was said
+        // while it was in flight, whose own post found this one still going.
+        flush()
       },
       () => {
         posting = false

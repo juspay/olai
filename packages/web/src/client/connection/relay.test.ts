@@ -5,7 +5,7 @@ import { tappedSocket } from "./socket.ts"
 
 /** A diary and its relay on hand-moved timers, posting to a server whose
  *  answer the test picks. */
-const setup = (answer: () => number | Error) => {
+const setup = (answer: () => number | Error | Promise<number>) => {
   let clock = 0
   const timers: Array<{ at: number; run: () => void; live: boolean }> = []
   const set = (run: () => void, ms: number) => {
@@ -30,7 +30,7 @@ const setup = (answer: () => number | Error) => {
       posted.push(JSON.parse(body))
       const said = answer()
       if (said instanceof Error) throw said
-      return said
+      return await said
     },
     beacon: (body) => beacons.push(body),
     timers: { set },
@@ -72,6 +72,23 @@ test("an open is posted at once", async () => {
   socket().open()
   await Promise.resolve()
   expect(tags(posted)).toEqual(["Dialling", "Opened"])
+})
+
+test("an entry said while a post is in flight is posted when that post is taken", async () => {
+  const slow = Promise.withResolvers<number>()
+  const answers: Array<Promise<number> | number> = [slow.promise]
+  const { diary, posted, advance, socket } = setup(() => answers.shift() ?? 204)
+  socket().open()
+  expect(posted).toHaveLength(1)
+  // Said while the first post is still on its way; its own post, a second
+  // later, finds that one still going.
+  diary.say({ _tag: "Roster", restarting: [] })
+  await advance(1_000)
+  expect(posted).toHaveLength(1)
+  slow.resolve(204)
+  await advance(0)
+  expect(tags(posted)).toEqual(["Dialling", "Opened", "Roster"])
+  expect(diary.pending().entries).toHaveLength(0)
 })
 
 test("a post the server did not take is tried again on the cadence until one is, and entries leave only then", async () => {
