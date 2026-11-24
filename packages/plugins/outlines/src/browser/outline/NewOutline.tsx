@@ -36,7 +36,7 @@ import { useRouter } from "olai-plugin-navigation/routing"
 import { applied } from "../writes.ts"
 import { atFile } from "olai-plugin-navigation/routes"
 
-/** The item this door puts in the Outlines heading's `+` menu — none while no
+/** The item this door puts in the Files heading's `+` menu — none while no
  *  outline row is configured, the same condition the box below is drawn on. */
 export const outlineMaking = () => {
   const row = servedDirectory()?.outlineRow()

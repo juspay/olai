@@ -1,9 +1,10 @@
 /**
- * The served directory as a TREE rather than flat lists.
+ * The served directory as a TREE rather than a flat list.
  *
- * Each walk selects outlines or reference files by its claim, before creating
- * folders. A folder with no selected file beneath it therefore never appears.
- * Both trees retain directory paths as fold keys.
+ * ONE tree of every file it is handed, outlines and every other kind
+ * together: the kind a row is shows in its glyph, not in which list it sits
+ * in. Folders are created only for a file beneath them, so a folder with no
+ * file never appears, and directory paths are the fold keys.
  *
  * Pure: paths in, rows out. Collapse, active marking and the link each file
  * is are the drawer's business, not this one's. Order is by name at each
@@ -16,7 +17,7 @@
  * reference and rebuild the whole sidebar on one membership change.
  */
 import type { Claims } from "@olai/format"
-import { fileKind, nameOf } from "@olai/format"
+import { fileKind, inOlaiDir, isTrashed, nameOf } from "@olai/format"
 
 /** One row of the tree. A directory carries its own root-relative path so
  *  collapse state can key on it without re-walking parents; a file carries
@@ -114,7 +115,8 @@ const sortKey = (row: FileRow): string =>
  * caller — is what this replaces, and the reason is not tidiness: the caller's
  * tag would be a second answer to a question `@olai/format` already settles,
  * free to disagree with the glyph, the route and the page that read the
- * registry directly. A kind's claim decides which of the two trees receives it.
+ * registry directly. What is handed in is the caller's choice; what kind each
+ * path is, is the registry's.
  *
  * Order of the input does not matter, and a path repeated is still one row: the
  * files of a level are a map keyed by name. A path no kind claims is dropped —
@@ -122,17 +124,31 @@ const sortKey = (row: FileRow): string =>
  * from the same registry, and a tree row with no kind would have no glyph and
  * nowhere to link.
  */
-export const fileTree = (claims: Claims, files: Iterable<string>, holds: "nodes" | "reference"): ReadonlyArray<FileRow> => {
+export const fileTree = (claims: Claims, files: Iterable<string>): ReadonlyArray<FileRow> => {
   const root = empty()
   for (const file of files) {
     const of = fileKind(claims, file)
-    if (of === null) continue
-    const isOutline = claims.byKind.get(of)?.holds === "nodes"
-    const keep = holds === "nodes" ? isOutline : !isOutline
-    if (keep) put(root, file, of)
+    if (of !== null) put(root, file, of)
   }
   return freeze(claims, root, "")
 }
+
+/**
+ * WHICH SERVED FILES THE TREE LISTS — every one a reader keeps, whatever its
+ * kind, except three, each a ruling of its own:
+ *
+ *   - the archive (`_olai/Trash.olai`): the Trash entry at the column's foot is
+ *     its one door;
+ *   - olai's own `_olai/` files: the `olai` group below the tree is their home,
+ *     so they do not sit among the reader's own;
+ *   - a kind whose claim says its files are reached from somewhere of the
+ *     claiming row's own (`Claim.elsewhere` — a plugin's two halves, opened from
+ *     that plugin's page), which would otherwise be a second front door.
+ *
+ * A file no kind claims is not excluded here; {@link fileTree} drops it.
+ */
+export const listed = (claims: Claims, file: string): boolean =>
+  !isTrashed(claims, file) && !inOlaiDir(file) && claims.byKind.get(fileKind(claims, file) ?? "")?.elsewhere !== true
 
 /** Every directory the tree draws, by root-relative path.
  *

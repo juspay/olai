@@ -86,10 +86,9 @@ export const REGION = "mt-4"
  *  the rows under it — an entry's own padding — rather than hanging a couple of
  *  pixels outside the column of names ({@link ENTRY_SHAPE}).
  *
- *  ONE TREATMENT FOR EVERY HEADING IN THE COLUMN — Pinned, Needs you, Chats,
- *  Outlines — and it is the quiet uppercase label named above, not the serif
- *  italic the regions first wore beside a mono Outlines: two heading voices in
- *  one list read as two lists (the 2026-09 sidebar simplification). Small,
+ *  ONE TREATMENT FOR EVERY HEADING IN THE COLUMN — Pinned, Needs you, Files,
+ *  Chats — and it is the quiet uppercase label named above: two heading
+ *  voices in one list read as two lists. Small,
  *  spaced capitals in the muted ink: chrome, not content. The words stay
  *  written in the plugin's own case; `uppercase` is paint, so a screen reader
  *  and a `getByRole` name still read "Chats". */
@@ -97,8 +96,8 @@ export const REGION_LABEL =
   "m-0 px-2 font-sans text-caption font-semibold uppercase tracking-[0.08em] text-muted"
 
 /**
- * A HEADING THAT CARRIES ITS OWN ACTION — the `+` beside Chats and beside
- * Outlines. The label and the button share one line, the button at the right
+ * A HEADING THAT CARRIES ITS OWN ACTION — the `+` beside Files, Chats and
+ * Plugins. The label and the button share one line, the button at the right
  * edge where a row's count sits, so the column keeps one left edge of names.
  *
  * Whose the action is stays the heading's owner's: this is paint only, the way

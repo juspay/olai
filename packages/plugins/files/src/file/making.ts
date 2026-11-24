@@ -20,7 +20,7 @@ export interface Making {
   /** Which kind of file this door mints — the tree's own glyph, so a row that
    *  makes an outline looks like the outlines above it. */
   readonly of: string
-  /** The affordance's own words: its item in the Outlines heading's `+`
+  /** The affordance's own words: its item in the Files heading's `+`
    *  menu. */
   readonly label: string
   /** What the empty box suggests — a path, because a file's name IS its

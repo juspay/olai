@@ -322,7 +322,6 @@ When("I choose {string} from the menu of the outline link {string}", async funct
 
 When("I choose {string} from the menu of the document link {string}", async function (this: OlaiWorld, entry: string, file: string) {
   await this.showSidebar();
-  await this.expandReference();
   const link = this.documentLink(file);
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await link.click({ button: "right" });

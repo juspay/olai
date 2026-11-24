@@ -51,12 +51,11 @@ Feature: Directory features have independent browser lifetimes
       | chat    |
       | journal |
 
-  Scenario: Files restores Reference and folder preferences when its activation returns
+  Scenario: Files restores the one tree and its folder preferences when its activation returns
     Given I open the outline "house.olai"
-    When I expand the reference section
-    And I expand the folder "notes"
-    Then Reference has its own open preference
-    And the document link "notes/palette.md" is shown
+    When I expand the folder "notes"
+    Then the document link "notes/palette.md" is shown
+    And this browser remembers the folder "notes" open
     When I open another browser tab
     And I open the plugins panel
     And I switch the plugin "files" off
@@ -66,10 +65,9 @@ Feature: Directory features have independent browser lifetimes
     And I switch the plugin "files" on
     And I use the original browser tab
     Then the directory feature "files" is present in this tab
-    And the reference section is expanded
-    And Reference has its own open preference
+    And the file list is headed "Files"
+    And the sidebar has no Reference section
+    And the folder "notes" appears once in the file list
     And the document link "notes/palette.md" is shown
-    When I collapse the reference section
-    Then the reference section is collapsed
-    And Reference has no stored fold preference
+    And the outline list links to "house.olai"
     And there should be no page errors

@@ -35,7 +35,6 @@ Feature: A `.html` in the vault
   @corpus:good
   Scenario: A `.html` is listed in the sidebar and opens as a page
     When I open the app
-    When I expand the reference section
     Then the pages listed are "quarter.html, report.html"
     Given I mark the page
     When I click the page "report.html"
@@ -80,7 +79,6 @@ Feature: A `.html` in the vault
       <p>At the top of the vault, where the bundle's shell lives too.</p>
       """
     And I open the app
-    When I expand the reference section
     Then the pages listed are "index.html, quarter.html, report.html"
     When I click the page "index.html"
     Then the address is "/index.html"
@@ -259,8 +257,7 @@ Feature: A `.html` in the vault
       """
       <h1>Second</h1>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/first.html"
     Then the preview shows the heading "First"
     Given I mark the page
@@ -339,8 +336,7 @@ Feature: A `.html` in the vault
       <p style="height:1200px">a long page</p>
       <h2 id="beds">Beds</h2>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/first.html"
     Then the preview shows the heading "First"
     When I click "#deep" inside the preview
@@ -395,8 +391,7 @@ Feature: A `.html` in the vault
       <div style="height:1600px">a long stretch, so this page scrolls</div>
       <p><a id="deep" href="deep.html#beds">the section over there</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/from.html"
     Then the preview shows the heading "From"
     # …and the reader is halfway down it when they press the link.
@@ -429,8 +424,7 @@ Feature: A `.html` in the vault
       <div style="height:1600px">a long stretch, so this page scrolls</div>
       <p><a id="nowhere" href="plain.html#nosuchthing">a section that is not there</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/from.html"
     Then the preview shows the heading "From"
     When I scroll to the bottom of the page
@@ -451,8 +445,7 @@ Feature: A `.html` in the vault
       <p style="height:1200px">a long page</p>
       <h2 id="end">End</h2>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/long.html"
     Then the preview shows the heading "Long"
     When I click "#down" inside the preview
@@ -609,8 +602,7 @@ Feature: A `.html` in the vault
       <h1>Index</h1>
       <p><a id="slats" href="beds.md#slats">the slats section</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/index.html"
     Then the preview shows the heading "Index"
     When I click "#slats" inside the preview
@@ -769,8 +761,7 @@ Feature: A `.html` in the vault
       <h1>Index</h1>
       <p><a id="slats" href="beds.md#slats">the slats section</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/index.html"
     Then the preview shows the heading "Index"
     When I click "#slats" inside the preview
@@ -856,8 +847,7 @@ Feature: A `.html` in the vault
       <h1>Index</h1>
       <p><a id="slats" href="beds.md#slats">the slats section</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/index.html"
     Then the preview shows the heading "Index"
     When I click "#slats" inside the preview
@@ -915,8 +905,7 @@ Feature: A `.html` in the vault
       <h1>From</h1>
       <p><a id="deep" href="deep.html#beds">the section over there</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/from.html"
     Then the preview shows the heading "From"
     When I click "#deep" inside the preview
@@ -979,8 +968,7 @@ Feature: A `.html` in the vault
       <h1>From</h1>
       <p><a id="deep" href="deep.html#beds">the section over there</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I remember how much history there is
     And I click the page "notes/from.html"
     Then the preview shows the heading "From"
@@ -1107,8 +1095,7 @@ Feature: A `.html` in the vault
       <h1>From</h1>
       <p><a id="deep" href="deep.html#beds">the section over there</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/from.html"
     Then the preview shows the heading "From"
     When I click "#deep" inside the preview
@@ -1172,8 +1159,7 @@ Feature: A `.html` in the vault
       <h1>From</h1>
       <p><a id="deep" href="deep.html#beds">the section over there</a></p>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/from.html"
     Then the preview shows the heading "From"
     When I click "#deep" inside the preview
@@ -1220,8 +1206,7 @@ Feature: A `.html` in the vault
       <h1>Sender</h1>
       <script>location.href = "second.html"</script>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/sender.html"
     # The frame went where the page sent it…
     Then the preview shows the heading "Second"
@@ -1270,8 +1255,7 @@ Feature: A `.html` in the vault
       """
       <h1>Second</h1>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/spa.html"
     Then the preview shows the heading "Spa"
     When I click "#own" inside the preview
@@ -1306,8 +1290,7 @@ Feature: A `.html` in the vault
       """
       <h1>Second</h1>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I click the page "notes/first.html"
     Then the preview shows the heading "First"
     When I meta-click "#next" inside the preview
@@ -1403,10 +1386,9 @@ Feature: A `.html` in the vault
       """
     And I click the page "vendor.html"
     Then the preview shows the heading "Vendor"
-    When I expand the reference section
     # It is not in the directory the app draws — the pages listed are the ones
     # the store walked, and the pruned one is not among them…
-    And the pages listed are "quarter.html, report.html, vendor.html"
+    Then the pages listed are "quarter.html, report.html, vendor.html"
     # …and the route serves it all the same, which is the half that makes this a
     # seam rather than a missing file.
     And requesting "/media/node_modules/handbook/index.html" answers 200
@@ -1934,8 +1916,7 @@ Feature: A `.html` in the vault
       """
       <h1>Dashboard</h1>
       """
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     Then the pages listed are "notes/dashboard.html, quarter.html, report.html"
     And the page has not reloaded
     When I click the page "notes/dashboard.html"

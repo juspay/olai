@@ -350,13 +350,13 @@ export const SIDEBAR_SCRIM = selector(TESTID.sidebarScrim);
 export const SIDEBAR_COLLAPSE = selector(TESTID.sidebarCollapse);
 export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);
 export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
-/** The rail's two ways INTO the directory — the collapsed column's outlines
- *  and documents buttons, which draw the tree's own glyphs. */
+/** The rail's one way INTO the directory — the collapsed column's files
+ *  button, which draws the tree's own outline glyph. */
 export const RAIL_OUTLINES = selector(TESTID.railOutlines);
-export const RAIL_DOCS = selector(TESTID.railDocs);
 export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
-/** The file tree: every outline and document under the folders they live in. */
-export const OUTLINE_LIST = selector(TESTID.outlineList);
+/** The file tree: every file the reader keeps, outlines and the rest
+ *  together, under the folders they live in. */
+export const FILE_LIST = selector(TESTID.fileList);
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
 /** One folder in that tree. `data-path` / `data-collapsed` say which and how. */
 export const FILE_DIR = selector(TESTID.fileDir);
@@ -1832,21 +1832,14 @@ export class OlaiWorld extends World {
     }
   }
 
-  async expandReference(): Promise<void> {
-    await this.showSidebar();
-    const toggle = this.page.getByTestId(TESTID.referenceToggle);
-    await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
-  }
-
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}`, file);
+    return this.fileLink(`${FILE_LIST} ${DOCUMENT_LINK}`, file);
   }
 
   /** One sidebar `.html` entry, on the same terms. */
   hypertextLink(file: string): Locator {
-    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${HYPERTEXT_LINK}`, file);
+    return this.fileLink(`${FILE_LIST} ${HYPERTEXT_LINK}`, file);
   }
 
   /** One sidebar row of ANY registered kind, by the kind's own name — the

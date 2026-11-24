@@ -24,7 +24,6 @@
  *     `frameLocator` into a PDF viewer at all.
  */
 
-import { TESTID } from "@olai/tests/harness/testids.ts";
 import * as assert from "node:assert";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -35,6 +34,7 @@ import {
   DOCUMENT_EDIT,
   DOCUMENT_PAGE,
   FILE_GLYPH,
+  FILE_LIST,
   HYDRATION_TIMEOUT,
   IMAGE_VIEW,
   oneLine,
@@ -57,7 +57,7 @@ Then(
       // The world's own lookup, which THROWS for a kind the registry does not
       // claim: a misspelled step fails as a sentence rather than as a timeout
       // on a selector nobody writes.
-      kind === "outline-olai" ? rowsOfKind(kind) : `${attr("data-testid", TESTID.referenceList)} ${rowsOfKind(kind)}`,
+      kind === "outline-olai" ? rowsOfKind(kind) : `${FILE_LIST} ${rowsOfKind(kind)}`,
       expected.split(",").map((file) => file.trim()),
       `${kind} row(s)`,
     );
@@ -68,7 +68,6 @@ When(
   "I click the {string} row {string}",
   async function (this: OlaiWorld, kind: string, file: string) {
     await this.showSidebar();
-    if (kind !== "outline-olai") await this.expandReference();
     const link = this.kindLink(kind, file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();

@@ -122,7 +122,7 @@ const changed = async (name: Named, from: string | null, ms = 30_000): Promise<s
 // The boot, reported like everything else: an app that does not come up, or a
 // panel with no door on it, is a finding about the panel and not a crash.
 await p.goto(BASE)
-ok("the app came up", await drawn("outline-list"))
+ok("the app came up", await drawn("file-list"))
 // New conversations start from the `+` on the sidebar's Chats heading, which
 // opens the palette at New chat: its rows are the ITEMS a chat can be about,
 // and the first is what the focused pane is showing, under **Here**. Then the

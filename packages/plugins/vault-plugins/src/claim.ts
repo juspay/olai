@@ -18,7 +18,7 @@
  *
  * The halves are read on the plugin's own page, under the README that says
  * what the thing does, beside the button that turns it on. A second row for
- * each of them in the Reference tree would be the app's own plumbing filling
+ * each of them in the sidebar's file tree would be the app's own plumbing filling
  * up a column whose job is the reader's files. They are in the set, in the
  * ledger, in the Commit panel and at an address — they are simply not listed
  * there.

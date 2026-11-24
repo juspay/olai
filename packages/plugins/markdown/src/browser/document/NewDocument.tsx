@@ -1,7 +1,7 @@
 /**
  * The sidebar's way to a document that does not exist yet.
  *
- * An item in the Outlines heading's `+` menu — the column's file list is where
+ * An item in the Files heading's `+` menu — the column's file list is where
  * files ARE, so it is where one begins — that opens a path box. The BOX is
  * `../file/NewFile.tsx`, shared with the outline's door beside it; what is left
  * here is what is actually this file's: the op it sends, and the fact that the
@@ -20,7 +20,7 @@ import { NewFile } from "../files.tsx"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { mintAndOpen } from "./minted.ts"
 
-/** The item this door puts in the Outlines heading's `+` menu. */
+/** The item this door puts in the Files heading's `+` menu. */
 export const documentMaking = () => MAKING_DOCUMENT("markdown")
 
 export function NewDocument() {

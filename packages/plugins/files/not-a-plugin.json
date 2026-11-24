@@ -1,5 +1,4 @@
 {
-  "//sidebar": "The rail's button is labelled `Open the sidebar`: the column a person sees, not the sidebar row.",
   "capture": {
     "src/Files.tsx": 1,
     "src/tools.ts": 2
@@ -18,8 +17,6 @@
     "src/browser.tsx": 3
   },
   "outlines": {
-    "src/Files.tsx": 1,
-    "src/Rail.tsx": 2,
     "src/testids.ts": 1,
     "src/tools.ts": 7
   },
@@ -31,11 +28,9 @@
   },
   "sidebar": {
     "src/Files.tsx": 3,
-    "src/Rail.tsx": 1,
     "src/browser.tsx": 2,
     "src/fold/folders.ts": 1,
-    "src/fold/reference.ts": 1,
-    "src/testids.ts": 3,
+    "src/testids.ts": 2,
     "src/tools.ts": 1
   },
   "trash": {

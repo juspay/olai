@@ -10,8 +10,7 @@ The sidebar lists the files olai serves and your pinned pages, tabs keep several
 | --- | --- |
 | **Agenda**, **Today**, **Inbox** | What is owed, today, captured lines[^inbox] |
 | **Needs you**, **Pinned** | Chats waiting on you; pinned pages |
-| **Outlines** | Outline files, which hold rows, and their folders[^plus] |
-| **Reference** | Every other file, grouped by folder and collapsed[^reference] |
+| **Files** | Every file olai serves, outlines and the rest together, by name[^plus][^files] |
 | **olai** | Files olai keeps for itself, in `_olai/`[^olai] |
 | **Chats**, **Plugins** | Your conversations and plugins |
 | **Trash** | Rows you put away |
@@ -34,9 +33,9 @@ On a desktop the tabs stand in the header, over the page, and `Cmd` + `Shift` + 
 
 `Cmd` + `K` opens the palette, a search box with commands under it. It opens pages, searches the directory, runs commands on the row you are zoomed into, and reaches your chats ([search.md](search.md)).[^palette] Type `+` and a line, press `Enter`, and it goes to the directory's inbox; you stay on the page.[^capture][^inboxfile] `olai surface capture` sends a line from a terminal.[^terminal]
 
-[^plus]: The `+` on the **Outlines** heading holds **New outline** and **New document** ([editing.md](editing.md)). Every `+` and arrow in the column appears when you point at the column or reach it with `Tab`, and stays drawn on a touch screen.
+[^plus]: The `+` on the **Files** heading holds **New outline** and **New document** ([editing.md](editing.md)). Every `+` and arrow in the column appears when you point at the column or reach it with `Tab`, and stays drawn on a touch screen.
 
-[^reference]: The **Reference** section counts the files beside each folder's name. Opening a document opens that section and the folders leading to the file, and marks the file's row; going back to an outline restores the folds you chose. Empty folders are left out, a folder holding both kinds of file appears in both trees, and a directory with only outlines has no **Reference** heading.
+[^files]: Each row's glyph says what kind of file it is. Folders and files share one order by name, and a folder holding outlines and documents appears once, with both inside. Folders start collapsed and empty ones are left out. Opening a file opens the folders leading to it and marks its row, and the folders you open yourself are remembered in this browser.
 
 [^olai]: The **olai** section is drawn only when the `_olai/` folder has files in it. Those files are part of the directory either way: search finds them, an agent lists them, and git records them. What changes is only whether this list of rows is drawn. An outline olai cannot read shows a ⚠ here, as it does everywhere else.
 

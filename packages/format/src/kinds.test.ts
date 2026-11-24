@@ -112,7 +112,7 @@ test("every kind in the registry claims a file named for it", () => {
 // ...AND A SCOPED CLAIM CLAIMS NOTHING OUTSIDE ITS SCOPE, which is the reason
 // the scope exists: a vault with a checkout in it is full of `.ts`, and a bare
 // suffix claim would put every one of them in the set, in the revision's
-// memory and in the sidebar's Reference tree.
+// memory and in the sidebar's file tree.
 test("a scoped claim reaches inside its folder and nowhere else", () => {
   for (const [kind, claim] of ENTRIES) {
     if (claim.under === undefined) continue

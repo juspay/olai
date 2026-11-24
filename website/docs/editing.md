@@ -185,7 +185,7 @@ A row's own page also draws **blocked by**, which is separate from `after`: that
 
 ## Start a new outline
 
-1. Click the `+` on the sidebar's **Outlines** heading and choose **New outline**.
+1. Click the `+` on the sidebar's **Files** heading and choose **New outline**.
 2. Type a path, relative to the directory olai serves. `Enter` creates the file and `Escape` closes the box.
 3. Write the first line on the page it opens.
 

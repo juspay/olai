@@ -120,7 +120,7 @@ const drawn = async (page: Page, testid: string) =>
  *  rather than needing them. */
 const showing = async (page: Page, when: string) => {
   const report = await drawn(page, "error-view")
-  const tree = await drawn(page, "outline-list")
+  const tree = await drawn(page, "file-list")
   console.log(
     `${at()}  ${when.padEnd(26)} error report: ${report ? "SHOWN" : "no   "}   file tree: ${
       tree ? "SHOWN" : "no   "

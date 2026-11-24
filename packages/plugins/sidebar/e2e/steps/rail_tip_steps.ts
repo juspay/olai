@@ -19,8 +19,8 @@
  *      holds the "exactly one on screen, ever" rule);
  *   2. the button's ACCESSIBLE NAME is untouched — the tip is a convenience,
  *      so the door is still named for a reader who never hovers, and the two
- *      sentences are deliberately different words here ("Outlines" against
- *      "Open outlines") so one assertion cannot pass for the other;
+ *      sentences are deliberately different words here ("Files" against
+ *      "Open files") so one assertion cannot pass for the other;
  *   3. there is NO `title` left on the control. Without this the first two
  *      pass over a button wearing both, which is one sentence written twice
  *      and two tooltips on one control.
@@ -33,15 +33,16 @@ import {
   POLL_TIMEOUT,
   RAIL_OUTLINES,
   SIDEBAR_EXPAND,
+  SIDEBAR_RAIL,
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** The rail's icons by the word a scenario calls them, so a feature never
- *  spells a testid. Two of the seven: one whose tip and name are the same
+ *  spells a testid. Two of them: one whose tip and name are the same
  *  sentence, and one whose are not. */
 const RAIL: Readonly<Record<string, string>> = {
   expand: SIDEBAR_EXPAND,
-  outlines: RAIL_OUTLINES,
+  files: RAIL_OUTLINES,
 };
 
 const railIcon = (world: OlaiWorld, which: string): Locator => {
@@ -49,6 +50,16 @@ const railIcon = (world: OlaiWorld, which: string): Locator => {
   assert.ok(selector !== undefined, `no rail icon is called ${JSON.stringify(which)}`);
   return world.page.locator(selector);
 };
+
+/** ONE ICON FOR THE FILES, as the column has one list of them: of the rail's
+ *  named doors, exactly one is about files, and it is the files icon. */
+Then("the rail has one icon for the files", async function (this: OlaiWorld) {
+  const rail = this.page.locator(SIDEBAR_RAIL);
+  await rail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const names = await rail.locator("[aria-label]").evaluateAll((doors) => doors.map((door) => door.getAttribute("aria-label") ?? ""));
+  const files = names.filter((name) => /outline|document|file|open the sidebar/i.test(name));
+  assert.deepStrictEqual(files, ["Open files"], `the rail's doors are ${JSON.stringify(names)}`);
+});
 
 When("I hover the rail's {string} icon", async function (this: OlaiWorld, which: string) {
   const icon = railIcon(this, which);

@@ -2,12 +2,13 @@ import { createCarry } from "@olai/web/client/carry.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { landings } from "./landings.ts"
 import type { CarriedPath } from "./carry.ts"
-/** THE FILE LIST of the directory column: the Outlines heading and its `+`,
- *  the tree, Reference, and the vault's own `_olai/` files. The Trash is not
- *  drawn here — it is the trash row's own entry at the column's foot. */
+/** THE FILE LIST of the directory column: the Files heading and its `+`, one
+ *  tree of every file the reader keeps, and the vault's own `_olai/` files.
+ *  The Trash is not drawn here — it is the trash row's own entry at the
+ *  column's foot. */
 
 import { TESTID } from "olai-plugin-files/testids"
-import { type BrokenFile, fileKind, inOlaiDir, isTrashed, nameOf } from "@olai/format"
+import { type BrokenFile, inOlaiDir, isTrashed, nameOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
@@ -23,11 +24,10 @@ Switch,
 import { servedDirectory } from "./vault.ts"
 
 
-import { createReferenceFold } from "./fold/reference.ts"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Glyph } from "./glyphs.tsx"
 import { drawingOf } from "./drawings.ts"
-import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
+import { ancestorDirs,dirsIn,type FileRow,fileTree,listed } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 
 import { ENTRY_SHAPE,HEAD_ACTION,REGION,REGION_HEAD,REGION_LABEL,ROW_GAP } from "olai-plugin-layout/entry"
@@ -81,45 +81,26 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // form subscribes every entry to the open page. This notifies exactly the
   // entry that lit and the one that went out.
   const isActive = createSelector(() => props.active)
-  // The archives are not in the tree: an `_olai/Trash.olai` is not an outline a
-  // reader opens and edits, and the Trash entry at the column's foot (the
-  // trash row's own) is its one door. Filtered here rather than upstream because every other reader of
-  // `files` — the page model, the trash itself — wants the whole list.
   // THE PATHS, out of the context that holds them under a MEMBERSHIP equality
   // (`./served.tsx`) — not off the faces, and that is the difference between a
   // tree rebuilt when a file arrives and one rebuilt on every keystroke
   // anywhere in the directory. A face changes when its file's content does;
   // this tree is a function of the NAMES.
   const served = useServed()
-  // ...and the SECOND rule the tree draws by, which is a ruling and not a
-  // preference: the outlines olai named for itself do not sit among the
-  // reader's own — the vault group below the tree is their home.
+  // ONE TREE: outlines and every other kind together, by name at each level,
+  // each row saying what it is with its own glyph. What it leaves out — the
+  // archive, olai's own `_olai/` files, a kind reached elsewhere — is
+  // `listed`'s ruling (`./fileTree.ts`), filtered here rather than upstream
+  // because every other reader of `files` — the page model, the trash
+  // itself — wants the whole list.
   const tree = createMemo(() => {
     const claims = servedDirectory()?.claims()
-    return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)), "nodes")
+    return claims === undefined ? [] : fileTree(claims, served().filter(file => listed(claims, file)))
   })
-
-  // ...and the THIRD: a kind whose claim says its files are reached from
-  // somewhere of the claiming row's own (`Claim.elsewhere` — a plugin's two
-  // halves, opened from that plugin's page) is not a reference row either. The
-  // file is in the set, in the ledger and in the Commit panel; what it is not
-  // is a second front door in this column.
-  const references = createMemo(() => {
-    const claims = servedDirectory()?.claims()
-    return claims === undefined ? [] : served().filter(file => {
-      const claim = claims.byKind.get(fileKind(claims, file) ?? "")
-      return !inOlaiDir(file) && claim !== undefined && claim.holds !== "nodes" && claim.elsewhere !== true
-    })
-  })
-  const referenceTree = createMemo(() => {
-    const claims = servedDirectory()?.claims()
-    return claims === undefined ? [] : fileTree(claims, references(), "reference")
-  })
-  const reference = createReferenceFold(active, file => references().includes(file))
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
-  // holds except the archive (which the `isTrashed` rule above already
-  // spends): the quiet group at the column's foot. No records are walked here;
+  // holds except the archive (the Trash entry is its door): the quiet group
+  // at the column's foot. No records are walked here;
   // the directory supplies path membership.
   const vault = createMemo(() => {
     const claims = servedDirectory()?.claims()
@@ -131,7 +112,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // TREE — one answer to "what folders are there", the walk that decides what is
   // on screen — and asked on the click rather than memoised, because that is the
   // only moment anybody wants it.
-  const toggle = (path: string) => toggleFolder(path, dirsIn([...tree(), ...referenceTree()]))
+  const toggle = (path: string) => toggleFolder(path, dirsIn(tree()))
 
   const view: TreeView = {
     closeDrawer: () => props.onClose(),
@@ -154,7 +135,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   return <>
           <section class={REGION} data-testid={TESTID.sidebarFiles}>
             <div class={REGION_HEAD}>
-              <h2 class={REGION_LABEL}>Outlines</h2>
+              <h2 class={REGION_LABEL}>Files</h2>
               <Show when={makings().length > 0}>
                 <NewFileButton items={makings()} />
               </Show>
@@ -166,27 +147,12 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                 them, above the list they will add to; each draws nothing until
                 its item is picked. */}
             <For each={kinds()}>{({ value: kind }) => <kind.Create />}</For>
-            <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
+            <ul class="m-0 list-none p-0" data-testid={TESTID.fileList}>
               <Key each={tree()} by="key">
                 {(row) => <Entry row={row()} view={view} />}
               </Key>
             </ul>
           </section>
-
-          <Show when={references().length > 0}>
-            <section class={REGION} data-testid={TESTID.reference} data-count={references().length}>
-              <button type="button" class={`${ENTRY} w-full text-muted`} data-testid={TESTID.referenceToggle} aria-expanded={reference.open()} onClick={reference.toggle}>
-                <span class={`${CONTROL} text-muted`} aria-hidden="true"><svg class="size-2.5 shrink-0 transition-transform duration-100" classList={{ "-rotate-90": !reference.open() }} viewBox="0 0 10 10" fill="currentColor"><path d="M2 3.25 L8 3.25 L5 7.25 Z" /></svg></span>
-                <Glyph of="folder" />
-                <span>Reference</span><span class="ml-auto tabular-nums text-label">{references().length}</span>
-              </button>
-              <Show when={reference.open()}>
-                <ul class="m-0 list-none p-0" data-testid={TESTID.referenceList}>
-                  <Key each={referenceTree()} by="key">{row => <Entry row={row()} view={view} />}</Key>
-                </ul>
-              </Show>
-            </section>
-          </Show>
 
           {/* THE VAULT'S OWN FILES — the `_olai/` outlines (Pins, Settings,
               the Inbox), under ONE special parent named after the house
@@ -237,7 +203,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
           </Show>
 </>
 }
-/** THE `+` ON THE OUTLINES HEADING: a real button (Tab reaches it, Enter and
+/** THE `+` ON THE FILES HEADING: a real button (Tab reaches it, Enter and
  *  Space press it) that opens the new-file menu (`./NewMenu.tsx`) under
  *  itself. Picking an item opens that kind's path box under the heading. */
 function NewFileButton(props: { readonly items: ReadonlyArray<Making> }) {

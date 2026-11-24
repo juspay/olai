@@ -105,7 +105,7 @@ yield* (yield* FileKinds).register({
 - The kind is named after the plugin, so the claim and the face need nothing more to find each other.
 - `kept: true` keeps the file's text where the gate reads the vault: `(yield* gate.read).set.documents` holds it as `body`. `opaque: true` keeps search and the list of notes out of it.
 - The face is handed `{ file, revision }`. `revision` changes when the file does, so the face reads the text again through its own server file.
-- The sidebar lists such a file under **Reference**, with the plain file mark: a plugin in your directory cannot give its kind a mark of its own.
+- The sidebar lists such a file under **Files**, with the plain file mark: a plugin in your directory cannot give its kind a mark of its own.
 - Switched off, the plugin's claim goes with it, and the file's address says olai cannot open that suffix.
 
 `document.page.head` and `document.page.foot` are lists on a Markdown note's page, above its text and under the list of what links to it. Each face is handed `{ file }`.

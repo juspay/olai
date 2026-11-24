@@ -197,8 +197,7 @@ Feature: The reading companion
   Scenario: A transcribed page is a file the plugin draws whole, again when it changes on disk
     Given I open the app
     When I approve the plugin "reader"
-    # A file that is not an outline is listed under Reference.
-    And I expand the reference section
+    # A file that is not an outline is listed in the one file tree.
     And I click sidebar file "chapter-1.reader"
     Then the reader draws "chapter-1.reader" as 2 sentences beside their English
     When the served file "chapter-1.reader" becomes:
@@ -281,7 +280,6 @@ Feature: The reading companion
   Scenario: A transcribed page stays the same page while another plugin's faces come and go
     Given I open the app
     When I approve the plugin "reader"
-    And I expand the reference section
     And I click sidebar file "chapter-1.reader"
     Then the reader draws "chapter-1.reader" as 2 sentences beside their English
     When I hold the reader's drawing of "chapter-1.reader"

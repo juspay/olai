@@ -122,7 +122,7 @@ An entry is `{ place, body, rail? }` and a section is `{ said, body, place? }`.
 
 A `files.types` contribution is `{ making, Create }`, contributed by the plugin that owns the file kind.
 
-- `making` is the item that kind puts in the `+` menu under the Outlines heading, and is `undefined` while that kind cannot create files, in which case there is no item.
+- `making` is the item that kind puts in the `+` menu under the Files heading, and is `undefined` while that kind cannot create files, in which case there is no item.
 - `Create` is that kind's box for naming a new file, drawn under the heading and empty until the item opens it.
 
 `files.state` is a service rather than a slot, with `Delete`, `New` and `open(kind)`. `open` opens the new-file box for one kind, which is what clicking that kind's `+` item does, and what a page offering to make the first file of a kind calls.

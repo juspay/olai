@@ -33,9 +33,9 @@ import * as path from "node:path";
 
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
-import { TESTID } from "@olai/tests/harness/testids.ts";
 import {
   FILE_GLYPH,
+  FILE_LIST,
   HYDRATION_TIMEOUT,
   oneLine,
 } from "@olai/tests/harness/world.ts";
@@ -137,7 +137,7 @@ Then(
   "the ledger rows listed are {string}",
   async function (this: World, expected: string) {
     await this.expectListed(
-      `${attr("data-testid", TESTID.referenceList)} ${HLEDGER_LINK}`,
+      `${FILE_LIST} ${HLEDGER_LINK}`,
       expected.split(",").map((file) => file.trim()),
       "ledger row(s)",
     );
@@ -148,7 +148,6 @@ When(
   "I click the ledger row {string}",
   async function (this: World, file: string) {
     await this.showSidebar();
-    await this.expandReference();
     const row = this.fileLink(HLEDGER_LINK, file);
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await row.click();

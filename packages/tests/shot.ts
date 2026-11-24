@@ -9,7 +9,7 @@ if (url === undefined) {
 const b = await chromium.launch({ args: [...BROWSER_ARGS] })
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } })
 await p.goto(url)
-await p.waitForSelector('[data-testid="outline-list"]')
+await p.waitForSelector('[data-testid="file-list"]')
 // A new chat from the `+` on the sidebar's Chats heading: the palette opens
 // at New chat, whose rows are the items a chat can be about — the first is
 // what the focused pane is showing — and the first message starts it.

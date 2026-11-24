@@ -60,7 +60,7 @@ const draftOf = (of: Making["of"]) => {
   return draft
 }
 
-/** OPEN THE BOX for one kind of file — what the Outlines heading's `+` menu
+/** OPEN THE BOX for one kind of file — what the Files heading's `+` menu
  *  does when a reader picks `New outline` or `New document` (`../NewMenu.tsx`).
  *  The box itself is still the kind's own `Create`, drawn under the heading;
  *  this only says it is asked for. A box already open keeps what it holds. */
@@ -120,7 +120,7 @@ export function NewFile(props: {
     }
   }
 
-  // CLOSED, IT DRAWS NOTHING: the way in is the Outlines heading's `+` menu
+  // CLOSED, IT DRAWS NOTHING: the way in is the Files heading's `+` menu
   // (`../NewMenu.tsx`), which opens this draft by kind ({@link openNewFile}).
   // The quiet `+ New …` row each kind used to draw under the tree left with
   // the 2026-09 simplification.

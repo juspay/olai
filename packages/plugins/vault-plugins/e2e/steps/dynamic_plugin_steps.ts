@@ -181,7 +181,7 @@ Then("the plugins panel does not list {string}", async function (this: OlaiWorld
  * one count.
  */
 const openedTree = async (world: OlaiWorld): Promise<void> => {
-  await world.expandReference()
+  await world.showSidebar()
   for (let pass = 0; pass < 3; pass += 1) {
     const shut = world.page.locator(`${FILE_DIR_TOGGLE}[aria-expanded="false"]`)
     const count = await shut.count()
@@ -193,7 +193,7 @@ const openedTree = async (world: OlaiWorld): Promise<void> => {
 }
 
 /**
- * WHAT REFERENCE DRAWS, AND WHAT IT DELIBERATELY DOES NOT.
+ * WHAT THE FILE LIST DRAWS, AND WHAT IT DELIBERATELY DOES NOT.
  *
  * The halves are in the set, in the ledger and at an address — and they are
  * NOT in this tree. That is the claim's `elsewhere` flag rather than secrecy:
@@ -204,13 +204,13 @@ const openedTree = async (world: OlaiWorld): Promise<void> => {
  * The README is the other half of the same claim: it is an ordinary document,
  * markdown's own, and it is listed like any other `.md`.
  */
-Then("Reference lists the file {string}", async function (this: OlaiWorld, file: string) {
+Then("the file list lists the file {string}", async function (this: OlaiWorld, file: string) {
   await openedTree(this)
   await this.page.locator(`${SIDEBAR} a${attr("data-file", file)}`)
     .first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 })
 
-Then("Reference does not list the file {string}", async function (this: OlaiWorld, file: string) {
+Then("the file list does not list the file {string}", async function (this: OlaiWorld, file: string) {
   await openedTree(this)
   assert.strictEqual(
     await this.page.locator(`${SIDEBAR} a${attr("data-file", file)}`).count(),

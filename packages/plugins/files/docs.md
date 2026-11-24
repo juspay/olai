@@ -4,19 +4,18 @@ The `files` plugin draws the list of files in the sidebar, olai's left column. I
 
 ## What the list shows
 
-The directory olai serves, in three sections:
+The directory olai serves, in two sections:
 
 | Section | Holds |
 | --- | --- |
-| **Outlines** | every file of a kind that holds rows, a row being one line of an outline[^claimed] |
-| **Reference** | every other file olai knows the kind of, with a count beside the heading[^reference] |
+| **Files** | every file olai knows the kind of, outlines and the rest together, in one tree by name[^claimed] |
 | `olai` | the `_olai/` files — Pins, Settings, the Inbox — grouped under one entry[^olai] |
 
-Every line of the list shows where its file is, not only its name.[^paths] When the sidebar is collapsed to its narrow rail, the list becomes two icons.[^rail]
+Every line of the list shows where its file is, not only its name.[^paths] When the sidebar is collapsed to its narrow rail, the list becomes one icon, `Files`, named `Open files`.
 
 ## Make a file
 
-The `+` on the **Outlines** heading, named **New outline or document**, opens a menu of the kinds of file you can make.[^menu]
+The `+` on the **Files** heading, named **New outline or document**, opens a menu of the kinds of file you can make.[^menu]
 
 1. Type a path without a suffix — `notes/plan`, which is the box's own suggestion.
 2. Press `Enter`. The kind's suffix is added, so you get `notes/plan.olai`, and the box closes.[^creating]
@@ -29,21 +28,17 @@ A file's page has **Delete…** beside **Edit**, and asks you to confirm first.[
 
 > There is no undo for this. What [git.md](git.md) has already committed can be recovered from git; anything else cannot.
 
-## What the Reference section remembers
+## What the tree remembers
 
-Opening the section is remembered. Collapsing it is not: olai forgets that you opened it rather than storing that it is shut.[^fold] Opening a reference file shows the section and highlights that file, without storing anything.[^reveal]
+Folders start collapsed. Opening a folder is remembered in this browser, and collapsing it forgets it again.[^fold] Opening a file opens the folders it sits in and marks its row, without storing anything.
 
-[^browse]: The list is the **Outlines** tree, the **Reference** section under it, and the `olai` group of olai's own files. **Outlines** and **Reference** leave out folders that hold no files. How you move around the directory is in [../getting-around.md](../getting-around.md).
+[^browse]: The list is the **Files** tree and the `olai` group of olai's own files. The tree leaves out folders that hold no files, and a folder holding outlines and documents appears once. How you move around the directory is in [../getting-around.md](../getting-around.md).
 
 [^claimed]: olai lists only files of a kind one of its plugins claims; which kinds those are is in [vault.md](vault.md). A claimed file whose plugin is switched off gets the plain file glyph and the name of the kind.
-
-[^reference]: The **Reference** section is absent when there are no such files, and collapsed until you open it.
 
 [^olai]: The `olai` group is drawn only when `_olai/` holds a file. The Trash entry belongs to [trash.md](trash.md) and sits at the foot of the column rather than in that group.
 
 [^paths]: The row draws the file's name, and the whole path is both the tooltip and the end of the name a screen reader reads out. A folder's fold button keeps its own name, `Expand <folder>` or `Collapse <folder>`, and carries the path on the folder glyph beside it. A file that could not be read wears a ⚠ whose sentence, `This file couldn't be read`, is drawn in the row as well as given as the tooltip.
-
-[^rail]: The two icons are `Outlines`, named `Open outlines`, and `Documents`, named `Open the sidebar`.
 
 [^menu]: The menu holds **New outline**, **New document**, and one item for every other kind of file that can be made. Picking one opens a path box under the heading with the cursor in it; `Escape` closes the menu or the box and gives the cursor back to the `+`.
 
@@ -55,9 +50,7 @@ Opening the section is remembered. Collapsing it is not: olai forgets that you o
 
 [^ask]: The question is `Delete notes/plan.olai? olai can't bring it back. Only what git has already saved can be recovered.`, with **Delete file** and **Cancel**.
 
-[^fold]: Clicking the heading folds the section even while the open file is the one that showed it, until you navigate or reload.
-
-[^reveal]: Opening a reference file also opens the folders it sits in. So a reload with a reference file open shows it again, and a reload on an outline keeps the default collapse. Folder folds are a separate decision from the Reference one.
+[^fold]: A reload on a file at the top level shows only the folders you opened. A reload on a nested file shows its folders open too, and they close again when you move to another file.
 
 <details>
 <summary>Files a plugin's own page draws</summary>
