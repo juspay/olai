@@ -12,6 +12,7 @@ import { createMemo, Show, type JSX } from "solid-js"
 import { TESTID } from "./testids.ts"
 import { TESTID as UI } from "@olai/ui-primitives/testids.ts"
 import { Empty } from "@olai/web/client/Empty.tsx"
+import { PAGE_INSET } from "olai-plugin-layout/clearance"
 
 const REVEALING = {
   finding: { line: "Finding…" },
@@ -92,7 +93,7 @@ export function PageView() {
       : { line: "Page not found", detail: `There is no ${kind.noun} named ${path}.` }
   }
   return <Show when={draw()} keyed fallback={
-    <main class="min-w-0 flex-1 p-8" data-testid={TESTID.pane} data-pane={String(here())} data-href={router.routes.href(route())}>
+    <main class={`min-w-0 flex-1 ${PAGE_INSET} pb-8`} data-testid={TESTID.pane} data-pane={String(here())} data-href={router.routes.href(route())}>
       <Empty
         testid={UI.nothing}
         line={said().line}

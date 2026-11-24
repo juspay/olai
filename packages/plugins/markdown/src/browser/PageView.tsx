@@ -15,7 +15,7 @@ import { useRouter, useHere } from "olai-plugin-navigation/routing"
 import { hrefOf } from "./routing.ts"
 import { client } from "../client.ts"
 
-import { CLEARANCE } from "olai-plugin-layout/clearance"
+import { CLEARANCE, PAGE_INSET } from "olai-plugin-layout/clearance"
 import { only } from "@olai/web/client/narrow.ts"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DocumentReading } from "./reading.tsx"
@@ -33,7 +33,7 @@ export function MarkdownPageView() {
   const page = createMemo<import("@olai/format").PageReading | undefined>(was => reading() ?? was)
   const history = useHistory()
   router.report(here, () => ({ history, file: file(), title: nameOf(route(),undefined) }))
-  return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${!desktop() ? "pb-16" : ""}`}
+  return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip ${PAGE_INSET} ${CLEARANCE} md:pb-10 ${!desktop() ? "pb-16" : ""}`}
     data-testid={IDS_NAVIGATION.pane} data-pane={String(here())}
     data-pane-focused={here() === router.focusIndex() ? "true" : undefined}
     data-href={hrefOf(route())} onPointerDown={() => router.focus(here())}>

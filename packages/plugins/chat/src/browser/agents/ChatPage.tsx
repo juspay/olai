@@ -52,7 +52,7 @@
 import { LAYER } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
-import { CLEARANCE } from "olai-plugin-layout/clearance"
+import { CLEARANCE, PAGE_INSET_TOP } from "olai-plugin-layout/clearance"
 import { type AgentItem, itemKey } from "@olai/format"
 import { type Accessor, createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
@@ -199,7 +199,7 @@ export function ChatPage(props: { readonly item: AgentItem }) {
     <p class={`font-mono text-caption text-muted ${at.class}`} data-testid={TESTID.chatPageWhere}>{at.path}</p>
   return (
     <main
-      class={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pb-6 ${CLEARANCE}`}
+      class={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 ${PAGE_INSET_TOP} pb-6 ${CLEARANCE}`}
       data-testid={TESTID.chatPage}
       data-item={key()}
       data-kind={props.item.kind}

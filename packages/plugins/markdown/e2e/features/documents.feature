@@ -100,28 +100,34 @@ Feature: Documents
   # link on every heading, and a contents derived from them at view time. There
   # is nothing stored to go stale — what a line of the contents points at is an
   # id the rendered page is carrying.
+  #
+  # Contents arrives as ONE CLOSED LINE with no box round it, so the first
+  # thing under the page's head is the document's own text; a click opens it.
   @corpus:good
-  Scenario: A document opens with a contents of its own headings
+  Scenario: A document opens with its contents shut, and a click opens it
     When I open the document "kitchen-sink.md"
-    Then the contents is open
+    Then the contents is shut
+    And the contents is drawn as one line with no box
     And the contents lists every heading in the document
-    # A survey you cannot put away is furniture. The collapse is the
-    # platform's, so this is the element's own state and not a flag beside it.
+    When I open the contents
+    Then the contents is open
+    # The collapse is the platform's, so this is the element's own state and
+    # not a flag beside it.
     When I shut the contents
     Then the contents is shut
     And there should be no page errors
 
   # `open` is an attribute the BROWSER owns once a reader has touched it, so
-  # "open by default" is only true of a document that gets its own `<details>`.
+  # "shut on arrival" is only true of a document that gets its own `<details>`.
   # This pins the PROMISE rather than either mechanism that keeps it (the
   # keyed block in `Toc.tsx`, and the frame a new body has not arrived in yet)
   # — it stays green while at least one of them holds, and says so when
   # neither does. Asked in both directions, because coming BACK to the document
-  # you shut is the sharp half.
+  # you opened it on is the sharp half.
   @scratch:good
-  Scenario: A contents shut on one document does not follow you to the next
+  Scenario: A contents opened on one document does not follow you to the next
     Given I open the document "kitchen-sink.md"
-    And I shut the contents
+    And I open the contents
     And I rewrite "notes/wiring.md" as:
       """
       # Wiring
@@ -137,19 +143,22 @@ Feature: Documents
     When I expand the folder "notes"
     And I click the document "notes/wiring.md"
     Then the document open is "notes/wiring.md"
-    And the contents is open
+    And the contents is shut
     When I click the document "kitchen-sink.md"
     Then the document open is "kitchen-sink.md"
-    And the contents is open
+    And the contents is shut
 
+  # The line is reached as a reader reaches it: open Contents, then the line.
   @corpus:good
   Scenario: A line of the contents lands on its heading
     When I open the document "kitchen-sink.md"
-    And I follow the contents line "Footnotes"
+    Then the contents is shut
+    When I follow the contents line "Footnotes"
+    Then the contents is open
     # The address, because the whole point of an anchor is that it can be
     # copied and handed to somebody — and it is asked against the HEADING,
     # because a fragment that names nothing changes the address too.
-    Then the address names the heading "Footnotes"
+    And the address names the heading "Footnotes"
     And the heading "Footnotes" is at the top of the pane
 
   # A `.md` may open with a `---` block, and the block is the document's own

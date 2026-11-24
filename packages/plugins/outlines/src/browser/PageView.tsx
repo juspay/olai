@@ -24,7 +24,7 @@ import { batch, createEffect, on, createMemo, Match, Show, Switch } from "solid-
 
 import { parseFilter, samePageRequest } from "@olai/format"
 
-import { CLEARANCE } from "olai-plugin-layout/clearance"
+import { CLEARANCE, PAGE_INSET } from "olai-plugin-layout/clearance"
 import { Empty } from "@olai/web/client/Empty.tsx"
 import { Broken } from "olai-plugin-vault/errors/Broken.tsx"
 import { createAsked } from "./filter/asking.ts"
@@ -249,7 +249,7 @@ function PageAt(props: { readonly source: MountedNodePage | null; readonly rende
 
   return (
     <main
-      class={`relative flex min-w-0 flex-1 flex-col overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6 ${
+      class={`relative flex min-w-0 flex-1 flex-col overflow-x-clip ${PAGE_INSET} ${CLEARANCE} md:pb-6 ${
         !desktop() ? "pb-16" : ""
       }`}
       data-testid={IDS_NAVIGATION.pane}

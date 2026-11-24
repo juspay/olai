@@ -49,7 +49,7 @@ import type { BrowserManagement } from "@olai/surface/management"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
-import { CLEARANCE } from "olai-plugin-layout/clearance"
+import { CLEARANCE, PAGE_INSET_TOP } from "olai-plugin-layout/clearance"
 import { type AgentItem, itemKey } from "@olai/format"
 import { proseIn } from "@olai/prose/frontmatter.ts"
 import type { BesideDoor } from "olai-plugin-chat/beside"
@@ -81,7 +81,7 @@ export function PluginPage(props: {
   const roster = props.management.roster()
   const plugin = createMemo(() => pluginNamed(roster(), props.word))
   return (
-    <main class={`mx-auto w-full max-w-3xl px-4 py-6 ${CLEARANCE}`}>
+    <main class={`mx-auto w-full max-w-3xl px-4 ${PAGE_INSET_TOP} pb-6 ${CLEARANCE}`}>
       {/* KEYED BY THE WORD, because walking from one plugin to another is a
           different page and not a prop moving. One mounted component carried
           the last plugin's state onto the next one — which version this reader

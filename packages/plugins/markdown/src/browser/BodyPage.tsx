@@ -9,7 +9,7 @@ import { TESTID as UI } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "../testids.ts"
 import { Empty } from "@olai/web/client/Empty.tsx"
 import { only } from "@olai/web/client/narrow.ts"
-import { CLEARANCE } from "olai-plugin-layout/clearance"
+import { CLEARANCE, PAGE_INSET } from "olai-plugin-layout/clearance"
 import { documentRequest } from "olai-plugin-markdown/document-route"
 import { Referrers } from "olai-plugin-markdown/referrers"
 import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
@@ -35,7 +35,7 @@ export function BodyPage(props: {
   const page = createMemo<PageReading | undefined>(previous => reading() ?? previous)
   const file = () => request()?.address.path
   navigation.report(here, () => ({ file: file(), title: file() }))
-  return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 pb-16 ${CLEARANCE} md:px-10 md:py-10`}
+  return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip ${PAGE_INSET} pb-16 ${CLEARANCE} md:pb-10`}
     data-testid={NAV.pane} data-pane={String(here())}
     data-pane-focused={here() === navigation.focusIndex() ? "true" : undefined}
     data-href={navigation.routes.href(route())} onPointerDown={() => navigation.focus(here())}>

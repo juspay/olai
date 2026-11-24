@@ -459,6 +459,15 @@ export const rowReads = async (
 export const detailsOpen = async (locator: Locator): Promise<boolean> =>
   await locator.first().evaluate((el) => (el as HTMLDetailsElement).open);
 
+/** Open a `<details>` the way a reader does — a press on its summary — unless
+ *  it is open already. For a block that starts shut (a document's Contents),
+ *  so a step that reaches inside it says the press a person would make. */
+export const openDetails = async (locator: Locator): Promise<void> => {
+  const details = locator.first();
+  await details.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  if (!(await detailsOpen(details))) await details.locator(":scope > summary").click();
+};
+
 /** One row of the node page's section, found by the label a READER sees —
  *  the labels are the shared section's own (`@olai/markdown-ui`), paired with
  *  the outline's testids by the same `makeReferrerWays` the section's caller

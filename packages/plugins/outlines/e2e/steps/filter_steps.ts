@@ -378,6 +378,39 @@ When("I focus the filter box", async function (this: OlaiWorld) {
   await box.focus();
 });
 
+When("I point at the filter box", async function (this: OlaiWorld) {
+  const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await box.hover();
+});
+
+/** The pointer to the page's far corner, over nothing the filter owns. */
+When("I point away from the filter box", async function (this: OlaiWorld) {
+  const viewport = this.page.viewportSize();
+  assert.ok(viewport !== null, "the page has no viewport to point in");
+  await this.page.mouse.move(viewport.width - 2, viewport.height - 2);
+});
+
+/** WHETHER THE BOX IS DRAWN: a border and a ground that are not transparent.
+ *  At rest the filter is the word `Filter` alone; on hover, on focus and
+ *  while a filter is in force it is a box. */
+const boxDrawn = (world: OlaiWorld): Promise<boolean> =>
+  world.frontLane().locator(`${FILTER_INPUT}:visible`).first().evaluate((input) => {
+    const style = getComputedStyle(input);
+    const clear = (colour: string) => colour === "transparent" || /^rgba\(.*,\s*0\)$/.test(colour);
+    return !clear(style.borderTopColor) && !clear(style.backgroundColor);
+  });
+
+Then("the filter box is drawn without a box", async function (this: OlaiWorld) {
+  await this.frontLane().locator(`${FILTER_INPUT}:visible`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => !(await boxDrawn(this)), "the filter to be a word with no box round it");
+});
+
+Then("the filter box is drawn as a box", async function (this: OlaiWorld) {
+  await this.frontLane().locator(`${FILTER_INPUT}:visible`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(() => boxDrawn(this), "the filter to be drawn as a box");
+});
+
 When("I press {string} in the filter box", async function (this: OlaiWorld, key: string) {
   await this.frontLane().locator(`${FILTER_INPUT}:visible`).press(key);
   await this.waitForFrame();

@@ -27,7 +27,7 @@ Below the header are two columns: the sidebar (the left column of files) and the
 | **Resize sidebar** | the sidebar's width |
 | **Resize panes** | the boundary between two panes |
 
-The header is the only band above a page on a desktop.[^narrow] In a split, each pane has one quiet line with its page's name, and the pane you are in has an accent line along its top.[^pane]
+The header is the only band above a page on a desktop.[^narrow] In a split, each pane has one quiet line with its page's name, and the pane you are in has an accent line along its top.[^pane][^inset]
 
 ## The bar of buttons on a phone
 
@@ -66,6 +66,8 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 [^narrow]: On a phone there are no columns: the panes become a strip of tabs, one pane on screen at a time, and that strip is pinned under the header while the page under it scrolls. The tab in front looks like a desktop tab, on the page's own paper. So a conversation in one tab and the document it is about in the next are always one tap apart ([chat.md](chat.md)).
 
 [^pane]: A pane's line shows a document's name without its suffix, such as `garden`, or the page's label where it has no file name, in ink for the pane you are in. Its close button, named `Close garden`, is drawn when you point at the pane or reach it with `Tab`, and always on a touch screen. The narrow strip a collapsed pane leaves behind is named `Expand garden`, and wears the same accent line when it is the pane you are in.
+
+[^inset]: Every page starts its first line on the same edge: `1rem` in on a phone, and on a wider screen `2.5rem` at the sides and `2rem` at the top. Walking from an outline to a day, the Agenda, the Trash or a document does not move the first line sideways. A conversation and a plugin's own page keep their narrower centred column and take the same top.
 
 [^thumb]: Each button is an icon above a word, a finger's height, lit in the accent colour while you are on its page, with room for one badge at the icon's top corner. Every page leaves room under its last line, and under a composer fixed to the bottom, so nothing is hidden behind the bar. A desktop draws no such bar, whatever plugins added to it: the sidebar and the command palette are how you reach those pages there.
 

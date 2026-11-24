@@ -10,3 +10,15 @@
  *  and the frame's own bars, and a page under either of them is a page with
  *  its last line covered. */
 export const CLEARANCE = "pb-[calc(var(--room-foot,1rem)+var(--height-bottom-chrome,0px)+env(safe-area-inset-bottom,0px))]"
+
+/** Where a page's first line starts: ONE INSET FOR EVERY PAGE, so the first
+ *  line of an outline, a day, the Agenda, the Trash and a document stand on
+ *  the same left edge and the same top. `1rem` all round on a phone; from
+ *  `md`, `2.5rem` at the sides and `2rem` on top. The foot is the page's own
+ *  ({@link CLEARANCE} and whatever the page adds at `md`). */
+export const PAGE_INSET = "px-4 pt-4 md:px-10 md:pt-8"
+
+/** ...and its top alone, for a page that draws its own centred column (a
+ *  conversation, a plugin's own page): the column keeps its width and its
+ *  sides, and its first line starts at the same height as every other page's. */
+export const PAGE_INSET_TOP = "pt-4 md:pt-8"

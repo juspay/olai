@@ -143,13 +143,19 @@ export function FilterBar(props: {
             ref={input}
             type="text"
             role="combobox"
-            // The border lights and the background goes to paper on focus;
-            // the app's one outline is the ring (`@olai/appearance/chrome.css`
-            // — unlayered, so the `outline-none` that used to be here never
-            // stood it down). The `focus:ring-2 focus:ring-accent/20` glow
-            // beside it was a second, redundant `box-shadow`, and a
-            // box-shadow is the first thing forced colours removes.
-            class="min-h-11 w-full min-w-0 rounded-control border border-rule bg-desk/60 py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink placeholder:text-muted focus:border-accent focus:bg-paper md:min-h-0 md:h-8"
+            // NO BOX AT REST: the word `Filter` and nothing round it, so the
+            // page's first line is the rows. The box is drawn on hover, on
+            // focus, and while a filter is in force — a narrowed page always
+            // shows what narrowed it. The border lights and the background
+            // goes to paper on focus; the app's one outline is the ring
+            // (`@olai/appearance/chrome.css` — unlayered, so the
+            // `outline-none` that used to be here never stood it down). The
+            // `focus:ring-2 focus:ring-accent/20` glow beside it was a second,
+            // redundant `box-shadow`, and a box-shadow is the first thing
+            // forced colours removes.
+            class={`min-h-11 w-full min-w-0 rounded-control border py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink placeholder:text-muted ${
+              props.narrowing.text() === "" ? "border-transparent bg-transparent hover:border-rule hover:bg-desk/60" : "border-rule bg-desk/60"
+            } focus:border-accent focus:bg-paper md:min-h-0 md:h-8`}
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
             aria-label="Filter"

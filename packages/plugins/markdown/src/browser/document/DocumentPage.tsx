@@ -7,6 +7,7 @@ import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
 import { bodyKind, type Custom } from "@olai/format"
 import { createMemo, createSignal, For, Show } from "solid-js"
+import { QUIET_WORD } from "@olai/web/client/pill.ts"
 
 import { DeleteFile } from "../files.tsx"
 import { Properties } from "../Properties.tsx"
@@ -94,7 +95,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
             <div class="flex min-w-0 flex-1 basis-full flex-wrap items-baseline justify-end gap-2 sm:basis-auto">
               <button
                 type="button"
-                class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-label text-muted hover:bg-ink/5 hover:text-ink"
+                class={`${QUIET_WORD} cursor-pointer`}
                 data-testid={TESTID.documentEdit}
                 onClick={editor.open}
               >

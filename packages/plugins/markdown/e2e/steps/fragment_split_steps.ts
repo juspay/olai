@@ -11,10 +11,10 @@
  */
 
 import { Given, When } from "@olai/tests/harness/runner.ts";
-import { DOCUMENT_BODY } from "@olai/tests/harness/world.ts";
+import { DOCUMENT_BODY, openDetails } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-import { TOC_LINK } from "../selectors.ts";
+import { TOC, TOC_LINK } from "../selectors.ts";
 
 /** Long enough that every section can be scrolled hard against the top, so a
  *  landing is visible as a scroll and not satisfied by a page that fits. */
@@ -37,8 +37,12 @@ Given("a long document with in-page links is served", function (this: OlaiWorld)
 const inPage = (world: OlaiWorld, label: string, index: number) =>
   world.pane(index).locator(DOCUMENT_BODY).first().getByRole("link", { name: label, exact: true }).first();
 
-const contentsLine = (world: OlaiWorld, text: string, index: number) =>
-  world.pane(index).locator(TOC_LINK).filter({ hasText: text }).first();
+/** A line of one pane's contents, reached as a reader reaches it: the block
+ *  arrives shut, so it is opened first. */
+const contentsLine = async (world: OlaiWorld, text: string, index: number) => {
+  await openDetails(world.pane(index).locator(TOC));
+  return world.pane(index).locator(TOC_LINK).filter({ hasText: text }).first();
+};
 
 When("I click the in-page link {string}", async function (this: OlaiWorld, label: string) {
   await this.press(inPage(this, label, 0));
@@ -54,13 +58,13 @@ When(
 When(
   "I alt-click the contents line {string} in pane {int}",
   async function (this: OlaiWorld, text: string, index: number) {
-    await this.press(contentsLine(this, text, index), "click", ["Alt"]);
+    await this.press(await contentsLine(this, text, index), "click", ["Alt"]);
   },
 );
 
 When(
   "I alt-shift-click the contents line {string} in pane {int}",
   async function (this: OlaiWorld, text: string, index: number) {
-    await this.press(contentsLine(this, text, index), "click", ["Alt", "Shift"]);
+    await this.press(await contentsLine(this, text, index), "click", ["Alt", "Shift"]);
   },
 );

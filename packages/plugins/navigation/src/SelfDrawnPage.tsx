@@ -26,6 +26,7 @@ import { TESTID as UI } from "@olai/ui-primitives/testids.ts"
 import { useHere, useRouter } from "./routing.tsx"
 import { HOME_ROUTE, type Route } from "./routes.ts"
 import { TESTID } from "./testids.ts"
+import { PAGE_INSET } from "olai-plugin-layout/clearance"
 
 /** Whether a route is one this host draws. */
 export const selfDrawn = (route: Route): boolean =>
@@ -56,7 +57,7 @@ export function SelfDrawnPage() {
       onPointerDown={() => router.focus(here())}
     >
       <Show when={face()} keyed fallback={
-        <div class="p-8">
+        <div class={`${PAGE_INSET} pb-8`}>
           <Empty
             testid={UI.nothing}
             line="Page not found"

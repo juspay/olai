@@ -35,6 +35,7 @@ import {
   HEADINGS,
   HYDRATION_TIMEOUT,
   oneLine,
+  openDetails,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts";
 import {
@@ -95,6 +96,31 @@ When("I shut the contents", async function (this: OlaiWorld) {
   await this.press(contents(this).locator("summary"));
 });
 
+/** The one press a reader makes to see the lines: Contents arrives shut. */
+When("I open the contents", async function (this: OlaiWorld) {
+  await this.press(contents(this).locator("summary"));
+});
+
+/** ONE LINE, NO BOX: shut, the block is as tall as its summary line, and it
+ *  draws no border and no ground of its own — nothing round the word. */
+Then("the contents is drawn as one line with no box", async function (this: OlaiWorld) {
+  const toc = contents(this);
+  await toc.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const drawn = await toc.first().evaluate((details) => {
+    const style = getComputedStyle(details);
+    const summary = details.querySelector(":scope > summary")!;
+    return {
+      border: ["top", "right", "bottom", "left"].map((side) => style.getPropertyValue(`border-${side}-width`)),
+      ground: style.backgroundColor,
+      height: details.getBoundingClientRect().height,
+      line: summary.getBoundingClientRect().height,
+    };
+  });
+  assert.deepStrictEqual(drawn.border, ["0px", "0px", "0px", "0px"], "the contents draws a border");
+  assert.ok(drawn.ground === "rgba(0, 0, 0, 0)" || drawn.ground === "transparent", `the contents has a ground of its own: ${drawn.ground}`);
+  assert.ok(Math.abs(drawn.height - drawn.line) <= 1, `the shut contents is ${drawn.height}px tall around a ${drawn.line}px line`);
+});
+
 Then(
   "the contents lists every heading in the document",
   async function (this: OlaiWorld) {
@@ -133,7 +159,9 @@ Then(
   "the contents lines are {string}",
   async function (this: OlaiWorld, expected: string) {
     await contents(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const listed = (await this.page.locator(TOC_LINK).allInnerTexts()).map(oneLine);
+    // `textContent`, not `innerText`: the lines are read whether or not the
+    // block is open, and a shut `<details>` draws none of them.
+    const listed = (await this.page.locator(TOC_LINK).evaluateAll((nodes) => nodes.map((node) => node.textContent ?? ""))).map(oneLine);
     assert.deepStrictEqual(listed, expected.split(", "));
   },
 );
@@ -174,9 +202,12 @@ Then("the note has headings of its own", async function (this: OlaiWorld) {
 
 // ── the jump ───────────────────────────────────────────────────────────
 
+/** A line is reached the way a reader reaches it: Contents arrives shut, so
+ *  following a line is opening it and then the press on the line. */
 When(
   "I follow the contents line {string}",
   async function (this: OlaiWorld, text: string) {
+    await openDetails(contents(this));
     await this.press(this.page.locator(TOC_LINK).filter({ hasText: text }).first());
   },
 );
