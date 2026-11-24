@@ -39,7 +39,7 @@
 import type { SurfaceAppConnection, SurfaceAppEvent } from "@kolu/surface-app/serve"
 import { SurfaceSiblingDropped } from "@kolu/surface/server"
 import { type Emit, emitterOf, prettyCause, reasonOf } from "@olai/log"
-import { closeMeans, duration, stampOf } from "@olai/log/link"
+import { closeMeans, describe, duration, type Entry, stampOf } from "@olai/log/link"
 import type { LinkFact, LinkMeasure } from "@olai/plugin-api/transport"
 import { Cause, Effect, ErrorReporter, Layer, References } from "effect"
 
@@ -131,10 +131,21 @@ const ended = (
   )
 }
 
+/**
+ * What core's own diary route (`./diary.ts`) has to say: an entry a tab
+ * posted, the entries its diary had to drop, a body it refused, and the
+ * ceiling it hit. Core's, not a plugin's, so it is not on `TransportSurface`.
+ */
+export type DiaryFact =
+  | { readonly _tag: "BrowserSaid"; readonly tab: string; readonly entry: Entry }
+  | { readonly _tag: "DiaryLost"; readonly tab: string; readonly lost: number }
+  | { readonly _tag: "DiaryRefused"; readonly why: string; readonly origin?: string }
+  | { readonly _tag: "DiaryThrottled"; readonly ceiling: number; readonly window: number }
+
 /** Narrate one listener event. `say` is the caller's emitter — a line from a
  *  Node callback, run under the fiber's own logging settings ({@link
  *  ../../log/src/emit.ts}). */
-export const report = (event: SurfaceAppEvent<string> | LinkFact, say: Emit): void => {
+export const report = (event: SurfaceAppEvent<string> | LinkFact | DiaryFact, say: Emit): void => {
   switch (event._tag) {
     // A connection opening is the ordinary case, so it is `debug`: a reader
     // with a tab open is not news, and an `info` line per socket per reload is
@@ -246,6 +257,43 @@ export const report = (event: SurfaceAppEvent<string> | LinkFact, say: Emit): vo
         Effect.annotateLogs(Effect.logWarning("surface connection failed"), {
           ...which(event.connection),
           why: prettyCause(event.cause),
+        }),
+      )
+      return
+    // A TAB'S OWN ACCOUNT, at the level and in the sentence `describe` gives
+    // it, with `side=browser` and what places it: the tab, the dial it is
+    // about, its order in that tab's diary, and the tab's own clock.
+    case "BrowserSaid": {
+      const { level, message, fields } = describe(event.entry)
+      say(
+        Effect.annotateLogs(Effect.logWithLevel(level)(message), {
+          side: "browser",
+          tab: event.tab,
+          dial: event.entry.dial,
+          seq: event.entry.seq,
+          at: new Date(event.entry.at).toISOString(),
+          ...fields,
+        }),
+      )
+      return
+    }
+    case "DiaryLost":
+      say(Effect.annotateLogs(Effect.logWarning("browser diary lost entries"), { side: "browser", tab: event.tab, lost: event.lost }))
+      return
+    // Never the body: what was refused is whatever the peer sent.
+    case "DiaryRefused":
+      say(
+        Effect.annotateLogs(Effect.logWarning("browser diary refused"), {
+          why: event.why,
+          ...(event.origin === undefined ? {} : { origin: event.origin }),
+        }),
+      )
+      return
+    case "DiaryThrottled":
+      say(
+        Effect.annotateLogs(Effect.logWarning("browser diary throttled"), {
+          ceiling: event.ceiling,
+          window: duration(event.window),
         }),
       )
       return

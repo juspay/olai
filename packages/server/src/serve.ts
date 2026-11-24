@@ -10,6 +10,7 @@
  */
 import { connectionLogging, report as reportTransport } from "./report.ts";
 import { CurrentWho, whoRoute } from "./who.ts";
+import { diaryRoute } from "./diary.ts";
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";
 import { BUNDLE_NAMES, ROWS, configsOf, mountBundle, provide, settled, offered, reportBundle, rowsNaming, setRow, } from "@olai/bundle/bundle";
 import { bundleRank } from "@olai/bundle";
@@ -310,7 +311,9 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
           Layer.succeed(CurrentWho)(who(connection.headers)),
           connectionLogging(connection, logging.layer, { root: served }),
         ),
-        routes: whoRoute(who),
+        // Who is looking, and where a tab's connection diary lands. Both ride
+        // the `ws` row's registration, so no row, no diary route.
+        routes: Layer.merge(whoRoute(who), diaryRoute({ allowedOrigins: options.allowedOrigins, say, now: Date.now })),
         upgradeHeaders: () => currentIdentity().headers,
         allowedOrigins: options.allowedOrigins,
         report: (event) => reportTransport(event, say),

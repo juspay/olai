@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import { type LogLevel, Schema } from "effect"
-import { Batch, type Cause, closeMeans, describe, type Entry, type LinkEvent, loudAt, nextStreak, stamped, stampOf } from "./link.ts"
+import { Schema } from "effect"
+import { Batch, type Cause, closeMeans, describe, type Entry, type Level, type LinkEvent, loudAt, nextStreak, stamped, stampOf } from "./link.ts"
 
 const dropped = (cause: Cause): LinkEvent => ({
   _tag: "Dropped",
@@ -24,7 +24,7 @@ const dropped = (cause: Cause): LinkEvent => ({
 
 const entry = (event: LinkEvent, streak = 0, dial = 2): Entry => ({ seq: 7, at: 1_700_000_000_000, dial, streak, event })
 
-const table: ReadonlyArray<readonly [string, Entry, LogLevel.LogLevel, string]> = [
+const table: ReadonlyArray<readonly [string, Entry, Level, string]> = [
   ["a dial", entry({ _tag: "Dialling" }), "Debug", "wire dialling"],
   ["a first open", entry({ _tag: "Opened", took: 30, recovered: false }), "Debug", "wire opened"],
   ["an open after a drop", entry({ _tag: "Opened", took: 30, recovered: true }, 1), "Info", "wire opened"],

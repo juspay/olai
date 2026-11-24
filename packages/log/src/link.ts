@@ -17,7 +17,7 @@
  * content is ever an entry.
  */
 
-import { type LogLevel, Schema } from "effect"
+import { Schema } from "effect"
 
 // ── The stamp ───────────────────────────────────────────────────────────────
 
@@ -228,8 +228,10 @@ export const loudAt = (streak: number): boolean => streak <= 3 || streak % 10 ==
 // ── Reading ─────────────────────────────────────────────────────────────────
 
 export type Field = string | number | boolean
+/** The four levels a link line is ever said at: Effect's own names. */
+export type Level = "Debug" | "Info" | "Warn" | "Error"
 export interface Described {
-  readonly level: LogLevel.LogLevel
+  readonly level: Level
   readonly message: string
   readonly fields: Readonly<Record<string, Field>>
 }
@@ -241,7 +243,7 @@ export const duration = (ms: number): string =>
 /** Text cut to `max` characters, so it fits the field it is said in. */
 export const clip = (text: string, max: number): string => text.length > max ? `${text.slice(0, max - 1)}…` : text
 
-const quieted = (level: LogLevel.LogLevel, streak: number): LogLevel.LogLevel => loudAt(streak) ? level : "Debug"
+const quieted = (level: Level, streak: number): Level => loudAt(streak) ? level : "Debug"
 
 /** How one entry reads: its level, its sentence, its fields. Total over
  *  {@link LinkEvent}; the fields that place an entry (`tab`, `dial`, `seq`,

@@ -25,12 +25,12 @@ import {
   type Entry,
   type Heard,
   HEARD_LIMIT,
+  type Level,
   type LinkEvent,
   nextStreak,
   STARVED_LIMIT,
   type Cause,
 } from "@olai/log/link"
-import type { LogLevel } from "effect"
 import { causeOf } from "./cause.ts"
 
 /** How many entries wait for the server before the oldest are dropped. */
@@ -130,15 +130,11 @@ const keyOf = (record: SubscriptionLiveness) => `${record.label}\u0000${record.s
 export const mintTab = (): string =>
   [...crypto.getRandomValues(new Uint8Array(8))].map((byte) => byte.toString(16).padStart(2, "0")).join("")
 
-const CONSOLE: Readonly<Record<LogLevel.LogLevel, (...said: ReadonlyArray<unknown>) => void>> = {
-  All: console.debug,
-  Trace: console.debug,
+const CONSOLE: Readonly<Record<Level, (...said: ReadonlyArray<unknown>) => void>> = {
   Debug: console.debug,
   Info: console.info,
   Warn: console.warn,
   Error: console.error,
-  Fatal: console.error,
-  None: () => {},
 }
 
 /** The console face of an entry: every entry, at its own level. */

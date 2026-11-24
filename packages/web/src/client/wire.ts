@@ -7,14 +7,15 @@
 
 import { supplyManagement } from "../host/management.ts"
 import { connectSocket } from "./connection/socket.ts"
-import { createDiary, mintTab, printToConsole } from "./connection/diary.ts"
+import { createDiary, mintTab, printToConsole, type Timers } from "./connection/diary.ts"
+import { relayDiary } from "./connection/relay.ts"
 import { subscriptionLiveness } from "@kolu/surface/subscriptions"
 import { clip, type LinkEvent, STARVED_LIMIT } from "@olai/log/link"
 import { restartRows, signatureOf, type Named } from "./connection/signature.ts"
 import { bootstrapSelected } from "../host/bootstrap.ts"
 import { heldToWord, loadRows, retryableModule } from "../host/loading.ts"
 import type { bootStatus } from "../host/boot-status.ts"
-import { BROWSER_BOOT_PATH, BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
+import { BROWSER_BOOT_PATH, BROWSER_DIARY_PATH, BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { BrowserHalf, BrowserRow } from "@olai/bundle"
@@ -43,27 +44,45 @@ const CORE = "olai"
  * lives in this module, the connection's argued owner, and nothing outside
  * reaches it but the one operation exported below ({@link connectionCard}).
  * Every socket kolu dials goes through its tap, so each is a numbered dial of
- * this tab. It owns its settle timers; this root owns it and the `pagehide`
- * listener that says every standing socket before the page goes.
+ * this tab. It owns its settle timers; this root owns it, its relay to the
+ * server's log (`./connection/relay.ts`), and the `pagehide` listener that
+ * says every standing socket and sends what is left before the page goes.
  */
+const timers: Timers = {
+  set: (run, ms) => {
+    const handle = setTimeout(run, ms)
+    return () => clearTimeout(handle)
+  },
+}
 const diary = createDiary({
   tab: mintTab(),
   now: Date.now,
   online: () => navigator.onLine,
   hidden: () => document.visibilityState === "hidden",
   liveness: subscriptionLiveness,
-  timers: {
-    set: (run, ms) => {
-      const handle = setTimeout(run, ms)
-      return () => clearTimeout(handle)
-    },
-  },
+  timers,
   print: printToConsole,
 })
 createRoot(() => {
-  const leaving = () => diary.unload()
+  const relay = relayDiary({
+    diary,
+    post: (body) =>
+      fetch(BROWSER_DIARY_PATH, {
+        method: "POST",
+        body,
+        headers: { "content-type": "application/json" },
+        keepalive: true,
+      }).then((response) => response.status),
+    beacon: (body) => navigator.sendBeacon(BROWSER_DIARY_PATH, new Blob([body], { type: "application/json" })),
+    timers,
+  })
+  const leaving = () => {
+    diary.unload()
+    relay.leaving()
+  }
   window.addEventListener("pagehide", leaving)
   onCleanup(() => window.removeEventListener("pagehide", leaving))
+  onCleanup(relay.dispose)
   onCleanup(diary.dispose)
 })
 
