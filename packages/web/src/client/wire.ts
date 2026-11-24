@@ -8,6 +8,7 @@
 import { supplyManagement } from "../host/management.ts"
 import { connectSocket } from "./connection/socket.ts"
 import { createDiary, mintTab, printToConsole, type Timers } from "./connection/diary.ts"
+import { createOutbox } from "./connection/outbox.ts"
 import { relayDiary } from "./connection/relay.ts"
 import { subscriptionLiveness } from "@kolu/surface/subscriptions"
 import { clip, type LinkEvent, STARVED_LIMIT } from "@olai/log/link"
@@ -44,9 +45,10 @@ const CORE = "olai"
  * lives in this module, the connection's argued owner, and nothing outside
  * reaches it but the one operation exported below ({@link connectionCard}).
  * Every socket kolu dials goes through its tap, so each is a numbered dial of
- * this tab. It owns its settle timers; this root owns it, its relay to the
- * server's log (`./connection/relay.ts`), and the `pagehide` listener that
- * says every standing socket and sends what is left before the page goes.
+ * this tab. The diary says entries into an outbox (`./connection/outbox.ts`)
+ * and the relay (`./connection/relay.ts`) posts them to the server's log; this
+ * root owns all three, and the `pagehide` listener that says every standing
+ * socket and sends what is left before the page goes.
  */
 const timers: Timers = {
   set: (run, ms) => {
@@ -54,18 +56,22 @@ const timers: Timers = {
     return () => clearTimeout(handle)
   },
 }
+const tab = mintTab()
+const outbox = createOutbox()
 const diary = createDiary({
-  tab: mintTab(),
+  tab,
   now: Date.now,
   online: () => navigator.onLine,
   hidden: () => document.visibilityState === "hidden",
   liveness: subscriptionLiveness,
   timers,
+  outbox,
   print: printToConsole,
 })
 createRoot(() => {
   const relay = relayDiary({
-    diary,
+    outbox,
+    tab,
     post: (body) =>
       fetch(BROWSER_DIARY_PATH, {
         method: "POST",

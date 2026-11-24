@@ -2,7 +2,8 @@ import { expect, test } from "bun:test"
 import type { SubscriptionLiveness } from "@kolu/surface/subscriptions"
 import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
 import { type Entry, type LinkEvent, SAY_AGAIN_AFTER_MS } from "@olai/log/link"
-import { createDiary, type Diary, RING_LIMIT, SETTLE_MS } from "./diary.ts"
+import { createDiary, type Diary, SETTLE_MS } from "./diary.ts"
+import { createOutbox } from "./outbox.ts"
 import { tappedSocket } from "./socket.ts"
 
 /** A diary on a clock and timers the test moves by hand. */
@@ -23,6 +24,7 @@ const setup = (liveness: () => ReadonlyArray<SubscriptionLiveness> = () => []) =
         return () => { timer.live = false }
       },
     },
+    outbox: createOutbox(),
     print: (entry) => printed.push(entry),
   })
   const advance = (ms: number) => {
@@ -243,15 +245,4 @@ test("the page going away says every standing socket at once", () => {
   diary.unload()
   expect(said("Dropped").map((entry) => [entry.dial, entry.event.cause])).toEqual([[1, "unload"], [2, "peer-closed"]])
   expect(timers.every((timer) => !timer.live)).toBe(true)
-})
-
-test("the ring keeps what the server has not taken, and counts what it had to drop", () => {
-  const { diary } = setup()
-  for (let n = 0; n < RING_LIMIT + 5; n += 1) diary.say({ _tag: "Roster", restarting: [] })
-  const { entries, lost } = diary.pending()
-  expect(entries).toHaveLength(RING_LIMIT)
-  expect(lost).toBe(5)
-  expect(entries[0]!.seq).toBe(6)
-  diary.acknowledge(entries[99]!.seq, lost)
-  expect(diary.pending()).toEqual({ entries: entries.slice(100), lost: 0 })
 })

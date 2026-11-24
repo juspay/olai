@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { createDiary } from "./diary.ts"
+import { createOutbox } from "./outbox.ts"
 import { POST_AFTER_MS, relayDiary, RETRY_EVERY_MS } from "./relay.ts"
 import { tappedSocket } from "./socket.ts"
 
@@ -13,6 +14,7 @@ const setup = (answer: () => number | Error | Promise<number>) => {
     timers.push(timer)
     return () => { timer.live = false }
   }
+  const outbox = createOutbox()
   const diary = createDiary({
     tab: "0123456789abcdef",
     now: () => 1_000_000 + clock,
@@ -20,12 +22,14 @@ const setup = (answer: () => number | Error | Promise<number>) => {
     hidden: () => false,
     liveness: () => [],
     timers: { set },
+    outbox,
     print: () => {},
   })
   const posted: Array<{ entries: Array<{ event: { _tag: string } }> }> = []
   const beacons: Array<string> = []
   const relay = relayDiary({
-    diary,
+    outbox,
+    tab: diary.tab,
     post: async (body) => {
       posted.push(JSON.parse(body))
       const said = answer()
@@ -54,7 +58,7 @@ const setup = (answer: () => number | Error | Promise<number>) => {
       closed: (code: number) => fake.dispatchEvent(Object.assign(new Event("close"), { code, reason: "", wasClean: false })),
     }
   }
-  return { diary, relay, posted, beacons, advance, socket }
+  return { diary, outbox, relay, posted, beacons, advance, socket }
 }
 
 const tags = (posted: ReadonlyArray<{ entries: ReadonlyArray<{ event: { _tag: string } }> }>) =>
@@ -77,7 +81,7 @@ test("an open is posted at once", async () => {
 test("an entry said while a post is in flight is posted when that post is taken", async () => {
   const slow = Promise.withResolvers<number>()
   const answers: Array<Promise<number> | number> = [slow.promise]
-  const { diary, posted, advance, socket } = setup(() => answers.shift() ?? 204)
+  const { diary, outbox, posted, advance, socket } = setup(() => answers.shift() ?? 204)
   socket().open()
   expect(posted).toHaveLength(1)
   // Said while the first post is still on its way; its own post, a second
@@ -88,22 +92,22 @@ test("an entry said while a post is in flight is posted when that post is taken"
   slow.resolve(204)
   await advance(0)
   expect(tags(posted)).toEqual(["Dialling", "Opened", "Roster"])
-  expect(diary.pending().entries).toHaveLength(0)
+  expect(outbox.pending().entries).toHaveLength(0)
 })
 
 test("a post the server did not take is tried again on the cadence until one is, and entries leave only then", async () => {
   const answers: Array<number | Error> = [new TypeError("Failed to fetch"), 503, 204]
-  const { diary, posted, advance, socket } = setup(() => answers.shift() ?? 204)
+  const { outbox, posted, advance, socket } = setup(() => answers.shift() ?? 204)
   socket().closed(1006)
   await advance(POST_AFTER_MS)
   expect(posted).toHaveLength(1)
-  expect(diary.pending().entries).toHaveLength(2)
+  expect(outbox.pending().entries).toHaveLength(2)
   await advance(RETRY_EVERY_MS)
   expect(posted).toHaveLength(2)
-  expect(diary.pending().entries).toHaveLength(2)
+  expect(outbox.pending().entries).toHaveLength(2)
   await advance(RETRY_EVERY_MS)
   expect(posted).toHaveLength(3)
-  expect(diary.pending().entries).toHaveLength(0)
+  expect(outbox.pending().entries).toHaveLength(0)
   await advance(RETRY_EVERY_MS)
   expect(posted).toHaveLength(3)
 })

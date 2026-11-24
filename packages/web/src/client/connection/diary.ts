@@ -1,15 +1,15 @@
 /**
  * THE TAB'S DIARY OF ITS CONNECTION — what happened to each socket it dialled,
- * kept as values ({@link Entry}) in a bounded ring until the server has taken
- * them, and printed to the console as they are said.
+ * said as values ({@link Entry}) into the outbox the relay posts from
+ * (`./outbox.ts`), and printed to the console as they are said.
  *
  * Every socket the page constructs is a DIAL with an ordinal, and the socket
  * tap (`./socket.ts`) reports into that dial's own facts: when it opened, how
  * much came and went, whether the page closed it, how it closed. Nothing else
  * is per frame. When an opened socket ends, the dial waits one short settle
- * (shorter than kolu's first redial) so that what its calls and subscriptions
- * were told has arrived, then says one `Dropped` with the cause `./cause.ts`
- * picks from those facts.
+ * (shorter than kolu's first redial) so that what its subscriptions were told
+ * has arrived, then says one `Dropped` with the cause `./cause.ts` picks from
+ * those facts.
  *
  * Import-safe: creating a diary dials nothing and starts no timer. A settle
  * timer exists only between a socket's close and its `Dropped`, and
@@ -19,6 +19,7 @@
 import { exceedsFrameLimit } from "@kolu/surface/frame-limit"
 import type { SubscriptionLiveness } from "@kolu/surface/subscriptions"
 import {
+  type Cause,
   clip,
   type Described,
   describe,
@@ -30,12 +31,10 @@ import {
   nextStreak,
   sparingly,
   STARVED_LIMIT,
-  type Cause,
 } from "@olai/log/link"
 import { causeOf } from "./cause.ts"
+import type { Outbox } from "./outbox.ts"
 
-/** How many entries wait for the server before the oldest are dropped. */
-export const RING_LIMIT = 200
 /** How long a closed dial waits before it says why it dropped. Shorter than
  *  kolu's first redial (500 ms), so the drop is said before the next dial
  *  opens. */
@@ -47,7 +46,7 @@ export interface Timers {
   readonly set: (run: () => void, ms: number) => Cancel
 }
 
-export interface DiaryDeps {
+interface DiaryDeps {
   readonly tab: string
   /** Wall clock: entries are read beside a server log. */
   readonly now: () => number
@@ -56,6 +55,8 @@ export interface DiaryDeps {
   /** kolu's subscription registry, read when a dial opens and when it drops. */
   readonly liveness: () => ReadonlyArray<SubscriptionLiveness>
   readonly timers: Timers
+  /** Where every entry goes for the server. */
+  readonly outbox: Outbox
   readonly print: (entry: Entry, described: Described) => void
 }
 
@@ -93,14 +94,12 @@ export interface Diary {
   /** The page came back from the browser's back-and-forward cache, so the
    *  sockets it dials from here on are not going with it. */
   shown(): void
-  /** What waits for the server, oldest first, and how many were dropped. */
-  pending(): { readonly entries: ReadonlyArray<Entry>; readonly lost: number }
-  /** The server took everything through `seq`, and `lost` dropped entries. */
-  acknowledge(seq: number, lost: number): void
-  /** Hear each entry as it is said. */
-  onEntry(listener: (entry: Entry) => void): () => void
   dispose(): void
 }
+
+/** What olai meant by a close: one value, held by every socket it covers. */
+type Declaration = { readonly intent: Intent | "unload" }
+const GOING: Declaration = { intent: "unload" }
 
 /** One dial's facts. Counters are plain numbers: each frame adds to them. */
 interface DialState {
@@ -111,9 +110,8 @@ interface DialState {
   lastInbound?: number
   close?: { readonly code: number; readonly reason: string; readonly clean: boolean }
   pageClosed: boolean
-  intent?: Intent | "unload"
-  /** The declaration that covers this socket, while one does. */
-  declared?: { readonly intent: Intent }
+  /** What olai declared about this socket. Frozen once the page closes it. */
+  declared?: Declaration
   overCap: boolean
   stale: boolean
   inFrames: number
@@ -148,15 +146,12 @@ export const printToConsole = (entry: Entry, { level, message, fields }: Describ
 
 export const createDiary = (deps: DiaryDeps): Diary => {
   const { now } = deps
-  const ring: Array<Entry> = []
-  const listeners = new Set<(entry: Entry) => void>()
   const standing = new Set<DialState>()
-  let lost = 0
   let seq = 0
   let dials = 0
   let streak = 0
   let lastDrop: { readonly cause: Cause; readonly streak: number; readonly lived: number } | undefined
-  /** The dial calls are on: the latest that opened. */
+  /** The dial the page's traffic is on: the latest that opened. */
   let current: DialState | undefined
   /** An end olai did not declare since the last open: the next open is a
    *  recovery. */
@@ -169,13 +164,8 @@ export const createDiary = (deps: DiaryDeps): Diary => {
 
   const sayAt = (dial: number, event: LinkEvent, entryStreak = streak): void => {
     const entry: Entry = { seq: ++seq, at: now(), dial, streak: entryStreak, event }
-    if (ring.length >= RING_LIMIT) {
-      ring.shift()
-      lost += 1
-    }
-    ring.push(entry)
     deps.print(entry, describe(entry))
-    for (const listener of listeners) listener(entry)
+    deps.outbox.put(entry)
   }
 
   const sayUnopened = (attempts: number): void => {
@@ -225,7 +215,7 @@ export const createDiary = (deps: DiaryDeps): Diary => {
       pageClosed: state.pageClosed,
       overCap: state.overCap,
       stale: state.stale,
-      intent: state.intent,
+      intent: state.declared?.intent,
     })
     const dropStreak = nextStreak(lastDrop, { cause, lived })
     lastDrop = { cause, streak: dropStreak, lived }
@@ -299,14 +289,14 @@ export const createDiary = (deps: DiaryDeps): Diary => {
       closing: () => {
         if (state.pageClosed) return
         state.pageClosed = true
-        state.intent = unloading ? "unload" : state.declared?.intent
+        if (unloading) state.declared = GOING
       },
       closed: (close) => {
         if (state.done) return
         state.closedAt = now()
         state.close = close
         lastCloseCode = close.code
-        if (!(state.pageClosed && state.intent !== undefined)) recovering = true
+        if (!(state.pageClosed && state.declared !== undefined)) recovering = true
         if (state.openedAt === undefined) {
           state.done = true
           standing.delete(state)
@@ -336,11 +326,11 @@ export const createDiary = (deps: DiaryDeps): Diary => {
     },
     retired: () => sayAt(current?.n ?? dials, { _tag: "Retired", ...(lastCloseCode === undefined ? {} : { code: lastCloseCode }) }),
     declare: (intent) => {
-      const stamp = { intent }
+      const declaration: Declaration = { intent }
       const covered = [...standing].filter((state) => !state.pageClosed && state.closedAt === undefined)
-      for (const state of covered) state.declared = stamp
+      for (const state of covered) state.declared = declaration
       return () => {
-        for (const state of covered) if (state.declared === stamp && !state.pageClosed) state.declared = undefined
+        for (const state of covered) if (state.declared === declaration && !state.pageClosed) state.declared = undefined
       }
     },
     unload: () => {
@@ -351,7 +341,7 @@ export const createDiary = (deps: DiaryDeps): Diary => {
         // said for what closed it, without waiting out its settle.
         if (state.closedAt === undefined && !state.pageClosed) {
           state.pageClosed = true
-          state.intent = "unload"
+          state.declared = GOING
         }
         drop(state)
       }
@@ -359,19 +349,9 @@ export const createDiary = (deps: DiaryDeps): Diary => {
     shown: () => {
       unloading = false
     },
-    pending: () => ({ entries: [...ring], lost }),
-    acknowledge: (through, taken) => {
-      while (ring.length > 0 && ring[0]!.seq <= through) ring.shift()
-      lost = Math.max(0, lost - taken)
-    },
-    onEntry: (listener) => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
     dispose: () => {
       for (const state of standing) state.settle?.()
       standing.clear()
-      listeners.clear()
     },
   }
 }
