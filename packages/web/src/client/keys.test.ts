@@ -490,8 +490,8 @@ test("Alt+Left and Alt+Right are the text field's while typing", () => {
 
 // ── the list layer ─────────────────────────────────────────────────────
 
-// The keys a shortlist takes while one is up — the ⌘K palette's rows, the
-// header box's, and the row editor's three input widgets. A third layer rather
+// The keys a shortlist takes while one is up — the ⌘K palette's rows and the
+// row editor's three input widgets. A third layer rather
 // than a matcher in each of those components, for the reason the two above are
 // in one file: all four of these keys mean something else in a row and
 // something else again as a chord.

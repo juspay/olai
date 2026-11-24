@@ -16,8 +16,8 @@
  *     saying to deliver advice is worse than the advice is worth.
  *
  * WHAT HAPPENED is not only a WRITE, and that is the second reading of the
- * same two moods. A question can be refused as well: the filter bar, the ⌘K
- * palette and the header's box each have to say why a list is empty — an
+ * same two moods. A question can be refused as well: the filter bar and the
+ * ⌘K palette each have to say why a list is empty — an
  * operator the grammar cannot read, a call that fell over — and a reader who
  * does not notice believes the directory is empty. Same mood, same markup, so
  * the same line — and the three doors do not even reach it themselves: they
@@ -61,8 +61,8 @@ import type { Said } from "./saying.ts"
  * THE ALARM'S SKIN FOR A BAND, which is the one piece of layout this file does
  * name — and it is here rather than at the panels because it is not layout.
  *
- * Three shortlist panels draw a full-width alarmed band across themselves (the
- * ⌘K palette, the header's box, the completion popup), and what they share is
+ * Two shortlist panels draw a full-width alarmed band across themselves (the
+ * ⌘K palette, the completion popup), and what they share is
  * not where it sits: it is the alarm token twice over — a rule at 40% under
  * it, the same hue at 5% behind it — beside the mono type every band in those
  * panels wears. Spelled per panel, that is the alarm's look kept in three

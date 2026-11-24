@@ -19,9 +19,9 @@
  * whole vault was here anyway. The vault is leaving
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md), so the round trip is what a
  * completion costs now, and the door it goes through is the one the ⌘K palette,
- * the header box, the `((` widget and the edge panel already share
+ * the `((` widget and the edge panel already share
  * (`../search.ts`, which owns the debounce and the staleness rule for all
- * five). What is left HERE is the row: what a person reads to choose it, what
+ * four). What is left HERE is the row: what a person reads to choose it, what
  * taking it writes, and the one thing it has to explain about itself.
  *
  * What the grammar buys, free and unasked for as before: `@is:blocked` names
@@ -96,7 +96,7 @@ export interface NodeMatch {
    *  their own hues, never as two extra characters of grey text. */
   readonly from: string
   /** Where it sits — the file followed by its ancestors from the file down. `../search/place.ts`'s answer, which is what the ⌘K palette,
-   *  the header box, the `((` widget and the edge panel all draw. */
+   *  the `((` widget and the edge panel all draw. */
   readonly place: Place
   /**
    * WHETHER THE ROW OWES AN EXPLANATION: the words were found in the node's

@@ -90,7 +90,7 @@ export const DOT = "inline-block size-2 shrink-0 rounded-full"
 
 /**
  * The other shape in the bar: a BUTTON with a glyph on it — the health dot,
- * the preferences gear, who is looking.
+ * who is looking.
  *
  * A quiet square: no border, no fill until a pointer is on it, a wash of ink
  * when it is, and the same wash held while the panel it opens is up

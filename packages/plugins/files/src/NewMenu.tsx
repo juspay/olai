@@ -1,6 +1,6 @@
 import { Key } from "@solid-primitives/keyed"
 /**
- * THE OUTLINES HEADING'S `+`, open: one item per kind of file a reader can
+ * THE FILES HEADING'S `+`, open: one item per kind of file a reader can
  * start here (`New outline`, `New document`), each contributed by that kind's
  * own row on `files.types` (`./contract.ts`).
  *

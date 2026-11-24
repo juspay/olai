@@ -11,9 +11,9 @@
  * the matcher rather than a second one shaped like it.
  *
  * It had another before either — the DOCUMENT ROWS
- * the ⌘K palette and the header box drew — and that one left when a search
+ * the ⌘K palette drew — and that one left when a search
  * started answering with documents (`@olai/format`'s `matchingDocuments`): the
- * two doors ride the server's one index now, which matches a document's title,
+ * palette rides the server's one index now, which matches a document's title,
  * path, tags and PROSE where this matches a path.
  *
  * WHAT IS LEFT is a live question about that split, and it is written down

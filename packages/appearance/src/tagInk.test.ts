@@ -119,8 +119,8 @@ describe("the ink is legible everywhere a title can sit", () => {
 
   test("every hue clears AA on every palette's paper and panel", () => {
     // The two grounds a title is drawn on: the outline sheet, and the
-    // popovers (⌘K palette, the header's box, the row's `((` and `#`
-    // widgets). Dark and light alike; measured, not eyeballed.
+    // popovers (⌘K palette, the row's `((` and `#` widgets). Dark and light
+    // alike; measured, not eyeballed.
     const under: Array<string> = []
     for (const palette of PALETTES) {
       const ink = TAG_INK[palette.scheme]

@@ -350,9 +350,9 @@ export const SIDEBAR_SCRIM = selector(TESTID.sidebarScrim);
 export const SIDEBAR_COLLAPSE = selector(TESTID.sidebarCollapse);
 export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);
 export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
-/** The rail's one way INTO the directory — the collapsed column's files
+/** The rail's one way INTO the directory — the collapsed column's Files
  *  button, which draws the tree's own outline glyph. */
-export const RAIL_OUTLINES = selector(TESTID.railOutlines);
+export const RAIL_FILES = selector(TESTID.railFiles);
 export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
 /** The file tree: every file the reader keeps, outlines and the rest
  *  together, under the folders they live in. */
@@ -526,13 +526,12 @@ export const PANE_CLOSE = selector(TESTID.paneClose);
 export const PANE_RESIZE = selector(TESTID.paneResize);
 export const PANE_TABS = selector(TESTID.paneTabs);
 export const PANE_TAB = selector(TESTID.paneTab);
-/** The same refusal on the two doors that ask the SERVER for it — the ⌘K
- *  palette and the header box. One name, because it is one sentence about one
- *  grammar; where each door draws it is that door’s own business. */
+/** The refusal on the door that asks the SERVER for it — the ⌘K palette.
+ *  One name, because it is one sentence about one grammar; where a door
+ *  draws it is that door’s own business. */
 export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
-/** …and the same count line on the same two doors: "8 of 20 matches", or no
- *  element at all when the door drew everything it found. Scoped by the step
- *  to the door it means, since one name serves both. */
+/** …and the count line on the same door: "8 of 20 matches", or no element at
+ *  all when the door drew everything it found. */
 export const SEARCH_COUNT = selector(TESTID.searchCount);
 /** The `↻` pill beside a date, saying how the node COMES BACK in the format's
  *  own words — and, where the row is editable, the way into the picker below.

@@ -1,7 +1,7 @@
 @share-scratch
 Feature: Documents
   A `.md` under the served directory is a document with a page of its own.
-  Reference lists it under its folders whether or not an outline names it.
+  The sidebar's file tree lists it under its folders whether or not an outline names it.
   A relative link in a node's note opens the document on its own page.
 
   The markdown is the same pipeline a note goes through, so what is proved here

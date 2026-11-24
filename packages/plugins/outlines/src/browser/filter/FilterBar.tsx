@@ -1,13 +1,13 @@
 /**
  * The box that narrows the page, and what it has to say about the result.
  *
- * IT IS NOT THE HEADER'S SEARCH BOX, and the difference is the question each
- * one answers: the header takes you TO a node anywhere in the directory, this
- * one narrows what is already in front of you. One box answering both would
- * have to guess which was meant by every keystroke. What they DO share is the
- * grammar AND, since `search-server-side`, the matcher's own answer: the header
- * box, the ⌘K palette and this bar are all callers of the server's one reading,
- * so the operators work in all three and mean one thing.
+ * IT IS NOT THE PALETTE that the header's Search opens, and the difference is
+ * the question each one answers: the palette takes you TO a node anywhere in
+ * the directory, this one narrows what is already in front of you. One box
+ * answering both would have to guess which was meant by every keystroke. What
+ * they DO share is the grammar AND, since `search-server-side`, the matcher's
+ * own answer: the ⌘K palette and this bar are both callers of the server's one
+ * reading, so the operators work in both and mean one thing.
  *
  * Everything it draws is a fact somebody could otherwise only guess at:
  *
@@ -137,8 +137,7 @@ export function FilterBar(props: {
           {/* `text`, not `search`: a `type="search"` input draws the browser's
               own clear cross, and this bar already has one of its own — two
               crosses side by side, one of which no scenario can press
-              portably. The header's box keeps `search` precisely because it
-              has no cross of its own to collide with. */}
+              portably. */}
           <input
             ref={input}
             type="text"
@@ -191,7 +190,7 @@ export function FilterBar(props: {
             // Enter puts the form under the cursor in, and Escape puts it away
             // with the caret still here. Otherwise WHICH key empties the box
             // is the registry's (`../keys.ts`'s list layer, the same one the
-            // header box asks); what `dismiss` MEANS here is this bar's — the
+            // palette asks); what `dismiss` MEANS here is this bar's — the
             // box empties and the page gets the caret back.
             onKeyDown={(event) => {
               if (hint.key(event)) {

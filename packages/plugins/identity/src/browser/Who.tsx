@@ -29,9 +29,9 @@ import { Match, Show, Switch, type JSX } from "solid-js"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 
-/** On a desktop the chip is a circle the size of the bar's health dot and
- *  preferences gear beside it, so the right end of the bar reads as one row
- *  of three round marks. A phone keeps its 44px target unchanged. */
+/** On a desktop the chip is a circle the size of the bar's health dot beside
+ *  it, so the right end of the bar reads as Search and two round marks. A
+ *  phone keeps its 44px target unchanged. */
 const DESKTOP_ROUND = "md:!w-7 md:!px-0"
 import { TESTID } from "../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"

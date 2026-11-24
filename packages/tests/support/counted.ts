@@ -2,10 +2,10 @@
  * WHAT A COUNT LINE SAYS, read EXACTLY — and the other half, that there is no
  * line at all.
  *
- * Three doors ask this and it is one question in three places (`./said.ts`
+ * Two doors ask this and it is one question in two places (`./said.ts`
  * exists for the same reason, one surface over): the filter bar says "3 of 41"
- * about the page it narrowed (`client/filter/count.ts`), and the ⌘K palette and
- * the header's box say "8 of 20 matches" about the answer they only drew part
+ * about the page it narrowed (`client/filter/count.ts`), and the ⌘K palette
+ * says "8 of 20 matches" about the answer it only drew part
  * of (`client/search/count.ts`). Every one of them is an element that holds a
  * count and nothing else, waited for rather than read once, and printed back
  * verbatim when it does not match — a ritual each step file spelled for itself

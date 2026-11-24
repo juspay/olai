@@ -571,8 +571,8 @@ Feature: Properties on a node, from the web
     # hit and deliberately left the row alone, because "should a reader SEE a
     # hit's properties" was a product question nobody had ruled — so there was
     # nothing on screen to assert. It is ruled now, and this is the loop it
-    # bought: write a fact on a node, then ask the header box for it and get the
-    # fact back on the row, without opening anything.
+    # bought: write a fact on a node, then ask the palette for it from the
+    # header's Search and get the fact back on the row, without opening anything.
     When I open the node menu of "handles"
     And I choose "More › Add property…" from the node menu
     And I write the property "agent" holding "claude-opus" on "handles"

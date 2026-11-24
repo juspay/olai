@@ -9,8 +9,8 @@ import { useHere } from "olai-plugin-navigation/routing"
  * bar's syntax hint is the fourth list it draws, through `./offer.tsx`.
  *
  * It draws {@link ../search/Result.tsx}'s row, which is the row the ⌘K palette
- * and the header's search box already draw, for the reason that file gives:
- * three spellings of a result row are three rows, and the day one of them
+ * already draws, for the reason that file gives: two spellings of a result
+ * row are two rows, and the day one of them
  * learns to show a mark or a date is the day they stop being the same product.
  * What this adds is only the BOX — where it sits, and the fact of which widget
  * it belongs to.

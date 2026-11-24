@@ -3,7 +3,7 @@
 export const TESTID = {
   fileLink: "file-link",
   /** The rail's one icon for the files: tip `Files`, name `Open files`. */
-  railOutlines: "rail-outlines",
+  railFiles: "rail-files",
   sidebarFiles: "sidebar-files",
   /** The one tree of every file the reader keeps, under the Files heading. */
   fileList: "file-list",

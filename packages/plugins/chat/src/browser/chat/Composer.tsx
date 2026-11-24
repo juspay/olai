@@ -342,8 +342,8 @@ export function Composer(props: {
   })
 
   /**
-   * THE NODE HALF, asked of the server — the same procedure the ⌘K palette, the
-   * header box, the `((` widget and the edge panel call, with the same debounce
+   * THE NODE HALF, asked of the server — the same procedure the ⌘K palette,
+   * the `((` widget and the edge panel call, with the same debounce
    * and the same rule about a stale answer (`../search/nodes.ts`). It used to
    * be a walk over the set this tab held, which is the copy
    * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md is taking away.

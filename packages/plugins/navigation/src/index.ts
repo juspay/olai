@@ -67,7 +67,7 @@ export const paletteAdapters = location<PaletteAdapter>("navigation.palette-adap
  * OPENING THE PALETTE, AND ASKING A QUESTION IN IT — what a row that is not
  * this one may do to the box.
  *
- * Two rows do: `olai-plugin-search`'s header box opens it, and
+ * Two rows do: `olai-plugin-search`'s Search door in the header opens it, and
  * `olai-plugin-pins` asks for a name in it. Both used to reach a module
  * variable in this row's `palette/open.ts`, a declared door carrying live
  * state, so neither declared a dependency and neither stopped asking when this

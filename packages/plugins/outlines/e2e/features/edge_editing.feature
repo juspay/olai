@@ -266,11 +266,11 @@ Feature: Writing a node's edges — `see` and `after`
     And there should be no page errors
 
   Scenario: The panel's hits carry properties too, like every other door onto the search
-    # FOUR surfaces draw one row (`client/search/Result.tsx`) over one
-    # `createNodeSearch`: the ⌘K palette, the header's box, the `((` widget and
-    # this panel. The properties reached the first two and stopped, which is
-    # exactly the drift the one-reading doctrine is about — so this is the door
-    # furthest from where they landed, holding the line.
+    # THREE surfaces draw one row (`client/search/Result.tsx`) over one
+    # `createNodeSearch`: the ⌘K palette, the `((` widget and this panel. The
+    # properties once reached the palette and stopped, which is exactly the
+    # drift the one-reading doctrine is about — so this is the door furthest
+    # from where they landed, holding the line.
     When I open the node menu of "hinges"
     And I choose "More › Add property…" from the node menu
     And I write the property "agent" holding "claude-opus" on "hinges"

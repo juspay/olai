@@ -15,14 +15,13 @@ export function FileRail() { const router = useRouter(); return <>
           its own. */}
       <Tip text="Files">
         <RailButton
-          testid={TESTID.railOutlines}
+          testid={TESTID.railFiles}
           label="Open files"
           href={router.routes.href(HOME_ROUTE)}
           onNavigate={() => setSidebarOpen(true)}
         >
           {/* The tree's own outline glyph (../file/icons.tsx), at the rail's
-              size: the kind the front page lists, and the one most rows in
-              the list wear. */}
+              size: the kind the front page lists. */}
           <Glyph of={servedDirectory()?.outlineRow() ?? ""} size={ICON} />
         </RailButton>
       </Tip>

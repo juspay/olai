@@ -31,7 +31,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
 import {
   POLL_TIMEOUT,
-  RAIL_OUTLINES,
+  RAIL_FILES,
   SIDEBAR_EXPAND,
   SIDEBAR_RAIL,
 } from "@olai/tests/harness/world.ts";
@@ -42,7 +42,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
  *  sentence, and one whose are not. */
 const RAIL: Readonly<Record<string, string>> = {
   expand: SIDEBAR_EXPAND,
-  files: RAIL_OUTLINES,
+  files: RAIL_FILES,
 };
 
 const railIcon = (world: OlaiWorld, which: string): Locator => {

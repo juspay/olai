@@ -9,10 +9,10 @@ import { Index } from "solid-js"
  * spellings of a row are two rows, and the day one of them learns to show a
  * mark or a date is the day they stop being the same product.
  *
- * That is not a hypothetical. The properties line below reached the palette and
- * the header box and stopped, because those two were the doors somebody was
- * thinking about — one row, drawing different things in different places, over
- * identical answers. The component was never the problem; what each door PASSES
+ * That is not a hypothetical. The properties line below once reached the
+ * palette and stopped, because that was the door somebody was thinking about —
+ * one row, drawing different things in different places, over identical
+ * answers. The component was never the problem; what each door PASSES
  * is, so what a door has to pass is kept as small as it can be (see
  * {@link RowTestids}) and every door that draws a node hit passes all of it.
  *

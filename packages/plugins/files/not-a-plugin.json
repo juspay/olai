@@ -17,7 +17,6 @@
     "src/browser.tsx": 3
   },
   "outlines": {
-    "src/testids.ts": 1,
     "src/tools.ts": 7
   },
   "pdf": {

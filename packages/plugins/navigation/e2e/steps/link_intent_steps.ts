@@ -14,7 +14,7 @@ const link = (world: OlaiWorld, surface: string) => {
     case "backlink": return world.page.locator('[data-testid="backlinks"] a[href="/#preview-source"]').first()
     case "breadcrumb": return world.page.locator('[data-testid="breadcrumbs"] a[href="/#preview-target"]').first()
     case "palette": return world.page.locator('[data-testid="palette-item"][href="/#preview-target"]').first()
-    case "files-rail": return world.page.getByTestId("rail-outlines")
+    case "files-rail": return world.page.getByTestId("rail-files")
     case "dated": return world.page.locator('[data-node-id="dated-link"] a[href="/#preview-target"]').first()
     case "rail": return world.page.locator('[data-testid="rail-trash"]').first()
     case "card": return world.page.locator('[data-testid="link-preview"] a').getByText("nested", { exact: true }).first()

@@ -1,6 +1,6 @@
 @corpus:good
 Feature: One place to set how this browser reads
-  The gear in the app header opens a calm settings pane: rows under headings,
+  The Preferences line in the health dot's list opens a calm settings pane: rows under headings,
   each row a label and the control that sets it, on one line. A row carries at
   most one short quiet line where its label does not already say what the
   control does, and news (an Allow button, a blocked browser) only while it

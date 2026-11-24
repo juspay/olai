@@ -19,7 +19,6 @@ import {
   OUTLINE_TREE,
   PANE,
   POLL_TIMEOUT,
-  RAIL_OUTLINES,
   SIDEBAR,
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";

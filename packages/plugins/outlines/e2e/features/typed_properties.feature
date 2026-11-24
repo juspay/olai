@@ -14,7 +14,7 @@ Feature: A property key that declares its type
   back to what it was.
 
   And the reading side: a key declared `int` or `date` compares, so `..` becomes
-  honest and `prop:records=190..200` is a question the header box can answer
+  honest and `prop:records=190..200` is a question the palette can answer
   (website/docs/search.md). A range on a key nobody declared is refused with the reason,
   because comparing text as if it were a number is the lie types exist to
   prevent.
