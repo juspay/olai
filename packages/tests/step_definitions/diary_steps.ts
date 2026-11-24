@@ -249,25 +249,65 @@ Then(
   },
 );
 
+// ── one tab, by its own stamp ──────────────────────────────────────────
+
+/** The tab id each page dials as, read off its socket's URL. */
+const dialledAs = new WeakMap<OlaiWorld, { tab?: string }>();
+
+const thatTab = (world: OlaiWorld): string => {
+  const tab = dialledAs.get(world)?.tab;
+  assert.ok(tab, "watch which tab this page dials as before it loads: `I watch which tab this page dials as`");
+  return tab;
+};
+
+/** Watch the sockets this page opens from now on, and keep the latest tab id
+ *  they carry: a page load mints a new tab, so after the next load this is
+ *  that page's. */
+When("I watch which tab this page dials as", function (this: OlaiWorld) {
+  const state: { tab?: string } = {};
+  dialledAs.set(this, state);
+  this.page.on("websocket", (socket) => {
+    const tab = /[?&]tab=([0-9a-f]{16})(?:&|$)/.exec(socket.url())?.[1];
+    if (tab !== undefined) state.tab = tab;
+  });
+});
+
+Then(
+  "the server logs {string} from the browser for that tab",
+  async function (this: OlaiWorld, message: string) {
+    const tab = thatTab(this);
+    await waitForLine(this, message, `side=browser tab=${tab}`, HYDRATION_TIMEOUT);
+  },
+);
+
+Then(
+  "the server logs {string} for that tab",
+  async function (this: OlaiWorld, message: string) {
+    const tab = thatTab(this);
+    await this.waitUntil(
+      async () => linesOf(this, message).some((line) => line.side === undefined && line.tab === tab),
+      `the server to log its own "${message}" for tab ${tab}`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
 /**
- * NOTHING SAID, over a window — the one claim here that is an absence. A
- * closed tab's last words arrive in a beacon the server logs whenever it
- * lands, and nothing the page can show says when that is, so the step watches
- * the log for a fixed few seconds rather than waiting on an event.
+ * Read at `debug`, so every line an ordinary load and close say is printed:
+ * each must be at `debug`, which a serve at the default level does not print.
+ * A line that is not names itself whole, close code and all.
  */
 Then(
-  "for {int} seconds the server logs nothing from the browser and no {string} or {string}",
-  async function (this: OlaiWorld, seconds: number, first: string, second: string) {
-    const loud = () => [
-      ...linesOf(this, first),
-      ...linesOf(this, second),
-      ...this.serverLog.text.split("\n").filter((line) => line !== "").map(readLogfmt).filter((line) => line.side === "browser"),
-    ];
-    const deadline = Date.now() + seconds * 1_000;
-    while (Date.now() < deadline) {
-      assert.deepStrictEqual(loud(), [], "the server logged the ordinary life of a tab at the default level");
-      await new Promise((done) => setTimeout(done, 250));
-    }
-    assert.deepStrictEqual(loud(), [], "the server logged the ordinary life of a tab at the default level");
+  "every line from the browser, and every {string} and {string} line, is at debug",
+  function (this: OlaiWorld, first: string, second: string) {
+    const text = this.serverLog.text;
+    const complete = text.endsWith("\n") ? text.split("\n") : text.split("\n").slice(0, -1);
+    const loud = complete
+      .filter((raw) => raw !== "")
+      .filter((raw) => {
+        const line = readLogfmt(raw);
+        return (line.side === "browser" || line.message === first || line.message === second) && line.level !== "DEBUG";
+      });
+    assert.deepStrictEqual(loud, [], `an ordinary load and close said these above debug:\n  ${loud.join("\n  ")}`);
   },
 );

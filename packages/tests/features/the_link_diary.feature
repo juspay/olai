@@ -10,14 +10,29 @@ Feature: The server's log says why a tab's connection dropped
   in the middle on the socket, the network going, the socket's row switched
   off, a server restarted. What is asserted is the server's stdout, because
   that is the claim — the log says why. And the ordinary life of a tab, opened
-  and closed, says nothing at the default level. These cut the wire under an
-  open tab, and one restarts the server, which is why they are `@scratch:`.
+  and closed, is said only at debug. These cut the wire under an open tab, and
+  one restarts the server, which is why they are `@scratch:`.
 
-  Scenario: An ordinary page load and an ordinary tab close add nothing at the default level
+  Scenario: An ordinary page load and an ordinary tab close are said only at debug
+    # Read at debug, so every line the load and the close say is printed and
+    # has to be found; the claim is that each of them is at debug, which a
+    # serve at the default level does not print. The page is loaded again once
+    # debug is in force, under a tab watched by its own stamp.
     Given I open the outline "house.olai"
-    And the connection is "live"
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"process-policy","ord":"a0","title":"olai","custom":{"log-level":"debug"}}
+      """
+    And I open the plugins panel
+    And I open the Server section
+    Then the Server section reads "log-level" as "debug" from "vault"
+    When I watch which tab this page dials as
+    And I open the outline "house.olai"
+    Then the connection is "live"
+    And the server logs "wire opened" from the browser for that tab
     When I close this browser tab
-    Then for 3 seconds the server logs nothing from the browser and no "tab connected" or "tab disconnected"
+    Then the server logs "tab disconnected" for that tab
+    And every line from the browser, and every "tab connected" and "tab disconnected" line, is at debug
 
   Scenario: A blink is the peer's doing, and both ends name the same socket
     Given the page's socket runs through a middle
