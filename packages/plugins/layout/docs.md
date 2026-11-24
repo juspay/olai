@@ -67,7 +67,7 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 
 [^pane]: A pane's line shows a document's name without its suffix, such as `garden`, or the page's label where it has no file name, in ink for the pane you are in. Its close button, named `Close garden`, is drawn when you point at the pane or reach it with `Tab`, and always on a touch screen. The narrow strip a collapsed pane leaves behind is named `Expand garden`, and wears the same accent line when it is the pane you are in.
 
-[^inset]: Every page starts its first line on the same edge: `1rem` in on a phone, and on a wider screen `2.5rem` at the sides and `2rem` at the top. Walking from an outline to a day, the Agenda, the Trash or a document does not move the first line sideways. A conversation and a plugin's own page keep their narrower centred column and take the same top.
+[^inset]: Pages start their first line on the same edge: `1rem` in on a phone, and on a wider screen `2.5rem` at the sides and `2rem` at the top. Walking from an outline to a day, the Agenda, the Trash or a document does not move the first line sideways. A plugin's own page keeps its narrower centred column and takes the same top. A conversation keeps its own head and inset.
 
 [^thumb]: Each button is an icon above a word, a finger's height, lit in the accent colour while you are on its page, with room for one badge at the icon's top corner. Every page leaves room under its last line, and under a composer fixed to the bottom, so nothing is hidden behind the bar. A desktop draws no such bar, whatever plugins added to it: the sidebar and the command palette are how you reach those pages there.
 

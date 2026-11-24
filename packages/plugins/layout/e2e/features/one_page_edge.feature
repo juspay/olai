@@ -3,8 +3,8 @@ Feature: Every page starts its first line on one edge
   A page is inset the same way wherever it comes from: `1rem` on a phone, and
   from `md` `2.5rem` at the sides and `2rem` on top. Walking from an outline to
   a day, the Agenda, the Trash and a document, the first line does not jump
-  sideways. A conversation and a plugin's own page keep their centred column
-  and take the same top.
+  sideways. A plugin's own page keeps its centred column and takes the same
+  top. A conversation keeps its own head and inset.
 
   Scenario: An outline, a day, the Agenda, the Trash and a document share one left edge
     Given I open the outline "house.olai"
