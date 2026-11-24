@@ -49,7 +49,9 @@ export const showPreferences = async (page: Page): Promise<void> => {
   if (!(await trigger.isVisible().catch(() => false))) {
     const dot = page.locator(HEALTH);
     const burger = page.locator(SIDEBAR_TOGGLE);
-    await dot.or(burger).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // The one of the two that is DRAWN: on a desktop the burger is in the DOM
+    // and hidden, and it comes first, so a bare `.first()` would wait on it.
+    await dot.or(burger).filter({ visible: true }).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if (await dot.isVisible()) {
       if (!(await page.locator(HEALTH_PANEL).isVisible())) await dot.click();
       await page.locator(HEALTH_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
