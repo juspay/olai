@@ -23,6 +23,12 @@ Feature: The reading companion
 
     When I approve the plugin "reader"
     Then the sidebar draws the reading section
+    # It names no place, so it stands where every section stood before the
+    # word existed: above the files, and above the Plugins list after them.
+    And the sidebar reads, top to bottom:
+      | the "reader" section |
+      | Files                |
+      | Plugins              |
     When I follow "Vocabulary" in the reading section
     Then the open file is "vocabulary.olai"
 

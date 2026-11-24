@@ -142,6 +142,7 @@ yield* slots.register("app.palette", {
 })
 ```
 
+- A section stands above the pinned pages and the files. Add `place: "bottom"` to stand it after the files, beside **Chats** and **Plugins**.
 - A link in a face is an ordinary `<a href>`. olai follows a link to one of its own addresses inside the app, with no reload.
 - A key's `press` and a command's `run` get nothing, so they open an address with `Navigate`, navigation's own verb: name it in `needs` and call `(yield* Navigate).open(address)`. It opens the page a link to that address would. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
 - A palette row opens its `href` when you choose it, and is found by the words in its `search`.

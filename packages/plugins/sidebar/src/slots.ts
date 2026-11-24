@@ -7,12 +7,22 @@ import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
  * contributor names a placement, never a pixel and never another plugin:
  *
  *   - `top`: the column's first doors (Agenda, Today), above every region;
- *   - `bottom`: after the plugin sections, above the pinned shelf;
+ *   - `bottom`: after the sections that stand above the files, above the
+ *     pinned shelf;
  *   - `foot`: pinned under the scrolling list, where it stays in view however
  *     long the list runs (Trash). On the rail, the same entry's icon sinks to
  *     the rail's foot.
  */
 export type SidebarPlace = "top" | "bottom" | "foot"
+
+/**
+ * WHERE A SECTION STANDS, in the same kind of word: `top`, the default, above
+ * the pinned shelf and the files, for what needs a reader now (a chat waiting
+ * on you); `bottom`, after the files, for a list a reader goes to on purpose
+ * (the chats, the plugins). A section that names no place stands at `top`, so
+ * a plugin written before the word existed keeps its seat.
+ */
+export type SectionPlace = "top" | "bottom"
 
 export interface SidebarEntry {
   readonly place: SidebarPlace
@@ -25,6 +35,8 @@ export interface SidebarSection {
   readonly said: string
   /** ...and what sits under it. */
   readonly body: () => JSX.Element
+  /** Where it stands; `top` when absent. */
+  readonly place?: SectionPlace
 }
 
 declare module "@olai/plugin-api/slots" {
@@ -38,5 +50,5 @@ export const slotContracts = {
   "sidebar.entry": slotContract<SidebarEntry>("sidebar.entry","nothing",
     "A `{ place, body, rail? }`: `place` is `top`, `bottom` or `foot`, `body` is called with nothing and draws the entry in the sidebar's column, and `rail` is called with nothing and draws its icon on the collapsed rail."),
   "sidebar.section": slotContract<SidebarSection>("sidebar.section","nothing",
-    "A `{ said, body }`: `said` is the section's name in the plugin's own words, and `body` is called with nothing and draws the whole section under the app's own."),
+    "A `{ said, body, place? }`: `said` is the section's name in the plugin's own words, `body` is called with nothing and draws the whole section under the app's own, and `place` is `top` (the default, above the pinned pages and the directory's own list) or `bottom` (after that list)."),
 } as const

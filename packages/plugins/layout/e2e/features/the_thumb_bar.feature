@@ -41,6 +41,9 @@ Feature: The thumb bar — a phone's four doors at the foot of the screen
     Then the Chats thumb counts nobody
     When I tap the thumb "Chats"
     Then the directory drawer is open with a scrim
+    # Chats stands below the files in the column, so with nobody waiting the
+    # thumb puts the caret on the Chats list and the drawer scrolls to it.
+    And the caret is on Chats, in view
     And there should be no page errors
 
   @phone @scratch:chat

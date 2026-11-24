@@ -16,7 +16,7 @@ The command palette ([getting around](../getting-around.md)) has a **Go to today
 
 ## What the journal adds to the sidebar
 
-The sidebar is the left column of files. The journal adds an **Agenda** entry there, with a badge,[^badge] and a **Today** row under it that opens the month calendar.[^today] While any row is late or due today, those rows are listed under the Agenda entry,[^owed] five at a time.[^five]
+The sidebar is the left column of files. The journal adds an **Agenda** entry there, with a badge,[^badge] and a **Today** row under it that opens the month calendar.[^today] While any row is late or due today, the arrow beside **Agenda** unfolds those rows under it,[^owed] five at a time.[^five]
 
 ## The one notification olai sends
 
@@ -46,7 +46,7 @@ Another plugin, including one [your own directory defines](../dynamic-plugins.md
 
 [^owed]: The list shows late work first, oldest day first, and then work due today. A late row shows a filled alarm dot, the row's title, and how long ago its day was, such as `Yesterday` or `5 days ago`. A row due today shows a grey ring and its title. Each row links to the node where it lives.
 
-[^five]: Five owed rows are listed. Anything left over is one grey line, `N more on the agenda`, which opens the agenda page. The list and the badge come from the same reading, so the count is right even when the list is shorter. A chevron folds the list away, and folding is remembered in this browser under `olai.sidebar.agenda-rows`; it starts unfolded. Folding does not stop the reading, and the list is not drawn while the agenda page is in front of you.
+[^five]: Five owed rows are listed. Anything left over is one grey line, `N more on the agenda`, which opens the agenda page. The list and the badge come from the same reading, so the count is right even when the list is folded. The list starts folded, and whether it is folded is remembered in this browser under `olai.sidebar.agenda-rows`. Folding does not stop the reading, and the list is not drawn while the agenda page is in front of you.
 
 [^notify]: This notification is the only thing olai says without being asked. It is raised by the first reading that finds work owed. Its title is this deployment's name, and its body is the same phrase the Agenda entry uses, such as `Agenda: 2 overdue, 3 due today`. Clicking it opens the agenda page in the pane you are in.
 

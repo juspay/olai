@@ -4,8 +4,9 @@
  *
  * A phone shows one pane at a time, so its conversations are reached through
  * the drawer's Chats and Needs you sections. This thumb opens that drawer and
- * puts the caret on Needs you, so an agent waiting on a person is one tap and
- * a glance away rather than a burger, a scroll and a search. The badge is the
+ * puts the caret on Needs you, or on the Chats list below the files when
+ * nothing is waiting, so an agent waiting on a person is one tap and a glance
+ * away rather than a burger, a scroll and a search. The badge is the
  * count of conversations that need somebody — the same rows the Needs you
  * section lists — and nothing else: a count of every chat would be a number
  * nobody acts on.
@@ -31,7 +32,7 @@ export function ChatsThumb(props: { readonly reveal: () => void }) {
       onClick={() => {
         props.reveal()
         // The drawer is drawn on the next frame; the caret follows it there.
-        requestAnimationFrame(() => agentReadings()?.focusNeeds())
+        requestAnimationFrame(() => agentReadings()?.focusConversations())
       }}
     >
       <svg viewBox="0 0 16 16" class="size-5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">

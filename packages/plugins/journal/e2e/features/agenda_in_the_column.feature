@@ -1,8 +1,9 @@
 Feature: What is owed, listed under the door
-  The Agenda door says something slipped; this says WHAT, without leaving the
-  page a reader is on. Under the door is a short list of the owed rows — late
-  work first, oldest day first, then today's — so a reader working in an
-  outline can see the two things that are late and finish one of them here.
+  The Agenda door says something slipped; the list under it says WHAT, without
+  leaving the page a reader is on. Under the door is a short list of the owed
+  rows — late work first, oldest day first, then today's — so a reader working
+  in an outline can see the two things that are late and finish one of them
+  here.
 
   The list and the chip are fields of ONE server reading, so they cannot
   disagree for a frame. The rows are the agenda's own, in the agenda's order,
@@ -11,13 +12,14 @@ Feature: What is owed, listed under the door
   Three things decide whether the list is drawn, and each is a different fact:
   anything owed at all, the agenda not being the page in front (the page is the
   fuller answer, so the column does not repeat it), and this browser's fold
-  (`olai.sidebar.agenda-rows`, followed across tabs, unfolded by default).
-  Folding never stops the reading, which is what keeps the count live while the
-  list is shut.
+  (`olai.sidebar.agenda-rows`, followed across tabs, FOLDED by default: the red
+  count on the door already says something is owed). Folding never stops the
+  reading, which is what keeps the count live while the list is shut.
 
   @corpus:agenda
   Scenario: The fixtures' late work is listed under the door, oldest day first
     Given I open the outline "work.olai"
+    When I unfold the agenda rows
     # Three late tasks over two outlines, in TIME order rather than the files':
     # `permit` is in work.olai and `visas` in life.olai.
     Then the column's agenda rows are "permit, visas, posts"
@@ -32,6 +34,7 @@ Feature: What is owed, listed under the door
   Scenario: The list is absent while the agenda is in front, and back on leaving
     Given I open the outline "work.olai"
     And I mark the page
+    When I unfold the agenda rows
     Then the column's agenda rows are "permit, visas, posts"
     When I open the agenda
     # The page is the fuller answer; the door keeps its count.
@@ -48,7 +51,8 @@ Feature: What is owed, listed under the door
   Scenario: A row opens the node where it lives
     Given I open the outline "work.olai"
     And I mark the page
-    When I press the column's row "permit"
+    When I unfold the agenda rows
+    And I press the column's row "permit"
     # The agenda page's own rows reach a node the same way.
     Then the address is "/zoom/#permit"
     And the node "permit" is shown
@@ -58,7 +62,8 @@ Feature: What is owed, listed under the door
   Scenario: Work due today appears under the late rows, with a ring and nothing after it
     Given I open the outline "work.olai"
     And I mark the page
-    When something is scheduled for today in "work.olai"
+    When I unfold the agenda rows
+    And something is scheduled for today in "work.olai"
     Then the column's agenda rows are "permit, visas, posts, due-today"
     And the column's row "due-today" wears a ring mark
     # A today row says its title and stops: "Today" under a door that already
@@ -73,7 +78,8 @@ Feature: What is owed, listed under the door
   Scenario: A row's title follows the file while both counts stand still
     Given I open the outline "work.olai"
     And I mark the page
-    And the column's row "posts" is named "dig the post holes"
+    When I unfold the agenda rows
+    Then the column's row "posts" is named "dig the post holes"
     # One late node is still one: neither count moves, so what has to arrive on
     # its own is the ROW — which is why the reading compares the rows and not
     # only the numbers over them.
@@ -87,9 +93,10 @@ Feature: What is owed, listed under the door
   Scenario: The cap holds, and the rest is one line to the page
     Given I open the outline "work.olai"
     And I mark the page
+    When I unfold the agenda rows
     # Seven late rows: three in the fixtures, four written while the page is
     # open. Five fit; the other two are the line under them.
-    When four more tasks are due yesterday in "work.olai"
+    And four more tasks are due yesterday in "work.olai"
     Then the column draws 5 agenda rows
     # The wording itself, pinned by work written relative to the clock: the
     # fixtures' own distance is "seven years ago" today and something else
@@ -105,6 +112,7 @@ Feature: What is owed, listed under the door
   Scenario: Clearing a date takes its row away with no reload
     Given I open the outline "work.olai"
     And I mark the page
+    When I unfold the agenda rows
     Then the column's agenda rows are "permit, visas, posts"
     # `visas` is the 2019 row in life.olai; the list is a reading, so it moves
     # when the files do.
@@ -113,9 +121,16 @@ Feature: What is owed, listed under the door
     And the page has not reloaded
 
   @scratch:agenda
-  Scenario: The fold puts the list away, remembers it, and the count stays live
+  Scenario: The list starts folded, the fold is remembered, and the count stays live
     Given I open the outline "work.olai"
     And I mark the page
+    # A fresh browser: the count on the door, and the rows folded under it.
+    Then the agenda rows are folded away
+    And the agenda entry is on fire with 3 late
+    When I unfold the agenda rows
+    Then the column's agenda rows are "permit, visas, posts"
+    When I reload the page
+    Then the column's agenda rows are "permit, visas, posts"
     When I fold the agenda rows
     Then the agenda rows are folded away
     When I reload the page
@@ -144,6 +159,7 @@ Feature: What is owed, listed under the door
   @scratch:agenda
   Scenario: Switching the journal row off takes the rows with it
     Given I open the outline "work.olai"
+    When I unfold the agenda rows
     Then the column's agenda rows are "permit, visas, posts"
     When I open the plugins panel
     And I switch the plugin "journal" off
@@ -156,6 +172,7 @@ Feature: What is owed, listed under the door
     Given I open the outline "work.olai"
     And I mark the page
     When I tap the burger
+    And I unfold the agenda rows
     Then the column's agenda rows are "permit, visas, posts"
     When I tap the column's row "permit"
     Then the address is "/zoom/#permit"

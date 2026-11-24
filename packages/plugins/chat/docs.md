@@ -91,9 +91,9 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | beside a row | What the row's agent is doing, or a button to start an agent while one is available. |
 | a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the chat** and the sleep entries on a row that has one. |
 | the breadcrumbs | A mark on an ancestor row that has an agent, on a trail, a day's row and a search result. |
-| the sidebar | The **Needs you** and **Chats** sections, with a `+` beside the Chats heading for **New chat**. |
+| the sidebar | **Needs you** above the files, and **Chats** below them, with a `+` beside the Chats heading for **New chat**. |
 | the palette | Every agent, the **New chat** row and **Chat about this page**, while an engine can start. |
-| a phone's bottom bar | The **Chats** button, with a count of how many conversations need an answer. |
+| a phone's bottom bar | The **Chats** button, with a count of how many conversations need an answer. It opens the drawer on **Needs you**, or on **Chats** when nobody is waiting. |
 
 Where a pane already holds a conversation, the fold under its row and that row's page take you to it.
 

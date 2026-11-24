@@ -111,11 +111,12 @@ A contribution is `{ body, headerOrder, closetOrder, mobileWithoutSidebar?, desk
 
 ### `sidebar.entry` and `sidebar.section`
 
-An entry is `{ place, body, rail? }` and a section is `{ said, body }`.
+An entry is `{ place, body, rail? }` and a section is `{ said, body, place? }`.
 
-- `place` is `top`, the first entries in the column, `bottom`, after the sections other plugins add, or `foot`, pinned under the scrolling list where it stays in view however long the list gets.
+- An entry's `place` is `top`, the first entries in the column, `bottom`, after the sections placed `top`, or `foot`, pinned under the scrolling list where it stays in view however long the list gets.
 - A `foot` entry's icon sinks to the bottom of the strip of icons, which is where Trash sits.
 - A section's `said` is its heading, in the contributing plugin's own words.
+- A section's `place` is `top`, the default, above the pinned pages and the files, or `bottom`, after the files. **Needs you** is `top`; **Chats** and **Plugins** are `bottom`.
 
 ### `files.types` and `files.state`
 

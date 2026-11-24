@@ -6,7 +6,7 @@ Sign in to a site once and every agent is signed in too.
 
 ## Open the browser page
 
-Click **Browser** in the sidebar.[^doors] `/browser` shows the first tab; `/browser/<id>` is one tab's address.[^pane]
+Click the dot, then **Browser**.[^doors] `/browser` shows the first tab; `/browser/<id>` is one tab's address.[^pane]
 
 | On the page | What it does |
 | --- | --- |
@@ -34,7 +34,7 @@ Treat every web page as untrusted: it can carry instructions aimed at your agent
 
 [^tools]: Every conversation is handed browser tools attached to that one Chromium, and the **Browser** page shows its tabs live for you to use by hand. The page is yours to type in, and the agents use their own tools for theirs. The plugin is on by default. How a conversation gets hold of the browser is in the closed block at the foot of this page.
 
-[^doors]: You can also open it from the **Browser** row in the health popover in the header, from the palette's **Open browser**, and from the **browser** chip on a conversation's list of tools. The dot on the sidebar row speaks only when something needs saying, such as a failed launch.
+[^doors]: The dot is the health dot near the right end of the header ([layout.md](layout.md)), and **Browser** is a line in the list it opens. You can also open the page from the palette's **Open browser**, which is the way on a phone, and from the **browser** chip on a conversation's list of tools. The **Browser** line wears the browser's colour, so a failed launch shows on the dot itself.
 
 [^pane]: Because a tab has an address of its own, it can sit in a pane of its own, and its page title is the pane's title.
 

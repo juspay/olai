@@ -10,12 +10,13 @@ Top to bottom:[^phone]
 
 | Entry | Added by |
 | --- | --- |
-| Agenda, with what is overdue or due today folded under it while there is any, then Today with the month under it | [journal.md](journal.md) |
+| Agenda, with what is overdue or due today folded under it, then Today with the month under it | [journal.md](journal.md) |
 | Inbox | [capture.md](capture.md) |
-| **Needs you** and **Chats**[^chats] | [chat.md](chat.md) |
-| **Plugins** | [vault-plugins.md](vault-plugins.md) |
+| **Needs you**, while a chat is waiting on you | [chat.md](chat.md) |
 | **Pinned** | [pins.md](pins.md) |
 | **Outlines**, **Reference** and the `olai` group of `_olai/` files | [files.md](files.md) |
+| **Chats**[^chats] | [chat.md](chat.md) |
+| **Plugins** | [vault-plugins.md](vault-plugins.md) |
 | **Trash**, pinned under the scrolling list | [trash.md](trash.md) |
 
 ## The strip of icons
@@ -44,7 +45,9 @@ Switching `sidebar` off removes the column and the strip of icons, and leaves th
 
 [^case]: How a heading is drawn: the words are written in sentence case and drawn as small, widely spaced capitals, so a test or a screen reader reads `Outlines`, not `OUTLINES`.
 
-[^plus]: The buttons on headings: the `+` beside **Chats** opens the palette at New chat, the `+` beside **Plugins** opens it at New plugin, and the `+` beside **Outlines** opens the menu for making a new file. The plugin that owns a heading draws its button too, so the heading and the button leave together when that plugin is switched off.
+[^plus]: The buttons on headings: the `+` beside **Chats** opens the palette at New chat, the `+` beside **Plugins** opens it at New plugin, and the `+` beside **Outlines** opens the menu for making a new file. The plugin that owns a heading draws its button too, so both leave together when that plugin is switched off.
+
+    These buttons, and the arrows beside **Agenda** and **Today**, are drawn while the pointer is in the column or the keyboard is on them, and always on a touch screen.
 
 [^chats]: A **Chats** row is named after the row or the file its chat is about, with that agent's mark beside it. Clicking it opens the chat's own page, and the row's two-column button, **Open beside**, puts that page in the pane to the right on a desktop. A document whose chat is set to open beside brings the document along; everything else opens alone ([chat.md](chat.md)).
 
@@ -57,8 +60,8 @@ Switching `sidebar` off removes the column and the strip of icons, and leaves th
 
 | Place | Takes |
 | --- | --- |
-| `sidebar.entry` | an entry placed `top` (the first entries in the column), `bottom` (after the plugin sections) or `foot` (pinned under the list), with an icon for the collapsed strip if it wants one |
-| `sidebar.section` | a heading in the plugin's own words, and what sits under it |
+| `sidebar.entry` | an entry placed `top` (the first entries in the column), `bottom` (after the sections placed `top`) or `foot` (pinned under the list), with an icon for the collapsed strip if it wants one |
+| `sidebar.section` | a heading in the plugin's own words and what sits under it, placed `top` (the default, above the pinned pages and the files) or `bottom` (after the files) |
 | `sidebar.regions` | a region of the column: `primary`, `shelf` or `files` |
 | `sidebar.rail` | an icon on the collapsed strip |
 

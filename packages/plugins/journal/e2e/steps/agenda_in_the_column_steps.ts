@@ -258,13 +258,23 @@ Then("the agenda rows are folded away", async function (this: OlaiWorld) {
   await folded(this, true);
 });
 
+/** The chevron is a toggle, so each step asserts the state it starts from
+ *  rather than pressing blind: a scenario that unfolded a list already open
+ *  would fold it and pass for the wrong reason. The press is a person's, so
+ *  the pointer goes into the column first and the chevron is drawn. */
+const pressFold = async (world: OlaiWorld, from: boolean): Promise<void> => {
+  await world.showSidebar();
+  const chevron = world.page.locator(AGENDA_FOLD);
+  await chevron.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await world.expectChromeAttribute(AGENDA_FOLD, "aria-expanded", String(from), "the fold's chevron before the press");
+  await world.press(chevron);
+};
+
 When("I fold the agenda rows", async function (this: OlaiWorld) {
-  await this.showSidebar();
-  await this.page.locator(AGENDA_FOLD).click();
+  await pressFold(this, true);
 });
 
 When("I unfold the agenda rows", async function (this: OlaiWorld) {
-  await this.showSidebar();
-  await this.page.locator(AGENDA_FOLD).click();
+  await pressFold(this, false);
   await this.page.locator(AGENDA_ROWS).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
