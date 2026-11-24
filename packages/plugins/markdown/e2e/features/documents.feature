@@ -161,6 +161,26 @@ Feature: Documents
     And the address names the heading "Footnotes"
     And the heading "Footnotes" is at the top of the pane
 
+  # The page's verbs are words until pointed at: an outlined pair above every
+  # document was louder than its path. The keyboard reaches each and draws its
+  # border as the pointer does, so a person tabbing sees where they are.
+  @corpus:good
+  Scenario: Edit and Delete… are words until pointed at or reached by the keyboard
+    When I open the document "kitchen-sink.md"
+    And the pointer is away from the document's verbs
+    Then the document's "Edit" is a word with no border
+    And the document's "Delete…" is a word with no border
+    When I point at the document's "Edit"
+    Then the document's "Edit" is outlined
+    And the document's "Delete…" is a word with no border
+    When I click the document's path and press Tab
+    And the pointer is away from the document's verbs
+    Then the document's "Edit" has the keyboard, and is outlined
+    When I press "Tab"
+    Then the document's "Delete…" has the keyboard, and is outlined
+    And the document's "Edit" is a word with no border
+    And there should be no page errors
+
   # A `.md` may open with a `---` block, and the block is the document's own
   # RECORD rather than the first thing it says. It was neither: the parser had
   # no frontmatter extension, so the fence came out as a thematic break and
