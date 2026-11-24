@@ -76,13 +76,29 @@ import { ICON_BUTTON, STATUS_ROW } from "@olai/web/client/readout.ts"
 
 /** What the health dot lends a door in its seat: the dot (the panel's anchor,
  *  and where the caret goes back to), the popover's foot while it is drawn,
- *  and the gesture that shuts the popover. Layout's own wiring between two of
- *  its files — the dot provides it, a door in that seat reads it. */
+ *  the gesture that shuts the popover, and the door's place among the foot's
+ *  rows. Layout's own wiring between two of its files — the dot provides it, a
+ *  door in that seat reads it.
+ *
+ *  `order` IS WHAT KEEPS THE FOOT IN THE DECLARED ORDER: each door portals its
+ *  row in on its own, and a portal appends — so rows would land in the order
+ *  their doors were first mounted, which is the order the plugins happened to
+ *  start in, not the one `headerOrder` names. Each row's box is put before the
+ *  first row with a higher `order` ({@link placeInFoot}), in the DOM and not
+ *  only on screen, so the keyboard walks the rows in the order they are drawn. */
 export const HealthSeat = createContext<{
   readonly dot: () => HTMLElement | undefined
   readonly foot: () => HTMLElement | undefined
   readonly shut: () => void
+  readonly order?: number
 }>()
+
+/** Move a row's portal box to its place among the foot's rows, by `order`. */
+const placeInFoot = (foot: HTMLElement, box: HTMLElement, order: number): void => {
+  box.dataset.order = String(order)
+  const after = [...foot.children].find((row) => row !== box && Number((row as HTMLElement).dataset.order) > order)
+  if (after !== undefined) foot.insertBefore(box, after)
+}
 
 export function BarDoor(props: {
   /** `closet` is the phone drawer row, `health` a row at the foot of the
@@ -170,7 +186,7 @@ export function BarDoor(props: {
       {seat === undefined
         ? trigger
         // KEYED: each opening draws a fresh foot, and the row follows it there.
-        : <Show when={seat.foot()} keyed>{(foot) => <Portal mount={foot}>{trigger}</Portal>}</Show>}
+        : <Show when={seat.foot()} keyed>{(foot) => <Portal mount={foot} ref={(box: HTMLDivElement) => placeInFoot(foot, box, seat.order ?? 0)}>{trigger}</Portal>}</Show>}
       {/* Out of the bar entirely — see this file's header.
           ONE PORTAL FOR THE WHOLE OPENING, keyed by whether it is up rather than
           by where it goes: the condition is a BOOLEAN, so a re-measure that

@@ -1,6 +1,7 @@
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { sameList } from "@olai/web/client/same.ts"
-import { createMemo, For } from "solid-js"
+import { createMemo, For, useContext } from "solid-js"
+import { HealthSeat } from "./contracts/BarDoor.tsx"
 import { tools, type ToolWhere } from "./index.ts"
 
 export function Tools(props: {
@@ -16,5 +17,10 @@ export function Tools(props: {
       (entry.value.desktop ?? "header") === props.where)
     .sort((a, b) => props.where === "closet"
       ? a.value.closetOrder - b.value.closetOrder : a.value.headerOrder - b.value.headerOrder), undefined, { equals: sameList })
-  return <For each={entries()}>{({ value: tool }) => <tool.body where={props.where} />}</For>
+  // In the health seat each door portals its own row into the popover's foot,
+  // so each is told its place there (`./contracts/BarDoor.tsx`'s `HealthSeat`).
+  const seat = props.where === "health" ? useContext(HealthSeat) : undefined
+  return <For each={entries()}>{({ value: tool }) => seat === undefined
+    ? <tool.body where={props.where} />
+    : <HealthSeat.Provider value={{ ...seat, order: tool.headerOrder }}><tool.body where={props.where} /></HealthSeat.Provider>}</For>
 }
