@@ -46,16 +46,55 @@ Feature: The second pane
     And pane 2 is showing "/zoom/#install"
     And pane 1 is focused
 
+  # The pane with the caret is marked by an accent edge along its top, and
+  # exactly one pane wears it: the mark follows a click and the two keys.
   Scenario: Focus moves with a click and with Alt+Left / Alt+Right
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"
     Then pane 1 is focused
+    And pane 1 alone carries the focus mark
+    And the focus mark is drawn in the accent
     When I focus pane 0
     Then pane 0 is focused
+    And pane 0 alone carries the focus mark
     When I press Alt+Right
     Then pane 1 is focused
+    And pane 1 alone carries the focus mark
     When I press Alt+Right
     Then pane 0 is focused
+    And pane 0 alone carries the focus mark
+    When I press Alt+Left
+    Then pane 1 is focused
+    And pane 1 alone carries the focus mark
+
+  # A pane's `×` waits for a pointer on the pane and is not drawn at rest, but
+  # it is in the tab order all the same, and drawn while it has the keyboard.
+  Scenario: A pane's close button waits for a pointer, and the keyboard reaches it
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    And the pointer leaves the panes
+    Then pane 0's close button is not drawn
+    When I point at pane 0
+    Then pane 0's close button is drawn
+    When the pointer leaves the panes
+    And I click pane 1's name and press Tab
+    Then pane 1's close button has the keyboard, and is drawn
+    When I press "Enter"
+    Then there are 1 panes
+    And pane 0 is showing "/house.olai"
+    And there should be no page errors
+
+  # A touch screen has no hover to make the offer with, so a wide one draws
+  # every pane's `×` at rest.
+  @phone
+  Scenario: A wide touch screen draws every pane's close button
+    Given I open the outline "house.olai"
+    When I widen the window to a desk
+    And I alt-click the zoom of "install"
+    Then there are 2 panes
+    And pane 0's close button is drawn
+    And pane 1's close button is drawn
+    And there should be no page errors
 
   Scenario: Closing the second-to-last pane returns to a plain page
     Given I open the outline "house.olai"

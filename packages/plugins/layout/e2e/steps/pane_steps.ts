@@ -316,7 +316,8 @@ When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index:
 Then("pane {int} keeps its title {string} above its scroller", async function(this: OlaiWorld, index: number, title: string) {
   const heading = this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))}`)
   assert.ok((await heading.innerText()).includes(title))
-  // UNDER THE BAR, which holds the tabs too: nothing else stands above the panes.
+  // UNDER THE BAR, which holds the tabs too: nothing else stands above the
+  // panes but the 2px a pane keeps for its focus mark.
   const bar = await this.page.locator(APP_HEADER).boundingBox()
   const box = await heading.boundingBox()
   const top = await this.pane(index).evaluate(root => {
@@ -324,7 +325,8 @@ Then("pane {int} keeps its title {string} above its scroller", async function(th
     while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
     return host?.getBoundingClientRect().top
   })
-  assert.ok(bar && box && top !== undefined && Math.abs(box.y - bar.y - bar.height) <= 1
+  const gap = bar && box ? box.y - bar.y - bar.height : Number.NaN
+  assert.ok(bar && box && top !== undefined && gap >= -1 && gap <= 3
     && Math.abs(box.y + box.height - top) <= 1,
     `pane ${index} title scrolled away: ${JSON.stringify({ bar, box, top })}`)
 })
@@ -478,4 +480,112 @@ Then("this tab is at the top of what it shows", async function (this: OlaiWorld)
   }));
   assert.ok(now.room > 1, `this tab shows nothing taller than the screen: ${now.room}px of room`);
   assert.ok(now.at <= 2, `this tab stands at ${now.at}px of ${now.room}px: a page it has not shown opens at its top`);
+});
+
+// ── the focus mark, and the pane's close button ─────────────────────────
+//
+// In a split the pane with the caret wears a 2px accent edge along its top and
+// nothing else does. Read as a person sees it — the computed top border of each
+// column — and compared against the accent the sheet asks for, never against a
+// colour written down here.
+
+type Mark = { readonly index: number; readonly width: number; readonly style: string; readonly colour: string };
+
+/** Every column's top edge in the lane in front, by pane index. */
+const marks = (world: OlaiWorld): Promise<ReadonlyArray<Mark>> =>
+  world.frontLane().locator(PANE_HEADER).evaluateAll((headers) => headers.map((header) => {
+    const style = getComputedStyle(header.parentElement!);
+    return {
+      index: Number(header.getAttribute("data-pane")),
+      width: Number.parseFloat(style.borderTopWidth),
+      style: style.borderTopStyle,
+      colour: style.borderTopColor,
+    };
+  }));
+
+/** A colour that paints something: neither the keyword nor zero alpha. */
+const opaque = (colour: string): boolean =>
+  colour !== "transparent" && !/,\s*0\s*\)$/.test(colour) && !/\/\s*0\s*\)$/.test(colour);
+
+const drawn = (mark: Mark): boolean => mark.style !== "none" && mark.width >= 2 && opaque(mark.colour);
+
+/** The accent the sheet asks for, resolved by the browser and kept out of any
+ *  forced palette, so it can be compared with what a column actually wears. */
+const accent = (world: OlaiWorld): Promise<string> =>
+  world.page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;visibility:hidden;forced-color-adjust:none;color:var(--color-accent)";
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  });
+
+Then("pane {int} alone carries the focus mark", async function (this: OlaiWorld, index: number) {
+  await this.waitUntil(async () => {
+    const all = await marks(this);
+    return all.length >= 2 && all.every((mark) => (mark.index === index) === drawn(mark));
+  }, `pane ${index}, and no other pane, to wear the focus mark`).catch(async () => {
+    assert.fail(`the columns' top edges are ${JSON.stringify(await marks(this))}; only pane ${index} should be marked`);
+  });
+});
+
+Then("the focus mark is drawn in the accent", async function (this: OlaiWorld) {
+  const mark = (await marks(this)).find(drawn);
+  assert.ok(mark !== undefined, "no column wears a focus mark");
+  assert.strictEqual(mark.colour, await accent(this), "the focus mark is not the page's accent");
+});
+
+/** Under a forced palette the mark is still two pixels and still painted, in a
+ *  colour the SCREEN chose — which also proves the emulation reached it. A
+ *  box-shadow mark would be deleted there and fail the first half. */
+Then("the focus mark is drawn in the screen's own colour", async function (this: OlaiWorld) {
+  const mark = (await marks(this)).find(drawn);
+  assert.ok(mark !== undefined, `under forced colours no column wears a focus mark: ${JSON.stringify(await marks(this))}`);
+  assert.notStrictEqual(mark.colour, await accent(this), "the focus mark is still the page's own accent");
+});
+
+const closeOf = (world: OlaiWorld, index: number) =>
+  world.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))} ${PANE_CLOSE}`);
+
+const opacityOf = (world: OlaiWorld, index: number): Promise<string> =>
+  closeOf(world, index).evaluate((el) => getComputedStyle(el).opacity);
+
+/** A click on the pane's name moves where the next `Tab` starts from, as it
+ *  does for a person, and the `Tab` takes the next control after it. */
+When("I click pane {int}'s name and press Tab", async function (this: OlaiWorld, index: number) {
+  const name = this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))} span`).first();
+  await name.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await name.click();
+  await pressed(this, "Tab");
+});
+
+Then("pane {int}'s close button has the keyboard, and is drawn", async function (this: OlaiWorld, index: number) {
+  const close = closeOf(this, index);
+  assert.ok(await close.evaluate((el) => el === document.activeElement && el.matches(":focus-visible")),
+    `the keyboard is not on pane ${index}'s close button`);
+  assert.strictEqual(await opacityOf(this, index), "1", `pane ${index}'s close button has the keyboard but is not drawn`);
+});
+
+When("the pointer leaves the panes", async function (this: OlaiWorld) {
+  // The top-left corner is the app's name in the bar: outside every pane.
+  await this.page.mouse.move(2, 2);
+  await this.waitForFrame();
+});
+
+When("I point at pane {int}", async function (this: OlaiWorld, index: number) {
+  await this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))}`).hover();
+  await this.waitForFrame();
+});
+
+Then("pane {int}'s close button is not drawn", async function (this: OlaiWorld, index: number) {
+  await this.waitUntil(async () => (await opacityOf(this, index)) === "0",
+    `pane ${index}'s close button to wait for a pointer`);
+});
+
+/** Opacity is the claim: a transparent button is still a button Playwright
+ *  would call visible, and a thumb would land on it blindly. */
+Then("pane {int}'s close button is drawn", async function (this: OlaiWorld, index: number) {
+  await this.waitUntil(async () => (await opacityOf(this, index)) === "1",
+    `pane ${index}'s close button to be drawn`);
 });

@@ -40,7 +40,9 @@ On a desktop the tabs stand in the header, over the page, and `Cmd` + `Shift` + 
 
 [^inbox]: The inbox is an ordinary outline that captured lines land in, and you can type into it. The **Inbox** badge counts the rows in it marked **To do** or **Doing**, at any depth. A row marked done or cancelled leaves the count, a row with no mark was never in it, and the badge is hidden when the count is zero.
 
-[^panes]: `Alt` + `←` and `Alt` + `→` move the focus only when you are not typing: while the caret is in a row they stay the text box's own word jump, so press `Escape` first. `Alt` + click on a link to a heading inside a document, or on a line of a document's contents, opens that document at the heading. `Cmd` + click, middle-click and `Shift` + click stay the browser's own, and open a new browser tab or window.
+[^panes]: The pane you are in has an accent line along its top. The layout plugin's page says what else a pane draws ([plugins/layout.md](plugins/layout.md)).
+
+    `Alt` + `←` and `Alt` + `→` move the focus only when you are not typing: while the caret is in a row they stay the text box's own word jump, so press `Escape` first. `Alt` + click on a link to a heading inside a document, or on a line of a document's contents, opens that document at the heading. `Cmd` + click, middle-click and `Shift` + click stay the browser's own, and open a new browser tab or window.
 
 [^chatpane]: A conversation is a page of its own address, so it opens in a pane and comes back with a reload like any other page ([node agents](node-agents.md)). **Open beside ›** on a chat puts the row or document it is about in the pane next to it.
 

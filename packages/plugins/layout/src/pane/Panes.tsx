@@ -8,14 +8,18 @@
  * On a narrow screen the same list projects to a tab strip over one
  * column. The URL is the list either way (`../workspace.ts`).
  *
- * One pane is a plain page: no header, no ring, no rail. Closing the
+ * One pane is a plain page: no header, no mark, no rail. Closing the
  * second-to-last returns to that.
+ *
+ * A split draws no boxes. Each pane keeps one quiet line on paper — its page's
+ * name and a close button — and the pane with the caret is marked by a 2px
+ * accent edge along its top and its name in ink.
  */
 import { TESTID } from "olai-plugin-layout/testids"
 import type {Navigation} from "olai-plugin-navigation/contract"
 import { createSignal,createMemo,createSelector,createComputed,createEffect,on,For,onCleanup,Show } from "solid-js"
 
-import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
+import { SHOWN_WITHOUT_HOVER, TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
 import { drag as pointerDrag } from "@olai/web/client/pointer.ts"
 
@@ -218,17 +222,19 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
             <Divider left={pane.index() - 1} right={pane.index()} row={() => row} onLive={setLive} />
           </Show>
           <Show when={columns() && share() === 0}><Rail index={pane.index()} pane={reading()} focused={() => focused(pane.index())} /></Show>
-          <div ref={root => { element = root; onCleanup(pane.mount(root)) }} class="flex min-h-0 min-w-0 flex-col"
+          <div ref={root => { element = root; onCleanup(pane.mount(root)) }} class="group/pane flex min-h-0 min-w-0 flex-col"
             data-pane-id={pane.id}
             style={{ display: drawn() ? undefined : "none", "flex-grow": columns() ? String(share()) : "1", "flex-basis": "0" }}
-            // WHICH PANE HAS THE CARET, as an OUTLINE rather than a ring: a
-            // Tailwind `ring` is a `box-shadow`, and High Contrast deletes
-            // box-shadows outright — so the one mark that said which half of a
-            // split a keystroke would land in simply vanished there. An inset
-            // outline draws the same two pixels inside the same box and is a
-            // real border-adjacent property the forcing repaints rather than
-            // throws away.
-            classList={{ "outline-2 -outline-offset-2 outline-accent": columns() && focused(pane.index()) }}>
+            // WHICH PANE HAS THE CARET: a 2px accent edge along its TOP, and
+            // a 2px gap where the others would wear it, so the panes' lines
+            // stand level. A border rather than a box-shadow, which High
+            // Contrast deletes; and only the focused pane has one, because a
+            // transparent border is repainted in the screen's own colour there
+            // and every pane would look marked.
+            classList={{
+              "border-t-2 border-accent": columns() && focused(pane.index()),
+              "pt-[2px]": columns() && !focused(pane.index()),
+            }}>
             <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
             <div ref={host => { scrolls.set(host, { top: 0, left: 0, anchor: undefined }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
               // WHAT A STICKY ROW INSIDE THIS PAGE CLEARS. A column is its own
@@ -294,7 +300,7 @@ function Header(props: { readonly index: number; readonly pane: Pane; readonly r
 
   return (
     <div
-      class="flex h-8 shrink-0 cursor-grab items-center gap-1 border-b border-rule bg-desk px-2"
+      class="flex h-8 shrink-0 cursor-grab items-center gap-1 pl-10 pr-2"
       data-testid={TESTID.paneHeader}
       data-pane={String(props.index)}
       data-pane-focused={focused() ? "true" : undefined}
@@ -324,12 +330,16 @@ function Header(props: { readonly index: number; readonly pane: Pane; readonly r
         })
       }}
     >
-      <span class="min-w-0 flex-1 truncate text-label text-muted">
+      <span class="min-w-0 flex-1 truncate text-label"
+        classList={{ "font-medium text-ink": focused(), "text-muted": !focused() }}>
         {nameOf(props.pane.route)}
       </span>
+      {/* THE × ON HOVER of the pane and on keyboard focus, and always where
+          there is no hover to make the offer with (`SHOWN_WITHOUT_HOVER`). A
+          transparent button is still in the tab order, which is the point. */}
       <button
         type="button"
-        class={`${TARGET_BOX} inline-flex items-center justify-center rounded-control text-muted hover:text-ink`}
+        class={`${TARGET_BOX} inline-flex items-center justify-center rounded-control text-muted opacity-0 hover:text-ink focus-visible:opacity-100 group-hover/pane:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
         data-testid={TESTID.paneClose}
         aria-label={`Close ${nameOf(props.pane.route)}`}
         onClick={() => router.close(props.index)}
@@ -347,7 +357,8 @@ function Rail(props: { readonly index: number; readonly pane: Pane; readonly foc
     <button
       type="button"
       class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule bg-desk py-3 text-muted hover:text-ink"
-      classList={{ "outline-2 -outline-offset-2 outline-accent": focused() }}
+      // The same mark a column wears: an accent edge along its top.
+      classList={{ "border-t-2 border-t-accent text-ink": focused() }}
       style={{ width: `${PANE_RAIL_PX}px` }}
       data-testid={TESTID.paneRail}
       data-pane={String(props.index)}
@@ -435,13 +446,17 @@ function Divider(props: {
  * ITS HEIGHT IS THE TABS TOKEN, because a page under it pins its own head at
  * `--height-chrome` — the bar plus this strip — and a strip whose height was
  * whatever its padding came to would be a second spelling of that sum.
+ *
+ * Each pane's tab wears the desktop tab's shape (`olai-plugin-tabs`' strip):
+ * the one in front is paper with a rule round its top and sides, standing on
+ * the strip's hairline and painting over it where it meets its page.
  */
 function TabStrip() {
   const router = useRouter()
   const isFocused = createSelector(router.focusIndex)
   return (
     <div
-      class={`sticky top-[var(--height-header)] ${LAYER.strip} flex h-[var(--height-tabs)] shrink-0 items-center gap-1 overflow-x-auto border-b border-rule bg-desk px-2`}
+      class={`sticky top-[var(--height-header)] ${LAYER.strip} flex h-[var(--height-tabs)] shrink-0 items-end gap-0.5 overflow-x-auto bg-desk px-2 shadow-[inset_0_-1px_0_var(--color-rule)]`}
       data-testid={TESTID.paneTabs}
       role="tablist"
       aria-label="Panes"
@@ -456,12 +471,12 @@ function TabStrip() {
               aria-selected={focused()}
               aria-current={focused() ? "page" : undefined}
               // `olai-tab-filled` is the forced-colours hook for a tab told by
-              // its paint (`@olai/ui-primitives/all.css`), and the edge is an
-              // outline rather than a `ring-1`, which is a box-shadow High
-              // Contrast deletes.
-              class="olai-tab-filled shrink-0 truncate rounded-control px-2 py-1 text-label text-muted hover:text-ink"
+              // its paint (`@olai/ui-primitives/all.css`): paper under the tab
+              // in front is a background, and High Contrast throws those away.
+              class="olai-tab-filled h-[1.875rem] max-w-[14rem] shrink-0 truncate rounded-t-control border border-b-0 px-2 text-label"
               classList={{
-                "bg-panel text-ink outline-1 outline-accent": focused(),
+                "border-rule bg-paper font-medium text-ink": focused(),
+                "border-transparent text-muted hover:text-ink": !focused(),
               }}
               data-testid={TESTID.paneTab}
               data-pane={String(i())}
