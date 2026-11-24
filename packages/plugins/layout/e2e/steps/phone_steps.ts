@@ -25,7 +25,6 @@ import {
   SPACES_PILL,
   NODE_GUTTER,
   NODE_TITLE,
-  OUTLINE_LIST,
   OUTLINE_TREE,
   PREFS_TRIGGER,
   SIDEBAR_BODY,
@@ -36,6 +35,11 @@ import {
 } from "@olai/tests/harness/world.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
+import { selector } from "@olai/web/testlib";
+
+/** Who is signed in: one chip, whichever of its faces it draws. */
+const IDENTITY = selector(PLUGIN_TESTID.identity);
 
 // ── the thumb ──────────────────────────────────────────────────────────
 //
@@ -197,8 +201,9 @@ Then("the app header is on screen", async function (this: OlaiWorld) {
 
 /** Every chrome control's border box lies inside the header's own.
  *
- *  Desktop: the health dot and the preferences gear — the whole of what
- *  stands in the bar besides search and who is looking. A
+ *  Desktop: the Search door, the health dot and who is signed in — the
+ *  whole of what stands in the bar's right end (Preferences is a line in the
+ *  dot's list, drawn only while that list is open). A
  *  fixed-height bar with flex-wrap used to centre a wrapped pill group so
  *  the first row sat above the viewport. The assertion is geometry, not a
  *  colour: the header's own box is the clip region. Phone chrome is the
@@ -206,8 +211,9 @@ Then("the app header is on screen", async function (this: OlaiWorld) {
 Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   const pills = [
+    { name: "search door", sel: HEADER_SEARCH_OPEN },
     { name: "health dot", sel: HEALTH },
-    { name: "preferences trigger", sel: PREFS_TRIGGER },
+    { name: "who is signed in", sel: IDENTITY },
   ];
   for (const pill of pills) {
     const box = await this.box(this.page.locator(pill.sel), pill.name);

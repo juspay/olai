@@ -7,11 +7,11 @@ olai calls a `.md` file a document. The `markdown` plugin draws the page you rea
 | Part | What it is |
 | --- | --- |
 | the heading | the file's path, in a monospaced face |
-| **Edit** and **Delete…** | drawn together, only for a file in the directory olai serves |
+| **Edit** and **Delete…** | words, only for a file in the directory olai serves[^verbs] |
 | the line at the top | a chat about this document[^line][^keys] |
 | the properties | one chip per key in the file's frontmatter, the keys at its top[^props] |
 | plugins' additions | what plugins you turned on draw above the text[^head] |
-| **Contents** | the document's headings, open by default[^contents] |
+| **Contents** | the document's headings, closed until clicked[^contents] |
 | the body | the document, rendered[^blocks][^pictures] |
 | **Referenced by `N` things** | what points at this document[^referrers] |
 | plugins' additions | what plugins you turned on draw under the text[^foot] |
@@ -39,11 +39,13 @@ Switching `markdown` off takes away document pages and the read and write proced
 
 [^what]: The `markdown` plugin claims `.md` files. What a document is, and how it is written, is in [../documents-and-kinds.md](../documents-and-kinds.md).
 
+[^verbs]: Each is drawn as a word, and outlined while you point at it or reach it with `Tab`.
+
 [^props]: A property's value is drawn as a link when it names a web address, or a file, a row or a day that this olai can open.
 
 [^head]: What plugins draw above a document's text is hung in the slot `document.page.head` ([../dynamic-plugins-faces.md](../dynamic-plugins-faces.md)).
 
-[^contents]: The list of headings is drawn only when the document has more than one heading.
+[^contents]: The line is drawn only when the document has more than one heading. It is shut each time you open a document, and opening it on one document leaves the next one shut.
 
 [^blocks]: A fenced block whose language is a plugin's name is drawn by that plugin, through `document.block`, in place of the code ([../dynamic-plugins-faces.md](../dynamic-plugins-faces.md)). Only a document's own page does this; anywhere else the block is code.
 

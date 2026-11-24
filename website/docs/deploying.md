@@ -61,7 +61,7 @@ separated by commas.[^origins]
 
 A proxy in front of olai can add headers that carry the login of the person
 who made the request.[^identity] olai shows a small face at the top right of
-the header bar, beside the Preferences gear.[^trust]
+the header bar, beside the health dot.[^trust]
 
 | What arrived | The face says |
 | --- | --- |

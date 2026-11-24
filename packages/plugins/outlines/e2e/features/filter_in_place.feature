@@ -150,13 +150,13 @@ Feature: Filtering the outline in place
     Then the outline has 0 rows
     And the filter found "No matches of 10 — 2 matches hidden as done"
 
-  Scenario: The header's box refuses the same operator, in the same words
-    # One grammar, four doors. The filter parses for itself; the header box,
-    # the ⌘K palette and an agent ask the server — and a door that answered
-    # `is:open` with an empty list and no reason would be the one place a
-    # typo looks exactly like an empty directory.
+  Scenario: The palette refuses the same operator, in the same words
+    # One grammar, three doors. The filter parses for itself; the ⌘K palette
+    # (which the header's search button opens) and an agent ask the server —
+    # and a door that answered `is:open` with an empty list and no reason would
+    # be the one place a typo looks exactly like an empty directory.
     Given I open the outline "house.olai"
-    When I search the header for "is:open"
+    When I search from the header for "is:open"
     Then the search refuses "is:open" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
 
   Scenario: Pressing a `#tag` filters the page by it
@@ -295,6 +295,26 @@ Feature: Filtering the outline in place
     And the filter box has "not" selected
     And the filter hint is not shown
     And the filter box has the focus
+    And there should be no page errors
+
+  # No box at rest, so the page's first line is its rows: the filter is the word
+  # `Filter`, and a box on hover, on focus, and for as long as a filter is in
+  # force — a narrowed page always shows what narrowed it, pointer or not.
+  Scenario: The filter is a word at rest and a box while it is in use
+    Given I open the outline "house.olai"
+    And the pointer is away from the controls
+    Then the filter box is drawn without a box
+    When I point at the filter box
+    Then the filter box is drawn as a box
+    When the pointer is away from the controls
+    Then the filter box is drawn without a box
+    When I focus the filter box
+    Then the filter box is drawn as a box
+    When I type "hinges" into the filter box
+    And I press "Tab" in the filter box
+    And the pointer is away from the controls
+    Then the filter box holds "hinges"
+    And the filter box is drawn as a box
     And there should be no page errors
 
   Scenario: Clearing the box brings the hint back, and Escape in a filled box still empties it

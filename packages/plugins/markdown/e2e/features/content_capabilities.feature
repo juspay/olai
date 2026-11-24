@@ -175,7 +175,6 @@ Feature: Outline and Markdown capabilities have independent lifetimes
   # its files from Reference; restoring it republishes them on the same page.
   Scenario: Markdown files leave the tree with their row and return without reload
     Given I open the outline "house.olai"
-    And I expand the reference section
     And I mark the page
     Then the outline list links to "house.olai"
     And the document link "finishes.md" is shown

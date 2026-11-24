@@ -8,13 +8,14 @@ import { Page } from "./errors/Page.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { troubleIn } from "./errors/banner.ts"
 import type { Directory } from "./state.ts"
+import { PAGE_INSET } from "olai-plugin-layout/clearance"
 export function Status(props: { readonly served: Directory }) {
  const errors=client().cells.errors.use()
  const problems=()=>errors.value()??NOTHING_WRONG
  const trouble=()=>troubleIn(props.served.broken(),problems())
  return <Show when={props.served.standing()==="loaded"} fallback={
-   <Show when={props.served.standing()==="never"} fallback={<p class="p-8 text-muted">Loading…</p>}>
+   <Show when={props.served.standing()==="never"} fallback={<p class={`${PAGE_INSET} text-muted`}>Loading…</p>}>
      <Page verdict={problems()} />
    </Show>
- }><Show when={trouble()}>{it=><div class="px-4 pt-4 md:px-12 lg:pl-16"><Banner trouble={it()}/></div>}</Show></Show>
+ }><Show when={trouble()}>{it=><div class={PAGE_INSET}><Banner trouble={it()}/></div>}</Show></Show>
 }

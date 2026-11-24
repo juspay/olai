@@ -46,26 +46,29 @@ Feature: The person sees and uses the browser their agents use
     Then the browser pane shows 1 tab
     And there should be no page errors
 
-  Scenario: The sidebar's Browser door opens the pane, and so does the collapsed rail's
-    When I press the sidebar's Browser door
+  # The sidebar lists where a person goes and what needs them: the agents'
+  # browser is a line in the health dot's list (the first scenario) and a
+  # palette row (below), and has no door in the column or on the rail.
+  Scenario: The browser has no door in the sidebar or on the rail
+    Then the sidebar has no Browser door
+    When I collapse the sidebar
+    Then the rail has no Browser door
+    When I press the palette shortcut
+    And I type "open browser" into the palette
+    And I pick the palette item "Open browser"
     Then pane 0 draws the browser page
     And the address is "/browser"
-    And the sidebar's Browser door is current
-    And the browser pane says the browser is down
-    When I open the outline "house.olai"
-    And I collapse the sidebar
-    And I press the rail's Browser door
-    Then pane 0 draws the browser page
     When I start the browser from the pane
     Then the browser pane says the browser is up
     And there should be no page errors
 
   @phone
-  Scenario: On a phone the drawer's Browser door is the way to the pane
-    # The health popover's rows leave the phone's bar, and the palette wants a
-    # keyboard: the drawer is how a phone reaches the browser.
-    When I tap the burger
-    And I tap the drawer's Browser door
+  Scenario: On a phone the palette is the way to the pane
+    # The health popover's rows leave the phone's bar; the bar's magnifier
+    # opens the palette, and its Open browser row reaches the pane.
+    When I tap the header search
+    And I type "open browser" into the palette
+    And I pick the palette item "Open browser"
     Then pane 0 draws the browser page
     And the address is "/browser"
     When I tap Start in the browser pane

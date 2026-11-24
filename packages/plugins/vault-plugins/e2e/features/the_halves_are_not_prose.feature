@@ -20,7 +20,7 @@ Feature: A plugin's halves are kept, and they are not prose
   THE PALETTE IS THE DOOR THEY ASK AT, because it is the one place a person
   meets the document list and the search's tag facet in the same box: typing
   `#rrggbb` asks for a tag, typing `swatch` asks for a word, and both answer
-  out of the same reading `markdown_index`, the sidebar's Reference tree and a
+  out of the same reading `markdown_index`, the sidebar's file tree and a
   declared `doc` property are answered from. A scenario per fact would be three
   openings of one modal to ask one question.
 

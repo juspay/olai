@@ -17,7 +17,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import {
   APP_HEADER,
-  OUTLINE_LIST,
+  FILE_LIST,
   SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_COLLAPSE,
@@ -90,7 +90,7 @@ Then("the directory column is pinned under the header", async function (this: Ol
 Then("the file tree is still on screen", async function (this: OlaiWorld) {
   const viewport = this.viewport();
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
-  const tree = await this.box(this.page.locator(OUTLINE_LIST), "the file tree");
+  const tree = await this.box(this.page.locator(FILE_LIST), "the file tree");
   const seam = header.y + header.height;
   assert.ok(
     tree.y + tree.height > seam && tree.y < viewport.height,
@@ -210,5 +210,5 @@ Then(
 
 
 When("I bring the file tree into the directory viewport", async function (this: OlaiWorld) {
-  await this.page.locator(OUTLINE_LIST).scrollIntoViewIfNeeded();
+  await this.page.locator(FILE_LIST).scrollIntoViewIfNeeded();
 });

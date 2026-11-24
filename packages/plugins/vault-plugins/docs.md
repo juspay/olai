@@ -7,8 +7,8 @@
 | Thing | What it is |
 | --- | --- |
 | the folders | `plugins/<name>/`, holding `README.md`, `server.ts`, `browser.tsx` and any other `.ts` or `.tsx` files |
-| the files it claims | `.ts` and `.tsx` files under `plugins/`, shown on the plugin's page rather than under **Reference** |
-| the pages | `/plugins/<name>`, the chat about each,[^builder] the sidebar's **Plugins** section, and `/plugins/<name>/app`, drawn by the plugin |
+| the files it claims | `.ts` and `.tsx` files under `plugins/`, shown on the plugin's page, not in **Files** |
+| the pages | `/plugins/<name>`, the chat about each,[^builder] the sidebar's **Plugins** section below the files, and `/plugins/<name>/app`, drawn by the plugin |
 | the palette | **New plugin**, its two steps, and the `+` on the section's heading |
 | the tools | `vault-plugins_guide`, `_inspect`, `_write`, `_run` and `_stop` |
 

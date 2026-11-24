@@ -3,15 +3,12 @@
     "src/tools.ts": 2
   },
   "files": {
-    "src/browser.tsx": 7,
+    "src/browser.tsx": 3,
     "src/browser/KindSelector.tsx": 1,
     "src/table.ts": 5
   },
   "markdown": {
     "src/tools.ts": 1
-  },
-  "navigation": {
-    "src/browser/HeaderSearch.tsx": 2
   },
   "outlines": {
     "src/matcher.ts": 4,

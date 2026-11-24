@@ -18,6 +18,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { foundCount } from "@olai/tests/harness/counted.ts";
+import { painted } from "@olai/tests/harness/paint.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
 import {
   attr,
@@ -376,6 +377,33 @@ When("I focus the filter box", async function (this: OlaiWorld) {
   const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await box.focus();
+});
+
+When("I point at the filter box", async function (this: OlaiWorld) {
+  const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await box.hover();
+});
+
+/** WHETHER THE BOX IS DRAWN: a border and a ground that both paint. At rest
+ *  the filter is the word `Filter` alone; on hover, on focus and while a
+ *  filter is in force it is a box. */
+const boxDrawn = async (world: OlaiWorld): Promise<boolean> => {
+  const { border, ground } = await world.frontLane().locator(`${FILTER_INPUT}:visible`).first().evaluate((input) => {
+    const style = getComputedStyle(input);
+    return { border: style.borderTopColor, ground: style.backgroundColor };
+  });
+  return painted(border) && painted(ground);
+};
+
+Then("the filter box is drawn without a box", async function (this: OlaiWorld) {
+  await this.frontLane().locator(`${FILTER_INPUT}:visible`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => !(await boxDrawn(this)), "the filter to be a word with no box round it");
+});
+
+Then("the filter box is drawn as a box", async function (this: OlaiWorld) {
+  await this.frontLane().locator(`${FILTER_INPUT}:visible`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(() => boxDrawn(this), "the filter to be drawn as a box");
 });
 
 When("I press {string} in the filter box", async function (this: OlaiWorld, key: string) {

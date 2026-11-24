@@ -98,7 +98,7 @@ export const components = {
    *  something to draw (`./browser/Section.tsx`). */
   section: definePlugin({ name: "section", needs: [browserManagement, Slots], apply: Effect.gen(function*() {
     const management = yield* browserManagement
-    yield* (yield* Slots).register("sidebar.section", { said: SECTION, body: () => <Section management={management} /> })
+    yield* (yield* Slots).register("sidebar.section", { said: SECTION, place: "bottom", body: () => <Section management={management} /> })
   }) }),
 
   /** THE PLUGIN'S PAGE, as a self-drawn route. Navigation mounts the face

@@ -135,7 +135,7 @@ The plugin's page shows every code file, and its version is a hash of all of the
 
 olai treats these files as a plugin only under `plugins/`, so a code checkout somebody keeps beside their notes is untouched. They stay plain text: stored like any other file, recorded in the ledger, and listed by path in the commit panel, where you commit changes.
 
-They are not rows in the sidebar's **Reference** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/reader/lib/sm2.ts` opens the plugin at that file.
+They are not rows in the sidebar's **Files** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/reader/lib/sm2.ts` opens the plugin at that file.
 
 ## What each file may import
 

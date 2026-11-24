@@ -3,7 +3,7 @@ Feature: One health dot stands where the bar's pills stood
   readout, kolu, odu, mail and spaces pills, how long the server had been up,
   and two doors (plugins, preferences). Each was always there, because a bar of
   chips cannot be trusted if the healthy ones vanish. The owner chose calm: the
-  wordmark, search, ONE health dot, the preferences gear and who is looking.
+  name, the tabs, search, ONE health dot and who is looking.
 
   The dot keeps the old promise with one mark. It is always drawn; it wears
   the worst tone among everything reporting (healthy, notice, alarm); and when
@@ -11,7 +11,7 @@ Feature: One health dot stands where the bar's pills stood
   words, so a dropped connection is heard without opening anything. Its
   popover draws every readout as a row — still that plugin's own face, so a
   row's press does what the pill's did — the uptime as a quiet last line, and
-  the plugins door at its foot. A plugin switched off takes its row and its
+  the Preferences and Plugins doors at its foot. A plugin switched off takes its row and its
   vote with it; switched back on, both return.
 
   A phone is untouched: no dot, no pills, news under the bar only when there
@@ -31,6 +31,7 @@ Feature: One health dot stands where the bar's pills stood
       | padi            |
       | commit-pill     |
       | uptime          |
+      | prefs-trigger   |
       | plugins-trigger |
     And there should be no page errors
 
@@ -146,6 +147,7 @@ Feature: One health dot stands where the bar's pills stood
     When I open the health popover
     Then the health popover lists, in order:
       | uptime          |
+      | prefs-trigger   |
       | plugins-trigger |
     When I open the plugins panel
     # Picking the row shuts the popover; the panel hangs off the dot.
@@ -156,6 +158,33 @@ Feature: One health dot stands where the bar's pills stood
     When I close the plugins panel
     Then the health popover is shut
     And the health dot has the focus
+    And there should be no page errors
+
+  # Preferences is the second door at the foot, above Plugins — the order the
+  # phone drawer's foot reads. No gear stands in the bar. With the preferences
+  # plugin switched off its line leaves the list, and the bar stays as it was.
+  @scratch:good
+  Scenario: The preferences open from the popover's foot, and leave with their plugin
+    Given I open the outline "garden.olai"
+    Then the desktop header holds only its calm controls
+    When I open the health popover
+    Then the health popover lists, in order:
+      | prefs-trigger   |
+      | plugins-trigger |
+    When I open the preferences
+    Then the preferences are open
+    And the health popover is shut
+    When I press Escape on the preferences
+    Then the preferences are shut
+    And the health dot has the focus
+    When I open the plugins panel
+    And I switch the plugin "preferences" off
+    And I close the plugins panel
+    And I open the health popover
+    Then the health popover lists, in order:
+      | plugins-trigger |
+    And the health popover has no "prefs-trigger" row
+    And the desktop header holds only its calm controls
     And there should be no page errors
 
   @scratch:good @phone

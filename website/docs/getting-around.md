@@ -8,11 +8,12 @@ The sidebar lists the files olai serves and your pinned pages, tabs keep several
 
 | Section | What it lists |
 | --- | --- |
-| **Outlines** | Outline files, which hold rows, and their folders[^plus] |
-| **Reference** | Every other file olai serves, grouped by folder and collapsed[^reference] |
-| **olai** | The outlines olai keeps for itself, in the `_olai/` folder[^olai] |
-| **Trash** | Rows you have put away, pinned at the foot of the column |
-| **Inbox** | Beside **Agenda** at the top, once the directory has an inbox[^inbox] |
+| **Agenda**, **Today**, **Inbox** | What is owed, today, captured lines[^inbox] |
+| **Needs you**, **Pinned** | Chats waiting on you; pinned pages |
+| **Files** | Every file olai serves, outlines and the rest together, by name[^plus][^files] |
+| **olai** | Files olai keeps for itself, in `_olai/`[^olai] |
+| **Chats**, **Plugins** | Your conversations and plugins |
+| **Trash** | Rows you put away |
 
 `Cmd` + `\` shows or hides the column.
 
@@ -26,21 +27,23 @@ Pinned pages sit in a list between the calendar and the file tree. You can pin a
 
 ## Keep several pages open
 
-On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` opens a new one.[^tabs] Each tab holds one page or a split of panes, and keeps its filter and scroll position.[^tabstate][^tabsback]
+On a desktop the tabs stand in the header, over the page, and `Cmd` + `Shift` + `O` opens a new one.[^tabs] Each tab holds one page or a split of panes, and keeps its filter and scroll position.[^tabstate][^tabsback]
 
 ## Use the palette, and capture a line
 
 `Cmd` + `K` opens the palette, a search box with commands under it. It opens pages, searches the directory, runs commands on the row you are zoomed into, and reaches your chats ([search.md](search.md)).[^palette] Type `+` and a line, press `Enter`, and it goes to the directory's inbox; you stay on the page.[^capture][^inboxfile] `olai surface capture` sends a line from a terminal.[^terminal]
 
-[^plus]: The `+` on the **Outlines** heading holds **New outline** and **New document** ([editing.md](editing.md)).
+[^plus]: The `+` on the **Files** heading holds **New outline** and **New document** ([editing.md](editing.md)). Every `+` and arrow in the column appears when you point at the column or reach it with `Tab`, and stays drawn on a touch screen.
 
-[^reference]: The **Reference** section counts the files beside each folder's name. Opening a document opens that section and the folders leading to the file, and marks the file's row; going back to an outline restores the folds you chose. Empty folders are left out, a folder holding both kinds of file appears in both trees, and a directory with only outlines has no **Reference** heading.
+[^files]: Each row's glyph says what kind of file it is. Folders and files share one order by name, and a folder holding outlines and documents appears once, with both inside. Folders start collapsed and empty ones are left out. Opening a file opens the folders leading to it and marks its row, and the folders you open yourself are remembered in this browser.
 
 [^olai]: The **olai** section is drawn only when the `_olai/` folder has files in it. Those files are part of the directory either way: search finds them, an agent lists them, and git records them. What changes is only whether this list of rows is drawn. An outline olai cannot read shows a ⚠ here, as it does everywhere else.
 
 [^inbox]: The inbox is an ordinary outline that captured lines land in, and you can type into it. The **Inbox** badge counts the rows in it marked **To do** or **Doing**, at any depth. A row marked done or cancelled leaves the count, a row with no mark was never in it, and the badge is hidden when the count is zero.
 
-[^panes]: `Alt` + `←` and `Alt` + `→` move the focus only when you are not typing: while the caret is in a row they stay the text box's own word jump, so press `Escape` first. `Alt` + click on a link to a heading inside a document, or on a line of a document's contents, opens that document at the heading. `Cmd` + click, middle-click and `Shift` + click stay the browser's own, and open a new browser tab or window.
+[^panes]: The pane you are in has an accent line along its top. The layout plugin's page says what else a pane draws ([plugins/layout.md](plugins/layout.md)).
+
+    `Alt` + `←` and `Alt` + `→` move the focus only when you are not typing: while the caret is in a row they stay the text box's own word jump, so press `Escape` first. `Alt` + click on a link to a heading inside a document, or on a line of a document's contents, opens that document at the heading. `Cmd` + click, middle-click and `Shift` + click stay the browser's own, and open a new browser tab or window.
 
 [^chatpane]: A conversation is a page of its own address, so it opens in a pane and comes back with a reload like any other page ([node agents](node-agents.md)). **Open beside ›** on a chat puts the row or document it is about in the pane next to it.
 

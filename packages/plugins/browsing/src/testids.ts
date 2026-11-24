@@ -14,8 +14,6 @@ export const TESTID = {
   browserForget: "browser-forget",
   browserForgetConfirm: "browser-forget-confirm",
   browserSaid: "browser-said",
-  browserEntry: "browser-entry",
-  railBrowser: "rail-browser",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

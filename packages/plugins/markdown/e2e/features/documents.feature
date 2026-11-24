@@ -1,7 +1,7 @@
 @share-scratch
 Feature: Documents
   A `.md` under the served directory is a document with a page of its own.
-  Reference lists it under its folders whether or not an outline names it.
+  The sidebar's file tree lists it under its folders whether or not an outline names it.
   A relative link in a node's note opens the document on its own page.
 
   The markdown is the same pipeline a note goes through, so what is proved here
@@ -15,8 +15,7 @@ Feature: Documents
   Scenario: Every document found has a page, and the sidebar says so
     When I open the app
     # Folders start collapsed; open `notes` so the nested document is listed.
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md"
     Given I mark the page
     When I click the document "notes/palette.md"
@@ -49,15 +48,14 @@ Feature: Documents
     And the page has not reloaded
     And there should be no page errors
 
-  # One reading, two doors — the rule the node hits already keep. A box that
-  # found a document while the chord beside it did not would be the same drift
-  # inside one client.
+  # The header's search button opens the same palette, so a reader who never
+  # learnt the chord reaches the same document the same way.
   @corpus:good
-  Scenario: The header's box finds the same document, drawn the same way
+  Scenario: The header's search button finds the same document
     Given I open the outline "house.olai"
-    When I search the header for "palette"
-    Then the header search lists the document "notes/palette.md"
-    When I press the header search result "palette.md"
+    When I search from the header for "palette"
+    Then the palette lists the document "notes/palette.md"
+    When I pick the palette item "palette.md"
     Then the document open is "notes/palette.md"
     And the address is "/notes/palette.md"
     And there should be no page errors
@@ -102,28 +100,34 @@ Feature: Documents
   # link on every heading, and a contents derived from them at view time. There
   # is nothing stored to go stale — what a line of the contents points at is an
   # id the rendered page is carrying.
+  #
+  # Contents arrives as ONE CLOSED LINE with no box round it, so the first
+  # thing under the page's head is the document's own text; a click opens it.
   @corpus:good
-  Scenario: A document opens with a contents of its own headings
+  Scenario: A document opens with its contents shut, and a click opens it
     When I open the document "kitchen-sink.md"
-    Then the contents is open
+    Then the contents is shut
+    And the contents is drawn as one line with no box
     And the contents lists every heading in the document
-    # A survey you cannot put away is furniture. The collapse is the
-    # platform's, so this is the element's own state and not a flag beside it.
+    When I open the contents
+    Then the contents is open
+    # The collapse is the platform's, so this is the element's own state and
+    # not a flag beside it.
     When I shut the contents
     Then the contents is shut
     And there should be no page errors
 
   # `open` is an attribute the BROWSER owns once a reader has touched it, so
-  # "open by default" is only true of a document that gets its own `<details>`.
+  # "shut on arrival" is only true of a document that gets its own `<details>`.
   # This pins the PROMISE rather than either mechanism that keeps it (the
   # keyed block in `Toc.tsx`, and the frame a new body has not arrived in yet)
   # — it stays green while at least one of them holds, and says so when
   # neither does. Asked in both directions, because coming BACK to the document
-  # you shut is the sharp half.
+  # you opened it on is the sharp half.
   @scratch:good
-  Scenario: A contents shut on one document does not follow you to the next
+  Scenario: A contents opened on one document does not follow you to the next
     Given I open the document "kitchen-sink.md"
-    And I shut the contents
+    And I open the contents
     And I rewrite "notes/wiring.md" as:
       """
       # Wiring
@@ -136,24 +140,46 @@ Feature: Documents
 
       One more, on its own breaker.
       """
-    When I expand the reference section
     When I expand the folder "notes"
     And I click the document "notes/wiring.md"
     Then the document open is "notes/wiring.md"
-    And the contents is open
+    And the contents is shut
     When I click the document "kitchen-sink.md"
     Then the document open is "kitchen-sink.md"
-    And the contents is open
+    And the contents is shut
 
+  # The line is reached as a reader reaches it: open Contents, then the line.
   @corpus:good
   Scenario: A line of the contents lands on its heading
     When I open the document "kitchen-sink.md"
-    And I follow the contents line "Footnotes"
+    Then the contents is shut
+    When I follow the contents line "Footnotes"
+    Then the contents is open
     # The address, because the whole point of an anchor is that it can be
     # copied and handed to somebody — and it is asked against the HEADING,
     # because a fragment that names nothing changes the address too.
-    Then the address names the heading "Footnotes"
+    And the address names the heading "Footnotes"
     And the heading "Footnotes" is at the top of the pane
+
+  # The page's verbs are words until pointed at: an outlined pair above every
+  # document was louder than its path. The keyboard reaches each and draws its
+  # border as the pointer does, so a person tabbing sees where they are.
+  @corpus:good
+  Scenario: Edit and Delete… are words until pointed at or reached by the keyboard
+    When I open the document "kitchen-sink.md"
+    And the pointer is away from the controls
+    Then the document's "Edit" is a word with no border
+    And the document's "Delete…" is a word with no border
+    When I point at the document's "Edit"
+    Then the document's "Edit" is outlined
+    And the document's "Delete…" is a word with no border
+    When I click the document's path and press Tab
+    And the pointer is away from the controls
+    Then the document's "Edit" has the keyboard, and is outlined
+    When I press "Tab"
+    Then the document's "Delete…" has the keyboard, and is outlined
+    And the document's "Edit" is a word with no border
+    And there should be no page errors
 
   # A `.md` may open with a `---` block, and the block is the document's own
   # RECORD rather than the first thing it says. It was neither: the parser had
@@ -213,11 +239,12 @@ Feature: Documents
   @corpus:good
   Scenario: A document is found by a property its frontmatter writes
     Given I open the outline "house.olai"
-    When I search the header for "prop:agent=claude-opus"
-    Then the header search lists the document "notes/palette.md"
-    And the header search result for the document "notes/palette.md" is called "Palette"
-    And the header search result "Palette" shows the property "agent" holding "claude-opus"
-    And the header search result "Palette" marks "agent" as why it matched
+    When I press the palette shortcut
+    And I type "prop:agent=claude-opus" into the palette
+    Then the palette lists the document "notes/palette.md"
+    And the palette result for the document "notes/palette.md" is called "Palette"
+    And the palette result "Palette" shows the property "agent" holding "claude-opus"
+    And the palette result "Palette" marks "agent" as why it matched
     And there should be no page errors
 
   # The title is the first line's WORDS: markup on it is the page's business,
@@ -229,8 +256,9 @@ Feature: Documents
       """
       **Palette** for the [kitchen](../house.olai)
       """
-    And I search the header for "Palette"
-    Then the header search result for the document "notes/palette.md" is called "Palette for the kitchen"
+    And I press the palette shortcut
+    And I type "Palette" into the palette
+    Then the palette result for the document "notes/palette.md" is called "Palette for the kitchen"
     And there should be no page errors
 
   # A text nested past the parse's bound is still formatted: quotes nest as far
@@ -387,8 +415,7 @@ Feature: Documents
   @scratch:good @own-scratch
   Scenario: A document dropped into the directory joins the sidebar
     Given I open the app
-    When I expand the reference section
-    And I expand the folder "notes"
+    When I expand the folder "notes"
     And I mark the page
     When I rewrite "notes/wiring.md" as:
       """
@@ -396,7 +423,6 @@ Feature: Documents
 
       Two circuits.
       """
-    When I expand the reference section
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And the page has not reloaded
 
@@ -662,17 +688,6 @@ Feature: Documents
     When I press the palette shortcut
     And I type "cabinetmaker" into the palette
     Then the palette lists the document "finishes.md"
-    And there should be no page errors
-
-  # …and the same word through the other door, over the same reading: two doors
-  # that found different things would be the drift the one index exists against.
-  @corpus:good
-  Scenario: The header's box finds a body too
-    Given I open the outline "house.olai"
-    When I search the header for "cabinetmaker"
-    Then the header search lists the document "finishes.md"
-    When I press the header search result "Finishes"
-    Then the document open is "finishes.md"
     And there should be no page errors
 
   @scratch:good

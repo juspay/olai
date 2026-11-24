@@ -4,7 +4,6 @@
   "//image": "The JPEG frame's `data:image/jpeg` MIME type.",
   "//search": "The palette row's `search` words field.",
   "//ws": "The `ws://` scheme of Chromium's DevTools socket.",
-  "//sidebar": "The `sidebar.entry` slot key the Browser door is registered under.",
   "image": {
     "src/browser/Page.tsx": 1
   },
@@ -15,9 +14,6 @@
     "src/testlib/fake-browser-mcp.ts": 1
   },
   "search": {
-    "src/browser.tsx": 1
-  },
-  "sidebar": {
     "src/browser.tsx": 1
   },
   "tabs": {

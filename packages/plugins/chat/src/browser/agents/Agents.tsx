@@ -66,6 +66,8 @@ export function Chats() {
   const focus = createFocus()
   const router = useRouter()
   const now = createNow()
+  const shown = useShown()
+  const readings = agentReadings()
   /** THE CAP COMES AFTER THE ORDER, which is what makes it safe: the awake
    *  rows are already at the top (`./activity-order.ts`), so ten sleeping
    *  chats can never hide the agent that is waiting on an answer. */
@@ -80,7 +82,9 @@ export function Chats() {
     return new Set(agents.rows().filter((row) => isCurrent(servedDirectory()?.claims(), route, row, unfolded(row.id))).map((row) => row.id))
   }, new Set<string>(), { equals: (a, b) => a.size === b.size && [...a].every((id) => b.has(id)) })
   const current = createSelector<ReadonlySet<string>, string>(currentIds, (id, ids) => ids.has(id))
-  return <section class={REGION} data-testid={TESTID.agentRoster}>
+  // `tabIndex={-1}` so a door can put the caret here, which scrolls the list
+  // into view below the files (`./ChatsThumb.tsx`); Tab still walks its rows.
+  return <section ref={element => readings?.rosterSurface(element, shown)} class={REGION} data-testid={TESTID.agentRoster} tabIndex={-1}>
     <div class={REGION_HEAD}>
       <h2 class={REGION_LABEL}>Chats</h2>
       <NewChat />

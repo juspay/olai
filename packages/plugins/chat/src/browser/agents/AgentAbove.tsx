@@ -20,7 +20,7 @@
  * row's own: a search row is itself a link, and a control inside an anchor is a
  * control whose activation is also a navigation (the pins' rule). It navigates
  * through the router and announces `olai-navigated` itself, which is what shuts
- * a palette or a header box after a press that was not the row's own.
+ * the palette after a press that was not the row's own.
  *
  * It is not a tab stop (`tabIndex={-1}`): the row it sits in — a search result,
  * a completion row, a breadcrumb link — stays the single stop, and the door for
@@ -135,7 +135,7 @@ export function CrumbMark(props: { readonly node: string }) {
               if (router === undefined) return
               focusAgent(router, row())
               // What a followed link says after it moved (`routing.tsx`'s
-              // `follow`), so a palette or a header box closes itself.
+              // `follow`), so the palette closes itself.
               event.currentTarget.dispatchEvent(new CustomEvent("olai-navigated", { bubbles: true }))
             }}
           >

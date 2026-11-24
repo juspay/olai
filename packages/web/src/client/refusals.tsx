@@ -1,19 +1,19 @@
 /**
  * WHAT A REFUSED QUERY SAYS, and the rows it says it in.
  *
- * Three of them draw the same list — the filter bar over the page
- * (`./filter/FilterBar.tsx`) and the ⌘K palette and the header's box (both over
- * `./search/nodes.ts`) — because a reader who does not notice a refused
- * operator believes the directory is empty. The SENTENCE was spelled at all
- * three, which is the shape this repo already calls a drift waiting to happen.
- * (The MARKUP was three-fold too, for one release: the bar's line went through
- * the component that owns the tone and the two doors hand-rolled a
- * `role="alert"` row each. They draw `./SaidLine.tsx` now — one list, one
- * sentence, one markup — and only WHERE the line sits is still each door's.)
+ * Two of them draw the same list — the filter bar over the page
+ * (`./filter/FilterBar.tsx`) and the ⌘K palette (over `./search/nodes.ts`) —
+ * because a reader who does not notice a refused operator believes the
+ * directory is empty. The SENTENCE was spelled at each, which is the shape
+ * this repo already calls a drift waiting to happen. (The MARKUP was split
+ * too, for one release: the bar's line went through the component that owns
+ * the tone and the search doors hand-rolled a `role="alert"` row each. They
+ * draw `./SaidLine.tsx` now — one list, one sentence, one markup — and only
+ * WHERE the line sits is still each door's.)
  *
  * STRINGS, and that is the reactivity half rather than a tidy-up. Every parse
  * of the box mints fresh `Refusal` objects — per keystroke for the filter bar
- * (`./filter/narrowing.ts`), per answer for the two search doors — so a list
+ * (`./filter/narrowing.ts`), per answer for the palette — so a list
  * drawn by identity was rebuilt for a query that had not changed its mind, and
  * a rebuilt live region is the same sentence read out loud again.
  *

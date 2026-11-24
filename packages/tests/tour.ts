@@ -72,7 +72,7 @@ const stills = async (): Promise<void> => {
   await shoot(page, out, "agenda.png")
 
   await page.goto(`${base}/house.olai`)
-  await page.locator('[data-testid="outline-list"]').waitFor()
+  await page.locator('[data-testid="file-list"]').waitFor()
   await page.keyboard.press("Control+k")
   await page.locator('[data-testid="palette-input"]').fill("capture")
   await page.getByText("Capture to the Inbox").first().waitFor()
@@ -106,7 +106,7 @@ const stills = async (): Promise<void> => {
   await shoot(page, out, "ledger.png")
 
   await page.goto(`${base}/house.olai`)
-  await page.locator('[data-testid="outline-list"]').waitFor()
+  await page.locator('[data-testid="file-list"]').waitFor()
   await page.getByRole("checkbox", { name: "Show finished" }).check()
   await page.getByRole("button", { name: "Start an agent" }).first().click()
   await page.locator('[data-testid="chat-input"]').waitFor()
@@ -143,7 +143,7 @@ const recording = async (): Promise<void> => {
   const page = await context.newPage()
 
   await page.goto(`${base}/house.olai`)
-  await page.locator('[data-testid="outline-list"]').waitFor()
+  await page.locator('[data-testid="file-list"]').waitFor()
   await page.mouse.move(1260, 780)
   await page.waitForTimeout(800)
   writeFileSync(join(raw, "lead"), String((Date.now() - started) / 1000))

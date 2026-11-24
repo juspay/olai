@@ -178,13 +178,13 @@ Feature: A plugin's own page
     # and a diff when they change. The README is the other half of the claim: an
     # ordinary document, markdown's own, listed like any other `.md`.
     Given I open the app
-    Then Reference lists the file "plugins/swatch/README.md"
-    And Reference does not list the file "plugins/swatch/server.ts"
-    And Reference does not list the file "plugins/swatch/browser.tsx"
+    Then the file list lists the file "plugins/swatch/README.md"
+    And the file list does not list the file "plugins/swatch/server.ts"
+    And the file list does not list the file "plugins/swatch/browser.tsx"
     # ...AND A `.ts` THAT IS NOT A PLUGIN'S IS NOT SERVED AT ALL. The claim is
     # scoped to `plugins/`, so a checkout somebody keeps beside their notes is
     # none of olai's business: no row, no address, nothing compiled.
-    And Reference does not list the file "toolbox.ts"
+    And the file list does not list the file "toolbox.ts"
 
     # ...AND A HALF'S OWN PATH IS AN ADDRESS THAT OPENS THE PLUGIN'S PAGE at
     # that half. A file with no page of its own used to leave the pane drawing

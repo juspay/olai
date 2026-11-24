@@ -11,6 +11,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { attr } from "@olai/tests/harness/selectors.ts";
+import { opacityOf, painted, resolvedStyle } from "@olai/tests/harness/paint.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
 import {
   nodeSelector,
@@ -27,8 +28,6 @@ import {
   ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
-
-import { MAIN_STRIP } from "../selectors.ts";
 
 const paneAt = (world: OlaiWorld, index: number) => world.pane(index);
 
@@ -318,17 +317,17 @@ When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index:
 Then("pane {int} keeps its title {string} above its scroller", async function(this: OlaiWorld, index: number, title: string) {
   const heading = this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))}`)
   assert.ok((await heading.innerText()).includes(title))
-  // UNDER WHATEVER SITS ABOVE THE PANES: the bar, and the seat under it where a
-  // row fills it (the tab strip).
-  const strip = await this.page.locator(MAIN_STRIP).boundingBox()
-  const bar = strip ?? await this.page.locator(APP_HEADER).boundingBox()
+  // UNDER THE BAR, which holds the tabs too: nothing else stands above the
+  // panes but the 2px a pane keeps for its focus mark.
+  const bar = await this.page.locator(APP_HEADER).boundingBox()
   const box = await heading.boundingBox()
   const top = await this.pane(index).evaluate(root => {
     let host = root.parentElement
     while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
     return host?.getBoundingClientRect().top
   })
-  assert.ok(bar && box && top !== undefined && Math.abs(box.y - bar.y - bar.height) <= 1
+  const gap = bar && box ? box.y - bar.y - bar.height : Number.NaN
+  assert.ok(bar && box && top !== undefined && gap >= -1 && gap <= 3
     && Math.abs(box.y + box.height - top) <= 1,
     `pane ${index} title scrolled away: ${JSON.stringify({ bar, box, top })}`)
 })
@@ -482,4 +481,155 @@ Then("this tab is at the top of what it shows", async function (this: OlaiWorld)
   }));
   assert.ok(now.room > 1, `this tab shows nothing taller than the screen: ${now.room}px of room`);
   assert.ok(now.at <= 2, `this tab stands at ${now.at}px of ${now.room}px: a page it has not shown opens at its top`);
+});
+
+// ── the focus mark, and the pane's close button ─────────────────────────
+//
+// In a split the pane with the caret wears a 2px accent edge along its top and
+// nothing else does. Read as a person sees it — the computed top border of each
+// column — and compared against the accent the sheet asks for, never against a
+// colour written down here.
+
+type Mark = { readonly index: number; readonly width: number; readonly style: string; readonly colour: string };
+
+/** Every column's top edge in the lane in front, by pane index. */
+const marks = (world: OlaiWorld): Promise<ReadonlyArray<Mark>> =>
+  world.frontLane().locator(PANE_HEADER).evaluateAll((headers) => headers.map((header) => {
+    const style = getComputedStyle(header.parentElement!);
+    return {
+      index: Number(header.getAttribute("data-pane")),
+      width: Number.parseFloat(style.borderTopWidth),
+      style: style.borderTopStyle,
+      colour: style.borderTopColor,
+    };
+  }));
+
+const drawn = (mark: Mark): boolean => mark.style !== "none" && mark.width >= 2 && painted(mark.colour);
+
+/** A theme colour the sheet asks for, resolved by the browser and kept out of
+ *  any forced palette, so it can be compared with what is actually drawn
+ *  whether or not the screen forced its own. */
+const themeColour = (world: OlaiWorld, token: "accent" | "ink" | "muted"): Promise<string> =>
+  resolvedStyle(world, `forced-color-adjust:none;color:var(--color-${token})`, "color");
+
+const accent = (world: OlaiWorld): Promise<string> => themeColour(world, "accent");
+
+Then("pane {int} alone carries the focus mark", async function (this: OlaiWorld, index: number) {
+  await this.waitUntil(async () => {
+    const all = await marks(this);
+    return all.length >= 2 && all.every((mark) => (mark.index === index) === drawn(mark));
+  }, `pane ${index}, and no other pane, to wear the focus mark`).catch(async () => {
+    assert.fail(`the columns' top edges are ${JSON.stringify(await marks(this))}; only pane ${index} should be marked`);
+  });
+});
+
+Then("the focus mark is drawn in the accent", async function (this: OlaiWorld) {
+  const mark = (await marks(this)).find(drawn);
+  assert.ok(mark !== undefined, "no column wears a focus mark");
+  assert.strictEqual(mark.colour, await accent(this), "the focus mark is not the page's accent");
+});
+
+/** Under a forced palette the mark is still two pixels and still painted, in a
+ *  colour the SCREEN chose — which also proves the emulation reached it. A
+ *  box-shadow mark would be deleted there and fail the first half. */
+Then("the focus mark is drawn in the screen's own colour", async function (this: OlaiWorld) {
+  const mark = (await marks(this)).find(drawn);
+  assert.ok(mark !== undefined, `under forced colours no column wears a focus mark: ${JSON.stringify(await marks(this))}`);
+  assert.notStrictEqual(mark.colour, await accent(this), "the focus mark is still the page's own accent");
+});
+
+// ── a collapsed pane's rail ────────────────────────────────────────────
+//
+// The rail wears the column's mark — a 2px accent edge along its top — and its
+// name goes from the muted ink to the page's ink while its pane is focused.
+// The 2px are kept as padding while it is not, so the name stands still.
+
+const railOf = (world: OlaiWorld, index: number) =>
+  world.frontLane().locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
+
+type RailMark = { readonly width: number; readonly colour: string; readonly name: string; readonly top: number };
+
+const railMark = (world: OlaiWorld, index: number): Promise<RailMark> =>
+  railOf(world, index).evaluate((rail) => {
+    const style = getComputedStyle(rail);
+    const name = rail.querySelector("span")!;
+    return {
+      width: Number.parseFloat(style.borderTopWidth),
+      colour: style.borderTopColor,
+      name: getComputedStyle(name).color,
+      top: name.getBoundingClientRect().top,
+    };
+  });
+
+Then("the pane rail {int} carries the focus mark", async function (this: OlaiWorld, index: number) {
+  await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const [edge, page] = [await accent(this), await themeColour(this, "ink")];
+  await this.waitUntil(async () => {
+    const mark = await railMark(this, index);
+    return mark.width >= 2 && mark.colour === edge && mark.name === page;
+  }, `the rail of pane ${index} to wear the accent edge and its name the page's ink`).catch(async () => {
+    assert.fail(`the rail of pane ${index} draws ${JSON.stringify(await railMark(this, index))}; the accent is ${edge}, the ink ${page}`);
+  });
+});
+
+Then("the pane rail {int} does not carry the focus mark", async function (this: OlaiWorld, index: number) {
+  await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const quiet = await themeColour(this, "muted");
+  await this.waitUntil(async () => {
+    const mark = await railMark(this, index);
+    return mark.width === 0 && mark.name === quiet;
+  }, `the rail of pane ${index} to wear no edge and a muted name`).catch(async () => {
+    assert.fail(`the rail of pane ${index} draws ${JSON.stringify(await railMark(this, index))}; muted is ${quiet}`);
+  });
+});
+
+const railNameTop = new WeakMap<OlaiWorld, number>();
+
+When("I note where the pane rail {int}'s name stands", async function (this: OlaiWorld, index: number) {
+  await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  railNameTop.set(this, (await railMark(this, index)).top);
+});
+
+Then("the pane rail {int}'s name stands where it stood", async function (this: OlaiWorld, index: number) {
+  const was = railNameTop.get(this);
+  assert.ok(was !== undefined, "no rail name's place was noted");
+  const now = (await railMark(this, index)).top;
+  assert.ok(Math.abs(now - was) <= 0.5, `the rail's name moved from ${was}px to ${now}px when focus changed`);
+});
+
+const closeOf = (world: OlaiWorld, index: number) =>
+  world.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))} ${PANE_CLOSE}`);
+
+const closeOpacity = (world: OlaiWorld, index: number): Promise<string> => opacityOf(closeOf(world, index));
+
+/** A click on the pane's name moves where the next `Tab` starts from, as it
+ *  does for a person, and the `Tab` takes the next control after it. */
+When("I click pane {int}'s name and press Tab", async function (this: OlaiWorld, index: number) {
+  const name = this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))} span`).first();
+  await name.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await name.click();
+  await pressed(this, "Tab");
+});
+
+Then("pane {int}'s close button has the keyboard, and is drawn", async function (this: OlaiWorld, index: number) {
+  const close = closeOf(this, index);
+  assert.ok(await close.evaluate((el) => el === document.activeElement && el.matches(":focus-visible")),
+    `the keyboard is not on pane ${index}'s close button`);
+  assert.strictEqual(await closeOpacity(this, index), "1", `pane ${index}'s close button has the keyboard but is not drawn`);
+});
+
+When("I point at pane {int}", async function (this: OlaiWorld, index: number) {
+  await this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))}`).hover();
+  await this.waitForFrame();
+});
+
+Then("pane {int}'s close button is not drawn", async function (this: OlaiWorld, index: number) {
+  await this.waitUntil(async () => (await closeOpacity(this, index)) === "0",
+    `pane ${index}'s close button to wait for a pointer`);
+});
+
+/** Opacity is the claim (`@olai/tests/harness/paint.ts` says why). */
+Then("pane {int}'s close button is drawn", async function (this: OlaiWorld, index: number) {
+  await this.waitUntil(async () => (await closeOpacity(this, index)) === "1",
+    `pane ${index}'s close button to be drawn`);
 });

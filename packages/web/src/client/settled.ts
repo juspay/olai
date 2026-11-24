@@ -11,8 +11,8 @@
  *
  * Since `vault-in-browser` the browser answers less and less for itself, so
  * "ask the server, per keystroke" stopped being one door's problem and became a
- * shape. It was written twice — `search/nodes.ts` for the ⌘K palette, the
- * header box and the `((` list; `filter/asking.ts` for the page filter — and a
+ * shape. It was written twice — `search/nodes.ts` for the ⌘K palette and the
+ * `((` list; `filter/asking.ts` for the page filter — and a
  * third caller (the row editor's tag vocabulary) is what turned two copies into
  * a rule kept in memory. The rule is here now, and the two shortlist doors are
  * callers of it.
@@ -153,7 +153,7 @@ export const atOnce: Taking = (act) => act()
  *
  * THE OTHER OF THE TWO SHAPES a door comes in, and the rule is which value the
  * take is read off. A door with a ROW TYPE OF ITS OWN carries the take on
- * every row and reads it back here (the ⌘K palette, the header's box, the chat
+ * every row and reads it back here (the ⌘K palette, the chat
  * composer's `@` list, the row editor's three widgets). A door whose rows are
  * the wire's own values has nothing to hang it on and asks the search instead
  * ({@link Settled.taking} — `search/Shortlist.tsx`, over bare `NodeHit`s).
@@ -163,10 +163,7 @@ export const atOnce: Taking = (act) => act()
  * draws the served paths above its nodes, both minted in this tab per
  * keystroke. Gating the DOOR would swallow `Enter` on a command for a settle
  * and a round trip somebody else's search is inside of — which is the
- * palette's oldest gesture and the one a reader makes fastest. And it is what
- * ONE ROW TYPE AT TWO DOORS needs: the header's box draws the palette's rows,
- * and two doors over one row may not gate differently however single-minded
- * either one's list happens to be today.
+ * palette's oldest gesture and the one a reader makes fastest.
  *
  * Nothing under the cursor spends nothing, which is not the same as a refusal
  * and is why it is not one — a key over an empty list has nothing to claim.

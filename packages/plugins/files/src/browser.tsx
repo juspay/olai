@@ -23,7 +23,6 @@ import { Files } from "./Files.tsx"
 import { FileRail } from "./Rail.tsx"
 import { fileState,fileTypes,fileKinds } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
-import { followReference } from "./fold/reference.ts"
 export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
     const landingTable = yield* Landings
     yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
@@ -45,7 +44,6 @@ export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edit
  // travel on `files.state` below rather than in a signal on a declared door.
  yield* Effect.acquireRelease(Effect.void,()=>Effect.sync(clearNewFileMemory))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
- yield* Effect.acquireRelease(Effect.sync(followReference), stop => Effect.sync(stop))
  // `open` is pressed from OUTSIDE the sidebar (an empty page's `New outline`),
  // so it also brings the sidebar into view: on a phone the box would otherwise
  // open inside a shut drawer, and the press would look like it did nothing.

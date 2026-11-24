@@ -571,8 +571,8 @@ Feature: Properties on a node, from the web
     # hit and deliberately left the row alone, because "should a reader SEE a
     # hit's properties" was a product question nobody had ruled — so there was
     # nothing on screen to assert. It is ruled now, and this is the loop it
-    # bought: write a fact on a node, then ask the header box for it and get the
-    # fact back on the row, without opening anything.
+    # bought: write a fact on a node, then ask the palette for it from the
+    # header's Search and get the fact back on the row, without opening anything.
     When I open the node menu of "handles"
     And I choose "More › Add property…" from the node menu
     And I write the property "agent" holding "claude-opus" on "handles"
@@ -583,9 +583,9 @@ Feature: Properties on a node, from the web
     # The board's own query, asked by a person this time. The row draws both
     # properties — a hit carries the whole map — and marks the one the query
     # named, which leads so a narrow panel ellipsizes the others instead.
-    When I search the header for "prop:agent=claude-opus"
-    Then the header search lists the node "choose the handles"
-    And the header search result "choose the handles" shows the property "agent" holding "claude-opus"
-    And the header search result "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
-    And the header search result "choose the handles" marks "agent" as why it matched
+    When I search from the header for "prop:agent=claude-opus"
+    Then the palette lists the node "choose the handles"
+    And the palette result "choose the handles" shows the property "agent" holding "claude-opus"
+    And the palette result "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
+    And the palette result "choose the handles" marks "agent" as why it matched
     And there should be no page errors

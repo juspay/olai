@@ -1,6 +1,6 @@
 # Tabs
 
-The `tabs` plugin keeps several pages open at once, in a strip labelled **Open tabs** above the pages.[^workspace]
+The `tabs` plugin keeps several pages open at once, in a strip labelled **Open tabs** in the header, over the pages.[^workspace]
 
 ## What a tab shows
 
@@ -35,7 +35,7 @@ A tab loads its pages when you first look at it and keeps them until you close i
 
 [^workspace]: What one tab holds: a single page, or a whole set of panes side by side, with its own focused pane, its own Back and Forward history, and its own filter on what an outline shows. Every tab shares the header, the sidebar, the command palette, the appearance settings and which branches of an outline are folded open.
 
-    Clicking an entry in the sidebar changes the page in the tab you are looking at rather than opening another tab. On a desktop the strip is drawn above the panes, inside the main column.
+    Clicking an entry in the sidebar changes the page in the tab you are looking at rather than opening another tab. The tab in front meets its page below it ([layout.md](layout.md)).
 
 [^glyphs]: The symbol on a tab says what kind of page the tab holds. The kinds are the front page, a file, a row (one line of an outline), the Trash, a plugin's page shown over a row's text, a page a plugin draws itself, and a set of split panes. All seven symbols are listed in the closed block at the foot of this page.
 

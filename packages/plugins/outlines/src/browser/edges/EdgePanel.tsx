@@ -29,7 +29,7 @@
  * ## The search is the SERVER's, like every other one in this client
  *
  * `../search/nodes.ts` — the same procedure, debounce and minimum the ⌘K
- * palette, the header box and the `((` widget call, drawing the same row
+ * palette and the `((` widget call, drawing the same row
  * (`../search/Result.tsx`) walked with the same cursor. A browser that grew a
  * second matcher for this panel would break the consistency rule INSIDE one
  * process: what this finds and what an agent's `search_nodes` finds cannot

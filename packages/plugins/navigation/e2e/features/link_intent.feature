@@ -82,10 +82,6 @@ Feature: Every link has one destination and one gesture vocabulary
       | palette | Enter | preview-target | 0 |
       | palette | Alt | preview-target | 1 |
       | palette | Alt-Shift | preview-target | 1 |
-      | search | click | preview-target | 0 |
-      | search | Enter | preview-target | 0 |
-      | search | Alt | preview-target | 1 |
-      | search | Alt-Shift | preview-target | 1 |
       | html | click | preview-target | 0 |
       | html | Enter | preview-target | 0 |
       | html | Alt | preview-target | 1 |
@@ -112,7 +108,6 @@ Feature: Every link has one destination and one gesture vocabulary
       | backlink |
       | breadcrumb |
       | palette |
-      | search |
       | rail |
       | card |
       | heading |
@@ -132,7 +127,6 @@ Feature: Every link has one destination and one gesture vocabulary
       | backlink | Preview source |
       | breadcrumb | Preview target |
       | palette | Preview target |
-      | search | Preview target |
       | heading | Paragraph after |
       | toc | Paragraph after |
       | html | Preview target |

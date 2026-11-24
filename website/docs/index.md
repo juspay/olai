@@ -89,7 +89,7 @@ The parts that serve olai to your browser and to agents.
 | [settings: reading the settings file](plugins/settings.md) | Settings for the whole directory, read from one `Settings.olai` file. |
 | [identity: who is making a request](plugins/identity.md) | Who is looking at the page: which request headers olai trusts, and the `captured-by` chip. |
 | [The git plugin: commits, pushes and its two settings](plugins/git.md) | Records commits, and holds the `commit` and `push` settings. |
-| [The search plugin: the index and the search box](plugins/search.md) | Matches search queries, and what still works when search is switched off. |
+| [The search plugin: the index and the Search button](plugins/search.md) | Matches search queries, and what still works when search is switched off. |
 | [vault-plugins: running the plugins your directory defines](plugins/vault-plugins.md) | The plugins a directory keeps in its own `plugins/` folder: reading them, approving them, and their pages. |
 
 ### Integrations
@@ -115,7 +115,7 @@ The parts of the page you see and use.
 | [UI renderer: starting the browser app and its named places](plugins/ui-renderer.md) | Draws the browser app with Solid, and lets plugins add parts to named places on the page. |
 | [Layout](plugins/layout.md) | The page's frame: the sidebar column, the header and its health dot, banners, and the places where file viewers sit. |
 | [Addresses, panes and the command palette](plugins/navigation.md) | Page addresses, Back and Forward, which pane has focus, and the command palette. |
-| [Tabs](plugins/tabs.md) | Several pages open as tabs above the panes, each with its own Back and Forward. |
+| [Tabs](plugins/tabs.md) | Several pages open as tabs in the header, each with its own Back and Forward. |
 | [Sidebar](plugins/sidebar.md) | The column of files on the left, the narrow rail beside it, and the places plugins can add to them. |
 | [Outlines](plugins/outlines.md) | Outline pages: editing a row, and the commands on a row's menu. |
 | [Markdown documents: the page and the editor](plugins/markdown.md) | Editing Markdown documents, their front matter, and headings. |

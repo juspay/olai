@@ -26,5 +26,5 @@ import { TESTID } from "../src/testids.ts";
 /** The card's second way out, off the page that faulted. */
 export const FAULT_HOME = selector(TESTID.faultHome);
 
-/** The seat above the panes — the tab strip, where a row fills it. */
+/** The seat for the tabs in the header — the tab strip, where a row fills it. */
 export const MAIN_STRIP = selector(TESTID.mainStrip);

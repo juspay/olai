@@ -1,8 +1,8 @@
 /**
- * OPENING THE PALETTE, as the header box reaches it — held for the activation
- * that declared it.
+ * OPENING THE PALETTE, as the header's search button reaches it — held for the
+ * activation that declared it.
  *
- * The box's own control opens the ⌘K palette rather than drawing a second one.
+ * The button opens the ⌘K palette rather than drawing a second one.
  * That verb is `olai-plugin-navigation`'s and arrives on `navigation.palette`,
  * declared on `../browser.tsx`'s `palette` component; it used to be a module
  * variable in navigation's `palette/open.ts`, read across the wall with nothing

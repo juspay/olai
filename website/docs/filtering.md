@@ -4,7 +4,7 @@ A row is one line of an outline. Every page that draws rows has a filter box abo
 
 ## Narrow what you are reading
 
-1. Click the box, labelled **Filter** while it is empty. A hint lists the forms a query can take.[^hint]
+1. Click the word **Filter** above the rows. A hint lists the forms a query can take.[^hint]
 2. Click one of those forms, or pick one with the arrow keys and `Enter`.[^pick]
 3. Type your query, in the language of [search.md](search.md). The page narrows as you type; nothing is submitted.
 4. `Escape` puts the hint away and keeps the caret in the box.[^escape]
@@ -34,7 +34,7 @@ Each row shows where the query matched.[^guess] A match highlights the word you 
 
 Every page but a document filters the same way: same query language, address, counts and refusals.[^which] Collapsed rows are opened,[^folds] and the page keeps following the files.[^follow]
 
-[^box]: The filter box takes rows away from the page in front of you. The header's search box instead takes you to a row anywhere in the directory olai serves.
+[^box]: The filter is the word **Filter** until you point at it, click it or type in it; while a query is in it, it stays drawn as a box. It takes rows away from the page in front of you. The palette, which **Search** in the header opens, instead takes you to a row anywhere in the directory olai serves.
 
 [^hint]: The hint under the filter box lists the forms a query can take: `words`, `"a phrase"`, `a OR b`, `#tag`, `is:done`, `has:desc`, `date:last-week`, `changed:today`, `-not`.
 

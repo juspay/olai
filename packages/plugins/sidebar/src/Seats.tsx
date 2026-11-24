@@ -20,12 +20,17 @@ import { sameList } from "@olai/web/client/same.ts"
  *
  * So `said` is the section's NAME rather than its heading: what the app has to
  * say whose a section is, in a `data-plugin` a scenario can find it by.
+ *
+ * `place` says which side of the files a section stands on; a section that
+ * names none stands above them, where every section stood before the word.
  */
-import type { SidebarPlace } from "./slots.ts"
+import type { SectionPlace, SidebarPlace } from "./slots.ts"
 import { createMemo, For } from "solid-js"
 import { hung } from "./faces.ts"
-export function PluginSections() {
-  const sections = createMemo(() => hung("sidebar.section"), undefined, { equals: sameList })
+export function PluginSections(props: { readonly place: SectionPlace }) {
+  const sections = createMemo(() =>
+    hung("sidebar.section").filter((one) => (one.face.place ?? "top") === props.place), undefined, { equals: sameList }
+  )
   return (
     <For each={sections()}>
       {(one) => <div data-plugin={one.plugin}>{one.face.body()}</div>}

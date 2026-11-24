@@ -5,10 +5,9 @@
  * remembered across reloads, followed across this browser's tabs, and never
  * sent anywhere.
  *
- * UNFOLDED BY DEFAULT, which is the way round the month's preference is not:
- * the month is a question most visits do not ask, and the owed rows are the
- * reason the door is on fire. A reader who wants the column quiet folds them
- * and the choice stays folded.
+ * FOLDED BY DEFAULT, like the month: the red count on the door already says
+ * that something is owed, and the Agenda page lists it. A reader who wants
+ * the rows in the column unfolds them, and the choice stays unfolded.
  *
  * FOLDING IS A DRAWING DECISION AND NOT A SUBSCRIPTION: the held `owed` stream
  * keeps running while the list is shut, which is what keeps the count on the
@@ -21,9 +20,9 @@ import { boolCodec, createPreference } from "@olai/web/client/preference.ts"
 
 export const AGENDA_ROWS_FOLDED_KEY = "olai.sidebar.agenda-rows"
 
-/** The preference NAMES the folded state, and its default is "not folded" —
- *  one boolean, so a reader who never presses the chevron gets the list. */
-const preference = createPreference(AGENDA_ROWS_FOLDED_KEY, boolCodec(false))
+/** The preference NAMES the folded state, and its default is "folded" — one
+ *  boolean, so a reader who never presses the chevron gets the count alone. */
+const preference = createPreference(AGENDA_ROWS_FOLDED_KEY, boolCodec(true))
 
 export const agendaRowsFolded = preference.value
 export const setAgendaRowsFolded = (folded: boolean): void => preference.set(folded)

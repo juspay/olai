@@ -10,6 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
+import { opaque } from "@olai/tests/harness/paint.ts";
 import { selector } from "@olai/web/testlib";
 import {
   APP_HEADER,
@@ -379,17 +380,6 @@ Then("the rest of the chat page's head has scrolled away under it", async functi
   assert.ok(line && agent && agent.y + agent.height <= line.y + line.height + 1,
     `the agent line is still pinned under the item's line: ${JSON.stringify({ line, agent })}`);
 });
-
-/** Whether a computed colour lets nothing through: not `transparent`, and no
- *  alpha under 1 in either form a browser writes one (`rgba(…, a)`, or
- *  `oklch(… / a)` and the other functions with a slash). */
-const opaque = (colour: string): boolean => {
-  if (colour === "transparent") return false;
-  const slash = /\/\s*([\d.]+)(%?)\s*\)$/.exec(colour);
-  if (slash !== null) return Number(slash[1]) >= (slash[2] === "%" ? 100 : 1);
-  const rgba = /^rgba\(.*,\s*([\d.]+)\s*\)$/.exec(colour);
-  return rgba === null || Number(rgba[1]) >= 1;
-};
 
 /**
  * AFTER A SCROLL, A DESKTOP CHAT PAGE PINS TWO THINGS: the item's line at the

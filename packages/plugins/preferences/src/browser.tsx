@@ -36,7 +36,10 @@ export default definePlugin({
     yield* offers.own("open", () => ({ open: () => setOpen(true) }))
     yield* slots.contribute(tools, {
       body: (props) => <Preferences where={props.where} sections={() => slots.read(sections)} door={{ open, setOpen }} />,
-      headerOrder: 20, closetOrder: 10, mobileWithoutSidebar: true,
+      // On a desktop the door is a line at the foot of the health dot's list,
+      // above Plugins — the order the phone drawer's foot reads too. A page
+      // with no drawer on a phone still draws it in the bar.
+      headerOrder: 5, closetOrder: 10, mobileWithoutSidebar: true, desktop: "health",
     }, { children: [sections] })
   }),
 })

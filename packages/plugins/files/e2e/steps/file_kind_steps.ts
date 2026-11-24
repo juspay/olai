@@ -41,7 +41,7 @@ Then("the PDF row has its contributed glyph", async function(this: OlaiWorld) {
   await this.kindLink("pdf", "reports/q3.pdf").getByTestId(TESTID.fileGlyph).waitFor({ state: "visible" })
 })
 Then("the directory tree and rail are absent", async function(this: OlaiWorld) {
-  await this.waitUntil(async () => await this.page.getByTestId(TESTID.sidebarFiles).count() === 0 && await this.page.getByTestId(TESTID.railOutlines).count() === 0, "navigation withdraws tree and rail")
+  await this.waitUntil(async () => await this.page.getByTestId(TESTID.sidebarFiles).count() === 0 && await this.page.getByTestId(TESTID.railFiles).count() === 0, "navigation withdraws tree and rail")
 })
 Then("the configured outline row refuses a mint without writing", async function(this: OlaiWorld) {
   const before = readdirSync(this.scratch(), { recursive: true }).sort()
@@ -59,7 +59,7 @@ Then("the unclaimed file {string} is absent and refused by the outline tool", as
   assert.ok(JSON.stringify(result).includes(`\`${file}\` is not a file this directory serves: no row claims \`${file.slice(file.lastIndexOf("."))}\``), JSON.stringify(result))
   const index = await tool(this, "outlines_index", {})
   assert.equal(JSON.stringify(index).includes(file), false)
-  assert.equal(await this.page.getByTestId(TESTID.sidebarFiles).or(this.page.getByTestId(TESTID.reference)).locator(attr("data-file", file)).count(), 0)
+  assert.equal(await this.page.getByTestId(TESTID.sidebarFiles).locator(attr("data-file", file)).count(), 0)
 })
 Then("the directory reports both ambiguous Trash convention files", async function(this: OlaiWorld) {
   await this.waitUntil(async () => {

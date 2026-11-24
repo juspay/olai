@@ -58,8 +58,7 @@ Feature: A sidebar file becomes a path in the message
       """
       A carried file.
       """
-    When I expand the reference section
-    And I try carrying sidebar folder "carry-folder" into the conversation
+    When I try carrying sidebar folder "carry-folder" into the conversation
     Then no conversation is lit for a carry
     And the composer contains exactly:
       """

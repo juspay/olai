@@ -29,13 +29,11 @@
  * 390pt phone in every connection state longer than `live`. That squeeze is why
  * the pills left the phone bar rather than learning a fifth give-way rule.
  *
- * On DESKTOP whatever sits in the LEAD SEAT is the one control here that may
- * shrink to nothing before any pill loses a character — an input narrowed to a
- * slot is still an input, which is what its `min-w-0` and its cap are for. That
- * seat is the search row's (`olai-plugin-search`), which is also why it is the
- * one seat drawn outside the desktop gate: on a phone the same door is a 44px
- * magnifier that opens the ⌘K palette. The last commit's AGE
- * (`commit/Commit.tsx`'s `· 3m ago`) is `sm` and up only.
+ * The LEAD SEAT is the search row's (`olai-plugin-search`): a button that
+ * opens the ⌘K palette, the word and the chord on a desktop and a 44px
+ * magnifier on a phone. It is the one seat drawn outside the desktop gate for
+ * that reason. The last commit's AGE (`commit/Commit.tsx`'s `· 3m ago`) is `sm`
+ * and up only.
  *
  * The wordmark and the burger never give way at all: they are the app's
  * identity and the way back to the directory — and the wordmark is the
@@ -98,7 +96,7 @@
  * did. A 3rem box is not somewhere a panel can hang out of.
  */
 import { TESTID } from "olai-plugin-layout/testids"
-import { Show } from "solid-js"
+import { For, Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { Indicator } from "./Indicator.tsx"
@@ -111,8 +109,9 @@ import { Health } from "./Health.tsx"
 import { PluginViewer } from "./Seats.tsx"
 
 import { connectionReadout } from "@olai/web/client/wire.ts"
-import { desktop } from "./layout/live.ts"
+import { desktop, sidebarOpen } from "./layout/live.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { strip } from "./index.ts"
 import { Tools } from "./Tools.tsx"
 
 export function Header(props: {
@@ -134,6 +133,12 @@ export function Header(props: {
   // for the same absence itself (`./router.tsx`'s `useMaybeGo`) and this bar
   // holds no fact about search at all.
 }) {
+  /** THE NAME'S CELL on a desktop stands over the column under it: as wide as
+   *  the sidebar while one is mounted (`--width-sidebar`, which is the rail's
+   *  width while the column is minimized), and its own width with none. A
+   *  railed cell is the leaf alone, centred over the rail; the name stays the
+   *  heading's words for whoever reads them rather than looks. */
+  const railed = () => desktop() && props.menu !== undefined && !sidebarOpen()
   return (
     <>
     <header ref={props.ref}
@@ -141,12 +146,22 @@ export function Header(props: {
       // inside the box, and a 44px finger target centred in a 44px bar with a
       // 1px border overflowed it by half a pixel — the phone's burger stood at
       // y=-0.25, which is off the screen to a geometry assertion. The shadow
-      // paints the same hairline and costs the bar no height.
-      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 px-2 font-sans shadow-[inset_0_-1px_0_var(--color-rule)] md:px-3`}
+      // paints the same hairline and costs the bar no height, and the tab in
+      // front, on paper, paints over it where it meets its page.
+      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 px-2 font-sans shadow-[inset_0_-1px_0_var(--color-rule)] md:items-stretch md:gap-0 md:px-0`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
-      <div class="flex shrink-0 items-center gap-2">
+      {/* Each state names its own padding and nothing overrides anything: a
+          `md:px-0` beside `md:pl-4 md:pr-2` loses to them in Tailwind's order
+          and the railed leaf sat off the rail's centre (`./layout/entry.ts`
+          says why two classes on one property are a trap). */}
+      <div class="flex shrink-0 items-center gap-2"
+        classList={{
+          "md:w-[var(--width-sidebar)]": props.menu !== undefined,
+          "md:pl-4 md:pr-2": !railed(),
+          "md:justify-center": railed(),
+        }}>
         <Show when={props.menu}>
           {(menu) => (
             <button
@@ -162,15 +177,29 @@ export function Header(props: {
             </button>
           )}
         </Show>
-        <h1 class={`${WORDMARK} md:pl-1`}>
-          <Leaf class="size-4 text-accent" />
+        <h1 class={`${WORDMARK} min-w-0`}>
+          <Leaf class="size-4 shrink-0 text-accent" />
           {/* The deployment's own word once the server has said it
               (`named.ts`): `olai [machine]`, so a laptop's olai and a
               NUC's are two bars a person can tell apart. The shell's word
               while it has not — a first paint, not a wrong name. */}
-          {calledApp() ?? "olai"}
+          <span class="truncate" classList={{ "sr-only": railed() }}>{calledApp() ?? "olai"}</span>
         </h1>
       </div>
+
+      {/* THE TABS, in the bar over the pages they hold: layout's seat
+          (`./index.ts`'s `strip`), drawn on a desktop between the name and
+          the tools. Empty, the cell still takes the width between them, so
+          the tools keep the right edge and the bar keeps its height. */}
+      <Show when={desktop()}>
+        <div class="min-w-0 flex-1">
+          <Show when={props.slots.read(strip).length > 0}>
+            <div data-testid={TESTID.mainStrip} class="h-full min-w-0">
+              <For each={props.slots.read(strip)}>{({ value: Strip }) => <Strip />}</For>
+            </div>
+          </Show>
+        </div>
+      </Show>
 
       {/* What is about the app rather than about the page. On desktop it is
           ONE health dot, always here, so a reader of the error report still
@@ -191,33 +220,29 @@ export function Header(props: {
         // `gap-1` below 40rem rather than `gap-1.5`: the pills at 390pt spend a
         // gap between each pair, and 6px of white space is a word on the label
         // that gives way first. The bar's own spacing is the last thing to
-        // spend before the order below starts costing a reader words.
-        class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
+        // spend before the order below starts costing a reader words. On a
+        // desktop the tabs take the room between, so the tools take only theirs.
+        class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2 md:flex-none md:pl-2 md:pr-3"
         data-testid={TESTID.appChrome}
       >
-        {/* THE LEAD SEAT — first in the cluster, and whatever is in it is the
-            one control here that may shrink to nothing: it takes what is left
-            after the pills have their floors, so nothing a reader came for
-            gives way to it. It is also the one seat drawn OUTSIDE the desktop
-            gate below, because the face in it is expected to have a phone arm.
-
-            The search box was spelled out here, handed a `go` this file read
-            for it. It is `olai-plugin-search`'s face now and this bar names no
-            row: what a `place` word means is still the bar's decision and it is
-            these two lines (`./plugins/Chrome.tsx`). */}
+        {/* THE LEAD SEAT — first in the cluster, and the one seat drawn
+            OUTSIDE the desktop gate below, because the face in it is expected
+            to have a phone arm. It is `olai-plugin-search`'s door, and this bar
+            names no row: what a `place` word means is still the bar's decision
+            and it is these two lines (`./plugins/Chrome.tsx`). */}
         <PluginHeaders place="lead" />
         <Show when={desktop()}>
           {/* THE HEALTH DOT: one mark for everything the bar used to stand
               a pill for — the connection, every plugin's `cluster` readout
               (git's Commit readout, kolu, odu, mail, spaces), and under them
-              the uptime line and the plugins door. It wears the worst tone
-              among them and names what is wrong; its popover draws each as a
-              row, still the owner's own face (`./Health.tsx`). A calm bar is
-              the wordmark, search, this dot, preferences and who is looking. */}
+              the uptime line and the doors that ask for its foot
+              (`desktop: "health"`: Preferences and Plugins). It wears the
+              worst tone among them and names what is wrong; its popover draws
+              each as a row, still the owner's own face (`./Health.tsx`). A
+              calm bar's right end is search, this dot and who is looking. */}
           <Health slots={props.slots} />
-          {/* The door a reader reaches for by habit: preferences, the gear
-              alone. Doors that ask for the health popover's foot instead
-              (`desktop: "health"` — the plugins panel's) are drawn there. */}
+          {/* A door that asks for the bar itself (`desktop: "header"`, the
+              default) stands here. None of olai's own does. */}
           <Tools slots={props.slots} where="header" />
         </Show>
         {/* Phone screens with no directory drawer (the error report, the

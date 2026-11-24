@@ -4,6 +4,7 @@ import { TESTID } from "olai-plugin-sidebar/testids"
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
+import { COLUMN } from "olai-plugin-layout/entry"
 import { PluginEntries,PluginSections } from "./Seats.tsx"
 
 import { setSidebarOpen } from "./shell.ts"
@@ -35,7 +36,7 @@ export function Sidebar(props: SidebarRegionProps) {
           // the drawer into flow offsets). Desktop: a STICKY column, pinned
           // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
-          `${LAYER.chrome} olai-frame flex-col border-r border-rule ` +
+          `${LAYER.chrome} ${COLUMN} olai-frame flex-col border-r border-rule ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
@@ -78,21 +79,23 @@ export function Sidebar(props: SidebarRegionProps) {
         >
           <PluginEntries place="top" />
           <Regions at="primary" props={props} />
-          {/* WHAT THE PLUGINS HANG HERE, in the bundle's order — the agents
-              roster is the first and, today, the only one. A row reading *needs
-              you* is the same kind of fact as the agenda's alarm and the
-              inbox's count, and the shelf's own 2026-08-19 ruling is exactly
-              about what may NOT come ahead of those, which is why the seat is
-              HERE rather than at the foot. A section draws nothing at all where
-              its plugin has nothing to say — the roster does in a directory
-              with no node agent — so the column's budget is untouched where a
-              feature is unused, and a serve running no chat has no section at
-              all (`./plugins/Seats.tsx`). */}
-          <PluginSections />
+          {/* WHAT THE PLUGINS HANG ABOVE THE FILES, in the bundle's order. A
+              row reading *needs you* is the same kind of fact as the agenda's
+              alarm and the inbox's count, and the shelf's own 2026-08-19 ruling
+              is exactly about what may NOT come ahead of those, which is why
+              the seat is HERE rather than at the foot. A section draws nothing
+              at all where its plugin has nothing to say, so the column's budget
+              is untouched where a feature is unused (`./Seats.tsx`). */}
+          <PluginSections place="top" />
           <PluginEntries place="bottom" />
 
           <Regions at="shelf" props={props} />
           <Regions at="files" props={props} />
+          {/* ...AND BELOW THEM, what a reader goes to on purpose rather than
+              what needs them now: the chats, the directory's own plugins. The
+              column reads where to go, what needs you, your things, then
+              conversations, then plugins. */}
+          <PluginSections place="bottom" />
         </div>
         {/* THE FOOT: entries placed `foot` (Trash), pinned under the scrolling
             list so they stay in view however long it runs — above the drawer's

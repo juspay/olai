@@ -61,13 +61,13 @@ const pickFromNewMenu = async (world: OlaiWorld, door: Making): Promise<void> =>
   await world.page.locator(`${MENU} ${selector(door.testids.open)}`).click();
 };
 
-When("I open the Outlines + menu", async function (this: OlaiWorld) {
+When("I open the Files + menu", async function (this: OlaiWorld) {
   await openNewMenu(this);
 });
 
 /** By keyboard only: Tab lands on the `+` from the heading row before it, and
  *  Enter presses it — a real button, not a pointer-only glyph. */
-When("I open the Outlines + menu from the keyboard", async function (this: OlaiWorld) {
+When("I open the Files + menu from the keyboard", async function (this: OlaiWorld) {
   await this.showSidebar();
   const plus = this.page.locator(PLUS);
   await plus.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -76,7 +76,7 @@ When("I open the Outlines + menu from the keyboard", async function (this: OlaiW
   await this.page.locator(MENU).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-Then("the Outlines + menu offers {string}", async function (this: OlaiWorld, labels: string) {
+Then("the Files + menu offers {string}", async function (this: OlaiWorld, labels: string) {
   const items = this.page.locator(MENU).getByRole("menuitem");
   await this.waitUntil(
     async () => (await items.allInnerTexts()).map((one) => one.trim()).join("|") === labels,
@@ -84,7 +84,7 @@ Then("the Outlines + menu offers {string}", async function (this: OlaiWorld, lab
   );
 });
 
-When("I choose {string} from the Outlines + menu with the keyboard", async function (this: OlaiWorld, label: string) {
+When("I choose {string} from the Files + menu with the keyboard", async function (this: OlaiWorld, label: string) {
   const item = this.page.locator(MENU).getByRole("menuitem", { name: label, exact: true });
   await item.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   // Arrow to it rather than click: the menu is a keyboard surface too.
@@ -94,11 +94,11 @@ When("I choose {string} from the Outlines + menu with the keyboard", async funct
   await this.page.keyboard.press("Enter");
 });
 
-Then("the Outlines + menu is shut and the + has focus", async function (this: OlaiWorld) {
+Then("the Files + menu is shut and the + has focus", async function (this: OlaiWorld) {
   await this.page.locator(MENU).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
   await this.waitUntil(
     async () => await this.page.locator(PLUS).evaluate((el) => document.activeElement === el),
-    "focus to return to the Outlines +",
+    "focus to return to the Files +",
   );
   assert.strictEqual(await this.page.locator(PLUS).getAttribute("aria-expanded"), "false");
 });
@@ -112,14 +112,6 @@ Then("the new {word} box has the caret", async function (this: OlaiWorld, kind: 
   );
 });
 
-/** No kind can be started here, so there is no `+` at all — never a button
- *  that opens an empty menu. */
-Then("the Outlines heading offers no +", async function (this: OlaiWorld) {
-  await this.showSidebar();
-  await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await this.waitUntil(async () => (await this.page.locator(PLUS).count()) === 0, "the Outlines + to be withdrawn");
-});
-
 /** The box, opened and waited for. One spelling, because four steps start from
  *  it and a second "click, then wait" is where two of them would drift. It is
  *  idempotent: a box already open is one to type in, not one to reopen. */
@@ -128,7 +120,7 @@ const boxOf = async (world: OlaiWorld, kind: string) => {
   await world.showSidebar();
   const path = selector(door.testids.path);
   if ((await world.page.locator(path).count()) === 0) {
-    // The way in is the Outlines heading's `+` and the kind's item in the
+    // The way in is the Files heading's `+` and the kind's item in the
     // menu it opens (`../../src/NewMenu.tsx`).
     await pickFromNewMenu(world, door);
   }

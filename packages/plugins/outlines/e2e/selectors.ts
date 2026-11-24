@@ -43,8 +43,8 @@ export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
 export const EDGE_PANEL = selector(TESTID.edgePanel);
 /** The `×` on one of those chips; `data-ref` is the target it drops. */
 export const EDGE_DROP = selector(TESTID.edgeDrop);
-/** Its search box — the server's own node search, the same one ⌘K, the header
- *  box and the `((` widget call. */
+/** Its search box — the server's own node search, the same one ⌘K and the
+ *  `((` widget call. */
 export const EDGE_SEARCH = selector(TESTID.edgeSearch);
 /** One hit in it; `data-id` is the node it would name. */
 export const EDGE_HIT = selector(TESTID.edgeHit);

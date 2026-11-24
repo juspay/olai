@@ -215,7 +215,7 @@ const idle = async (): Promise<void> => {
 // There is no chat panel to open: a node's conversation folds open under its
 // own row, so the boot is the outline and nothing else.
 await p.goto(BASE)
-ok("the app came up", await drawn("outline-list"))
+ok("the app came up", await drawn("file-list"))
 ok(
   "a bare node wears no standing",
   await p.locator(standingOf(NODE)).count() === 0,

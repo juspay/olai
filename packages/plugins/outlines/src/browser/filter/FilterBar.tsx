@@ -1,13 +1,13 @@
 /**
  * The box that narrows the page, and what it has to say about the result.
  *
- * IT IS NOT THE HEADER'S SEARCH BOX, and the difference is the question each
- * one answers: the header takes you TO a node anywhere in the directory, this
- * one narrows what is already in front of you. One box answering both would
- * have to guess which was meant by every keystroke. What they DO share is the
- * grammar AND, since `search-server-side`, the matcher's own answer: the header
- * box, the ⌘K palette and this bar are all callers of the server's one reading,
- * so the operators work in all three and mean one thing.
+ * IT IS NOT THE PALETTE that the header's Search opens, and the difference is
+ * the question each one answers: the palette takes you TO a node anywhere in
+ * the directory, this one narrows what is already in front of you. One box
+ * answering both would have to guess which was meant by every keystroke. What
+ * they DO share is the grammar AND, since `search-server-side`, the matcher's
+ * own answer: the ⌘K palette and this bar are both callers of the server's one
+ * reading, so the operators work in both and mean one thing.
  *
  * Everything it draws is a fact somebody could otherwise only guess at:
  *
@@ -137,19 +137,24 @@ export function FilterBar(props: {
           {/* `text`, not `search`: a `type="search"` input draws the browser's
               own clear cross, and this bar already has one of its own — two
               crosses side by side, one of which no scenario can press
-              portably. The header's box keeps `search` precisely because it
-              has no cross of its own to collide with. */}
+              portably. */}
           <input
             ref={input}
             type="text"
             role="combobox"
-            // The border lights and the background goes to paper on focus;
-            // the app's one outline is the ring (`@olai/appearance/chrome.css`
-            // — unlayered, so the `outline-none` that used to be here never
-            // stood it down). The `focus:ring-2 focus:ring-accent/20` glow
-            // beside it was a second, redundant `box-shadow`, and a
-            // box-shadow is the first thing forced colours removes.
-            class="min-h-11 w-full min-w-0 rounded-control border border-rule bg-desk/60 py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink placeholder:text-muted focus:border-accent focus:bg-paper md:min-h-0 md:h-8"
+            // NO BOX AT REST: the word `Filter` and nothing round it, so the
+            // page's first line is the rows. The box is drawn on hover, on
+            // focus, and while a filter is in force — a narrowed page always
+            // shows what narrowed it. The border lights and the background
+            // goes to paper on focus; the app's one outline is the ring
+            // (`@olai/appearance/chrome.css` — unlayered, so the
+            // `outline-none` that used to be here never stood it down). The
+            // `focus:ring-2 focus:ring-accent/20` glow beside it was a second,
+            // redundant `box-shadow`, and a box-shadow is the first thing
+            // forced colours removes.
+            class={`min-h-11 w-full min-w-0 rounded-control border py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink placeholder:text-muted ${
+              props.narrowing.text() === "" ? "border-transparent bg-transparent hover:border-rule hover:bg-desk/60" : "border-rule bg-desk/60"
+            } focus:border-accent focus:bg-paper md:min-h-0 md:h-8`}
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
             aria-label="Filter"
@@ -185,7 +190,7 @@ export function FilterBar(props: {
             // Enter puts the form under the cursor in, and Escape puts it away
             // with the caret still here. Otherwise WHICH key empties the box
             // is the registry's (`../keys.ts`'s list layer, the same one the
-            // header box asks); what `dismiss` MEANS here is this bar's — the
+            // palette asks); what `dismiss` MEANS here is this bar's — the
             // box empties and the page gets the caret back.
             onKeyDown={(event) => {
               if (hint.key(event)) {

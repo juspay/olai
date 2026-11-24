@@ -24,16 +24,22 @@ import { Key } from "@solid-primitives/keyed"
  * at a time) has no contents rather than a stale one. When the body lands, this
  * is drawn from it, with no second question asked over the wire.
  *
+ * ONE CLOSED LINE ON ARRIVAL, and no box round it: the word `Contents` in
+ * label type above the document's own first heading, opened by a click. An
+ * open, boxed list above every document was the loudest thing on the page
+ * before a word of the text; shut, it is still the survey a reader goes
+ * looking for, one press away.
+ *
  * A `<details>` and nothing else: the collapse is the browser's, so it works
  * before this app's JavaScript has an opinion, it is keyboard-reachable and
  * announced without an `aria-expanded` to keep in step, and the open state
  * survives a live frame because Solid keeps the element.
  *
  * Which is also the one thing that has to be said out loud about it. `open` is
- * an attribute the BROWSER then owns: shutting it mutates the element and
+ * an attribute the BROWSER then owns: opening it mutates the element and
  * nothing re-runs. A page reused from `/a.md` to `/b.md` would therefore
  * carry the reader's answer about the first document onto the second, and
- * "open by default" would quietly mean "open until you ever shut one".
+ * "closed on arrival" would quietly mean "closed until you ever open one".
  *
  * Today it does not, and NOT because of anything here: a document's body
  * arrives one at a time (./documents.tsx), so a new file is `undefined` for a
@@ -102,11 +108,7 @@ export function Toc(props: {
     // why this is belt as well as braces.
     <Show when={drawnFor()} keyed>
       <nav aria-label="Contents">
-        <details
-          open
-          class="mb-6 rounded-control border border-rule bg-desk/40 px-3 py-2"
-          data-testid={TESTID.toc}
-        >
+        <details class="mb-6" data-testid={TESTID.toc}>
           <summary class="cursor-pointer select-none text-caption font-semibold uppercase tracking-[0.08em] text-muted">
             Contents
           </summary>

@@ -36,9 +36,6 @@ export const SIDEBAR_WIDTH_KEY = "olai.sidebar.width"
 
 // ── bounds & defaults ─────────────────────────────────────────────────────
 
-/** Fixed face of a minimized desktop sidebar. Matches `--width-rail`. */
-export const RAIL_WIDTH_PX = 48
-
 export const SIDEBAR_DEFAULT_PX = 272
 export const SIDEBAR_MIN_PX = 180
 export const SIDEBAR_MAX_PX = 480

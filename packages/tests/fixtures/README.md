@@ -454,7 +454,7 @@ Two of them, and they are the two kinds:
 
 `toolbox.ts` sits at the root and is the point of the claim's scope: `.ts` is
 claimed **only under `plugins/`**, so this file is not served at all — no
-address names it, the Reference tree does not list it, and nothing compiles it.
+address names it, the sidebar's file tree does not list it, and nothing compiles it.
 A vault is somebody's directory and is full of files that are none of olai's
 business.
 

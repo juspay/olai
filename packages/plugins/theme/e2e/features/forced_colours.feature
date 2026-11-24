@@ -58,3 +58,16 @@ Feature: The reader's own screen, when it is not ours to paint
     And the reader asks for more contrast
     Then the scrollbar thumb is drawn in the page's full ink
     And there should be no page errors
+
+  # The pane with the caret in a split is marked by an accent edge along its
+  # top. A border, which a forced palette repaints, rather than a box-shadow,
+  # which it deletes: the mark has to survive the screen taking the colours.
+  Scenario: The pane with the caret keeps its mark when the screen forces its colours
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    Then pane 1 alone carries the focus mark
+    And the focus mark is drawn in the accent
+    When the screen forces its own colours
+    Then pane 1 alone carries the focus mark
+    And the focus mark is drawn in the screen's own colour
+    And there should be no page errors

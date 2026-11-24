@@ -40,7 +40,7 @@
  *
  * Every hue clears WCAG AA (4.5:1) on every palette's `paper` and `panel` —
  * the two grounds a title is ever drawn on (the outline sheet, and the
- * popovers: palette, header box, the row widgets) — light schemes and dark
+ * popovers: the palette, the row widgets) — light schemes and dark
  * alike, and this is MEASURED, not eyeballed: `./tagInk.test.ts` walks all
  * 360 hues against the table, computing the rendered sRGB the same way the
  * browser does for out-of-gamut `oklch()` (css-color-4's chroma reduction,

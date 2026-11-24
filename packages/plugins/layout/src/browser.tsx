@@ -63,7 +63,7 @@ export default definePlugin({
           yield* Effect.acquireRelease(Effect.sync(start), (stop) => Effect.sync(stop))
         }
         yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => {
-          publishLayoutCss(() => slots.read(strip).length > 0, () => slots.read(thumbs).length > 0)
+          publishLayoutCss(() => slots.read(thumbs).length > 0)
           return dispose
         })), (dispose) => Effect.sync(dispose))
       }),

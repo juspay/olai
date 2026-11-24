@@ -69,15 +69,14 @@ export const contentStatus = location<{readonly ready:()=>boolean;readonly Messa
 export const overlays = location<(props:{readonly toggleDirectory:()=>void})=>JSX.Element>("layout.overlays")
 
 /**
- * THE SEAT ABOVE THE PANES, in the main column — one occupant or none.
+ * THE SEAT FOR THE TABS, in the header between the app's name and its tools —
+ * one occupant or none.
  *
  * Drawn on a desktop only; below the breakpoint the frame draws nothing here,
- * so an occupant need not ask. While it is filled the frame publishes
- * `--height-strip` as `--height-tabs` and the pane sheet subtracts it, so a
- * split still fills the viewport exactly. The seat sticks under the header;
- * main-column headings and jumps reserve both through `--height-chrome`.
- * Withdrawal returns that offset to the header alone. `olai-plugin-tabs` is
- * the occupant.
+ * so an occupant need not ask. The seat takes the bar's height and adds none:
+ * main-column headings and jumps clear the bar alone (`--height-chrome`),
+ * filled or not. Empty, the cell still stands, so the bar keeps its shape.
+ * `olai-plugin-tabs` is the occupant.
  */
 export const strip = location<() => JSX.Element>("layout.strip", "one")
 

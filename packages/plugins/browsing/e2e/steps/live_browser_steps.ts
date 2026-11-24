@@ -14,7 +14,7 @@ import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { After, Given, Then, When } from "@olai/tests/harness/runner.ts"
 import { attr } from "@olai/tests/harness/selectors.ts"
-import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts"
+import { HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR_BODY, SIDEBAR_RAIL } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 import { TESTID as CHAT } from "olai-plugin-chat/testids"
 import { TESTID } from "olai-plugin-browsing/testids"
@@ -307,27 +307,27 @@ Then("the address is a browser tab's own", async function (this: OlaiWorld) {
   await this.waitUntil(async () => /^\/browser\/[\w-]+$/.test(this.place()), "the address to name one browser tab", HYDRATION_TIMEOUT)
 })
 
-When("I press the sidebar's Browser door", async function (this: OlaiWorld) {
+/** THE BROWSER HAS NO DOOR IN THE COLUMN: the sidebar lists where a person
+ *  goes and what needs them, and an agent's browser is a line in the dot's list
+ *  and a palette row. Asked of the drawn column, by the words a door would
+ *  carry, once the column has drawn its own rows. */
+Then("the sidebar has no Browser door", async function (this: OlaiWorld) {
   await this.showSidebar()
-  await this.press(this.page.locator(id(TESTID.browserEntry)))
+  const body = this.page.locator(SIDEBAR_BODY)
+  await body.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  assert.equal(await body.getByRole("link", { name: /^Browser\b/ }).count(), 0, "the sidebar still has a Browser door")
 })
 
-When("I press the rail's Browser door", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(id(TESTID.railBrowser)))
-})
-
-When("I tap the drawer's Browser door", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(id(TESTID.browserEntry)), "tap")
+Then("the rail has no Browser door", async function (this: OlaiWorld) {
+  const rail = this.page.locator(SIDEBAR_RAIL)
+  await rail.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  assert.equal(await rail.locator(attr("aria-label", "Open the browser")).count(), 0, "the rail still has a Browser door")
 })
 
 When("I tap Start in the browser pane", async function (this: OlaiWorld) {
   await this.press(pageIn(this, 0).locator(id(TESTID.browserStart)), "tap")
 })
 
-Then("the sidebar's Browser door is current", async function (this: OlaiWorld) {
-  await this.page.locator(`${id(TESTID.browserEntry)}${attr("aria-current", "page")}`)
-    .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
-})
 
 const headed = (agent: string) => agent.includes("Chrome/") && !agent.includes("Headless")
 

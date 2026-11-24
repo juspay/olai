@@ -156,7 +156,9 @@ export default definePlugin({
       defineSelfDrawnPage(chatPage, props => <AgentsProvider value={state.agents}><ChatPage item={props.value} /></AgentsProvider>),
     )
     yield* slots.register("sidebar.section", { said: "Needs you", body: () => <AgentsProvider value={state.agents}><NeedsYou /></AgentsProvider> })
-    yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Chats /></AgentsProvider> })
+    // The chats are a list a reader goes to on purpose, so they stand after
+    // the files; *Needs you* above stays the column's one alarm.
+    yield* slots.register("sidebar.section", { said: SECTION, place: "bottom", body: () => <AgentsProvider value={state.agents}><Chats /></AgentsProvider> })
     const palette = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       let value!: ReturnType<typeof createAgentPalette>
       createComponent(AgentsProvider, { value: state.agents, get children() {

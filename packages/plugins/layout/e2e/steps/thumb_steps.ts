@@ -25,6 +25,7 @@ import { TESTID } from "../../src/testids.ts";
 const BAR = selector(TESTID.thumbs);
 const NEEDS = selector(PLUGIN_TESTID.agentNeedsYou);
 const CHATS = selector(PLUGIN_TESTID.thumbChats);
+const ROSTER = selector(PLUGIN_TESTID.agentRoster);
 const AGENDA_PAGE = selector(PLUGIN_TESTID.agendaPage);
 
 /** A door, by the word under its icon — the one thing a person reads. */
@@ -123,6 +124,21 @@ Then("the caret is on Needs you", async function (this: OlaiWorld) {
   await this.waitUntil(
     () => this.page.evaluate((needs) => document.querySelector(needs)?.contains(document.activeElement) === true, NEEDS),
     "the caret to land inside Needs you",
+  );
+});
+
+/** ...and with nobody waiting, the caret is on the Chats list below the files,
+ *  and the drawer has scrolled it onto the screen. */
+Then("the caret is on Chats, in view", async function (this: OlaiWorld) {
+  await this.page.locator(SIDEBAR_BODY).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(
+    () => this.page.evaluate((roster) => {
+      const list = document.querySelector(roster);
+      if (list === null || !list.contains(document.activeElement)) return false;
+      const box = list.getBoundingClientRect();
+      return box.top < innerHeight && box.bottom > 0;
+    }, ROSTER),
+    "the caret to land on the Chats list, scrolled into view",
   );
 });
 

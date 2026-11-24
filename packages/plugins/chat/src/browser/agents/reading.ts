@@ -58,6 +58,11 @@ export const createAgentReadings = (agents: Roster) => {
   const [visits, setVisits] = createStore<Record<string, Conversing | undefined>>({})
   const [resumed, setResumed] = createStore<Record<string, Conversing | undefined>>({})
   const needsSurfaces = new Set<{ element: HTMLElement; shown: () => boolean }>()
+  /** The Chats list, drawn below the files: where the phone's Chats thumb
+   *  lands when nothing needs anybody. */
+  const rosterSurfaces = new Set<{ element: HTMLElement; shown: () => boolean }>()
+  const drawnIn = (surfaces: ReadonlySet<{ element: HTMLElement; shown: () => boolean }>) =>
+    [...surfaces].find(row => row.shown() && row.element.isConnected)
   let alive = true
   onCleanup(() => { alive = false; for (const entry of conversations.values()) entry.dispose(); conversations.clear(); for (const stop of [...awaitingEmpty.values()]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
   const ui = (to: PanelAddress) => {
@@ -169,7 +174,16 @@ export const createAgentReadings = (agents: Roster) => {
       needsSurfaces.add(row)
       onCleanup(() => needsSurfaces.delete(row))
     },
-    focusNeeds: () => { [...needsSurfaces].find(row => row.shown() && row.element.isConnected)?.element.focus() },
+    rosterSurface: (element: HTMLElement, shown: () => boolean) => {
+      const row = { element, shown }
+      rosterSurfaces.add(row)
+      onCleanup(() => rosterSurfaces.delete(row))
+    },
+    focusNeeds: () => { drawnIn(needsSurfaces)?.element.focus() },
+    /** The conversations, as a door lands on them: Needs you when anything is
+     *  waiting on a person, else the Chats list — focused, so the column
+     *  scrolls it into view wherever it stands. */
+    focusConversations: () => { (drawnIn(needsSurfaces) ?? drawnIn(rosterSurfaces))?.element.focus() },
     visiting: (node: string) => visits[node],
     visit: (node: string, to?: Conversing) => { setVisits(node, to); setResumed(node, undefined) },
     resume: (node: string, to: Conversing) => { setVisits(node, undefined); setResumed(node, to) },

@@ -101,8 +101,8 @@ export interface Ledger {
  * answered. Core does not stand behind it; the search plugin does.
  *
  * Absent is "no provider mounted": every one of the five doors onto search —
- * `search_nodes` for an agent, and the ⌘K palette, the header's box, the
- * composer's `@` list, the edges panel and the move picker for a person — is
+ * `search_nodes` for an agent, and the ⌘K palette, the composer's `@` list,
+ * the edges panel and the move picker for a person — is
  * answered with no hits AND WITH THE REASON ({@link NO_SEARCH}), which is the
  * one shape every one of them already draws for a query the grammar could not
  * read. The FILTER over a page is not on this door at all: it is

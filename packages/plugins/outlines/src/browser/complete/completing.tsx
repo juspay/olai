@@ -34,7 +34,7 @@
  *     `vocabulary.ts`), asked through `./asking.ts`. It was the loaded set's
  *     own until `vault-in-browser`'s PR 2, which took the loaded set away.
  *   - a NODE is the SERVER's search — `../search/nodes.ts`, the same primitive
- *     the ⌘K palette and the header box call, debounce and all. A third door
+ *     the ⌘K palette calls, debounce and all. A further door
  *     onto one reading, which is the rule that file exists to keep.
  *
  * So two of the three are now questions, and the two askers are one shape:

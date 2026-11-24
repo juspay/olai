@@ -3,16 +3,16 @@ import { Index } from "solid-js"
 /**
  * One result row, wherever search is drawn.
  *
- * FOUR surfaces draw this row over the one `./nodes.ts` reading — the ⌘K
- * palette, the header's box, the `((` widget in a row's title and the edge
- * panel — and it is one component for the same reason there is one query: two
+ * THREE surfaces draw this row over the one `./nodes.ts` reading — the ⌘K
+ * palette, the `((` widget in a row's title and the edge panel — and it is
+ * one component for the same reason there is one query: two
  * spellings of a row are two rows, and the day one of them learns to show a
  * mark or a date is the day they stop being the same product.
  *
- * That is not a hypothetical. The properties line below reached the palette and
- * the header box and stopped, because those two were the doors somebody was
- * thinking about — one row, drawing different things in different places, over
- * identical answers. The component was never the problem; what each door PASSES
+ * That is not a hypothetical. The properties line below once reached the
+ * palette and stopped, because that was the door somebody was thinking about —
+ * one row, drawing different things in different places, over identical
+ * answers. The component was never the problem; what each door PASSES
  * is, so what a door has to pass is kept as small as it can be (see
  * {@link RowTestids}) and every door that draws a node hit passes all of it.
  *
@@ -102,7 +102,7 @@ import type { NodeProp } from "olai-plugin-search/ui/props.ts"
  * Still LITERAL ids rather than a prefix this file derives, which is the trade
  * the other direction and deliberately kept: `../testids.ts` is a registry a
  * reader greps, and `${prefix}-place` would put half of every id in code where
- * searching for `header-search-item-place` finds nothing.
+ * searching for `palette-item-place` finds nothing.
  */
 export interface RowTestids {
   readonly row: string
@@ -185,10 +185,10 @@ export function Result(props: {
       data-id={props.id}
       data-active={props.active ? "true" : "false"}
       onMouseEnter={() => props.onHover()}
-      // The press must not move the caret. The header's box keeps its results
-      // up only while it holds focus, so a plain click would blur the input,
-      // shut the panel and land the click on nothing. Preventing the default
-      // on mousedown keeps focus where it is and still lets `click` fire.
+      // The press must not move the caret. A box that keeps its results up
+      // only while it holds focus would be blurred by a plain click, shut its
+      // list and land the click on nothing. Preventing the default on
+      // mousedown keeps focus where it is and still lets `click` fire.
       onMouseDown={(event: MouseEvent) => event.preventDefault()}
       on:olai-navigated={() => props.onNavigate?.()}
       onClick={() => { if (props.href === undefined) props.onSelect() }}

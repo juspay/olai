@@ -29,8 +29,8 @@ const chatPage = selector(PLUGIN_TESTID.chatPage);
 
 const visiblePill = (world: OlaiWorld) => world.frontLane().locator(`${above}:visible`);
 
-/** One search hit, by the words on it. The palette and the header box draw the
- *  same row (`olai-plugin-search/ui/Result.tsx`), and the mark is inside it. */
+/** One search hit, by the words on it. The palette draws the shared row
+ *  (`olai-plugin-search/ui/Result.tsx`), and the mark is inside it. */
 const hitRow = (world: OlaiWorld, label: string) =>
   world.page.locator(PALETTE_ITEM).filter({ hasText: label });
 

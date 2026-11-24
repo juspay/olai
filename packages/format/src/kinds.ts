@@ -33,7 +33,7 @@ export const ClaimData = Schema.Struct({
    *
    * Not a secret and not unreadable: it is in the set, it is in the ledger, the
    * Commit panel lists it, and an address names it. What it is not is a row in
-   * the Reference tree — because the row that claimed it draws a better place
+   * the sidebar's file tree — because the row that claimed it draws a better place
    * to open it from, and two front doors onto the same file is how a sidebar
    * fills up with the app's own plumbing.
    */
@@ -109,7 +109,7 @@ export const claims = (list: Iterable<Claim>): Claims => {
  * A suffix is the whole of the question for five of the six kinds. It cannot be
  * for the sixth: `.ts` names a TypeScript file, and a vault that keeps a build
  * beside its notes is full of them — so a bare suffix claim would sweep every
- * one into the sidebar's Reference tree and into the revision's memory. {@link
+ * one into the sidebar's file tree and into the revision's memory. {@link
  * Claim.under} is the answer: a claim may say WHERE it applies, and a path
  * outside that folder is unclaimed, exactly as it was before the claim existed.
  *

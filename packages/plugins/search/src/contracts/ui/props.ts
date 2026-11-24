@@ -14,8 +14,8 @@
  * `hitProps`, which is the same job under a second vocabulary, in the file
  * directly next to the one that had already chosen the first.
  *
- * ALL FOUR DOORS reach it, and that took a correction: the ⌘K palette and the
- * header box had it while the `((` widget and the edge panel did not, over the
+ * EVERY DOOR reaches it, and that took a correction: the ⌘K palette had it
+ * while the `((` widget and the edge panel did not, over the
  * same `createSearch` answers. A row that says different things in
  * different doors is the drift the one-reading doctrine exists to refuse, and
  * it is drift the shared component cannot prevent on its own — only what each

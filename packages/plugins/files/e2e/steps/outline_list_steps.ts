@@ -14,13 +14,12 @@ import {
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
   oneLine,
+  FILE_LIST,
   OUTLINE_LINK,
-  OUTLINE_LIST,
   OUTLINE_TREE,
   PANE,
   POLL_TIMEOUT,
-  RAIL_DOCS,
-  RAIL_OUTLINES,
+  SIDEBAR,
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
@@ -43,13 +42,13 @@ const folderToggle = (world: OlaiWorld, path: string) =>
 
 Then("the outline list is shown", async function (this: OlaiWorld) {
   await this.page
-    .locator(OUTLINE_LIST)
+    .locator(FILE_LIST)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("no outline list is shown", async function (this: OlaiWorld) {
   assert.strictEqual(
-    await this.page.locator(OUTLINE_LIST).count(),
+    await this.page.locator(FILE_LIST).count(),
     0,
     "the sidebar is on screen; an invalid set shows the error view INSTEAD of it",
   );
@@ -59,10 +58,10 @@ Then(
   "the outline list has {int} entries",
   async function (this: OlaiWorld, expected: number) {
     await this.showSidebar();
-    const links = this.page.locator(`${OUTLINE_LIST} ${OUTLINE_LINK}`);
+    const links = this.page.locator(`${FILE_LIST} ${OUTLINE_LINK}`);
     await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // An empty ul has no visible box, but must be mounted before counting.
-    await this.page.locator(OUTLINE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await this.page.locator(FILE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     const files = () => links.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-file")))
     // The list follows the directory on the watcher's clock: a step that
     // removed files a moment ago may find the list still redrawing. Wait for
@@ -275,7 +274,7 @@ Then(
     // The LIST first: asking a locator for a count the frame before the tree
     // is painted answers zero for a folder that is about to be drawn.
     await this.page
-      .locator(OUTLINE_LIST)
+      .locator(FILE_LIST)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       await this.fileDir(path).count(),
@@ -314,7 +313,6 @@ When(
   async function (this: OlaiWorld, path: string) {
     await this.showSidebar();
     const folder = this.fileDir(path);
-    if (await folder.count() === 0) await this.expandReference();
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "true") return;
     await folderToggle(this, path).click();
@@ -332,7 +330,6 @@ When(
   async function (this: OlaiWorld, path: string) {
     await this.showSidebar();
     const folder = this.fileDir(path);
-    if (await folder.count() === 0) await this.expandReference();
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "false") return;
     await folderToggle(this, path).click();
@@ -456,39 +453,86 @@ const drawnAs = async (
   );
 };
 
-When("I expand the reference section", async function(this: OlaiWorld) {
-  await this.expandReference();
-});
-When("I collapse the reference section", async function(this: OlaiWorld) {
-  const toggle = this.page.getByTestId(TESTID.referenceToggle);
-  if (await toggle.getAttribute("aria-expanded") === "true") await toggle.click();
-});
-Then("the reference section is {word}", async function(this: OlaiWorld, state: string) {
-  assert.ok(state === "expanded" || state === "collapsed");
-  await this.expectChromeAttribute(attr("data-testid", TESTID.referenceToggle), "aria-expanded", String(state === "expanded"), "Reference");
-});
-Then("the reference section lists {int} files", async function(this: OlaiWorld, count: number) {
-  await this.expectChromeAttribute(attr("data-testid", TESTID.reference), "data-count", String(count), "Reference file count");
-});
-Then("there is no reference section", async function(this: OlaiWorld) {
-  await this.page.getByTestId(TESTID.reference).waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });
-});
-Then("the outline tree omits the folder {string}", async function(this: OlaiWorld, folder: string) {
-  assert.equal(await this.page.locator(`${OUTLINE_LIST} ${FILE_DIR}${attr("data-path", folder)}`).count(), 0);
-});
-Then("the folder {string} appears in both sidebar trees", async function(this: OlaiWorld, path: string) {
-  for (const list of [OUTLINE_LIST, attr("data-testid", TESTID.referenceList)]) {
-    await this.page.locator(`${list} ${FILE_DIR}${attr("data-path", path)}`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  }
-});
-Then("Reference marks {string} as the open file", async function(this: OlaiWorld, file: string) {
-  await this.expectChromeAttribute(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}${attr("data-file", file)}`, "aria-current", "page", "the selected Reference row");
+// ── one tree of every file ─────────────────────────────────────────────
+//
+// Outlines and every other file stand in one list under one heading, by name at
+// each level, folders and files together. What a row is, is its glyph.
+
+/** The tree's top level as drawn, in order: a folder by its path and a
+ *  trailing slash, a file by its path. */
+const topLevel = (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
+  world.page.locator(FILE_LIST).evaluate((list) => [...list.children].map((item) => {
+    const path = item.getAttribute("data-path");
+    if (path !== null) return `${path}/`;
+    return item.querySelector("[data-file]")?.getAttribute("data-file") ?? "?";
+  }));
+
+Then("the file list is headed {string}", async function(this: OlaiWorld, heading: string) {
+  await this.showSidebar();
+  const head = this.page.getByTestId(TESTID.sidebarFiles).locator("h2").first();
+  await head.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  // textContent, not innerText: the heading is drawn in capitals by CSS, and
+  // what it SAYS is the sentence-case word.
+  assert.equal((await head.textContent())?.trim(), heading);
 });
 
-Then("Reference has no stored fold preference", async function(this: OlaiWorld) {
-  assert.equal(await this.stored("olai.sidebar.reference"), null);
+Then("the sidebar has no Reference section", async function(this: OlaiWorld) {
+  await this.showSidebar();
+  await this.page.locator(FILE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await this.page.locator(SIDEBAR).getByText("Reference", { exact: true }).count(), 0, "the sidebar still draws a Reference section");
 });
-Then("Reference has its own open preference", async function(this: OlaiWorld) {
-  assert.equal(await this.stored("olai.sidebar.reference"), "true");
-  assert.notEqual(await this.stored("olai.sidebar.folders"), "true");
+
+Then("the file list's top level reads {string}", async function(this: OlaiWorld, expected: string) {
+  await this.showSidebar();
+  await this.page.locator(FILE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  const wanted = expected.split(",").map((one) => one.trim());
+  await this.waitUntil(async () => JSON.stringify(await topLevel(this)) === JSON.stringify(wanted),
+    `the file list's top level to read ${wanted.join(", ")}`).catch(async () => {
+    assert.fail(`the file list's top level reads ${(await topLevel(this)).join(", ")}, not ${wanted.join(", ")}`);
+  });
+});
+
+Then("the folder {string} appears once in the file list", async function(this: OlaiWorld, path: string) {
+  await this.showSidebar();
+  const folders = this.page.locator(`${FILE_LIST} ${FILE_DIR}${attr("data-path", path)}`);
+  await folders.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await folders.count(), 1, `the folder "${path}" is drawn more than once`);
+});
+
+/** The rows directly under one folder, by path, in the order drawn. */
+Then("the folder {string} in the file list holds {string}", async function(this: OlaiWorld, path: string, expected: string) {
+  const wanted = expected.split(",").map((one) => one.trim());
+  const held = () => this.fileDir(path).evaluate((folder) =>
+    [...(folder.querySelector(":scope > ul")?.children ?? [])].map((item) =>
+      item.getAttribute("data-path") ?? item.querySelector("[data-file]")?.getAttribute("data-file") ?? "?"));
+  await this.waitUntil(async () => JSON.stringify(await held()) === JSON.stringify(wanted),
+    `the folder "${path}" to hold ${wanted.join(", ")}`).catch(async () => {
+    assert.fail(`the folder "${path}" holds ${(await held()).join(", ")}, not ${wanted.join(", ")}`);
+  });
+});
+
+Then("the file list marks {string} as the open file", async function(this: OlaiWorld, file: string) {
+  await this.showSidebar();
+  await this.expectChromeAttribute(`${FILE_LIST} a${attr("data-file", file)}`, "aria-current", "page", `the row of "${file}"`);
+});
+
+/** Which folders are drawn open, every one of them: a folder opened that the
+ *  scenario did not name is the failure, as much as one left shut. */
+Then("the open folders in the file list are {string}", async function(this: OlaiWorld, expected: string) {
+  await this.showSidebar();
+  const wanted = expected === "none" ? [] : expected.split(",").map((one) => one.trim());
+  const open = () => this.page.locator(`${FILE_LIST} ${FILE_DIR}[data-collapsed="false"]`)
+    .evaluateAll((folders) => folders.map((folder) => folder.getAttribute("data-path") ?? "?").sort());
+  await this.waitUntil(async () => JSON.stringify(await open()) === JSON.stringify([...wanted].sort()),
+    `the open folders to be ${expected}`).catch(async () => {
+    assert.fail(`the open folders are ${(await open()).join(", ") || "none"}, not ${expected}`);
+  });
+});
+
+/** A folder this browser kept open before the page loads — the memory a
+ *  reader carries across a change to the column. */
+Given("this browser kept the folder {string} open", async function(this: OlaiWorld, path: string) {
+  await this.page.addInitScript(([key, value]) => {
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
+  }, ["olai.sidebar.folders", JSON.stringify([path])] as const);
 });

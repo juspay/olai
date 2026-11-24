@@ -33,7 +33,7 @@ import { Match,Show,Switch } from "solid-js"
 
 import { createConfirming } from "@olai/web/client/confirming.ts"
 import { deleteQuestion } from "olai-plugin-files/file/delete.ts"
-import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
+import { ALARM_PILL,QUIET_PILL,QUIET_WORD } from "@olai/web/client/pill.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
 
@@ -92,7 +92,7 @@ export function DeleteFile(props: { readonly file: string }) {
         <Match when={true}>
           <button
             type="button"
-            class={`${QUIET_PILL} cursor-pointer`}
+            class={`${QUIET_WORD} cursor-pointer`}
             data-testid={TESTID.fileDeleteVerb}
             disabled={confirm.where() === "working"}
             onClick={() => confirm.ask()}

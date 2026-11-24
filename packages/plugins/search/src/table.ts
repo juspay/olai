@@ -2,8 +2,8 @@
  * olai-plugin-search's TABLE — the maintained search index, and NOTHING that decides.
  *
  * Every door that searches the directory used to read every record and every
- * body in it, once per query: `search_nodes`, the ⌘K palette, the header's box
- * and the chat composer's `@` list are one door (`./matcher.ts`, behind core's
+ * body in it, once per query: `search_nodes`, the ⌘K palette and the chat
+ * composer's `@` list are one door (`./matcher.ts`, behind core's
  * `Search`),
  * and that procedure was a walk of the corpus per settled keystroke. This
  * package is what it walks INSTEAD — a table of the same folded text, kept up

@@ -24,7 +24,6 @@
  *     `frameLocator` into a PDF viewer at all.
  */
 
-import { TESTID } from "@olai/tests/harness/testids.ts";
 import * as assert from "node:assert";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -35,6 +34,7 @@ import {
   DOCUMENT_EDIT,
   DOCUMENT_PAGE,
   FILE_GLYPH,
+  FILE_LIST,
   HYDRATION_TIMEOUT,
   IMAGE_VIEW,
   oneLine,
@@ -57,7 +57,7 @@ Then(
       // The world's own lookup, which THROWS for a kind the registry does not
       // claim: a misspelled step fails as a sentence rather than as a timeout
       // on a selector nobody writes.
-      kind === "outline-olai" ? rowsOfKind(kind) : `${attr("data-testid", TESTID.referenceList)} ${rowsOfKind(kind)}`,
+      kind === "outline-olai" ? rowsOfKind(kind) : `${FILE_LIST} ${rowsOfKind(kind)}`,
       expected.split(",").map((file) => file.trim()),
       `${kind} row(s)`,
     );
@@ -68,7 +68,6 @@ When(
   "I click the {string} row {string}",
   async function (this: OlaiWorld, kind: string, file: string) {
     await this.showSidebar();
-    if (kind !== "outline-olai") await this.expandReference();
     const link = this.kindLink(kind, file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();
@@ -444,21 +443,14 @@ const TAB_BUDGET = 300;
 // The walk starts at the top of the document on purpose: a traveller arrives
 // at the page through the chrome, and what is being claimed is that the table
 // is ON the path rather than that it can be focused once you are standing on
-// it. One thing on that path answers focus by opening a panel of its own — the
-// header's search box, whose kinds row is drawn while the box has the caret
-// and whose own dismissal is Escape — so the walk dismisses it the way a
-// person would and carries on. Without that it is not a long path, it is a
-// loop, and the budget below only decides how long we take to say so.
+// it. Nothing in the chrome opens a panel when the caret merely passes it, so
+// the walk is `Tab` and nothing else.
 When("I travel by keyboard to the table's scroller", async function (this: OlaiWorld) {
   const found = await scroller(this);
   const arrived = async () => found.evaluate((element) => element === document.activeElement);
   await this.page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur() });
   for (let presses = 0; presses < TAB_BUDGET; presses++) {
     if (await arrived()) return;
-    const inPanel = await this.page.evaluate(() =>
-      document.activeElement?.closest('[data-testid="header-search"], [data-testid="search-panel"]') !== null
-      || document.activeElement?.getAttribute("type") === "search");
-    if (inPanel) await this.page.keyboard.press("Escape");
     await this.page.keyboard.press("Tab");
   }
   assert.ok(await arrived(), `no keyboard path reached the csv scroller in ${String(TAB_BUDGET)} presses`);

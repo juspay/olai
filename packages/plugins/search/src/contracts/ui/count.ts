@@ -1,9 +1,9 @@
 /**
  * What a SHORTLIST says about the answer it only drew part of.
  *
- * THE DEFECT IT WAS WRITTEN FOR is a door that cannot count past eight. Both
- * doors onto the one reading — the ⌘K palette and the header's box — ask for
- * {@link ./nodes.ts}'s `LIMIT` hits and draw exactly what comes back, so a
+ * THE DEFECT IT WAS WRITTEN FOR is a door that cannot count past eight. The
+ * ⌘K palette (which the header's search button opens) asks for
+ * {@link ./nodes.ts}'s `LIMIT` hits and draws exactly what comes back, so a
  * query that matched ninety nodes and a query that matched eight were the same
  * eight rows and the same silence underneath them. The number was never
  * missing from the wire: a search answers with the uncapped `total` beside its

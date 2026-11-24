@@ -185,8 +185,8 @@ Feature: The three input widgets
   # ── `((` — a node to mirror ─────────────────────────────────────────
 
   Scenario: `((` searches the set, and says where each hit sits
-    # The SERVER's search — the same procedure the ⌘K palette and the header box
-    # call — so what this finds and what an agent's `search_nodes` finds cannot
+    # The SERVER's search — the same procedure the ⌘K palette calls — so what
+    # this finds and what an agent's `search_nodes` finds cannot
     # drift.
     When I click the title of "knobs"
     And I type " ((compost"

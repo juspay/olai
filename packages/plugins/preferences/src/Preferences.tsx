@@ -1,12 +1,14 @@
 /**
- * The way into the preferences: one control in the app header, and the panel it
- * opens.
+ * The way into the preferences: one line at the foot of the health dot's list
+ * on a desktop, and the panel it opens.
  *
- * It is in the HEADER on desktop because the header carries what is about the
- * APP and the sidebar what is about the DIRECTORY (`../AppHeader.tsx`), and
- * how this browser reads is a fact about the app in every directory it is
- * pointed at. On a phone it is a row at the foot of the directory drawer —
- * the closet, not a fifth chip in a bar that has no room for four.
+ * It hangs off the HEADER's dot on a desktop because the header carries what is
+ * about the APP and the sidebar what is about the DIRECTORY, and how this
+ * browser reads is a fact about the app in every directory it is pointed at.
+ * A gear of its own in the bar was a door opened a few times a month standing
+ * beside the tabs; beside **Plugins** it is one click further and out of the
+ * way. On a phone it is a row at the foot of the directory drawer — the
+ * closet, not a fifth chip in a bar that has no room for four.
  *
  * It REPLACED the theme pill rather than joining it. The pill was a preference
  * with a control of its own outside the place preferences are set, and a bar

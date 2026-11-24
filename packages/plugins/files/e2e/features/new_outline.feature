@@ -110,23 +110,23 @@ Feature: Starting a new outline from the sidebar
     And the page has not reloaded
     And there should be no page errors
 
-  # ── the Outlines heading's + ─────────────────────────────────────────
+  # ── the Files heading's + ────────────────────────────────────────────
 
-  Scenario: The Outlines + offers the two kinds of file, and Escape hands focus back
+  Scenario: The Files + offers the two kinds of file, and Escape hands focus back
     # The two `+ New …` rows under the tree left with the 2026-09
     # simplification: the heading carries one `+`, and its menu lists each kind
     # its own row contributes. Escape shuts the menu and puts focus back on the
     # `+`, so a keyboard reader is where they were.
-    When I open the Outlines + menu from the keyboard
-    Then the Outlines + menu offers "New outline|New document"
+    When I open the Files + menu from the keyboard
+    Then the Files + menu offers "New outline|New document"
     When I press "Escape"
-    Then the Outlines + menu is shut and the + has focus
+    Then the Files + menu is shut and the + has focus
     And the outline list does not link to "plans/next.olai"
     And there should be no page errors
 
   Scenario: New outline from the + menu, by keyboard, opens its path box with the caret in it
-    When I open the Outlines + menu from the keyboard
-    And I choose "New outline" from the Outlines + menu with the keyboard
+    When I open the Files + menu from the keyboard
+    And I choose "New outline" from the Files + menu with the keyboard
     Then the new outline box has the caret
     When I type "plans/keyed"
     And I press "Enter"
@@ -135,8 +135,8 @@ Feature: Starting a new outline from the sidebar
     And there should be no page errors
 
   Scenario: New document from the + menu opens the document's path box
-    When I open the Outlines + menu
-    And I choose "New document" from the Outlines + menu with the keyboard
+    When I open the Files + menu
+    And I choose "New document" from the Files + menu with the keyboard
     Then the new document box has the caret
     And the new outline box is gone
     And there should be no page errors

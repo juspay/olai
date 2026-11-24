@@ -14,7 +14,7 @@ Feature: A property key that declares its type
   back to what it was.
 
   And the reading side: a key declared `int` or `date` compares, so `..` becomes
-  honest and `prop:records=190..200` is a question the header box can answer
+  honest and `prop:records=190..200` is a question the palette can answer
   (website/docs/search.md). A range on a key nobody declared is refused with the reason,
   because comparing text as if it were a number is the lie types exist to
   prevent.
@@ -146,26 +146,26 @@ Feature: A property key that declares its type
     # lane at 1000 is the one that proves the comparison: as TEXT, "1000" sorts
     # inside "190".."200", and this is why declaring the key was worth doing.
     Given I open the app
-    When I search the header for "prop:records=190..200"
-    Then the header search lists the node "the typed-properties lane"
-    And the header search lists the node "the chip-editor lane"
-    And the header search does not list the node "the doc-backlinks lane"
-    And the header search does not list the node "a lane from long ago"
+    When I search from the header for "prop:records=190..200"
+    Then the palette lists the node "the typed-properties lane"
+    And the palette lists the node "the chip-editor lane"
+    And the palette does not list the node "the doc-backlinks lane"
+    And the palette does not list the node "a lane from long ago"
     And there should be no page errors
 
   Scenario: A span on a date key reuses the day grammar
     Given I open the app
-    When I search the header for "prop:dispatched=2026-08-20.."
-    Then the header search lists the node "the typed-properties lane"
-    And the header search lists the node "the chip-editor lane"
-    And the header search does not list the node "the doc-backlinks lane"
+    When I search from the header for "prop:dispatched=2026-08-20.."
+    Then the palette lists the node "the typed-properties lane"
+    And the palette lists the node "the chip-editor lane"
+    And the palette does not list the node "the doc-backlinks lane"
     And there should be no page errors
 
   Scenario: A range on a key nobody declared is refused, with the reason
     # The silent-nothing this refusal exists to prevent: read as an equality,
     # `terminal=190..200` selects no node and says nothing about why.
     Given I open the app
-    When I search the header for "prop:terminal=190..200"
+    When I search from the header for "prop:terminal=190..200"
     Then the search refuses "prop:terminal=190..200" and says "nothing declares `terminal`"
     And there should be no page errors
 

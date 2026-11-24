@@ -1,10 +1,13 @@
 /**
- * THE STRIP — the row of tabs above the panes, on a desktop.
+ * THE STRIP — the row of tabs in the header, over the pages they hold, on a
+ * desktop.
  *
- * Desk ground and a one-pixel rule under it; the tab in front on paper with the
- * rule broken under it, the others muted. A press brings a tab forward when it
- * is let go, a drag reorders it with the
- * pane header's threshold and pointer helper, a middle-click closes it, and a
+ * The bar's own ground and hairline under it; the tab in front is paper with
+ * a rule round its top and sides and none under it, so it paints over the
+ * bar's hairline and reads as the top of its page; the others are muted words
+ * that take a wash on hover. A press brings a tab forward when it is let go,
+ * a drag reorders it with the pane header's threshold and pointer helper, a
+ * middle-click closes it, and a
  * right-click opens its menu. `+` opens a front-page tab. A tab says the name
  * of what it holds (`./face.ts`'s `facesOf`: a document by its stem, the way
  * the files sidebar says it) and carries its address in this app's own tip
@@ -24,6 +27,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { lone } from "olai-plugin-navigation/workspace"
+import { TAB, TAB_BEHIND, TAB_FRONT } from "olai-plugin-layout/tab"
 
 import type { Tab, TabsState } from "./contract.ts"
 import { createFaces, glyphOf } from "./face.ts"
@@ -124,12 +128,9 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
   }
 
   return (
-    <div data-testid={TESTID.tabsStrip} class="relative flex h-full items-stretch gap-1 pr-1">
-      {/* The rule under the strip. Every tab is positioned and comes after it,
-          so the tab in front, on paper, breaks the rule without a z-index. */}
-      <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-rule" />
+    <div data-testid={TESTID.tabsStrip} class="flex h-full items-end gap-1 pl-1.5 pr-1">
       <div ref={row} role="tablist" aria-label="Open tabs"
-        class="flex h-full min-w-0 flex-1 items-stretch overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
+        class="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
         <Key each={tabs.tabs()} by="id">{(tab, index) => {
           const front = () => isFront(tab().id)
           const href = createMemo(() => tab().href)
@@ -166,14 +167,14 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 data-drop={drop()}
                 // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
                 // (a page naming itself as it arrives) must not move its
-                // neighbours along the strip.
-                // `olai-tab-filled` is the forced-colours hook, defined once in
-                // `@olai/ui-primitives/all.css`: paper under the front tab is a
-                // background, and High Contrast throws author backgrounds away.
-                class="olai-tab-filled group/tab relative flex h-full min-w-[5rem] max-w-[14rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap border-r border-rule pl-3 pr-1 text-label"
+                // neighbours along the strip. Shorter than the bar and
+                // standing on its foot, so the front tab's paper meets the page.
+                // The shape is the frame's one tab (`olai-plugin-layout/tab`);
+                // a tab behind here also takes a wash on hover.
+                class={`${TAB} group/tab relative flex h-[2.125rem] min-w-[5rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap pl-3 pr-1`}
                 classList={{
-                  "bg-paper font-medium text-ink": front(),
-                  "text-muted hover:bg-ink/5 hover:text-ink": !front(),
+                  [TAB_FRONT]: front(),
+                  [`${TAB_BEHIND} hover:bg-ink/5`]: !front(),
                   "opacity-40": isLifted(),
                 }}
                 draggable={false}
@@ -237,7 +238,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
           type="button"
           data-testid={TESTID.tabsNew}
           aria-label="New tab"
-          class="my-auto flex size-6 shrink-0 items-center justify-center rounded-control text-muted hover:bg-ink/5 hover:text-ink"
+          class="flex size-6 shrink-0 items-center justify-center self-center rounded-control text-muted hover:bg-ink/5 hover:text-ink"
           onClick={() => tabs.open(lone(HOME_ROUTE))}
         >+</button>
       </Tip>

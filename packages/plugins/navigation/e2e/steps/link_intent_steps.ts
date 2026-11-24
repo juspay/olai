@@ -14,8 +14,7 @@ const link = (world: OlaiWorld, surface: string) => {
     case "backlink": return world.page.locator('[data-testid="backlinks"] a[href="/#preview-source"]').first()
     case "breadcrumb": return world.page.locator('[data-testid="breadcrumbs"] a[href="/#preview-target"]').first()
     case "palette": return world.page.locator('[data-testid="palette-item"][href="/#preview-target"]').first()
-    case "search": return world.page.locator('[data-testid="header-search-item"][href="/#preview-target"]').first()
-    case "files-rail": return world.page.getByTestId("rail-outlines")
+    case "files-rail": return world.page.getByTestId("rail-files")
     case "dated": return world.page.locator('[data-node-id="dated-link"] a[href="/#preview-target"]').first()
     case "rail": return world.page.locator('[data-testid="rail-trash"]').first()
     case "card": return world.page.locator('[data-testid="link-preview"] a').getByText("nested", { exact: true }).first()
@@ -88,12 +87,10 @@ Given("I prepare the unified {string} surface", async function(this: OlaiWorld, 
     await this.openNode("preview-target")
     await this.page.getByTestId("backlinks-summary").click()
   } else if (surface === "breadcrumb") await this.openNode("preview-child-0")
-  else if (surface === "palette" || surface === "search") {
+  else if (surface === "palette") {
     await this.open("/house.olai")
-    if (surface === "palette") {
-      await this.page.keyboard.press("Control+k")
-      await this.page.getByTestId("palette-input").fill("Preview target")
-    } else await this.page.getByTestId("header-search").fill("Preview target")
+    await this.page.keyboard.press("Control+k")
+    await this.page.getByTestId("palette-input").fill("Preview target")
   } else {
     await this.openNode("preview-source")
     if (surface === "card") await link(this, "note").hover()

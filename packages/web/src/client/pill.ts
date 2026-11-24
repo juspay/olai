@@ -28,6 +28,16 @@ export const QUIET_PILL =
   "rounded-control border border-rule px-2 py-0.5 text-label text-muted hover:bg-ink/5 hover:text-ink"
 
 /**
+ * The same verb with NO BORDER UNTIL POINTED AT: a word at rest, the quiet
+ * pill under a pointer or the keyboard. For the verbs that sit in a page's own
+ * head — a document's `Edit` and `Delete…` — where a pair of outlined boxes is
+ * the loudest thing above the text. The geometry is the pill's, border
+ * included (drawn transparent), so pointing at it moves nothing.
+ */
+export const QUIET_WORD =
+  "rounded-control border border-transparent px-2 py-0.5 text-label text-muted hover:border-rule hover:bg-ink/5 hover:text-ink focus-visible:border-rule"
+
+/**
  * Its opposite number: the verb that GOES AHEAD with the one thing a confirm
  * is asked about.
  *

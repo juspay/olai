@@ -789,7 +789,7 @@ Read the files on the plugin's page and press **Turn on**. The columns appear un
 - Click a French word and a row with that word appears in `vocabulary.olai`, due today, and the commit panel lists the file as changed.
 - Open the **Vocabulary** row, the top row of `vocabulary.olai`, and the foot of its page shows the word due longest. **Again** makes it due tomorrow; **Good** and **Easy** push it further out.
 - The same review is a page of its own at `/plugins/reader/app/review`, and a reload draws it again.
-- A `.reader` file, one French sentence and its English per line, is listed under **Reference** and opens as the same two columns. Change it on disk and its page is drawn again.
+- A `.reader` file, one French sentence and its English per line, is listed under **Files** and opens as the same two columns. Change it on disk and its page is drawn again.
 - Every Markdown note says **Reading companion** above its text and has a link to the review at its foot.
 - In a Markdown note, a fenced block whose language is `reader`, one sentence and its English per line, is drawn as the same two columns. Change the note on disk and the block is drawn again.
 - A word the gate will not add, because the vocabulary has no row called `vocabulary` to add it under, shows the gate's sentence under the sentence you clicked it in, and nothing is written.

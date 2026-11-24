@@ -21,6 +21,7 @@ import {
   NOTE_MARK,
   NODE,
   DOCUMENT_LINK,
+  FILE_LIST,
   DOCUMENT_PAGE,
   DOCUMENT_REFERRERS,
   HYDRATION_TIMEOUT,
@@ -41,14 +42,14 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── documents in the file tree ─────────────────────────────────────────
 
-// Order is document-link order in the tree (path order of the walk), not a
-// separate section. The waiting and the comparison are the world's
+// Order is document-link order in the one file tree (path order of the walk),
+// not a separate section. The waiting and the comparison are the world's
 // (`expectListed`), shared with the same question asked about `.html` files.
 Then(
   "the documents listed are {string}",
   async function (this: OlaiWorld, expected: string) {
     await this.expectListed(
-      `${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}`,
+      `${FILE_LIST} ${DOCUMENT_LINK}`,
       expected.split(",").map((file) => file.trim()),
       "document(s)",
     );
@@ -59,7 +60,6 @@ When(
   "I click the document {string}",
   async function (this: OlaiWorld, file: string) {
     await this.showSidebar();
-    await this.expandReference();
     const link = this.documentLink(file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();

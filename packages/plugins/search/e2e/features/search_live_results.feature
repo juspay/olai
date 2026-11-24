@@ -27,32 +27,6 @@ Feature: Search results follow external edits while the query stays open
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: The header search drops a removed target and opens the new matching node
-    Given I rewrite "search-live.olai" as:
-      """
-      {"id":"old-target","ord":"a0","title":"orchid original task"}
-      {"id":"new-target","ord":"a1","title":"another task"}
-      """
-    And I open the outline "house.olai"
-    And I mark the page
-    When I search the header for "orchid"
-    Then the header search lists the node "orchid original task"
-    When I rewrite "search-live.olai" as:
-      """
-      {"id":"new-target","ord":"a0","title":"orchid replacement task"}
-      """
-    Then the header search lists the node "orchid replacement task"
-    And the header search does not list the node "orchid original task"
-    When I press the header search result "orchid replacement task"
-    Then the unified destination row "new-target" is selected
-    When I click the outline "search-live.olai"
-    And I click the title of "new-target"
-    And I select all and type "edited from the live result"
-    And I press "Enter"
-    Then "search-live.olai" holds a node titled "edited from the live result"
-    And the page has not reloaded
-    And there should be no page errors
-
   Scenario: A live shortlist updates its total when a capped answer becomes one result
     Given I rewrite "search-count.olai" as:
       """

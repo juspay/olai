@@ -350,13 +350,13 @@ export const SIDEBAR_SCRIM = selector(TESTID.sidebarScrim);
 export const SIDEBAR_COLLAPSE = selector(TESTID.sidebarCollapse);
 export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);
 export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
-/** The rail's two ways INTO the directory — the collapsed column's outlines
- *  and documents buttons, which draw the tree's own glyphs. */
-export const RAIL_OUTLINES = selector(TESTID.railOutlines);
-export const RAIL_DOCS = selector(TESTID.railDocs);
+/** The rail's one way INTO the directory — the collapsed column's Files
+ *  button, which draws the tree's own outline glyph. */
+export const RAIL_FILES = selector(TESTID.railFiles);
 export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
-/** The file tree: every outline and document under the folders they live in. */
-export const OUTLINE_LIST = selector(TESTID.outlineList);
+/** The file tree: every file the reader keeps, outlines and the rest
+ *  together, under the folders they live in. */
+export const FILE_LIST = selector(TESTID.fileList);
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
 /** One folder in that tree. `data-path` / `data-collapsed` say which and how. */
 export const FILE_DIR = selector(TESTID.fileDir);
@@ -459,6 +459,15 @@ export const rowReads = async (
 export const detailsOpen = async (locator: Locator): Promise<boolean> =>
   await locator.first().evaluate((el) => (el as HTMLDetailsElement).open);
 
+/** Open a `<details>` the way a reader does — a press on its summary — unless
+ *  it is open already. For a block that starts shut (a document's Contents),
+ *  so a step that reaches inside it says the press a person would make. */
+export const openDetails = async (locator: Locator): Promise<void> => {
+  const details = locator.first();
+  await details.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  if (!(await detailsOpen(details))) await details.locator(":scope > summary").click();
+};
+
 /** One row of the node page's section, found by the label a READER sees —
  *  the labels are the shared section's own (`@olai/markdown-ui`), paired with
  *  the outline's testids by the same `makeReferrerWays` the section's caller
@@ -517,13 +526,12 @@ export const PANE_CLOSE = selector(TESTID.paneClose);
 export const PANE_RESIZE = selector(TESTID.paneResize);
 export const PANE_TABS = selector(TESTID.paneTabs);
 export const PANE_TAB = selector(TESTID.paneTab);
-/** The same refusal on the two doors that ask the SERVER for it — the ⌘K
- *  palette and the header box. One name, because it is one sentence about one
- *  grammar; where each door draws it is that door’s own business. */
+/** The refusal on the door that asks the SERVER for it — the ⌘K palette.
+ *  One name, because it is one sentence about one grammar; where a door
+ *  draws it is that door’s own business. */
 export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
-/** …and the same count line on the same two doors: "8 of 20 matches", or no
- *  element at all when the door drew everything it found. Scoped by the step
- *  to the door it means, since one name serves both. */
+/** …and the count line on the same door: "8 of 20 matches", or no element at
+ *  all when the door drew everything it found. */
 export const SEARCH_COUNT = selector(TESTID.searchCount);
 /** The `↻` pill beside a date, saying how the node COMES BACK in the format's
  *  own words — and, where the row is editable, the way into the picker below.
@@ -723,17 +731,16 @@ export const APP_CHROME = selector(TESTID.appChrome);
 
 /** The default desktop inventory of that row, in order: the calm bar. The
  *  connection, the Commit readout, every plugin's readout and the uptime line
- *  are ROWS of the health popover now, not chips in the bar, and the plugins
- *  door is that popover's foot. The Commit readout is still the only control
- *  anywhere in the chrome that reports on the repository, which is what the
- *  git-indicator step guards — it now counts rows of the popover. */
+ *  are ROWS of the health popover now, not chips in the bar, and the
+ *  Preferences and Plugins doors are that popover's foot. The Commit readout
+ *  is still the only control anywhere in the chrome that reports on the
+ *  repository, which is what the git-indicator step guards — it now counts
+ *  rows of the popover. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
-  // The search box, and beside it the magnifier a phone gets instead.
-  PLUGIN_TESTID.headerSearch,
+  // The search door: `Search` and the chord on a desktop, a magnifier on a phone.
   PLUGIN_TESTID.headerSearchOpen,
   // ONE dot for everything the bar used to stand a pill for.
   TESTID.health,
-  TESTID.prefsTrigger,
   // Who is looking, last — a plugin's face in the app.viewer seat.
   PLUGIN_TESTID.identity,
 ];
@@ -842,12 +849,10 @@ export const PALETTE_SAID = selector(TESTID.paletteSaid);
  *  inside it wears {@link PALETTE}. */
 export const PALETTE_MODAL = `dialog:has(${PALETTE})`;
 export const SHORTCUTS = selector(TESTID.shortcuts);
-/** The header box's panel of results, and the shelf of pins in the sidebar —
- *  here rather than spelled at a step file, which is where the rest of the
- *  suite's selectors live. */
-export const HEADER_SEARCH = selector(PLUGIN_TESTID.headerSearch);
+/** The header's search door (a button that opens the palette), and the shelf
+ *  of pins in the sidebar — here rather than spelled at a step file, which is
+ *  where the rest of the suite's selectors live. */
 export const HEADER_SEARCH_OPEN = selector(PLUGIN_TESTID.headerSearchOpen);
-export const HEADER_SEARCH_RESULTS = selector(PLUGIN_TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 
 export const CHAT_ENTRY_STREAMING =
@@ -1835,21 +1840,14 @@ export class OlaiWorld extends World {
     }
   }
 
-  async expandReference(): Promise<void> {
-    await this.showSidebar();
-    const toggle = this.page.getByTestId(TESTID.referenceToggle);
-    await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
-  }
-
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}`, file);
+    return this.fileLink(`${FILE_LIST} ${DOCUMENT_LINK}`, file);
   }
 
   /** One sidebar `.html` entry, on the same terms. */
   hypertextLink(file: string): Locator {
-    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${HYPERTEXT_LINK}`, file);
+    return this.fileLink(`${FILE_LIST} ${HYPERTEXT_LINK}`, file);
   }
 
   /** One sidebar row of ANY registered kind, by the kind's own name — the

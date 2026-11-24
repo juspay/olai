@@ -9,7 +9,7 @@ This page is how you switch one, and where each setting is kept.
 | --- | --- | --- |
 | the directory olai serves | which plugins run, and every other policy | `_olai/Settings.olai`, a file kept in git |
 | the machine | credentials and what the machine provides | the environment olai starts with, from a wrapper or `environmentFile` |
-| this browser | how this tab looks and reads | the Preferences gear, in this browser's local storage |
+| this browser | how this tab looks and reads | the Preferences panel, in this browser's local storage |
 
 Everyone using the directory shares the first. The second belongs to the
 machine; the third is yours alone.[^prefs]
@@ -194,7 +194,7 @@ plugin back to its default, and the panel names the broken file.
 <summary>Settings shown in Preferences, and how soon an edit takes effect</summary>
 
 A plugin can mark one of its settings as a preference, and the Preferences
-gear then shows it under a heading named after the plugin: git's `commit` and
+panel then shows it under a heading named after the plugin: git's `commit` and
 `push`, and the mail plugin's `poll`. Those controls still write
 `_olai/Settings.olai` for everyone using the directory, and each run of groups
 ends with a line saying so.
@@ -223,7 +223,7 @@ named on its row, and the first keeps running.
 | --- | --- | --- |
 | git | the list of waiting writes, the Commit row, git's tools | every write you made, unrecorded |
 | journal | the calendar, `/today`, day pages, Agenda and its badge | the `date` and `repeat` properties in your files |
-| search | the index and every ranked answer | the search grammar, the search box and the `search_nodes` tool, each answering with no hits and the reason |
+| search | the index and every ranked answer | the search grammar, the palette and the `search_nodes` tool, each answering with no hits and the reason; the **Search** button leaves the header |
 | chat | the conversation | nothing of its own; its engines, doorbells and the mirror are left `waiting` |
 | files | its file browser and its controls for making files | the file information other plugins read to open content |
 

@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
-import { HYDRATION_TIMEOUT, POLL_TIMEOUT, ZOOM } from "@olai/tests/harness/world.ts";
+import { HYDRATION_TIMEOUT, openDetails, POLL_TIMEOUT, ZOOM } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 import { TABS_KEY } from "../../src/persist.ts";
@@ -322,7 +322,6 @@ When("I choose {string} from the menu of the outline link {string}", async funct
 
 When("I choose {string} from the menu of the document link {string}", async function (this: OlaiWorld, entry: string, file: string) {
   await this.showSidebar();
-  await this.expandReference();
   const link = this.documentLink(file);
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await link.click({ button: "right" });
@@ -340,7 +339,10 @@ When("I choose {string} from the menu of the in-page link {string}", async funct
 });
 
 When("I choose {string} from the menu of the contents line {string}", async function (this: OlaiWorld, entry: string, text: string) {
-  const link = this.page.getByRole("navigation", { name: "Contents" }).getByRole("link", { name: text, exact: true }).first();
+  const contents = this.page.getByRole("navigation", { name: "Contents" });
+  // Contents arrives shut; a reader opens it before a line is there to press.
+  await openDetails(contents.locator("details"));
+  const link = contents.getByRole("link", { name: text, exact: true }).first();
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await link.click({ button: "right" });
   await chooseFromMenu(this, entry);

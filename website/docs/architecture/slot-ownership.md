@@ -105,22 +105,24 @@ A contribution is `{ place, body, status? }`.
 A contribution is `{ body, headerOrder, closetOrder, mobileWithoutSidebar?, desktop? }`.
 
 - `desktop` picks where it goes on a desktop, `header` or `health`, and `body` is told where it is being drawn: `header`, `health` or `closet`.
-- A button placed at `health` is drawn beside the health dot and gives the popover a row of its own. Clicking that row closes the popover and opens the button's panel, anchored to the dot.
+- A button placed at `health` is drawn beside the health dot and gives the popover a row of its own. Clicking that row closes the popover and opens the button's panel, anchored to the dot. Preferences and Plugins both ask for `health`, so no door of olai's own stands in the bar.
+- Rows at `health` stand in `headerOrder`: Preferences, then Plugins, the order the phone drawer's foot uses.
 - A button whose open or closed state is kept outside the app frame, as the plugins panel keeps its own inside the plugin inspector, is drawn again by that button when the frame is rebuilt.
 
 ### `sidebar.entry` and `sidebar.section`
 
-An entry is `{ place, body, rail? }` and a section is `{ said, body }`.
+An entry is `{ place, body, rail? }` and a section is `{ said, body, place? }`.
 
-- `place` is `top`, the first entries in the column, `bottom`, after the sections other plugins add, or `foot`, pinned under the scrolling list where it stays in view however long the list gets.
+- An entry's `place` is `top`, the first entries in the column, `bottom`, after the sections placed `top`, or `foot`, pinned under the scrolling list where it stays in view however long the list gets.
 - A `foot` entry's icon sinks to the bottom of the strip of icons, which is where Trash sits.
 - A section's `said` is its heading, in the contributing plugin's own words.
+- A section's `place` is `top`, the default, above the pinned pages and the files, or `bottom`, after the files. **Needs you** is `top`; **Chats** and **Plugins** are `bottom`.
 
 ### `files.types` and `files.state`
 
 A `files.types` contribution is `{ making, Create }`, contributed by the plugin that owns the file kind.
 
-- `making` is the item that kind puts in the `+` menu under the Outlines heading, and is `undefined` while that kind cannot create files, in which case there is no item.
+- `making` is the item that kind puts in the `+` menu under the Files heading, and is `undefined` while that kind cannot create files, in which case there is no item.
 - `Create` is that kind's box for naming a new file, drawn under the heading and empty until the item opens it.
 
 `files.state` is a service rather than a slot, with `Delete`, `New` and `open(kind)`. `open` opens the new-file box for one kind, which is what clicking that kind's `+` item does, and what a page offering to make the first file of a kind calls.

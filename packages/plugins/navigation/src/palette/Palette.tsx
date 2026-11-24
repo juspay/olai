@@ -445,7 +445,7 @@ export function Palette(props: {
     // second index the day one can (`@olai/format`'s `matchingDocuments`). One
     // reading answers both kinds, so a row is drawn from the same hit whichever
     // it is, and typing a word that is in a document's PROSE finds it here
-    // exactly as it does in the header's box.
+    // exactly as an agent's `search_nodes` does.
     // THE HITS CARRY THE SEARCH THEY CAME OUT OF (`../settled.ts`'s `Taking`),
     // which is what lets `Enter` be refused for a row of a query the reader
     // has typed past WITHOUT being refused for the command rows above it —

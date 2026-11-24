@@ -46,16 +46,58 @@ Feature: The second pane
     And pane 2 is showing "/zoom/#install"
     And pane 1 is focused
 
+  # The pane with the caret is marked by an accent edge along its top, and
+  # exactly one pane wears it: the mark follows a click and the two keys.
   Scenario: Focus moves with a click and with Alt+Left / Alt+Right
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"
     Then pane 1 is focused
+    And pane 1 alone carries the focus mark
+    And the focus mark is drawn in the accent
     When I focus pane 0
     Then pane 0 is focused
+    And pane 0 alone carries the focus mark
     When I press Alt+Right
     Then pane 1 is focused
+    And pane 1 alone carries the focus mark
     When I press Alt+Right
     Then pane 0 is focused
+    And pane 0 alone carries the focus mark
+    When I press Alt+Left
+    Then pane 1 is focused
+    And pane 1 alone carries the focus mark
+
+  # A pane's `×` waits for a pointer on the pane and is not drawn at rest, but
+  # it is in the tab order all the same, and drawn while it has the keyboard.
+  Scenario: A pane's close button waits for a pointer, and the keyboard reaches it
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    And the pointer is away from the controls
+    Then pane 0's close button is not drawn
+    When I point at pane 0
+    Then pane 0's close button is drawn
+    When the pointer is away from the controls
+    And I click pane 1's name and press Tab
+    # Off the panes again, so what draws the `×` is the keyboard alone and not
+    # the pointer the click left on pane 1.
+    And the pointer is away from the controls
+    Then pane 1's close button has the keyboard, and is drawn
+    When I press "Enter"
+    Then there are 1 panes
+    And pane 0 is showing "/house.olai"
+    And there should be no page errors
+
+  # A touch screen has no hover to make the offer with, so a wide one draws
+  # every pane's `×` at rest.
+  @phone
+  Scenario: A wide touch screen draws every pane's close button
+    Given I open the outline "house.olai"
+    When I widen the window to a desk
+    And I alt-click the zoom of "install"
+    Then there are 2 panes
+    And pane 0's close button is drawn
+    And pane 1's close button is drawn
+    And there should be no page errors
 
   Scenario: Closing the second-to-last pane returns to a plain page
     Given I open the outline "house.olai"
@@ -125,11 +167,22 @@ Feature: The second pane
     Then the pane tabs read "house | install"
     And there should be no page errors
 
+  # The rail wears the mark a column wears — an accent edge on top, its name in
+  # the page's ink — while its pane is focused, and its name does not move when
+  # focus arrives or leaves.
   Scenario: A pane below the minimum width collapses to a rail
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"
     And I collapse pane 1 by dragging its divider
     Then a pane rail is shown for pane 1
+    When the pointer is away from the controls
+    And I press Alt+Left
+    Then pane 0 is focused
+    And the pane rail 1 does not carry the focus mark
+    When I note where the pane rail 1's name stands
+    And I press Alt+Right
+    Then the pane rail 1 carries the focus mark
+    And the pane rail 1's name stands where it stood
     When I expand the pane rail 1
     Then there are 2 panes
     And pane 1 is showing "/zoom/#install"

@@ -279,8 +279,8 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  * WHATEVER, and that is the change: a hit is a record or a document
  * (`@olai/format`'s `SearchHit`), and the row is the same row either way —
  * label, place, and a route to take. What each of those IS per kind is
- * `../search/row.ts`'s answer, shared with the three other doors that draw the
- * identical list, so the palette cannot grow a glyph the header box lacks.
+ * `../search/row.ts`'s answer, shared with the other doors that draw a hit's
+ * row, so the palette cannot grow a glyph the others lack.
  */
 /**
  * EVERY HIT OF A SEARCH, as the block a door draws — which is the call the two

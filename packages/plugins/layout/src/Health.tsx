@@ -66,7 +66,7 @@ import { Uptime } from "./Uptime.tsx"
 /** A list of short rows wants less than the 24rem a settings panel is given.
  *  The box is narrowed and its RIGHT edge set on the bar's own right edge (the
  *  last control's, `edge`) — never past the anchor's window margin — so the
- *  popover hangs flush under the dot, the gear and who is looking. */
+ *  popover hangs flush under the dot and who is looking. */
 const ROWS_WIDTH = 320
 
 const narrowed = (at: Anchor, edge: number | undefined): Record<string, string | undefined> => {

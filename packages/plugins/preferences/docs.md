@@ -36,7 +36,7 @@ A heading named after a plugin holds the settings that plugin asks to have shown
 | a plugin whose settings are shown here | its lines go, and a heading left with nothing under it is not drawn, without a reload |
 | preferences | the panel goes; a setting shown here stays editable in the plugins panel |
 
-[^open]: Opening the panel: the ⚙ **Preferences** button in the header on a desktop opens it, and on a phone it is a line at the foot of the directory drawer.
+[^open]: Opening the panel: on a desktop, click the dot in the header and then **Preferences**, a line at the foot of its list above **Plugins**. The panel hangs from the dot, and `Escape` closes it and puts the keyboard back on the dot. On a phone it is a line at the foot of the directory drawer.
 
 [^line]: The line under a setting: a setting carries a short line of its own only where its label does not already say what the setting does. It also carries one where there is news to give, such as a browser that blocks notifications and the **Allow notifications** button beside it.
 

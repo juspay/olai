@@ -58,10 +58,9 @@
    * paint reads.) */
   --height-header: 2.75rem;
 
-  /* The tab strip's height, when a row fills the seat above the panes
-   * (`olai-plugin-layout`'s `layout.strip`). The pane sheet does not read this
-   * directly: layout publishes `--height-strip` as this token while the seat is
-   * filled on a desktop, and `0px` otherwise, and the sheet subtracts that. */
+  /* The strip of pane tabs a phone pins under the bar while a split is open
+   * (`olai-plugin-layout`'s `pane/Panes.tsx`). A desktop's tabs stand in the
+   * bar itself and take no height of their own. */
   --height-tabs: 2.25rem;
 
   /* The phone's thumb bar, when a row fills it (`olai-plugin-layout`'s
@@ -112,11 +111,10 @@
   --shadow-overlay: 0 2px 8px rgb(0 0 0 / 0.06), 0 24px 64px -12px rgb(0 0 0 / 0.32);
 }
 
-/* The main column reserves the header plus the occupied strip. Keep this on
- * :root, where layout publishes --height-strip inline at runtime, so changes
- * (including withdrawal and phone widths) recompute the derived length.
- * A nested scrollport overrides this to zero: its own top already clears
- * the viewport chrome. Portals on the document still read the root value. */
+/* What a sticky row in the main column clears: the bar. A nested scrollport
+ * overrides this to zero, because its own top already clears the viewport
+ * chrome, and a phone's split adds its strip of pane tabs. Portals on the
+ * document still read the root value. */
 :root {
-  --height-chrome: calc(var(--height-header) + var(--height-strip, 0px));
+  --height-chrome: var(--height-header);
 }

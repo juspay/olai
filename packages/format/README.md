@@ -220,7 +220,7 @@ The document pair shares no atom with the four above it, and that used to be the
 
 Plus what each one ASKS — `NodeRequest`, `SubtreeRequest`, `SearchRequest`, `DocumentRequest` — and the two numbers an omitted field MEANS, `DEFAULT_SEARCH_LIMIT` and `DEFAULT_SUBTREE_DEPTH`, which are here because the agent-facing prose beside each request quotes them.
 
-The walks are `@olai/ops`' (`Query`) and stay there: which nodes match, how hits are ordered, which mirrors resolve to a node, how far a subtree descends. What is here is only the SHAPE — because the shape travels. Search's travels four ways at once already: an agent reads it off `search_nodes`, the `search.nodes` procedure carries it, the ⌘K palette draws it, and the header's search box draws it again.
+The walks are `@olai/ops`' (`Query`) and stay there: which nodes match, how hits are ordered, which mirrors resolve to a node, how far a subtree descends. What is here is only the SHAPE — because the shape travels. Search's travels three ways at once already: an agent reads it off `search_nodes`, the `search.nodes` procedure carries it, and the ⌘K palette draws it.
 
 It was spelled twice before — three times counting `Query.search`'s own parameter — once in each of the two packages that stand on this floor, and `@olai/surface`'s header claimed the two could not drift. They could: a field added to the ops-side hit and produced type-checked clean across every package, reached the agent, and was dropped by the wire schema's encoder on the way to a browser. One declaration is why that is now unrepresentable rather than merely detected — see [brainstorming/surface-mcp-positions.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md).
 

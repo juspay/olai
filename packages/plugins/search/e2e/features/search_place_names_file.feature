@@ -22,11 +22,8 @@ Feature: Every search result names its file before its ancestors
     And the "palette-item" result "zinnia document" has place "zinnia.md"
     And there should be no page errors
 
-  Scenario: The header and move picker use the same place line
-    When I search the header for "zinnia"
-    Then the "header-search-item" result "zinnia nested" has place "places.olai · Kitchen #home · Cabinets"
-    When I press "Escape"
-    And I click the title of "knobs"
+  Scenario: The move picker uses the palette's place line
+    When I click the title of "knobs"
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "zinnia"
     Then the "move-hit" result "zinnia nested" has place "places.olai · Kitchen #home · Cabinets"
