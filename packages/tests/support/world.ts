@@ -33,6 +33,7 @@
  */
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "@olai/bundle/testids"
+import { BROWSER_DIARY_PATH } from "@olai/plugin-api/mount"
 import * as assert from "node:assert";
 import { execFileSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
@@ -118,11 +119,33 @@ import { attr } from "./selectors.ts";
  * took the pathname alone would answer `/` for every zoomed page — the front
  * page, and an assertion quietly passing for the wrong screen.
  */
+/** WHERE A TAB'S CONNECTION DIARY GOES (`@olai/web`'s `connection/relay.ts`).
+ *  A console error Chromium raises at that address is recorded with it
+ *  ({@link consoleError}), because the diary posts on its own clock, outage
+ *  or not, and the line Chromium prints for a post the network refused says
+ *  nothing of where it was going. */
+const AT_DIARY = ` (at ${BROWSER_DIARY_PATH})`
+
+/** A console error as the ledger records it: the text, and for the diary's
+ *  own requests, the address. */
+export const consoleError = (text: string, url: string): string => {
+  let path: string | undefined
+  try {
+    path = new URL(url).pathname
+  } catch {
+    path = undefined
+  }
+  return `console.error: ${text}${path === BROWSER_DIARY_PATH ? AT_DIARY : ""}`
+}
+
 /** WHAT CHROMIUM SAYS WHEN THIS SUITE CUTS ITS WIRE — the exact lines
  *  `setOffline(true)` and a stopped server produce, matched in full so that no
  *  product diagnostic can hide behind them. See `OlaiWorld.offlineFrom`. */
 const OUTAGE_NOISE = (error: string): boolean =>
   error === "console.error: Failed to load resource: net::ERR_INTERNET_DISCONNECTED" ||
+  // The diary's post, refused by the network the suite took away. Only a
+  // transport failure: an HTTP status the server answered is never forgiven.
+  (error.startsWith("console.error: Failed to load resource: net::ERR_") && error.endsWith(AT_DIARY)) ||
   (error.startsWith("console.error: WebSocket connection to 'ws://127.0.0.1:") &&
     // Offline is the network gone; refused is the server stopped under the
     // page (`the server stops`), and reset is a redial landing on the port

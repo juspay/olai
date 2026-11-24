@@ -283,6 +283,11 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     // offer then disappears without scheduling reconcile work during teardown.
     yield* Effect.addFinalizer(() => policy.close);
     const transports = yield* listener({ host: options.host, port: options.port });
+    // WHERE A TAB'S CONNECTION DIARY LANDS, core's own and on the serve's scope
+    // rather than on the `ws` row's: the diary matters most exactly when the
+    // tab's socket cannot open, and that includes the row being off. Passive,
+    // so it never opens a port on its own (`./diary.ts`).
+    yield* transports.register({ passive: true, routes: diaryRoute({ allowedOrigins: options.allowedOrigins, say, now: Date.now }) });
     // Handlers and exposure are read at each connection, not captured at boot:
     // a capability switch must revoke old authority and affect the next dial.
     // No notebook schema is needed to publish this transport description.
@@ -311,9 +316,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
           Layer.succeed(CurrentWho)(who(connection.headers)),
           connectionLogging(connection, logging.layer, { root: served }),
         ),
-        // Who is looking, and where a tab's connection diary lands. Both ride
-        // the `ws` row's registration, so no row, no diary route.
-        routes: Layer.merge(whoRoute(who), diaryRoute({ allowedOrigins: options.allowedOrigins, say, now: Date.now })),
+        routes: whoRoute(who),
         upgradeHeaders: () => currentIdentity().headers,
         allowedOrigins: options.allowedOrigins,
         report: (event) => reportTransport(event, say),

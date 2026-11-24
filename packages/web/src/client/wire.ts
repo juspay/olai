@@ -77,12 +77,20 @@ createRoot(() => {
     timers,
   })
   const leaving = () => {
-    const reachable = diary.open()
     diary.unload()
-    relay.leaving(reachable)
+    relay.leaving()
+  }
+  // A page the browser keeps for back and forward fires `pagehide` and may be
+  // shown again; from then on its sockets are not going with it.
+  const back = (event: PageTransitionEvent) => {
+    if (event.persisted) diary.shown()
   }
   window.addEventListener("pagehide", leaving)
-  onCleanup(() => window.removeEventListener("pagehide", leaving))
+  window.addEventListener("pageshow", back)
+  onCleanup(() => {
+    window.removeEventListener("pagehide", leaving)
+    window.removeEventListener("pageshow", back)
+  })
   onCleanup(relay.dispose)
   onCleanup(diary.dispose)
 })
@@ -462,7 +470,7 @@ export const olai = live.core
 /** Kolu owns reconnecting, degraded and terminal retirement state. */
 export const connectionReadout = live.readout
 
-/** Say that the connection-lost card went up or came down. */
+/** Say that the card over a frozen page went up or came down. */
 export const connectionCard = (card: Extract<LinkEvent, { readonly _tag: "Card" }>): void => diary.say(card)
 
 /** Re-fetch per-connection answers after an establishment; never remount UI. */

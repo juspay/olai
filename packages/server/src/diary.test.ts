@@ -79,6 +79,14 @@ test("a body that is not a batch is refused, and never echoed", async () => {
   expect(JSON.stringify(said)).not.toContain("do-not-log")
 })
 
+test("an entry dated past what a date can hold is refused as malformed, and nothing of the batch is said", async () => {
+  const { post, said } = serving()
+  const response = await post(JSON.stringify({ tab: TAB, entries: [entry(1, { _tag: "Dialling" }), { ...entry(2, dropped), at: 1e300 }], lost: 0 }))
+  expect(response.status).toBe(400)
+  expect(findSaid(said, "browser diary refused")?.annotations).toEqual({ why: "malformed" })
+  expect(said.filter((line) => line.annotations.side === "browser")).toEqual([])
+})
+
 test("a body over the size a tab may send is refused", async () => {
   const { post, said } = serving()
   const response = await post("x".repeat(DIARY_MAX_BYTES + 1))

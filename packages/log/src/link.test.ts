@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Batch, type Cause, closeMeans, describe, type Entry, type Level, type LinkEvent, loudAt, nextStreak, stamped, stampOf } from "./link.ts"
+import { Batch, type Cause, closeMeans, describe, type Entry, type Level, type LinkEvent, loudAt, nextStreak, SAY_AGAIN_AFTER_MS, sparingly, stamped, stampOf } from "./link.ts"
 
 const dropped = (cause: Cause): LinkEvent => ({
   _tag: "Dropped",
@@ -41,8 +41,11 @@ const table: ReadonlyArray<readonly [string, Entry, Level, string]> = [
   ["a dial that did not open", entry({ _tag: "Unopened", took: 20, code: 1006, attempts: 3, online: true }), "Warn", "dial did not open"],
   ["the heartbeat", entry({ _tag: "Stale", silent: 25_000, hidden: false }), "Warn", "heartbeat gave up"],
   ["a retirement", entry({ _tag: "Retired", code: 4001 }), "Warn", "wire retired"],
-  ["the card up", entry({ _tag: "Card", shown: true, status: "reconnecting", urged: false }), "Info", "connection-lost card shown"],
-  ["the card down", entry({ _tag: "Card", shown: false, status: "live", urged: false, after: 4200 }), "Info", "connection-lost card lifted"],
+  ["the card up over a lost connection", entry({ _tag: "Card", shown: true, status: "reconnecting", urged: false }), "Info", "connection card shown"],
+  ["that card down", entry({ _tag: "Card", shown: false, status: "reconnecting", urged: false, after: 4200 }), "Info", "connection card lifted"],
+  ["the card a page load draws while it connects", entry({ _tag: "Card", shown: true, status: "connecting", urged: false }), "Debug", "connection card shown"],
+  ["the card a page's own plugin switch draws", entry({ _tag: "Card", shown: false, status: "reconnecting", urged: true, after: 900 }), "Debug", "connection card lifted"],
+  ["a card deep in a loop", entry({ _tag: "Card", shown: true, status: "reconnecting", urged: false }, 5), "Debug", "connection card shown"],
   ["into degraded", entry({ _tag: "Readout", from: "live", to: "degraded", stopped: ["olai/plugins"] }), "Warn", "readout changed"],
   ["out of degraded", entry({ _tag: "Readout", from: "degraded", to: "live", stopped: [] }), "Info", "readout changed"],
   ["into reconnecting", entry({ _tag: "Readout", from: "live", to: "reconnecting", stopped: [] }), "Debug", "readout changed"],
@@ -70,6 +73,17 @@ test("a drop says who closed it, what the code means, and what was heard", () =>
     streak: 2,
   })
   expect(describe(entry(dropped("peer-closed"), 1)).fields.by).toBe("peer")
+})
+
+test("a repeating failure is said the first time, then once per window with the count, and settles to a first", () => {
+  const rule = sparingly()
+  expect(rule.heard(0)).toBe(1)
+  expect(rule.heard(5_000)).toBeUndefined()
+  expect(rule.heard(10_000)).toBeUndefined()
+  expect(rule.heard(SAY_AGAIN_AFTER_MS)).toBe(3)
+  expect(rule.heard(SAY_AGAIN_AFTER_MS + 1)).toBeUndefined()
+  expect(rule.settle()).toBe(1)
+  expect(rule.heard(SAY_AGAIN_AFTER_MS + 2)).toBe(1)
 })
 
 test("a streak is loud for its first three and every tenth", () => {

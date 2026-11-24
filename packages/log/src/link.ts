@@ -3,7 +3,7 @@
  * vocabulary both ends of that connection share.
  *
  * A tab keeps a diary of its socket (dialled, opened, dropped and why, the
- * connection-lost card going up and down) and posts it to the server, which
+ * card over a frozen page going up and down) and posts it to the server, which
  * logs each entry beside its own account of the same socket. So the entry is a
  * VALUE that crosses HTTP ({@link Entry}, an Effect `Schema`), and how a value
  * reads is decided once, here ({@link describe}), rather than at each call site
@@ -166,8 +166,11 @@ export const LinkEvent = Schema.TaggedUnion({
   Stale: { silent: Ms, hidden: Schema.Boolean },
   /** The server retired this tab: it was replaced by a newer process. */
   Retired: { code: Schema.optionalKey(Count) },
-  /** The connection-lost card went up or came down. `after` is how long it was
-   *  up, on the way down. */
+  /** The card over a frozen page went up or came down. `status` is the
+   *  connection state that put it up (`connecting`, `reconnecting`, `retired`,
+   *  `degraded`) and `urged` whether this page's own roster change did; both
+   *  are the card's, on the way down too. `after` is how long it was up, on the
+   *  way down. */
   Card: { shown: Schema.Boolean, status: Text(32), urged: Schema.Boolean, after: Schema.optionalKey(Ms) },
   /** The connection readout changed status. */
   Readout: { from: Text(32), to: Text(32), stopped: Schema.Array(Text(200)).check(Schema.isMaxLength(STARVED_LIMIT)) },
@@ -181,6 +184,11 @@ export const LinkEvent = Schema.TaggedUnion({
 })
 export type LinkEvent = typeof LinkEvent.Type
 
+/** A wall-clock instant, in milliseconds since the epoch, no later than the
+ *  last one a JavaScript `Date` can hold, so every entry that decodes can be
+ *  printed as a date. */
+const At = Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 8_640_000_000_000_000 }))
+
 /**
  * One diary line. `seq` orders a tab's entries; `at` is the browser's wall
  * clock (comparable to a server log); `dial` the socket it is about (0 before
@@ -189,7 +197,7 @@ export type LinkEvent = typeof LinkEvent.Type
  */
 export const Entry = Schema.Struct({
   seq: Count,
-  at: Ms,
+  at: At,
   dial: Count,
   streak: Count,
   event: LinkEvent,
@@ -224,6 +232,38 @@ export const nextStreak = (
 /** Is this streak said at full level? The first three, then every tenth: a loop
  *  is visible as `streak=10`, `streak=20` and does not bury the log. */
 export const loudAt = (streak: number): boolean => streak <= 3 || streak % 10 === 0
+
+/** How long a repeated failure waits before it is said again: a dial that
+ *  never opened, on the tab; an upgrade nobody took, on the server. */
+export const SAY_AGAIN_AFTER_MS = 30_000
+
+/**
+ * The rule for a failure that can repeat forever, kept for both ends: said
+ * the first time, then at most once per {@link SAY_AGAIN_AFTER_MS} with how
+ * many happened since it was last said. `heard` answers the count to say now,
+ * or `undefined` to hold it; `settle` hands back what is held and starts
+ * again, so the next one is a first.
+ */
+export const sparingly = () => {
+  let saidAt: number | undefined
+  let held = 0
+  return {
+    heard: (now: number): number | undefined => {
+      held += 1
+      if (saidAt !== undefined && now - saidAt < SAY_AGAIN_AFTER_MS) return undefined
+      saidAt = now
+      const count = held
+      held = 0
+      return count
+    },
+    settle: (): number => {
+      const count = held
+      held = 0
+      saidAt = undefined
+      return count
+    },
+  }
+}
 
 // ── Reading ─────────────────────────────────────────────────────────────────
 
@@ -307,10 +347,13 @@ export const describe = (entry: Entry): Described => {
         message: "wire retired",
         fields: event.code === undefined ? {} : { code: event.code, means: closeMeans(event.code) },
       }
+    // News only when nobody asked for it and it is not the first connection:
+    // the card a page load draws while it connects, and the one a page's own
+    // plugin switch draws, are the ordinary life of a page.
     case "Card":
       return {
-        level: quieted("Info", streak),
-        message: event.shown ? "connection-lost card shown" : "connection-lost card lifted",
+        level: event.urged || event.status === "connecting" ? "Debug" : quieted("Info", streak),
+        message: event.shown ? "connection card shown" : "connection card lifted",
         fields: {
           status: event.status,
           urged: event.urged,

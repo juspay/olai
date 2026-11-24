@@ -108,6 +108,12 @@ When(
   },
 );
 
+/** The person closes the tab: the page goes, with its `pagehide`, and its
+ *  socket closes the way a closing tab closes it. */
+When("I close this browser tab", async function (this: OlaiWorld) {
+  await this.page.close();
+});
+
 // ── the server's log ───────────────────────────────────────────────────
 
 type Line = Readonly<Record<string, string>>;
@@ -240,5 +246,28 @@ Then(
       .filter((line) => line.level !== "DEBUG")
       .map((line) => line.streak);
     assert.deepStrictEqual(loud, streaks.split(",").map((one) => one.trim()));
+  },
+);
+
+/**
+ * NOTHING SAID, over a window — the one claim here that is an absence. A
+ * closed tab's last words arrive in a beacon the server logs whenever it
+ * lands, and nothing the page can show says when that is, so the step watches
+ * the log for a fixed few seconds rather than waiting on an event.
+ */
+Then(
+  "for {int} seconds the server logs nothing from the browser and no {string} or {string}",
+  async function (this: OlaiWorld, seconds: number, first: string, second: string) {
+    const loud = () => [
+      ...linesOf(this, first),
+      ...linesOf(this, second),
+      ...this.serverLog.text.split("\n").filter((line) => line !== "").map(readLogfmt).filter((line) => line.side === "browser"),
+    ];
+    const deadline = Date.now() + seconds * 1_000;
+    while (Date.now() < deadline) {
+      assert.deepStrictEqual(loud(), [], "the server logged the ordinary life of a tab at the default level");
+      await new Promise((done) => setTimeout(done, 250));
+    }
+    assert.deepStrictEqual(loud(), [], "the server logged the ordinary life of a tab at the default level");
   },
 );

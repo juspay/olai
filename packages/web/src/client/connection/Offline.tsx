@@ -182,16 +182,18 @@ export function Offline(props: {
   const look = () => frozenLookOf(props.readout)
 
   // The card's edges, read untracked: the freeze alone decides when this runs.
-  let shownAt: number | undefined
-  const sayCard = (shown: boolean) => untrack(() =>
-    props.card({
-      _tag: "Card",
-      shown,
-      status: props.readout.status,
-      urged: urged(),
-      ...(shown || shownAt === undefined ? {} : { after: Date.now() - shownAt }),
-    })
-  )
+  // The card that went up is remembered, so the line for it coming down says
+  // which card it was and how long it stayed, not the readout it lifted into.
+  let up: { readonly at: number; readonly status: string; readonly urged: boolean } | undefined
+  const cardUp = () => untrack(() => {
+    up = { at: Date.now(), status: props.readout.status, urged: urged() }
+    props.card({ _tag: "Card", shown: true, status: up.status, urged: up.urged })
+  })
+  const cardDown = () => {
+    if (up === undefined) return
+    props.card({ _tag: "Card", shown: false, status: up.status, urged: up.urged, after: Date.now() - up.at })
+    up = undefined
+  }
 
   // OPENING IS A CALL, not a class: the top layer is only entered through
   // `showModal`, and the inertness of everything else comes with it. Guarded on
@@ -203,8 +205,7 @@ export function Offline(props: {
       stopHanding()
       if (!overlay.open) {
         withOfflineFocus(() => overlay.showModal())
-        shownAt = Date.now()
-        sayCard(true)
+        cardUp()
       }
       return
     }
@@ -220,7 +221,7 @@ export function Offline(props: {
       overlay.close()
       stopHanding()
       handing = handBackFocus(props.memory)
-      sayCard(false)
+      cardDown()
     }
   })
 

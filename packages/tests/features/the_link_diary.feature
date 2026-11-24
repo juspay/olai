@@ -7,10 +7,17 @@ Feature: The server's log says why a tab's connection dropped
   the same socket. `tab` and `dial` join the two accounts.
 
   Every way a browser can stage a drop is here, staged from the outside: a man
-  in the middle on the socket, the network going, a server restarted. What is
-  asserted is the server's stdout, because that is the claim — the log says
-  why. These cut the wire under an open tab, and one restarts the server, which
-  is why they are `@scratch:`.
+  in the middle on the socket, the network going, the socket's row switched
+  off, a server restarted. What is asserted is the server's stdout, because
+  that is the claim — the log says why. And the ordinary life of a tab, opened
+  and closed, says nothing at the default level. These cut the wire under an
+  open tab, and one restarts the server, which is why they are `@scratch:`.
+
+  Scenario: An ordinary page load and an ordinary tab close add nothing at the default level
+    Given I open the outline "house.olai"
+    And the connection is "live"
+    When I close this browser tab
+    Then for 3 seconds the server logs nothing from the browser and no "tab connected" or "tab disconnected"
 
   Scenario: A blink is the peer's doing, and both ends name the same socket
     Given the page's socket runs through a middle
@@ -30,10 +37,28 @@ Feature: The server's log says why a tab's connection dropped
     When the browser comes back online
     Then the connection is "live"
     And the overlay is gone
-    # Posted once the server can be reached again: what the tab saw while it
-    # could not reach it waited in its diary.
-    And the server logs "connection-lost card lifted" with "side=browser"
-    And the browser said "wire dropped", then "connection-lost card shown", then "connection-lost card lifted"
+    # Posted while the tab could not reach the server too, and tried again
+    # until the server takes it: what the tab saw meanwhile arrives in order.
+    And the server logs "connection card lifted" with "side=browser status=reconnecting"
+    And the browser said "wire dropped", then "connection card shown", then "connection card lifted"
+
+  Scenario: A tab whose socket cannot open still tells the server, and says when it opens again
+    # The socket's row switched off in the settings file, because the page
+    # cannot switch it back on without a socket.
+    Given I open the outline "house.olai"
+    And the connection is "live"
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"ws-switch","ord":"a0","title":"ws","custom":{"on":"no"}}
+      """
+    Then the server logs "websocket upgrade had no taker" with "url=/rpc/ws"
+    And the server logs "dial did not open" with "side=browser"
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"ws-switch","ord":"a0","title":"ws","custom":{"on":"yes"}}
+      """
+    Then the connection is "live"
+    And the server logs "wire opened" with "side=browser"
 
   Scenario: A line the tab cannot decode is closed by the page, which says what its subscriptions heard
     Given the page's socket runs through a middle
@@ -41,7 +66,7 @@ Feature: The server's log says why a tab's connection dropped
     And the connection is "live"
     When the middle sends the page a line that is not JSON
     Then the connection is "live"
-    And the server logs "wire dropped" with "side=browser by=page"
+    And the server logs "wire dropped" with "side=browser cause=severed by=page"
     And the browser's "wire dropped" heard "RpcClientDefect: Error decoding message"
 
   Scenario: A frame over the cap is named for what it was

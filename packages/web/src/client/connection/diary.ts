@@ -28,6 +28,7 @@ import {
   type Level,
   type LinkEvent,
   nextStreak,
+  sparingly,
   STARVED_LIMIT,
   type Cause,
 } from "@olai/log/link"
@@ -39,8 +40,6 @@ export const RING_LIMIT = 200
  *  kolu's first redial (500 ms), so the drop is said before the next dial
  *  opens. */
 export const SETTLE_MS = 200
-/** How often a run of dials that never opened is said, after the first. */
-export const UNOPENED_EVERY_MS = 30_000
 
 /** Cancel what {@link Timers.set} scheduled. */
 type Cancel = () => void
@@ -85,13 +84,15 @@ export interface Diary {
   stale(): void
   /** The server retired this tab. */
   retired(): void
-  /** olai is about to close the socket itself; closes while the returned
-   *  release has not run are said as `intent`. */
+  /** olai is about to close the sockets standing now itself; a close the page
+   *  makes on one of them before the returned release runs is said as
+   *  `intent`. A socket dialled after the declaration is not covered. */
   declare(intent: Intent): () => void
   /** The page is going away: every socket still standing is said now. */
   unload(): void
-  /** The latest dial is open: the server is answering this tab right now. */
-  open(): boolean
+  /** The page came back from the browser's back-and-forward cache, so the
+   *  sockets it dials from here on are not going with it. */
+  shown(): void
   /** What waits for the server, oldest first, and how many were dropped. */
   pending(): { readonly entries: ReadonlyArray<Entry>; readonly lost: number }
   /** The server took everything through `seq`, and `lost` dropped entries. */
@@ -111,6 +112,8 @@ interface DialState {
   close?: { readonly code: number; readonly reason: string; readonly clean: boolean }
   pageClosed: boolean
   intent?: Intent | "unload"
+  /** The declaration that covers this socket, while one does. */
+  declared?: { readonly intent: Intent }
   overCap: boolean
   stale: boolean
   inFrames: number
@@ -148,7 +151,6 @@ export const createDiary = (deps: DiaryDeps): Diary => {
   const ring: Array<Entry> = []
   const listeners = new Set<(entry: Entry) => void>()
   const standing = new Set<DialState>()
-  const declared: Array<Intent> = []
   let lost = 0
   let seq = 0
   let dials = 0
@@ -160,7 +162,9 @@ export const createDiary = (deps: DiaryDeps): Diary => {
    *  recovery. */
   let recovering = false
   let lastCloseCode: number | undefined
-  let unopened: { pending: number; saidAt?: number; took: number; code?: number; dial: number } = { pending: 0, took: 0, dial: 0 }
+  /** Dials that never opened: said sparingly, about the last of them. */
+  const unopenedRule = sparingly()
+  let lastUnopened: { readonly took: number; readonly code: number; readonly dial: number } | undefined
   let unloading = false
 
   const sayAt = (dial: number, event: LinkEvent, entryStreak = streak): void => {
@@ -174,15 +178,15 @@ export const createDiary = (deps: DiaryDeps): Diary => {
     for (const listener of listeners) listener(entry)
   }
 
-  const sayUnopened = (): void => {
-    sayAt(unopened.dial, {
+  const sayUnopened = (attempts: number): void => {
+    if (lastUnopened === undefined) return
+    sayAt(lastUnopened.dial, {
       _tag: "Unopened",
-      took: unopened.took,
-      ...(unopened.code === undefined ? {} : { code: unopened.code }),
-      attempts: unopened.pending,
+      took: lastUnopened.took,
+      code: lastUnopened.code,
+      attempts,
       online: deps.online(),
     })
-    unopened = { ...unopened, pending: 0, saidAt: now() }
   }
 
   /** What subscriptions were told on this dial, and which heard nothing. */
@@ -271,9 +275,10 @@ export const createDiary = (deps: DiaryDeps): Diary => {
         current = state
         state.baseline = new Map(deps.liveness().map((record) => [keyOf(record), record.retries]))
         // Dials that never opened since the last one did are said now, so a
-        // run of them is never left unsaid by the one that finally worked.
-        if (unopened.pending > 0) sayUnopened()
-        unopened = { pending: 0, took: 0, dial: 0 }
+        // run of them is never left unsaid by the one that finally worked;
+        // the next one that fails is a first again.
+        const held = unopenedRule.settle()
+        if (held > 0) sayUnopened(held)
         sayAt(state.n, { _tag: "Opened", took: state.openedAt - state.born, recovered: recovering })
         recovering = false
       },
@@ -294,7 +299,7 @@ export const createDiary = (deps: DiaryDeps): Diary => {
       closing: () => {
         if (state.pageClosed) return
         state.pageClosed = true
-        state.intent = unloading ? "unload" : declared.at(-1)
+        state.intent = unloading ? "unload" : state.declared?.intent
       },
       closed: (close) => {
         if (state.done) return
@@ -305,8 +310,9 @@ export const createDiary = (deps: DiaryDeps): Diary => {
         if (state.openedAt === undefined) {
           state.done = true
           standing.delete(state)
-          unopened = { ...unopened, pending: unopened.pending + 1, took: state.closedAt - state.born, code: close.code, dial: state.n }
-          if (unopened.saidAt === undefined || state.closedAt - unopened.saidAt >= UNOPENED_EVERY_MS) sayUnopened()
+          lastUnopened = { took: state.closedAt - state.born, code: close.code, dial: state.n }
+          const attempts = unopenedRule.heard(state.closedAt)
+          if (attempts !== undefined) sayUnopened(attempts)
           return
         }
         state.settle = deps.timers.set(() => drop(state), SETTLE_MS)
@@ -330,13 +336,13 @@ export const createDiary = (deps: DiaryDeps): Diary => {
     },
     retired: () => sayAt(current?.n ?? dials, { _tag: "Retired", ...(lastCloseCode === undefined ? {} : { code: lastCloseCode }) }),
     declare: (intent) => {
-      declared.push(intent)
+      const stamp = { intent }
+      const covered = [...standing].filter((state) => !state.pageClosed && state.closedAt === undefined)
+      for (const state of covered) state.declared = stamp
       return () => {
-        const at = declared.lastIndexOf(intent)
-        if (at >= 0) declared.splice(at, 1)
+        for (const state of covered) if (state.declared === stamp && !state.pageClosed) state.declared = undefined
       }
     },
-    open: () => current !== undefined && current.closedAt === undefined && !current.done,
     unload: () => {
       unloading = true
       for (const state of [...standing]) {
@@ -349,6 +355,9 @@ export const createDiary = (deps: DiaryDeps): Diary => {
         }
         drop(state)
       }
+    },
+    shown: () => {
+      unloading = false
     },
     pending: () => ({ entries: [...ring], lost }),
     acknowledge: (through, taken) => {

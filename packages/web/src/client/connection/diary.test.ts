@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
 import type { SubscriptionLiveness } from "@kolu/surface/subscriptions"
 import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
-import type { Entry, LinkEvent } from "@olai/log/link"
-import { createDiary, type Diary, RING_LIMIT, SETTLE_MS, UNOPENED_EVERY_MS } from "./diary.ts"
+import { type Entry, type LinkEvent, SAY_AGAIN_AFTER_MS } from "@olai/log/link"
+import { createDiary, type Diary, RING_LIMIT, SETTLE_MS } from "./diary.ts"
 import { tappedSocket } from "./socket.ts"
 
 /** A diary on a clock and timers the test moves by hand. */
@@ -193,7 +193,7 @@ test("dials that never open are said for the first, then once per thirty seconds
   advance(5_000)
   fail()
   expect(said("Unopened").map((entry) => entry.event.attempts)).toEqual([1])
-  advance(UNOPENED_EVERY_MS - 10_000)
+  advance(SAY_AGAIN_AFTER_MS - 10_000)
   fail()
   expect(said("Unopened").map((entry) => entry.event.attempts)).toEqual([1, 3])
   fail()
@@ -203,6 +203,34 @@ test("dials that never open are said for the first, then once per thirty seconds
   advance(1_000)
   fail()
   expect(said("Unopened").map((entry) => entry.event.attempts)).toEqual([1, 3, 1, 1])
+})
+
+test("a declaration covers only the sockets standing when it was made", () => {
+  const { diary, advance, said } = setup()
+  const old = dial(diary)
+  old.fake.open()
+  const release = diary.declare("redial")
+  // kolu dials the new socket inside the redial, before it lets the old one go,
+  // and here the page closes the NEW one for a reason of its own.
+  const fresh = dial(diary)
+  fresh.fake.open()
+  fresh.socket.close(1000)
+  old.socket.close(1000)
+  release()
+  advance(SETTLE_MS)
+  expect(said("Dropped").map((entry) => [entry.dial, entry.event.cause])).toEqual([[2, "severed"], [1, "redial"]])
+})
+
+test("a page shown again from the back-and-forward cache does not say its new sockets went with it", () => {
+  const { diary, advance, said } = setup()
+  dial(diary).fake.open()
+  diary.unload()
+  diary.shown()
+  const back = dial(diary)
+  back.fake.open()
+  back.socket.close(1000)
+  advance(SETTLE_MS)
+  expect(said("Dropped").map((entry) => [entry.dial, entry.event.cause])).toEqual([[1, "unload"], [2, "severed"]])
 })
 
 test("the page going away says every standing socket at once", () => {

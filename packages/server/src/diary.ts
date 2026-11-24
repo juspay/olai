@@ -15,9 +15,10 @@
  * batch (and is never echoed back or logged), and when the serve has taken
  * its ceiling of entries this minute; that last refusal is said once a minute.
  *
- * The route is part of core's `routes`, so it is registered and withdrawn with
- * the `ws` row's upgrade. Its counter is the route's own and lives as long as
- * the serve that built it.
+ * The route is core's own, registered passively on the serve's scope, not on
+ * the `ws` row's: a tab's account matters most when its socket cannot open,
+ * and the row being off is one way that happens. Its counter is the route's
+ * own and lives as long as the serve that built it.
  */
 import { isAllowedWsOrigin } from "@kolu/surface/ws-origin"
 import type { Emit } from "@olai/log"

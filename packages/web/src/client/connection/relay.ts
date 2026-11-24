@@ -3,22 +3,16 @@
  * posted to the server so its log is the one place to read it.
  *
  * Over plain HTTP, not the socket the diary is about: a socket that will not
- * open cannot carry the news that it will not open. But only while the server
- * is known to be answering this tab — its latest socket is open, or it has
- * just retired the tab, which is an answer too. A post to a server that is not
- * there fails in the browser's console as well as here, and says nothing the
- * next open will not carry: what the tab saw while it could not reach the
- * server waits in the ring, and the next `Opened` sends it at once.
+ * open cannot carry the news that it will not open. So the relay never asks
+ * the socket whether to post. It posts when there is something to post: a
+ * second after an entry (so a burst is one post), at once on `Opened`, and
+ * every {@link RETRY_EVERY_MS} while anything is still waiting after a post
+ * the server did not take. Entries leave the diary's ring only on a 2xx. A 404
+ * means this serve has no diary route (it predates one): the relay stops until
+ * the page is reloaded. On `pagehide` whatever is left goes in one beacon.
  *
- * Entries leave the diary's ring only when the server answered 2xx; anything
- * else leaves them there for the next try, which is the next entry (a second
- * after it, so a burst is one post) or the next `Opened`. A 404 means this
- * serve has no diary route (its `ws` row is off): the relay stops until the
- * page is reloaded. On `pagehide`, if the server was answering, whatever is
- * left goes in one beacon.
- *
- * `wire.ts`'s root owns the relay: its timer and its subscription to the diary
- * go with {@link DiaryRelay.dispose}.
+ * `wire.ts`'s root owns the relay: its timers and its subscription to the
+ * diary go with {@link DiaryRelay.dispose}.
  */
 import type { Entry } from "@olai/log/link"
 import type { Diary, Timers } from "./diary.ts"
@@ -30,11 +24,13 @@ export const POST_BUDGET_BYTES = 60 * 1024
 export const POST_ENTRIES = 500
 /** How long after an entry the relay waits, so a burst is one post. */
 export const POST_AFTER_MS = 1_000
+/** How often the relay tries again while a post the server did not take
+ *  leaves entries waiting. */
+export const RETRY_EVERY_MS = 10_000
 
 export interface DiaryRelay {
-  /** The page is going away: send what is left, in one beacon, when the
-   *  server was `reachable` a moment ago. */
-  readonly leaving: (reachable: boolean) => void
+  /** The page is going away: send what is left, in one beacon. */
+  readonly leaving: () => void
   readonly dispose: () => void
 }
 
@@ -50,7 +46,10 @@ export const relayDiary = (options: {
   const encoder = new TextEncoder()
   let stopped = false
   let posting = false
-  let cancel: (() => void) | undefined
+  /** The post an entry asked for, a second out. */
+  let soon: (() => void) | undefined
+  /** The next try after a post the server did not take. */
+  let retry: (() => void) | undefined
 
   /** The oldest entries that fit one post, and what acknowledging it means. */
   const batch = () => {
@@ -72,10 +71,16 @@ export const relayDiary = (options: {
     }
   }
 
-  /** Post the oldest entries, when the server is answering — or `regardless`,
-   *  when it has just answered in a way the socket cannot show. */
-  const flush = (regardless = false): void => {
-    if (stopped || posting || !(regardless || diary.open())) return
+  const tryAgain = (): void => {
+    if (retry !== undefined || stopped) return
+    retry = options.timers.set(() => {
+      retry = undefined
+      flush()
+    }, RETRY_EVERY_MS)
+  }
+
+  const flush = (): void => {
+    if (stopped || posting) return
     const next = batch()
     if (next.empty) return
     posting = true
@@ -84,53 +89,50 @@ export const relayDiary = (options: {
         posting = false
         if (status === 404) {
           stopped = true
+          retry?.()
+          retry = undefined
           return
         }
-        if (status < 200 || status >= 300) return
+        if (status < 200 || status >= 300) {
+          tryAgain()
+          return
+        }
         diary.acknowledge(next.through, next.lost)
         if (next.more) flush()
       },
       () => {
         posting = false
+        tryAgain()
       },
     )
   }
 
-  const after = (regardless: boolean) => {
-    cancel = options.timers.set(() => {
-      cancel = undefined
-      flush(regardless)
-    }, POST_AFTER_MS)
-  }
-
   const unsubscribe = diary.onEntry((entry) => {
-    switch (entry.event._tag) {
-      case "Opened":
-        cancel?.()
-        cancel = undefined
-        flush()
-        return
-      // The server answered the handshake by retiring this tab, so it is up;
-      // wait out the settle so the socket's own drop goes in the same post.
-      case "Retired":
-        cancel?.()
-        after(true)
-        return
-      default:
-        if (cancel === undefined) after(false)
+    if (entry.event._tag === "Opened") {
+      soon?.()
+      soon = undefined
+      flush()
+      return
     }
+    if (soon !== undefined) return
+    soon = options.timers.set(() => {
+      soon = undefined
+      flush()
+    }, POST_AFTER_MS)
   })
 
   return {
-    leaving: (reachable) => {
-      if (stopped || !reachable) return
+    leaving: () => {
+      if (stopped) return
       const last = batch()
       if (!last.empty) options.beacon(last.body)
     },
     dispose: () => {
       unsubscribe()
-      cancel?.()
-      cancel = undefined
+      soon?.()
+      retry?.()
+      soon = undefined
+      retry = undefined
     },
   }
 }
