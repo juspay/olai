@@ -100,7 +100,9 @@ Then("layout reserves at least {int} pixels for content", async function (this: 
 Given("the browser cannot obtain its initial selection", async function (this: OlaiWorld) {
   // Accept the browser socket without forwarding messages, so no live roster
   // can mask the bootstrap failure or supply an inferred default selection.
-  await this.page.routeWebSocket("**/rpc/ws", () => {});
+  // By the pathname: every dial carries a query (the tab's stamp, and `?pid=`
+  // on a redial), which a glob on the whole URL would let through.
+  await this.page.routeWebSocket((url) => url.pathname === "/rpc/ws", () => {});
   await this.page.route("**/olai/browser-boot", (route) => route.fulfill({ status: 503, body: "unavailable" }));
 });
 
