@@ -14,7 +14,8 @@ What this package owns is what a logging seam is otherwise re-decided at, once p
 | `sinks.ts` | two streams and which face each line wears — stdout for `olai web`, stderr for a process whose stdout is already spoken for; pretty on a TTY, logfmt everywhere a machine reads |
 | `level.ts` | a serve-owned live level and presentation, supplied by the composition root |
 | `cause.ts` | what a failure says, in the two lengths anything wants it: `prettyCause` for a log, `reasonOf` for a sentence somebody reads |
-| `emit.ts` | `emitter`: how a plain Node callback emits a line without losing the fiber's level, annotations and spans |
+| `emit.ts` | `emitter` and `emitterOf`: how a plain Node callback, or one handed a fiber, emits a line without losing that fiber's level, annotations and spans |
+| `link.ts` | the vocabulary of a browser tab's connection diary, on the `./link` subpath: its events, the closed set of drop causes, close codes, the loop rule, and `describe`, which says how each entry reads |
 | `lines.testlib.ts` | how a TEST hears a line, on the `./testlib` subpath: the collecting logger inside the process, the logfmt decoder outside it |
 
 ## Levels
@@ -120,6 +121,21 @@ child.stderr.on("data", (chunk: string) => say(Effect.logDebug(chunk.trimEnd()))
 ```
 
 Some callbacks are handed the fiber they speak for instead of running in it — an Effect `ErrorReporter` is told which fiber's call failed. `emitterOf(fiber)` makes the same capture from that fiber's services, so the line carries that fiber's level, format and annotations. It is how a connection's failed calls are logged with the connection named (`@olai/server`'s `report.ts`).
+
+## The connection's diary: `./link`
+
+A browser tab keeps a diary of its socket — dialled, opened, dropped and why, the connection-lost card going up and down — and posts it to the server, which logs each entry with `side=browser` beside its own `tab connected` / `tab disconnected` lines. Both ends speak one vocabulary, and it lives here, on its own door, because the root door loads the sinks and the sinks read `process.stdout`, which a browser does not have. `./link` imports `effect` and nothing else.
+
+| export | what it is |
+|---|---|
+| `LinkEvent`, `Entry`, `Batch` | the diary as Effect `Schema`: one tagged event per thing that happens to the link, an entry placing it (`seq`, `at`, `dial`, `streak`), and the batch a tab posts. Every string has a length limit, so a refused or decoded body cannot grow a line without limit |
+| `describe(entry)` | how an entry reads: its level, a short stable sentence (`wire dropped`, `dial did not open`, `heartbeat gave up`, …) and its fields. A `switch` over the event's tag with no default arm, so an event nobody described is a compile error |
+| `Cause` | why an opened socket ended, a closed set: `peer-closed`, `frame-over-cap`, `half-open`, `roster-refresh`, `redial`, `unload`, `severed`. The tab picks it from typed facts, never from an error's text |
+| `closeMeans(code)` | what a WebSocket close code means, in a word or two, for both ends |
+| `nextStreak`, `loudAt` | the loop rule: consecutive dials that lived under a minute and dropped the same way make a streak, said in full for the first three and then every tenth, at `debug` otherwise |
+| `stamped`, `stampOf` | the `tab` and `dial` a tab puts on its socket's URL, written and read in one place, so the server's lines about a socket can be joined to the tab's |
+
+Fields are sizes, codes, counts, tags and subscription labels. No frame's content is ever an entry.
 
 ## Layering
 
