@@ -1,6 +1,6 @@
 # The browser tests
 
-olai's browser suite starts a real server and a real Chromium and drives them through Cucumber features, covering 2,465 entries in 314 feature files.
+olai's browser suite starts a real server and a real Chromium and drives them through Cucumber features, covering 2,473 entries in 315 feature files.
 
 ## Run the suite
 
@@ -31,7 +31,7 @@ Each scenario is served one of the directories of test files under `packages/tes
 
 ## What the suite covers
 
-Cucumber runs those 2,465 entries as about 2,624 cases.[^count] What each group of features proves, which unit tests the browser tests repeat, what a run costs, and what nothing tests at all are in the closed blocks at the foot of this page.
+Cucumber runs those 2,473 entries as about 2,632 cases.[^count] What each group of features proves, which unit tests the browser tests repeat, what a run costs, and what nothing tests at all are in the closed blocks at the foot of this page.
 
 [^e2e]: `just e2e` is one of the jobs `just check` runs. The suite picks how many workers to run from the machine: the number of cores minus one, up to four, and from twenty cores up, one worker per four cores, up to eight.
 
@@ -125,7 +125,7 @@ One row per group of feature files.
 | A plugin the directory defines | 58 | Asking for one and watching it built, its page in every state, turning it on, trusting and deleting it, its environment variables, the sidebar section and what rings. |
 | Preferences, theme and identity | 68 | The three headings, theme and font, promoted plugin settings, forced colours, and who the proxy says you are. |
 | The shell, on a desk and on a phone | 60 | The header, the health dot, the bar at the bottom of a phone screen, keyboard chords, reduced motion, and an entry point that fails to load. |
-| Staying live | 23 | Going offline and reconnecting, writes from outside, a half-open socket, and drafts that survive an outage. |
+| Staying live | 31 | Going offline and reconnecting, writes from outside, a half-open socket, drafts that survive an outage, and what the server's log says about each way a connection drops. |
 | Link previews | 35 | The hover card for a node, a document and a conversation link, and the kinds that offer none. |
 
 </details>
