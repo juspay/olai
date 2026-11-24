@@ -545,6 +545,76 @@ Then("the focus mark is drawn in the screen's own colour", async function (this:
   assert.notStrictEqual(mark.colour, await accent(this), "the focus mark is still the page's own accent");
 });
 
+// ── a collapsed pane's rail ────────────────────────────────────────────
+//
+// The rail wears the column's mark — a 2px accent edge along its top — and its
+// name goes from the muted ink to the page's ink while its pane is focused.
+// The 2px are kept as padding while it is not, so the name stands still.
+
+const railOf = (world: OlaiWorld, index: number) =>
+  world.frontLane().locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
+
+/** A theme colour resolved by the browser, for comparing with what is drawn. */
+const ink = (world: OlaiWorld, token: "ink" | "muted"): Promise<string> =>
+  world.page.evaluate((name) => {
+    const probe = document.createElement("div");
+    probe.style.cssText = `position:absolute;visibility:hidden;color:var(--color-${name})`;
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  }, token);
+
+type RailMark = { readonly width: number; readonly colour: string; readonly name: string; readonly top: number };
+
+const railMark = (world: OlaiWorld, index: number): Promise<RailMark> =>
+  railOf(world, index).evaluate((rail) => {
+    const style = getComputedStyle(rail);
+    const name = rail.querySelector("span")!;
+    return {
+      width: Number.parseFloat(style.borderTopWidth),
+      colour: style.borderTopColor,
+      name: getComputedStyle(name).color,
+      top: name.getBoundingClientRect().top,
+    };
+  });
+
+Then("the pane rail {int} carries the focus mark", async function (this: OlaiWorld, index: number) {
+  await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const [edge, page] = [await accent(this), await ink(this, "ink")];
+  await this.waitUntil(async () => {
+    const mark = await railMark(this, index);
+    return mark.width >= 2 && mark.colour === edge && mark.name === page;
+  }, `the rail of pane ${index} to wear the accent edge and its name the page's ink`).catch(async () => {
+    assert.fail(`the rail of pane ${index} draws ${JSON.stringify(await railMark(this, index))}; the accent is ${edge}, the ink ${page}`);
+  });
+});
+
+Then("the pane rail {int} does not carry the focus mark", async function (this: OlaiWorld, index: number) {
+  await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const quiet = await ink(this, "muted");
+  await this.waitUntil(async () => {
+    const mark = await railMark(this, index);
+    return mark.width === 0 && mark.name === quiet;
+  }, `the rail of pane ${index} to wear no edge and a muted name`).catch(async () => {
+    assert.fail(`the rail of pane ${index} draws ${JSON.stringify(await railMark(this, index))}; muted is ${quiet}`);
+  });
+});
+
+const railNameTop = new WeakMap<OlaiWorld, number>();
+
+When("I note where the pane rail {int}'s name stands", async function (this: OlaiWorld, index: number) {
+  await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  railNameTop.set(this, (await railMark(this, index)).top);
+});
+
+Then("the pane rail {int}'s name stands where it stood", async function (this: OlaiWorld, index: number) {
+  const was = railNameTop.get(this);
+  assert.ok(was !== undefined, "no rail name's place was noted");
+  const now = (await railMark(this, index)).top;
+  assert.ok(Math.abs(now - was) <= 0.5, `the rail's name moved from ${was}px to ${now}px when focus changed`);
+});
+
 const closeOf = (world: OlaiWorld, index: number) =>
   world.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))} ${PANE_CLOSE}`);
 

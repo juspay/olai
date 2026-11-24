@@ -356,9 +356,16 @@ function Rail(props: { readonly index: number; readonly pane: Pane; readonly foc
   return (
     <button
       type="button"
-      class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule bg-desk py-3 text-muted hover:text-ink"
-      // The same mark a column wears: an accent edge along its top.
-      classList={{ "border-t-2 border-t-accent text-ink": focused() }}
+      class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule bg-desk pb-3 hover:text-ink"
+      // The same mark a column wears: a 2px accent edge along its top, and the
+      // same 2px kept as padding while it is not focused, so the name does
+      // not move when focus arrives. Each state names its own top and its own
+      // ink; a class in `classList` does not beat one in `class` that sets the
+      // same property (Tailwind orders `text-ink` before `text-muted`).
+      classList={{
+        "border-t-2 border-t-accent pt-3 text-ink": focused(),
+        "pt-[calc(0.75rem+2px)] text-muted": !focused(),
+      }}
       style={{ width: `${PANE_RAIL_PX}px` }}
       data-testid={TESTID.paneRail}
       data-pane={String(props.index)}

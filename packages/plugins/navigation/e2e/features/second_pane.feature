@@ -164,11 +164,22 @@ Feature: The second pane
     Then the pane tabs read "house | install"
     And there should be no page errors
 
+  # The rail wears the mark a column wears — an accent edge on top, its name in
+  # the page's ink — while its pane is focused, and its name does not move when
+  # focus arrives or leaves.
   Scenario: A pane below the minimum width collapses to a rail
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"
     And I collapse pane 1 by dragging its divider
     Then a pane rail is shown for pane 1
+    When the pointer leaves the panes
+    And I press Alt+Left
+    Then pane 0 is focused
+    And the pane rail 1 does not carry the focus mark
+    When I note where the pane rail 1's name stands
+    And I press Alt+Right
+    Then the pane rail 1 carries the focus mark
+    And the pane rail 1's name stands where it stood
     When I expand the pane rail 1
     Then there are 2 panes
     And pane 1 is showing "/zoom/#install"
