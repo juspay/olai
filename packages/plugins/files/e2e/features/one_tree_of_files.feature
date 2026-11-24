@@ -77,8 +77,11 @@ Feature: One tree holds every file, under Files
     And the open folders in the file list are "art"
     And there should be no page errors
 
+  # The reader's own outlines gone, olai's own (`_olai/Settings.olai`) still
+  # stands in its group below the tree, and the front page draws it; the
+  # empty page with nothing at all is `empty_vault.feature`'s.
   @scratch:good
-  Scenario: With no outline left, the tree lists the other files and the front page says so
+  Scenario: With none of your outlines left, the tree lists the other files
     Given I open the document "finishes.md"
     When I remove the served file "house.olai"
     And I remove the served file "garden.olai"
@@ -87,7 +90,4 @@ Feature: One tree holds every file, under Files
     And the outline list has 0 entries
     And the document link "finishes.md" is shown
     And the file tree shows the folder "notes"
-    When I open the app
-    Then the empty page says "No outlines yet"
-    And the document link "finishes.md" is shown
     And there should be no page errors
