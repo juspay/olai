@@ -189,7 +189,9 @@ export const createDiary = (deps: DiaryDeps): Diary => {
       if (retries > 0 && record.lastError !== undefined) {
         heard.set(record.lastError, (heard.get(record.lastError) ?? 0) + retries)
       }
-      if (record.state === "live" && (record.lastFrameAt === undefined || record.lastFrameAt < openedAt)) {
+      // Still running (kolu leaves `endedAt` unset until it stops) and nothing
+      // arrived since this dial opened.
+      if (record.endedAt === undefined && (record.lastFrameAt === undefined || record.lastFrameAt < openedAt)) {
         starved.push(record.label)
       }
     }
