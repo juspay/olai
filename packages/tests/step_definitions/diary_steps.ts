@@ -118,12 +118,17 @@ When("I close this browser tab", async function (this: OlaiWorld) {
 
 type Line = Readonly<Record<string, string>>;
 
-/** Every complete line of the server's stdout whose message is `message`. */
-const linesOf = (world: OlaiWorld, message: string): ReadonlyArray<Line> => {
+/** Every complete line of the server's stdout, as written: a line still
+ *  arriving (no `\n` yet) is not one. */
+const rawLines = (world: OlaiWorld): ReadonlyArray<string> => {
   const text = world.serverLog.text;
   const complete = text.endsWith("\n") ? text.split("\n") : text.split("\n").slice(0, -1);
-  return complete.filter((line) => line !== "").map(readLogfmt).filter((fields) => fields.message === message);
+  return complete.filter((line) => line !== "");
 };
+
+/** Every complete line whose message is `message`, as its fields. */
+const linesOf = (world: OlaiWorld, message: string): ReadonlyArray<Line> =>
+  rawLines(world).map(readLogfmt).filter((fields) => fields.message === message);
 
 /** `k=v k2=v2` as a record; a value may not hold a space. */
 const wanted = (fields: string): Readonly<Record<string, string>> =>
@@ -300,14 +305,10 @@ Then(
 Then(
   "every line from the browser, and every {string} and {string} line, is at debug",
   function (this: OlaiWorld, first: string, second: string) {
-    const text = this.serverLog.text;
-    const complete = text.endsWith("\n") ? text.split("\n") : text.split("\n").slice(0, -1);
-    const loud = complete
-      .filter((raw) => raw !== "")
-      .filter((raw) => {
-        const line = readLogfmt(raw);
-        return (line.side === "browser" || line.message === first || line.message === second) && line.level !== "DEBUG";
-      });
+    const loud = rawLines(this).filter((raw) => {
+      const line = readLogfmt(raw);
+      return (line.side === "browser" || line.message === first || line.message === second) && line.level !== "DEBUG";
+    });
     assert.deepStrictEqual(loud, [], `an ordinary load and close said these above debug:\n  ${loud.join("\n  ")}`);
   },
 );
