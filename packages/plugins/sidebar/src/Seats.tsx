@@ -33,7 +33,7 @@ export function PluginSections(props: { readonly place: SectionPlace }) {
   )
   return (
     <For each={sections()}>
-      {(one) => <div data-plugin={one.plugin} data-place={props.place}>{one.face.body()}</div>}
+      {(one) => <div data-plugin={one.plugin}>{one.face.body()}</div>}
     </For>
   )
 }
