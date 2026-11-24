@@ -241,8 +241,10 @@ A `wire dropped` line in the server's log has one of these as its `cause`:
   the `debug` level.
 - A connection that keeps dropping the same way is logged in full the first
   three times and then every tenth time, with `streak` counting the drops.
-- Other lines from the tab: `dial did not open`, `heartbeat gave up`,
-  `connection-lost card shown` and `connection-lost card lifted`.
+- Other lines from the tab: `dial did not open` and `heartbeat gave up`, and
+  `connection card shown` and `connection card lifted`, with `status` naming
+  which card. The card a page shows while it first connects, and the one a
+  plugin switch shows, appear only at the `debug` level.
 
 </details>
 

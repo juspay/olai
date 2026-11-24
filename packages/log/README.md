@@ -124,7 +124,7 @@ Some callbacks are handed the fiber they speak for instead of running in it — 
 
 ## The connection's diary: `./link`
 
-A browser tab keeps a diary of its socket — dialled, opened, dropped and why, the connection-lost card going up and down — and posts it to the server, which logs each entry with `side=browser` beside its own `tab connected` / `tab disconnected` lines. Both ends speak one vocabulary, and it lives here, on its own door, because the root door loads the sinks and the sinks read `process.stdout`, which a browser does not have. `./link` imports `effect` and nothing else.
+A browser tab keeps a diary of its socket — dialled, opened, dropped and why, the card over a frozen page going up and down — and posts it to the server, which logs each entry with `side=browser` beside its own `tab connected` / `tab disconnected` lines. Both ends speak one vocabulary, and it lives here, on its own door, because the root door loads the sinks and the sinks read `process.stdout`, which a browser does not have. `./link` imports `effect` and nothing else.
 
 | export | what it is |
 |---|---|
@@ -134,6 +134,7 @@ A browser tab keeps a diary of its socket — dialled, opened, dropped and why, 
 | `closeMeans(code)` | what a WebSocket close code means, in a word or two, for both ends |
 | `nextStreak`, `loudAt` | the loop rule: consecutive dials that lived under a minute and dropped the same way make a streak, said in full for the first three and then every tenth, at `debug` otherwise |
 | `stamped`, `stampOf` | the `tab` and `dial` a tab puts on its socket's URL, written and read in one place, so the server's lines about a socket can be joined to the tab's |
+| `sparingly`, `SAY_AGAIN_AFTER_MS` | the rule for a failure that can repeat forever, on both ends: said the first time, then at most once per 30 seconds with a count (`dial did not open` on the tab, `websocket upgrade had no taker` on the server) |
 
 Fields are sizes, codes, counts, tags and subscription labels. No frame's content is ever an entry.
 
