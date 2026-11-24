@@ -15,6 +15,18 @@ Feature: Pictures of the frame, for a person to judge
     When I save a screenshot as "frame-desktop-split.png"
     Then there should be no page errors
 
+  Scenario: A picture of a document page, with its contents shut
+    Given I open the document "kitchen-sink.md"
+    Then the contents is shut
+    When I save a screenshot as "frame-document.png"
+    Then there should be no page errors
+
+  Scenario: A picture of the health dot's list, open on a desktop
+    Given I open the outline "house.olai"
+    When I open the health popover
+    And I save a screenshot as "frame-dot-list.png"
+    Then there should be no page errors
+
   @phone
   Scenario: A picture of the frame on a phone, page and drawer
     Given I open the outline "house.olai"
