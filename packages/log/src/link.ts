@@ -20,13 +20,14 @@
 import { type LogLevel, Schema } from "effect"
 import { reasonOf } from "./cause.ts"
 
-// ── Identity ────────────────────────────────────────────────────────────────
+// ── The stamp ───────────────────────────────────────────────────────────────
 
 /** The query parameters a tab stamps on every socket it dials. The server reads
  *  them back off the upgrade's URL, so the tab's account of a socket and the
- *  server's can be joined by `tab` and `dial`. */
-export const TAB_PARAM = "tab"
-export const DIAL_PARAM = "dial"
+ *  server's can be joined by `tab` and `dial`. Written by {@link stamped} and
+ *  read by {@link stampOf}, and by nothing else. */
+const TAB_PARAM = "tab"
+const DIAL_PARAM = "dial"
 
 /** A tab's id: sixteen lowercase hex digits, minted once per page load. */
 export const Tab = Schema.String.check(Schema.isPattern(/^[0-9a-f]{16}$/))
@@ -37,10 +38,18 @@ const Dial = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1_000_000_
 const isTab = Schema.is(Tab)
 const isDial = Schema.is(Dial)
 
+/** `url` with this tab's stamp on its query. A query already there is kept. */
+export const stamped = (url: string, stamp: { readonly tab: string; readonly dial: number }): string => {
+  const at = new URL(url)
+  at.searchParams.set(TAB_PARAM, stamp.tab)
+  at.searchParams.set(DIAL_PARAM, String(stamp.dial))
+  return at.toString()
+}
+
 /** The `tab` and `dial` a socket URL carries, each only when it has the shape a
  *  tab mints. Anything else is absent rather than echoed: the URL is whatever
  *  the peer sent. */
-export const identityOf = (url: URL): { readonly tab?: string; readonly dial?: number } => {
+export const stampOf = (url: URL): { readonly tab?: string; readonly dial?: number } => {
   const tab = url.searchParams.get(TAB_PARAM) ?? undefined
   const dialText = url.searchParams.get(DIAL_PARAM)
   const dial = dialText !== null && /^[0-9]{1,10}$/.test(dialText) ? Number(dialText) : undefined

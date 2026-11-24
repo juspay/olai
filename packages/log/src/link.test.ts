@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { type LogLevel, Schema } from "effect"
-import { Batch, type Cause, closeMeans, describe, type Entry, identityOf, type LinkEvent, loudAt, nextStreak } from "./link.ts"
+import { Batch, type Cause, closeMeans, describe, type Entry, type LinkEvent, loudAt, nextStreak, stamped, stampOf } from "./link.ts"
 
 const dropped = (cause: Cause): LinkEvent => ({
   _tag: "Dropped",
@@ -102,7 +102,14 @@ test("a batch with a malformed tab is refused", () => {
 })
 
 test("a socket URL names its tab and dial only when they have the shape a tab mints", () => {
-  expect(identityOf(new URL("ws://h/ws?tab=0123456789abcdef&dial=3"))).toEqual({ tab: "0123456789abcdef", dial: 3 })
-  expect(identityOf(new URL("ws://h/ws?tab=evil%20value&dial=-1"))).toEqual({})
-  expect(identityOf(new URL("ws://h/ws"))).toEqual({})
+  expect(stampOf(new URL("ws://h/ws?tab=0123456789abcdef&dial=3"))).toEqual({ tab: "0123456789abcdef", dial: 3 })
+  expect(stampOf(new URL("ws://h/ws?tab=evil%20value&dial=-1"))).toEqual({})
+  expect(stampOf(new URL("ws://h/ws"))).toEqual({})
+})
+
+test("a stamped URL gives its stamp back and keeps the query it had", () => {
+  const stamp = { tab: "0123456789abcdef", dial: 4 }
+  const url = new URL(stamped("ws://h/rpc/ws?pid=abc", stamp))
+  expect(stampOf(url)).toEqual(stamp)
+  expect(url.href).toBe("ws://h/rpc/ws?pid=abc&tab=0123456789abcdef&dial=4")
 })

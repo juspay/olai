@@ -39,12 +39,12 @@
 import type { SurfaceAppConnection, SurfaceAppEvent } from "@kolu/surface-app/serve"
 import { SurfaceSiblingDropped } from "@kolu/surface/server"
 import { type Emit, emitterOf, prettyCause, reasonOf } from "@olai/log"
-import { closeMeans, duration, identityOf } from "@olai/log/link"
+import { closeMeans, duration, stampOf } from "@olai/log/link"
 import type { LinkFact, LinkMeasure } from "@olai/plugin-api/transport"
 import { Cause, Effect, ErrorReporter, Layer, References } from "effect"
 
 /** The fields that say which connection a line is about. */
-const which = (connection: SurfaceAppConnection<string>) => ({ conn: connection.id, ...identityOf(connection.url) })
+const which = (connection: SurfaceAppConnection<string>) => ({ conn: connection.id, ...stampOf(connection.url) })
 
 /** How loud a failed call is, by its cause's own reasons:
  *
@@ -177,7 +177,7 @@ export const report = (event: SurfaceAppEvent<string> | LinkFact, say: Emit): vo
       say(
         Effect.annotateLogs(Effect.logInfo("stale tab rejected"), {
           claimed: event.claimedPid,
-          ...identityOf(event.url),
+          ...stampOf(event.url),
         }),
       )
       return
