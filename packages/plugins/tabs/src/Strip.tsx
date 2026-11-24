@@ -27,6 +27,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { lone } from "olai-plugin-navigation/workspace"
+import { TAB, TAB_BEHIND, TAB_FRONT } from "olai-plugin-layout/tab"
 
 import type { Tab, TabsState } from "./contract.ts"
 import { createFaces, glyphOf } from "./face.ts"
@@ -168,13 +169,12 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 // (a page naming itself as it arrives) must not move its
                 // neighbours along the strip. Shorter than the bar and
                 // standing on its foot, so the front tab's paper meets the page.
-                // `olai-tab-filled` is the forced-colours hook, defined once in
-                // `@olai/ui-primitives/all.css`: paper under the front tab is a
-                // background, and High Contrast throws author backgrounds away.
-                class="olai-tab-filled group/tab relative flex h-[2.125rem] min-w-[5rem] max-w-[14rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-t-control border border-b-0 pl-3 pr-1 text-label"
+                // The shape is the frame's one tab (`olai-plugin-layout/tab`);
+                // a tab behind here also takes a wash on hover.
+                class={`${TAB} group/tab relative flex h-[2.125rem] min-w-[5rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap pl-3 pr-1`}
                 classList={{
-                  "border-rule bg-paper font-medium text-ink": front(),
-                  "border-transparent text-muted hover:bg-ink/5 hover:text-ink": !front(),
+                  [TAB_FRONT]: front(),
+                  [`${TAB_BEHIND} hover:bg-ink/5`]: !front(),
                   "opacity-40": isLifted(),
                 }}
                 draggable={false}

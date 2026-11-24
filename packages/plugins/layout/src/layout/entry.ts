@@ -110,18 +110,25 @@ export const REGION_HEAD = "mb-1 flex min-h-7 items-center justify-between gap-2
  *  own box wears it, and {@link HEAD_ACTION} reads it. */
 export const COLUMN = "group/column"
 
+/** QUIET AT REST: a control that is not drawn until it is wanted — drawn while
+ *  the keyboard is on it, and always on a screen with no hover to make the
+ *  offer with ({@link SHOWN_WITHOUT_HOVER}). The pointer half is the caller's
+ *  `group-hover/<group>:opacity-100`, written out where it is used because
+ *  Tailwind finds a class only where it is spelled whole. Opacity and not
+ *  `hidden`, so the control stays in the tab order and keeps its place. */
+export const QUIET_AT_REST = `opacity-0 focus-visible:opacity-100 ${SHOWN_WITHOUT_HOVER}`
+
 /** The `+` itself, and the chevrons beside the column's doors: a quiet square
  *  that is a full finger's box below `md` (`@olai/ui-primitives/touch.ts`) and
  *  a 1.5rem one beside a pointer. It is a real `<button>`, so Tab reaches it
  *  and Enter/Space press it.
  *
- *  QUIET AT REST: drawn while the pointer is in the column ({@link COLUMN}),
- *  while the keyboard is on it, while what it opens is open
- *  (`aria-expanded`), and always on a screen with no hover to make the offer
- *  with. At rest the column is names and counts. */
+ *  {@link QUIET_AT_REST}, drawn too while the pointer is in the column
+ *  ({@link COLUMN}) and while what it opens is open (`aria-expanded`). At rest
+ *  the column is names and counts. */
 export const HEAD_ACTION =
   "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-control " +
-  "border-0 bg-transparent text-muted opacity-0 hover:bg-ink/5 hover:text-ink " +
-  `focus-visible:opacity-100 group-hover/column:opacity-100 aria-expanded:opacity-100 ${SHOWN_WITHOUT_HOVER} ` +
+  "border-0 bg-transparent text-muted hover:bg-ink/5 hover:text-ink " +
+  `${QUIET_AT_REST} group-hover/column:opacity-100 aria-expanded:opacity-100 ` +
   "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent " +
   "aria-expanded:bg-ink/8 aria-expanded:text-ink md:min-h-6 md:min-w-6"

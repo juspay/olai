@@ -19,7 +19,7 @@ import { TESTID } from "olai-plugin-layout/testids"
 import type {Navigation} from "olai-plugin-navigation/contract"
 import { createSignal,createMemo,createSelector,createComputed,createEffect,on,For,onCleanup,Show } from "solid-js"
 
-import { SHOWN_WITHOUT_HOVER, TARGET_BOX } from "@olai/ui-primitives/touch.ts"
+import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
 import { drag as pointerDrag } from "@olai/web/client/pointer.ts"
 
@@ -33,6 +33,8 @@ type Pane,
 } from "olai-plugin-navigation/workspace"
 import { desktop, holdPhoneTabs } from "../layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "../layout/sheet.ts"
+import { QUIET_AT_REST } from "../layout/entry.ts"
+import { TAB, TAB_BEHIND, TAB_FRONT } from "../layout/tab.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
 import { nameOf } from "../routing.ts"
 
@@ -334,12 +336,11 @@ function Header(props: { readonly index: number; readonly pane: Pane; readonly r
         classList={{ "font-medium text-ink": focused(), "text-muted": !focused() }}>
         {nameOf(props.pane.route)}
       </span>
-      {/* THE × ON HOVER of the pane and on keyboard focus, and always where
-          there is no hover to make the offer with (`SHOWN_WITHOUT_HOVER`). A
-          transparent button is still in the tab order, which is the point. */}
+      {/* THE × ON HOVER of the pane, and otherwise quiet at rest as the
+          column's `+` is (`../layout/entry.ts`'s `QUIET_AT_REST`). */}
       <button
         type="button"
-        class={`${TARGET_BOX} inline-flex items-center justify-center rounded-control text-muted opacity-0 hover:text-ink focus-visible:opacity-100 group-hover/pane:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
+        class={`${TARGET_BOX} inline-flex items-center justify-center rounded-control text-muted hover:text-ink ${QUIET_AT_REST} group-hover/pane:opacity-100`}
         data-testid={TESTID.paneClose}
         aria-label={`Close ${nameOf(props.pane.route)}`}
         onClick={() => router.close(props.index)}
@@ -454,9 +455,8 @@ function Divider(props: {
  * `--height-chrome` — the bar plus this strip — and a strip whose height was
  * whatever its padding came to would be a second spelling of that sum.
  *
- * Each pane's tab wears the desktop tab's shape (`olai-plugin-tabs`' strip):
- * the one in front is paper with a rule round its top and sides, standing on
- * the strip's hairline and painting over it where it meets its page.
+ * Each pane's tab is the frame's one tab shape (`../layout/tab.ts`), the one
+ * the desktop's tabs in the header wear too.
  */
 function TabStrip() {
   const router = useRouter()
@@ -477,13 +477,10 @@ function TabStrip() {
               role="tab"
               aria-selected={focused()}
               aria-current={focused() ? "page" : undefined}
-              // `olai-tab-filled` is the forced-colours hook for a tab told by
-              // its paint (`@olai/ui-primitives/all.css`): paper under the tab
-              // in front is a background, and High Contrast throws those away.
-              class="olai-tab-filled h-[1.875rem] max-w-[14rem] shrink-0 truncate rounded-t-control border border-b-0 px-2 text-label"
+              class={`${TAB} h-[1.875rem] shrink-0 truncate px-2`}
               classList={{
-                "border-rule bg-paper font-medium text-ink": focused(),
-                "border-transparent text-muted hover:text-ink": !focused(),
+                [TAB_FRONT]: focused(),
+                [TAB_BEHIND]: !focused(),
               }}
               data-testid={TESTID.paneTab}
               data-pane={String(i())}
