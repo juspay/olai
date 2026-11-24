@@ -78,6 +78,9 @@ Feature: The second pane
     Then pane 0's close button is drawn
     When the pointer leaves the panes
     And I click pane 1's name and press Tab
+    # Off the panes again, so what draws the `×` is the keyboard alone and not
+    # the pointer the click left on pane 1.
+    And the pointer leaves the panes
     Then pane 1's close button has the keyboard, and is drawn
     When I press "Enter"
     Then there are 1 panes
