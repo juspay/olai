@@ -22,10 +22,10 @@
  *
  * A CALL'S FAILURE IS REPORTED, NOT LOGGED. Effect's RPC server hands every
  * failed handler exit — a declared refusal, a defect, a response that failed
- * to encode — to the fiber's `ErrorReporter`s and to no logger, and it has
- * none by default, so until a connection carries one those failures are said
- * nowhere. {@link connectionLogging} gives each connection one, and
- * {@link gravityOf} decides how loud each failure is.
+ * to encode — to the fiber's `ErrorReporter`s and to no logger. Each
+ * connection carries one (`./connectionLogging.ts`), and what it says is
+ * decided here: {@link gravityOf} says how loud a failure is, and
+ * {@link failedCall} says it.
  *
  * The POLICY is the primitive's own — loud on every fault, silent on the
  * ordinary — and what differs is only the sink: these are `Effect.log*` lines,
@@ -38,13 +38,13 @@
 
 import type { SurfaceAppConnection, SurfaceAppEvent } from "@kolu/surface-app/serve"
 import { SurfaceSiblingDropped } from "@kolu/surface/server"
-import { type Emit, emitterOf, prettyCause, reasonOf } from "@olai/log"
+import { prettyCause, reasonOf, type Emit } from "@olai/log"
 import { closeMeans, describe, duration, type Entry, stampOf } from "@olai/log/link"
 import type { LinkFact, LinkMeasure } from "@olai/plugin-api/transport"
-import { Cause, Effect, ErrorReporter, Layer, References } from "effect"
+import { Cause, Effect } from "effect"
 
 /** The fields that say which connection a line is about. */
-const which = (connection: SurfaceAppConnection<string>) => ({ conn: connection.id, ...stampOf(connection.url) })
+export const connectionFields = (connection: SurfaceAppConnection<string>) => ({ conn: connection.id, ...stampOf(connection.url) })
 
 /** How loud a failed call is, by its cause's own reasons:
  *
@@ -64,42 +64,16 @@ export const gravityOf = (cause: Cause.Cause<unknown>): Gravity => {
     : "refused"
 }
 
-/**
- * What one connection's serving stack logs under: the serve's own `logging`
- * layer, the connection named on every line, and a reporter that says each
- * failed call as a line.
- *
- * kolu builds each connection's RPC server on Effect's default runtime, so
- * without this a handler's `Effect.log*` and Effect RPC's own lines (a protocol
- * crash) would bypass the serve's level, format and annotations, and a failed
- * call — reported, never logged — would be said nowhere. The reporter emits
- * under the reporting fiber's own services, so its line carries what every
- * other line here does. `ErrorReporter.make` keeps Effect's own rules: it skips
- * interrupts and never reports one failure twice. The annotations replace
- * rather than add to the ones in force where the serve set them, which is why
- * `annotations` (the serve's `root`) is passed in. Made per call, so the
- * reporter belongs to this connection and is released with its serving scope.
- */
-export const connectionLogging = (
-  connection: SurfaceAppConnection<string>,
-  logging: Layer.Layer<never>,
-  annotations: Readonly<Record<string, unknown>>,
-): Layer.Layer<never> => {
-  const reporter = ErrorReporter.make(({ cause, error, fiber }) => {
-    const gravity = gravityOf(cause)
-    const line = gravity === "defect"
-      ? Effect.annotateLogs(Effect.logError("a call failed with a defect"), { why: prettyCause(error) })
-      : Effect.annotateLogs(
-        Effect.logDebug(gravity === "left" ? "a call ended because its plugin left" : "a call was refused"),
-        { why: reasonOf(error) },
-      )
-    emitterOf(fiber)(line)
-  })
-  return Layer.mergeAll(
-    logging,
-    Layer.succeed(References.CurrentLogAnnotations)({ ...annotations, ...which(connection) }),
-    ErrorReporter.layer([reporter]),
-  )
+/** A failed call, as one line: a defect at `error` with its whole cause, a
+ *  plugin leaving or a declared refusal at `debug` with its reason. */
+export const failedCall = (cause: Cause.Cause<unknown>, error: Error): Effect.Effect<void> => {
+  const gravity = gravityOf(cause)
+  return gravity === "defect"
+    ? Effect.annotateLogs(Effect.logError("a call failed with a defect"), { why: prettyCause(error) })
+    : Effect.annotateLogs(
+      Effect.logDebug(gravity === "left" ? "a call ended because its plugin left" : "a call was refused"),
+      { why: reasonOf(error) },
+    )
 }
 
 /** A socket ended. Its own close code says whether this is news: a tab that
@@ -113,7 +87,7 @@ const ended = (
   const line = event.code === 1000 || event.code === 1001 ? Effect.logDebug : Effect.logWarning
   say(
     Effect.annotateLogs(line("tab disconnected"), {
-      ...which(event.connection),
+      ...connectionFields(event.connection),
       code: event.code,
       means: closeMeans(event.code),
       ...(event.reason === "" ? {} : { reason: event.reason }),
@@ -153,7 +127,7 @@ export const report = (event: SurfaceAppEvent<string> | LinkFact | DiaryFact, sa
     case "Connected":
       say(
         Effect.annotateLogs(Effect.logDebug("tab connected"), {
-          ...which(event.connection),
+          ...connectionFields(event.connection),
           ...(event.connection.remoteAddress === undefined ? {} : { peer: event.connection.remoteAddress }),
         }),
       )
@@ -172,7 +146,7 @@ export const report = (event: SurfaceAppEvent<string> | LinkFact | DiaryFact, sa
     case "FrameOverCap":
       say(
         Effect.annotateLogs(Effect.logWarning("sent a frame larger than a tab accepts"), {
-          ...which(event.connection),
+          ...connectionFields(event.connection),
           bytes: event.bytes,
           cap: event.cap,
           ...(event.kind === undefined ? {} : { kind: event.kind }),
@@ -255,7 +229,7 @@ export const report = (event: SurfaceAppEvent<string> | LinkFact | DiaryFact, sa
     case "ServingFailed":
       say(
         Effect.annotateLogs(Effect.logWarning("surface connection failed"), {
-          ...which(event.connection),
+          ...connectionFields(event.connection),
           why: prettyCause(event.cause),
         }),
       )

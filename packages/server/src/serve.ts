@@ -8,7 +8,8 @@
  * Provider withdrawals change the composed generation without restarting
  * unrelated capabilities; reverse scope order drains rows before the host.
  */
-import { connectionLogging, report as reportTransport } from "./report.ts";
+import { report as reportTransport } from "./report.ts";
+import { connectionLogging } from "./connectionLogging.ts";
 import { CurrentWho, whoRoute } from "./who.ts";
 import { diaryRoute } from "./diary.ts";
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";

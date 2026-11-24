@@ -33,7 +33,7 @@ export const DIARY_MAX_BYTES = 64 * 1024
 /** How many entries the serve takes per {@link DIARY_WINDOW_MS}, from every tab
  *  together. */
 export const DIARY_CEILING = 600
-export const DIARY_WINDOW_MS = 60_000
+const DIARY_WINDOW_MS = 60_000
 
 const decode = Schema.decodeUnknownExit(Schema.fromJsonString(Batch))
 

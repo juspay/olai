@@ -6,7 +6,8 @@ import type { SurfaceAppConnection, SurfaceAppEvent } from "@kolu/surface-app/se
 import { collector, findSaid } from "@olai/log/testlib"
 import type { LinkFact } from "@olai/plugin-api/transport"
 import { Cause, Effect, Layer, References, Schema } from "effect"
-import { connectionLogging, type Gravity, gravityOf, report } from "./report.ts"
+import { connectionLogging } from "./connectionLogging.ts"
+import { type Gravity, gravityOf, report } from "./report.ts"
 
 const TAB = "0123456789abcdef"
 
