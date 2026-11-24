@@ -21,8 +21,13 @@ import {
   HEADINGS,
   POLL_TIMEOUT,
   PREFS_TRIGGER,
+  SIDEBAR,
+  SIDEBAR_RAIL,
+  WORDMARK,
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+
+import { MAIN_STRIP } from "../selectors.ts";
 
 /** How far off the top edge counts as "at the top". A CSS pixel of rounding on
  *  a fractional device scale, and nothing else — a bar that has begun to leave
@@ -208,4 +213,57 @@ Then(
   },
 );
 
+/**
+ * ONE BAND ABOVE A PAGE: the top of the page in front is the bar's bottom
+ * edge, with no strip of tabs, no rule and no gap between them. Asked of an
+ * unscrolled page, where a page in flow starts right under what stands above
+ * it.
+ */
+Then("nothing stands between the app header and the page", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const header = await this.box(this.page.locator(APP_HEADER), "the app header");
+    const page = await this.box(this.frontLane(), "the page in front");
+    return Math.abs(page.y - (header.y + header.height)) <= EDGE;
+  }, "the page in front to start at the bar's bottom edge");
+});
 
+/** The bar is as tall as its own token says, whether or not tabs fill its
+ *  seat: an empty seat must not collapse it, and a filled one must not grow it. */
+Then("the app header wears its own height", async function (this: OlaiWorld) {
+  const header = await this.box(this.page.locator(APP_HEADER), "the app header");
+  const token = await this.page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;visibility:hidden;height:var(--height-header)";
+    document.body.append(probe);
+    const height = probe.getBoundingClientRect().height;
+    probe.remove();
+    return height;
+  });
+  assert.ok(token > 0, "--height-header resolved to nothing");
+  assert.ok(Math.abs(header.height - token) <= EDGE,
+    `the bar is ${header.height}px tall and its token says ${token}px`);
+});
+
+/**
+ * THE BAR'S CELLS STAND OVER THE COLUMNS: the app's name over the sidebar (or
+ * the rail, minimized), as wide as it, and the tabs starting where the page
+ * does. Measured against the column and the page rather than the width token,
+ * because the token and the column disagreeing is one of the things this
+ * catches.
+ */
+Then(
+  "the app's name stands over the {word} and the tabs start where the page does",
+  async function (this: OlaiWorld, column: string) {
+    const under = column === "rail" ? SIDEBAR_RAIL : SIDEBAR;
+    await this.waitUntil(async () => {
+      const side = await this.box(this.page.locator(under), `the ${column}`);
+      const name = await this.box(this.page.locator(WORDMARK).locator(".."), "the name's cell");
+      const tabs = await this.box(this.page.locator(MAIN_STRIP), "the tabs");
+      const page = await this.box(this.frontLane(), "the page in front");
+      return Math.abs(name.x - side.x) <= EDGE
+        && Math.abs(name.width - side.width) <= EDGE
+        && Math.abs(tabs.x - page.x) <= EDGE
+        && Math.abs(name.x + name.width - page.x) <= EDGE;
+    }, `the name's cell to stand over the ${column}, and the tabs to start at the page's left edge`);
+  },
+);

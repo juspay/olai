@@ -98,7 +98,7 @@
  * did. A 3rem box is not somewhere a panel can hang out of.
  */
 import { TESTID } from "olai-plugin-layout/testids"
-import { Show } from "solid-js"
+import { For, Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { Indicator } from "./Indicator.tsx"
@@ -111,8 +111,9 @@ import { Health } from "./Health.tsx"
 import { PluginViewer } from "./Seats.tsx"
 
 import { connectionReadout } from "@olai/web/client/wire.ts"
-import { desktop } from "./layout/live.ts"
+import { desktop, sidebarOpen } from "./layout/live.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { strip } from "./index.ts"
 import { Tools } from "./Tools.tsx"
 
 export function Header(props: {
@@ -134,6 +135,12 @@ export function Header(props: {
   // for the same absence itself (`./router.tsx`'s `useMaybeGo`) and this bar
   // holds no fact about search at all.
 }) {
+  /** THE NAME'S CELL on a desktop stands over the column under it: as wide as
+   *  the sidebar while one is mounted (`--width-sidebar`, which is the rail's
+   *  width while the column is minimized), and its own width with none. A
+   *  railed cell is the leaf alone, centred over the rail; the name stays the
+   *  heading's words for whoever reads them rather than looks. */
+  const railed = () => desktop() && props.menu !== undefined && !sidebarOpen()
   return (
     <>
     <header ref={props.ref}
@@ -141,12 +148,17 @@ export function Header(props: {
       // inside the box, and a 44px finger target centred in a 44px bar with a
       // 1px border overflowed it by half a pixel — the phone's burger stood at
       // y=-0.25, which is off the screen to a geometry assertion. The shadow
-      // paints the same hairline and costs the bar no height.
-      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 px-2 font-sans shadow-[inset_0_-1px_0_var(--color-rule)] md:px-3`}
+      // paints the same hairline and costs the bar no height, and the tab in
+      // front, on paper, paints over it where it meets its page.
+      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 px-2 font-sans shadow-[inset_0_-1px_0_var(--color-rule)] md:items-stretch md:gap-0 md:px-0`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
-      <div class="flex shrink-0 items-center gap-2">
+      <div class="flex shrink-0 items-center gap-2 md:pl-4 md:pr-2"
+        classList={{
+          "md:w-[var(--width-sidebar)]": props.menu !== undefined,
+          "md:justify-center md:px-0": railed(),
+        }}>
         <Show when={props.menu}>
           {(menu) => (
             <button
@@ -162,15 +174,29 @@ export function Header(props: {
             </button>
           )}
         </Show>
-        <h1 class={`${WORDMARK} md:pl-1`}>
-          <Leaf class="size-4 text-accent" />
+        <h1 class={`${WORDMARK} min-w-0`}>
+          <Leaf class="size-4 shrink-0 text-accent" />
           {/* The deployment's own word once the server has said it
               (`named.ts`): `olai [machine]`, so a laptop's olai and a
               NUC's are two bars a person can tell apart. The shell's word
               while it has not — a first paint, not a wrong name. */}
-          {calledApp() ?? "olai"}
+          <span class="truncate" classList={{ "sr-only": railed() }}>{calledApp() ?? "olai"}</span>
         </h1>
       </div>
+
+      {/* THE TABS, in the bar over the pages they hold: layout's seat
+          (`./index.ts`'s `strip`), drawn on a desktop between the name and
+          the tools. Empty, the cell still takes the width between them, so
+          the tools keep the right edge and the bar keeps its height. */}
+      <Show when={desktop()}>
+        <div class="min-w-0 flex-1">
+          <Show when={props.slots.read(strip).length > 0}>
+            <div data-testid={TESTID.mainStrip} class="h-full min-w-0">
+              <For each={props.slots.read(strip)}>{({ value: Strip }) => <Strip />}</For>
+            </div>
+          </Show>
+        </div>
+      </Show>
 
       {/* What is about the app rather than about the page. On desktop it is
           ONE health dot, always here, so a reader of the error report still
@@ -191,8 +217,9 @@ export function Header(props: {
         // `gap-1` below 40rem rather than `gap-1.5`: the pills at 390pt spend a
         // gap between each pair, and 6px of white space is a word on the label
         // that gives way first. The bar's own spacing is the last thing to
-        // spend before the order below starts costing a reader words.
-        class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
+        // spend before the order below starts costing a reader words. On a
+        // desktop the tabs take the room between, so the tools take only theirs.
+        class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2 md:flex-none md:pl-2 md:pr-3"
         data-testid={TESTID.appChrome}
       >
         {/* THE LEAD SEAT — first in the cluster, and whatever is in it is the

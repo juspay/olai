@@ -26,7 +26,7 @@ Pinned pages sit in a list between the calendar and the file tree. You can pin a
 
 ## Keep several pages open
 
-On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` opens a new one.[^tabs] Each tab holds one page or a split of panes, and keeps its filter and scroll position.[^tabstate][^tabsback]
+On a desktop the tabs stand in the header, over the page, and `Cmd` + `Shift` + `O` opens a new one.[^tabs] Each tab holds one page or a split of panes, and keeps its filter and scroll position.[^tabstate][^tabsback]
 
 ## Use the palette, and capture a line
 

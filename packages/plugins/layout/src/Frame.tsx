@@ -22,7 +22,7 @@ import { TipFloor } from "@olai/web/client/Tip.tsx"
 import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
-import { contentStatus,overlays,sidebar,strip,thumbs } from "./index.ts"
+import { contentStatus,overlays,sidebar,thumbs } from "./index.ts"
 import {
 createEffect,
 createMemo,
@@ -47,7 +47,6 @@ import { Tools } from "./Tools.tsx"
 
 export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
   let header: HTMLElement | undefined
-  let stripElement: HTMLDivElement | undefined
   const router = props.router
   // THE CARET'S MEMORY, for the freeze this frame draws: the dialog takes the
   // keyboard when the wire goes and hands it back when it returns, and the
@@ -78,7 +77,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
 
   return (
       <RouterProvider router={router}>
-      <TipFloor.Provider value={() => (stripElement?.isConnected ? stripElement : header)?.getBoundingClientRect().bottom ?? 0}>
+      <TipFloor.Provider value={() => header?.getBoundingClientRect().bottom ?? 0}>
       <PluginsMounted>
       {/* THE FREEZE, over everything — the app takes no gesture at all while
           the wire cannot carry a question (`./connection/Offline.tsx`, the
@@ -160,16 +159,10 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     </div>
                     </>}</For>
                     <div class="min-w-0 bg-paper">
-                      {/* THE SEAT ABOVE THE PANES (`./index.ts`'s `strip`), on a
-                          desktop. Pinned under the header while a lone page
-                          scrolls; page headings and jumps reserve both bands
-                          through the static --height-chrome contract. Layout owns
-                          the opaque desk ground; the occupant fills this seat. */}
-                      <Show when={desktop() && props.slots.read(strip).length > 0}>
-                        <div ref={stripElement} data-testid={LAYOUT_TESTID.mainStrip} class={`sticky top-[var(--height-header)] h-[var(--height-strip)] bg-desk ${LAYER.strip}`}>
-                          <For each={props.slots.read(strip)}>{({value: Strip})=><Strip/>}</For>
-                        </div>
-                      </Show>
+                      {/* The tabs over these panes are drawn in the bar
+                          (`./Header.tsx`), so nothing stands between it and a
+                          page: a sticky head under it clears `--height-chrome`,
+                          which is the bar alone here. */}
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
                       <div style={{ display: ready() ? "contents" : "none" }}><Show when={started()}><Panes/></Show></div>
                     </div>

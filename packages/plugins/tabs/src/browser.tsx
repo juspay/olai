@@ -52,7 +52,7 @@ export default definePlugin({
 })
 
 export const components = {
-  /** The strip, in layout's seat above the panes. It names `layout.shell` —
+  /** The strip, in layout's seat in the header. It names `layout.shell` —
    *  never the row, which activates under any layout or none — and tells the
    *  set whether it is drawn on a desktop. */
   strip: definePlugin({

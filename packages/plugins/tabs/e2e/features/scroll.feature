@@ -12,7 +12,7 @@ Feature: A tab keeps its place
     And I mark the page
     When I scroll to the bottom of the page
     Then the page is at the bottom
-    And the tab strip is pinned below the app header
+    And the tabs stand in the app header
     When I press the new tab button
     Then the page is at the top
     When I press tab 0
@@ -27,7 +27,7 @@ Feature: A tab keeps its place
     And I press tab 0
     And I scroll to the bottom of the page
     Then the page is at the bottom
-    And the tab strip is pinned below the app header
+    And the tabs stand in the app header
     When I press tab 1
     Then tab 1 is in front
     And the address is "/"

@@ -1,5 +1,7 @@
-/** Geometry of the occupied strip and the reading beneath it. These checks
- * measure rendered boxes independently of the CSS tokens under test. */
+/** Geometry of the tabs in the bar and the reading beneath it. These checks
+ * measure rendered boxes independently of the CSS tokens under test: the bar
+ * is the one band above a page, the tabs stand inside it, and everything a
+ * page pins clears the bar's bottom edge and nothing more. */
 import assert from "node:assert/strict";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
@@ -12,51 +14,65 @@ import type { Box, OlaiWorld } from "@olai/tests/harness/world.ts";
 import { TESTID as LAYOUT_TESTID } from "olai-plugin-layout/testids";
 import { selector } from "@olai/web/testlib";
 
+import { TAB } from "../selectors.ts";
+
 const stripOf = (world: OlaiWorld) => world.page.locator(selector(LAYOUT_TESTID.mainStrip));
-const stripBox = (world: OlaiWorld) => world.box(stripOf(world), "the strip");
+const barBox = (world: OlaiWorld) => world.box(world.page.locator(APP_HEADER), "the bar");
 const bottom = (box: Box): number => box.y + box.height;
 const readingMenu = (world: OlaiWorld, pane: number, row: number) =>
   world.pane(pane).locator(`${NODE}${attr("data-node-id", `pinned-child-${row}`)} ${NODE_MENU}`);
 
-const chromeBoxes = async (world: OlaiWorld) => {
-  const header = await world.box(world.page.locator(APP_HEADER), "the header");
-  const strip = stripOf(world);
-  return { header, strip: await strip.count() ? await world.box(strip, "the strip") : undefined };
-};
-
-Then("the tab strip is pinned below the app header", async function (this: OlaiWorld) {
+/** THE TABS ARE IN THE BAR: the seat's box lies inside the header's, the
+ *  header is at the top of the window, and the seat is what the pointer finds
+ *  there — a page scrolling under the bar must not paint over a tab. */
+Then("the tabs stand in the app header", async function (this: OlaiWorld) {
   await this.waitUntil(async () => {
-    const { header, strip } = await chromeBoxes(this);
-    return strip !== undefined && Math.abs(strip.y - bottom(header)) <= 2
-      && strip.height > 0 && bottom(strip) < (this.page.viewportSize()?.height ?? 0);
-  }, "the strip to pin directly below the header");
-  const strip = stripOf(this);
-  assert.ok(await strip.evaluate((element) => {
+    const header = await barBox(this);
+    const strip = await stripOf(this).boundingBox();
+    return strip !== null && strip.height > 0 && Math.abs(header.y) <= 1
+      && strip.y >= header.y - 1 && bottom(strip) <= bottom(header) + 1;
+  }, "the tabs to stand inside the bar at the top of the window");
+  assert.ok(await stripOf(this).evaluate((element) => {
     const box = element.getBoundingClientRect();
     return element.contains(document.elementFromPoint(box.x + 12, box.y + box.height / 2));
-  }), "the strip must take the pointer above scrolling content");
+  }), "the tabs must take the pointer above scrolling content");
 });
 
+/** THE TAB IN FRONT IS THE TOP OF ITS PAGE: its foot is the bar's foot, and
+ *  at its foot the pointer finds the tab rather than the bar's hairline. */
+Then("the front tab meets the page", async function (this: OlaiWorld) {
+  const tab = this.page.locator(`${TAB}[data-tab-front="true"]`);
+  const header = await barBox(this);
+  const box = await this.box(tab, "the front tab");
+  assert.ok(Math.abs(bottom(box) - bottom(header)) <= 1,
+    `the front tab ends at y=${bottom(box)} and the bar at y=${bottom(header)}`);
+  assert.ok(await tab.evaluate((element) => {
+    const at = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(at.x + at.width / 2, at.bottom - 0.5));
+  }), "the bar's hairline is drawn across the front tab's foot");
+});
+
+/** WHAT A JUMP CLEARS is the bar: one band, whatever the tabs are doing. */
 Then("the main-column reserve equals the visible chrome", async function (this: OlaiWorld) {
   await this.waitUntil(async () => {
-    const { header, strip } = await chromeBoxes(this);
+    const header = await barBox(this);
     const padding = await this.page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
-    return Math.abs(padding - header.height - (strip?.height ?? 0)) <= 2;
-  }, "the derived root token to track the occupied strip without reloading");
+    return Math.abs(padding - header.height) <= 2;
+  }, "the reserve to be the bar's height, without reloading");
 });
 
-Then("the heading {string} lands below the tab strip", async function (this: OlaiWorld, text: string) {
+Then("the heading {string} lands just below the bar", async function (this: OlaiWorld, text: string) {
   const heading = this.documentBody().locator("h1, h2, h3, h4, h5, h6").filter({ hasText: text }).first();
   await this.waitUntil(async () => {
-    const { strip } = await chromeBoxes(this);
+    const bar = await barBox(this);
     const box = await heading.boundingBox();
-    return strip !== undefined && box !== null && box.y >= bottom(strip) - 1
-      && box.y < bottom(strip) + 10 && await this.page.evaluate(() => scrollY > 0);
-  }, "the heading jump to land just below the strip");
+    return box !== null && box.y >= bottom(bar) - 1
+      && box.y < bottom(bar) + 10 && await this.page.evaluate(() => scrollY > 0);
+  }, "the heading jump to land just below the bar");
 });
 
-Then("the split fills the viewport below the tab strip", async function (this: OlaiWorld) {
-  const strip = await stripBox(this);
+Then("the split fills the viewport below the bar", async function (this: OlaiWorld) {
+  const bar = await barBox(this);
   const panes = await this.page.locator(PANE_HEADER).evaluateAll((elements) => elements.map((element) => {
     const box = element.parentElement!.getBoundingClientRect();
     return { top: box.top, bottom: box.bottom };
@@ -64,7 +80,7 @@ Then("the split fills the viewport below the tab strip", async function (this: O
   const viewport = await this.page.evaluate(() => ({ height: innerHeight, total: document.documentElement.scrollHeight, scroll: scrollY }));
   assert.equal(panes.length, 2);
   for (const pane of panes) {
-    assert.ok(Math.abs(pane.top - bottom(strip)) <= 2, JSON.stringify({ pane, strip }));
+    assert.ok(Math.abs(pane.top - bottom(bar)) <= 2, JSON.stringify({ pane, bar }));
     assert.ok(Math.abs(pane.bottom - viewport.height) <= 2, JSON.stringify({ pane, viewport }));
   }
   assert.ok(viewport.total <= viewport.height + 2, JSON.stringify(viewport));
@@ -98,11 +114,11 @@ Then("pane {int} pins its {word} heading to its scrollport", async function (thi
   assert.ok(Math.abs(box.y - port.top) <= 2, `heading must meet scrollport: ${JSON.stringify({ box, port })}`);
 });
 
-Then("the lone node header pins below the strip", async function (this: OlaiWorld) {
-  const strip = await stripBox(this);
+Then("the lone node header pins below the bar", async function (this: OlaiWorld) {
+  const bar = await barBox(this);
   const header = await this.box(this.page.locator(ZOOM_TITLE).locator("xpath=ancestor::header"), "node header");
   assert.ok(await this.page.evaluate(() => scrollY > 100));
-  assert.ok(Math.abs(header.y - bottom(strip)) <= 2, JSON.stringify({ header, strip }));
+  assert.ok(Math.abs(header.y - bottom(bar)) <= 2, JSON.stringify({ header, bar }));
 });
 
 When("I position reading row {int} for an upward menu in pane {int}", async function (this: OlaiWorld, row: number, index: number) {
@@ -120,23 +136,23 @@ When("I position reading row {int} for an upward menu in pane {int}", async func
   await this.page.locator(NODE_MENU_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-Then("the upward menu of reading row {int} in pane {int} clears the strip and uses the viewport reserve", async function (this: OlaiWorld, row: number, index: number) {
-  const strip = await stripBox(this);
+Then("the upward menu of reading row {int} in pane {int} clears the bar and uses the viewport reserve", async function (this: OlaiWorld, row: number, index: number) {
+  const bar = await barBox(this);
   const menu = this.page.locator(NODE_MENU_PANEL);
   const trigger = readingMenu(this, index, row);
   await this.waitUntil(async () => {
     const box = await menu.boundingBox();
     const anchor = await trigger.boundingBox();
     return box !== null && anchor !== null && box.y + box.height <= anchor.y + 2
-      && box.y >= bottom(strip) - 2 && box.y <= bottom(strip) + 12;
-  }, "an upward menu whose first entry clears the strip");
+      && box.y >= bottom(bar) - 2 && box.y <= bottom(bar) + 12;
+  }, "an upward menu whose first entry clears the bar");
   const inherited = await menu.evaluate(el => ({
     menu: getComputedStyle(el).getPropertyValue("--height-chrome"),
     root: getComputedStyle(document.documentElement).getPropertyValue("--height-chrome"),
   }));
   assert.equal(inherited.menu, inherited.root, "portal must escape the pane's zero offset");
   const first = await this.box(menu.locator(NODE_MENU_ITEM).first(), "first menu entry");
-  assert.ok(first.y >= bottom(strip) - 2);
+  assert.ok(first.y >= bottom(bar) - 2);
 });
 
 Given("a long blocked heading for a lifted tip", function (this: OlaiWorld) {
@@ -147,23 +163,22 @@ Given("a long blocked heading for a lifted tip", function (this: OlaiWorld) {
   ].join("\n"));
 });
 
-When("I hover the blocked heading just below the strip", async function (this: OlaiWorld) {
+When("I hover the blocked heading just below the bar", async function (this: OlaiWorld) {
   await this.within("pinned-root", ZOOM).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.page.evaluate(() => window.scrollTo(0, 500));
   await this.waitForFrame();
-  const strip = await stripBox(this);
+  const bar = await barBox(this);
   const trigger = this.within("pinned-root", ZOOM);
   const box = await this.box(trigger, "blocked heading control");
-  assert.ok(box.y >= bottom(strip) - 2 && box.y < bottom(strip) + 50);
+  assert.ok(box.y >= bottom(bar) - 2 && box.y < bottom(bar) + 50);
   await trigger.hover();
 });
 
-Then("the lifted tip stays below the strip", async function (this: OlaiWorld) {
+Then("the lifted tip stays below the bar", async function (this: OlaiWorld) {
   const tip = this.page.locator(TIP);
   await tip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const strip = await stripBox(this);
+  const bar = await barBox(this);
   const box = await this.box(tip, "lifted tip");
-  assert.ok(box.height > this.viewport().height - bottom(strip), "tip must be tall enough to exercise the floor");
-  assert.ok(box.y >= bottom(strip) && box.y <= bottom(strip) + 6, JSON.stringify({ box, strip }));
+  assert.ok(box.height > this.viewport().height - bottom(bar), "tip must be tall enough to exercise the floor");
+  assert.ok(box.y >= bottom(bar) && box.y <= bottom(bar) + 6, JSON.stringify({ box, bar }));
 });
-

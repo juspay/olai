@@ -8,7 +8,6 @@
  */
 
 import * as assert from "node:assert";
-import { TESTID as LAYOUT_TESTID } from "olai-plugin-layout/testids";
 import { TESTID as HARNESS_TESTID } from "@olai/tests/harness/testids.ts";
 import { selector } from "@olai/web/testlib";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
@@ -1398,12 +1397,12 @@ When(
 // than exactly on it.
 const SEAM_EDGE = 2;
 
-/** Where the main-column chrome's bottom edge is — what "pinned under the main-column chrome" is
- *  measured against, asked of the bar rather than of `--height-header`, because
- *  the token and the bar disagreeing is one of the things this can catch. */
+/** Where the main-column chrome's bottom edge is — the bar's, which holds the
+ *  tabs too — what "pinned under the main-column chrome" is measured against,
+ *  asked of the bar rather than of `--height-header`, because the token and the
+ *  bar disagreeing is one of the things this can catch. */
 const headerSeam = async (world: OlaiWorld): Promise<number> => {
-  const strip = world.page.locator(selector(LAYOUT_TESTID.mainStrip));
-  const header = await world.box(await strip.count() ? strip : world.page.locator(APP_HEADER), "the main-column chrome");
+  const header = await world.box(world.page.locator(APP_HEADER), "the main-column chrome");
   return header.y + header.height;
 };
 

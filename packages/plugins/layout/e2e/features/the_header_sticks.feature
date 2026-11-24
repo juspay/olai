@@ -122,3 +122,28 @@ Feature: The header sticks
     And a jump lands the row "install" at the top of the window
     Then the row "install" is clear of the pinned section "kitchen"
     And there should be no page errors
+
+  # ONE BAND above a page on a desktop: the tabs stand in the bar, between the
+  # app's name and its tools, and the page starts at the bar's bottom edge.
+  # The bar keeps its own height with the tabs in it.
+  @corpus:good
+  Scenario: The bar is the one band above a page
+    When I open the outline "house.olai"
+    Then the tabs stand in the app header
+    And nothing stands between the app header and the page
+    And the app header wears its own height
+    And the app's name stands over the sidebar and the tabs start where the page does
+    And there should be no page errors
+
+  # The bar's cells follow the columns under them. Minimized, the sidebar is
+  # the rail, the name's cell narrows to the rail's width, and the tabs start
+  # at the page's left edge rather than a sidebar's width in.
+  @corpus:good
+  Scenario: With the sidebar minimized, the tabs start where the page does
+    When I open the outline "house.olai"
+    And I collapse the sidebar
+    Then the app's name stands over the rail and the tabs start where the page does
+    And nothing stands between the app header and the page
+    When I expand the sidebar from the rail
+    Then the app's name stands over the sidebar and the tabs start where the page does
+    And there should be no page errors

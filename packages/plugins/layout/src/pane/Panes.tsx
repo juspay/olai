@@ -28,7 +28,7 @@ panesOf,
 type Pane,
 } from "olai-plugin-navigation/workspace"
 import { desktop, holdPhoneTabs } from "../layout/live.ts"
-import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
+import { SHELL_LONE,SHELL_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
 import { nameOf } from "../routing.ts"
 
@@ -204,7 +204,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
     // away": a `sticky` child is held by its own containing block, so a strip
     // pinned inside a box one screen tall left the screen on the second
     // screen of a long conversation.
-    classList={{ [PANES_SPLIT]: columns(), [PANES_LONE]: !columns() }}>
+    classList={{ [SHELL_SPLIT]: columns(), [SHELL_LONE]: !columns() }}>
     <Show when={tabbed()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
       <For each={router.panes()}>{pane => {
@@ -432,8 +432,7 @@ function Divider(props: {
  * so the lane it sits in grows with the page on a phone (`LanePanes`) rather
  * than being clamped to one screen with the conversation spilling past it.
  *
- * ITS HEIGHT IS THE TABS TOKEN, the same length the desktop's seat above the
- * panes wears, because a page under it pins its own head at
+ * ITS HEIGHT IS THE TABS TOKEN, because a page under it pins its own head at
  * `--height-chrome` — the bar plus this strip — and a strip whose height was
  * whatever its padding came to would be a second spelling of that sum.
  */

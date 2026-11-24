@@ -93,7 +93,7 @@ Each is a package under `packages/plugins/`, a row in `packages/bundle/olai.yml`
 | `search` | What search runs on: a trigram index in `bun:sqlite`, kept level with the store's revisions. |
 | `settings` | Policy for the served directory, read from one `Settings.olai` file. |
 | `sidebar` | The column of files on the left, and the strip of icons beside it. |
-| `tabs` | Several pages open as tabs above the panes, each tab with its own Back and Forward. |
+| `tabs` | Several pages open as tabs in the header, each tab with its own Back and Forward. |
 | `theme` | The palette, typeface and page size, stored per browser. |
 | `trash` | Browsing trashed rows, restoring them, and emptying Trash. |
 | `ui-renderer` | The SolidJS renderer, and the slots whose contents are owned by a scope. |
