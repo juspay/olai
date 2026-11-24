@@ -77,8 +77,9 @@ createRoot(() => {
     timers,
   })
   const leaving = () => {
+    const reachable = diary.open()
     diary.unload()
-    relay.leaving()
+    relay.leaving(reachable)
   }
   window.addEventListener("pagehide", leaving)
   onCleanup(() => window.removeEventListener("pagehide", leaving))

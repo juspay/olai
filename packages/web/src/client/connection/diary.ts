@@ -90,6 +90,8 @@ export interface Diary {
   declare(intent: Intent): () => void
   /** The page is going away: every socket still standing is said now. */
   unload(): void
+  /** The latest dial is open: the server is answering this tab right now. */
+  open(): boolean
   /** What waits for the server, oldest first, and how many were dropped. */
   pending(): { readonly entries: ReadonlyArray<Entry>; readonly lost: number }
   /** The server took everything through `seq`, and `lost` dropped entries. */
@@ -334,6 +336,7 @@ export const createDiary = (deps: DiaryDeps): Diary => {
         if (at >= 0) declared.splice(at, 1)
       }
     },
+    open: () => current !== undefined && current.closedAt === undefined && !current.done,
     unload: () => {
       unloading = true
       for (const state of [...standing]) {
