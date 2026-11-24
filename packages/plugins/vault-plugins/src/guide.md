@@ -22,7 +22,7 @@ The plugin's page shows every code file, and its version is a hash of all of the
 
 olai treats these files as a plugin only under `plugins/`, so a code checkout somebody keeps beside their notes is untouched. They stay plain text: stored like any other file, recorded in the ledger, and listed by path in the commit panel, where you commit changes.
 
-They are not rows in the sidebar's **Reference** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/reader/lib/sm2.ts` opens the plugin at that file.
+They are not rows in the sidebar's **Files** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/reader/lib/sm2.ts` opens the plugin at that file.
 
 ## What each file may import
 
@@ -231,7 +231,7 @@ yield* (yield* FileKinds).register({
 - The kind is named after the plugin, so the claim and the face need nothing more to find each other.
 - `kept: true` keeps the file's text where the gate reads the vault: `(yield* gate.read).set.documents` holds it as `body`. `opaque: true` keeps search and the list of notes out of it.
 - The face is handed `{ file, revision }`. `revision` changes when the file does, so the face reads the text again through its own server file.
-- The sidebar lists such a file under **Reference**, with the plain file mark: a plugin in your directory cannot give its kind a mark of its own.
+- The sidebar lists such a file under **Files**, with the plain file mark: a plugin in your directory cannot give its kind a mark of its own.
 - Switched off, the plugin's claim goes with it, and the file's address says olai cannot open that suffix.
 
 `document.page.head` and `document.page.foot` are lists on a Markdown note's page, above its text and under the list of what links to it. Each face is handed `{ file }`.
@@ -268,6 +268,7 @@ yield* slots.register("app.palette", {
 })
 ```
 
+- A section stands above the pinned pages and the files. Add `place: "bottom"` to stand it after the files, beside **Chats** and **Plugins**.
 - A link in a face is an ordinary `<a href>`. olai follows a link to one of its own addresses inside the app, with no reload.
 - A key's `press` and a command's `run` get nothing, so they open an address with `Navigate`, navigation's own verb: name it in `needs` and call `(yield* Navigate).open(address)`. It opens the page a link to that address would. `Cmd` + `Shift` + `Y` opens the vocabulary, and `whileEditing: false` leaves the key alone while the caret is in a text field.
 - A palette row opens its `href` when you choose it, and is found by the words in its `search`.
@@ -1048,7 +1049,7 @@ Read the files on the plugin's page and press **Turn on**. The columns appear un
 - Click a French word and a row with that word appears in `vocabulary.olai`, due today, and the commit panel lists the file as changed.
 - Open the **Vocabulary** row, the top row of `vocabulary.olai`, and the foot of its page shows the word due longest. **Again** makes it due tomorrow; **Good** and **Easy** push it further out.
 - The same review is a page of its own at `/plugins/reader/app/review`, and a reload draws it again.
-- A `.reader` file, one French sentence and its English per line, is listed under **Reference** and opens as the same two columns. Change it on disk and its page is drawn again.
+- A `.reader` file, one French sentence and its English per line, is listed under **Files** and opens as the same two columns. Change it on disk and its page is drawn again.
 - Every Markdown note says **Reading companion** above its text and has a link to the review at its foot.
 - In a Markdown note, a fenced block whose language is `reader`, one sentence and its English per line, is drawn as the same two columns. Change the note on disk and the block is drawn again.
 - A word the gate will not add, because the vocabulary has no row called `vocabulary` to add it under, shows the gate's sentence under the sentence you clicked it in, and nothing is written.
