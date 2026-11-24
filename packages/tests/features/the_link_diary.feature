@@ -52,10 +52,14 @@ Feature: The server's log says why a tab's connection dropped
     When the browser comes back online
     Then the connection is "live"
     And the overlay is gone
-    # Posted while the tab could not reach the server too, and tried again
-    # until the server takes it: what the tab saw meanwhile arrives in order.
+    # Chromium's offline leaves an open socket open: nothing closes it, so the
+    # heartbeat is what gives up on it, the card goes up, and the page closes
+    # the socket (its close handshake runs on the network's clock, so the
+    # drop's place beside the card is not fixed). Posted while the tab could
+    # not reach the server too, and tried again until the server takes it.
     And the server logs "connection card lifted" with "side=browser status=reconnecting"
-    And the browser said "wire dropped", then "connection card shown", then "connection card lifted"
+    And the server logs "wire dropped" with "side=browser cause=half-open by=page"
+    And the browser said "heartbeat gave up", then "connection card shown", then "connection card lifted"
 
   Scenario: A tab whose socket cannot open still tells the server, and says when it opens again
     # The socket's row switched off in the settings file, because the page
