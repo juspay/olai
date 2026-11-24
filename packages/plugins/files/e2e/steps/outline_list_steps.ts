@@ -73,9 +73,10 @@ Then(
       HYDRATION_TIMEOUT,
     ).catch(() => {});
     const listed = await files();
-    assert.strictEqual(
-      listed.length,
-      expected,
+    // `assert.ok`, not `strictEqual` with a message: the run's output prints
+    // only the diff for the latter and drops the names this message carries.
+    assert.ok(
+      listed.length === expected,
       `expected ${expected} outline(s) in the sidebar, found ${listed.length}: ${listed.join(", ")}`,
     );
   },
