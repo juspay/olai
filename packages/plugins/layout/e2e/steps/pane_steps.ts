@@ -11,6 +11,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { attr } from "@olai/tests/harness/selectors.ts";
+import { opacityOf, painted, resolvedStyle } from "@olai/tests/harness/paint.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
 import {
   nodeSelector,
@@ -503,23 +504,15 @@ const marks = (world: OlaiWorld): Promise<ReadonlyArray<Mark>> =>
     };
   }));
 
-/** A colour that paints something: neither the keyword nor zero alpha. */
-const opaque = (colour: string): boolean =>
-  colour !== "transparent" && !/,\s*0\s*\)$/.test(colour) && !/\/\s*0\s*\)$/.test(colour);
+const drawn = (mark: Mark): boolean => mark.style !== "none" && mark.width >= 2 && painted(mark.colour);
 
-const drawn = (mark: Mark): boolean => mark.style !== "none" && mark.width >= 2 && opaque(mark.colour);
+/** A theme colour the sheet asks for, resolved by the browser and kept out of
+ *  any forced palette, so it can be compared with what is actually drawn
+ *  whether or not the screen forced its own. */
+const themeColour = (world: OlaiWorld, token: "accent" | "ink" | "muted"): Promise<string> =>
+  resolvedStyle(world, `forced-color-adjust:none;color:var(--color-${token})`, "color");
 
-/** The accent the sheet asks for, resolved by the browser and kept out of any
- *  forced palette, so it can be compared with what a column actually wears. */
-const accent = (world: OlaiWorld): Promise<string> =>
-  world.page.evaluate(() => {
-    const probe = document.createElement("div");
-    probe.style.cssText = "position:absolute;visibility:hidden;forced-color-adjust:none;color:var(--color-accent)";
-    document.body.append(probe);
-    const colour = getComputedStyle(probe).color;
-    probe.remove();
-    return colour;
-  });
+const accent = (world: OlaiWorld): Promise<string> => themeColour(world, "accent");
 
 Then("pane {int} alone carries the focus mark", async function (this: OlaiWorld, index: number) {
   await this.waitUntil(async () => {
@@ -554,17 +547,6 @@ Then("the focus mark is drawn in the screen's own colour", async function (this:
 const railOf = (world: OlaiWorld, index: number) =>
   world.frontLane().locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
 
-/** A theme colour resolved by the browser, for comparing with what is drawn. */
-const ink = (world: OlaiWorld, token: "ink" | "muted"): Promise<string> =>
-  world.page.evaluate((name) => {
-    const probe = document.createElement("div");
-    probe.style.cssText = `position:absolute;visibility:hidden;color:var(--color-${name})`;
-    document.body.append(probe);
-    const colour = getComputedStyle(probe).color;
-    probe.remove();
-    return colour;
-  }, token);
-
 type RailMark = { readonly width: number; readonly colour: string; readonly name: string; readonly top: number };
 
 const railMark = (world: OlaiWorld, index: number): Promise<RailMark> =>
@@ -581,7 +563,7 @@ const railMark = (world: OlaiWorld, index: number): Promise<RailMark> =>
 
 Then("the pane rail {int} carries the focus mark", async function (this: OlaiWorld, index: number) {
   await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const [edge, page] = [await accent(this), await ink(this, "ink")];
+  const [edge, page] = [await accent(this), await themeColour(this, "ink")];
   await this.waitUntil(async () => {
     const mark = await railMark(this, index);
     return mark.width >= 2 && mark.colour === edge && mark.name === page;
@@ -592,7 +574,7 @@ Then("the pane rail {int} carries the focus mark", async function (this: OlaiWor
 
 Then("the pane rail {int} does not carry the focus mark", async function (this: OlaiWorld, index: number) {
   await railOf(this, index).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const quiet = await ink(this, "muted");
+  const quiet = await themeColour(this, "muted");
   await this.waitUntil(async () => {
     const mark = await railMark(this, index);
     return mark.width === 0 && mark.name === quiet;
@@ -618,8 +600,7 @@ Then("the pane rail {int}'s name stands where it stood", async function (this: O
 const closeOf = (world: OlaiWorld, index: number) =>
   world.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))} ${PANE_CLOSE}`);
 
-const opacityOf = (world: OlaiWorld, index: number): Promise<string> =>
-  closeOf(world, index).evaluate((el) => getComputedStyle(el).opacity);
+const closeOpacity = (world: OlaiWorld, index: number): Promise<string> => opacityOf(closeOf(world, index));
 
 /** A click on the pane's name moves where the next `Tab` starts from, as it
  *  does for a person, and the `Tab` takes the next control after it. */
@@ -634,13 +615,7 @@ Then("pane {int}'s close button has the keyboard, and is drawn", async function 
   const close = closeOf(this, index);
   assert.ok(await close.evaluate((el) => el === document.activeElement && el.matches(":focus-visible")),
     `the keyboard is not on pane ${index}'s close button`);
-  assert.strictEqual(await opacityOf(this, index), "1", `pane ${index}'s close button has the keyboard but is not drawn`);
-});
-
-When("the pointer leaves the panes", async function (this: OlaiWorld) {
-  // The top-left corner is the app's name in the bar: outside every pane.
-  await this.page.mouse.move(2, 2);
-  await this.waitForFrame();
+  assert.strictEqual(await closeOpacity(this, index), "1", `pane ${index}'s close button has the keyboard but is not drawn`);
 });
 
 When("I point at pane {int}", async function (this: OlaiWorld, index: number) {
@@ -649,13 +624,12 @@ When("I point at pane {int}", async function (this: OlaiWorld, index: number) {
 });
 
 Then("pane {int}'s close button is not drawn", async function (this: OlaiWorld, index: number) {
-  await this.waitUntil(async () => (await opacityOf(this, index)) === "0",
+  await this.waitUntil(async () => (await closeOpacity(this, index)) === "0",
     `pane ${index}'s close button to wait for a pointer`);
 });
 
-/** Opacity is the claim: a transparent button is still a button Playwright
- *  would call visible, and a thumb would land on it blindly. */
+/** Opacity is the claim (`@olai/tests/harness/paint.ts` says why). */
 Then("pane {int}'s close button is drawn", async function (this: OlaiWorld, index: number) {
-  await this.waitUntil(async () => (await opacityOf(this, index)) === "1",
+  await this.waitUntil(async () => (await closeOpacity(this, index)) === "1",
     `pane ${index}'s close button to be drawn`);
 });

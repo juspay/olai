@@ -98,11 +98,11 @@ Feature: The sidebar reads in one order, and its buttons wait for a pointer
   @corpus:good
   Scenario Outline: The "<control>" button waits for a pointer, and the keyboard reaches it
     Given I open the outline "house.olai"
-    When the pointer is away from the sidebar
+    When the pointer is away from the controls
     Then the sidebar's "<control>" control is not drawn
     When the pointer is in the sidebar
     Then the sidebar's "<control>" control is drawn
-    When the pointer is away from the sidebar
+    When the pointer is away from the controls
     And I Tab to the sidebar's "<control>" control
     Then the sidebar's "<control>" control has the keyboard, and is drawn
     And there should be no page errors

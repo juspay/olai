@@ -9,11 +9,12 @@
  *
  * Every `+` and chevron in the column is drawn while the pointer is in the
  * column, while the keyboard is on it, and always on a touch screen. At rest
- * the column is names and counts. Opacity is the claim: a transparent button
- * is still a button Playwright would call visible.
+ * the column is names and counts. Opacity is the claim
+ * (`@olai/tests/harness/paint.ts`).
  */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
+import { opacityOf } from "@olai/tests/harness/paint.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR, SIDEBAR_BODY } from "@olai/tests/harness/world.ts";
@@ -91,17 +92,11 @@ const controlOf = (world: OlaiWorld, name: string) => {
   return world.page.locator(`${SIDEBAR} ${found}`).first();
 };
 
-const opacityOf = async (world: OlaiWorld, name: string): Promise<string> => {
+const controlOpacity = async (world: OlaiWorld, name: string): Promise<string> => {
   const control = controlOf(world, name);
   await control.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-  return control.evaluate((el) => getComputedStyle(el).opacity);
+  return opacityOf(control);
 };
-
-When("the pointer is away from the sidebar", async function (this: OlaiWorld) {
-  const page = await this.box(this.frontLane(), "the page in front");
-  await this.page.mouse.move(page.x + page.width - 4, page.y + page.height / 2);
-  await this.waitForFrame();
-});
 
 When("the pointer is in the sidebar", async function (this: OlaiWorld) {
   const body = await this.box(this.page.locator(SIDEBAR_BODY), "the sidebar");
@@ -110,11 +105,11 @@ When("the pointer is in the sidebar", async function (this: OlaiWorld) {
 });
 
 Then("the sidebar's {string} control is not drawn", async function (this: OlaiWorld, name: string) {
-  await this.waitUntil(async () => (await opacityOf(this, name)) === "0", `the sidebar's "${name}" control to wait for a pointer`);
+  await this.waitUntil(async () => (await controlOpacity(this, name)) === "0", `the sidebar's "${name}" control to wait for a pointer`);
 });
 
 Then("the sidebar's {string} control is drawn", async function (this: OlaiWorld, name: string) {
-  await this.waitUntil(async () => (await opacityOf(this, name)) === "1", `the sidebar's "${name}" control to be drawn`);
+  await this.waitUntil(async () => (await controlOpacity(this, name)) === "1", `the sidebar's "${name}" control to be drawn`);
 });
 
 /** `Tab` from the top of the document until the control has the keyboard — the
@@ -134,5 +129,5 @@ Then("the sidebar's {string} control has the keyboard, and is drawn", async func
   const control = controlOf(this, name);
   assert.ok(await control.evaluate((el) => el === document.activeElement && el.matches(":focus-visible")),
     `the keyboard is not on the sidebar's "${name}" control`);
-  await this.waitUntil(async () => (await opacityOf(this, name)) === "1", `the sidebar's "${name}" control to be drawn while it has the keyboard`, POLL_TIMEOUT);
+  await this.waitUntil(async () => (await controlOpacity(this, name)) === "1", `the sidebar's "${name}" control to be drawn while it has the keyboard`, POLL_TIMEOUT);
 });

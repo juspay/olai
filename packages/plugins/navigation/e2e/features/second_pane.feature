@@ -72,15 +72,15 @@ Feature: The second pane
   Scenario: A pane's close button waits for a pointer, and the keyboard reaches it
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"
-    And the pointer leaves the panes
+    And the pointer is away from the controls
     Then pane 0's close button is not drawn
     When I point at pane 0
     Then pane 0's close button is drawn
-    When the pointer leaves the panes
+    When the pointer is away from the controls
     And I click pane 1's name and press Tab
     # Off the panes again, so what draws the `×` is the keyboard alone and not
     # the pointer the click left on pane 1.
-    And the pointer leaves the panes
+    And the pointer is away from the controls
     Then pane 1's close button has the keyboard, and is drawn
     When I press "Enter"
     Then there are 1 panes
@@ -175,7 +175,7 @@ Feature: The second pane
     When I alt-click the zoom of "install"
     And I collapse pane 1 by dragging its divider
     Then a pane rail is shown for pane 1
-    When the pointer leaves the panes
+    When the pointer is away from the controls
     And I press Alt+Left
     Then pane 0 is focused
     And the pane rail 1 does not carry the focus mark

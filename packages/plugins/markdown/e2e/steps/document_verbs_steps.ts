@@ -8,6 +8,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
+import { painted } from "@olai/tests/harness/paint.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
 import { TESTID } from "@olai/tests/harness/testids.ts";
 import { DOCUMENT_EDIT, DOCUMENT_PAGE, HYDRATION_TIMEOUT } from "@olai/tests/harness/world.ts";
@@ -25,21 +26,12 @@ const verbOf = (world: OlaiWorld, name: string) => {
   return world.frontLane().locator(`${DOCUMENT_PAGE} ${found}`).first();
 };
 
-/** Whether the verb's border is painted: neither the keyword nor zero alpha. */
+/** Whether the verb's border paints. */
 const outlined = async (world: OlaiWorld, name: string): Promise<boolean> => {
   const verb = verbOf(world, name);
   await verb.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  return verb.evaluate((el) => {
-    const colour = getComputedStyle(el).borderTopColor;
-    return colour !== "transparent" && !/,\s*0\s*\)$/.test(colour) && !/\/\s*0\s*\)$/.test(colour);
-  });
+  return painted(await verb.evaluate((el) => getComputedStyle(el).borderTopColor));
 };
-
-When("the pointer is away from the document's verbs", async function (this: OlaiWorld) {
-  const page = await this.box(this.frontLane(), "the page in front");
-  await this.page.mouse.move(page.x + page.width - 4, page.y + page.height - 4);
-  await this.waitForFrame();
-});
 
 When("I point at the document's {string}", async function (this: OlaiWorld, name: string) {
   await verbOf(this, name).hover();

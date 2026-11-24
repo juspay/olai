@@ -18,6 +18,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { foundCount } from "@olai/tests/harness/counted.ts";
+import { painted } from "@olai/tests/harness/paint.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
 import {
   attr,
@@ -384,22 +385,16 @@ When("I point at the filter box", async function (this: OlaiWorld) {
   await box.hover();
 });
 
-/** The pointer to the page's far corner, over nothing the filter owns. */
-When("I point away from the filter box", async function (this: OlaiWorld) {
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "the page has no viewport to point in");
-  await this.page.mouse.move(viewport.width - 2, viewport.height - 2);
-});
-
-/** WHETHER THE BOX IS DRAWN: a border and a ground that are not transparent.
- *  At rest the filter is the word `Filter` alone; on hover, on focus and
- *  while a filter is in force it is a box. */
-const boxDrawn = (world: OlaiWorld): Promise<boolean> =>
-  world.frontLane().locator(`${FILTER_INPUT}:visible`).first().evaluate((input) => {
+/** WHETHER THE BOX IS DRAWN: a border and a ground that both paint. At rest
+ *  the filter is the word `Filter` alone; on hover, on focus and while a
+ *  filter is in force it is a box. */
+const boxDrawn = async (world: OlaiWorld): Promise<boolean> => {
+  const { border, ground } = await world.frontLane().locator(`${FILTER_INPUT}:visible`).first().evaluate((input) => {
     const style = getComputedStyle(input);
-    const clear = (colour: string) => colour === "transparent" || /^rgba\(.*,\s*0\)$/.test(colour);
-    return !clear(style.borderTopColor) && !clear(style.backgroundColor);
+    return { border: style.borderTopColor, ground: style.backgroundColor };
   });
+  return painted(border) && painted(ground);
+};
 
 Then("the filter box is drawn without a box", async function (this: OlaiWorld) {
   await this.frontLane().locator(`${FILTER_INPUT}:visible`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });

@@ -302,17 +302,17 @@ Feature: Filtering the outline in place
   # force — a narrowed page always shows what narrowed it, pointer or not.
   Scenario: The filter is a word at rest and a box while it is in use
     Given I open the outline "house.olai"
-    And I point away from the filter box
+    And the pointer is away from the controls
     Then the filter box is drawn without a box
     When I point at the filter box
     Then the filter box is drawn as a box
-    When I point away from the filter box
+    When the pointer is away from the controls
     Then the filter box is drawn without a box
     When I focus the filter box
     Then the filter box is drawn as a box
     When I type "hinges" into the filter box
     And I press "Tab" in the filter box
-    And I point away from the filter box
+    And the pointer is away from the controls
     Then the filter box holds "hinges"
     And the filter box is drawn as a box
     And there should be no page errors

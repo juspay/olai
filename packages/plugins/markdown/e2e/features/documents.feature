@@ -167,14 +167,14 @@ Feature: Documents
   @corpus:good
   Scenario: Edit and Delete… are words until pointed at or reached by the keyboard
     When I open the document "kitchen-sink.md"
-    And the pointer is away from the document's verbs
+    And the pointer is away from the controls
     Then the document's "Edit" is a word with no border
     And the document's "Delete…" is a word with no border
     When I point at the document's "Edit"
     Then the document's "Edit" is outlined
     And the document's "Delete…" is a word with no border
     When I click the document's path and press Tab
-    And the pointer is away from the document's verbs
+    And the pointer is away from the controls
     Then the document's "Edit" has the keyboard, and is outlined
     When I press "Tab"
     Then the document's "Delete…" has the keyboard, and is outlined

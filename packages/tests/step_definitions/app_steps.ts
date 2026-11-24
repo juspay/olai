@@ -11,9 +11,17 @@ import { Given, Then, When } from "@cucumber/cucumber";
 
 import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration";
 
+import { pointAway } from "../support/paint.ts";
 import { saveScreenshot } from "../support/screenshot.ts";
 import { emptyPage, HYDRATION_TIMEOUT, oneLine, ROOT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+
+/** ONE WAY TO TAKE THE POINTER OFF the page's controls, for every scenario
+ *  that asks what is drawn without a hover: a pane's ×, the column's `+`, the
+ *  filter's box, a document's verbs. */
+When("the pointer is away from the controls", async function (this: OlaiWorld) {
+  await pointAway(this);
+});
 
 When("I open the app", async function (this: OlaiWorld) {
   await this.open("/");

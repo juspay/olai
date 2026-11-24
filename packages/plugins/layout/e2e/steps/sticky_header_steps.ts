@@ -14,6 +14,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
+import { resolvedStyle } from "@olai/tests/harness/paint.ts";
 
 import {
   APP_HEADER,
@@ -231,14 +232,7 @@ Then("nothing stands between the app header and the page", async function (this:
  *  seat: an empty seat must not collapse it, and a filled one must not grow it. */
 Then("the app header wears its own height", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
-  const token = await this.page.evaluate(() => {
-    const probe = document.createElement("div");
-    probe.style.cssText = "position:absolute;visibility:hidden;height:var(--height-header)";
-    document.body.append(probe);
-    const height = probe.getBoundingClientRect().height;
-    probe.remove();
-    return height;
-  });
+  const token = Number.parseFloat(await resolvedStyle(this, "height:var(--height-header)", "height"));
   assert.ok(token > 0, "--height-header resolved to nothing");
   assert.ok(Math.abs(header.height - token) <= EDGE,
     `the bar is ${header.height}px tall and its token says ${token}px`);
