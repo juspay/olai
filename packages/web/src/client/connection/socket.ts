@@ -1,16 +1,5 @@
-import { stamped } from "@olai/log/link"
+import { frameSize, stamped } from "@olai/log/link"
 import type { Dial, Diary } from "./diary.ts"
-
-/** A frame's size as the decoder counts it: UTF-16 code units for text, bytes
- *  otherwise. */
-const sizeOf = (data: unknown): number =>
-  typeof data === "string"
-    ? data.length
-    : data instanceof ArrayBuffer || ArrayBuffer.isView(data)
-    ? data.byteLength
-    : data instanceof Blob
-    ? data.size
-    : 0
 
 /** Chromium silently drops sends on a closing socket and prints a console
  * error. During a roster reconnect, a departing subscription can still write
@@ -25,7 +14,7 @@ export const checkedSocket = (socket: WebSocket, counted: Pick<Dial, "sent" | "r
       counted.refused()
       throw new DOMException("The socket is not open", "InvalidStateError")
     }
-    counted.sent(sizeOf(data))
+    counted.sent(frameSize(data))
     send(data)
   }
   return socket
@@ -38,7 +27,7 @@ export const checkedSocket = (socket: WebSocket, counted: Pick<Dial, "sent" | "r
  */
 export const tappedSocket = (socket: WebSocket, dial: Dial): WebSocket => {
   socket.addEventListener("open", () => dial.opened(), { once: true })
-  socket.addEventListener("message", (event) => dial.inbound(sizeOf(event.data)))
+  socket.addEventListener("message", (event) => dial.inbound(frameSize(event.data)))
   socket.addEventListener(
     "close",
     (event) => dial.closed({ code: event.code, reason: event.reason, clean: event.wasClean }),

@@ -1184,6 +1184,7 @@
       "name": "olai-plugin-ws",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/log": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "effect": "4.1.4",

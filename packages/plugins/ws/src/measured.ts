@@ -19,6 +19,7 @@
  */
 import type { ServableSocket } from "@kolu/surface-app/server"
 import { exceedsFrameLimit, RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
+import { frameSize } from "@olai/log/link"
 import type { LinkFact, LinkMeasure } from "@olai/plugin-api/transport"
 
 /** The slice of a `ws` peer this needs: what the RPC server drives, and the
@@ -30,11 +31,6 @@ export interface MeasurablePeer extends ServableSocket {
 
 /** A frame the server sent that a tab will refuse. */
 export type OverCap = Omit<Extract<LinkFact, { readonly _tag: "FrameOverCap" }>, "_tag" | "connection">
-
-/** A frame's size as the tab's decoder counts it: UTF-16 code units for text,
- *  bytes otherwise. */
-const sizeOf = (data: unknown): number =>
-  typeof data === "string" ? data.length : data instanceof Uint8Array || data instanceof ArrayBuffer ? data.byteLength : 0
 
 const ENVELOPE = /^\{"_tag":"(\w{1,32})"(?:,"requestId":"(\d{1,20})")?/
 
@@ -54,7 +50,7 @@ export const measured = (
 
   const onMessage = (event: Event): void => {
     inFrames += 1
-    inBytes += sizeOf("data" in event ? event.data : undefined)
+    inBytes += frameSize("data" in event ? event.data : undefined)
     lastInbound = now()
   }
   const onPong = (): void => {
@@ -74,7 +70,7 @@ export const measured = (
     addEventListener: (type, listener, listening) => peer.addEventListener(type, listener, listening),
     removeEventListener: (type, listener) => peer.removeEventListener(type, listener),
     send: (data) => {
-      const bytes = sizeOf(data)
+      const bytes = frameSize(data)
       outFrames += 1
       outBytes += bytes
       if (bytes > largestOut) largestOut = bytes

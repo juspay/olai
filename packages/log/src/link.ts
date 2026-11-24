@@ -11,52 +11,34 @@
  * `describe` is total over {@link LinkEvent}, with no default arm.
  *
  * Effect only, and no `process`: the browser imports this door, and the root
- * door pulls in the sinks, which read `process.stdout` when they load.
+ * door pulls in the sinks, which read `process.stdout` when they load. The
+ * door also carries the two other things both ends share: the tab's stamp on a
+ * socket's URL (`./stamp.ts`) and the rule for a failure that can repeat
+ * forever (`./sparing.ts`).
  *
  * Fields are sizes, codes, counts, tags and subscription labels. No frame's
  * content is ever an entry.
  */
 
 import { Schema } from "effect"
+import { Tab } from "./stamp.ts"
 
-// ── The stamp ───────────────────────────────────────────────────────────────
+export { stamped, stampOf, Tab } from "./stamp.ts"
+export { SAY_AGAIN_AFTER_MS, sparingly } from "./sparing.ts"
 
-/** The query parameters a tab stamps on every socket it dials. The server reads
- *  them back off the upgrade's URL, so the tab's account of a socket and the
- *  server's can be joined by `tab` and `dial`. Written by {@link stamped} and
- *  read by {@link stampOf}, and by nothing else. */
-const TAB_PARAM = "tab"
-const DIAL_PARAM = "dial"
+// ── Frames ──────────────────────────────────────────────────────────────────
 
-/** A tab's id: sixteen lowercase hex digits, minted once per page load. */
-export const Tab = Schema.String.check(Schema.isPattern(/^[0-9a-f]{16}$/))
-
-/** A dial's ordinal: the tab's 1st, 2nd, … socket. */
-const Dial = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1_000_000_000 }))
-
-const isTab = Schema.is(Tab)
-const isDial = Schema.is(Dial)
-
-/** `url` with this tab's stamp on its query. A query already there is kept. */
-export const stamped = (url: string, stamp: { readonly tab: string; readonly dial: number }): string => {
-  const at = new URL(url)
-  at.searchParams.set(TAB_PARAM, stamp.tab)
-  at.searchParams.set(DIAL_PARAM, String(stamp.dial))
-  return at.toString()
-}
-
-/** The `tab` and `dial` a socket URL carries, each only when it has the shape a
- *  tab mints. Anything else is absent rather than echoed: the URL is whatever
- *  the peer sent. */
-export const stampOf = (url: URL): { readonly tab?: string; readonly dial?: number } => {
-  const tab = url.searchParams.get(TAB_PARAM) ?? undefined
-  const dialText = url.searchParams.get(DIAL_PARAM)
-  const dial = dialText !== null && /^[0-9]{1,10}$/.test(dialText) ? Number(dialText) : undefined
-  return {
-    ...(tab !== undefined && isTab(tab) ? { tab } : {}),
-    ...(dial !== undefined && isDial(dial) ? { dial } : {}),
-  }
-}
+/** A frame's size as the tab's decoder counts it: UTF-16 code units for text,
+ *  bytes otherwise. The sizes on both ends' lines are counted this way, so
+ *  they compare with each other and with the wire's cap. */
+export const frameSize = (data: unknown): number =>
+  typeof data === "string"
+    ? data.length
+    : data instanceof ArrayBuffer || ArrayBuffer.isView(data)
+    ? data.byteLength
+    : typeof Blob !== "undefined" && data instanceof Blob
+    ? data.size
+    : 0
 
 // ── Close codes ─────────────────────────────────────────────────────────────
 
@@ -103,9 +85,8 @@ export const Cause = Schema.Literals([
 export type Cause = typeof Cause.Type
 
 /** The causes olai itself declares before it closes a socket. They are the
- *  ordinary life of a page, so they read at `debug`, and the dial after one is
- *  not a recovery. */
-export const isDeclared = (cause: Cause): boolean => cause === "roster-refresh" || cause === "redial" || cause === "unload"
+ *  ordinary life of a page, so they read at `debug`. */
+const isDeclared = (cause: Cause): boolean => cause === "roster-refresh" || cause === "redial" || cause === "unload"
 
 // ── Events ──────────────────────────────────────────────────────────────────
 
@@ -218,7 +199,7 @@ export type Batch = typeof Batch.Type
 
 /** A dial that lived less than this and dropped the same way as the one before
  *  it continues a streak. */
-export const STREAK_LIVED_MS = 60_000
+const STREAK_LIVED_MS = 60_000
 
 /** The next streak, given the last drop's and this one's. A drop that lived a
  *  minute or more, or ended differently, starts again at 1. */
@@ -233,38 +214,6 @@ export const nextStreak = (
 /** Is this streak said at full level? The first three, then every tenth: a loop
  *  is visible as `streak=10`, `streak=20` and does not bury the log. */
 export const loudAt = (streak: number): boolean => streak <= 3 || streak % 10 === 0
-
-/** How long a repeated failure waits before it is said again: a dial that
- *  never opened, on the tab; an upgrade nobody took, on the server. */
-export const SAY_AGAIN_AFTER_MS = 30_000
-
-/**
- * The rule for a failure that can repeat forever, kept for both ends: said
- * the first time, then at most once per {@link SAY_AGAIN_AFTER_MS} with how
- * many happened since it was last said. `heard` answers the count to say now,
- * or `undefined` to hold it; `settle` hands back what is held and starts
- * again, so the next one is a first.
- */
-export const sparingly = () => {
-  let saidAt: number | undefined
-  let held = 0
-  return {
-    heard: (now: number): number | undefined => {
-      held += 1
-      if (saidAt !== undefined && now - saidAt < SAY_AGAIN_AFTER_MS) return undefined
-      saidAt = now
-      const count = held
-      held = 0
-      return count
-    },
-    settle: (): number => {
-      const count = held
-      held = 0
-      saidAt = undefined
-      return count
-    },
-  }
-}
 
 // ── Reading ─────────────────────────────────────────────────────────────────
 
