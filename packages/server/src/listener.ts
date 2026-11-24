@@ -43,7 +43,7 @@
  * this file owns only the shared network resource and HTTP dispatch scopes.
  */
 import { NodeHttpServer } from "@effect/platform-node"
-import { codeOf } from "@olai/log"
+import { codeOf, emitter } from "@olai/log"
 import type { ListenerContribution } from "@olai/plugin-api/transport"
 import { Data, Effect, Exit, Layer, Scope, Semaphore } from "effect"
 import { HttpRouter } from "effect/http"
@@ -63,6 +63,9 @@ export interface ListenOptions {
 
 export const listener = (options: ListenOptions) => Effect.gen(function*() {
   const entries = new Map<symbol, ListenerContribution>()
+  // An upgrade arrives in a Node callback; its line still runs under this
+  // serve's level, format and annotations.
+  const say = yield* emitter
   const lock = Semaphore.makeUnsafe(1)
   const connections = new Set<Socket>()
   let active = false
@@ -122,7 +125,12 @@ export const listener = (options: ListenOptions) => Effect.gen(function*() {
       const path = new URL(request.url ?? "/", "http://listener").pathname
       const contribution = [...entries.values()].find((entry) => entry.upgrade?.path === path)
       if (contribution?.upgrade) contribution.upgrade.handle(request, socket, head)
-      else socket.end("HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+      else {
+        // A tab dialling a socket nobody serves (the `ws` row is off, or the
+        // path is wrong) would otherwise fail without a word on this side.
+        say(Effect.annotateLogs(Effect.logWarning("websocket upgrade had no taker"), { url: path }))
+        socket.end("HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+      }
     })
     const bind = (at: number) => Effect.tryPromise({
       try: () => new Promise<void>((resolve, reject) => {

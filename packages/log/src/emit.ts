@@ -26,20 +26,26 @@
  * ```
  */
 
-import { Effect } from "effect"
+import { Effect, type Context, type Fiber } from "effect"
 
 /** Emit one log line from outside Effect. Returns nothing and fails at
  *  nothing: a logger that could refuse would need a caller that could care,
  *  and these callers are event handlers. */
 export type Emit = (line: Effect.Effect<void>) => void
 
+/** Every line runs under these services: their loggers, level and
+ *  annotations. */
+const under = (services: Context.Context<never>): Emit => {
+  const run = Effect.runForkWith(services)
+  return (line) => {
+    run(line)
+  }
+}
+
 /** The emitter for the fiber that yields it. */
-export const emitter: Effect.Effect<Emit> = Effect.map(
-  Effect.context<never>(),
-  (services) => {
-    const run = Effect.runForkWith(services)
-    return (line) => {
-      run(line)
-    }
-  },
-)
+export const emitter: Effect.Effect<Emit> = Effect.map(Effect.context<never>(), under)
+
+/** The emitter for a fiber somebody else handed us — an Effect callback that
+ *  is given the fiber it runs for (an `ErrorReporter`, say) rather than
+ *  running in it. The same capture {@link emitter} makes for its own fiber. */
+export const emitterOf = (fiber: Fiber.Fiber<unknown, unknown>): Emit => under(fiber.context)

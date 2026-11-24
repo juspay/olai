@@ -119,6 +119,8 @@ const say = yield* Effect.annotateLogs(emitter, { agent: command })
 child.stderr.on("data", (chunk: string) => say(Effect.logDebug(chunk.trimEnd())))
 ```
 
+Some callbacks are handed the fiber they speak for instead of running in it — an Effect `ErrorReporter` is told which fiber's call failed. `emitterOf(fiber)` makes the same capture from that fiber's services, so the line carries that fiber's level, format and annotations. It is how a connection's failed calls are logged with the connection named (`@olai/server`'s `report.ts`).
+
 ## Layering
 
 Depends on `effect` and nothing else, at the bottom beside `format` and `store` ([website/docs/architecture/overview.md](../../website/docs/architecture/overview.md)). Everything above logs, so a workspace sibling here would put a package between a caller and the ability to say what it is doing.

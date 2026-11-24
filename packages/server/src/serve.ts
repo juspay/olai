@@ -8,7 +8,7 @@
  * Provider withdrawals change the composed generation without restarting
  * unrelated capabilities; reverse scope order drains rows before the host.
  */
-import { report as reportTransport } from "./report.ts";
+import { connectionLogging, report as reportTransport } from "./report.ts";
 import { CurrentWho, whoRoute } from "./who.ts";
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers";
 import { BUNDLE_NAMES, ROWS, configsOf, mountBundle, provide, settled, offered, reportBundle, rowsNaming, setRow, } from "@olai/bundle/bundle";
@@ -303,7 +303,13 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
     yield* provide(plugins.host, TransportSurface, () => ({
         register: transports.register,
         live: () => ({ group: wired.bound.group, handlers: wired.bound.handlers, expose: wired.faces.browser }),
-        services: (connection) => Layer.succeed(CurrentWho)(who(connection.headers)),
+        // Who is asking, and the serve's own logging with the connection named
+        // on every line: kolu builds a connection's RPC server on Effect's
+        // default runtime, so this is the only way its lines reach our sinks.
+        services: (connection) => Layer.merge(
+          Layer.succeed(CurrentWho)(who(connection.headers)),
+          connectionLogging(connection, logging.layer, { root: served }),
+        ),
         routes: whoRoute(who),
         upgradeHeaders: () => currentIdentity().headers,
         allowedOrigins: options.allowedOrigins,
