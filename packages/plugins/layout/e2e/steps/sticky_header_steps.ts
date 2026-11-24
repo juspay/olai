@@ -249,7 +249,9 @@ Then("the app header wears its own height", async function (this: OlaiWorld) {
  * the rail, minimized), as wide as it, and the tabs starting where the page
  * does. Measured against the column and the page rather than the width token,
  * because the token and the column disagreeing is one of the things this
- * catches.
+ * catches. Over the rail the cell is the leaf alone, and the LEAF is measured
+ * too: a cell of the right width can still hold its leaf off-centre, which is
+ * what padding left over from the open state did.
  */
 Then(
   "the app's name stands over the {word} and the tabs start where the page does",
@@ -260,10 +262,15 @@ Then(
       const name = await this.box(this.page.locator(WORDMARK).locator(".."), "the name's cell");
       const tabs = await this.box(this.page.locator(MAIN_STRIP), "the tabs");
       const page = await this.box(this.frontLane(), "the page in front");
+      const centred = column !== "rail" || await (async () => {
+        const leaf = await this.box(this.page.locator(WORDMARK).locator("svg").first(), "the leaf");
+        return Math.abs((leaf.x + leaf.width / 2) - (side.x + side.width / 2)) <= EDGE;
+      })();
       return Math.abs(name.x - side.x) <= EDGE
         && Math.abs(name.width - side.width) <= EDGE
         && Math.abs(tabs.x - page.x) <= EDGE
-        && Math.abs(name.x + name.width - page.x) <= EDGE;
-    }, `the name's cell to stand over the ${column}, and the tabs to start at the page's left edge`);
+        && Math.abs(name.x + name.width - page.x) <= EDGE
+        && centred;
+    }, `the name's cell to stand over the ${column}${column === "rail" ? " with the leaf at the rail's centre" : ""}, and the tabs to start at the page's left edge`);
   },
 );

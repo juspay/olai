@@ -152,10 +152,15 @@ export function Header(props: {
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
-      <div class="flex shrink-0 items-center gap-2 md:pl-4 md:pr-2"
+      {/* Each state names its own padding and nothing overrides anything: a
+          `md:px-0` beside `md:pl-4 md:pr-2` loses to them in Tailwind's order
+          and the railed leaf sat off the rail's centre (`./layout/entry.ts`
+          says why two classes on one property are a trap). */}
+      <div class="flex shrink-0 items-center gap-2"
         classList={{
           "md:w-[var(--width-sidebar)]": props.menu !== undefined,
-          "md:justify-center md:px-0": railed(),
+          "md:pl-4 md:pr-2": !railed(),
+          "md:justify-center": railed(),
         }}>
         <Show when={props.menu}>
           {(menu) => (
