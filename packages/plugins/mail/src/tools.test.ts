@@ -479,6 +479,23 @@ test("a thread with one message in Trash and a newer one in the inbox is listed,
   expect((yield* h.call("bulk", { action: "trash", threads: ["a2"] }) as Effect.Effect<any>).threads[0].outcome).toBe("unchanged")
 })))
 
+test("a query reaches trashed threads only with includeSpamTrash, and an untrash by query restores them", () => run(h => Effect.gen(function*() {
+  yield* h.call("trash", { thread: "a2" })
+  h.calls.length = 0
+  const without: any = yield* h.call("bulk", { action: "untrash", query: "meetup" })
+  expect(without).toMatchObject({ matched: 0, threads: [] })
+  expect(h.calls.find(c => c.verb.id === "threads.list")?.args).toEqual(["-s", "51", "-q", "meetup"])
+  h.calls.length = 0
+  const preview: any = yield* h.call("bulk", { action: "untrash", query: "meetup", includeSpamTrash: true })
+  expect(preview).toMatchObject({ matched: 1, threads: [{ id: "a2", snippet: "Nix meetup" }] })
+  expect(preview.sample[0].labels).toContain("TRASH")
+  expect(h.calls.find(c => c.verb.id === "threads.list")?.args).toEqual(["-s", "51", "-q", "meetup", "--include-spam-trash"])
+  const restored: any = yield* h.call("bulk", { action: "untrash", query: "meetup", includeSpamTrash: true, confirm: preview.confirm })
+  expect(restored.threads).toEqual([expect.objectContaining({ id: "a2", outcome: "applied" })])
+  expect(h.calls.filter(c => c.verb.id === "threads.untrash").map(c => c.args?.[0])).toEqual(["a2"])
+  expect((yield* h.call("search", { query: "meetup" }) as Effect.Effect<any>).threads.map((t: any) => t.id)).toEqual(["a2"])
+})))
+
 test("a fifty-thread bulk write never runs more than four Himalaya children", async () => {
   const { makeTools } = await import("./tools.ts")
   const { THREADS, LABELS } = await import("./appliance/testlib/fixtures.ts")
