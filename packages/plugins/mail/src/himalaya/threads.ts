@@ -22,7 +22,7 @@ export const Thread = Schema.Struct({ id: Schema.String, messages: Schema.Array(
   snippet: Schema.optionalKey(Schema.NullOr(Schema.String)), payload: Schema.optionalKey(Schema.NullOr(PartSchema)),
 })) })
 export type Thread = typeof Thread.Type
-export const Listing = Schema.Struct({ threads: Schema.Array(Schema.Struct({ id: Schema.String })), next_page: Schema.optionalKey(Schema.NullOr(Schema.String)) })
+export const Listing = Schema.Struct({ threads: Schema.Array(Schema.Struct({ id: Schema.String, snippet: Schema.optionalKey(Schema.NullOr(Schema.String)) })), next_page: Schema.optionalKey(Schema.NullOr(Schema.String)) })
 export const LabelList = Schema.Struct({ labels: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })) })
 export const header = (message: Thread["messages"][number] | undefined, name: string): string =>
   message?.headers.filter(h => h.name.toLowerCase() === name.toLowerCase()).map(h => h.value).join(", ") ?? ""

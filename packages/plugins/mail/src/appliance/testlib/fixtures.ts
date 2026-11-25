@@ -64,6 +64,11 @@ export const MESSAGES = 1281
 export const MAILBOXES: Readonly<Record<string, MailFixture>> = {
   stale: { profile: { email: ADDRESS, messagesTotal: MESSAGES }, mailbox: true, stale: true },
   mailbox: { profile: { email: ADDRESS, messagesTotal: MESSAGES }, mailbox: true },
+  /** Gmail's per-user rate limit, refused by every verb the way the pinned
+   *  binary refuses under `--json`. A scenario uses mail first, so the label
+   *  list is already held, then moves here: a bulk run then fails its first
+   *  threads and stops. */
+  limited: { profile: { email: ADDRESS, messagesTotal: MESSAGES }, mailbox: true, failure: "403 Quota exceeded for quota metric 'Queries' and limit 'Queries per minute per user' of service 'gmail.googleapis.com'" },
 }
 
 /** `@mail-google:<name>` — the grant the fake Google honours. */

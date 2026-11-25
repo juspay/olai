@@ -34,7 +34,7 @@ The `mail` line in the **Plugins** panel says what happened. A brief outage heal
 
 ## The tools an agent gets
 
-The tools arrive in every conversation under **olai ✓**, listed in the closed block below. Gmail's search syntax reaches Gmail as you wrote it.[^query] Nothing here deletes mail for good, and nothing sends it.[^writes] A draft is plain text with files attached.[^draft]
+Every conversation gets the tools under **olai ✓**, listed below. Gmail's search syntax reaches Gmail unchanged.[^query] Nothing here deletes mail for good, and nothing sends it.[^writes] A draft is plain text with files attached.[^draft] One call can change up to 50 threads.[^bulk]
 
 ## Waking an agent when mail arrives
 
@@ -75,6 +75,10 @@ Open the conversation you want woken and turn **Alert on new mail** on.[^switch]
 [^writes]: A write refused before it is sent changes nothing. Where Gmail accepts a write but the follow-up read fails, the reply says the outcome needs checking. A label ID that Gmail's label list does not name refreshes that list once, then shows the raw ID. A name you ask to add or remove that does not exist refuses the write. An attachment that disappears between reading a thread and fetching it is reported as missing on that message.
 
 [^draft]: A draft's body is plain text only, at most 256 KiB, with at most 50 recipients. It carries at most ten files, none over 25 MB and 25 MB in all, which is Gmail's own ceiling. Which paths are attachable, how a reply picks its recipients, and what an update replaces are in the closed block at the foot of this page.
+
+[^bulk]: `mail_bulk` archives, moves to Trash, restores, marks or labels up to 50 threads at once. Threads named by ID change immediately. A query is previewed first: that call changes nothing, lists what matches and returns a code. A second call with the code applies it. It is refused if the matching threads changed in between.
+
+    The tool tells the agent to show you the preview, but olai does not check that it did. The reply says what happened to each thread. A failure that is not about one thread, such as Gmail's rate limit, stops the run and says why.
 
 [^switch]: The **Alert on new mail** switch stands in the conversation's own strip of switches. Each conversation starts with it off, and only a person can turn it on: an agent can edit the properties on a row, one line of an outline, but those edits cannot subscribe a conversation to mail.
 
@@ -121,6 +125,7 @@ Open the conversation you want woken and turn **Alert on new mail** on.[^switch]
 | `mail_untrash` | Restores a thread from Trash. |
 | `mail_label` | Adds or removes existing labels by name, 1 to 10 each way. |
 | `mail_read` | Marks a thread read or unread. |
+| `mail_bulk` | Archives, moves to Trash, restores, marks or labels up to 50 threads in one call, named by ID or by a Gmail query. A query is previewed first. |
 | `mail_draft` | Writes a draft in Gmail Drafts for you to review and send. |
 | `mail_draft_update` | Replaces a draft's whole contents. |
 
@@ -159,6 +164,7 @@ Read the thread if its preview is not enough.
 Propose one action per thread and wait for my yes.
 When agreed, record the outcome as a todo or note with a Gmail URL.
 Then archive, label or mark the thread as agreed.
+For a change to many threads by query, show me its preview and wait for my yes.
 Draft replies for me to send; never send mail.
 ```
 

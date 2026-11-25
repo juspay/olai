@@ -1733,6 +1733,25 @@ const attaching = (named: string | undefined): { attachments?: Array<{ path: str
   return { attachments: paths.map((path) => ({ path: path.startsWith("/") ? path : `${cwd}/${path}` })) }
 }
 
+/** The `confirm` code of the last `mail_bulk` preview this agent saw — what a
+ *  real agent carries from the preview it showed to the call that applies it.
+ *  `confirm bulk … matching …` sends it back; `… confirming <code>` sends a
+ *  code the scenario wrote instead, and `… at most <n>` passes `max`. */
+let previewed: string | undefined
+const bulkCall = (words: string) => {
+  const bulk = /^(confirm )?bulk (archive|trash|untrash|read|unread|label) mail (threads|matching) (.+?)(?: with (\S+))?(?: at most (\d+))?(?: confirming (\S+))?$/.exec(words)
+  if (!bulk) return null
+  const [, again, action, by, what, label, max, code] = bulk
+  const confirm = code ?? (again ? previewed : undefined)
+  return { name: "bulk", args: {
+    action,
+    ...(by === "threads" ? { threads: what!.split(",").map((one) => one.trim()) } : { query: what }),
+    ...(label ? { add: [label] } : {}),
+    ...(max ? { max: Number(max) } : {}),
+    ...(confirm ? { confirm } : {}),
+  } }
+}
+
 const runTurn = async (id: unknown, text: string): Promise<void> => {
   cancelled = false
   noise(`fake agent: ${text}`)
@@ -1769,10 +1788,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     if (label) return { name: "label", args: { thread: label[1], add: [label[2]] } }
     const read = /^mark mail thread (\S+) (read|unread)$/.exec(mailWords)
     if (read) return { name: "read", args: { thread: read[1], read: read[2] === "read" } }
-    return null
+    return bulkCall(mailWords)
   })()
   if (mailCall) {
     const answer = await useTool(`mail_${mailCall.name}`, mailCall.args)
+    const confirm = (answer["structuredContent"] as { readonly confirm?: unknown } | undefined)?.confirm
+    if (mailCall.name === "bulk" && typeof confirm === "string") previewed = confirm
     say("```json\n" + JSON.stringify(answer) + "\n```")
     reply(id, { stopReason: "end_turn" })
     return

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
 import { attr } from "@olai/tests/harness/selectors.ts"
-import { Then } from "@olai/tests/harness/runner.ts"
+import { Then, When } from "@olai/tests/harness/runner.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
 Then("the mail {word} story says {string}", async function(this: OlaiWorld, kind: string, text: string) {
@@ -18,6 +18,11 @@ Then("the fake mailbox has received no {word} calls", async function(this: OlaiW
   const calls = existsSync(file) ? readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) : []
   assert.equal(calls.filter(c => verb === "tool" ? c.verb !== "profile.get" : verb === "send" ? c.verb.endsWith(".send") : c.verb === (verb.includes(".") ? verb : `threads.${verb}`)).length, 0)
 })
+/** Moves the fake to the `limited` mailbox: every verb from here on refuses
+ *  with Gmail's rate-limit sentence, as a child that exits non-zero. Its
+ *  mirror moves it back to `mailbox`, with every thread as the run left it. */
+When("Gmail refuses every mail call with its rate limit", function(this: OlaiWorld) { this.mailHimalaya!.rewrite("limited") })
+When("Gmail answers mail calls again", function(this: OlaiWorld) { this.mailHimalaya!.rewrite("mailbox") })
 const saved = new WeakMap<OlaiWorld, string>()
 Then("the mail attachment is outside the vault under the runtime directory", async function(this: OlaiWorld) {
   const log = join(dirname(this.mailHimalaya!.path), "calls.ndjson")

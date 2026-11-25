@@ -33,8 +33,8 @@
     "src/appliance/testlib/fixtures.ts": 1,
     "src/browser/story.ts": 3,
     "src/himalaya/verbs.ts": 4,
-    "src/mailbox.ts": 2,
-    "src/tools.ts": 5
+    "src/mailbox.ts": 7,
+    "src/tools.ts": 9
   },
   "vault": {
     "src/tools.ts": 1
