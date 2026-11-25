@@ -178,6 +178,124 @@ Feature: Reading and acting on Gmail in a conversation
     Then the mail search story says "1 threads for"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Bulk archive by thread ids empties the inbox and names every thread
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "bulk archive mail threads a1, a2, a3"
+    Then the mail bulk story says "archive · 3 applied"
+    And the agent's answer mentions "Q3 invoice"
+    And the agent's answer mentions "Nix meetup"
+    And the agent's answer mentions "Invoice conversation"
+    When I ask the agent "list my inbox"
+    Then the mail inbox story says "0 threads in INBOX"
+    When I ask the agent "bulk archive mail threads a1, a2, a3"
+    Then the mail bulk story says "archive · 0 applied · 3 unchanged"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: A query is previewed without writing, then the confirmed call trashes what was previewed
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "bulk trash mail matching invoice"
+    Then the mail bulk story says "trash preview · 2 threads for"
+    And the agent's answer mentions "Q3 invoice"
+    And the fake mailbox has received no trash calls
+    When I ask the agent "confirm bulk trash mail matching invoice"
+    Then the mail bulk story says "trash · 2 applied"
+    When I ask the agent "search mail for in:trash"
+    Then the mail search story says "2 threads for"
+    When I ask the agent "bulk untrash mail threads a1, a3"
+    Then the mail bulk story says "untrash · 2 applied"
+    When I ask the agent "search mail for in:trash"
+    Then the mail search story says "0 threads for"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: A confirm code that is not the preview's is refused and trashes nothing
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "bulk trash mail matching invoice"
+    Then the mail bulk story says "trash preview · 2 threads for"
+    When I ask the agent "bulk trash mail matching invoice confirming 0000000000000000"
+    Then the mail refused story says "changed since the preview"
+    And the fake mailbox has received no trash calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: An unknown thread in a bulk call fails alone and the others are applied
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "bulk archive mail threads a1, ffff, a2"
+    Then the mail bulk story says "archive · 2 applied · 1 failed"
+    And the agent's answer mentions "this thread is not in you@gmail.com"
+    When I ask the agent "list my inbox"
+    Then the mail inbox story says "1 threads in INBOX"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: An unknown label refuses a bulk call before any write
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "bulk label mail threads a1, a2 with nonexistent"
+    Then the mail refused story says "this mailbox has no label"
+    And the fake mailbox has received no modify calls
+    And the fake mailbox has received no get calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: A thread with one message in Trash and a newer one in the inbox is trashed whole
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "trash mail thread a2"
+    Then the mail trash story says "trashed"
+    When mail delivers thread "a2" titled "Nix meetup moved" to the inbox
+    And I ask the agent "search mail for meetup"
+    Then the mail search story says "1 threads for"
+    When I ask the agent "bulk trash mail matching meetup"
+    Then the mail bulk story says "trash preview · 1 threads for"
+    When I ask the agent "confirm bulk trash mail matching meetup"
+    Then the mail bulk story says "trash · 1 applied"
+    When I ask the agent "search mail for meetup"
+    Then the mail search story says "0 threads for"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Every tool refuses without an account and spawns nothing
     Given I open the app
     And I open the outline "mail.olai"
@@ -227,6 +345,9 @@ Feature: Reading and acting on Gmail in a conversation
     When I ask the agent "update mail draft draft_1 saying Hello again"
     Then the mail refused story says "connect one in"
     And the conversation has 11 mail refusal stories
+    And the agent's answer mentions "connect one in"
+    When I ask the agent "bulk trash mail matching is:unread"
+    Then the conversation has 12 mail refusal stories
     And the agent's answer mentions "connect one in"
     And the fake mailbox has received no tool calls
 

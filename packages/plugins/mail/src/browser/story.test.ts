@@ -19,6 +19,10 @@ test("each tool story is derived from reply JSON, including refusal and no-op", 
     [{ mail: "untrash", changed: { added: [], removed: ["TRASH"] } }, "restored from Trash · −TRASH"],
     [{ mail: "label", changed: { added: ["waiting"], removed: ["INBOX"] } }, "+waiting −INBOX"],
     [{ mail: "read", changed: { added: [], removed: ["UNREAD"] } }, "marked read"],
+    [{ mail: "bulk", action: "trash", query: "from:news", matched: 37, more: false, threads: [], sample: [], confirm: "9f2c1ab47d3e5f60" }, 'trash preview · 37 threads for "from:news"'],
+    [{ mail: "bulk", action: "archive", query: "is:unread", matched: 50, more: true, threads: [], sample: [], confirm: "9f2c1ab47d3e5f60" }, 'archive preview · 50 threads for "is:unread" · more match'],
+    [{ mail: "bulk", action: "archive", threads: [], counts: { applied: 3, unchanged: 0, failed: 0, skipped: 0 }, stopped: null }, "archive · 3 applied"],
+    [{ mail: "bulk", action: "trash", threads: [], counts: { applied: 2, unchanged: 1, failed: 1, skipped: 4 }, stopped: "403 Quota exceeded" }, "trash · 2 applied · 1 unchanged · 1 failed · 4 skipped · stopped: 403 Quota exceeded"],
     [{ reason: "connect one" }, "connect one"],
     [{ mail: "read", changed: { added: [], removed: [] } }, "nothing changed"],
   ] as const
@@ -26,5 +30,6 @@ test("each tool story is derived from reply JSON, including refusal and no-op", 
 })
 
 test("incomplete or unrelated stored replies do not break the transcript", () => {
-  for (const reply of [null, [], {}, { mail: "inbox" }, { mail: "thread", messages: null }, { mail: "label", changed: { added: null } }, { mail: "unknown" }]) expect(storyOf(reply)).toBeNull()
+  for (const reply of [null, [], {}, { mail: "inbox" }, { mail: "thread", messages: null }, { mail: "label", changed: { added: null } }, { mail: "unknown" },
+    { mail: "bulk" }, { mail: "bulk", action: "trash" }, { mail: "bulk", action: "trash", counts: { applied: 1 } }, { mail: "bulk", action: "trash", matched: 3 }]) expect(storyOf(reply)).toBeNull()
 })

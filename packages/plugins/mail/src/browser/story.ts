@@ -27,6 +27,18 @@ export const storyOf = (reply: unknown): { kind: string; text: string } | null =
     if (typeof r.filename !== "string" || typeof r.bytes !== "number") return null
     return { kind, text: `${r.filename} · ${r.bytes >= 1024 ? `${Math.round(r.bytes / 102.4) / 10} KiB` : `${r.bytes} bytes`}` }
   }
+  if (kind === "bulk") {
+    if (typeof r.action !== "string") return null
+    const counts = record(r.counts)
+    if (counts) {
+      const said = (["applied", "unchanged", "failed", "skipped"] as const).map(key => [key, counts[key]] as const)
+      if (said.some(([, n]) => typeof n !== "number")) return null
+      const parts = said.filter(([key, n]) => key === "applied" || n !== 0).map(([key, n]) => `${n} ${key}`)
+      return { kind, text: [r.action, ...parts, ...(typeof r.stopped === "string" ? [`stopped: ${r.stopped}`] : [])].join(" · ") }
+    }
+    if (typeof r.matched !== "number" || typeof r.query !== "string") return null
+    return { kind, text: `${r.action} preview · ${r.matched} threads for ${JSON.stringify(r.query)}${r.more === true ? " · more match" : ""}` }
+  }
   if (!["archive", "trash", "untrash", "label", "read"].includes(kind)) return null
   const change = record(r.changed)
   if (!change || !strings(change.added) || !strings(change.removed)) return null
