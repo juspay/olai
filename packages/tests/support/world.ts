@@ -345,7 +345,10 @@ export const WORDMARK = `${APP_HEADER} h1`;
 /** The sidebar: the month and the file tree (directory chrome only). */
 export const SIDEBAR = selector(TESTID.sidebar);
 export const SIDEBAR_TOGGLE = selector(TESTID.sidebarToggle);
+/** The sidebar's scrolling list, and its foot: what is pinned under that list
+ *  however far it runs (Trash). */
 export const SIDEBAR_BODY = selector(TESTID.sidebarBody);
+export const SIDEBAR_FOOT = selector(TESTID.sidebarFoot);
 export const SIDEBAR_SCRIM = selector(TESTID.sidebarScrim);
 export const SIDEBAR_COLLAPSE = selector(TESTID.sidebarCollapse);
 export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);

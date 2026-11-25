@@ -16,13 +16,10 @@ import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { opacityOf } from "@olai/tests/harness/paint.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
-import { PLUGIN_TESTID, TESTID } from "@olai/tests/harness/testids.ts";
-import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR, SIDEBAR_BODY } from "@olai/tests/harness/world.ts";
+import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
+import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR, SIDEBAR_BODY, SIDEBAR_FOOT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { selector } from "@olai/web/testlib";
-
-/** The column's foot: what is pinned under the scrolling list (Trash). */
-const SIDEBAR_FOOT = selector(TESTID.sidebarFoot);
 
 /** The column's parts, by the word on screen. A plugin section with no word of
  *  the app's own is named `the "<plugin>" section`. */
@@ -69,6 +66,9 @@ const readColumn = (world: OlaiWorld, parts: ReadonlyArray<string>): Promise<Col
     }),
   }), [parts.map(partOf), SIDEBAR_BODY, SIDEBAR_FOOT] as const);
 
+/** The last part of one kind read so far: what the next one is compared with. */
+type Last = { readonly name: string; readonly top: number } | null;
+
 /** What is wrong with the order asked, or `null` when the column reads in it.
  *
  *  TWO KINDS OF PART, asked two different things. The scrolling list's parts
@@ -80,8 +80,8 @@ const readColumn = (world: OlaiWorld, parts: ReadonlyArray<string>): Promise<Col
  *  or below. A foot part therefore comes after every list part in the table,
  *  and a table that names one before a list part is the wrong order. */
 const misreading = (names: ReadonlyArray<string>, column: Column): string | null => {
-  let listTop: { readonly name: string; readonly top: number } | null = null;
-  let footTop: { readonly name: string; readonly top: number } | null = null;
+  let listTop: Last = null;
+  let footTop: Last = null;
   for (const [i, name] of names.entries()) {
     const part = column.parts[i];
     if (part === null || part === undefined) return `${name} is not drawn`;
