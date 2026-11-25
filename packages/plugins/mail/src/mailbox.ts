@@ -17,6 +17,8 @@ const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.Null
 const replyAddresses = (header: string) => header.trim() ? addressList(header)
   : Result.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
 
+/** The most threads one `mail_bulk` call acts on: the schema's bound on `threads` and `max`, and the default `max`. */
+export const BULK_LIMIT = 50
 /** What one write does to a thread, for `mail_bulk` and the five single-thread tools alike. */
 type Action = "archive" | "trash" | "untrash" | "read" | "unread" | "label"
 /** `mail_bulk`'s arguments: exactly one of `threads` and `query`; the rest refine one of them. */
@@ -133,7 +135,7 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     yield* Effect.logInfo(`mail wrote thread=${args.thread} added=${JSON.stringify(changed.added)} removed=${JSON.stringify(changed.removed)}`)
     return { address, id: after.id, labels: labels.names(idsOf(after)), changed }
   }))
-  /** Up to 50 threads, each under its own thread permit: one read, then the
+  /** Up to BULK_LIMIT threads, each under its own thread permit: one read, then the
    *  write unless the thread is already in place. A missing thread fails alone;
    *  any other failure is the mailbox's or the session's, so no further thread
    *  starts and the rest are skipped. The run's state ends with the call. */
@@ -174,7 +176,7 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     const plan = yield* change(args.action, args)
     if (args.threads) return { address, ...yield* apply([...new Set(args.threads)], plan) }
     const query = args.query!
-    const max = args.max ?? 50
+    const max = args.max ?? BULK_LIMIT
     const raw = yield* run({ verb: GMAIL.threadsList, args: ["-s", String(max + 1), "-q", query, ...(args.includeSpamTrash ? ["--include-spam-trash"] : [])] })
     const listed = (yield* decode(Listing, raw)).threads
     const covered = listed.slice(0, max)

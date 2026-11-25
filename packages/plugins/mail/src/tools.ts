@@ -2,7 +2,7 @@ import { gate } from "@olai/effect-cordis"
 import { UsageFailure } from "@olai/format"
 import { calls, type Tool } from "@olai/ops"
 import { Effect, Fiber, Result, Schema } from "effect"
-import type { openMailbox } from "./mailbox.ts"
+import { BULK_LIMIT, type openMailbox } from "./mailbox.ts"
 import { MailRefusal } from "./wire.ts"
 
 const described = (description: string) => Schema.String.annotate({ description })
@@ -29,7 +29,7 @@ const draftFields = {
 }
 const draftDescription = "Writes a draft in Gmail Drafts for the person to review and send; olai cannot send mail. At most 50 recipients, and at most 10 attachments totalling 25 MB."
 const manual = " Gmail query syntax is passed verbatim: from:, newer_than:1d, is:unread, has:attachment, label:. Thread ids are opaque Gmail hex ids; file a thread as <address>/<thread id>. Labels use Gmail's displayed names (system labels INBOX, UNREAD, STARRED, IMPORTANT)."
-const bulkDescription = "Apply one action to up to 50 threads in one call. Name them by `threads` (ids, applied at once) or by `query` (a Gmail query). " +
+const bulkDescription = `Apply one action to up to ${BULK_LIMIT} threads in one call. Name them by \`threads\` (ids, applied at once) or by \`query\` (a Gmail query). ` +
   "A `query` call without `confirm` writes nothing: it answers how many threads it covers (`matched`), whether the query matches more (`more`), every covered thread with its snippet, the first ten in full, and a `confirm` code. " +
   "Show that preview to the person; once they agree, call again with the same arguments plus `confirm`. If the matching threads changed in between, the call is refused and nothing is written. " +
   "A call that writes answers one row per thread, with its subject, its labels before the write, and an `outcome`: applied; unchanged (already in place, so not written); failed, with a `reason`; or skipped, because the run stopped on a failure that is not about one thread, which `stopped` names. " +
@@ -61,10 +61,10 @@ export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>
       (_client: unknown, args) => perform(kind, args, mailbox.write(kind, args)))),
     calls("bulk", "Act on many mail threads", bulkDescription, Schema.Struct({
       action: Schema.Literals(["archive", "trash", "untrash", "read", "unread", "label"]).annotate({ description: "archive removes INBOX; trash moves to Gmail Trash; untrash restores; read and unread mark; label adds and removes `add` and `remove`." }),
-      threads: Schema.optionalKey(Schema.Array(thread).check(Schema.isMinLength(1), Schema.isMaxLength(50)).annotate({ description: "Thread ids, 1–50; applied at once, in this order. Supply this or query." })),
+      threads: Schema.optionalKey(Schema.Array(thread).check(Schema.isMinLength(1), Schema.isMaxLength(BULK_LIMIT)).annotate({ description: `Thread ids, 1–${BULK_LIMIT}; applied at once, in this order. Supply this or query.` })),
       query: Schema.optionalKey(described("Gmail query, passed untouched. Supply this or threads.").check(Schema.isPattern(/\S/))),
       includeSpamTrash: Schema.optionalKey(Schema.Boolean.annotate({ description: "With query only: include spam and trash." })),
-      max: Schema.optionalKey(Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 50 })).annotate({ description: "With query only: the most threads this call covers, 1–50; defaults to 50." })),
+      max: Schema.optionalKey(Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: BULK_LIMIT })).annotate({ description: `With query only: the most threads this call covers, 1–${BULK_LIMIT}; defaults to ${BULK_LIMIT}.` })),
       confirm: Schema.optionalKey(described("With query only: the code from this query's preview. Omit it to preview.").check(Schema.isPattern(/^[0-9a-f]{16}$/))),
       add: Schema.optionalKey(names.annotate({ description: "With action label only: existing label names to add, 1–10." })),
       remove: Schema.optionalKey(names.annotate({ description: "With action label only: existing label names to remove, 1–10." })),
