@@ -2,7 +2,7 @@ import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { Then } from "@cucumber/cucumber";
 import { selector } from "@olai/web/testlib"
-import { HYDRATION_TIMEOUT, OFFLINE, TITLE_EDITOR } from "../support/world.ts";
+import { HYDRATION_TIMEOUT, OFFLINE, SIDEBAR_FOOT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const contributions: Readonly<Record<string, string>> = {
@@ -24,7 +24,7 @@ const parts: Readonly<Record<string, ReadonlyArray<string>>> = {
   files: [selector(TESTID.sidebarFiles), selector(TESTID.newFile)],
   pins: [selector(TESTID.pinShelf)],
   capture: [selector(TESTID.inboxLink)],
-  trash: [`${selector(TESTID.sidebarFoot)} ${selector(TESTID.trashLink)}`],
+  trash: [`${SIDEBAR_FOOT} ${selector(TESTID.trashLink)}`],
   chat: [selector(TESTID.agentRoster), selector(TESTID.chatNew)],
   journal: [selector(TESTID.agendaLink), selector(TESTID.calendarRow), selector(TESTID.calendarToggle)],
 };

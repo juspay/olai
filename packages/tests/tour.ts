@@ -39,8 +39,13 @@ const env = (name: string): string => {
   return value
 }
 
+/** THE POINTER RESTS IN THE BAR'S TOP-LEFT CORNER for every still: inside the
+ *  header, left of the app's name, where nothing is drawn for being pointed
+ *  at. Not in the sidebar's box, which draws its `+` buttons and chevrons
+ *  while the pointer is in it; not in a pane, which draws its close button;
+ *  and on no control, link or row. Under the palette it rests on the scrim. */
 const shoot = async (page: Page, out: string, name: string): Promise<void> => {
-  await page.mouse.move(4, 896)
+  await page.mouse.move(4, 4)
   await page.waitForTimeout(500)
   const size = (await page.screenshot({ path: join(out, name) })).length
   if (size > MAX_PICTURE) throw new Error(`${name} is ${size} bytes, over the limit of ${MAX_PICTURE}`)

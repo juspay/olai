@@ -1,6 +1,5 @@
 /** The watch wrench opens schema controls; the advanced link opens the file.
  * The sidebar assertions also serve the vault's own-file scenarios. */
-import { TESTID } from "@olai/tests/harness/testids.ts";
 import { Then, When } from "@olai/tests/harness/runner.ts"
 import { strict as assert } from "assert"
 import { attr } from "@olai/tests/harness/selectors.ts"
@@ -12,6 +11,8 @@ import {
   PADI_FEED_FOOT,
   PADI_FEED_WRENCH,
   POLL_TIMEOUT,
+  SIDEBAR_BODY,
+  SIDEBAR_FOOT,
   TRASH_LINK,
   type OlaiWorld,
 } from "@olai/tests/harness/world.ts";
@@ -119,10 +120,10 @@ Then("the vault group is one parent named \"olai\"", async function(this: OlaiWo
  *  scrolling list, and never inside the files row's group. */
 Then("the Trash door stands at the sidebar's foot, outside the group", async function(this: OlaiWorld) {
   await this.showSidebar()
-  const foot = this.page.getByTestId(TESTID.sidebarFoot)
+  const foot = this.page.locator(SIDEBAR_FOOT)
   await foot.locator(TRASH_LINK).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   assert.equal(await this.page.locator(`${VAULT_GROUP} ~ ul ${TRASH_LINK}`).count(), 0, "the Trash nested in the vault group")
-  assert.equal(await this.page.getByTestId(TESTID.sidebarBody).locator(TRASH_LINK).count(), 0, "the Trash scrolled with the list")
+  assert.equal(await this.page.locator(SIDEBAR_BODY).locator(TRASH_LINK).count(), 0, "the Trash scrolled with the list")
 })
 
 Then("the parent nests the vault group's {string} row", async function(this: OlaiWorld, file: string) {

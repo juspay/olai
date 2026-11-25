@@ -21,9 +21,9 @@ Feature: The sidebar reads in one order, and its buttons wait for a pointer
       | Trash   |
     And there should be no page errors
 
-  # The drawer's list scrolls under its foot, and Trash is pinned in that foot,
-  # so on a phone Trash stands at the bottom of the screen rather than after
-  # the last list: the order asked is the scrolling list's.
+  # The drawer's list scrolls under its foot, and Trash is pinned in that foot:
+  # it reads last because it is in the foot, below where the list ends,
+  # however far the list runs past the screen.
   @corpus:good @phone
   Scenario: The phone's drawer reads in the same order
     Given I open the outline "house.olai"
@@ -34,6 +34,7 @@ Feature: The sidebar reads in one order, and its buttons wait for a pointer
       | Files   |
       | Chats   |
       | Plugins |
+      | Trash   |
     And there should be no page errors
 
   @scratch:good
