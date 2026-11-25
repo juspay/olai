@@ -76,9 +76,9 @@ Open the conversation you want woken and turn **Alert on new mail** on.[^switch]
 
 [^draft]: A draft's body is plain text only, at most 256 KiB, with at most 50 recipients. It carries at most ten files, none over 25 MB and 25 MB in all, which is Gmail's own ceiling. Which paths are attachable, how a reply picks its recipients, and what an update replaces are in the closed block at the foot of this page.
 
-[^bulk]: `mail_bulk` archives, moves to Trash, restores, marks or labels up to 50 threads in one call. Threads named by ID change at once. For threads named by a Gmail query, the first call changes nothing: it lists what matches, with a short preview, and returns a code. The agent shows you that preview, then calls again with the code, refused if the matches changed meanwhile.
+[^bulk]: `mail_bulk` archives, moves to Trash, restores, marks or labels up to 50 threads at once. Threads named by ID change immediately. A query is previewed first: that call changes nothing, lists what matches and returns a code. A second call with the code applies it. It is refused if the matching threads changed in between.
 
-    The reply lists every thread with what happened to it: applied, unchanged, failed or skipped. A failure that is not about one thread, such as Gmail's rate limit, stops the run and says why.
+    The tool tells the agent to show you the preview, but olai does not check that it did. The reply says what happened to each thread. A failure that is not about one thread, such as Gmail's rate limit, stops the run and says why.
 
 [^switch]: The **Alert on new mail** switch stands in the conversation's own strip of switches. Each conversation starts with it off, and only a person can turn it on: an agent can edit the properties on a row, one line of an outline, but those edits cannot subscribe a conversation to mail.
 
