@@ -1,6 +1,6 @@
 # The browser tests
 
-olai's browser suite starts a real server and a real Chromium and drives them through Cucumber features, covering 2,529 entries in 318 feature files.
+olai's browser suite starts a real server and a real Chromium and drives them through Cucumber features, covering 2,550 entries in 322 feature files.
 
 ## Run the suite
 
@@ -31,7 +31,7 @@ Each scenario is served one of the directories of test files under `packages/tes
 
 ## What the suite covers
 
-Cucumber runs those 2,529 entries as about 2,697 cases.[^count] What each group of features proves, which unit tests the browser tests repeat, what a run costs, and what nothing tests at all are in the closed blocks at the foot of this page.
+Cucumber runs those 2,550 entries as about 2,716 cases.[^count] What each group of features proves, which unit tests the browser tests repeat, what a run costs, and what nothing tests at all are in the closed blocks at the foot of this page.
 
 [^e2e]: `just e2e` is one of the jobs `just check` runs. The suite picks how many workers to run from the machine: the number of cores minus one, up to four, and from twenty cores up, one worker per four cores, up to eight.
 
@@ -110,7 +110,7 @@ One row per group of feature files.
 | Pictures, PDF, CSV and the plugins that claim them | 23 | Each kind's page, when a picture is fetched, a table wider than the column it is drawn in, and a kind switched off. |
 | Days, the agenda and reminders | 134 | Setting and clearing dates, repeating work, the agenda and its menu, the Today row, daily notes, and a reminder that rings once. |
 | The ledger | 38 | A `.journal` page whose arithmetic adds up by hand, odd lines, a broken or empty file, and one rewritten under an open page. |
-| Mail | 40 | Connecting a mailbox, listing threads, inbox wakes for a conversation, and the tools an agent calls on it. |
+| Mail | 46 | Connecting a mailbox, listing threads, inbox wakes for a conversation, and the tools an agent calls on it. |
 | Git | 40 | The Commit readout, choosing files, committing automatically and pausing that, push policy, and the git plugin going away and coming back. |
 | Choosing an agent, and signing in | 142 | Where an agent is offered with none, one or several installed, the sign-in card, how each agent talks, and a shutdown in the middle of a turn. |
 | A conversation | 158 | Sending, streaming, tool rows and diffs, refused writes, the chat in the pane beside the page, and a restart with chats still live. |
