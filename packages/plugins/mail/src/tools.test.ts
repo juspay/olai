@@ -315,9 +315,9 @@ test("empty reply defaults explain how to supply recipients, without writing", (
 })))
 
 /** Threads this file writes beside the fixtures, as the fake reads them: one message each, in the inbox. */
-const extra = (root: string, ids: ReadonlyArray<string>, subject: string, labels: ReadonlyArray<string> = ["INBOX"]) => {
+const extra = (root: string, ids: ReadonlyArray<string>, subject: string) => {
   for (const [i, id] of ids.entries()) writeFileSync(join(root, `thread-${id}.json`), JSON.stringify({ id, messages: [{
-    id: `${id}1`, "label-ids": labels, snippet: `${subject} ${i} preview`,
+    id: `${id}1`, "label-ids": ["INBOX"], snippet: `${subject} ${i} preview`,
     headers: [{ name: "Subject", value: `${subject} ${i}` }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "Date", value: "Tue, 15 Sep 2026 10:00:00 +0000" }],
     payload: { mimeType: "text/plain", parts: [] },
   }] }))
