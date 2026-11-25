@@ -281,7 +281,7 @@ Feature: Reading and acting on Gmail in a conversation
     Then the mail search story says "1 threads for"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
-  Scenario: A bulk run that meets Gmail's rate limit stops and skips the threads it had not started
+  Scenario: A bulk run that meets Gmail's rate limit stops, skips the rest, and the same call later finishes
     Given I open the app
     When I open the plugins panel
     And I press Connect in the mail row
@@ -298,7 +298,11 @@ Feature: Reading and acting on Gmail in a conversation
     Then the mail bulk story says "stopped: 403 Quota exceeded"
     And the mail bulk story says "skipped"
     And the agent's answer mentions "\"outcome\":\"skipped\""
-    And the fake mailbox has received no modify calls
+    When Gmail answers mail calls again
+    And I ask the agent "bulk archive mail threads a1, a2, a3, a4, a5, a6"
+    Then the mail bulk story says "archive · 3 applied · 3 unchanged"
+    When I ask the agent "list my inbox"
+    Then the mail inbox story says "0 threads in INBOX"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: An unknown thread in a bulk call fails alone and the others are applied
