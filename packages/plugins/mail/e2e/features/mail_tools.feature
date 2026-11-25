@@ -240,6 +240,67 @@ Feature: Reading and acting on Gmail in a conversation
     And the fake mailbox has received no trash calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Mail that arrives between the preview and the confirm refuses the confirm
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "bulk trash mail matching invoice"
+    Then the mail bulk story says "trash preview · 2 threads for"
+    When mail delivers thread "a7" titled "Late invoice" to the inbox
+    And I ask the agent "confirm bulk trash mail matching invoice"
+    Then the mail refused story says "changed since the preview"
+    And the fake mailbox has received no trash calls
+    When I ask the agent "bulk trash mail matching invoice"
+    Then the mail bulk story says "trash preview · 3 threads for"
+    When I ask the agent "confirm bulk trash mail matching invoice"
+    Then the mail bulk story says "trash · 3 applied"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: A query that matches more than one call covers says so, and only the covered threads change
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "bulk trash mail matching invoice at most 1"
+    Then the mail bulk story says "trash preview · 1 threads for"
+    And the mail bulk story says "more match"
+    When I ask the agent "confirm bulk trash mail matching invoice at most 1"
+    Then the mail bulk story says "trash · 1 applied"
+    When I ask the agent "search mail for in:trash"
+    Then the mail search story says "1 threads for"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: A bulk run that meets Gmail's rate limit stops and skips the threads it had not started
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "list my inbox"
+    Then the mail inbox story says "3 threads in INBOX"
+    When Gmail refuses every mail call with its rate limit
+    And I ask the agent "bulk archive mail threads a1, a2, a3, a4, a5, a6"
+    Then the mail bulk story says "stopped: 403 Quota exceeded"
+    And the mail bulk story says "skipped"
+    And the agent's answer mentions "\"outcome\":\"skipped\""
+    And the fake mailbox has received no modify calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: An unknown thread in a bulk call fails alone and the others are applied
     Given I open the app
     When I open the plugins panel
@@ -257,7 +318,7 @@ Feature: Reading and acting on Gmail in a conversation
     Then the mail inbox story says "1 threads in INBOX"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
-  Scenario: An unknown label refuses a bulk call before any write
+  Scenario: Bulk label, read and unread apply, and an unknown label refuses before any read
     Given I open the app
     When I open the plugins panel
     And I press Connect in the mail row
@@ -271,6 +332,18 @@ Feature: Reading and acting on Gmail in a conversation
     Then the mail refused story says "this mailbox has no label"
     And the fake mailbox has received no modify calls
     And the fake mailbox has received no get calls
+    When I ask the agent "bulk label mail threads a1, a2 with waiting"
+    Then the mail bulk story says "label · 2 applied"
+    When I ask the agent "bulk label mail threads a1, a2 with waiting"
+    Then the mail bulk story says "label · 0 applied · 2 unchanged"
+    When I ask the agent "bulk read mail threads a1, a2"
+    Then the mail bulk story says "read · 1 applied · 1 unchanged"
+    When I ask the agent "search mail for is:unread"
+    Then the mail search story says "0 threads for"
+    When I ask the agent "bulk unread mail threads a1, a2"
+    Then the mail bulk story says "unread · 2 applied"
+    When I ask the agent "search mail for is:unread"
+    Then the mail search story says "2 threads for"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: A thread with one message in Trash and a newer one in the inbox is trashed whole
