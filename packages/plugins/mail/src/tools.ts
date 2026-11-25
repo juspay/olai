@@ -29,6 +29,11 @@ const draftFields = {
 }
 const draftDescription = "Writes a draft in Gmail Drafts for the person to review and send; olai cannot send mail. At most 50 recipients, and at most 10 attachments totalling 25 MB."
 const manual = " Gmail query syntax is passed verbatim: from:, newer_than:1d, is:unread, has:attachment, label:. Thread ids are opaque Gmail hex ids; file a thread as <address>/<thread id>. Labels use Gmail's displayed names (system labels INBOX, UNREAD, STARRED, IMPORTANT)."
+const bulkDescription = "Apply one action to up to 50 threads in one call. Name them by `threads` (ids, applied at once) or by `query` (a Gmail query). " +
+  "A `query` call without `confirm` writes nothing: it answers how many threads it covers (`matched`), whether the query matches more (`more`), every covered thread with its snippet, the first ten in full, and a `confirm` code. " +
+  "Show that preview to the person; once they agree, call again with the same arguments plus `confirm`. If the matching threads changed in between, the call is refused and nothing is written. " +
+  "A call that writes answers one row per thread, with its subject, its labels before the write, and an `outcome`: applied; unchanged (already in place, so not written); failed, with a `reason`; or skipped, because the run stopped on a failure that is not about one thread, which `stopped` names. " +
+  "When `more` is true, preview again; for an action that leaves threads matching, such as adding a label, make the query exclude what is done (-label:waiting, in:inbox, is:unread). Never permanently deletes mail." + manual
 
 /** Activation-local capabilities only: no vault or conversation identity is needed. */
 export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>>) => Effect.gen(function*() {
@@ -52,8 +57,19 @@ export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>
     calls("attachment", "Save mail attachment", "Read the thread first. Saves an attachment up to 50 MB in this mail activation's temporary directory, removed when mail stops." + manual,
       Schema.Struct({ message: described("Opaque Gmail message id from mail_thread.").check(Schema.isPattern(/^[0-9a-f]+$/i)), attachment: described("Opaque attachment id from mail_thread.").check(Schema.isPattern(/^[A-Za-z0-9_][A-Za-z0-9_-]*$/)), filename: Schema.optionalKey(described("Optional filename; sanitised and capped at 120 characters.")) }), false,
       (_client: unknown, args) => perform("attachment", args, mailbox.attachment(args.message, args.attachment, args.filename))),
-    ...(["archive", "trash", "untrash"] as const).map(kind => calls(kind, `${kind} mail thread`, `${kind === "archive" ? "Remove INBOX from" : kind === "trash" ? "Move to Gmail Trash:" : "Restore from Gmail Trash:"} a thread. Never permanently deletes mail.` + manual, ThreadArgs, true,
+    ...(["archive", "trash", "untrash"] as const).map(kind => calls(kind, `${kind} mail thread`, `${kind === "archive" ? "Remove INBOX from" : kind === "trash" ? "Move to Gmail Trash:" : "Restore from Gmail Trash:"} a thread. Never permanently deletes mail. For many threads use mail_bulk.` + manual, ThreadArgs, true,
       (_client: unknown, args) => perform(kind, args, mailbox.write(kind, args)))),
+    calls("bulk", "Act on many mail threads", bulkDescription, Schema.Struct({
+      action: Schema.Literals(["archive", "trash", "untrash", "read", "unread", "label"]).annotate({ description: "archive removes INBOX; trash moves to Gmail Trash; untrash restores; read and unread mark; label adds and removes `add` and `remove`." }),
+      threads: Schema.optionalKey(Schema.Array(thread).check(Schema.isMinLength(1), Schema.isMaxLength(50)).annotate({ description: "Thread ids, 1–50; applied at once, in this order. Supply this or query." })),
+      query: Schema.optionalKey(described("Gmail query, passed untouched. Supply this or threads.").check(Schema.isPattern(/\S/))),
+      includeSpamTrash: Schema.optionalKey(Schema.Boolean.annotate({ description: "With query only: include spam and trash." })),
+      max: Schema.optionalKey(Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 50 })).annotate({ description: "With query only: the most threads this call covers, 1–50; defaults to 50." })),
+      confirm: Schema.optionalKey(described("With query only: the code from this query's preview. Omit it to preview.").check(Schema.isPattern(/^[0-9a-f]{16}$/))),
+      add: Schema.optionalKey(names.annotate({ description: "With action label only: existing label names to add, 1–10." })),
+      remove: Schema.optionalKey(names.annotate({ description: "With action label only: existing label names to remove, 1–10." })),
+    }), true,
+      (_client: unknown, args) => perform("bulk", args, mailbox.bulk(args))),
     calls("label", "Label mail thread", "Add or remove existing labels by name. Supply at least one list; unknown labels refuse before any write." + manual,
       Schema.Struct({ thread, add: Schema.optionalKey(names.annotate({ description: "Existing label names to add, 1–10. Supply add or remove (or both)." })), remove: Schema.optionalKey(names.annotate({ description: "Existing label names to remove, 1–10. Unknown names refuse the entire write." })) }), true,
       (_client: unknown, args) => perform("label", args, mailbox.write("label", args))),

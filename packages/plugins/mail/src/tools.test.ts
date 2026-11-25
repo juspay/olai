@@ -1,8 +1,11 @@
 import { openMailbox } from "./mailbox.ts"
 import { expect, test } from "bun:test"
+import { readFileSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 import { Effect } from "effect"
 import { harness, connected } from "./tools.testlib.ts"
 import { MAIL_UNCONNECTED } from "./wire.ts"
+import type { Run } from "./himalaya/run.ts"
 
 const run = (work: Parameters<typeof harness>[0]) => Effect.runPromise(harness(work))
 test("inbox, query, pagination, HTML and all five mutations round trip", () => run(h => Effect.gen(function*() {
@@ -28,12 +31,13 @@ test("inbox, query, pagination, HTML and all five mutations round trip", () => r
 })))
 
 test("every tool refuses absent, faulted and expired accounts without spawning", () => run(h => Effect.gen(function*() {
-  const args = { body: "Hello", draft: "draft_1", thread: "a1", message: "a32", attachment: "attachment_1", query: "is:unread", add: ["waiting"], read: true }
+  const args = { body: "Hello", draft: "draft_1", thread: "a1", message: "a32", attachment: "attachment_1", query: "is:unread", add: ["waiting"], read: true, action: "label" }
   for (const state of [MAIL_UNCONNECTED, { ...connected, status: "fault" as const, reason: "invalid_grant" }, connected]) {
     h.state(state, false)
-    for (const name of ["inbox", "search", "thread", "attachment", "archive", "trash", "untrash", "label", "read", "draft", "draft_update"]) {
+    for (const name of ["inbox", "search", "thread", "attachment", "archive", "trash", "untrash", "label", "read", "bulk", "draft", "draft_update"]) {
       const result = yield* Effect.result(h.call(name, args))
       expect(result._tag).toBe("Failure")
+      if (name === "bulk") expect(result).toMatchObject({ failure: { reason: expect.stringMatching(/connect one|invalid_grant|expired/) } })
     }
   }
   expect(h.calls).toHaveLength(0)
@@ -309,3 +313,214 @@ test("empty reply defaults explain how to supply recipients, without writing", (
     expect(supplied.to).toEqual(["ravi@example.com"])
   }
 })))
+
+/** Threads this file writes beside the fixtures, as the fake reads them: one message each, in the inbox. */
+const extra = (root: string, ids: ReadonlyArray<string>, subject: string, labels: ReadonlyArray<string> = ["INBOX"]) => {
+  for (const [i, id] of ids.entries()) writeFileSync(join(root, `thread-${id}.json`), JSON.stringify({ id, messages: [{
+    id: `${id}1`, "label-ids": labels, snippet: `${subject} ${i} preview`,
+    headers: [{ name: "Subject", value: `${subject} ${i}` }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "Date", value: "Tue, 15 Sep 2026 10:00:00 +0000" }],
+    payload: { mimeType: "text/plain", parts: [] },
+  }] }))
+}
+const twelve = Array.from({ length: 12 }, (_, i) => `b${i.toString(16)}`)
+const WRITES = ["threads.modify", "threads.trash", "threads.untrash"]
+/** The thread verbs one id saw, in order, listings aside. */
+const verbsFor = (calls: ReadonlyArray<Run>, id: string) => calls.filter(c => c.verb.id.startsWith("threads.") && c.verb.id !== "threads.list" && c.args?.[0] === id).map(c => c.verb.id)
+const QUOTA = "403 Quota exceeded for quota metric 'Queries' and limit 'Queries per minute per user'"
+
+test("bulk by id list applies each action once per thread and answers a row per id, in order", () => run(h => Effect.gen(function*() {
+  const archived: any = yield* h.call("bulk", { action: "archive", threads: ["a3", "a1", "a2"] })
+  expect(archived).toMatchObject({ mail: "bulk", address: "you@gmail.com", action: "archive", counts: { applied: 3, unchanged: 0, failed: 0, skipped: 0 }, stopped: null })
+  expect(archived.threads.map((t: any) => [t.id, t.subject, t.outcome])).toEqual([["a3", "Invoice conversation", "applied"], ["a1", "Q3 invoice", "applied"], ["a2", "Nix meetup", "applied"]])
+  expect(archived.threads[1]).toMatchObject({ from: "Ravi <ravi@example.com>", messages: 1, unread: true, labels: ["INBOX", "UNREAD"] })
+  for (const id of ["a1", "a2", "a3"]) expect(verbsFor(h.calls, id)).toEqual(["threads.get", "threads.modify"])
+  expect((yield* h.call("inbox") as Effect.Effect<any>).threads).toHaveLength(0)
+  const trashed: any = yield* h.call("bulk", { action: "trash", threads: ["a2", "a4"] })
+  expect(trashed.threads.map((t: any) => t.outcome)).toEqual(["applied", "applied"])
+  expect((yield* h.call("search", { query: "in:trash" }) as Effect.Effect<any>).threads.map((t: any) => t.id).sort()).toEqual(["a2", "a4"])
+  const restored: any = yield* h.call("bulk", { action: "untrash", threads: ["a4", "a2"] })
+  expect(restored.threads.map((t: any) => [t.id, t.labels.includes("TRASH"), t.outcome])).toEqual([["a4", true, "applied"], ["a2", true, "applied"]])
+  expect((yield* h.call("search", { query: "in:trash" }) as Effect.Effect<any>).threads).toHaveLength(0)
+  expect((yield* h.call("bulk", { action: "read", threads: ["a1"] }) as Effect.Effect<any>).counts.applied).toBe(1)
+  expect((yield* h.call("search", { query: "is:unread" }) as Effect.Effect<any>).threads).toHaveLength(0)
+  expect((yield* h.call("bulk", { action: "unread", threads: ["a1", "a2"] }) as Effect.Effect<any>).counts.applied).toBe(2)
+  expect((yield* h.call("search", { query: "is:unread" }) as Effect.Effect<any>).threads).toHaveLength(2)
+  expect(h.calls.filter(c => c.verb.id === "labels.list")).toHaveLength(1)
+})))
+
+test("bulk label resolves names once, and leaves the mailbox as labelled", () => run(h => Effect.gen(function*() {
+  const labelled: any = yield* h.call("bulk", { action: "label", threads: ["a1", "a2"], add: ["Waiting"], remove: ["INBOX"] })
+  expect(labelled.counts).toEqual({ applied: 2, unchanged: 0, failed: 0, skipped: 0 })
+  expect(h.calls.filter(c => c.verb.id === "labels.list")).toHaveLength(1)
+  expect(h.calls.filter(c => c.verb.id === "threads.modify").map(c => c.args)).toEqual([["a1", "--add-label", "Label_1", "--remove-label", "INBOX"], ["a2", "--add-label", "Label_1", "--remove-label", "INBOX"]])
+  expect((yield* h.call("search", { query: "is:unread" }) as Effect.Effect<any>).threads[0].labels).toEqual(["UNREAD", "waiting"])
+  expect((yield* h.call("inbox") as Effect.Effect<any>).threads.map((t: any) => t.id)).toEqual(["a3"])
+})))
+
+test("a thread already where the action puts it is reported unchanged and not written", () => run(h => Effect.gen(function*() {
+  yield* h.call("trash", { thread: "a3" })
+  h.calls.length = 0
+  for (const [action, id, extraArgs] of [["archive", "a4", {}], ["trash", "a3", {}], ["untrash", "a2", {}], ["read", "a2", {}], ["unread", "a1", {}], ["label", "a5", { add: ["waiting"] }], ["label", "a2", { remove: ["waiting"] }]] as const) {
+    const answer: any = yield* h.call("bulk", { action, threads: [id], ...extraArgs })
+    expect(answer.threads).toEqual([expect.objectContaining({ id, outcome: "unchanged" })])
+    expect(answer.counts).toEqual({ applied: 0, unchanged: 1, failed: 0, skipped: 0 })
+  }
+  expect(h.calls.filter(c => WRITES.includes(c.verb.id))).toHaveLength(0)
+})))
+
+test("bulk refuses malformed arguments before any thread is touched", () => run(h => Effect.gen(function*() {
+  const fifty1 = Array.from({ length: 51 }, (_, i) => i.toString(16))
+  for (const args of [
+    { action: "archive" }, { action: "archive", threads: ["a1"], query: "is:unread" }, { action: "archive", threads: [] }, { action: "archive", threads: fifty1 },
+    { action: "archive", threads: ["zz"] }, { action: "delete", threads: ["a1"] }, { threads: ["a1"] },
+    { action: "archive", query: "is:unread", max: 0 }, { action: "archive", query: "is:unread", max: 51 }, { action: "archive", query: "is:unread", max: 1.5 },
+    { action: "archive", query: "" }, { action: "archive", query: "   " }, { action: "archive", query: "is:unread", confirm: "XYZ" },
+    { action: "archive", threads: ["a1"], confirm: "0123456789abcdef" }, { action: "archive", threads: ["a1"], max: 5 }, { action: "archive", threads: ["a1"], includeSpamTrash: true },
+    { action: "archive", threads: ["a1"], add: ["waiting"] }, { action: "trash", query: "is:unread", remove: ["INBOX"] },
+    { action: "label", threads: ["a1"] }, { action: "label", threads: ["a1"], add: [] }, { action: "label", threads: ["a1"], add: ["missing"] },
+    { action: "label", query: "is:unread", add: ["waiting"], remove: ["Waiting"] },
+  ]) expect((yield* Effect.result(h.call("bulk", args)))._tag).toBe("Failure")
+  expect(h.calls.filter(c => c.verb.id.startsWith("threads."))).toHaveLength(0)
+})))
+
+test("duplicate ids are read and written once; a missing id fails alone and names the account", () => run(h => Effect.gen(function*() {
+  const answer: any = yield* h.call("bulk", { action: "archive", threads: ["a1", "ffff", "a1", "a2"] })
+  expect(answer.threads).toEqual([
+    expect.objectContaining({ id: "a1", outcome: "applied" }),
+    { id: "ffff", outcome: "failed", reason: "this thread is not in you@gmail.com" },
+    expect.objectContaining({ id: "a2", outcome: "applied" }),
+  ])
+  expect(answer.counts).toEqual({ applied: 2, unchanged: 0, failed: 1, skipped: 0 })
+  expect(answer.stopped).toBeNull()
+  expect(verbsFor(h.calls, "a1")).toEqual(["threads.get", "threads.modify"])
+})))
+
+test("a missing thread on the write itself fails alone too", () => Effect.runPromise(harness(h => Effect.gen(function*() {
+  const answer: any = yield* h.call("bulk", { action: "trash", threads: ["a1", "a2", "a3"] })
+  expect(answer.threads.map((t: any) => [t.id, t.outcome, t.reason])).toEqual([["a1", "applied", undefined], ["a2", "failed", "this thread is not in you@gmail.com"], ["a3", "applied", undefined]])
+  expect(answer.threads[1].subject).toBe("Nix meetup")
+  expect(answer.stopped).toBeNull()
+}), false, call => call.verb.id === "threads.trash" && call.args?.[0] === "a2" ? "404 Requested entity was not found." : undefined)))
+
+for (const [where, verb] of [["read", "threads.get"], ["write", "threads.modify"]] as const) {
+  test(`a quota failure on a ${where} stops the run: the rest are skipped and nothing new starts`, () => Effect.runPromise(harness(h => Effect.gen(function*() {
+      extra(h.root, twelve, "Bulk notice")
+      const answer: any = yield* h.call("bulk", { action: "archive", threads: twelve })
+      expect(answer.threads.map((t: any) => t.id)).toEqual(twelve)
+      expect(answer.stopped).toBe(QUOTA)
+      const failed = answer.threads.findIndex((t: any) => t.outcome === "failed")
+      expect(answer.threads[failed]).toMatchObject({ id: "b3", reason: QUOTA })
+      expect(answer.counts.applied + answer.counts.unchanged + answer.counts.failed + answer.counts.skipped).toBe(12)
+      expect(answer.counts.skipped).toBeGreaterThanOrEqual(12 - 4 - failed)
+      for (const [i, row] of answer.threads.entries()) {
+        if (i < failed) expect(row.outcome).not.toBe("skipped")
+        if (row.outcome === "skipped") expect(verbsFor(h.calls, row.id)).toEqual([])
+        if (i > failed + 3) expect(row.outcome).toBe("skipped")
+      }
+    }), false, call => call.verb.id === verb && call.args?.[0] === "b3" ? QUOTA : undefined)))
+}
+
+test("a query preview writes nothing and shows what it covers", () => run(h => Effect.gen(function*() {
+  extra(h.root, twelve, "Bulk notice")
+  const preview: any = yield* h.call("bulk", { action: "trash", query: "notice" })
+  expect(preview).toMatchObject({ mail: "bulk", action: "trash", query: "notice", matched: 12, more: false })
+  expect(preview.threads.map((t: any) => t.id).sort()).toEqual(twelve)
+  for (const t of preview.threads) expect(t.snippet).toMatch(/^Bulk notice \d+ preview$/)
+  expect(preview.sample).toHaveLength(10)
+  expect(preview.sample.map((t: any) => t.id)).toEqual(preview.threads.slice(0, 10).map((t: any) => t.id))
+  expect(preview.sample[0]).toMatchObject({ subject: expect.stringMatching(/^Bulk notice/), labels: ["INBOX"], messages: 1 })
+  expect(preview.confirm).toMatch(/^[0-9a-f]{16}$/)
+  expect(preview.counts).toBeUndefined()
+  expect(h.calls.filter(c => c.verb.id === "threads.get")).toHaveLength(10)
+  expect(h.calls.filter(c => WRITES.includes(c.verb.id))).toHaveLength(0)
+  expect(h.calls.find(c => c.verb.id === "threads.list")?.args).toEqual(["-s", "51", "-q", "notice"])
+  const capped: any = yield* h.call("bulk", { action: "trash", query: "notice", max: 5 })
+  expect(capped).toMatchObject({ matched: 5, more: true })
+  expect(capped.threads).toHaveLength(5)
+  expect(capped.confirm).not.toBe(preview.confirm)
+  const none: any = yield* h.call("bulk", { action: "trash", query: "nothing-here" })
+  expect(none).toMatchObject({ matched: 0, more: false, threads: [], sample: [] })
+  expect("confirm" in none).toBe(false)
+  expect(yield* Effect.result(h.call("bulk", { action: "trash", query: "nothing-here", confirm: preview.confirm }))).toMatchObject({ _tag: "Failure", failure: { reason: expect.stringContaining("nothing matches") } })
+  expect(h.calls.filter(c => WRITES.includes(c.verb.id))).toHaveLength(0)
+})))
+
+test("confirm applies exactly the previewed threads, and refuses when the set or the action changed", () => run(h => Effect.gen(function*() {
+  const preview: any = yield* h.call("bulk", { action: "archive", query: "invoice" })
+  expect(preview.threads).toEqual([{ id: "a1", snippet: "Q3 invoice" }, { id: "a3", snippet: "Re: Invoice conversation" }])
+  const wrongAction = yield* Effect.result(h.call("bulk", { action: "trash", query: "invoice", confirm: preview.confirm }))
+  expect(wrongAction).toMatchObject({ _tag: "Failure", failure: { reason: expect.stringContaining("changed since the preview") } })
+  extra(h.root, ["c1"], "Late invoice")
+  const changed = yield* Effect.result(h.call("bulk", { action: "archive", query: "invoice", confirm: preview.confirm }))
+  expect(changed).toMatchObject({ _tag: "Failure", failure: { reason: expect.stringContaining("changed since the preview") } })
+  expect(h.calls.filter(c => WRITES.includes(c.verb.id))).toHaveLength(0)
+  const again: any = yield* h.call("bulk", { action: "archive", query: "invoice" })
+  expect(again.matched).toBe(3)
+  const applied: any = yield* h.call("bulk", { action: "archive", query: "invoice", confirm: again.confirm })
+  expect(applied).toMatchObject({ query: "invoice", matched: 3, more: false, stopped: null, counts: { applied: 3, unchanged: 0, failed: 0, skipped: 0 } })
+  expect(applied.threads.map((t: any) => t.id)).toEqual(again.threads.map((t: any) => t.id))
+  expect(applied.threads.map((t: any) => t.subject)).toEqual(expect.arrayContaining(["Q3 invoice", "Invoice conversation", "Late invoice 0"]))
+  expect(h.calls.filter(c => WRITES.includes(c.verb.id)).map(c => c.args?.[0]).sort()).toEqual(["a1", "a3", "c1"])
+  expect((yield* h.call("inbox") as Effect.Effect<any>).threads.map((t: any) => t.id)).toEqual(["a2"])
+})))
+
+test("a thread with one message in Trash and a newer one in the inbox is listed, trashed, and then gone", () => run(h => Effect.gen(function*() {
+  yield* h.call("trash", { thread: "a2" })
+  const saved = JSON.parse(readFileSync(join(h.root, "thread-a2.json"), "utf8"))
+  saved.messages.push({ ...saved.messages[0], id: "a22", "label-ids": ["INBOX", "UNREAD"], snippet: "Nix meetup moved" })
+  writeFileSync(join(h.root, "thread-a2.json"), JSON.stringify(saved))
+  expect((yield* h.call("search", { query: "meetup" }) as Effect.Effect<any>).threads.map((t: any) => t.id)).toEqual(["a2"])
+  const preview: any = yield* h.call("bulk", { action: "trash", query: "meetup" })
+  expect(preview.threads).toEqual([{ id: "a2", snippet: "Nix meetup moved" }])
+  expect(preview.sample[0].labels).toEqual(expect.arrayContaining(["INBOX", "TRASH"]))
+  const trashed: any = yield* h.call("bulk", { action: "trash", query: "meetup", confirm: preview.confirm })
+  expect(trashed.threads).toEqual([expect.objectContaining({ id: "a2", outcome: "applied" })])
+  expect((yield* h.call("search", { query: "meetup" }) as Effect.Effect<any>).threads).toHaveLength(0)
+  expect((yield* h.call("bulk", { action: "trash", threads: ["a2"] }) as Effect.Effect<any>).threads[0].outcome).toBe("unchanged")
+})))
+
+test("a fifty-thread bulk write never runs more than four Himalaya children", async () => {
+  const { makeTools } = await import("./tools.ts")
+  const { THREADS, LABELS } = await import("./appliance/testlib/fixtures.ts")
+  let active = 0
+  let peak = 0
+  const ids = Array.from({ length: 50 }, (_, i) => i.toString(16))
+  const answer: any = await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const tools = yield* makeTools(yield* openMailbox({ binary: "/fake", useToken: () => Effect.void, close: async () => {}, run: call => Effect.acquireUseRelease(
+      Effect.sync(() => { active++; peak = Math.max(peak, active) }),
+      () => Effect.sleep("2 millis").pipe(Effect.as(call.verb.id === "labels.list" ? LABELS : call.verb.id === "threads.get" ? { ...THREADS[0], id: call.args?.[0] } : "modified")),
+      () => Effect.sync(() => { active-- }),
+    ) }, { current: () => connected, usable: () => true }))
+    const tool = tools.find(t => t.name === "bulk")!
+    if (tool.kind !== "surface") throw new Error("wrong tool kind")
+    return yield* tool.call(undefined as never, { action: "archive", threads: ids } as never)
+  })))
+  expect(answer.counts.applied).toBe(50)
+  expect(peak).toBe(4)
+  expect(active).toBe(0)
+})
+
+test("closing mail mid-run cuts the bulk call and starts no further spawn", async () => {
+  const { makeTools } = await import("./tools.ts")
+  const { Deferred, Exit, Fiber, Scope } = await import("effect")
+  const { THREADS, LABELS } = await import("./appliance/testlib/fixtures.ts")
+  const scope = Scope.makeUnsafe()
+  const entered = Deferred.makeUnsafe<void>()
+  let cut = 0
+  let spawns = 0
+  const tools = await Effect.runPromise(Effect.provideService(openMailbox({ binary: "/fake", useToken: () => Effect.void, close: async () => {}, run: call => {
+    spawns++
+    if (call.verb.id === "labels.list") return Effect.succeed(LABELS)
+    if (call.verb.id === "threads.get") return Effect.succeed({ ...THREADS[0], id: call.args?.[0] })
+    return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never), Effect.ensuring(Effect.sync(() => { cut++ })))
+  } }, { current: () => connected, usable: () => true }).pipe(Effect.flatMap(makeTools)), Scope.Scope, scope))
+  const tool = tools.find(t => t.name === "bulk")!
+  if (tool.kind !== "surface") throw new Error("wrong tool kind")
+  const fiber = Effect.runFork(tool.call(undefined as never, { action: "trash", threads: twelve } as never))
+  await Effect.runPromise(Deferred.await(entered))
+  await Effect.runPromise(Scope.close(scope, Exit.void))
+  const closed = spawns
+  expect(cut).toBeGreaterThan(0)
+  await Effect.runPromise(Fiber.await(fiber))
+  expect(spawns).toBe(closed)
+})

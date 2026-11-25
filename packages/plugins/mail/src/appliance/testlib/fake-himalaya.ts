@@ -516,7 +516,8 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     const query = args.includes("-q") ? flag("-q") ?? "" : ""
     let selected = threads.filter(t => {
       const labels = t.messages.flatMap(m => m["label-ids"])
-      if (!args.includes("--include-spam-trash") && !query.includes("in:trash") && !query.includes("in:spam") && (labels.includes("TRASH") || labels.includes("SPAM"))) return false
+      const hidden = t.messages.length > 0 && t.messages.every(m => m["label-ids"].includes("TRASH") || m["label-ids"].includes("SPAM"))
+      if (!args.includes("--include-spam-trash") && !query.includes("in:trash") && !query.includes("in:spam") && hidden) return false
       if (!values("-l").every(l => labels.includes(l))) return false
       return query.split(/\s+/).filter(Boolean).every(word => word === "is:unread" ? labels.includes("UNREAD")
         : word === "in:trash" ? labels.includes("TRASH")
@@ -527,7 +528,7 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     const max = args.includes("-s") ? Number(flag("-s")) : 20
     const next = start + max < selected.length ? String(start + max) : null
     selected = selected.slice(start, start + max)
-    return ok({ threads: selected.map(t => ({ id: t.id })), ...(next ? { next_page: next } : {}) })
+    return ok({ threads: selected.map(t => ({ id: t.id, snippet: t.messages.at(-1)?.snippet ?? null })), ...(next ? { next_page: next } : {}) })
   }
   if (verb.id === "attachments.get") {
     const size = args[1] === undefined ? undefined : ATTACHMENT_BYTES[args[1]]
