@@ -1736,17 +1736,18 @@ const attaching = (named: string | undefined): { attachments?: Array<{ path: str
 /** The `confirm` code of the last `mail_bulk` preview this agent saw — what a
  *  real agent carries from the preview it showed to the call that applies it.
  *  `confirm bulk … matching …` sends it back; `… confirming <code>` sends a
- *  code the scenario wrote instead. */
+ *  code the scenario wrote instead, and `… at most <n>` passes `max`. */
 let previewed: string | undefined
 const bulkCall = (words: string) => {
-  const bulk = /^(confirm )?bulk (archive|trash|untrash|read|unread|label) mail (threads|matching) (.+?)(?: with (\S+))?(?: confirming (\S+))?$/.exec(words)
+  const bulk = /^(confirm )?bulk (archive|trash|untrash|read|unread|label) mail (threads|matching) (.+?)(?: with (\S+))?(?: at most (\d+))?(?: confirming (\S+))?$/.exec(words)
   if (!bulk) return null
-  const [, again, action, by, what, label, code] = bulk
+  const [, again, action, by, what, label, max, code] = bulk
   const confirm = code ?? (again ? previewed : undefined)
   return { name: "bulk", args: {
     action,
     ...(by === "threads" ? { threads: what!.split(",").map((one) => one.trim()) } : { query: what }),
     ...(label ? { add: [label] } : {}),
+    ...(max ? { max: Number(max) } : {}),
     ...(confirm ? { confirm } : {}),
   } }
 }
@@ -1791,8 +1792,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   })()
   if (mailCall) {
     const answer = await useTool(`mail_${mailCall.name}`, mailCall.args)
-    const code = /\\?"confirm\\?":\\?"([0-9a-f]{16})/.exec(JSON.stringify(answer))
-    if (mailCall.name === "bulk" && code) previewed = code[1]
+    const confirm = (answer["structuredContent"] as { readonly confirm?: unknown } | undefined)?.confirm
+    if (mailCall.name === "bulk" && typeof confirm === "string") previewed = confirm
     say("```json\n" + JSON.stringify(answer) + "\n```")
     reply(id, { stopReason: "end_turn" })
     return
