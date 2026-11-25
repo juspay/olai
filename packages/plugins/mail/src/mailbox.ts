@@ -18,9 +18,9 @@ const replyAddresses = (header: string) => header.trim() ? addressList(header)
   : Result.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
 
 /** The six things `mail_bulk` does to every thread it names. */
-export type BulkAction = "archive" | "trash" | "untrash" | "read" | "unread" | "label"
+type BulkAction = "archive" | "trash" | "untrash" | "read" | "unread" | "label"
 /** `mail_bulk`'s arguments: exactly one of `threads` and `query`; the rest refine one of them. */
-export interface BulkArgs {
+interface BulkArgs {
   readonly action: BulkAction
   readonly threads?: ReadonlyArray<string>
   readonly query?: string
@@ -78,11 +78,11 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
   })
   const decode = <A>(schema: Schema.Codec<A>, raw: unknown) => Schema.decodeUnknownEffect(schema)(raw).pipe(Effect.mapError(() => new MailRefusal({ reason: "Himalaya answered JSON that does not match its published schema" })))
   /** A thread read, failing as `attempt` does so a bulk run can tell a missing thread from a failing mailbox. */
-  const fetch = (id: string, full = false) => Effect.gen(function*() {
+  const readThread = (id: string, full = false) => Effect.gen(function*() {
     const raw = yield* attempt({ verb: GMAIL.threadsGet, args: [id, "--format", full ? "full" : "metadata", ...(full ? [] : ["--header", "subject", "--header", "from", "--header", "date"])] })
     return yield* decode(Thread, raw).pipe(Effect.tap(decoded => labels.ensureIds(idsOf(decoded))), Effect.mapError(refusal => ({ refusal, absent: false })))
   })
-  const get = (id: string, full = false) => fetch(id, full).pipe(Effect.mapError(failed => failed.refusal))
+  const get = (id: string, full = false) => readThread(id, full).pipe(Effect.mapError(failed => failed.refusal))
   const serialize = <A>(id: string, work: Effect.Effect<A, MailRefusal>) => Effect.acquireUseRelease(
     Effect.sync(() => {
       let entry = writes.get(id)
@@ -145,7 +145,7 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     const one = (id: string) => Effect.gen(function*() {
       if (halt.reason !== null) return { id, outcome: "skipped" as const }
       return yield* serialize(id, Effect.gen(function*() {
-        const read = yield* Effect.result(fetch(id))
+        const read = yield* Effect.result(readThread(id))
         if (read._tag === "Failure") return { id, ...failed(read.failure) }
         const row = rowOf(read.success, labels.names)
         if (plan.settled(read.success)) return { ...row, outcome: "unchanged" as const }
@@ -174,7 +174,7 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     if (args.threads) return { address, action: args.action, ...yield* apply(args.action, [...new Set(args.threads)], plan) }
     const max = args.max ?? 50
     const raw = yield* run({ verb: GMAIL.threadsList, args: ["-s", String(max + 1), "-q", args.query!, ...(args.includeSpamTrash ? ["--include-spam-trash"] : [])] })
-    const listed = [...new Map((yield* decode(Listing, raw)).threads.map(t => [t.id, t])).values()]
+    const listed = (yield* decode(Listing, raw)).threads
     const covered = listed.slice(0, max)
     const ids = covered.map(t => t.id)
     const found = { query: args.query!, matched: ids.length, more: listed.length > max }
