@@ -17,11 +17,11 @@ const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.Null
 const replyAddresses = (header: string) => header.trim() ? addressList(header)
   : Result.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
 
-/** The six things `mail_bulk` does to every thread it names. */
-type BulkAction = "archive" | "trash" | "untrash" | "read" | "unread" | "label"
+/** What one write does to a thread, for `mail_bulk` and the five single-thread tools alike. */
+type Action = "archive" | "trash" | "untrash" | "read" | "unread" | "label"
 /** `mail_bulk`'s arguments: exactly one of `threads` and `query`; the rest refine one of them. */
 interface BulkArgs {
-  readonly action: BulkAction
+  readonly action: Action
   readonly threads?: ReadonlyArray<string>
   readonly query?: string
   readonly includeSpamTrash?: boolean
@@ -32,6 +32,7 @@ interface BulkArgs {
 }
 /** One write resolved before any thread is touched; see `change` below. */
 interface WritePlan {
+  readonly action: Action
   readonly verb: GmailVerb
   readonly added: ReadonlyArray<string>
   readonly removed: ReadonlyArray<string>
@@ -106,25 +107,25 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
    *  argv, the label ids resolved once, and whether a thread is already where the
    *  write would put it: every message carries every label added (trash adds
    *  TRASH) and none carries a label removed (untrash removes TRASH). */
-  const change = (kind: string, args: { add?: ReadonlyArray<string>; remove?: ReadonlyArray<string>; read?: boolean }) => Effect.gen(function*() {
-    const add = kind === "read" && !args.read ? ["UNREAD"] : args.add ?? []
-    const remove = kind === "archive" ? ["INBOX"] : kind === "read" && args.read ? ["UNREAD"] : args.remove ?? []
-    if (kind === "label" && !add.length && !remove.length) return yield* Effect.fail(new MailRefusal({ reason: "supply at least one label to add or remove" }))
+  const change = (action: Action, labelled: { add?: ReadonlyArray<string>; remove?: ReadonlyArray<string> }) => Effect.gen(function*() {
+    const add = action === "unread" ? ["UNREAD"] : labelled.add ?? []
+    const remove = action === "archive" ? ["INBOX"] : action === "read" ? ["UNREAD"] : labelled.remove ?? []
+    if (action === "label" && !add.length && !remove.length) return yield* Effect.fail(new MailRefusal({ reason: "supply at least one label to add or remove" }))
     const added = yield* labels.resolve(add)
     const removed = yield* labels.resolve(remove)
     if (added.some(id => removed.includes(id))) return yield* Effect.fail(new MailRefusal({ reason: "a label cannot be both added and removed" }))
-    const verb = kind === "trash" ? GMAIL.threadsTrash : kind === "untrash" ? GMAIL.threadsUntrash : GMAIL.threadsModify
-    const carries = kind === "trash" ? ["TRASH"] : added
-    const lacks = kind === "untrash" ? ["TRASH"] : removed
+    const carries = action === "trash" ? ["TRASH"] : added
+    const lacks = action === "untrash" ? ["TRASH"] : removed
     return {
-      verb, added, removed,
+      action, added, removed,
+      verb: action === "trash" ? GMAIL.threadsTrash : action === "untrash" ? GMAIL.threadsUntrash : GMAIL.threadsModify,
       argv: (id: string) => [id, ...added.flatMap(label => ["--add-label", label]), ...removed.flatMap(label => ["--remove-label", label])],
       settled: (thread: Thread) => thread.messages.every(m => carries.every(label => m["label-ids"].includes(label)) && !lacks.some(label => m["label-ids"].includes(label))),
-    }
+    } satisfies WritePlan
   })
-  const write = (kind: string, args: { thread: string; add?: ReadonlyArray<string>; remove?: ReadonlyArray<string>; read?: boolean }) => serialize(args.thread, Effect.gen(function*() {
+  const write = (kind: Exclude<Action, "unread">, args: { thread: string; add?: ReadonlyArray<string>; remove?: ReadonlyArray<string>; read?: boolean }) => serialize(args.thread, Effect.gen(function*() {
     const address = yield* ready
-    const plan = yield* change(kind, args)
+    const plan = yield* change(kind === "read" && !args.read ? "unread" : kind, args)
     const before = yield* get(args.thread)
     yield* run({ verb: plan.verb, args: plan.argv(args.thread) })
     const after = yield* get(args.thread).pipe(Effect.mapError(error => new MailRefusal({ reason: `the write was sent, but its result could not be read; check this thread before retrying: ${error.reason}` })))
@@ -136,7 +137,7 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
    *  write unless the thread is already in place. A missing thread fails alone;
    *  any other failure is the mailbox's or the session's, so no further thread
    *  starts and the rest are skipped. The run's state ends with the call. */
-  const apply = (action: BulkAction, ids: ReadonlyArray<string>, plan: WritePlan) => Effect.gen(function*() {
+  const apply = (ids: ReadonlyArray<string>, plan: WritePlan) => Effect.gen(function*() {
     const halt: { reason: string | null } = { reason: null }
     const failed = (failure: { refusal: MailRefusal; absent: boolean }) => {
       if (!failure.absent) halt.reason ??= failure.refusal.reason
@@ -151,14 +152,14 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
         if (plan.settled(read.success)) return { ...row, outcome: "unchanged" as const }
         const wrote = yield* Effect.result(attempt({ verb: plan.verb, args: plan.argv(id) }))
         if (wrote._tag === "Failure") return { ...row, ...failed(wrote.failure) }
-        yield* Effect.logInfo(`mail bulk ${action} wrote thread=${id}`)
+        yield* Effect.logInfo(`mail bulk ${plan.action} wrote thread=${id}`)
         return { ...row, outcome: "applied" as const }
       }))
     })
     const threads = yield* Effect.forEach(ids, one, { concurrency: 4 })
     const counts = { applied: 0, unchanged: 0, failed: 0, skipped: 0 }
     for (const row of threads) counts[row.outcome]++
-    return { threads, counts, stopped: halt.reason }
+    return { action: plan.action, threads, counts, stopped: halt.reason }
   })
   /** By id list: applied at once. By query: a preview that writes nothing and
    *  answers a code over the action, its label ids and the matched ids; then the
@@ -170,22 +171,23 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     if (args.threads && (args.confirm !== undefined || args.max !== undefined || args.includeSpamTrash !== undefined)) return yield* refuse("`confirm`, `max` and `includeSpamTrash` go with `query`; a list of thread ids is applied at once")
     if (args.action !== "label" && (args.add !== undefined || args.remove !== undefined)) return yield* refuse("`add` and `remove` go only with the action label")
     const address = yield* ready
-    const plan = yield* change(args.action === "unread" ? "read" : args.action, { add: args.add, remove: args.remove, read: args.action === "read" })
-    if (args.threads) return { address, action: args.action, ...yield* apply(args.action, [...new Set(args.threads)], plan) }
+    const plan = yield* change(args.action, args)
+    if (args.threads) return { address, ...yield* apply([...new Set(args.threads)], plan) }
+    const query = args.query!
     const max = args.max ?? 50
-    const raw = yield* run({ verb: GMAIL.threadsList, args: ["-s", String(max + 1), "-q", args.query!, ...(args.includeSpamTrash ? ["--include-spam-trash"] : [])] })
+    const raw = yield* run({ verb: GMAIL.threadsList, args: ["-s", String(max + 1), "-q", query, ...(args.includeSpamTrash ? ["--include-spam-trash"] : [])] })
     const listed = (yield* decode(Listing, raw)).threads
     const covered = listed.slice(0, max)
     const ids = covered.map(t => t.id)
-    const found = { query: args.query!, matched: ids.length, more: listed.length > max }
+    const found = { address, query, matched: ids.length, more: listed.length > max }
     const code = createHash("sha256").update(JSON.stringify([args.action, plan.added, plan.removed, [...ids].sort()])).digest("hex").slice(0, 16)
     if (args.confirm === undefined) {
       const sample = yield* Effect.forEach(ids.slice(0, 10), id => get(id).pipe(Effect.map(t => rowOf(t, labels.names))), { concurrency: 4 })
-      return { address, action: args.action, ...found, threads: covered.map(t => ({ id: t.id, snippet: t.snippet ?? "" })), sample, ...(ids.length ? { confirm: code } : {}) }
+      return { ...found, action: args.action, threads: covered.map(t => ({ id: t.id, snippet: t.snippet ?? "" })), sample, ...(ids.length ? { confirm: code } : {}) }
     }
     if (!ids.length) return yield* refuse("nothing matches this query now, so there is nothing to confirm")
     if (args.confirm !== code) return yield* refuse("the matching threads changed since the preview; call again without confirm to see them")
-    return { address, action: args.action, ...found, ...yield* apply(args.action, ids, plan) }
+    return { ...found, ...yield* apply(ids, plan) }
   })
   const thread = (id: string) => Effect.gen(function*() {
     const address = yield* ready
