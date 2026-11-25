@@ -20,10 +20,9 @@ import {
   oneLine,
   POLL_TIMEOUT,
   SIDEBAR_BODY,
+  SIDEBAR_FOOT,
   TRASH_LINK,
 } from "@olai/tests/harness/world.ts";
-import { selector } from "@olai/web/testlib";
-import { TESTID } from "@olai/tests/harness/testids.ts";
 import {
   RAIL_TRASH,
   TRASH_EMPTY,
@@ -40,8 +39,6 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** One trash row, by the archived node it draws. A selector string for the
  *  same reason `nodeSelector` is one. */
-const SIDEBAR_FOOT = selector(TESTID.sidebarFoot);
-
 const trashRow = (id: string): string => `${TRASH_ROW}${attr("data-node-id", id)}`;
 
 /** The door is the trash row's own `foot` entry: pinned under the scrolling

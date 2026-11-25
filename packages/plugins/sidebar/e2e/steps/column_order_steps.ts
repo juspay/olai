@@ -17,7 +17,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 import { opacityOf } from "@olai/tests/harness/paint.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
-import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR, SIDEBAR_BODY } from "@olai/tests/harness/world.ts";
+import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR, SIDEBAR_BODY, SIDEBAR_FOOT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { selector } from "@olai/web/testlib";
 
@@ -45,26 +45,67 @@ const partOf = (name: string): string => {
   return found;
 };
 
-/** Where each named part's top edge is, in the order asked, read in one go so
- *  a column that scrolls cannot move between two readings. */
-const topsOf = (world: OlaiWorld, parts: ReadonlyArray<string>): Promise<ReadonlyArray<number | null>> =>
-  world.page.locator(SIDEBAR).evaluate((column, selectors) =>
-    selectors.map((one) => {
+/** One named part as the column draws it: its top edge, and — when it is
+ *  pinned in the foot rather than in the scrolling list — where the foot
+ *  starts. `null` when the part is not drawn at all. */
+type Part = { readonly top: number; readonly foot: number | null } | null;
+
+/** The column read once: where the scrolling list's box ends, and each part. */
+type Column = { readonly listEnd: number; readonly parts: ReadonlyArray<Part> };
+
+/** Every named part, and where the scrolling list's box ends, read in one go
+ *  so a column that scrolls cannot move between two readings. */
+const readColumn = (world: OlaiWorld, parts: ReadonlyArray<string>): Promise<Column> =>
+  world.page.locator(SIDEBAR).evaluate((column, [selectors, body, foot]) => ({
+    listEnd: column.querySelector(body)?.getBoundingClientRect().bottom ?? Number.NaN,
+    parts: selectors.map((one) => {
       const found = column.querySelector(one);
-      return found === null ? null : found.getBoundingClientRect().top;
-    }), parts.map(partOf));
+      if (found === null) return null;
+      const pinned = found.closest(foot);
+      return { top: found.getBoundingClientRect().top, foot: pinned === null ? null : pinned.getBoundingClientRect().top };
+    }),
+  }), [parts.map(partOf), SIDEBAR_BODY, SIDEBAR_FOOT] as const);
+
+/** The last part of one kind read so far: what the next one is compared with. */
+type Last = { readonly name: string; readonly top: number } | null;
+
+/** What is wrong with the order asked, or `null` when the column reads in it.
+ *
+ *  TWO KINDS OF PART, asked two different things. The scrolling list's parts
+ *  share one scroller, so their tops stand in order even below the fold, and
+ *  they are compared with each other. A part pinned in the foot (Trash) is
+ *  not on that scale at all — the list scrolls UNDER it, so its top is above
+ *  a heading the reader has not scrolled to yet — and what is true of it is
+ *  that it is in the foot, and that the foot starts where the list's box ends
+ *  or below. A foot part therefore comes after every list part in the table,
+ *  and a table that names one before a list part is the wrong order. */
+const misreading = (names: ReadonlyArray<string>, column: Column): string | null => {
+  let listTop: Last = null;
+  let footTop: Last = null;
+  for (const [i, name] of names.entries()) {
+    const part = column.parts[i];
+    if (part === null || part === undefined) return `${name} is not drawn`;
+    if (part.foot === null) {
+      if (footTop !== null) return `${name} is in the scrolling list, and ${footTop.name}, asked for before it, is pinned in the foot`;
+      if (listTop !== null && part.top <= listTop.top) return `${name} stands above ${listTop.name}`;
+      listTop = { name, top: part.top };
+    } else {
+      if (!(part.foot >= column.listEnd - 1)) return `${name}'s foot starts at ${part.foot}, above where the list's box ends (${column.listEnd})`;
+      if (footTop !== null && part.top <= footTop.top) return `${name} stands above ${footTop.name} in the foot`;
+      footTop = { name, top: part.top };
+    }
+  }
+  return null;
+};
 
 Then("the sidebar reads, top to bottom:", async function (this: OlaiWorld, table: { raw(): string[][] }) {
   const names = table.raw().map((row) => row[0] ?? "");
   await this.showSidebar();
   await this.page.locator(SIDEBAR_BODY).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const inOrder = async () => {
-    const tops = await topsOf(this, names);
-    return tops.every((top, i) => top !== null && (i === 0 || top > tops[i - 1]!));
-  };
-  await this.waitUntil(inOrder, `the sidebar to read ${names.join(", ")}`).catch(async () => {
-    const tops = await topsOf(this, names);
-    assert.fail(`the sidebar's parts stand at ${JSON.stringify(Object.fromEntries(names.map((name, i) => [name, tops[i]])))}, not in the order ${names.join(", ")}`);
+  await this.waitUntil(async () => misreading(names, await readColumn(this, names)) === null,
+    `the sidebar to read ${names.join(", ")}`).catch(async () => {
+    const column = await readColumn(this, names);
+    assert.fail(`the sidebar's parts stand at ${JSON.stringify(Object.fromEntries(names.map((name, i) => [name, column.parts[i]])))}, list ending at ${column.listEnd}: ${misreading(names, column) ?? "in order now"}, not in the order ${names.join(", ")}`);
   });
 });
 
